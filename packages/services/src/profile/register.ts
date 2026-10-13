@@ -167,7 +167,11 @@ export const registration = defineRegistration("profile", {
       inUse: async (tx, fileId) =>
         (
           await tx.storeProfile.findMany({
-            where: { logoFileId: fileId, entity: { lifecycle: { not: "closed" } } },
+            where: {
+              logoFileId: fileId,
+              store: { lifecycle: "active" },
+              entity: { lifecycle: { not: "closed" } },
+            },
             select: { storeId: true },
           })
         ).map((row) => ({ fileId, refId: row.storeId, role: "logo" })),
@@ -184,7 +188,12 @@ export const registration = defineRegistration("profile", {
       inUse: async (tx, fileId) =>
         (
           await tx.storeProfileMedia.findMany({
-            where: { fileId, removedAt: null, entity: { lifecycle: { not: "closed" } } },
+            where: {
+              fileId,
+              removedAt: null,
+              store: { lifecycle: "active" },
+              entity: { lifecycle: { not: "closed" } },
+            },
             select: { id: true },
           })
         ).map((row) => ({ fileId, refId: row.id, role: "main" })),
@@ -209,6 +218,7 @@ export const registration = defineRegistration("profile", {
             where: {
               imageFileId: fileId,
               removedAt: null,
+              store: { lifecycle: "active" },
               entity: { lifecycle: { not: "closed" } },
             },
             select: { id: true },
