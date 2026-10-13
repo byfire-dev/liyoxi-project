@@ -1,35 +1,54 @@
-// 违规上报端口 invariants.report 的实现（W0-24）。kernel 定义端口，ops 在 register.ts 登记这一份。
-// 依据：15 分组 第 5.2 节。给巡检循环、补偿扫描这类自己发现违规的地方用，上报的行不属于任何一次运行。
-//
-//   1. 用连接池直接发一条语句：自己就是一个短事务，不加入调用方的事务，也不经 tx.run——
-//      调用方在事务里照样能报，它的事务回滚了，违规照样留下。
-//   2. 按该编号登记的自愈策略写（去重、auto_healed_at、自动关闭与运行里的口径相同）；编号没登记的按 none。
-//   3. 抛错由 kernel 的外壳（invariantsOf）吞掉并记日志，不抛给调用方。没绑运行时也按抛错算。
-import type { Invariants } from "../../kernel/index.js";
+// 违规上报复用同一writeViolations；实际API/worker端口捕获所属实例，旧静态调用保留全局入口。
+// profile在业务提交后调用独立短事务；kernel invariantsOf保证端口故障不覆盖业务结果。
+import { invariantsPort } from "../../kernel/index.js";
+import type { Assembly, InvariantReport, Invariants, Port } from "../../kernel/index.js";
 import { requireOps } from "../binding.js";
+import type { OpsBinding } from "../binding.js";
 import { writeViolations } from "./store.js";
 
-export const reportingInvariants: Invariants = {
-  async report(input) {
-    const ops = requireOps("invariants.report");
-    await writeViolations(
-      ops.db,
+type Reporting = Pick<OpsBinding, "db" | "clock" | "assembly">;
+async function writeReport(ops: Reporting, input: InvariantReport): Promise<void> {
+  await writeViolations(
+    ops.db,
+    {
+      runId: null,
+      code: input.code,
+      module: input.module,
+      severity: input.severity,
+      heal: ops.assembly.invariant(input.code)?.heal ?? "none",
+      now: ops.clock.now(),
+    },
+    [
       {
-        runId: null,
-        code: input.code,
-        module: input.module,
-        severity: input.severity,
-        heal: ops.assembly.invariant(input.code)?.heal ?? "none",
-        now: ops.clock.now(),
+        detail: input.detail,
+        ...(input.subject === undefined ? {} : { subject: input.subject }),
+        ...(input.entityId === undefined ? {} : { entityId: input.entityId }),
+        ...(input.healed === undefined ? {} : { healed: input.healed }),
       },
-      [
-        {
-          detail: input.detail,
-          ...(input.subject === undefined ? {} : { subject: input.subject }),
-          ...(input.entityId === undefined ? {} : { entityId: input.entityId }),
-          ...(input.healed === undefined ? {} : { healed: input.healed }),
-        },
-      ],
-    );
-  },
+    ],
+  );
+}
+export const reportingInvariants: Invariants = {
+  report: (input) => writeReport(requireOps("invariants.report"), input),
 };
+
+/** 只替换正式report实现，保留样例/自定义port；writer、策略及SQL沿原不变量模块。 */
+export function createInvariantReportingAssembly(
+  base: Assembly,
+  deps: Pick<Reporting, "db" | "clock">,
+): Assembly {
+  const slot = base.portImplementations.find((item) => item.port === invariantsPort);
+  if (slot?.impl !== reportingInvariants) return base;
+  const reporting: Invariants = {
+    report: (input) => writeReport({ ...deps, assembly: base }, input),
+  };
+  return {
+    ...base,
+    portImplementations: base.portImplementations.map((item) =>
+      item === slot ? { ...item, impl: reporting } : item,
+    ),
+    port<T>(port: Port<T>): T {
+      return port === invariantsPort ? (reporting as T) : base.port(port);
+    },
+  };
+}

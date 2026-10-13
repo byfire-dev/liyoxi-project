@@ -1,5 +1,7 @@
 // W0-21 种子：套餐与首版价目、积分包、等级模板价、计费参数、估值口径
 export { seed } from "./seed.js";
+export { createPlanAdmin, planActivityCounts } from "./catalog/plans-admin.js";
+export type { PlanAdminActor } from "./catalog/plans-admin.js";
 export {
   BILLING_PARAM_SEEDS,
   cyclePricesOf,

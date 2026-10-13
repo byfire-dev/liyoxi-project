@@ -32,7 +32,7 @@ export interface StoreQualificationInput {
   readonly submissionId?: string;
   /** approve 必给：写进主体的认证字段 */
   readonly verified?: VerifiedEntityFields;
-  /** reject 必给：原因至少一项、说明必填 */
+  /** reject必给：员工至少一个原因；系统空原因须通过真实重复主体事实守卫。 */
   readonly rejection?: QualificationRejection;
   /** 随审批单联动时：两次迁移并入审批单那一行审计，不另写。不给即各补一条 activity 行 */
   readonly audit?: MergedAudit;
@@ -152,6 +152,7 @@ export async function setStoreQualification(
   if (action === "submit" && store.name === null) refuse("store_name_required");
 
   const args: QualificationArgs = {
+    ...(input.submissionId === undefined ? {} : { submissionId: input.submissionId }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
     ...(input.rejection === undefined ? {} : { rejection: input.rejection }),
   };

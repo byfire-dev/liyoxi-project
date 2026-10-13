@@ -1,4 +1,10 @@
 export { createProfile } from "./service.js";
+export {
+  createProfileQualificationConsistency,
+  createProfileConsistencyAssembly,
+  PROFILE_APPROVED_EVENTS,
+} from "./qualification-consistency.js";
+export type { ProfileQualificationConsistency } from "./qualification-consistency.js";
 export { readEntityStoreProfileFacts } from "./entity-summary.js";
 export type { EntityStoreProfileSummary } from "./entity-summary.js";
 export type { Profile } from "./service.js";
@@ -40,3 +46,7 @@ export {
   countUnverifiedPrimaryStore,
   countSubmittedQualificationHistory,
 } from "./close-facts.js";
+
+export { createProfileConsistencyTransactions } from "./consistency-transactions.js";
+
+export type { ProfileConsistencyTransactions } from "./consistency-transactions.js";
