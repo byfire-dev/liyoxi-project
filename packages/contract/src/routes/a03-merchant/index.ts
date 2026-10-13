@@ -47,6 +47,8 @@ export * from "./error-details.js";
 
 export * from "./stores.schemas.js";
 export * from "./store-activity.schemas.js";
+export * from "./assignment-contact.schemas.js";
+export * from "./assignment-histories.js";
 export * from "./qualification.schemas.js";
 export { adminQualificationDocUpdate } from "./qualification-docs.js";
 export {
