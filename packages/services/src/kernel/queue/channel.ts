@@ -82,8 +82,8 @@ const snapshotSchema = z.object({
   oldestWaitingComplete: z.boolean(),
   paused: z.boolean(),
   pauseAt: count.nullable(),
+  resumeAt: count.nullable(),
   historyStart: count.nullable(),
-  historyFull: z.boolean(),
 });
 // Redis内原子读：不改meta、不移动任务、不清理失败历史；扫描任务至多501、事件至多1000。
 const OBSERVE_LUA = `
@@ -105,11 +105,10 @@ if complete and waiting > 0 then
 end
 if not complete then oldest = cjson.null end
 local pauseAt = cjson.null
+local resumeAt = cjson.null
 local historyStart = cjson.null
-local historyFull = false
 if paused then
   local events = redis.call('XREVRANGE',KEYS[7],'+','-','COUNT',1000)
-  historyFull = #events == 1000
   if #events > 0 then historyStart = tonumber(string.match(events[#events][1],'^(%d+)%-')) end
   for _,entry in ipairs(events) do
     local values = entry[2]
@@ -117,14 +116,14 @@ if paused then
     for i=1,#values,2 do
       if values[i] == 'event' then
         if values[i+1] == 'paused' then pauseAt = tonumber(string.match(entry[1],'^(%d+)%-')); control = true; break end
-        if values[i+1] == 'resumed' then control = true; break end
+        if values[i+1] == 'resumed' then resumeAt = tonumber(string.match(entry[1],'^(%d+)%-')); control = true; break end
       end
     end
     if control then break end
   end
 end
 return cjson.encode({waiting=waiting,active=active,failed10Min=failed,oldestWaitingAt=oldest,
-  oldestWaitingComplete=complete,paused=paused,pauseAt=pauseAt,historyStart=historyStart,historyFull=historyFull})
+  oldestWaitingComplete=complete,paused=paused,pauseAt=pauseAt,resumeAt=resumeAt,historyStart=historyStart})
 `;
 
 const withTimeout = <T>(work: Promise<T>, ms: number, what: string): Promise<T> =>
@@ -296,8 +295,9 @@ export function createQueueChannel(options: QueueChannelOptions): QueueChannel {
           pausedSince =
             previous &&
             now >= previous.checkedAt &&
-            (!facts.historyFull ||
-              (facts.historyStart !== null && facts.historyStart <= previous.checkedAt))
+            facts.historyStart !== null &&
+            facts.historyStart <= previous.checkedAt &&
+            (facts.resumeAt === null || facts.resumeAt <= previous.checkedAt)
               ? previous.since
               : now;
           pauseObserved.set(id, { since: pausedSince, checkedAt: now });
