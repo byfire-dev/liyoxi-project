@@ -329,6 +329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/assignment-histories/{assignmentHistoryId}/mark-contacted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 新交付经理标记“已联系商家”（关闭联系时限） */
+        post: operations["admin.assignmentHistory.markContacted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/assignment-pool-members": {
         parameters: {
             query?: never;
@@ -578,6 +595,40 @@ export interface paths {
         put?: never;
         /** 校验 6 位动态口令或恢复码，建立员工会话 */
         post: operations["admin.auth.verifyMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing-params": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分规则参数：取消扣除比例三档、广告每条积分、免费修改次数、顶级模型加扣、最短可订授权期、可选购买周期、提醒节点；当前值、待生效值与默认值 */
+        get: operations["admin.billingParam.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/billing-params/{billingParamId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤销一条待生效参数（整组撤销时撤回公告） */
+        post: operations["admin.billingParam.withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2167,6 +2218,24 @@ export interface paths {
         get: operations["admin.priceTierRevision.list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** “积分价模板与参数”变更记录：合并返回等级模板价与计费参数两类历史（按变更集聚合） */
+        get: operations["admin.pricingChange.list"];
+        put?: never;
+        /** 保存“积分价模板与参数”变更集：等级模板价（4 档，S ≥ A ≥ B ≥ C）与计费参数 [{key, value, effectiveAt}] 在同一事务写两类修订；按模板定价的剧同步变价；计费规则类同事务建公告 */
+        post: operations["admin.pricingChange.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4130,7 +4199,7 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             storeName: string | null;
-            thumbnail: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            thumbnail: components["schemas"]["SignedUrl"] | null;
             timelinessTag: components["schemas"]["AssetTag"] & (Record<string, never> | null);
             title: string | null;
             /** @enum {string} */
@@ -4522,6 +4591,17 @@ export interface components {
             /** Format: date */
             validStartDate: string | null;
         };
+        AssignmentContactView: {
+            /** Format: uuid */
+            assignmentHistoryId: string;
+            /** Format: date-time */
+            contactDueAt: string;
+            contactedAt: string | null;
+            contactedBy: components["schemas"]["StaffBrief"] | null;
+            /** Format: uuid */
+            storeId: string;
+            toStaff: components["schemas"]["StaffBrief"];
+        };
         AuditLogDetail: components["schemas"]["AuditLogItem"] & {
             after: {
                 [key: string]: unknown;
@@ -4604,6 +4684,65 @@ export interface components {
             prefix: string;
             region: string;
             sts: components["schemas"]["StsCredential"];
+        };
+        BillingParamList: {
+            /** Format: date */
+            earliestNoticedEffectiveDate: string;
+            items: components["schemas"]["BillingParamView"][];
+            noticeDays: number;
+        };
+        BillingParamView: {
+            actions: "withdraw"[];
+            current: {
+                /** Format: uuid */
+                billingParamId: string;
+                /** Format: uuid */
+                changeId: string;
+                createdBy: components["schemas"]["StaffBrief"] | null;
+                /** Format: date-time */
+                effectiveAt: string;
+                value: number | number[] | {
+                    [key: string]: number | string | null;
+                };
+            };
+            defaultValue: number | number[] | {
+                [key: string]: number | string | null;
+            };
+            /** @enum {string} */
+            key: "adUnitPoints" | "adFreeRevisions" | "topModelSurchargeBp" | "cancelDeductionBp" | "expiredTermRefund" | "minLicenseMonths" | "renewalReminderDays" | "prorationBaseDays" | "planRefundWindowHours" | "enabledCycles" | "maxScheduledTerms" | "noticeDays";
+            needsNotice: boolean;
+            pending: {
+                /** Format: uuid */
+                billingParamId: string;
+                /** Format: uuid */
+                changeId: string;
+                createdBy: components["schemas"]["StaffBrief"] | null;
+                /** Format: date-time */
+                effectiveAt: string;
+                /** Format: uuid */
+                siteNoticeId: string | null;
+                value: number | number[] | {
+                    [key: string]: number | string | null;
+                };
+            } | null;
+            schema: {
+                max?: number;
+                min?: number;
+                subKeys?: {
+                    [key: string]: unknown;
+                };
+                /** @enum {string} */
+                type: "integer" | "integer_list" | "object";
+            };
+        };
+        BillingParamWithdrawBody: {
+            confirm: {
+                /** Format: date-time */
+                effectiveAt: string;
+                /** @enum {string} */
+                key: "adUnitPoints" | "adFreeRevisions" | "topModelSurchargeBp" | "cancelDeductionBp" | "expiredTermRefund" | "minLicenseMonths" | "renewalReminderDays" | "prorationBaseDays" | "planRefundWindowHours" | "enabledCycles" | "maxScheduledTerms" | "noticeDays";
+            };
+            note?: string;
         };
         BindWecomSelfBody: {
             code?: string;
@@ -6945,6 +7084,157 @@ export interface components {
             templateDramaCount: number;
             /** @enum {string} */
             tier: "S" | "A" | "B" | "C" | (string & {});
+        };
+        PricingChangeCreateBody: {
+            note?: string;
+            notice?: {
+                isBarEnabled?: boolean;
+                summary?: string;
+                summaryNoPrice?: string;
+                title?: string;
+            } | null;
+            params?: ({
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "adUnitPoints";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "adFreeRevisions";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "topModelSurchargeBp";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "cancelDeductionBp";
+                value: {
+                    adAndSample: number | null;
+                    adInProduction: number | null;
+                    planConfirm: number | null;
+                    postSample: number | null;
+                    samplePending: number | null;
+                };
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "expiredTermRefund";
+                value: {
+                    /** @enum {string} */
+                    merchant: "addon" | "forfeit";
+                    /** @enum {string} */
+                    platform: "addon" | "forfeit";
+                    /** @enum {string} */
+                    qualification: "addon" | "forfeit";
+                };
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "minLicenseMonths";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "renewalReminderDays";
+                value: number[];
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "prorationBaseDays";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "planRefundWindowHours";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "enabledCycles";
+                value: number[];
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "maxScheduledTerms";
+                value: number;
+            } | {
+                /** Format: date */
+                effectiveDate?: string | null;
+                /** @enum {string} */
+                key: "noticeDays";
+                value: number;
+            })[] | null;
+            tiers?: {
+                A: number;
+                B: number;
+                C: number;
+                S: number;
+            } | null;
+        };
+        PricingChangePage: {
+            items: components["schemas"]["PricingChangeRecord"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        PricingChangeRecord: {
+            /** Format: uuid */
+            changeSetId: string;
+            /** Format: date-time */
+            createdAt: string;
+            createdBy: components["schemas"]["StaffBrief"] | null;
+            note: string | null;
+            notice: {
+                /** Format: date-time */
+                effectiveAt: string;
+                /** Format: uuid */
+                siteNoticeId: string;
+                /** @enum {string} */
+                status: "announced" | "withdrawn" | (string & {});
+                title: string;
+            } | null;
+            paramItems: {
+                /** Format: uuid */
+                billingParamId: string;
+                /** Format: date-time */
+                effectiveAt: string;
+                /** @enum {string} */
+                key: "adUnitPoints" | "adFreeRevisions" | "topModelSurchargeBp" | "cancelDeductionBp" | "expiredTermRefund" | "minLicenseMonths" | "renewalReminderDays" | "prorationBaseDays" | "planRefundWindowHours" | "enabledCycles" | "maxScheduledTerms" | "noticeDays";
+                previousValue: number | number[] | {
+                    [key: string]: number | string | null;
+                } | null;
+                /** @enum {string} */
+                status: "pending" | "effective" | "superseded" | "cancelled" | (string & {});
+                value: number | number[] | {
+                    [key: string]: number | string | null;
+                };
+            }[];
+            summaryText: string;
+            tierItems: {
+                /** Format: date-time */
+                effectiveAt: string;
+                points: number;
+                previousPoints: number | null;
+                /** Format: uuid */
+                priceTierRevisionId: string;
+                /** @enum {string} */
+                tier: "S" | "A" | "B" | "C" | (string & {});
+            }[];
         };
         PublishApprovalView: components["schemas"]["ApprovalDecisionView"] & {
             checklist: {
@@ -9940,6 +10230,94 @@ export interface operations {
             };
         };
     };
+    "admin.assignmentHistory.markContacted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignmentHistoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AssignmentContactView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.assignmentPoolMember.list": {
         parameters: {
             query?: {
@@ -10986,6 +11364,154 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.billingParam.list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["BillingParamList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.billingParam.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                billingParamId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingParamWithdrawBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["BillingParamView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19824,6 +20350,150 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pricingChange.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                kind?: "price_tier" | "billing_param";
+                key?: "adUnitPoints" | "adFreeRevisions" | "topModelSurchargeBp" | "cancelDeductionBp" | "expiredTermRefund" | "minLicenseMonths" | "renewalReminderDays" | "prorationBaseDays" | "planRefundWindowHours" | "enabledCycles" | "maxScheduledTerms" | "noticeDays";
+                createdFrom?: string;
+                createdTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PricingChangePage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pricingChange.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingChangeCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PricingChangeRecord"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

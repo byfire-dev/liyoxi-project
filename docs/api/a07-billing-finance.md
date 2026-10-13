@@ -1298,7 +1298,7 @@
 - 应用生成变更集 id，同时用作 `billing_param.change_id` 与 `price_tier_revision.batch_id`（2.6）。
 - 含需公告的键：先 `notices.announce`（`kind = billing_param`，`ref_id` = 变更集 id，`effective_at` = 该组生效时刻）：`site_notice`：（新建）→ `announced`，出站事件 `site_notice.announced`；再插需公告的各行，写好同一个 `site_notice_id`（07-billing-ledger.md:380-384）。
 - 插入 `billing_param` 各行（`created_by_staff_id` = 本人）；生效时间晚于当前时刻的每行发 `billing.param_change_scheduled`（负载带 `changeId`）。
-- 插入 `price_tier_revision` 各行；按模板定价、热度等级为变化档的剧，价格随即变化，逐部发 `pricing.drama_price_changed`（聚合取 `drama`，`cause = tier_template`；07-billing-ledger.md:1600）。x01 目录里这个事件的 `cause` 只有 `revision`、`tier_change`，发出方也没有本接口：已请 x01 补登 `tier_template` 与发出方（cross_doc），x01 定稿后按它改。
+- 插入 `price_tier_revision` 各行；按模板定价、热度等级为变化档的剧，价格随即变化，逐部发 `pricing.drama_price_changed`（聚合取 `drama`，`cause = tier_template`；07-billing-ledger.md:1600）。x01 §3.7 与现契约已登记 `tier_template` 及本接口发出方，沿该正式口径发出，不新增事件名。
 - 审计：每个参数键一条（`category = param`、`target_type = billing_param`、`target_key` = 键），模板价一条（`category = price_adjust`、`target_type = price_tier_revision`），`before` / `after` 记旧值与新值，`meta` 带 `changeSetId` 与 `note`。
 - 无状态迁移（修订行不是状态机），无定时器（参数按时间取值）。
 

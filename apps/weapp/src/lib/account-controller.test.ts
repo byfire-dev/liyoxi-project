@@ -226,16 +226,17 @@ describe("账户启动与登录", () => {
     ).toBe("real");
     expect(JSON.stringify(source.get(StorageKey.attribution))).not.toContain("13800138000");
   });
-  it("未勾选与无效号码不请求；过期版本重拉；成功回原页面并账号切换只提示一次", async () => {
+  it("未勾选与无效凭证不请求；真实opaque码登录保协议、归因与回跳", async () => {
     const env = setup(null);
     await env.controller.loadAgreements();
     await expect(env.controller.phoneLogin("13800138000", false)).rejects.toThrow(
       "请先阅读并勾选下方协议",
     );
-    await expect(env.controller.phoneLogin("12", true)).rejects.toThrow("11位手机号");
+    await expect(env.controller.phoneLogin("", true)).rejects.toThrow("授权凭证无效");
+    await expect(env.controller.phoneLogin("c".repeat(129), true)).rejects.toThrow("授权凭证无效");
     expect(env.api.phone).not.toHaveBeenCalled();
     vi.mocked(env.api.phone).mockRejectedValueOnce(failure("AGREEMENT_VERSION_STALE"));
-    await expect(env.controller.phoneLogin("13800138000", true)).rejects.toMatchObject({
+    await expect(env.controller.phoneLogin("opaque-phone-code/a_1", true)).rejects.toMatchObject({
       error: "AGREEMENT_VERSION_STALE",
     });
     expect(env.api.agreements).toHaveBeenCalledTimes(2);
@@ -245,10 +246,10 @@ describe("账户启动与登录", () => {
       isNewUser: false,
       switchedFrom: { phoneMask: "139****9000" },
     });
-    await env.controller.phoneLogin("13800138000", true);
+    await env.controller.phoneLogin("opaque-phone-code/a_2", true);
     expect(env.api.phone).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        phoneCode: "13800138000",
+        phoneCode: "opaque-phone-code/a_2",
         attribution: { channelCode: "demo", inviteCode: "private-token" },
         consents: agreements.items.map((item) => ({
           agreementKey: item.agreementKey,

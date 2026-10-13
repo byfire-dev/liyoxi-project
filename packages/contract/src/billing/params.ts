@@ -7,6 +7,17 @@ import { z } from "../zod.js";
 const bp = BpSchema.min(0).max(10_000);
 /** 原周期已结束的套餐积分退回去向：转为加购积分，或不予退回 */
 const refundTarget = z.enum(["addon", "forfeit"]);
+/** 07§4.3的八个公告键；不把受控财务配置放进billing_param。 */
+export const NOTICE_REQUIRED_KEYS = [
+  "adUnitPoints",
+  "adFreeRevisions",
+  "topModelSurchargeBp",
+  "cancelDeductionBp",
+  "expiredTermRefund",
+  "prorationBaseDays",
+  "planRefundWindowHours",
+  "enabledCycles",
+] as const;
 
 export const BILLING_PARAM_VALUES = {
   /** 广告每条积分 */

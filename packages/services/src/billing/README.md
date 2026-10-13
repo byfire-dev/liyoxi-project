@@ -168,7 +168,19 @@ W2-10 关闭前置的 `deletionGuard(tx, entityId)` 按 m07 第1节返回四项�
 previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局月内指标另按主体去重，
 不把不同版本计数相加，MRR用整数求和。
 
-参数/模板变更仍未实现。后台试算暂未挂载：现有`quotePlanPurchase`只支持首次开通，
-active/scheduled周期明确拒绝，真实续费/升级待W4-05/06公口，不以通用试算冒称完整。
-本片只冻结源码并做格式/ESLint；新增6–8风险组和ROOT定点验收未执行前保持SOURCE，
-不代表W4-07、M4、远端CI或真实支付验证完成。
+价目公告链七组真实HTTP/DB风险及类型/依赖/审计/权限/挂载定点已ROOT验收通过，已合本地main。
+
+## W4-07 参数与模板变更集
+
+`Runtime.billingParameters`接12键参数列表、变更集保存/记录与未来单键撤回四正式接口。
+逐键校验只消费contract canonical，当前值仍取`paramsAt`；完整公告期、变化键/档、待生效
+冲突与当前/未来周期价格覆盖沿同catalog咨询锁，公告/修订/原scheduled事件/审计共TX。
+上架先取同锁并核周期价格交叉区间，防下架套餐绕过参数检查后缺价上架。content只读公口
+提供候选ID/等级，billing经`priceAt`仅对真实template价差发原tier_template事件；custom与
+历史冻结/订阅/付款快照不改。撤回只填cancelledAt，共享公告最后一键撤回才同TX撤公告。
+实现细节见[定价README](pricing/README.md)；新增六组DB与两组正式HTTP、类型/依赖与
+官方契约/登记/审计/权限/挂载定点已ROOT验收通过，唯一生产独审无P1/P2。
+
+后台试算暂未挂载：现有`quotePlanPurchase`只支持首次开通，active/scheduled周期明确
+拒绝，真实续费/升级待W4-05/06公口，不以通用试算冒称完整。W4-07整包继续进行中，
+不代表M4、远端CI或真实支付验证完成。

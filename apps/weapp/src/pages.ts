@@ -257,7 +257,8 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   page("sub/service/messages/index", "sub/service", "消息", "Messages", "M36", "M2", "W2-19", {
     implemented: true,
   }),
-  page("sub/service/settings/index", "sub/service", "设置", null, null, "M2", "G2-B", {
+  page("sub/service/settings/index", "sub/service", "设置", null, null, "M2", "W2-13", {
+    implemented: true,
     note: "新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑",
   }),
   // sub/member（3 页）

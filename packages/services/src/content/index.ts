@@ -48,3 +48,4 @@ export {
 } from "./admin-read.js";
 export type { ContentAdminReadDeps } from "./admin-read.js";
 export { listDramasLicenseEndingOn } from "./reminder.js";
+export { readTemplatePriceCandidates } from "./price-candidates.js";

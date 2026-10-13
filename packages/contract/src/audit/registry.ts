@@ -161,6 +161,7 @@ export const AUDIT_TARGET_TYPES = [
   "store_asset_demand", // W3-14：素材需求审计
   "plan", // W4-07：套餐版本改名与上下架，真实对象为plan而非价目修订
   "plan_revision", // W4-07：不可变价目修订创建与生效前撤回
+  "price_tier_revision", // W4-07：只增等级模板价，同次保存一审计
   "file_purge_run", // W3-06：真实清除运行放行与驳回
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];

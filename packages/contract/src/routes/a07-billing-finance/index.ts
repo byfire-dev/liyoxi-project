@@ -47,3 +47,6 @@ export * from "./error-details.js";
 export * from "./plans.schemas.js";
 export * from "./plans.js";
 export * from "./plan-revisions.js";
+export * from "./parameters.schemas.js";
+export * from "./billing-params.js";
+export * from "./pricing-changes.js";
