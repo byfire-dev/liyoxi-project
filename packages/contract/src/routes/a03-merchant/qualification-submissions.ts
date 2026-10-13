@@ -1,8 +1,9 @@
 // 后台：商家、资质审核与素材复核 · qualification-submissions（docs/api/a03-merchant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
+import { z } from "../../zod.js";
+import { FinalRejectImpactSchema } from "../a05-order-delivery/cancel.schemas.js";
 import {
   QualificationSubmissionDetailSchema,
   QualificationApproveBodySchema,
@@ -66,7 +67,7 @@ export const adminQualificationSubmissionReject = adminRoute({
   },
 });
 
-export const adminQualificationSubmissionRejectQuote = adminMeta({
+export const adminQualificationSubmissionRejectQuote = adminRoute({
   method: "post",
   path: "/admin/qualification-submissions/{qualificationSubmissionId}/reject-quote",
   operationId: "admin.qualificationSubmission.rejectQuote",
@@ -74,4 +75,12 @@ export const adminQualificationSubmissionRejectQuote = adminMeta({
   "x-permission": "merchant.qualification.review",
   "x-idempotent": "none",
   "x-idempotent-reason": "试算（A20）",
+  request: {
+    params: QualificationSubmissionParamsSchema,
+    body: { content: { "application/json": { schema: z.strictObject({}) } }, required: true },
+  },
+  responses: {
+    ...okResponse(FinalRejectImpactSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createIdentityContext } from "../kernel/index.js";
-import { openSealed, useSeededDatabase } from "../testing/index.js";
+import { openSealed, sampleStaffContext, useSeededDatabase } from "../testing/index.js";
 import { complete, harness, submit } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 const db = useSeededDatabase("services");
@@ -116,24 +116,27 @@ describe("资质审核领域回调", { timeout: 60000 }, () => {
       }),
     ).toBe(1);
   });
-  it("轮次回显不一致及终局留桩均回滚审批决定", async () => {
+  it("轮次回显不一致及终局缺少三项回显均回滚审批决定", async () => {
     const { viewer } = await h.owner(),
       ready = await complete(h, viewer);
     await submit(h, viewer, ready.submissionId);
     await expect(
       h.profile.approve(ctx, ready.submissionId, { lockVersion: 0, confirm: { roundNo: 2 } }),
     ).rejects.toMatchObject({ error: "CONFIRM_MISMATCH" });
+    const reviewer = await h.make.staff({ staffRoleKey: "super_admin" });
     await expect(
-      h.profile.reject(ctx, ready.submissionId, {
-        confirm: { roundNo: 1 },
-        reasonCodes: ["R01"],
-        note: "不能补正",
-        isFinal: true,
-      }),
-    ).rejects.toMatchObject({
-      error: "STATE_NOT_ALLOWED",
-      details: { reason: "final_reject_not_open" },
-    });
+      h.profile.admin.reject(
+        createIdentityContext({ actor: { type: "staff", id: reviewer.id, client: "admin" } }),
+        await sampleStaffContext(h.prisma, reviewer.id),
+        ready.submissionId,
+        {
+          confirm: { roundNo: 1 },
+          reasonCodes: ["R01"],
+          note: "不能补正",
+          isFinal: true,
+        },
+      ),
+    ).rejects.toMatchObject({ error: "CONFIRM_MISMATCH" });
     const round = await h.prisma.qualificationSubmission.findUniqueOrThrow({
       where: { id: ready.submissionId },
     });

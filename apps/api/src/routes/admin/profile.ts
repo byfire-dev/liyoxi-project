@@ -5,6 +5,7 @@ import {
   adminQualificationSubmissionGet,
   adminQualificationSubmissionApprove,
   adminQualificationSubmissionReject,
+  adminQualificationSubmissionRejectQuote,
 } from "@liyoxi/contract";
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
@@ -63,6 +64,16 @@ export const adminProfileHandlers = [
       ),
     ),
   ),
+  defineAdminHandler(adminQualificationSubmissionRejectQuote, moduleNeed, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await merchantServicesOf(c.var.runtime).profile.admin.rejectQuote(
+        staff.ctx,
+        c.req.valid("param").qualificationSubmissionId,
+      ),
+    );
+  }),
   defineAdminHandler(adminStoreAssignDeliveryManager, moduleNeed, async (c, staff) =>
     ok(
       c,

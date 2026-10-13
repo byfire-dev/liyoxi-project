@@ -19,6 +19,7 @@ import {
 import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, WriteOptions } from "./context.js";
 import { withQualificationCall } from "./qualification-kind.js";
+import { QualificationImpactPort } from "./ports.js";
 export function createAdminProfile(deps: ProfileDeps) {
   async function guard(
     tx: Tx,
@@ -48,7 +49,10 @@ export function createAdminProfile(deps: ProfileDeps) {
       assertPermission(staff, "merchant.qualification.override", deps.clock.now());
     if ("lockVersion" in input && input.lockVersion !== row.lockVersion)
       throw new AppError("VERSION_CONFLICT", { details: { lockVersion: row.lockVersion } });
-    if (input.confirm?.roundNo !== first.roundNo || input.confirm?.roundNo !== row.roundNo)
+    if (
+      !("isFinal" in input && input.isFinal) &&
+      (input.confirm?.roundNo !== first.roundNo || input.confirm?.roundNo !== row.roundNo)
+    )
       throw new AppError("CONFIRM_MISMATCH");
     return aid;
   }
@@ -59,6 +63,21 @@ export function createAdminProfile(deps: ProfileDeps) {
       deps.tx.run((tx) => adminStoreGet(tx, deps, staff, id)),
     qualification: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminQualificationGet(tx, deps, staff, id)),
+    rejectQuote: (staff: StaffContext, id: string) =>
+      deps.tx.run(async (tx) => {
+        assertPermission(staff, "merchant.qualification.review", deps.clock.now());
+        const round = await scopedRound(tx, staff, id);
+        if (round.approvalRequest!.status !== "pending" || round.closedAt)
+          throw new AppError("APPROVAL_NOT_PENDING");
+        if (round.kind === "change") throw new AppError("QUALIFICATION_FINAL_NOT_ALLOWED");
+        return deps.assembly
+          .port(QualificationImpactPort)
+          .previewFinalReject(
+            tx,
+            { entityId: round.entityId, storeId: round.storeId },
+            deps.clock.now(),
+          );
+      }),
     approve: (
       ctx: IdentityContext,
       staff: StaffContext,

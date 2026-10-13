@@ -2069,6 +2069,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/qualification-submissions/{qualificationSubmissionId}/reject-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 终局驳回的影响预览：冻结中的订购、广告将整店取消并退回积分 */
+        post: operations["admin.qualificationSubmission.rejectQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/roles": {
         parameters: {
             query?: never;
@@ -18749,6 +18766,9 @@ export interface operations {
             content: {
                 "application/json": {
                     confirm?: {
+                        heldPoints?: number;
+                        pendingAssignAdCount?: number;
+                        pendingStartOrderCount?: number;
                         roundNo?: number;
                     };
                     /** @default false */
@@ -18770,6 +18790,101 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["QualificationSubmissionDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.qualificationSubmission.rejectQuote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qualificationSubmissionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            ads: {
+                                /** Format: uuid */
+                                adId: string;
+                                adNo: string;
+                                heldPoints: number;
+                            }[];
+                            /** Format: date-time */
+                            computedAt: string;
+                            heldPoints: number;
+                            orders: {
+                                heldPoints: number;
+                                /** Format: uuid */
+                                orderId: string;
+                                orderNo: string;
+                            }[];
+                            pendingAssignAdCount: number;
+                            pendingStartOrderCount: number;
+                        };
                         /** @enum {string} */
                         message: "ok";
                     };
