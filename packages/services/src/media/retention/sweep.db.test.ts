@@ -19,7 +19,7 @@ import {
 } from "../../testing/index.js";
 import { findI13Violations } from "./sweep-invariants.js";
 import { createMedia } from "../index.js";
-import type { RetentionOptions } from "../index.js";
+import type { RetentionOptions, RetentionActor } from "../index.js";
 
 const db = useSeededDatabase("services", { label: "sweep", max: 1 });
 const DAY = 86_400_000,
@@ -261,7 +261,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
         role: "main",
       }),
     );
-    vi.spyOn(h.fake.storage, "delete").mockResolvedValue(failed("unavailable"));
+    vi.spyOn(h.fake.storage, "delete").mockResolvedValue(failed("unavailable", true));
     const result = await sweep();
     expect(result.failed).toEqual(["incoming"]);
     expect(await h.prisma.fileObject.findUnique({ where: { id: pending.id } })).toMatchObject({
@@ -316,7 +316,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     expect(await h.prisma.filePurgeRun.count({ where: { createdAt: proposed.createdAt } })).toBe(1);
     for (const row of files) await asset(row.id);
     const signed = await signInAsStaff(h.prisma, { roleKey: "super_admin", now: h.clock.now() });
-    const actor = {
+    const actor: RetentionActor = {
       identity: createIdentityContext({
         actor: { type: "staff", id: signed.staff.id, client: "admin" },
       }),
@@ -402,7 +402,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     let failSettle = false;
     const deleting = vi.spyOn(h.fake.storage, "delete").mockImplementation(async (input) => {
       const result = await original(input);
-      if (input.key === unknown.objectKey) return failed("unavailable");
+      if (input.key === unknown.objectKey) return failed("unavailable", true);
       if (input.key === lostCommit.objectKey) failSettle = true;
       return result;
     });
