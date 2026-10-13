@@ -129,6 +129,26 @@ export async function writeHealthyProbeFact(
   );
 }
 
+/** 采样失败打断连续正常计数，但不凭未知结果新开或恢复业务告警。 */
+export async function writeUnknownProbeFact(
+  tx: Tx,
+  input: Pick<AlertInput, "rule" | "dimension">,
+  at: Date,
+  sampledFor: Date,
+): Promise<void> {
+  const key = fingerprint({ ...input, severity: "P3", detail: {} });
+  await tx.$executeRawUnsafe(
+    `UPDATE alert_event SET ok_streak=0,
+      last_value=COALESCE(last_value,'{}'::jsonb)||jsonb_build_object('_sampledFor',$3::text),
+      updated_at=$2::timestamptz
+      WHERE fingerprint=$1 AND kind='probe' AND status IN ('open','acked')
+        AND (last_value->>'_sampledFor' IS NULL OR last_value->>'_sampledFor' < $3::text)`,
+    key,
+    at,
+    sampledFor.toISOString(),
+  );
+}
+
 /** 每个运行时独占关闭状态和在途写；不持有或关闭借用的连接池。 */
 export function createAlertFacts({ tx, clock, logger }: AlertFactsDeps): AlertFacts {
   let closed = false;
