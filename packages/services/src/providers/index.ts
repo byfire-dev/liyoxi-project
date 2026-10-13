@@ -20,6 +20,8 @@ import { createTencentAsr } from "./asr/tencent.js";
 import type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
 import { createDomesticLlm } from "./llm/driver.js";
 import type { DomesticLlmConfig, DomesticLlmOptions } from "./llm/driver.js";
+import { createTencentOcr } from "./ocr/tencent.js";
+import type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
 import type {
   BeforeProviderCall,
@@ -44,6 +46,8 @@ import {
 
 export * from "./types.js";
 export { createTencentAsr } from "./asr/tencent.js";
+export { createTencentOcr } from "./ocr/tencent.js";
+export type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";
 export { createDomesticLlm } from "./llm/driver.js";
 export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./llm/driver.js";
 export type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
@@ -70,6 +74,7 @@ export interface ProviderSettings {
   wechat?: { appid: string; secret: string };
   media?: { ci: CiConfig };
   asr?: TencentAsrConfig;
+  ocr?: TencentOcrConfig;
   llm?: DomesticLlmConfig;
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
@@ -96,6 +101,7 @@ export interface CreateProvidersOptions {
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
   asr?: TencentAsrOptions & { registerClose: (close: () => Promise<void>) => void };
+  ocr?: TencentOcrOptions & { registerClose: (close: () => Promise<void>) => void };
   llm?: DomesticLlmOptions & { registerClose: (close: () => Promise<void>) => void };
   media?: {
     now: () => Date;
@@ -245,6 +251,10 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     throw new ProviderConfigError("media", "CI配置与自有生命周期须同时提供");
   if ((settings.asr === undefined) !== (options.asr === undefined))
     throw new ProviderConfigError("asr", "完整配置与自有生命周期须同时提供");
+  if ((settings.ocr === undefined) !== (options.ocr === undefined))
+    throw new ProviderConfigError("ocr", "完整配置与自有生命周期须同时提供");
+  if (options.ocr !== undefined && typeof options.ocr.registerClose !== "function")
+    throw new ProviderConfigError("ocr", "须提供关闭登记函数");
   if (
     options.asr !== undefined &&
     (typeof options.asr?.now !== "function" || typeof options.asr?.registerClose !== "function")
@@ -262,7 +272,7 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     storage: selectStorage(appEnv, settings),
     media: local ? createLocalMedia() : unconfiguredProviders.media,
     esign: selectEsign(appEnv, settings, logger),
-    // wechatPay（G4-A）、ocr、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
+    // wechatPay（G4-A）、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
     // 真实驱动没到之前一律未配置
   };
 
@@ -298,6 +308,11 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     const driver = createTencentAsr(settings.asr, options.asr);
     options.asr.registerClose(driver.close);
     chosen.asr = driver.provider;
+  }
+  if (settings.ocr !== undefined && options.ocr !== undefined) {
+    const driver = createTencentOcr(settings.ocr, options.ocr);
+    options.ocr.registerClose(driver.close);
+    chosen.ocr = driver.provider;
   }
   if (settings.llm !== undefined && options.llm !== undefined) {
     const driver = createDomesticLlm(settings.llm, options.llm);

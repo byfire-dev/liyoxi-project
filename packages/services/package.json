@@ -44,6 +44,8 @@
     "pdfjs-dist": "6.3.289",
     "pino": "10.3.1",
     "sanitize-html": "2.17.7",
+    "tencentcloud-sdk-nodejs-common": "4.1.220",
+    "tencentcloud-sdk-nodejs-ocr": "4.1.322",
     "zod": "4.6.5"
   },
   "devDependencies": {
