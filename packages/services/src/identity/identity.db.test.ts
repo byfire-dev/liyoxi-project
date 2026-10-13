@@ -526,7 +526,9 @@ describe("手机号登录各分支（验收 4）", () => {
         ...h.codes({ openid: nextOpenid(), phone: owner.phone }),
         consents: h.consents(),
       });
-      await h.tenant.createEntity(ctx);
+      const entity = await h.tenant.createEntity(ctx);
+      // 真实历史付款单使草稿非空；空草稿现在由 W2-09 同事务让位后继续绑定。
+      await h.make.billingOrder({ entityId: entity.entityId, status: "cancelled" });
 
       // 有成员关系、181 天没活跃、换了微信：转人工
       h.clock.advance(181 * DAY);
