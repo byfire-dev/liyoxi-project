@@ -16,6 +16,7 @@ import { assetScope } from "../../asset/private/resource";
 import { assetLabels, assetStatuses, assetTitle } from "../../asset/private/api";
 import { orderReferenceApi } from "./api";
 import { createOrderReferences, type OrderReferences } from "./reference-model";
+import "./reference-ui.scss";
 const scope = () =>
   viewerRole(account.snapshot().me, catalogScope()) === "owner"
     ? assetScope(
