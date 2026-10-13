@@ -16,7 +16,7 @@ import {
   runLabels,
 } from "./model";
 const id = "0199e187-e72a-7000-8000-000000000001",
-  now = "2030-10-14T04:00:00Z",
+  now = "2030-10-14T04:00:00.000Z",
   bytes = "9007199254740993123";
 const run: RunView = {
   purgeRunId: id,
@@ -55,7 +55,7 @@ const file: FileView = {
   purgeAfter: now,
   deletedAt: now,
   erasedAt: null,
-  restorableUntil: "2030-11-13T04:00:00Z",
+  restorableUntil: "2030-11-13T04:00:00.000Z",
   liveRefCount: 0,
   production: null,
   check: null,
