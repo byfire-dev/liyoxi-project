@@ -33,6 +33,7 @@ import { merchantFileHandlers } from "./files.js";
 import { mediaAssetHandlers } from "./media-assets.js";
 import { adminMediaAssetHandlers } from "./admin/media-assets.js";
 import { adminFileHandlers } from "./admin/files.js";
+import { adminPurgeRunHandlers } from "./admin/purge-runs.js";
 import { adminUploadBatchHandlers } from "./admin/upload-batches.js";
 import type { HandlerEntry } from "../routing/define.js";
 
@@ -82,6 +83,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...mediaAssetHandlers,
   ...adminMediaAssetHandlers,
   ...adminFileHandlers,
+  ...adminPurgeRunHandlers,
   ...adminUploadBatchHandlers,
   // W1-04：静默登录、手机号登录、退出、当前账号
   ...sessionHandlers,

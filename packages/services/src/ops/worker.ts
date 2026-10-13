@@ -518,6 +518,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    ...(options.sessionMutex
+      ? {
+          retention: {
+            sessionMutex: options.sessionMutex,
+            alerts: alertsOf(assembly),
+            staffBriefs,
+          },
+        }
+      : {}),
     assets: createRuntimeMediaAssets({
       clock,
       assembly,

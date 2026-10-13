@@ -1,6 +1,5 @@
 // 后台：登录、员工、权限与系统 · files（docs/api/a01-system.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { FileIdParamsSchema, FileRegistrationSchema } from "../m08-support-misc/files.schemas.js";
@@ -9,15 +8,21 @@ import {
   AdminFileCreateBodySchema,
   FileDownloadUrlsBodySchema,
   SignedUrlSchema,
+  AdminFileListQuerySchema,
+  AdminFilePageSchema,
+  FileEraseBodySchema,
+  FileRestoreBodySchema,
 } from "./files.schemas.js";
 
-export const adminFileList = adminMeta({
+export const adminFileList = adminRoute({
   method: "get",
   path: "/admin/files",
   operationId: "admin.file.list",
   summary: "文件查询（如已清除、保留期内可恢复的文件）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { query: AdminFileListQuerySchema },
+  responses: { ...okResponse(AdminFilePageSchema), ...errorResponses(400, 401, 403, 429) },
 });
 
 export const adminFileCreate = adminRoute({
@@ -87,7 +92,7 @@ export const adminFileDownloadUrls = adminRoute({
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录（A18）",
 });
 
-export const adminFileErase = adminMeta({
+export const adminFileErase = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/erase",
   operationId: "admin.file.erase",
@@ -95,6 +100,15 @@ export const adminFileErase = adminMeta({
   "x-permission": "files.erase",
   "x-idempotent": "required",
   "x-idempotent-reason": "状态迁移；多事务的三段式用例（C51）",
+  "x-three-phase": true,
+  request: {
+    params: FileIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: FileEraseBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminFileViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
 });
 
 export const adminFileRefreshCredentials = adminRoute({
@@ -112,7 +126,7 @@ export const adminFileRefreshCredentials = adminRoute({
   "x-idempotent-reason": "签发上传凭证（C47 本稿归类）",
 });
 
-export const adminFileRestore = adminMeta({
+export const adminFileRestore = adminRoute({
   method: "post",
   path: "/admin/files/{fileId}/restore",
   operationId: "admin.file.restore",
@@ -120,6 +134,15 @@ export const adminFileRestore = adminMeta({
   "x-permission": "files.restore",
   "x-idempotent": "required",
   "x-idempotent-reason": "状态迁移；三段式用例（先调外部、再开事务）",
+  "x-three-phase": true,
+  request: {
+    params: FileIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: FileRestoreBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminFileViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
 });
 
 export const adminFileCancel = adminRoute({
