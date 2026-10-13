@@ -15,6 +15,7 @@ export const M01_ERROR_DETAILS = {
     currentAgreementVersionId: orNull(IdSchema),
   }),
   IDENTITY_TOO_NEW: z.object({ removableAt: InstantSchema }),
+  SMS_CODE_INVALID: z.object({ attemptsLeft: z.int().min(0).max(5).nullable() }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type AgreementVersionStaleDetails = z.infer<

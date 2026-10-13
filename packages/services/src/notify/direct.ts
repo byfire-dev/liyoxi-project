@@ -49,6 +49,11 @@ export function directSender(deps: NotifyDispatchDeps) {
     if (input.purpose === "verify_code" && !/^\d{6}$/.test(input.params.code ?? ""))
       throw new TypeError("验证码必须为六位数字");
     const target = deps.directTarget(input.phone);
+    // Params may use the caller's global pool. Read before claiming a connection (max=1 too).
+    const dailyCap =
+      input.purpose === "verify_code" || input.purpose === "staff_activation"
+        ? null
+        : await deps.params.get("notify.sms.daily_cap");
     const claimed = await deps.tx.run(async (tx) => {
       // The existing global verify anchor serializes budgets across templates and recipients.
       const keys = [...new Set(["verify_code", input.templateKey])].sort();
@@ -95,10 +100,7 @@ export function directSender(deps: NotifyDispatchDeps) {
               throw new AppError("RATE_LIMITED");
           }
         } else {
-          if (
-            (await smsDayUsage(tx, { targetRef: target.phoneRef, now })) >=
-            (await deps.params.get("notify.sms.daily_cap"))
-          )
+          if ((await smsDayUsage(tx, { targetRef: target.phoneRef, now })) >= dailyCap!)
             throw new AppError("RATE_LIMITED");
         }
       }
