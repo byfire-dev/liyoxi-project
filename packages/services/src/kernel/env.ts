@@ -16,6 +16,7 @@
 // 本文件不写相对导入：infra/ci/check-env-example.mjs 用 Node 自带的类型擦除直接加载它。
 
 import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
+import { BlockList, isIP } from "node:net";
 
 import { z } from "zod";
 
@@ -48,6 +49,7 @@ export const ENV_KEYS: readonly string[] = [
   "DATA_KEYS_FILE",
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
+  "ADMIN_IP_ALLOWLIST",
   "SMS_SECRET_ID_FILE",
   "SMS_SECRET_KEY_FILE",
   "SMS_SDK_APP_ID",
@@ -169,6 +171,8 @@ export interface Env {
   readonly BIDX_KEYS?: BidxKeysConfig;
   /** 后台登录的三把密钥；没配 AUTH_KEYS_FILE 时没有这一项 */
   readonly AUTH_KEYS?: AuthKeysConfig;
+  /** 未配或空白时不限制后台来源；非空列表在认证前执行。 */
+  readonly ADMIN_IP_ALLOWLIST?: readonly string[];
   readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
@@ -942,6 +946,38 @@ const EnvSchema = z.object({
     .optional(),
 });
 
+function readAdminIpAllowlist(
+  source: EnvSource,
+  issues: EnvIssue[],
+): readonly string[] | undefined {
+  const raw = read(source, "ADMIN_IP_ALLOWLIST");
+  if (raw === undefined) return undefined;
+  const entries = raw.split(",").map((entry) => entry.trim());
+  try {
+    const parsed = new BlockList();
+    for (const entry of entries) {
+      const [address = "", prefix, extra] = entry.split("/");
+      const version = isIP(address),
+        max = version === 4 ? 32 : 128;
+      const bits = prefix === undefined ? max : Number(prefix);
+      if (
+        version === 0 ||
+        extra !== undefined ||
+        (prefix !== undefined && !/^\d+$/.test(prefix)) ||
+        !Number.isInteger(bits) ||
+        bits < 0 ||
+        bits > max
+      )
+        throw new Error();
+      parsed.addSubnet(address, bits, version === 4 ? "ipv4" : "ipv6");
+    }
+  } catch {
+    issues.push({ key: "ADMIN_IP_ALLOWLIST", reason: "必须是逗号分隔的合法 IP 或 CIDR 列表" });
+    return undefined;
+  }
+  return Object.freeze(entries);
+}
+
 /**
  * 读取并校验环境变量。任何一项不合格即抛 EnvError，一次列出全部问题。
  * @param source 缺省读 process.env；测试里传对象
@@ -953,6 +989,7 @@ export function loadEnv(
 ): Env {
   const issues: EnvIssue[] = [];
   const appEnv = read(source, "APP_ENV");
+  const adminIpAllowlist = readAdminIpAllowlist(source, issues);
 
   const parsed = EnvSchema.safeParse({
     APP_ENV: appEnv,
@@ -1013,6 +1050,7 @@ export function loadEnv(
     LOG_LEVEL,
     DATABASE_URL,
     REDIS_URL,
+    ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
     ...(ci ? { CI: ci } : {}),
