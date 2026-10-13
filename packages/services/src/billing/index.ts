@@ -2,6 +2,7 @@
 export { seed } from "./seed.js";
 export { createPlanAdmin, planActivityCounts } from "./catalog/plans-admin.js";
 export type { PlanAdminActor } from "./catalog/plans-admin.js";
+export { createParameterChanges } from "./pricing/parameter-changes.js";
 export {
   BILLING_PARAM_SEEDS,
   cyclePricesOf,

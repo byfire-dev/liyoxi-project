@@ -5,7 +5,15 @@ import { z } from "../../zod.js";
 export const A07_ERROR_DETAILS = {
   PLAN_REVISION_MISSING: z.object({ missingCycles: z.array(z.int().positive()) }),
   REVISION_PENDING_EXISTS: z.object({ revision: PlanRevisionViewSchema }),
-  NOTICE_PERIOD_REQUIRED: z.object({ earliestEffectiveDate: DateSchema }),
+  NOTICE_PERIOD_REQUIRED: z.object({
+    earliestEffectiveDate: DateSchema,
+    keys: z.array(z.string()).optional(),
+  }),
+  PARAM_PENDING_EXISTS: z.object({
+    items: z.array(
+      z.object({ key: z.string(), billingParamId: IdSchema, effectiveAt: z.string() }),
+    ),
+  }),
   PLAN_RANK_TAKEN: z.object({ planId: IdSchema, rank: z.int().positive() }),
   PLAN_TIER_ORDER_INVALID: z.object({
     planId: IdSchema,
