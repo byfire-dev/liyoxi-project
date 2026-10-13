@@ -1,4 +1,16 @@
-// 仓库层同源快照：显式静态依赖可检查，由tsx按weapp tsconfig加载，不把Zod带回端侧。
+// 仓库层同源校验：显式静态依赖可检查，由tsx按weapp tsconfig加载，不把Zod带回端侧。
+import assert from "node:assert/strict";
+import {
+  InvitationCardSchema,
+  InvitationCreateBodySchema,
+  InvitationPreviewSchema,
+  MemberListSchema,
+  MemberUpdateBodySchema,
+  MembershipResultSchema,
+  StoreCreateBodySchema,
+  StoreListSchema,
+  StoreProfileOverviewSchema,
+} from "../../packages/contract/src/index.ts";
 import {
   TENANT_ID,
   TENANT_SECOND,
@@ -20,21 +32,39 @@ const input = {
   sourceId: TENANT_SECOND,
   options: [],
 };
-process.stdout.write(
-  JSON.stringify({
-    entityId: TENANT_ID,
-    targetStoreId: TENANT_SECOND,
-    ownerStores: tenantStores(),
-    clerkStores: tenantStores(true),
-    createDefault: storeCreateBody(input),
-    createCopied: storeCreateBody({ ...input, options: ["service", "media"] }),
-    ownerMembers: tenantMembers(),
-    clerkMembers: tenantMembers(true),
-    clerkProfile: tenantProfile(true),
-    invitation: tenantInvitation,
-    invitationBody: { clientRequestId: TENANT_ID, remarkName: "晚班", targetPhone: "13900009000" },
-    previews: ["pending", "accepted", "revoked", "expired"].map((status) => tenantPreview(status)),
-    membership: tenantResult,
-    abandoned: { ...tenantResult, abandonedEntityId: TENANT_ID },
-  }),
+assert.equal(StoreListSchema.parse(tenantStores()).viewerRole, "owner");
+assert.equal(StoreListSchema.parse(tenantStores(true)).viewerRole, "clerk");
+assert.equal(MemberListSchema.parse(tenantMembers()).viewerRole, "owner");
+assert.equal(MemberListSchema.parse(tenantMembers(true)).viewerRole, "clerk");
+assert.equal(StoreProfileOverviewSchema.parse(tenantProfile(true)).viewerRole, "clerk");
+assert.deepEqual(StoreCreateBodySchema.parse(storeCreateBody(input)), {
+  name: "新门店",
+  addressDetail: "广东省深圳市福田区邻里路18号",
+  industryCode: "food",
+  categoryCode: "coffee",
+});
+const copied = StoreCreateBodySchema.parse(
+  storeCreateBody({ ...input, options: ["service", "media"] }),
 );
+assert.equal(copied.copyFromStoreId, TENANT_SECOND);
+assert.deepEqual(copied.copyOptions, ["service", "media"]);
+assert.equal(MemberUpdateBodySchema.safeParse({ storeIds: [] }).success, false);
+assert.equal(
+  MemberUpdateBodySchema.safeParse({ storeIds: [TENANT_SECOND, TENANT_SECOND] }).success,
+  false,
+);
+assert.equal(InvitationCardSchema.parse(tenantInvitation).storeId, TENANT_SECOND);
+const invitationBody = {
+  clientRequestId: TENANT_ID,
+  remarkName: "晚班",
+  targetPhone: "13900009000",
+};
+assert.deepEqual(InvitationCreateBodySchema.parse(invitationBody), invitationBody);
+for (const status of ["pending", "accepted", "revoked", "expired"])
+  assert.equal(InvitationPreviewSchema.parse(tenantPreview(status)).status, status);
+assert.equal(MembershipResultSchema.parse(tenantResult).storeId, TENANT_SECOND);
+assert.equal(
+  MembershipResultSchema.parse({ ...tenantResult, abandonedEntityId: TENANT_ID }).abandonedEntityId,
+  TENANT_ID,
+);
+process.stdout.write(JSON.stringify({ checked: "W214六页同源契约", invitationStates: 4 }));
