@@ -46,7 +46,7 @@ import type { StorageProvider } from "../providers/types.js";
 | `sms` | `local`：控制台输出 | `unconfigured`：提醒只剩站内与订阅消息 |
 | `storage` | `local`：本地 MinIO，只有小文件通道 | `unconfigured` |
 | `media` | `local`：小文件通道，不处理、直接返回完成 | `unconfigured` |
-| `ocr`、`asr`、`llm`、`wecom`、`mail`、`invoice` | `unconfigured` | 同左 |
+| `ocr`、`asr`、`llm`、`wecom`、`mail`、`invoice` | `unconfigured`（显式配置见后文） | 同左 |
 | `esign` | `stamp`：图片章 | `unconfigured`；打开图片章开关才是 `stamp` |
 
 启动日志里十二个接口各一行（`provider <接口名>: <状态>`），最后一行 `providers ready` 汇总。只打状态，不打任何配置值。
@@ -228,3 +228,18 @@ key交发送协议与默认收件来源。素材owner仅在该装配事实为tru
 API无预算transport的新提交仍关闭，查询不新扣提交槽。原KF-1、轮询、期限与closer保持。
 当前SOURCE尚未执行重验证；模型构造零HTTP不代表基础设施零IO，真实云投递、
 凭据/地域隐私/E22、收费与容量仍未验；不初始化、恢复或退款预算账本。
+
+## 19. 营业执照官方SDK前置构件（W3-16）
+
+固定`ocr@4.1.322/common@4.1.220`，只实现`BizLicenseOCR`；签名与可取消请求走官方SDK公开request。
+API显式消费`OCR_TENCENT_FILE`，严格普通JSON文件仅`secretId/secretKey/region`，最多4KiB，
+任何环境均拒同名明文。未配保持unconfigured；worker、行业许可证及银行回单未接入。
+构造零IO，实际请求最多六秒并中止底层；自有modelDrivers登记关闭，借用providers不消费配置。
+HTTPS固定官方目标，专用Agent禁止环境代理及跨目标/端口；请求identity且解压前拒绝编码响应，正文上限1MiB。
+失败仅静态说明，不输出URL、凭据、原响应或SDK异常。类型unknown及不能解析的期限不补事实，
+原类型/期限保留；缺识别字段不会从手填值补成供应商成功结果，不生成置信度。
+
+本片仅SDK/Provider/配置组合根；加密识别短TX、scope缓存、日20次、资质三段式仍属W316业务片。
+ROOT官方registry审计0high/critical；common的uuid9.0.1 moderate仅当前未用的v3/v5/v6带buffer API，
+SDK实际两处只用v4；无override/豁免。源码轻静态已做，协议/类型/构建由ROOT串行待验，
+真实E17/E19、证照样本准确率、地域隐私/云权限/收费均未验。
