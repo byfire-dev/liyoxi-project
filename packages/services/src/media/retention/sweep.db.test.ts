@@ -417,17 +417,26 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     const guarded = await Promise.all([storeFile(), storeFile(), storeFile()]);
     for (const row of guarded) await asset(row.id);
     const original = h.fake.storage.delete.bind(h.fake.storage);
-    let failSettle = false;
+    const deletionResults: { key: string; ok: boolean }[] = [];
+    const restoring = vi.spyOn(h.fake.storage, "restoreVersions");
+    let failSettle = false,
+      unknownResults = 0,
+      settleFailures = 0;
     const deleting = vi.spyOn(h.fake.storage, "delete").mockImplementation(async (input) => {
       const result = await original(input);
-      if (input.key === unknown.objectKey)
+      if ([unknown.objectKey, lostCommit.objectKey].includes(input.key))
+        deletionResults.push({ key: input.key, ok: result.ok });
+      if (input.key === unknown.objectKey) {
+        unknownResults++;
         return failed("unavailable", "lyxtest storage result unknown");
+      }
       if (input.key === lostCommit.objectKey) failSettle = true;
       return result;
     });
     const runTx = async <T>(fn: (tx: Tx) => Promise<T>) => {
       if (failSettle) {
         failSettle = false;
+        settleFailures++;
         throw new Error("lyxtest-settle-connection-lost");
       }
       return h.tx.run(fn);
@@ -435,13 +444,31 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     await sweep(context(undefined, runTx));
     const aborted = await latestRun();
     expect(aborted).toMatchObject({ state: "aborted", deletedCount: 0, guardTrips: 3 });
+    expect(deletionResults).toEqual([
+      { key: unknown.objectKey, ok: true },
+      { key: lostCommit.objectKey, ok: true },
+    ]);
+    expect(unknownResults).toBe(1);
+    expect(settleFailures).toBe(1);
+    expect(deleting.mock.calls.map(([input]) => input)).toEqual([
+      expect.objectContaining(ref(unknown)),
+      expect.objectContaining(ref(lostCommit)),
+    ]);
     for (const row of [unknown, lostCommit]) {
+      expect(notices).toContainEqual(
+        expect.objectContaining({ rule: "purge.file_failed", dimension: row.id }),
+      );
       expect(await h.prisma.fileObject.findUnique({ where: { id: row.id } })).toMatchObject({
         status: "deleting",
         deletedAt: null,
       });
-      expect(await h.fake.storage.head(ref(row))).toMatchObject({ ok: false, reason: "not_found" });
+      expect(await h.fake.storage.head(ref(row))).toMatchObject({
+        ok: true,
+        value: { exists: false },
+      });
     }
+    // 同轮恢复仍在真实30秒占用期，不能进入Provider补偿。
+    expect(restoring.mock.calls).toHaveLength(0);
     deleting.mockRestore();
     const manual = await file();
     await h.prisma.fileObject.update({
@@ -465,7 +492,6 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
         updatedAt: h.clock.now(),
       },
     });
-    const restoring = vi.spyOn(h.fake.storage, "restoreVersions");
     h.clock.advance(31_000);
     n.clock.set(h.clock.now());
     // 新实例不保留旧回调内存；同key持久记录证明意图，aborted只恢复不继续删除。
@@ -478,8 +504,15 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
         deletedAt: null,
         erasedAt: null,
       });
-      expect(await h.fake.storage.head(ref(row))).toMatchObject({ ok: true });
+      expect(await h.fake.storage.head(ref(row))).toMatchObject({
+        ok: true,
+        value: { exists: true },
+      });
     }
+    expect(restoring.mock.calls.map(([input]) => input)).toEqual([
+      expect.objectContaining(ref(unknown)),
+      expect.objectContaining(ref(lostCommit)),
+    ]);
     expect(await h.prisma.filePurgeRun.findUnique({ where: { id: aborted.id } })).toMatchObject({
       state: "aborted",
       deletedCount: 0,
@@ -488,7 +521,10 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
       status: "deleting",
       deletedAt: null,
     });
-    expect(await h.fake.storage.head(ref(manual))).toMatchObject({ ok: true });
+    expect(await h.fake.storage.head(ref(manual))).toMatchObject({
+      ok: true,
+      value: { exists: true },
+    });
     expect(restoring.mock.calls.filter(([input]) => input.key === manual.objectKey)).toHaveLength(
       0,
     );
