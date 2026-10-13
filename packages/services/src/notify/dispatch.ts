@@ -4,6 +4,7 @@ import {
   eventPayloadSchema,
   EVENT_PAYLOAD_SCHEMAS,
 } from "@liyoxi/contract";
+import { createConfig } from "../config/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
 import { notifyReadOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
@@ -13,7 +14,13 @@ import type {
   NotificationSpec,
   NoticeRecipient,
 } from "./context.js";
-import { EVENT_SCENES, INVITATION_JOIN_SPEC, NotifyFactSchema, specFor } from "./registry.js";
+import {
+  EVENT_SCENES,
+  INVITATION_JOIN_SPEC,
+  NotifyFactSchema,
+  specFor,
+  ownerOnlyFor,
+} from "./registry.js";
 import { notificationDueAt, textLimit, externalAllowed } from "./policy.js";
 import { storeArchiveNotifications, storeArchiveSource } from "./store-archive.js";
 
@@ -110,7 +117,7 @@ export async function currentNotificationFact(
       {
         entityId: original.entityId,
         storeId: original.storeId,
-        ownerOnly: source.ownerOnly,
+        ownerOnly: ownerOnlyFor(source, fact),
         userIds: [original.merchantUserId],
       },
     );
@@ -266,7 +273,7 @@ export async function dispatchFact(
       (await read.read(tx, "merchantRecipientsForNotify", {
         entityId: fact.entityId,
         storeId: fact.storeId,
-        ownerOnly: spec.ownerOnly,
+        ownerOnly: ownerOnlyFor(spec, fact),
         ...(fact.merchantUserIds ? { userIds: fact.merchantUserIds } : {}),
         allEntities: mandatory,
       })) ?? [];
@@ -335,7 +342,7 @@ export async function dispatchFact(
         merchantUserId: recipient.merchantUserId,
         entityId,
         storeId: fact.storeId,
-        isOwnerOnly: spec.ownerOnly,
+        isOwnerOnly: ownerOnlyFor(spec, fact),
         category: spec.category,
         title: textLimit(title, 40),
         body: textLimit(body, 200),
@@ -382,7 +389,15 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
     if (!source || source.type !== event.type) return 0;
     let made = 0;
     for (const { spec, fact } of await storeArchiveNotifications(tx, deps, event.id))
-      made += await dispatchFact(tx, deps, spec, fact, { event, node: "N0" });
+      made += await dispatchFact(
+        tx,
+        fact.bizType === "store_asset_demand"
+          ? { ...deps, params: createConfig({ db: tx, clock: deps.clock, redis: null }).params }
+          : deps,
+        spec,
+        fact,
+        { event, node: "N0" },
+      );
     return made;
   }
   const joined =
@@ -481,7 +496,15 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
               : "积分增加";
       NotifyFactSchema.parse(fact);
     }
-    made += await dispatchFact(tx, deps, spec, fact, { event, node: "N0" });
+    made += await dispatchFact(
+      tx,
+      fact.bizType === "store_asset_demand"
+        ? { ...deps, params: createConfig({ db: tx, clock: deps.clock, redis: null }).params }
+        : deps,
+      spec,
+      fact,
+      { event, node: "N0" },
+    );
   }
   return made;
 }

@@ -1,3 +1,4 @@
+import { ownerOnlyFor } from "./registry.js";
 import { assertNotInTransaction, lockRows, notifyReadOf, isUuid } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { Notification, NotificationDelivery, NotifyScene } from "@liyoxi/db";
@@ -225,7 +226,7 @@ async function currentGuard(
       {
         entityId: n.entityId,
         storeId: n.storeId,
-        ownerOnly: spec.ownerOnly,
+        ownerOnly: ownerOnlyFor(spec, fact),
         userIds: [n.merchantUserId],
       },
     );

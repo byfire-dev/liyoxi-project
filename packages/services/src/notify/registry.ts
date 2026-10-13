@@ -19,6 +19,7 @@ export const NotifyFactSchema = z.strictObject({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  notifyScope: z.enum(["owner_only", "owner_and_clerks"]).optional(),
   amountFen: z.int().nonnegative().max(2_147_483_647).optional(),
   quantity: z.int().min(-2_147_483_647).max(2_147_483_647).optional(),
   balance: z.int().nonnegative().max(4_294_967_294).optional(),
@@ -110,6 +111,17 @@ export const QUOTA_EXCEEDED_SPEC = spec(
   "store",
   wallet,
 );
+export const ASSET_DEMAND_SPEC = spec(
+  "m.asset_feedback",
+  "assetDemandForNotify",
+  "storeAssetDemandId",
+  "store",
+  (v) => ({ route: "asset.demand", params: { storeAssetDemandId: v.bizId, storeId: v.storeId! } }),
+  ["open"],
+  false,
+);
+export const ownerOnlyFor = (spec: NotificationSpec, fact: NotifyFact) =>
+  fact.bizType === "store_asset_demand" ? fact.notifyScope === "owner_only" : spec.ownerOnly;
 
 export const INVITATION_JOIN_SPEC = spec(
   "m.member_changed",
@@ -331,6 +343,7 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
       ["pushed"],
     ),
   ],
+  "asset.demand_created": [ASSET_DEMAND_SPEC],
   "asset.adopted": [
     spec(
       "m.asset_feedback",
@@ -406,17 +419,19 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
           .map(([event]) => event),
 }));
 export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
-  key === "m.member_changed" && bizType === "invitation"
-    ? INVITATION_JOIN_SPEC
-    : [
-        ...Object.values(EVENT_SCENES)
-          .flat()
-          .filter((s) => s !== INVITATION_JOIN_SPEC),
-        QUOTA_EXCEEDED_SPEC,
-        FOLLOWUP_SPEC,
-        UNREACHED_SPEC,
-        COPYRIGHT_SPEC,
-      ].find((s) => s.sceneKey === key);
+  key === "m.asset_feedback" && bizType === "store_asset_demand"
+    ? ASSET_DEMAND_SPEC
+    : key === "m.member_changed" && bizType === "invitation"
+      ? INVITATION_JOIN_SPEC
+      : [
+          ...Object.values(EVENT_SCENES)
+            .flat()
+            .filter((s) => s !== INVITATION_JOIN_SPEC && s !== ASSET_DEMAND_SPEC),
+          QUOTA_EXCEEDED_SPEC,
+          FOLLOWUP_SPEC,
+          UNREACHED_SPEC,
+          COPYRIGHT_SPEC,
+        ].find((s) => s.sceneKey === key);
 
 export const FOLLOWUP_SPEC = staffSpec(
   "s.followup_due",

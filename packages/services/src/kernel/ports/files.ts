@@ -22,6 +22,9 @@ export interface FileRefType {
     >
   >;
   readonly readColumns?: (tx: Tx) => Promise<readonly ExpectedFileRef[]>;
+  /** 删除前按目标文件重查拥有者的当前使用事实；不得把历史投影/预载快照当在用。
+   * 每项须为该fileId和真实refId/role；[]表示已查询且当前不占用，缺实现表示未知。 */
+  readonly inUse?: (tx: Tx, fileId: string) => Promise<readonly ExpectedFileRef[]>;
 }
 
 export const fileRefTypePort = defineKeyedPort<FileRefType>("media.file_ref_type");

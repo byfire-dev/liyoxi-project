@@ -153,6 +153,7 @@ import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
 import {
   createMediaAssembly,
+  mediaSweepOptions,
   createRuntimeMediaBatches,
   createRuntimeMediaProduction,
 } from "./ops/index.js";
@@ -639,6 +640,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       sessionMutex,
       alerts: alertsOf(assembly),
       staffBriefs,
+      sweep: mediaSweepOptions(config.params, (tx, id) => notify.remindAssetDemand(tx, id)),
     },
     assets: createRuntimeMediaAssets({
       clock,
@@ -665,7 +667,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       recentWechatOpenid,
     },
   });
-  mediaScope.attach(media.jobs);
+  mediaScope.attach(media.jobs, media.retention);
   mediaAssetsScope.attach(media);
   deliveryProductionScope.attach({ clock, flow, media });
   const docsServices = createRuntimeDocs({

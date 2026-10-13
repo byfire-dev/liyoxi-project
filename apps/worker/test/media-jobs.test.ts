@@ -4,6 +4,7 @@ import {
   createMedia,
   createQueueChannel,
   createIdentityContext,
+  connectWorkerDatabase,
   uuidv7,
 } from "@liyoxi/services";
 import type { Env, QueueChannel } from "@liyoxi/services";
@@ -253,3 +254,51 @@ describe("W303真实worker媒体装配与恢复", () => {
     expect(await channel.ping()).toBe(true);
   });
 });
+
+it("W306真实worker绑定10分钟清扫：过期、每日一次、取消零写与关闭隔离", async () => {
+  clock.set(new Date("2026-10-14T20:10:00.000Z"));
+  const fake = createFakeProviders({ clock });
+  const ownedDatabase = connectWorkerDatabase(await handle.url());
+  const services = build({
+    assembly: assembleForTest({ entry: "worker" }),
+    providers: fake,
+    sessionMutex: ownedDatabase.sessionMutex,
+    prisma: ownedDatabase.prisma,
+  });
+  const make = createFactories({ db: prisma, clock });
+  const file = await make.fileObject({
+    status: "pending",
+    storedAt: null,
+    uploadExpiresAt: new Date(clock.now().getTime() - 1),
+  });
+  const run = services.assembly.recurringJob("media.sweep")!;
+  expect(run).toMatchObject({ schedule: { every: "minutes", minutes: 10 }, mode: "job" });
+  const { tx } = createSampleEvents(ownedDatabase.prisma, { registrations: [] });
+  const controller = new AbortController();
+  const context = {
+    scheduledFor: clock.now(),
+    signal: controller.signal,
+    runTx: tx.run.bind(tx),
+  };
+  try {
+    expect(await run.run(context)).toMatchObject({ uploads: 1, failed: [] });
+    expect(await prisma.fileObject.findUniqueOrThrow({ where: { id: file.id } })).toMatchObject({
+      status: "expired",
+      incomingKey: null,
+      incomingBucket: null,
+    });
+    const first = await prisma.filePurgeRun.findMany();
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ mode: "list_only", state: "proposed", candidateCount: 0 });
+    expect(await run.run(context)).toMatchObject({ uploads: 0, failed: [] });
+    expect(await prisma.filePurgeRun.findMany()).toEqual(first);
+    controller.abort(new Error("测试真实job取消信号"));
+    await expect(run.run(context)).rejects.toThrow("测试真实job取消信号");
+    expect(await prisma.filePurgeRun.findMany()).toEqual(first);
+    services.closeMediaJobs!();
+    expect(() => run.run({ ...context, signal: new AbortController().signal })).toThrow(/关闭/);
+    expect(await prisma.$queryRaw`SELECT 1 AS alive`).toEqual([{ alive: 1 }]);
+  } finally {
+    await ownedDatabase.close();
+  }
+}, 60_000);

@@ -16,6 +16,17 @@ export async function ensureProductionStubs(
 
 export const mediaDeliveryRefTypes = {
   upload_batch: {
+    inUse: async (tx: Tx, fileId: string) =>
+      (
+        await tx.uploadBatchItem.findMany({
+          where: {
+            fileId,
+            state: { notIn: ["skipped", "replaced"] },
+            uploadBatch: { state: { notIn: ["committed", "canceled", "expired"] } },
+          },
+          select: { uploadBatchId: true },
+        })
+      ).map((row) => ({ fileId, refId: row.uploadBatchId, role: "main" })),
     roles: { main: { categories: ["final_episode", "drama_master"] as const, retentionDays: 0 } },
     readColumns: async (tx: Tx) =>
       (
@@ -28,6 +39,27 @@ export const mediaDeliveryRefTypes = {
       ).map((i) => ({ fileId: i.fileId, refId: i.uploadBatchId, role: "main" })),
   },
   playable_asset: {
+    inUse: async (tx: Tx, fileId: string) =>
+      (
+        await tx.playableAsset.findMany({
+          where: {
+            state: { not: "retired" },
+            retiredAt: null,
+            OR: [
+              { sourceFileId: fileId },
+              { coverFileId: fileId },
+              { renditions: { array_contains: [{ fileId }] } },
+            ],
+          },
+          select: { id: true, sourceFileId: true, coverFileId: true, renditions: true },
+        })
+      ).flatMap((row) => [
+        ...(row.sourceFileId === fileId ? [{ fileId, refId: row.id, role: "source" }] : []),
+        ...(row.coverFileId === fileId ? [{ fileId, refId: row.id, role: "cover" }] : []),
+        ...((row.renditions ?? []) as Array<{ fileId: string }>)
+          .filter((item) => item.fileId === fileId)
+          .map(() => ({ fileId, refId: row.id, role: "rendition" })),
+      ]),
     roles: {
       source: {
         categories: ["sample_video", "ad_video", "trailer_src"] as const,
