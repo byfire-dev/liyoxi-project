@@ -7,7 +7,8 @@ const responseSchema = z.object({
   Name: text(256),
   RegNum: text(64),
   Person: text(256),
-  Address: text(2048),
+  Address: text(2000),
+  Business: text(2000),
   Type: text(256),
   Period: text(256),
   RecognizeWarnCode: z
@@ -75,6 +76,7 @@ export function parseBusinessLicense(raw: unknown): BusinessLicenseFields | unde
     principal = data.Person?.trim() ?? "";
   if (!name && !uscc && !principal) return undefined;
   const warnings = new Set<string>();
+  const type = subjectType(data.Type ?? "");
   for (const code of data.RecognizeWarnCode ?? []) {
     if (code === -9102 || code === -9102n) warnings.add("WARN_COPY_CARD");
     else if (code === -9104 || code === -9104n) warnings.add("WARN_RESHOOT_CARD");
@@ -87,7 +89,16 @@ export function parseBusinessLicense(raw: unknown): BusinessLicenseFields | unde
     uscc,
     principal,
     ...(data.Address ? { address: data.Address.trim() } : {}),
-    subjectType: subjectType(data.Type ?? ""),
+    subjectType: type,
+    ...(type === "enterprise"
+      ? { principalRole: "legal_rep" as const }
+      : type === "individual"
+        ? { principalRole: "operator" as const }
+        : type === "branch"
+          ? { principalRole: "branch_head" as const }
+          : {}),
+    ...(data.Business ? { businessScope: data.Business } : {}),
+    raw: JSON.stringify(raw),
     ...(data.Type ? { subjectTypeText: data.Type } : {}),
     ...(data.Period ? { periodText: data.Period, ...validity(data.Period) } : {}),
     warnings: [...warnings],

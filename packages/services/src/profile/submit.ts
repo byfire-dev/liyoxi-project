@@ -8,6 +8,8 @@ import { assertDocumentsComplete } from "./documents.js";
 import { qualificationChecks } from "./field-checks.js";
 import { contactAvailable } from "./contact.js";
 import { decryptField } from "../security/index.js";
+import { readQualificationRecognition } from "../media/index.js";
+import { entityTypeCheck } from "./recognition.js";
 import {
   ensureProfile,
   refreshCompleteness,
@@ -120,12 +122,26 @@ export async function submitQualification(
         details: { rejectedNotReplaced: absent },
       });
   }
-  // M1 无 OCR 结果，主体类型比对按 unavailable 放行；每轮仍需再次确认现行声明。
+  const license = docs.find((d) => d.docType === "business_license");
+  if (license) {
+    const recognized = await readQualificationRecognition(tx, deps.keyring(), license);
+    const check = entityTypeCheck(
+      recognized.status === "ok" ? recognized.fields : null,
+      round.claimedEntityType,
+    );
+    if (check?.isMismatch)
+      throw new AppError("ENTITY_TYPE_MISMATCH", {
+        details: {
+          claimedEntityType: check.claimedEntityType,
+          recognizedSubjectType: check.recognizedSubjectType,
+        },
+      });
+  }
+  // 每轮仍需再次确认现行声明；unavailable/unknown不冒充类型矛盾。
   if (!input.declarationConfirmed || input.declarationVersion !== QUALIFICATION_DECLARATION_VERSION)
     throw new AppError("DECLARATION_REQUIRED", {
       details: { currentVersion: QUALIFICATION_DECLARATION_VERSION },
     });
-  const license = docs.find((d) => d.docType === "business_license");
   if (license && !license.certNoBidx) throw new AppError("QUALIFICATION_DOCS_INCOMPLETE");
   if (license?.certNoBidx && (await findVerifiedEntityByUsccBidx(tx, license.certNoBidx, entityId)))
     throw new AppError("USCC_TAKEN");

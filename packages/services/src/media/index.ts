@@ -1,4 +1,6 @@
 export { createMedia } from "./runtime.js";
+export { qualificationFileVersion, qualificationOcrFile } from "./ocr/service.js";
+export type { QualificationOcrInput, QualificationOcrOptions } from "./ocr/service.js";
 export {
   readQualificationRecognition,
   runQualificationFieldChecks,

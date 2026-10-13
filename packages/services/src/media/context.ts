@@ -17,6 +17,7 @@ import type { MediaBatchDeps } from "./batches/types.js";
 import type { MediaAssetsDeps } from "./assets/types.js";
 import type { MediaActor } from "./actor.js";
 import type { RetentionOptions } from "./retention/options.js";
+import type { QualificationOcrOptions } from "./ocr/service.js";
 export type FileRow = FileObject;
 export type { MediaActor } from "./actor.js";
 export interface FileCategoryGuard {
@@ -24,6 +25,7 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly ocr?: QualificationOcrOptions;
   readonly retention?: RetentionOptions;
   readonly assets?: MediaAssetsDeps;
   readonly batches?: MediaBatchDeps;
