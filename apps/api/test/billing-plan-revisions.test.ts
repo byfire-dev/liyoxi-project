@@ -19,6 +19,7 @@ import {
 import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
 import type { SignedInStaff } from "@liyoxi/services/testing";
 import { addDays, calendarDate, dayRange } from "@liyoxi/shared/time";
+import { termDates } from "@liyoxi/shared/period";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
 import { seedUserAgreements, signInAsMerchant } from "../src/testing/merchant.js";
@@ -596,16 +597,28 @@ describe("套餐价目公告链七组正式HTTP/隔离DB", { timeout: 30000 }, (
     const summary = async () =>
       PlanSummarySchema.parse(await data(await request("/admin/plans/summary")));
     const before = await summary(),
-      p = await db.plan.findUniqueOrThrow({ where: { code: "revision_10" } }),
-      q = await db.plan.findUniqueOrThrow({ where: { code: "revision_20" } }),
-      r = await db.plan.findUniqueOrThrow({ where: { code: "revision_30" } });
+      p = await db.plan.findUniqueOrThrow({ where: { code: "basic" } }),
+      q = await db.plan.findUniqueOrThrow({ where: { code: "pro" } }),
+      r = await db.plan.findUniqueOrThrow({ where: { code: "flagship" } });
     const active = await make.subscriptionTerm({ planId: p.id });
+    // 本组独立于其他用例；后一期从前一期的北京止点开始，不靠工厂缺省日期重叠造数。
+    const nextPeriod = (startsAt: Date) => {
+      const dates = termDates(calendarDate(startsAt), 1, active.anchorDay);
+      return {
+        anchorDay: dates.anchorDay,
+        startDate: new Date(`${dates.startDate}T00:00:00Z`),
+        endDate: new Date(`${dates.endDate}T00:00:00Z`),
+        startsAt,
+        endsAt: dayRange(dates.endDate).end,
+      };
+    };
     const scheduled = await make.subscriptionTerm({
       entityId: active.entityId,
       planId: q.id,
       termNo: 2,
       origin: "renew",
       status: "scheduled",
+      ...nextPeriod(active.endsAt),
     });
     const cancelled = await make.subscriptionTerm({
       entityId: active.entityId,
@@ -613,6 +626,7 @@ describe("套餐价目公告链七组正式HTTP/隔离DB", { timeout: 30000 }, (
       termNo: 3,
       origin: "renew",
       status: "cancelled",
+      ...nextPeriod(scheduled.endsAt),
     });
     const bizDate = new Date(`${calendarDate(api.clock.now())}T00:00:00Z`);
     for (const [term, type] of [
