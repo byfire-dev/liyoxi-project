@@ -11,14 +11,28 @@ import { withProfileSubscribe } from "../private/subscription";
 import { appDateTimeFormat as fmtMerchant } from "@liyoxi/shared/format/datetime";
 import { Frame, Feedback, navigate, useAction, useResource } from "../private/ui";
 import { profileContext, profileRuntime } from "../private/runtime";
+// 轮次outcome不是门店资格状态：已通过/驳回复用现有标签，其余按正式轮次语义。
+const outcomeLabels: Readonly<Record<string, string>> = {
+  approved: merchantStatusByEnum("store.qualification_status", "verified")?.label ?? "已通过",
+  rejected: merchantStatusByEnum("store.qualification_status", "rejected")?.label ?? "已驳回",
+  withdrawn: "已撤回",
+  discarded: "已放弃",
+};
 export default function Review() {
   const uploading = useUploadBusy();
-  const resource = useResource((api) => api.qualification());
+  const resource = useResource(async (api) => {
+    const qualification = await api.qualification();
+    return {
+      qualification,
+      history: qualification.viewerRole === "owner" ? await api.rounds() : null,
+    };
+  });
+  const historyAction = useAction("qualification_history");
   const action = useAction("qualification_resubmit");
   const pendingAuthorization = useRef<string | null>(null);
   const [authorizingContext, setAuthorizingContext] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
-  const data = resource.data;
+  const data = resource.data?.qualification;
   const owner = data?.viewerRole === "owner" ? data : null;
   const round = owner?.openRound ?? owner?.lastClosedRound;
   const tag =
@@ -43,6 +57,7 @@ export default function Review() {
           void resource.load();
         }}
       />
+      <Feedback action={historyAction} />
       <Card
         title="审核进度"
         extra={tag ? <StatusTag tone={tag.tone}>{tag.label}</StatusTag> : undefined}
@@ -92,6 +107,74 @@ export default function Review() {
           />
         </View>
       </Card>
+      {owner && resource.data?.history ? (
+        <Card title="历次审核记录">
+          <View className="profile-spaced">
+            {resource.data.history.items.map((r) => (
+              <View key={r.qualificationSubmissionId}>
+                <View>
+                  第 {r.roundNo} 轮 ·{" "}
+                  {r.kind === "change" ? "变更" : r.kind === "new_store" ? "新门店" : "首次认证"}
+                  {r.isResubmit ? " · 补正重提" : ""}
+                </View>
+                <View className="profile-subtitle">
+                  {fmtMerchant.dateTime(r.submittedAt)} ·{" "}
+                  {r.outcome === null
+                    ? "审核中"
+                    : Object.hasOwn(outcomeLabels, r.outcome)
+                      ? outcomeLabels[r.outcome]
+                      : "结果待更新"}
+                </View>
+                {r.rejectReasons.map((reason) => (
+                  <Note key={reason.code}>{reason.name}</Note>
+                ))}
+                {r.decisionNote ? <Note>{r.decisionNote}</Note> : null}
+              </View>
+            ))}
+            {resource.data.history.hasMore && resource.data.history.nextCursor ? (
+              <Button
+                variant="outline"
+                loading={historyAction.busy}
+                onClick={() => {
+                  const cursor = resource.data?.history?.nextCursor,
+                    context = profileContext();
+                  if (!cursor) return;
+                  void historyAction
+                    .run({ cursor }, () => profileRuntime().then(({ api }) => api.rounds(cursor)))
+                    .then((page) => {
+                      if (!page || !historyAction.isCurrent(context)) return;
+                      resource.setData((old) =>
+                        !old?.history || old.history.nextCursor !== cursor
+                          ? old
+                          : {
+                              ...old,
+                              history: {
+                                ...page,
+                                items: [
+                                  ...new Map(
+                                    [...old.history.items, ...page.items].map((r) => [
+                                      r.qualificationSubmissionId,
+                                      r,
+                                    ]),
+                                  ).values(),
+                                ],
+                              },
+                            },
+                      );
+                    });
+                }}
+              >
+                查看更多审核记录
+              </Button>
+            ) : null}
+          </View>
+        </Card>
+      ) : null}
+      {owner?.openRound?.phase === "draft" ? (
+        <Button variant="outline" onClick={() => navigate("cert")}>
+          继续编辑本轮资质
+        </Button>
+      ) : null}
       {owner ? (
         <Card title="本次提交资料">
           <View className="profile-spaced">
