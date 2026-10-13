@@ -11,6 +11,8 @@ import {
   StoreHeaderSchema,
   AdminStoreListSchema,
   ManagerAssignBodySchema,
+  ManagerTransferBodySchema,
+  ManagerTransferResultSchema,
   StoreIdParamsSchema,
   StoreListQuerySchema,
 } from "./stores.schemas.js";
@@ -119,7 +121,7 @@ export const adminStoreAssignDeliveryManager = adminRoute({
   },
 });
 
-export const adminStoreReassignDeliveryManager = adminMeta({
+export const adminStoreReassignDeliveryManager = adminRoute({
   method: "post",
   path: "/admin/stores/{storeId}/reassign-delivery-manager",
   operationId: "admin.store.reassignDeliveryManager",
@@ -127,4 +129,15 @@ export const adminStoreReassignDeliveryManager = adminMeta({
     "转移交付经理：门店与在办工单、订购单、客服工单一并移交（已归档的不动），通知商家，新经理 1 个工作日内联系",
   "x-permission": "merchant.manager.transfer",
   "x-idempotent": "required",
+  request: {
+    params: StoreIdParamsSchema,
+    body: {
+      content: { "application/json": { schema: ManagerTransferBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(ManagerTransferResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });

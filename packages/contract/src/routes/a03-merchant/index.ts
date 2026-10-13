@@ -61,6 +61,7 @@ export {
   adminStoreProfileUpdate,
   adminStoreQualificationGet,
   adminStoreAssignDeliveryManager,
+  adminStoreReassignDeliveryManager,
 } from "./stores.js";
 export {
   adminQualificationSubmissionGet,
