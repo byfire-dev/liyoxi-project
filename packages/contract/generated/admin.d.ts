@@ -4,6 +4,92 @@
  */
 
 export interface paths {
+    "/api/v1/admin/account-change-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 账号类变更申请（换绑手机号、老板更换、老板复核）列表 */
+        get: operations["admin.accountChangeRequest.list"];
+        put?: never;
+        /** 客服发起换绑手机号、老板更换、老板复核（同事务建审批单） */
+        post: operations["admin.accountChangeRequest.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 账号类变更申请详情（新手机号脱敏、证明材料、核实记录） */
+        get: operations["admin.accountChangeRequest.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 通过账号类变更（换绑手机号、老板更换、老板复核），同事务生效 */
+        post: operations["admin.accountChangeRequest.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 驳回账号类变更（说明必填） */
+        post: operations["admin.accountChangeRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/account-change-requests/{accountChangeRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤回账号类变更申请（提交人本人；发起人已停用时由决定权限点持有人代撤） */
+        post: operations["admin.accountChangeRequest.withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/agreement-consents": {
         parameters: {
             query?: never;
@@ -3080,6 +3166,119 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccountChangeApproveBody: {
+            confirm: {
+                newPhoneMask: string | null;
+                requestNo: string;
+            };
+            /** @default [] */
+            confirmChecks: string[];
+            lockVersion: number;
+        };
+        AccountChangeCreateBody: {
+            confirm: {
+                targetPhoneMask: string;
+            };
+            /** @enum {string} */
+            kind: "phone_rebind";
+            /** Format: uuid */
+            merchantUserId: string;
+            newPhone: string;
+            proofFileIds: string[];
+            reasonCode: string;
+            reasonText: string;
+        } | {
+            confirm: {
+                targetPhoneMask: string;
+            };
+            /** Format: uuid */
+            entityId: string;
+            /** @enum {string} */
+            kind: "owner_transfer";
+            newPhone: string;
+            proofFileIds: string[];
+            reasonCode: string;
+            reasonText: string;
+        } | {
+            confirm: {
+                targetPhoneMask: string;
+            };
+            /** @enum {string} */
+            kind: "owner_reverify";
+            /** Format: uuid */
+            merchantUserId: string;
+            /** @default [] */
+            proofFileIds: string[];
+            reasonCode: string;
+            reasonText: string;
+            verifyMethod: string;
+            verifyRecord: string;
+        };
+        AccountChangeRejectBody: {
+            confirm: {
+                requestNo: string;
+            };
+            note: string;
+        };
+        AccountChangeRequestCard: {
+            /** Format: uuid */
+            accountChangeRequestId: string;
+            actions: ("approve" | "reject" | "withdraw" | (string & {}))[];
+            appliedAt: string | null;
+            approval: components["schemas"]["ApprovalDecisionView"];
+            entity: {
+                /** Format: uuid */
+                entityId: string;
+                name: string | null;
+            } | null;
+            /** @enum {string} */
+            kind: "phone_rebind" | "owner_transfer" | "owner_reverify" | (string & {});
+            newPhoneMask: string | null;
+            reason: components["schemas"]["DictRef"];
+            reasonText: string;
+            requestNo: string;
+            target: components["schemas"]["MerchantUserBrief"] | null;
+        };
+        AccountChangeRequestDetail: components["schemas"]["AccountChangeRequestCard"] & {
+            confirmChecks: string[];
+            /** Format: date-time */
+            createdAt: string;
+            currentOwner: components["schemas"]["MerchantUserBrief"] | null;
+            precheck: {
+                issues: ("phone_taken" | "phone_occupied_by_empty_account" | "new_owner_in_other_entity" | "target_not_active" | "entity_not_active" | (string & {}))[];
+                ok: boolean;
+            } | null;
+            proofFileIds: string[];
+            result: {
+                prevPhoneMask: string;
+                purgedUserId: string | null;
+            } | {
+                newOwnerAccountCreated: boolean;
+                /** Format: uuid */
+                newOwnerMemberId: string;
+                /** Format: uuid */
+                newOwnerUserId: string;
+                /** Format: uuid */
+                prevOwnerMemberId: string;
+            } | {
+                /** Format: date-time */
+                bypassUntil: string;
+            } | null;
+            verifyMethod: string | null;
+            verifyRecord: string | null;
+        };
+        AccountChangeRequestList: {
+            items: components["schemas"]["AccountChangeRequestCard"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AccountChangeWithdrawBody: {
+            confirm: {
+                requestNo: string;
+            };
+            note?: string;
+        };
         ActivateBody: {
             activationCode: string;
             phone: string;
@@ -7687,6 +7886,436 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "admin.accountChangeRequest.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                entityId?: string;
+                merchantUserId?: string;
+                kind?: string;
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestList"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.accountChangeRequest.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountChangeCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.accountChangeRequest.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountChangeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.accountChangeRequest.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountChangeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountChangeApproveBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.accountChangeRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountChangeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountChangeRejectBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.accountChangeRequest.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                accountChangeRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountChangeWithdrawBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AccountChangeRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.agreementConsent.list": {
         parameters: {
             query?: {
