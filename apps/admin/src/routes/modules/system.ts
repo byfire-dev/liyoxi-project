@@ -8,6 +8,7 @@ import { flagsRoute } from "../system/flags";
 import { checklistsRoute } from "../system/checklists";
 import { auditLogsRoute } from "../system/logs";
 import { flowOpsRoute } from "../system/flow-ops";
+import { filePurgesRoute } from "../system/file-purges";
 
 export const systemRoutes = [
   staffRoute,
@@ -18,4 +19,5 @@ export const systemRoutes = [
   checklistsRoute,
   auditLogsRoute,
   flowOpsRoute,
+  filePurgesRoute,
 ] as const;

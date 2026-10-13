@@ -1,0 +1,40 @@
+.lyx-purge-filters {
+  width: 100%;
+  min-width: 0;
+}
+.lyx-purge-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.lyx-purge-filters__grid .ant-select {
+  width: 100%;
+}
+.lyx-purge-filters__footer,
+.lyx-purge-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.lyx-purge-filters__footer {
+  margin-top: 12px;
+}
+.lyx-purge-actions .ant-btn {
+  padding-inline: 0;
+}
+.lyx-purge-section {
+  margin-top: 16px;
+}
+.lyx-purge-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 16px 20px;
+}
+.lyx-purge-summary p {
+  margin: 0;
+}
+.lyx-purge-detail {
+  margin: 16px 0;
+}

@@ -214,7 +214,7 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
-  /** API自有ASR/LLM的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
+  /** API自有ASR/LLM/OCR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
   readonly modelDrivers?: {
     registerClose(close: () => Promise<void>): void;
     close(): Promise<void>;
@@ -326,8 +326,11 @@ export interface Runtime {
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
   const ownsModels =
-    entry === "api" && options.providers === undefined && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC);
+    entry === "api" &&
+    options.providers === undefined &&
+    (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC || !!env.OCR_TENCENT);
   const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
+  const ownsOcr = entry === "api" && options.providers === undefined && !!env.OCR_TENCENT;
   const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
   const modelDrivers = ownsModels ? options.modelDrivers : undefined;
   if (
@@ -337,7 +340,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     throw new TypeError(
       ownsAsr
         ? "API ASR配置须成对提供本实例关闭登记与关闭函数"
-        : "API LLM配置须成对提供本实例关闭登记与关闭函数",
+        : ownsOcr
+          ? "API OCR配置须成对提供本实例关闭登记与关闭函数"
+          : "API LLM配置须成对提供本实例关闭登记与关闭函数",
     );
   if (entry === "worker" && env.CI && !env.CI.worker)
     throw new TypeError("CI worker入口缺少worker角色");
@@ -454,6 +459,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       logger,
       settings: {
         ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
+        ...(ownsOcr ? { ocr: env.OCR_TENCENT } : {}),
         ...(ownsModels && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
         ...(env.SMS
           ? {
@@ -508,6 +514,13 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ...(ownsModels && env.LLM_DOMESTIC
         ? {
             llm: {
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsOcr
+        ? {
+            ocr: {
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
             },
           }

@@ -179,7 +179,7 @@ test("W223 三资源真实分页/游标、URL筛选与日期键盘，只读查�
   await page.reload();
   await expect(page).toHaveURL(/provider=wechatpay/);
   await shot(page, "flow-ops-03-webhook-inbox");
-  await expect(page.getByRole("tab", { name: /媒体/ })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "媒体任务", exact: true })).toHaveCount(1);
   expect(writes).toEqual([]);
   expect(errors).toEqual([]);
 });
