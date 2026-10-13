@@ -4,22 +4,29 @@ import type {
   QualificationRejectBody,
   ManagerAssignBody,
   StoreListQuery,
+  QualificationDocReviewBody,
+  StoreActivityQuery,
 } from "@liyoxi/contract";
 import { assertPermission } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
+import { readStoreActivity } from "../audit/index.js";
+import { authorize } from "../authz/index.js";
 import {
   adminQualificationGet,
   adminStoreGet,
   adminStoreList,
   scopedRound,
   staffBrief,
+  scopedStore,
 } from "./admin-read.js";
 import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, WriteOptions } from "./context.js";
 import { withQualificationCall } from "./qualification-kind.js";
 import { QualificationImpactPort } from "./ports.js";
+import { reviewDocument } from "./admin-review.js";
+import { currentReviewStaff } from "./admin-authorization.js";
 export function createAdminProfile(deps: ProfileDeps) {
   async function guard(
     tx: Tx,
@@ -35,6 +42,8 @@ export function createAdminProfile(deps: ProfileDeps) {
     ];
     await lockRows(tx, "staff", [...new Set(staffIds)].sort(), "share");
     await lockRows(tx, "approval_request", [aid]);
+    staff = await currentReviewStaff(tx, staff, deps.clock.now());
+    await scopedRound(tx, staff, id);
     const row = await tx.approvalRequest.findUniqueOrThrow({ where: { id: aid } });
     if (row.status !== "pending")
       throw new AppError("APPROVAL_NOT_PENDING", {
@@ -54,13 +63,29 @@ export function createAdminProfile(deps: ProfileDeps) {
       (input.confirm?.roundNo !== first.roundNo || input.confirm?.roundNo !== row.roundNo)
     )
       throw new AppError("CONFIRM_MISMATCH");
-    return aid;
+    return { approvalId: aid, current: staff };
   }
   return {
+    reviewDocument: (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      input: QualificationDocReviewBody,
+      options: WriteOptions = {},
+    ) => deps.tx.run((tx) => reviewDocument(tx, deps, ctx, staff, id, input), options),
     list: (staff: StaffContext, q: StoreListQuery) =>
       deps.tx.run((tx) => adminStoreList(tx, deps, staff, q)),
     get: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminStoreGet(tx, deps, staff, id)),
+    activity: (staff: StaffContext, id: string, query: StoreActivityQuery) =>
+      deps.tx.run(async (tx) => {
+        authorize(
+          staff,
+          { module: { module: "merchant", need: "view" }, permission: null },
+          deps.clock.now(),
+        );
+        return readStoreActivity(tx, await scopedStore(tx, staff, id), query);
+      }),
     qualification: (staff: StaffContext, id: string) =>
       deps.tx.run((tx) => adminQualificationGet(tx, deps, staff, id)),
     rejectQuote: (staff: StaffContext, id: string) =>
@@ -86,15 +111,42 @@ export function createAdminProfile(deps: ProfileDeps) {
       options: WriteOptions = {},
     ) =>
       deps.tx.run(async (tx) => {
-        const approvalId = await guard(tx, staff, id, input);
-        await withQualificationCall(tx, deps, ctx, () =>
-          deps.approval.approve(tx, ctx, {
-            approvalId,
-            staff,
-            lockVersion: input.lockVersion,
-            confirmChecks: input.confirmChecks,
-            args: input,
-          }),
+        const { approvalId, current } = await guard(tx, staff, id, input);
+        staff = current;
+        const round = await scopedRound(tx, staff, id);
+        await withQualificationCall(
+          tx,
+          deps,
+          ctx,
+          () =>
+            deps.approval.approve(tx, ctx, {
+              approvalId,
+              staff,
+              lockVersion: input.lockVersion,
+              confirmChecks: input.confirmChecks,
+              note: input.mode === "override" ? input.overrideReason : undefined,
+              ...(input.mode === "override"
+                ? {
+                    audit: {
+                      stream: "activity" as const,
+                      category: "review" as const,
+                      action: "approval.request.approve",
+                      summary: "放行资质审核",
+                      target: { type: "approval_request", id: approvalId },
+                      entityId: round.entityId,
+                      storeId: round.storeId,
+                      reason: { code: "override", text: input.overrideReason },
+                      meta: {
+                        approvalStatus: "approved",
+                        approvalKind: "qualification",
+                        rule: "override",
+                      },
+                    },
+                  }
+                : {}),
+              args: input,
+            }),
+          staff,
         );
         return adminQualificationGet(tx, deps, staff, id);
       }, options),
@@ -106,7 +158,8 @@ export function createAdminProfile(deps: ProfileDeps) {
       options: WriteOptions = {},
     ) =>
       deps.tx.run(async (tx) => {
-        const approvalId = await guard(tx, staff, id, input);
+        const { approvalId, current } = await guard(tx, staff, id, input);
+        staff = current;
         await withQualificationCall(tx, deps, ctx, () =>
           deps.approval.reject(tx, ctx, {
             approvalId,
