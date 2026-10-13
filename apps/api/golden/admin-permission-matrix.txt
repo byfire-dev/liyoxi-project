@@ -188,6 +188,7 @@ admin.store.activity.list | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.store.assignDeliveryManager | merchant:view | merchant.manager.assign | 11 00 01 00 00 00 00 00
 admin.store.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.store.list | merchant:view | - | 11 11 11 11 11 11 11 11
+admin.store.qualification.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.storeAsset.confirmPortraitAuth | merchant:view | merchant.asset.review | 11 00 11 00 00 00 00 00
 admin.storeAsset.create | merchant:view | merchant.asset.upload_on_behalf | 11 11 11 00 00 00 00 00
 admin.storeAsset.delete | merchant:view | merchant.asset.review | 11 00 11 00 00 00 00 00

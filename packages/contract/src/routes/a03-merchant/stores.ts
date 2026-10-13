@@ -4,6 +4,7 @@ import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { StoreActivityPageSchema, StoreActivityQuerySchema } from "./store-activity.schemas.js";
+import { AdminStoreQualificationViewSchema } from "./store-qualification.schemas.js";
 import {
   ManagerAssignResultSchema,
   StoreHeaderSchema,
@@ -74,13 +75,18 @@ export const adminStoreProfileUpdate = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminStoreQualificationGet = adminMeta({
+export const adminStoreQualificationGet = adminRoute({
   method: "get",
   path: "/admin/stores/{storeId}/qualification",
   operationId: "admin.store.qualification.get",
   summary: "资质页签：结论摘要、生效证照与识别字段（脱敏）、历次审核记录",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: StoreIdParamsSchema },
+  responses: {
+    ...okResponse(AdminStoreQualificationViewSchema),
+    ...errorResponses(400, 401, 403, 404),
+  },
 });
 
 export const adminStoreAssignDeliveryManager = adminRoute({
