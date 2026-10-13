@@ -527,11 +527,8 @@ describe("手机号登录各分支（验收 4）", () => {
         consents: h.consents(),
       });
       const entity = await h.tenant.createEntity(ctx);
-      // 拒绝断言针对真实非空老板；空草稿现在由 W2-09 同事务让位后继续绑定。
-      await prisma.entity.update({
-        where: { id: entity.entityId },
-        data: { verificationStatus: "verified" },
-      });
+      // 真实历史付款单使草稿非空；空草稿现在由 W2-09 同事务让位后继续绑定。
+      await h.make.billingOrder({ entityId: entity.entityId, status: "cancelled" });
 
       // 有成员关系、181 天没活跃、换了微信：转人工
       h.clock.advance(181 * DAY);
