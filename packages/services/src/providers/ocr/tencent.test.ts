@@ -370,7 +370,7 @@ describe("营业执照官方SDK：真实loopback协议", () => {
     expect(await independent).toMatchObject({ ok: false, reason: "unavailable" });
     await disconnected.promise;
 
-    const logger = { info: vi.fn(), warn: vi.fn() };
+    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const defaultProviders = createProviders({ appEnv: "test", logger });
     expect(defaultProviders.ocr).toMatchObject({ status: "unconfigured", configured: false });
     expect(await defaultProviders.ocr.recognizeBusinessLicense({ imageUrl })).toMatchObject({
@@ -400,8 +400,9 @@ describe("营业执照官方SDK：真实loopback协议", () => {
       reason: "unavailable",
     });
     expect(http.calls()).toBe(before + 1);
-    for (const marker of [imageUrl, config.secretId, config.secretKey])
-      expect(JSON.stringify(logger.info.mock.calls)).not.toContain(marker);
+    for (const method of [logger.info, logger.warn, logger.error])
+      for (const marker of [imageUrl, config.secretId, config.secretKey])
+        expect(JSON.stringify(method.mock.calls)).not.toContain(marker);
     expect(vi.getTimerCount()).toBe(0);
   });
 });
