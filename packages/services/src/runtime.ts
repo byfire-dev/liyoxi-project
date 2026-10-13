@@ -175,6 +175,7 @@ import {
   recommendedStaff,
   createRoleManagement,
   createStaffSelfSecurity,
+  createStaffFollowUps,
 } from "./staff/index.js";
 import type { StaffAuth, createStaffManagement } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
@@ -307,6 +308,7 @@ export interface Runtime {
    */
   readonly staffAuth: StaffAuth;
   readonly staffManagement: ReturnType<typeof createStaffManagement>;
+  readonly followUps: ReturnType<typeof createStaffFollowUps>;
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
@@ -978,6 +980,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     notifyMessages,
     notify,
     staffManagement,
+    followUps: createStaffFollowUps({ tx, clock, assembly }),
     content,
     contentAdmin,
     media,

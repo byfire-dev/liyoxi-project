@@ -43,6 +43,7 @@ export const AUDIT_CATEGORIES = [
   "approval",
   "review",
   "flow",
+  "follow_up",
 ] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 

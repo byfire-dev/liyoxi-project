@@ -4,6 +4,8 @@ export { readStoreManagerContact } from "./store-contact-facts.js";
 export { staffSeedAssertions } from "./invariants.js";
 // W1-01a 凭据与会话：进程启动时调一次 createStaffAuth，拿到九个接口对应的用例与引导用例。用法见本目录的 README.md
 export { createStaffAuth } from "./service.js";
+export { createStaffFollowUps } from "./follow-ups.js";
+export type { FollowUpsDeps } from "./follow-ups.js";
 export type { StaffAuth } from "./service.js";
 export type {
   AuthNext,
