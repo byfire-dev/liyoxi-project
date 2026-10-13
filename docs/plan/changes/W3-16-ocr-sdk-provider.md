@@ -16,7 +16,7 @@ services精确声明两包（common仅类型引用），API因外部化第三方
 SDK固定版本公开`request`支持AbortSignal，底层真实转node-fetch；官方generated业务方法缺options，
 故调用公开`request("BizLicenseOCR", …, {signal})`，由SDK签名，不自造签名实现。
 API六秒上限中止底层请求并等其退出，关停拒绝新请求并排空；构造零IO。
-固定HTTPS目标和独立Agent不消费环境代理，跨目标/端口拒绝，响应字节有界。
+固定HTTPS目标和独立Agent不消费环境代理，跨目标/端口拒绝；明示identity且解压前拒绝编码响应，正文上限1MiB。
 未知类型、未能解析日期不编造事实；官方类型与期限原文保留，未配置仍降级手填。
 配额、缓存、结果加密持久化和资质三段式在原W316业务片实现，本构件不发真实付费请求。
 

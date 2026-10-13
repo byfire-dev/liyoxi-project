@@ -235,7 +235,7 @@ API无预算transport的新提交仍关闭，查询不新扣提交槽。原KF-1�
 API显式消费`OCR_TENCENT_FILE`，严格普通JSON文件仅`secretId/secretKey/region`，最多4KiB，
 任何环境均拒同名明文。未配保持unconfigured；worker、行业许可证及银行回单未接入。
 构造零IO，实际请求最多六秒并中止底层；自有modelDrivers登记关闭，借用providers不消费配置。
-HTTPS固定官方目标，专用Agent禁止环境代理及跨目标/端口，单连接真实响应字节上限1MiB。
+HTTPS固定官方目标，专用Agent禁止环境代理及跨目标/端口；请求identity且解压前拒绝编码响应，正文上限1MiB。
 失败仅静态说明，不输出URL、凭据、原响应或SDK异常。类型unknown及不能解析的期限不补事实，
 原类型/期限保留；缺识别字段不会从手填值补成供应商成功结果，不生成置信度。
 

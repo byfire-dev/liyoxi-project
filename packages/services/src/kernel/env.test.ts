@@ -386,10 +386,49 @@ describe("键名清单", () => {
       "CI_CALLBACK_ORIGIN",
       "MEDIA_PRODUCTION_FILE",
       "ASR_TENCENT_FILE",
+      "OCR_TENCENT_FILE",
       "LLM_DOMESTIC_FILE",
       "ASR_CALLBACK_ORIGIN",
       "ASR_CALLBACK_KEY_FILE",
     ]);
+    const base = { APP_ENV: "test", DATABASE_URL, REDIS_URL };
+    expect(loadEnv(base).OCR_TENCENT).toBeUndefined();
+    const config = {
+      secretId: "PUBLIC_OCR_ID",
+      secretKey: "PUBLIC_OCR_SECRET",
+      region: "ap-guangzhou",
+    };
+    const json = JSON.stringify(config);
+    const source = { ...base, OCR_TENCENT_FILE: fileWith("ocr-public.json", json) };
+    const parsed = loadEnv(source);
+    expect(parsed.OCR_TENCENT).toEqual(config);
+    expect(Object.isFrozen(parsed.OCR_TENCENT)).toBe(true);
+    const exact = json + " ".repeat(4096 - Buffer.byteLength(json));
+    expect(
+      loadEnv({ ...base, OCR_TENCENT_FILE: fileWith("ocr-4096.json", exact) }).OCR_TENCENT,
+    ).toEqual(config);
+    for (const value of [
+      JSON.stringify({ secretId: config.secretId }),
+      JSON.stringify({ ...config, url: "https://private-ocr.invalid" }),
+      JSON.stringify({ ...config, region: "private-region-marker" }),
+      "private-json-marker{",
+      exact + " ",
+    ]) {
+      const error = failure({ ...base, OCR_TENCENT_FILE: fileWith("ocr-invalid.json", value) });
+      expect(keysOf(error)).toEqual(["OCR_TENCENT_FILE"]);
+      for (const marker of [
+        temp,
+        config.secretId,
+        config.secretKey,
+        "private-ocr",
+        "private-region",
+        "private-json",
+      ])
+        expect(error.message).not.toContain(marker);
+    }
+    const plaintext = failure({ ...base, OCR_TENCENT: json });
+    expect(keysOf(plaintext)).toEqual(["OCR_TENCENT"]);
+    expect(plaintext.message).not.toContain(config.secretKey);
   });
 });
 
