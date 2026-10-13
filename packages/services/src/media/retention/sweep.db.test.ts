@@ -261,7 +261,9 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
         role: "main",
       }),
     );
-    vi.spyOn(h.fake.storage, "delete").mockResolvedValue(failed("unavailable", true));
+    vi.spyOn(h.fake.storage, "delete").mockResolvedValue(
+      failed("unavailable", "lyxtest storage result unknown"),
+    );
     const result = await sweep();
     expect(result.failed).toEqual(["incoming"]);
     expect(await h.prisma.fileObject.findUnique({ where: { id: pending.id } })).toMatchObject({
@@ -402,7 +404,8 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     let failSettle = false;
     const deleting = vi.spyOn(h.fake.storage, "delete").mockImplementation(async (input) => {
       const result = await original(input);
-      if (input.key === unknown.objectKey) return failed("unavailable", true);
+      if (input.key === unknown.objectKey)
+        return failed("unavailable", "lyxtest storage result unknown");
       if (input.key === lostCommit.objectKey) failSettle = true;
       return result;
     });
