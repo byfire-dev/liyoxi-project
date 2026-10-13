@@ -50,6 +50,13 @@ export * from "./store-activity.schemas.js";
 export * from "./store-profile.schemas.js";
 export * from "./store-qualification.schemas.js";
 export * from "./assignment-contact.schemas.js";
+export * from "./follow-ups.schemas.js";
+export {
+  adminFollowUpList,
+  adminFollowUpCreate,
+  adminFollowUpUpdate,
+  adminFollowUpComplete,
+} from "./follow-ups.js";
 export * from "./assignment-histories.js";
 export * from "./qualification.schemas.js";
 export { adminQualificationDocUpdate } from "./qualification-docs.js";

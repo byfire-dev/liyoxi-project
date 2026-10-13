@@ -220,6 +220,7 @@
 | `service_ticket` | `service`（a08 工单的内容编辑与分配） |
 | `approval`、`review` | 按 `approval_request.kind` 所属模块（a01 审批类型表的查看模块；03-staff-authz-audit.md:640） |
 | `flow` | `system`（人工纠偏，a08 3.10，权限点 `flow.admin.transition`） |
+| `follow_up` | 按跟进对象类型取a03 3.41模块：续费为 `order`，订单项/巡检/下架为 `publish`，补发为 `delivery`，门店为 `merchant`；从审计关联的跟进行取类型，缺失不返回 |
 | `price_adjust`、`points_expire`、`points_grant`、`plan_config` | `billing` |
 | `profile_edit`、`member`、`account_security`、`manager_assign`、`merchant_quota`、`merchant_lifecycle`、`referral_code` | `merchant` |
 | `staff_authz`、`param`、`dict`、`export`、`pii_reveal`、`file_access`、`system_ops` | `system` |
