@@ -811,7 +811,7 @@ describe("人工账号变更三类真实闭环", { timeout: 120000 }, () => {
         if (op === "proxy")
           await h.prisma.staff.update({
             where: { id: requester.staff.staff.id },
-            data: { status: "disabled", disabledAt: h.clock.now(), disabledReason: "虚构测试停用" },
+            data: { status: "disabled", disabledAt: h.clock.now(), disabledReason: "other" },
           });
         const by = op === "proxy" ? await actor("super_admin") : requester;
         const body = { note: "撤销申请", confirm: { requestNo: detail.requestNo } };
