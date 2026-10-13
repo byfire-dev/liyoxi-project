@@ -159,6 +159,7 @@ export const AUDIT_TARGET_TYPES = [
   "agreement_version", // W2-12：实际版本簿记与审计对象
   "store_asset", // W3-14：素材与反馈审计
   "store_asset_demand", // W3-14：素材需求审计
+  "plan", // W4-07：套餐版本改名与上下架，真实对象为plan而非价目修订
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
