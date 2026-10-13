@@ -116,6 +116,10 @@ admin.paramValue.replace | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paramValue.withdraw | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paymentOrder.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.piiReveal.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.plan.delist | billing:view | billing.plan.edit | 11 00 00 00 00 11 00 00
+admin.plan.list | billing:view | - | 11 11 11 00 00 11 11 11
+admin.plan.shelve | billing:view | billing.plan.edit | 11 00 00 00 00 11 00 00
+admin.plan.update | billing:view | billing.plan.edit | 11 00 00 00 00 11 00 00
 admin.priceTierRevision.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.qualificationSubmission.approve | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.get | merchant:view | - | 11 11 11 11 11 11 11 11

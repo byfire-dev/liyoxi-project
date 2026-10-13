@@ -27,10 +27,19 @@ import { deliveryManagerPort, orderManagerPort, QualificationImpactPort } from "
 import { qualificationKind } from "./qualification-kind.js";
 import { PROFILE_TENANT_EVENTS, unboundTenantLifecycle } from "./tenant-lifecycle.js";
 import { dictRef, snapshot } from "./repo.js";
+import {
+  PROFILE_APPROVED_EVENTS,
+  unboundQualificationConsistency,
+} from "./qualification-consistency.js";
 
 export const registration = defineRegistration("profile", {
   ports: [orderManagerPort, deliveryManagerPort, adminProfileFactsPort, QualificationImpactPort],
   subscribers: [
+    {
+      name: "profile.onQualificationApproved",
+      events: PROFILE_APPROVED_EVENTS,
+      handle: unboundQualificationConsistency,
+    },
     {
       name: "profile.onTenantLifecycle",
       events: PROFILE_TENANT_EVENTS,
@@ -150,7 +159,7 @@ export const registration = defineRegistration("profile", {
     code: `profile.${code}`,
     severity: "P2",
     modes: ["full"],
-    heal: code === "I6" ? "heal_and_alert" : "none",
+    heal: code === "I6" || code === "I7" ? "heal_and_alert" : "none",
     run: (tx, scope, ctx) => findViolations(tx, code, scope, ctx),
   })),
 });
