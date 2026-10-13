@@ -196,8 +196,7 @@ describe("missing-only真实Redis保守建账", { timeout: 30000 }, () => {
         closedBeforeMs: tomorrow + 1800000 + 5000,
       });
       h.time(tomorrow + 6000);
-      const old = h.permit();
-      old.originalDeadlineMs = tomorrow + 1800000;
+      const old = { ...h.permit(), originalDeadlineMs: tomorrow + 1800000 };
       expect(await h.ledger.reserve(old, signal())).toEqual({ status: "denied", reason: "stale" });
       expect(await client.hget(h.key, "closed")).toBe(String(result.closedBeforeMs));
     } finally {
