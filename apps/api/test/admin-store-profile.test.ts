@@ -64,12 +64,24 @@ async function error(response: Response, status: number, symbol: string) {
   expect(await response.json()).toMatchObject({ error: symbol });
 }
 const body = (lockVersion = 0) => ({ lockVersion, reasonCode: "merchant_wecom_request" });
-const counts = async (storeId: string) => [
-  await db.storeProfile.count({ where: { storeId } }),
-  await db.auditLog.count({ where: { storeId } }),
-  await db.outboxEvent.count({ where: { storeId } }),
-  await db.fileRef.count({ where: { storeId } }),
-];
+const counts = async (storeId: string) => {
+  const media = await db.storeProfileMedia.findMany({ where: { storeId }, select: { id: true } }),
+    services = await db.storeServiceItem.findMany({ where: { storeId }, select: { id: true } });
+  return [
+    await db.storeProfile.count({ where: { storeId } }),
+    await db.auditLog.count({ where: { storeId } }),
+    await db.outboxEvent.count({ where: { storeId } }),
+    await db.fileRef.count({
+      where: {
+        OR: [
+          { refType: "store_profile", refId: storeId },
+          { refType: "store_profile_media", refId: { in: media.map((r) => r.id) } },
+          { refType: "store_service_item", refId: { in: services.map((r) => r.id) } },
+        ],
+      },
+    }),
+  ];
+};
 
 describe("后台档案两正式接口", { timeout: 30000 }, () => {
   it("真实模块/范围/权限与required，禁改专码零写；保存GET与幂等重放只一代理事实", async () => {

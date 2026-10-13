@@ -177,7 +177,7 @@ export function createAdminStoreProfile(deps: ProfileDeps) {
             !refs.length ||
             s.files.get(fileId)?.entityId !== s.store.entityId ||
             !(await tx.fileRef.findFirst({
-              where: { fileId, entityId: s.store.entityId, storeId: id, state: "live", OR: refs },
+              where: { fileId, state: "live", OR: refs },
             }))
           )
             throw new AppError("NOT_FOUND");

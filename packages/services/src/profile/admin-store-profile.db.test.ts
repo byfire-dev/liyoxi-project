@@ -3,7 +3,12 @@ import { PROXY_EDITABLE_FIELDS, PROXY_FORBIDDEN_FIELDS } from "@liyoxi/contract"
 import { createIdempotencyContext, createIdentityContext, uuidv7 } from "../kernel/index.js";
 import { recentWechatOpenid } from "../identity/index.js";
 import { normalizeRoleConfig } from "../authz/index.js";
-import { sampleStaffContext, TEST_KEYRING, useSeededDatabase } from "../testing/index.js";
+import {
+  assembleForTest,
+  sampleStaffContext,
+  TEST_KEYRING,
+  useSeededDatabase,
+} from "../testing/index.js";
 import { complete, harness, installDicts, submit } from "./__fixtures__/harness.js";
 import { createProfile } from "./service.js";
 
@@ -30,7 +35,7 @@ async function world() {
   const profile = createProfile({
     tx: h.tx,
     clock: h.clock,
-    assembly: h.assembly,
+    assembly: assembleForTest({ entry: "api" }),
     tenant: h.tenant,
     approval: h.approval,
     events: h.events,
@@ -54,18 +59,46 @@ async function world() {
       uploadActorId: actor.id,
       uploadClient: "admin",
     });
-  return { ...h, owner, newOwner: h.owner, actor, staff, identity, wx, profile, update, file };
+  return {
+    ...h,
+    fixture: h,
+    owner,
+    newOwner: h.owner,
+    actor,
+    staff,
+    identity,
+    wx,
+    profile,
+    update,
+    file,
+  };
 }
 type World = Awaited<ReturnType<typeof world>>;
 const body = (lockVersion = 0) => ({ lockVersion, reasonCode: "merchant_wecom_request" as const });
-const counts = async (h: World) => [
-  await h.prisma.storeProfile.count({ where: { storeId: h.owner.store.id } }),
-  await h.prisma.storeProfileMedia.count({ where: { storeId: h.owner.store.id } }),
-  await h.prisma.storeServiceItem.count({ where: { storeId: h.owner.store.id } }),
-  await h.prisma.fileRef.count({ where: { storeId: h.owner.store.id } }),
-  await h.prisma.auditLog.count({ where: { storeId: h.owner.store.id } }),
-  await h.prisma.outboxEvent.count({ where: { storeId: h.owner.store.id } }),
-];
+const counts = async (h: World) => {
+  const storeId = h.owner.store.id,
+    media = await h.prisma.storeProfileMedia.findMany({ where: { storeId }, select: { id: true } }),
+    services = await h.prisma.storeServiceItem.findMany({
+      where: { storeId },
+      select: { id: true },
+    });
+  return [
+    await h.prisma.storeProfile.count({ where: { storeId } }),
+    media.length,
+    services.length,
+    await h.prisma.fileRef.count({
+      where: {
+        OR: [
+          { refType: "store_profile", refId: storeId },
+          { refType: "store_profile_media", refId: { in: media.map((r) => r.id) } },
+          { refType: "store_service_item", refId: { in: services.map((r) => r.id) } },
+        ],
+      },
+    }),
+    await h.prisma.auditLog.count({ where: { storeId } }),
+    await h.prisma.outboxEvent.count({ where: { storeId } }),
+  ];
+};
 const error = (work: Promise<unknown>, symbol: string) =>
   expect(work).rejects.toMatchObject({ error: symbol });
 async function pending(h: World) {
@@ -156,7 +189,7 @@ it("空档案GET零写与当前模块/范围；禁改字段和非法输入明确
 
 it("十二免审字段同批一次版本/代理审计/事件，真实GET与完整度消费且重审/联系人保持", async () => {
   const h = await world();
-  await installDicts(h);
+  await installDicts(h.fixture);
   const [logo, door, serviceImage] = await Promise.all([h.file(), h.file(), h.file()]);
   const original = await h.prisma.store.findUniqueOrThrow({ where: { id: h.owner.store.id } }),
     result = await h.update({
@@ -294,7 +327,9 @@ it("三类文件替换保留30天/新live引用，污染与不可用文件拒写
       },
     ],
   });
-  const refs = await h.prisma.fileRef.findMany({ where: { storeId: h.owner.store.id } });
+  const refs = await h.prisma.fileRef.findMany({
+    where: { fileId: { in: [...old, ...fresh].map((r) => r.id) } },
+  });
   for (const oldFile of old)
     expect(refs.find((r) => r.fileId === oldFile.id)).toMatchObject({
       state: "released",
@@ -409,8 +444,8 @@ it("真实openid缺失/Provider失败与命中零写；检测期间版本、owne
 
 it("已提交必填清空拒绝；最后事件写后失败全回滚，旧商家媒体/服务应用仍保原行为", async () => {
   const h = await world(),
-    prepared = await complete(h, h.owner.viewer);
-  await submit(h, h.owner.viewer, prepared.submissionId);
+    prepared = await complete(h.fixture, h.owner.viewer);
+  await submit(h.fixture, h.owner.viewer, prepared.submissionId);
   const saved = await h.prisma.storeProfile.findUniqueOrThrow({
       where: { storeId: h.owner.store.id },
     }),
