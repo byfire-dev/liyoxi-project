@@ -60,6 +60,9 @@ async function purgeFile(ctx: SweepContext, runId: string, fileId: string) {
                 throw new PurgeGuard("运行已结束或候选不符");
               await lockRows(tx, "file_object", [fileId]);
               const file = await tx.fileObject.findUnique({ where: { id: fileId } });
+              // 公开三段式resumed证明旧claim已提交；上轮可能已经加marker，guard失败也须补偿。
+              if (resumed && file?.status === "deleting")
+                attempted = { bucket: file.bucket as ObjectRef["bucket"], key: file.objectKey };
               if (!file || !(await sweepGuard(ctx.deps, tx, file, resumed)))
                 throw new PurgeGuard("删除前当前事实不再满足");
               if (file.status === "stored")
@@ -111,11 +114,15 @@ async function purgeFile(ctx: SweepContext, runId: string, fileId: string) {
         if (attempted) {
           // marker之后独立业务事实变化：同file互斥内恢复对象，真实HEAD成功才回stored。
           await scope.assertHeld();
-          const restored = await ctx.deps.storage.restoreVersions({
-            ...attempted,
-            signal: scope.signal,
-          });
-          if (restored.ok)
+          let restored = false;
+          try {
+            restored = (
+              await ctx.deps.storage.restoreVersions({ ...attempted, signal: scope.signal })
+            ).ok;
+          } catch {
+            scope.signal.throwIfAborted();
+          }
+          if (restored)
             await ctx.tx.run(async (tx) => {
               await lockRows(tx, "file_object", [fileId]);
               await tx.fileObject.updateMany({

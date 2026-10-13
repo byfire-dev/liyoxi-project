@@ -56,7 +56,7 @@ export async function afterPurgedIn(deps: RetentionDeps, tx: Tx, fileIds: readon
         refType: ref.refType,
         refId: ref.refId,
         role: ref.role,
-        keepUntil: deps.clock.now(),
+        keepUntil: new Date(Math.max(ref.keepUntil?.getTime() ?? 0, deps.clock.now().getTime())),
       });
       continue;
     }
@@ -65,7 +65,7 @@ export async function afterPurgedIn(deps: RetentionDeps, tx: Tx, fileIds: readon
       data: {
         state: "released",
         releasedAt: deps.clock.now(),
-        keepUntil: deps.clock.now(),
+        keepUntil: new Date(Math.max(ref.keepUntil?.getTime() ?? 0, deps.clock.now().getTime())),
         updatedAt: deps.clock.now(),
       },
     });

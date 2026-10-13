@@ -4,7 +4,7 @@ import { standingOf } from "../authz/index.js";
 import { createEvents } from "../events/index.js";
 import { createTimers } from "../timers/index.js";
 import { createMedia } from "../media/index.js";
-import type { MediaActor } from "../media/index.js";
+import type { MediaActor, RetentionOptions } from "../media/index.js";
 import type { MediaProductionDeps, ModelBudgetAdmission } from "../media/index.js";
 import {
   createMediaAssembly,
@@ -23,6 +23,7 @@ export async function createMediaAssetsHarness(
   options: {
     production?: (fake: ReturnType<typeof createFakeProviders>) => MediaProductionDeps;
     modelBudget?: ModelBudgetAdmission;
+    retention?: RetentionOptions;
   } = {},
 ) {
   const clock = createClock(new Date("2026-10-10T04:00:00Z"));
@@ -46,6 +47,7 @@ export async function createMediaAssetsHarness(
     events,
     storage: fake.storage,
     moderation: fake.media,
+    ...(options.retention ? { retention: options.retention } : {}),
     assets: {
       ...assets,
       allowModelCall: async () => permitControlledModel,
@@ -60,7 +62,7 @@ export async function createMediaAssetsHarness(
       },
     },
   });
-  mediaScope.attach(media.jobs);
+  mediaScope.attach(media.jobs, media.retention);
   assetsScope.attach(media);
   const merchant = await make.merchant({ verified: true });
   const staff = await make.staff({ staffRoleKey: "super_admin" });

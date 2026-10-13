@@ -426,7 +426,7 @@ export const specFor = (key: string, bizType?: string | null): NotificationSpec 
       : [
           ...Object.values(EVENT_SCENES)
             .flat()
-            .filter((s) => s !== INVITATION_JOIN_SPEC),
+            .filter((s) => s !== INVITATION_JOIN_SPEC && s !== ASSET_DEMAND_SPEC),
           QUOTA_EXCEEDED_SPEC,
           FOLLOWUP_SPEC,
           UNREACHED_SPEC,
