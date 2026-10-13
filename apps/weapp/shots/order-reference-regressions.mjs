@@ -25,6 +25,7 @@ export async function orderReferenceRegression(page, scene, origin) {
     await expect(pick("新门店独立素材")).toBeVisible();
     await expect(pick("门店日常实拍")).toHaveCount(0);
     await expect(active(".order-reference-picker")).toContainText("已选 0/9");
+    await active(".order-reference-picker").scrollIntoViewIfNeeded();
     return;
   }
   const invalid = pick("当前不可参考素材");
@@ -68,4 +69,5 @@ export async function orderReferenceRegression(page, scene, origin) {
     await expect(active(".order-reference-read")).toContainText("员工服务记录");
   const echoed = (await calls()).find((call) => call.path.startsWith("/m/store-assets?ids="));
   expect(new URL(echoed.path, origin).searchParams.get("ids")).toBe(expected.join(","));
+  await active(".order-reference-read").scrollIntoViewIfNeeded();
 }
