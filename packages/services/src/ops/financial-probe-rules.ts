@@ -9,9 +9,10 @@ const facts = z.object({
   expired: count,
   processing: count,
   abnormal: count,
+  createdFailed: count,
 });
 
-/** D7 §9.4 第3–5项：只取持久资金事实，不查渠道、不入账或驱动退款。 */
+/** D7 §9.4 第3–5项及D2 §16：只取持久资金事实，不查渠道、不入账或驱动退款。 */
 export function financialProbeRules(db: SqlRunner): readonly ProbeRule[] {
   return [
     {
@@ -36,7 +37,10 @@ export function financialProbeRules(db: SqlRunner): readonly ProbeRule[] {
           WHERE status='pending_payment' AND expires_at < $1::timestamptz - interval '10 minute') AS expired,
         (SELECT count(*)::int FROM refund_txn
           WHERE status='processing' AND COALESCE(last_submit_at,created_at) < $1::timestamptz - interval '3 day') AS processing,
-        (SELECT count(*)::int FROM refund_txn WHERE status='abnormal') AS abnormal`,
+        (SELECT count(*)::int FROM refund_txn WHERE status='abnormal') AS abnormal,
+        (SELECT count(*)::int FROM refund_txn
+          WHERE status='created' AND fail_code IS NOT NULL AND fail_code <> ''
+            AND COALESCE(last_submit_at,created_at) < $1::timestamptz - interval '1 hour') AS "createdFailed"`,
               at,
             ),
           );
@@ -54,11 +58,15 @@ export function financialProbeRules(db: SqlRunner): readonly ProbeRule[] {
             severity: "P2",
             detail: { count: v!.expired },
           });
-        if (v!.processing > 0 || v!.abnormal > 0)
+        if (v!.processing > 0 || v!.abnormal > 0 || v!.createdFailed > 0)
           result.push({
             rule: "billing.refund_stuck",
             severity: v!.abnormal > 0 ? "P1" : "P2",
-            detail: { processing: v!.processing, abnormal: v!.abnormal },
+            detail: {
+              processing: v!.processing,
+              abnormal: v!.abnormal,
+              createdFailed: v!.createdFailed,
+            },
           });
         return result;
       },

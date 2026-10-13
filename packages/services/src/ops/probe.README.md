@@ -35,6 +35,9 @@
 待支付过期超过10分钟P2，待财务确认不误判为超期关单；processing退款自最近提交
 （缺失则创建）超过3天P2，abnormal立即P1。全额退回、履约done、退款失败终态不
 冒充在途。只记录数量/年龄，既有每条2秒预算与三次恢复机制保持，不自动更改资金。
+created且fail_code非空的退款，自最近提交（缺失则创建）严格超过1小时同报P2，
+与processing合为同一billing.refund_stuck；有abnormal仍升P1。重试沿原退款单号更新
+最近提交时间后重新计时，查询时间或updated_at不影响阈值；detail只含三类数量。
 这不代替尚未实装的对账和渠道支付回调监测，也不回补internal/health/finance的M4桩。
 
 队列探针只消费正式入口从`QUEUE_CONCURRENCY`注入的五个实际消费者：outbox_delivery
