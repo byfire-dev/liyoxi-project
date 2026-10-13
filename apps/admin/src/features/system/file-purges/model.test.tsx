@@ -276,6 +276,7 @@ describe("W308真实DTO与中央运输风险", () => {
             status: "future_status",
             scopeType: "future_scope",
             actions: ["future_action"],
+            uploader: { ...file.uploader, actorType: "future_actor", client: "future_client" },
           },
         ],
         page: 1,
@@ -288,6 +289,31 @@ describe("W308真实DTO与中央运输风险", () => {
       status: "future_status",
       scopeType: "future_scope",
       actions: ["future_action"],
+      uploader: { actorType: "future_actor", client: "future_client" },
+    });
+    const futureStaff = transport(() =>
+      ok({
+        items: [
+          {
+            ...run,
+            decidedBy: {
+              staffId: id,
+              staffNo: 1001,
+              name: "虚构员工",
+              roleKey: "future_role",
+              isLead: false,
+              status: "future_staff_status",
+            },
+          },
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 1,
+      }),
+    );
+    expect((await futureStaff.api.runs({})).items[0]?.decidedBy).toMatchObject({
+      roleKey: "future_role",
+      status: "future_staff_status",
     });
     const invalid = transport((request) =>
       ok({
