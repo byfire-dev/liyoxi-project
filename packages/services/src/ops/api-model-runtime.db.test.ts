@@ -79,6 +79,10 @@ beforeEach(async () => {
   await redis.flush();
   clock.set(new Date());
   vi.clearAllMocks();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new Error("此夹具未授权模型HTTP"))),
+  );
 }, 60_000);
 afterEach(async () => {
   for (const runtime of runtimes.splice(0)) await runtime.close();
@@ -163,10 +167,10 @@ describe("API实际模型与预算运行时接线", { timeout: 60_000 }, () => {
     });
   });
   it("API的LLM保留唯一KF-1事务守卫，关闭取消在途模型且不影响另一实例", async () => {
-    const first = await build({ LLM_DOMESTIC: llm }),
-      second = await build({ LLM_DOMESTIC: llm });
     const fetch = vi.fn<typeof globalThis.fetch>();
     vi.stubGlobal("fetch", fetch);
+    const first = await build({ LLM_DOMESTIC: llm }),
+      second = await build({ LLM_DOMESTIC: llm });
     await expect(
       first.runtime.tx.run(() =>
         first.runtime.providers.llm.extractKeyPoints({ text: "菜单", maxPoints: 1 }),
