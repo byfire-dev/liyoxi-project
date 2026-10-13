@@ -8,7 +8,7 @@ import { grantSchedule, renewTerm, termDates } from "@liyoxi/shared/period";
 import { calendarDate, endOfDay, startOfDay } from "@liyoxi/shared/time";
 import type { LocalDate } from "@liyoxi/shared/time";
 
-import { createLedger } from "../billing/index.js";
+import { createLedger, previewReturn } from "../billing/index.js";
 import type {
   AdjustResult,
   CaptureResult,
@@ -32,6 +32,15 @@ import type { Factories } from "./data/factories/index.js";
 /** 库里的 date 列与“哪一天”互转：Prisma 把 date 读成 UTC 零点的 Date */
 const toDateColumn = (date: LocalDate): Date => new Date(`${date}T00:00:00.000Z`);
 const fromDateColumn = (value: Date): LocalDate => value.toISOString().slice(0, 10);
+
+/** 跨域测试只经支架调用真实账本预览，复用调用方test事务，不计算或改写结果。 */
+export function previewReturnForTest(
+  tx: Tx,
+  input: { holdId: string; qty: number; reasonClass: ReturnReasonClass },
+  at: Date,
+) {
+  return previewReturn(tx, input, at);
+}
 
 export interface LedgerHarness {
   readonly prisma: PrismaClient;

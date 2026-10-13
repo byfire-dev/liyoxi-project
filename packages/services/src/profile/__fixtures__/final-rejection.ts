@@ -4,18 +4,18 @@ import {
   ReturnBreakdownSchema,
 } from "@liyoxi/contract";
 import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
-import type { Tx } from "../../kernel/index.js";
-import { createLedgerHarness, openTerm, prepareOrderDrama } from "../../testing/index.js";
+import {
+  createLedgerHarness,
+  openTerm,
+  prepareOrderDrama,
+  previewReturnForTest,
+} from "../../testing/index.js";
 import type { Harness } from "./harness.js";
 import type { ProfileViewer } from "../context.js";
 let sequence = 70000;
 
 /** 真实账本冻结及快照，供profile真实影响端口消费；不换order端口、不造退款结果。 */
-export async function impactFixture(
-  h: Harness,
-  viewer: ProfileViewer,
-  readPreview: (tx: Tx, holdId: string, qty: number, at: Date) => Promise<unknown>,
-) {
+export async function impactFixture(h: Harness, viewer: ProfileViewer) {
   const ledger = createLedgerHarness(h.prisma, { clock: h.clock });
   const { entityId, storeId } = viewer.membership;
   if (!(await h.prisma.billingAccount.findUnique({ where: { entityId } })))
@@ -180,7 +180,13 @@ export async function impactFixture(
       kind === "order_cancel"
         ? await h.prisma.orderItem.findFirstOrThrow({ where: { dramaOrderId: target.id } })
         : await h.prisma.ad.findUniqueOrThrow({ where: { id: target.id } });
-    const preview = await h.tx.run((tx) => readPreview(tx, line.pointHoldId, target.points, now));
+    const { arbitrageHint: _hint, ...preview } = await h.tx.run((tx) =>
+      previewReturnForTest(
+        tx,
+        { holdId: line.pointHoldId, qty: target.points, reasonClass: "merchant" },
+        now,
+      ),
+    );
     await h.prisma.cancelRequestLine.create({
       data: {
         id: uuidv7(),
