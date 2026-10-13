@@ -76,6 +76,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     }
   };
   const dispose = async () => {
+    const mutexClosing = database.sessionMutex.close();
     let failure: PromiseRejectedResult | undefined;
     const clean = async (closes: readonly (() => unknown)[]) => {
       const results = await settle(closes);
@@ -103,6 +104,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     await clean([() => services?.closeModelBudget?.()]);
     await clean([closeBudgetRedis]);
     await clean([() => services?.closeAlertFacts?.()]);
+    await clean([() => mutexClosing]);
     await clean([
       () => wechatRedis?.disconnect(),
       () => channel?.close(),
@@ -156,6 +158,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       appEnv: env.APP_ENV,
       prisma: database.prisma,
+      sessionMutex: database.sessionMutex,
       assembly,
       channel: channel ?? {
         enqueue: () => Promise.reject(new Error("自检模式不入队")),
@@ -223,8 +226,10 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     let failed = false;
     try {
       activeServices.disableModelBudget?.();
+      const mutexClosing = database.sessionMutex.close();
       await settle(wechatClosers);
       await runtime.stop();
+      await mutexClosing;
     } catch (error) {
       failed = true;
       logger.error({ err: error }, "任务关停失败");

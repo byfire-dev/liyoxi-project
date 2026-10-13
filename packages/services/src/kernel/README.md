@@ -2,6 +2,14 @@
 
 写操作的地基（W0-07）：开事务的唯一入口、保存点、加锁顺序、时钟、主键、操作人。幂等、审计、事件、状态迁移、定时器都建在它上面。依据：[01](../../../../docs/01-architecture.md) 第 5、7.1 节；[06](../../../../docs/06-data-model.md) 第 3.1–3.3、5 节；ADR-005、ADR-011、ADR-012；保存点的结论见 [ADR](../../../../docs/adr/0046-事务内局部回滚用原生保存点-履约留在入账事务内.md)。
 
+## 跨事务会话互斥（W3-06 PR1）
+
+`runtime.sessionMutex.run("media:file:" + fileId, async scope => { ... })` 在专用物理pg连接持有同一session advisory锁，callback内仍用原`tx.run`做两次短事务，中间可事务外调用Provider；拿不到立即SessionMutexError(occupied)，实例2个会话占满为capacity。`scope.signal`给外部调用，`await scope.assertHeld()`真实复核持锁；不提供裸连接/SQL或第二事务入口，不允许嵌套mutex。key最多200字符，命名空间与资源ID由可信业务生成，恢复/彻删须使用同一键。
+
+连接事件或1秒探活观察失锁后abort；原TxState捕获mutex ALS，入口、句柄及惰性查询消费、提交前都核原scope，忽略abort的旧回调不能继续第二TX。对象与句柄不得传到异步兄弟借锁。业务TX内Provider外呼/嵌套TX禁令保持，普通无mutex事务不变。
+
+`close()`幂等、拒新、取消并等待已开始callback及连接收尾；回调须结构化await工作、把signal交真实Provider，任意不响应取消的JS不能被强制中止。失锁通知尚未到达的网络半断及最后检查到COMMIT之间仍有窗口，本机制不承诺撤销已发外部副作用。PR2必须复核并按领域规则补偿。当前只机制，无媒体删除/恢复业务，真实性质/真库定点由ROOT统一验收。
+
 ## 1. 这里有什么
 
 | 文件 | 内容 |
