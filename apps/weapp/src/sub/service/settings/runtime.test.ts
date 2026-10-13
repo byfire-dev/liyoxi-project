@@ -5,8 +5,14 @@ import { createPhoneAuthorization } from "@/pages/login/phone-authorization";
 
 describe("W2-13 actual传输与手机号采集边界", () => {
   it("八个本人调用用中央request形状，专用旧号SMS/确认注销/opaque换绑/游标编码，无portal Meta调用", async () => {
-    const send = vi.fn<RequestLayer["request"]>(async <T>() => null as T),
-      api = createSettingsApi(send);
+    const sent = vi.fn<(...args: Parameters<RequestLayer["request"]>) => void>();
+    const send: RequestLayer["request"] = async <T>(
+      ...args: Parameters<RequestLayer["request"]>
+    ) => {
+      sent(...args);
+      return null as T;
+    };
+    const api = createSettingsApi(send);
     await api.me();
     await api.update({ displayName: "店长" }, "name:key");
     await api.sms("sms:key");
@@ -16,7 +22,7 @@ describe("W2-13 actual传输与手机号采集边界", () => {
     await api.acknowledge("notice/a", "notice:key");
     await api.deletion("delete:key");
     await api.agreements(null);
-    expect(send.mock.calls).toEqual([
+    expect(sent.mock.calls).toEqual([
       ["/m/me"],
       ["/m/me", { method: "PATCH", data: { displayName: "店长" }, idempotencyKey: "name:key" }],
       [

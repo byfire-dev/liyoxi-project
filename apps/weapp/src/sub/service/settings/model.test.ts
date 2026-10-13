@@ -41,7 +41,7 @@ function setup() {
       me = { ...me, user: { ...me.user, ...body } };
       return me.user;
     }),
-    sms: vi.fn(async () => ({
+    sms: vi.fn<SettingsApi["sms"]>(async () => ({
       purpose: "phone_change",
       targetPhoneMask: "138****8000",
       expiresAt: "2026-10-13T01:00:00Z",
