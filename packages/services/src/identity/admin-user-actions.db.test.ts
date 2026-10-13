@@ -303,7 +303,7 @@ describe("后台账号三动作真实数据库", { timeout: 120_000 }, () => {
       await h.identity.silentLogin(META, {
         loginCode: h.codes({ phone: who.phone, openid: who.openid }).loginCode,
       }),
-    ).toEqual({ needPhone: true });
+    ).toEqual({ needPhone: true, token: null, me: null });
     expect(
       await snapshotTables(h.prisma, ["status_transition", "outbox_event", "entity_member"]),
     ).toEqual(fixed);
