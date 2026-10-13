@@ -98,7 +98,9 @@ export function parseBusinessLicense(raw: unknown): BusinessLicenseFields | unde
           ? { principalRole: "branch_head" as const }
           : {}),
     ...(data.Business ? { businessScope: data.Business } : {}),
-    raw: JSON.stringify(raw),
+    raw: JSON.stringify(raw, (_key, value: unknown) =>
+      typeof value === "bigint" ? value.toString() : value,
+    ),
     ...(data.Type ? { subjectTypeText: data.Type } : {}),
     ...(data.Period ? { periodText: data.Period, ...validity(data.Period) } : {}),
     warnings: [...warnings],
