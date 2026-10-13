@@ -35,6 +35,7 @@ import { searchEntryRegression, searchRegression } from "../shots/search-regress
 import { assetRegression } from "../shots/asset-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
 import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
+import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -107,6 +108,9 @@ const { ASSET_UPLOAD_SCENES } = await import(
 const { ASSET_ACTION_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/asset-action-scenes.ts")).href
 );
+const { ORDER_REFERENCE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/order-reference-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -138,6 +142,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...ASSET_SCENES,
         ...ASSET_UPLOAD_SCENES,
         ...ASSET_ACTION_SCENES,
+        ...ORDER_REFERENCE_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -175,6 +180,17 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
+  ...(all
+    ? ORDER_REFERENCE_SCENES
+    : ORDER_REFERENCE_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}&lyxShot=${item.name}`,
+    file: item.name,
+    scene: item.name,
+    kind: "order-reference",
+    fullPage: false,
+  })),
   ...(all ? ACCOUNT_SCENES : ACCOUNT_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
     (item) => ({
       label: item.name,
@@ -450,6 +466,10 @@ async function shoot(target) {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
             globalThis.__LYX_ASSET_ACTION_SHOT__ = scene;
           }
+          if (kind === "order-reference") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
+            globalThis.__LYX_ORDER_REFERENCE_SHOT__ = scene;
+          }
           if (kind === "asset-upload") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk-gated")
               ? "mine-clerk"
@@ -494,7 +514,7 @@ async function shoot(target) {
               ? "#billing-ready"
               : target.kind === "publish"
                 ? "#publish-ready"
-                : target.kind === "order"
+                : target.kind === "order" || target.kind === "order-reference"
                   ? "#order-ready"
                   : target.kind === "catalog"
                     ? "#catalog-ready"
@@ -523,6 +543,8 @@ async function shoot(target) {
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
       if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
+      if (target.kind === "order-reference")
+        await orderReferenceRegression(page, target.scene, origin);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });

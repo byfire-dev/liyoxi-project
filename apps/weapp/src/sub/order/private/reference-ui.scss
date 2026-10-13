@@ -1,0 +1,19 @@
+.order-reference-picker,
+.order-reference-selected,
+.order-reference-read {
+  display: flex;
+  flex-direction: column;
+  gap: $lyx-space-8;
+}
+
+.order-reference-read > view {
+  display: flex;
+  flex-direction: column;
+  gap: $lyx-space-4;
+}
+
+.order-reference-selected .lyx-text-button,
+.order-reference-read .lyx-text-button {
+  white-space: normal;
+  line-height: $lyx-line-height-body;
+}

@@ -2,9 +2,18 @@ import type { Body, Data } from "@/lib/account-api";
 import type { RequestLayer } from "@/lib/request";
 import { request } from "@/lib/runtime";
 import type { OrderTab } from "@/stores/order";
+import { createOrderReferenceApi } from "./reference-api";
 let offline: RequestLayer["request"] | null = null;
 const call: RequestLayer["request"] = async (path, options) => {
   if (process.env.TARO_ENV === "h5") {
+    const referenceScene = (globalThis as { __LYX_ORDER_REFERENCE_SHOT__?: string })
+      .__LYX_ORDER_REFERENCE_SHOT__;
+    if (referenceScene) {
+      offline ??= (
+        await import("../../../../shots/order-reference-fixtures")
+      ).offlineOrderReferenceRequest(referenceScene);
+      return offline(path, options);
+    }
     const scene = (globalThis as { __LYX_ORDER_SHOT__?: string }).__LYX_ORDER_SHOT__;
     if (scene) {
       offline ??= (await import("../../../../shots/order-fixtures")).offlineOrderRequest(scene);
@@ -54,3 +63,4 @@ export function createOrderApi(send: RequestLayer["request"]) {
   };
 }
 export const orderApi = createOrderApi(call);
+export const orderReferenceApi = createOrderReferenceApi(call);
