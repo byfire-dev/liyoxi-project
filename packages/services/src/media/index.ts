@@ -91,3 +91,5 @@ export {
   readOrderAssetReferences,
   countStoreOriginalAssets,
 } from "./assets/facts.js";
+
+export type { MediaRetention } from "./retention/service.js";

@@ -77,6 +77,16 @@ export const registration = defineRegistration("publish", {
       },
     }),
     implementKeyed(fileRefTypePort, "channel_account_submission", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.channelAccountSubmission.findMany({
+            where: {
+              screenshotFileIds: { has: fileId },
+              channelAccount: { status: { not: "unbound" } },
+            },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "screenshot" })),
       roles: {
         screenshot: {
           categories: ["channel_screenshot"],
@@ -100,6 +110,14 @@ export const registration = defineRegistration("publish", {
         ),
     }),
     implementKeyed(fileRefTypePort, "launch_submission", {
+      // 已提交上线证据遵守既有canRelease=false，未通过新策略擅自放宽法定留存。
+      inUse: async (tx, fileId) =>
+        (
+          await tx.launchSubmission.findMany({
+            where: { evidenceFileIds: { has: fileId } },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "evidence" })),
       roles: {
         evidence: { categories: ["evidence"], retentionDays: 1095, canRelease: async () => false },
       },

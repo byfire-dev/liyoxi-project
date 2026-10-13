@@ -21,6 +21,7 @@ import {
   implementMerchantFacts,
 } from "../kernel/index.js";
 import type { ExpectedFileRef } from "../kernel/index.js";
+import type { ClockBoundFileRefType } from "../media/index.js";
 import { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
 import { adminProfileFactsPort } from "./admin-ports.js";
 import { adminStoreListBillingPort, adminStoreListOrderPort } from "./admin-list-ports.js";
@@ -32,6 +33,76 @@ import {
   PROFILE_APPROVED_EVENTS,
   unboundQualificationConsistency,
 } from "./qualification-consistency.js";
+
+const qualificationDocRef: ClockBoundFileRefType = {
+  async inUse() {
+    throw new TypeError("资质证照在用事实须绑定 media 业务时钟");
+  },
+  withClock(clock) {
+    return {
+      ...this,
+      async inUse(tx, fileId) {
+        const cutoff = new Date(clock.now().getTime()),
+          month = cutoff.getUTCMonth();
+        cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 3);
+        if (cutoff.getUTCMonth() !== month) cutoff.setUTCDate(0);
+        const rows = await tx.qualificationDoc.findMany({
+          where: { fileId },
+          select: {
+            id: true,
+            removedAt: true,
+            supersededAt: true,
+            qualificationSubmission: { select: { submittedAt: true, closedAt: true } },
+            entity: { select: { lifecycle: true, closedAt: true } },
+          },
+        });
+        return rows
+          .filter((row) => {
+            const submittedAt = row.qualificationSubmission.submittedAt;
+            // 送审前已移除的草稿行不属于该轮提交证据；送审后的历史证据不因取代而释放。
+            if (submittedAt && (row.removedAt === null || row.removedAt >= submittedAt))
+              return !(
+                row.entity.lifecycle === "closed" &&
+                row.entity.closedAt !== null &&
+                row.entity.closedAt <= cutoff
+              );
+            return (
+              row.removedAt === null &&
+              row.supersededAt === null &&
+              row.qualificationSubmission.closedAt === null &&
+              row.entity.lifecycle !== "closed"
+            );
+          })
+          .map((row) => ({ fileId, refId: row.id, role: "main" }));
+      },
+    };
+  },
+  roles: {
+    main: {
+      categories: ["kyc_license", "kyc_permit"],
+      retentionDays: 7,
+      canRelease: async (tx, id) => {
+        const doc = await tx.qualificationDoc.findUnique({
+          where: { id },
+          include: { entity: { select: { lifecycle: true } } },
+        });
+        return (
+          !doc ||
+          doc.removedAt !== null ||
+          doc.supersededAt !== null ||
+          doc.entity.lifecycle === "closed"
+        );
+      },
+    },
+  },
+  readColumns: async (tx) =>
+    (
+      await tx.qualificationDoc.findMany({
+        where: { removedAt: null, entity: { lifecycle: { not: "closed" } } },
+        select: { id: true, fileId: true },
+      })
+    ).map((row): ExpectedFileRef => ({ fileId: row.fileId, refId: row.id, role: "main" })),
+};
 
 export const registration = defineRegistration("profile", {
   ports: [
@@ -101,6 +172,17 @@ export const registration = defineRegistration("profile", {
       return { stores };
     }),
     implementKeyed(fileRefTypePort, "store_profile", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.storeProfile.findMany({
+            where: {
+              logoFileId: fileId,
+              store: { lifecycle: "active" },
+              entity: { lifecycle: { not: "closed" } },
+            },
+            select: { storeId: true },
+          })
+        ).map((row) => ({ fileId, refId: row.storeId, role: "logo" })),
       roles: { logo: { categories: ["profile_image"], retentionDays: 30 } },
       readColumns: async (tx) =>
         (
@@ -111,6 +193,18 @@ export const registration = defineRegistration("profile", {
         ).map((row) => ({ fileId: row.logoFileId!, refId: row.storeId, role: "logo" })),
     }),
     implementKeyed(fileRefTypePort, "store_profile_media", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.storeProfileMedia.findMany({
+            where: {
+              fileId,
+              removedAt: null,
+              store: { lifecycle: "active" },
+              entity: { lifecycle: { not: "closed" } },
+            },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "main" })),
       roles: {
         main: {
           categories: ["profile_image", "profile_video", "profile_promo"],
@@ -126,6 +220,18 @@ export const registration = defineRegistration("profile", {
         ).map((row) => ({ fileId: row.fileId, refId: row.id, role: "main" })),
     }),
     implementKeyed(fileRefTypePort, "store_service_item", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.storeServiceItem.findMany({
+            where: {
+              imageFileId: fileId,
+              removedAt: null,
+              store: { lifecycle: "active" },
+              entity: { lifecycle: { not: "closed" } },
+            },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "image" })),
       roles: { image: { categories: ["profile_image"], retentionDays: 30 } },
       readColumns: async (tx) =>
         (
@@ -135,33 +241,7 @@ export const registration = defineRegistration("profile", {
           })
         ).map((row) => ({ fileId: row.imageFileId!, refId: row.id, role: "image" })),
     }),
-    implementKeyed(fileRefTypePort, "qualification_doc", {
-      roles: {
-        main: {
-          categories: ["kyc_license", "kyc_permit"],
-          retentionDays: 7,
-          canRelease: async (tx, id) => {
-            const doc = await tx.qualificationDoc.findUnique({
-              where: { id },
-              include: { entity: { select: { lifecycle: true } } },
-            });
-            return (
-              !doc ||
-              doc.removedAt !== null ||
-              doc.supersededAt !== null ||
-              doc.entity.lifecycle === "closed"
-            );
-          },
-        },
-      },
-      readColumns: async (tx) =>
-        (
-          await tx.qualificationDoc.findMany({
-            where: { removedAt: null, entity: { lifecycle: { not: "closed" } } },
-            select: { id: true, fileId: true },
-          })
-        ).map((row): ExpectedFileRef => ({ fileId: row.fileId, refId: row.id, role: "main" })),
-    }),
+    implementKeyed(fileRefTypePort, "qualification_doc", qualificationDocRef),
   ],
   invariants: PROFILE_INVARIANT_CODES.map((code) => ({
     code: `profile.${code}`,

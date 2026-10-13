@@ -22,6 +22,7 @@ export function readStoreAssetFacts(tx: Tx, storeId: string, scope?: DataScope) 
       isPrimary: true,
       qualificationStatus: true,
       lifecycle: true,
+      archivedAt: true,
     },
   });
 }

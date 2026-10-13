@@ -4,6 +4,9 @@ import type { ExpectedFileRef } from "../kernel/index.js";
 import { fileCategoryGuardPort } from "../media/index.js";
 import type { ClockBoundFileRefType } from "../media/index.js";
 const accountChangeProofRef: ClockBoundFileRefType = {
+  async inUse() {
+    throw new TypeError("账号变更证明在用事实须绑定 media 业务时钟");
+  },
   roles: {
     proof: {
       categories: ["account_proof"],
@@ -16,6 +19,26 @@ const accountChangeProofRef: ClockBoundFileRefType = {
   withClock(clock) {
     return {
       ...this,
+      async inUse(tx, fileId) {
+        const cutoff = new Date(clock.now().getTime()),
+          month = cutoff.getUTCMonth();
+        cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 3);
+        if (cutoff.getUTCMonth() !== month) cutoff.setUTCDate(0);
+        return (
+          await tx.accountChangeRequest.findMany({
+            where: {
+              proofFileIds: { has: fileId },
+              NOT: {
+                OR: [
+                  { merchantUser: { deletedAt: { lte: cutoff } } },
+                  { entity: { closedAt: { lte: cutoff } } },
+                ],
+              },
+            },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "proof" }));
+      },
       roles: {
         proof: {
           ...this.roles.proof!,

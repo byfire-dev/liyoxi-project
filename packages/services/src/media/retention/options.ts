@@ -11,4 +11,8 @@ export interface RetentionOptions {
   sessionMutex: SessionMutex;
   alerts: Alerts;
   staffBriefs(tx: Tx, ids: readonly string[]): Promise<StaffBrief[]>;
+  sweep?: {
+    parameters(): Promise<{ mode: "list_only" | "auto"; maxObjects: number; maxBytes: bigint }>;
+    remindDemand(tx: Tx, demandId: string): Promise<number>;
+  };
 }
