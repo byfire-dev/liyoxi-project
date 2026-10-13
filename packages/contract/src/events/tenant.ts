@@ -151,6 +151,15 @@ export const entityMemberStoresChangedPayload = z.strictObject({
 });
 
 export const payloads = {
+  "entity_member.promoted": z.strictObject({
+    v: z.literal(1),
+    entityMemberId: IdSchema,
+    entityId: IdSchema,
+    merchantUserId: IdSchema,
+    fromState: orNull(z.literal("active")),
+    toState: z.literal("active"),
+    transition: z.enum(["entity_member.promote_owner", "entity_member.create_owner"]),
+  }),
   "entity.created": entityCreatedPayload,
   "store.created": storeCreatedPayload,
   "entity.closed": entityClosedPayload,

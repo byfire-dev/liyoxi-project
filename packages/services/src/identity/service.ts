@@ -52,6 +52,11 @@ import { createSmsCode, changePhone } from "./phone-change.js";
 import type { PhoneChangeDeps } from "./phone-change.js";
 import { deleteAccount } from "./account-deletion.js";
 import { adminUserAction } from "./admin-user-actions.js";
+import { createAccountChanges } from "./account-changes.js";
+import { createReferralCodes } from "./referral-codes.js";
+import type { ReferralCodes } from "./referral-codes.js";
+import type { AccountChanges } from "./account-changes.js";
+import type { AccountChangeDeps } from "./account-change-context.js";
 import type {
   AdminUserAction,
   AdminUserActionInput,
@@ -68,10 +73,13 @@ export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"
   /** 短信通道配没配（决定 MeUser.actions 里有没有换绑手机号）；不给即没配 */
   readonly smsConfigured?: () => boolean;
   readonly notify?: PhoneChangeDeps["notify"];
-  readonly approval?: PhoneChangeDeps["approval"];
+  readonly approval?: AccountChangeDeps["approval"];
+  readonly media?: AccountChangeDeps["media"];
 }
 
 export interface Identity {
+  readonly referralCodes: ReferralCodes;
+  readonly accountChanges: AccountChanges;
   adminUserAction(
     ctx: IdentityContext,
     staff: StaffContext,
@@ -184,6 +192,8 @@ export function createIdentity(deps: IdentityDeps): Identity {
     reconsent: (principal, meta, input, options) =>
       reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
+    accountChanges: createAccountChanges(deps),
+    referralCodes: createReferralCodes(deps),
     adminUserAction: (ctx, staff, op, input, options) =>
       adminUserAction(deps, ctx, staff, op, input, options),
     updateMe: (principal, meta, input, options) => updateMe(deps, principal, meta, input, options),

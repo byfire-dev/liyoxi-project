@@ -25,6 +25,7 @@ import { guardStoreRestore } from "./store-restore.js";
 import { guardStoreCreate } from "./store-create.js";
 import { guardAccept } from "./invitation-accept.js";
 import { guardDraftAbandon } from "./empty-draft.js";
+import { guardOwnerTransfer } from "./owner-transfer.js";
 
 /** 建主体的三行迁移随 args 带的事实 */
 export interface CreateEntityArgs {
@@ -88,6 +89,7 @@ const firstStoreOfOwnEntity: Guard = async (tx, facts) => {
 
 /** 02:690 entity_member.create_owner：该账号没有别的有效成员关系 */
 const noOtherActiveMembership: Guard = async (tx, facts) => {
+  if (await guardOwnerTransfer(tx, facts)) return true;
   const { merchantUserId } = argsOf<CreateEntityArgs>(facts);
   if (merchantUserId === undefined) return false;
   const others = await tx.entityMember.count({
@@ -305,6 +307,7 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
   },
   [chainKey("entity_member", "status")]: {
     companions: [
+      "role",
       "display_name",
       "removed_at",
       "remove_actor_type",
@@ -322,6 +325,8 @@ export const TENANT_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>> =
     }),
     guards: {
       [rowKey("02:690", "entity_member.create_owner")]: noOtherActiveMembership,
+      [rowKey("02:693", "entity_member.promote_owner")]: guardOwnerTransfer,
+      [rowKey("02:694", "entity_member.cascade_remove")]: guardOwnerTransfer,
       [rowKey("02:691", "entity_member.join")]: guardAccept,
       [rowKey("02:692", "entity_member.remove")]: guardMemberRemoval,
       [rowKey("02:692", "entity_member.leave")]: guardMemberRemoval,

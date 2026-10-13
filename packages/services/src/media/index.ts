@@ -25,6 +25,7 @@ export type {
 } from "./context.js";
 export { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 export type { FileCategoryGuard, FileRefType, ExpectedFileRef } from "./ports.js";
+export type { ClockBoundFileRefType } from "./ports.js";
 export { findI2Violations, findI14Violations } from "./invariants.js";
 export type { PromoteRef } from "./promote.js";
 export { registration } from "./register.js";

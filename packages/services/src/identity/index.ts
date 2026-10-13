@@ -2,6 +2,7 @@
 // 协议同意的门、版本门槛的判断）。用法见本目录的 README.md。改称呼、换绑手机号、已登录的微信、一次性提示的关闭、注销随 M2。
 export { createIdentity } from "./service.js";
 export type { Identity, IdentityDeps } from "./service.js";
+export type { AccountChanges } from "./account-changes.js";
 export type {
   AdminUserAction,
   AdminUserActionInput,
@@ -36,6 +37,7 @@ export {
   findI23Violations,
   findI24Violations,
   findI25Violations,
+  findI26Violations,
   findI8Violations,
   findI9Violations,
   IDENTITY_INVARIANT_LIMIT,
@@ -56,3 +58,4 @@ export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
 export { merchantTargetForNotify, wechatTargetForNotify } from "./notify-facts.js";
 
 export { countActiveMerchantUsers } from "./active-user-count.js";
+export type { ReferralCodes } from "./referral-codes.js";

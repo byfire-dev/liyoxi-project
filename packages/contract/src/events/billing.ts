@@ -202,6 +202,12 @@ export const dramaPriceChangedPayload = z.strictObject({
   effectiveAt: InstantSchema,
 });
 export const payloads = {
+  "billing.plan_revision_scheduled": z.strictObject({
+    v: z.literal(1),
+    planRevisionId: IdSchema,
+    planId: IdSchema,
+    effectiveAt: InstantSchema,
+  }),
   "pricing.drama_price_changed": dramaPriceChangedPayload,
   "billing_order.created": billingOrderCreatedPayload,
   "transfer.proof_submitted": transferProofSubmittedPayload,

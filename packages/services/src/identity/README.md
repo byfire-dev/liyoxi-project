@@ -101,9 +101,23 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 `createSmsCode(principal, meta, {purpose:"phone_change"}, {idem})` 向当前号码发六位码，五分钟有效；仅哈希落库，发送失败补偿删除。`changePhone(principal, meta, {oldSmsCode,newPhoneCode}, {idem})` 通过微信公口在事务外取新号码，最终事务核销最新原号验证码并换绑。错码短事务累加，成功保留当前会话与portal、吊销其他登录会话，重放不重取微信code或重复旧号通知。
 
-账号80之前预锁空占用账号的审批30/申请40全集，两账号按ID升序；锁后新增申请或占用方变化返回BUSY。空账号必须active且从无任何成员行，清理所有个人依附与申请敏感暂存，经flow.purge_empty发deleted事件。账号变更登记当前只支持真实关闭清敏感字段，人工创建/审批生效仍未开放。`notify`/`approval`由API运行时注入，缺SMS通道返回SMS_UNAVAILABLE；旧号安全通知失败不影响已提交结果。
+账号80之前预锁空占用账号的审批30/申请40全集，两账号按ID升序；锁后新增申请或占用方变化返回BUSY。空账号必须active且从无任何成员行，清理所有个人依附与申请敏感暂存，经flow.purge_empty发deleted事件。账号变更关闭清敏感处理与人工申请共用真实登记。`notify`/`approval`由API运行时注入，缺SMS通道返回SMS_UNAVAILABLE；旧号安全通知失败不影响已提交结果。
 ### 本人账号注销（W2-09）
 
 `deleteAccount(principal, meta, {hasConfirmed:true}, {idem})` 在真实session与账号锁下完成注销。老板调用tenant原六类必需事实与同Tx关闭，店员调用account_deleted移除；全部本人历史成员称呼由tenant窄公口清空，成员120全集已在门店130之前升序锁定。无成员也执行同一清理约束，不读取上层内部表，不用未配零值。
 
 个人会话/身份/FK额度/验证码/提示/企微关系、在审账号变更敏感暂存与账号PII都在原事务清除；同意、交易和审计不删。真实迁移末端的私有sameTx witness守卫防止用args跳过清理，后续失败整笔回滚。成功后同键在鉴权返回401；原merchant_user.deleted消费者异步清站内消息/投递目标。I24巡检检查已注销账号的个人残留，不把法定证据算作残留。
+
+### 人工账号变更（W2-09）
+
+`identity.accountChanges` 提供六个正式后台入口，三种申请共用 approval 的真实提交、决定、审计与事件。账号80/身份90→主体100/成员120前取得审批30/申请40全集；锁后重算前提，漂移不补低序锁。通过即同Tx换绑、老板更换或72小时复核旁路；驳回/撤回清密文、保留证明。回放前仍核当前staff会话、权限与申请scope，查询不写库。
+
+老板更换调用 tenant 的 `transferOwnerIn`：真实已通过申请与私有sameTx见证约束先移旧老板、再晋升本主体clerk或建owner，并吊销旧老板portal授权；新建账号只有真实审批可免首次同意，普通初登守卫保持。换绑共用空账号清理与提交后旧号通知；审批联动迁移并入一条审批审计。
+
+证明只接当前员工合法文件与真实目标scope；无主体窄例外见a01 3.57。引用释放绑定media实例时钟，注销/关闭任一满日历三年后可释放，再保留分类既有7天。定点DB文件 `account-changes.db.test.ts` 共12组，HTTP文件 `apps/api/test/admin-account-change-requests.test.ts` 共6组，重型验收由ROOT串行执行。
+
+### 渠道码管理（W2-09）
+
+`identity.referralCodes.list/create/disable/enable` 核当前员工会话、角色配置与既有manage权限；同键重放也鉴权。数据是global资源，列表不套门店scope。表写与投影交tenant公开同Tx函数；sales归属员工在共享staff锁后必须active，码统一大写、sales/campaign共用命名空间，状态动作CAS且只写ops审计，不写flow历史/事件。
+
+首次登录仍只消费tenant既有findActiveReferralCode：邀请码优先、仅active命中、老号不回溯。停用/启用不改旧归因，注册/主体统计现算。定点为referral-codes.db.test.ts的6组与API admin-referral-codes.test.ts的4组；正式外部驱动验证与本地代码完成分开记录。

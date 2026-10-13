@@ -26,6 +26,7 @@ export const identityPiiFields = [
     const row = await db.accountChangeRequest.findFirst({
       where: {
         id: query.subjectId,
+        approvalRequest: { status: "pending" },
         ...(scope.kind === "all" ? {} : { entity: entityScope(scope) }),
       },
       select: { newPhoneEnc: true, entityId: true },

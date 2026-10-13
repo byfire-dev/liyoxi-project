@@ -73,7 +73,7 @@ export const UPLOAD_CATEGORIES = {
   banner: category("pub", "platform", image, { admin: true }),
   pay_bill: category("secure", "platform", ["csv", "txt"]),
   wecom_qr: category("asset", "platform", image),
-  account_proof: category("secure", "entity", [...image, "pdf"]),
+  account_proof: category("secure", "entity", [...image, "pdf"], { admin: true }),
   portrait_auth: category("secure", "store", [...image, "pdf"], {
     merchant: true,
     admin: true,
