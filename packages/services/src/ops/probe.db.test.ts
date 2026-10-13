@@ -195,6 +195,35 @@ it("采样失败三次才告警；一次未知打断业务与probe.failed连续�
   expect(JSON.stringify(h.logs)).not.toContain("private-database-detail");
 });
 
+it("定时器派发失联留两分钟给扫描接管，持续未恢复才告警", async () => {
+  const h = await setup(),
+    at = h.clock.now();
+  const row = await h.prisma.timer.create({
+    data: {
+      id: uuidv7(),
+      kind: "lyxtest.probe",
+      fireAt: at,
+      dedupeKey: uuidv7(),
+      status: "dispatched",
+      leaseUntil: at,
+      isEnqueued: true,
+      dispatchNo: 1,
+    },
+  });
+  const rule = sqlProbeRules(h.prisma).find((one) => one.key === "timer")!;
+  h.clock.advance(120_000);
+  expect(await rule.sample(h.clock.now())).toEqual([]);
+  h.clock.advance(1);
+  expect(await rule.sample(h.clock.now())).toEqual([
+    { rule: "timer.lost_dispatch", severity: "P2", detail: { value: 1 } },
+  ]);
+  await h.prisma.timer.update({
+    where: { id: row.id },
+    data: { leaseUntil: new Date(h.clock.now().getTime() + 60_000), dispatchNo: 2 },
+  });
+  expect(await rule.sample(h.clock.now())).toEqual([]);
+});
+
 it("只许主租约采样；并发上限三且运行中被接任后零迟到落库", async () => {
   const h = await setup(),
     entered = gate<void>(),

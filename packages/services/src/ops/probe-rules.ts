@@ -69,7 +69,7 @@ export function sqlProbeRules(db: SqlRunner): readonly ProbeRule[] {
           `SELECT
           min(COALESCE(retry_at,fire_at)) FILTER (WHERE status='scheduled' AND COALESCE(retry_at,fire_at) < $1) AS oldest,
           count(*) FILTER (WHERE status='failed')::int AS failed,
-          count(*) FILTER (WHERE status='dispatched' AND lease_until < $1 AND is_enqueued)::int AS lost FROM timer`,
+          count(*) FILTER (WHERE status='dispatched' AND lease_until < $1::timestamptz - interval '2 minute' AND is_enqueued)::int AS lost FROM timer`,
           z.object({ oldest: timestamp, failed: count, lost: count }),
           at,
         );
