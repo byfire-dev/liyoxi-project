@@ -1,7 +1,12 @@
 import { createPrismaClient } from "@liyoxi/db";
 import type { AlertInput, Clock, Tx, TxRunner } from "../kernel/index.js";
 import type { ProviderLogger } from "../providers/types.js";
-import { writeAlertFact, writeHealthyProbeFact, writeUnknownProbeFact } from "./alert-facts.js";
+import {
+  resolveQuietEventFacts,
+  writeAlertFact,
+  writeHealthyProbeFact,
+  writeUnknownProbeFact,
+} from "./alert-facts.js";
 import type { SqlRunner } from "./binding.js";
 import type { ProbeRule } from "./probe-rules.js";
 
@@ -153,6 +158,7 @@ export function createProbe(options: Options) {
       };
       await Promise.all(Array.from({ length: PROBE_CONCURRENCY }, () => track(work())));
       await withLease(async (tx) => {
+        await resolveQuietEventFacts(tx, at);
         await tx.$executeRawUnsafe(
           `UPDATE worker_lease SET probe_at=$2,updated_at=$2 WHERE name='primary' AND holder=$1`,
           holder,
