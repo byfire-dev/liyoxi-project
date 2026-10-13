@@ -6,6 +6,7 @@ import { merchantMeta } from "../meta-only.js";
 
 import {
   MeUpdateBodySchema,
+  MeChangePhoneBodySchema,
   MeUserSchema,
   MeViewSchema,
   UserNoticeAcknowledgeParamsSchema,
@@ -47,7 +48,7 @@ export const mMeUpdate = merchantRoute({
   },
 });
 
-export const mMeChangePhone = merchantMeta({
+export const mMeChangePhone = merchantRoute({
   method: "post",
   path: "/m/me/change-phone",
   operationId: "m.me.changePhone",
@@ -57,6 +58,14 @@ export const mMeChangePhone = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: { required: true, content: { "application/json": { schema: MeChangePhoneBodySchema } } },
+  },
+  responses: {
+    ...okResponse(MeUserSchema),
+    ...errorResponses(400, 401, 403, 409, 426, 428, 429, 503),
+  },
 });
 
 export const mMeDeletionCreate = merchantMeta({

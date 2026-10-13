@@ -21,6 +21,7 @@ import {
 } from "./invariants.js";
 import { machineImplementations } from "./machines.js";
 import { membershipAuthorizations } from "./portal-grants.js";
+import { accountChangeCleanup } from "./empty-account.js";
 
 const check = (
   code: string,
@@ -37,6 +38,7 @@ export const registration = defineRegistration("identity", {
 
     ...identityPiiFields,
     ...machineImplementations(),
+    accountChangeCleanup,
     implement(membershipAuthorizationsPort, membershipAuthorizations),
   ],
   invariants: [

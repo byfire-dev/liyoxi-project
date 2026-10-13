@@ -654,6 +654,23 @@ export interface paths {
         patch: operations["m.me.update"];
         trace?: never;
     };
+    "/api/v1/m/me/change-phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 换绑手机号：提交 {oldSmsCode, newPhoneCode}；保留当前会话、吊销其他会话（不换发令牌，A81）；新号码被从无成员关系的空账号占用时同事务清理该账号 */
+        post: operations["m.me.changePhone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/me/current-store": {
         parameters: {
             query?: never;
@@ -1199,6 +1216,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/qualification-docs/{qualificationDocId}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 从草稿移除证照（释放文件引用，保留 7 天） */
+        post: operations["m.qualificationDoc.remove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/qualification-submissions": {
         parameters: {
             query?: never;
@@ -1295,6 +1329,23 @@ export interface paths {
         put?: never;
         /** 手机号快捷登录/注册：{loginCode, phoneCode, consents, attribution}；首次登录建账号、记协议同意与来源；可能返回 REVERIFY_REQUIRED、switchedFrom */
         post: operations["m.session.phoneLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/sms-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发送换绑手机号的短信验证码：purpose=phone_change，发到账号当前手机号 */
+        post: operations["m.smsCode.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1473,6 +1524,23 @@ export interface paths {
         head?: never;
         /** 保存第 4 步草稿：主体类型（企业/个体工商户）、信息确认；没有草稿时建草稿轮次（ensureDraft） */
         patch: operations["m.storeProfile.qualification.update"];
+        trace?: never;
+    };
+    "/api/v1/m/store-profile/qualification/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 丢弃资质草稿（放弃变更） */
+        post: operations["m.storeProfile.qualification.discard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/m/store-profile/qualification/submit": {
@@ -4374,6 +4442,10 @@ export interface components {
             /** @enum {string} */
             mode: "in_app" | "offline_contract" | "hidden" | (string & {});
         };
+        QualificationDiscardBody: {
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+        };
         QualificationDoc: {
             certNoMask: string | null;
             displayFields: {
@@ -4432,6 +4504,15 @@ export interface components {
             submitted: {
                 [key: string]: string;
             } | null;
+        };
+        QualificationDocRemoveResult: {
+            lockVersion: number;
+            /** Format: uuid */
+            qualificationDocId: string;
+            /** Format: uuid */
+            qualificationSubmissionId: string;
+            /** Format: date-time */
+            removedAt: string;
         };
         QualificationRecord: {
             changedFields: ("store_name" | "address" | "industry" | "docs" | "entity_license" | (string & {}))[];
@@ -4707,6 +4788,14 @@ export interface components {
             me: components["schemas"]["MeView"] | null;
             needPhone: boolean;
             token: string | null;
+        };
+        SmsCodeResult: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** @enum {string} */
+            purpose: "phone_change";
+            resendAfterSec: number;
+            targetPhoneMask: string;
         };
         StoreArchiveResult: {
             removedMemberCount: number;
@@ -8310,6 +8399,111 @@ export interface operations {
             };
         };
     };
+    "m.me.changePhone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    newPhoneCode: string;
+                    oldSmsCode: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["MeUser"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 客户端版本过低 */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 需要先同意协议 */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.me.currentStore.replace": {
         parameters: {
             query?: never;
@@ -11048,6 +11242,88 @@ export interface operations {
             };
         };
     };
+    "m.qualificationDoc.remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qualificationDocId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["QualificationDocRemoveResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.qualificationSubmission.list": {
         parameters: {
             query?: {
@@ -11476,6 +11752,111 @@ export interface operations {
             };
             /** @description 入参不合约定，或业务规则拒绝了输入本身 */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 客户端版本过低 */
+            426: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 需要先同意协议 */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.smsCode.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    purpose: "phone_change";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["SmsCodeResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12777,6 +13158,119 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.storeProfile.qualification.discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationDiscardBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: string[];
+                            contact: components["schemas"]["ContactView"];
+                            declaration: {
+                                currentVersion: string;
+                            };
+                            effectiveDocs: components["schemas"]["QualificationDoc"][];
+                            entity: {
+                                /** @enum {string|null} */
+                                entityType: "enterprise" | "individual" | (string & {}) | null;
+                                legalRepNameMask: string | null;
+                                name: string | null;
+                                usccMask: string | null;
+                                /** @enum {string} */
+                                verificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                                verifiedAt: string | null;
+                            };
+                            isChangeInReview: boolean;
+                            isFinalRejected: boolean;
+                            lastClosedRound: components["schemas"]["QualificationRound"] | null;
+                            openRound: components["schemas"]["QualificationRound"] | null;
+                            requiredPermits: {
+                                isProvided: boolean;
+                                permitType: components["schemas"]["DictRef"];
+                            }[];
+                            /** @enum {string} */
+                            storeQualificationStatus: "unsubmitted" | "pending" | "verified" | "rejected" | (string & {});
+                            /** @enum {string} */
+                            viewerRole: "owner";
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

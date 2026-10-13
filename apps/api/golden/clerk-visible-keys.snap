@@ -348,6 +348,15 @@
     "revNo",
     "sorts"
   ],
+  "m.me.changePhone": [
+    "code",
+    "details",
+    "details.attemptsLeft",
+    "error",
+    "message",
+    "requestId",
+    "retryable"
+  ],
   "m.me.currentStore.replace": [
     "storeId"
   ],
@@ -549,6 +558,13 @@
     "me.user.registeredAt",
     "switchedFrom",
     "token"
+  ],
+  "m.smsCode.create": [
+    "code",
+    "error",
+    "message",
+    "requestId",
+    "retryable"
   ],
   "m.store.list": [
     "entity",

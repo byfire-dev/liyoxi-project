@@ -1,6 +1,5 @@
 // 商家端：门店档案、资质与素材 · qualification-docs（docs/api/m03-profile-asset.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 import { merchantRoute } from "../builders.js";
 import { errorResponses, okResponse, IdSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
@@ -10,6 +9,7 @@ import {
   QualificationDocPatchSchema,
   QualificationDocRecognizedSchema,
   QualificationDocUpdateResultSchema,
+  QualificationDocRemoveResultSchema,
 } from "./qualification.schemas.js";
 
 export const mQualificationDocCreate = merchantRoute({
@@ -74,7 +74,7 @@ export const mQualificationDocDownloadUrls = merchantRoute({
   responses: { ...okResponse(SignedUrlSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
 });
 
-export const mQualificationDocRemove = merchantMeta({
+export const mQualificationDocRemove = merchantRoute({
   method: "post",
   path: "/m/qualification-docs/{qualificationDocId}/remove",
   operationId: "m.qualificationDoc.remove",
@@ -82,4 +82,9 @@ export const mQualificationDocRemove = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: z.object({ qualificationDocId: IdSchema }) },
+  responses: {
+    ...okResponse(QualificationDocRemoveResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
