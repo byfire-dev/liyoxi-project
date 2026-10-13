@@ -150,6 +150,13 @@ export const registration = defineRegistration("staff", {
   ],
   portImplementations: [
     implementKeyed(fileRefTypePort, "staff", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.staff.findMany({
+            where: { wecomQrFileId: fileId },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "wecom_qr" })),
       roles: { wecom_qr: { categories: ["wecom_qr"], retentionDays: 7 } },
       readColumns: async (tx) =>
         (

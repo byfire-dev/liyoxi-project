@@ -34,6 +34,17 @@ export const registration = defineRegistration("docs", {
   portImplementations: [
     docsPiiFields,
     implementKeyed(fileRefTypePort, "agreement_version", {
+      // 已生效/历史协议均是法定证据；草稿也只按当前source/pdf列保护，替换掉的旧文件不占用。
+      inUse: async (tx, fileId) =>
+        (
+          await tx.agreementVersion.findMany({
+            where: { OR: [{ sourceFileId: fileId }, { pdfFileId: fileId }] },
+            select: { id: true, sourceFileId: true, pdfFileId: true },
+          })
+        ).flatMap((row) => [
+          ...(row.sourceFileId === fileId ? [{ fileId, refId: row.id, role: "source" }] : []),
+          ...(row.pdfFileId === fileId ? [{ fileId, refId: row.id, role: "pdf" }] : []),
+        ]),
       roles: {
         source: {
           categories: ["legal_doc"],

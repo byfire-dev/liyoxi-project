@@ -9,6 +9,7 @@ import { directSender } from "./direct.js";
 import { validateConfiguration } from "./configuration.js";
 import { fanoutRunner } from "./fanout.js";
 import type { NotifyQueueRef, NotifyQueueTask } from "./context.js";
+import { remindAssetDemand } from "./asset-demand.js";
 
 export function createNotifyDispatcher(deps: NotifyDispatchDeps) {
   const runner = deliveryRunner(deps);
@@ -23,6 +24,8 @@ export function createNotifyDispatcher(deps: NotifyDispatchDeps) {
     validateConfiguration: () => validateConfiguration(deps),
     sendDirect: direct.sendDirect,
     verificationAvailable: direct.verificationAvailable,
+    remindAssetDemand: (tx: Parameters<typeof remindAssetDemand>[0], id: string) =>
+      remindAssetDemand(tx, deps, id),
     sendQuotaExceeded: (
       tx: Parameters<typeof sendQuotaExceeded>[0],
       event: Parameters<typeof sendQuotaExceeded>[2],
