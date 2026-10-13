@@ -248,6 +248,16 @@ return tx.run(async (handle) => {
 
 ## 13. 队列（W0-23）
 
+W2-24只读伴随：真实`createQueueChannel`始终提供可选公口`observe(queue, at, scanLimit)`。
+独立observer Queue使用`skipMetasUpdate:true`，复用500ms producer命令时限且禁止TX内调用；
+不经入队Queue初始化meta，所有键由BullMQ的`toKey`生成。单次只读Lua原子读wait、legacy
+paused、prioritized、active及近10分钟failed；等待≤scanLimit（最高501）才扫描全部任务
+timestamp取min，超过或时间戳缺失明确`oldestWaitingComplete=false`/null，不制造最老值。
+全局暂停仅以meta为准，本地`Worker.pause`无此含义；事件逆读最多1000条，事件被裁剪或
+暂停时禁发事件而无法确定起点时，以本实例首次观测作为保守下界。窗口无法证明两次
+观测之间连续暂停时重置下界；不能把该值当作历史准确暂停时间。观察器/下界及在途
+调用由本通道实例拥有，close拒新观测、等有界在途后成对关闭，不影响其他实例。
+
 `queue/` 是全仓唯一引 BullMQ 的地方（兼容脚本除外）。BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租约都在数据库行上。
 
 ```ts

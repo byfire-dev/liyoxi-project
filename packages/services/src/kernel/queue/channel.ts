@@ -8,8 +8,10 @@
 //   3. 入队报了错不等于任务没进队列（超时的那一次可能其实进去了）：没关系，消费时按 dispatch_no 认，过期的那次不落结果。
 //   4. 借自参考工程 packages/services/src/queue/connection.ts（连接的建法）；队列名取契约的登记，键前缀 lyx:{env}:bull。
 import type { QueueId } from "@liyoxi/contract/registry";
+import { QUEUES } from "@liyoxi/contract/registry";
 import { Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
+import { z } from "zod";
 
 import type { AppEnv } from "../env.js";
 import { assertNotInTransaction } from "../tx.js";
@@ -56,8 +58,74 @@ export interface QueueChannel {
   downForMs(): number;
   /** 探一下 Redis 通不通；结果同时记进 downForMs */
   ping(): Promise<boolean>;
+  /** 只读有界快照；真实工厂始终实现，旧借用替身可不提供。不得在事务内调用。 */
+  observe?(queue: QueueId, at: Date, scanLimit?: number): Promise<QueueObservation>;
   close(): Promise<void>;
 }
+
+export interface QueueObservation {
+  readonly waiting: number;
+  readonly active: number;
+  readonly failed10Min: number;
+  readonly oldestWaitingAt: number | null;
+  readonly oldestWaitingComplete: boolean;
+  readonly paused: boolean;
+  readonly pausedSince: number | null;
+  readonly pauseTimeSource: "event" | "observed" | "none";
+}
+const count = z.number().int().nonnegative();
+const snapshotSchema = z.object({
+  waiting: count,
+  active: count,
+  failed10Min: count,
+  oldestWaitingAt: count.nullable(),
+  oldestWaitingComplete: z.boolean(),
+  paused: z.boolean(),
+  pauseAt: count.nullable(),
+  historyStart: count.nullable(),
+  historyFull: z.boolean(),
+});
+// Redis内原子读：不改meta、不移动任务、不清理失败历史；扫描任务至多501、事件至多1000。
+const OBSERVE_LUA = `
+local waiting = redis.call('LLEN',KEYS[1])+redis.call('LLEN',KEYS[2])+redis.call('ZCARD',KEYS[3])
+local active = redis.call('LLEN',KEYS[4])
+local failed = redis.call('ZCOUNT',KEYS[5],tonumber(ARGV[1])-600000,ARGV[1])
+local paused = redis.call('HEXISTS',KEYS[6],'paused') == 1
+local oldest = cjson.null
+local complete = waiting <= tonumber(ARGV[2])
+if complete and waiting > 0 then
+  local lists = {redis.call('LRANGE',KEYS[1],0,-1),redis.call('LRANGE',KEYS[2],0,-1),redis.call('ZRANGE',KEYS[3],0,-1)}
+  for _,ids in ipairs(lists) do
+    for _,id in ipairs(ids) do
+      local timestamp = tonumber(redis.call('HGET',KEYS[8]..id,'timestamp'))
+      if not timestamp or timestamp < 0 or timestamp % 1 ~= 0 then complete = false
+      elseif oldest == cjson.null or timestamp < oldest then oldest = timestamp end
+    end
+  end
+end
+if not complete then oldest = cjson.null end
+local pauseAt = cjson.null
+local historyStart = cjson.null
+local historyFull = false
+if paused then
+  local events = redis.call('XREVRANGE',KEYS[7],'+','-','COUNT',1000)
+  historyFull = #events == 1000
+  if #events > 0 then historyStart = tonumber(string.match(events[#events][1],'^(%d+)%-')) end
+  for _,entry in ipairs(events) do
+    local values = entry[2]
+    local control = false
+    for i=1,#values,2 do
+      if values[i] == 'event' then
+        if values[i+1] == 'paused' then pauseAt = tonumber(string.match(entry[1],'^(%d+)%-')); control = true; break end
+        if values[i+1] == 'resumed' then control = true; break end
+      end
+    end
+    if control then break end
+  end
+end
+return cjson.encode({waiting=waiting,active=active,failed10Min=failed,oldestWaitingAt=oldest,
+  oldestWaitingComplete=complete,paused=paused,pauseAt=pauseAt,historyStart=historyStart,historyFull=historyFull})
+`;
 
 const withTimeout = <T>(work: Promise<T>, ms: number, what: string): Promise<T> =>
   new Promise<T>((resolve, reject) => {
@@ -87,6 +155,10 @@ export function createQueueChannel(options: QueueChannelOptions): QueueChannel {
   producer.on("error", (error) => report("queue.producer", error));
 
   const queues = new Map<QueueId, Queue>();
+  const observers = new Map<QueueId, Queue>();
+  const observations = new Set<Promise<unknown>>();
+  const pauseObserved = new Map<QueueId, { since: number; checkedAt: number }>();
+  let closing: Promise<void> | undefined;
   const queueOf = (id: QueueId): Queue => {
     let queue = queues.get(id);
     if (queue === undefined) {
@@ -176,10 +248,94 @@ export function createQueueChannel(options: QueueChannelOptions): QueueChannel {
       return alive;
     },
 
-    async close() {
-      await Promise.allSettled(closers.splice(0).map((close) => close()));
-      await Promise.allSettled([...queues.values()].map((queue) => queue.close()));
-      producer.disconnect();
+    async observe(id, at, scanLimit = 501) {
+      assertNotInTransaction(`queue.observe(${id})`);
+      const now = at.getTime();
+      if (
+        !QUEUES.some((queue) => queue.id === id) ||
+        !Number.isSafeInteger(now) ||
+        now < 0 ||
+        !Number.isInteger(scanLimit) ||
+        scanLimit < 1 ||
+        scanLimit > 501
+      )
+        throw new TypeError("队列观测参数非法");
+      if (closing) throw new Error("队列通道已关闭");
+      const work = (async () => {
+        if (producer.status !== "ready") throw new Error("Redis 未连接");
+        let queue = observers.get(id);
+        if (!queue) {
+          queue = new Queue(id, { connection: producer, prefix, skipMetasUpdate: true });
+          queue.on("error", (error) => report(`queue.${id}.observer`, error));
+          observers.set(id, queue);
+        }
+        const observer = queue;
+        const raw = await withTimeout(
+          producer.eval(
+            OBSERVE_LUA,
+            8,
+            ...["wait", "paused", "prioritized", "active", "failed", "meta", "events", ""].map(
+              (key) => observer.toKey(key),
+            ),
+            now,
+            scanLimit,
+          ),
+          500,
+          "队列观测",
+        );
+        if (typeof raw !== "string") throw new TypeError("队列观测结果非法");
+        const facts = snapshotSchema.parse(JSON.parse(raw));
+        let pausedSince: number | null = null;
+        if (!facts.paused) pauseObserved.delete(id);
+        else if (facts.pauseAt !== null) {
+          pausedSince = facts.pauseAt;
+          pauseObserved.set(id, { since: pausedSince, checkedAt: now });
+        } else {
+          const previous = pauseObserved.get(id);
+          // 截断事件窗口不能证明两次观测间持续暂停时，重新计下界，避免误报另一轮暂停。
+          pausedSince =
+            previous &&
+            now >= previous.checkedAt &&
+            (!facts.historyFull ||
+              (facts.historyStart !== null && facts.historyStart <= previous.checkedAt))
+              ? previous.since
+              : now;
+          pauseObserved.set(id, { since: pausedSince, checkedAt: now });
+        }
+        return {
+          waiting: facts.waiting,
+          active: facts.active,
+          failed10Min: facts.failed10Min,
+          oldestWaitingAt: facts.oldestWaitingAt,
+          oldestWaitingComplete: facts.oldestWaitingComplete,
+          paused: facts.paused,
+          pausedSince,
+          pauseTimeSource: !facts.paused
+            ? ("none" as const)
+            : facts.pauseAt !== null
+              ? ("event" as const)
+              : ("observed" as const),
+        };
+      })();
+      observations.add(work);
+      try {
+        return await work;
+      } finally {
+        observations.delete(work);
+      }
+    },
+
+    close() {
+      return (closing ??= (async () => {
+        await Promise.allSettled([...observations]);
+        await Promise.allSettled(closers.splice(0).map((close) => close()));
+        await Promise.allSettled(
+          [...queues.values(), ...observers.values()].map((queue) => queue.close()),
+        );
+        pauseObserved.clear();
+        observers.clear();
+        producer.disconnect();
+      })());
     },
   };
 }
