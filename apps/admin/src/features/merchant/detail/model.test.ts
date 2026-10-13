@@ -13,6 +13,8 @@ import {
   createAccountIntent,
   decideAccountIntent,
   followIntent,
+  followInput,
+  followTime,
   quotaIntent,
   userIntent,
 } from "./actions";
@@ -262,6 +264,11 @@ describe("W215商家详情真实意图", () => {
     ]);
   });
   it("账号申请证明与审批回显/版本分开，门店跟进不伪造新建且已有记录版本保留", async () => {
+    expect(followTime("2030-10-14T12:30")).toBe("2030-10-14T04:30:00.000Z");
+    expect(followInput("2030-10-14T04:30:00.000Z")).toBe("2030-10-14T12:30");
+    expect(followTime("")).toBeNull();
+    expect(() => followTime("2030-02-30T12:30")).toThrow("北京时间");
+    expect(followTime(now)).toBe(now);
     const client = transport(),
       actual = await client.api.entity(id),
       owner = (await client.api.members(id)).items[0]!,
