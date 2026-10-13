@@ -27,6 +27,8 @@ export {
   TX_TIMEOUT_MS,
 } from "./tx.js";
 export type { KernelViolationKind, Tx, TxRunner, TxRunnerOptions, TxRunOptions } from "./tx.js";
+export { createSessionMutex, SessionMutexError } from "./session-mutex.js";
+export type { SessionMutex, SessionMutexScope, SessionMutexFailure } from "./session-mutex.js";
 
 // W0-07 时钟与主键
 export { systemClock } from "./clock.js";
