@@ -128,3 +128,15 @@ code/name 快照参与三次来源复核；词表无效、超限或正文加词�
 洞察继续可读，可选条目缺省不制造空菜单提取成功或新的文件级产物。
 默认模型/预算仍关闭。当前仅 SOURCE，新组合与原80必要夹具适配尚未执行验证；可信
 视频截帧、真实云、地域和费用仍为后继事项。
+
+## 人工 retry 的模型意图
+
+素材 ASR、vision、doc_extract、digest 的后台人工 retry 在原幂等事务内写新的
+`input.modelIntentId` UUID，再沿原规则重置 attempt/lease/deadline。真实 jobId、runId、
+任务去重键和洞察唯一键不变；缺字段的旧任务/13字段许可继续以真实 jobId 识别首代。
+新意图只改变预算 token 的 UUID 身份，旧 token 和已占槽不退款，原文件日计数仍去重。
+输入代次变化会挡住旧许可、在途及晚结果；ASR 已有 TaskId 仍只回查，doc_extract 不扣模型槽。
+本机制不初始化或恢复账本，也不改变默认关闭配置。
+
+部署时须先排空使用旧严格输入 schema 的 worker，再上线会写新字段的 API/worker；
+旧 worker 不能消费带新字段的人工重试任务。本片仅本地开发，未执行部署。
