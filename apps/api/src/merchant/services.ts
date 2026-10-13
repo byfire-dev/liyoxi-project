@@ -204,6 +204,9 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     keyring: () => (keyring ??= security.loadKeyring(runtime.env)),
     wechat: deps.wechat ?? runtime.providers.wechat,
     appid,
+    smsConfigured: () => runtime.providers.sms.configured,
+    notify: runtime.notify,
+    approval: runtime.approval,
   });
   const profile: Profile = createProfile({
     tx,

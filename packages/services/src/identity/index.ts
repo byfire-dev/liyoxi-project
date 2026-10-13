@@ -29,6 +29,7 @@ export type { RegisterArgs } from "./machines.js";
 export {
   findI22Violations,
   findI23Violations,
+  findI24Violations,
   findI25Violations,
   findI8Violations,
   findI9Violations,

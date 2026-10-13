@@ -183,7 +183,17 @@ export async function removeCallerMemberIn(
   if (!member) throw new AppError("NOT_A_MEMBER");
   if (member.role !== "clerk") throw new AppError("ROLE_FORBIDDEN");
   await lockRows(tx, "entity", [member.entityId]);
-  await lockRows(tx, "entity_member", [member.id]);
+  const memberIds =
+    input.kind === "account_deleted"
+      ? (
+          await tx.entityMember.findMany({
+            where: { merchantUserId: ctx.actor.id },
+            orderBy: { id: "asc" },
+            select: { id: true },
+          })
+        ).map((row) => row.id)
+      : [member.id];
+  await lockRows(tx, "entity_member", memberIds);
   const actor =
     input.kind === "dormant"
       ? { type: "system" as const, job: "tenant.dormant_member" }

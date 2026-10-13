@@ -53,6 +53,7 @@ import { createMediaAssembly } from "./media-runtime.js";
 import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
+import { createCertAssembly } from "./cert-runtime.js";
 import type { ModelBudgetTransport, PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -122,6 +123,8 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  /** 明确配置域名；测试可注入不联网的TLS探针。 */
+  readonly certificateProbe?: Parameters<typeof createCertAssembly>[1]["probe"];
   /** 本实例自有模型驱动的成对生命周期；close须缓存同一Promise，借用providers不消费此口。 */
   readonly modelDrivers?: {
     registerClose(close: () => Promise<void>): void;
@@ -159,6 +162,7 @@ export interface WorkerServicesOptions {
     readonly ASR_TENCENT?: Env["ASR_TENCENT"];
     readonly ASR_CALLBACK?: Env["ASR_CALLBACK"];
     readonly LLM_DOMESTIC?: Env["LLM_DOMESTIC"];
+    readonly CERT_DOMAINS?: Env["CERT_DOMAINS"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -168,6 +172,7 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly closeCertificates?: () => Promise<void>;
   readonly closeModelDrivers?: () => Promise<void>;
   readonly disableModelBudget?: () => void;
   readonly closeModelBudget?: () => Promise<void>;
@@ -265,7 +270,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const tx = createTxRunner({ prisma, appEnv: options.appEnv, report: options.report });
   const logger = options.logger ?? silent;
   const alertFactsScope = createAlertFactsAssembly(options.assembly, { tx, clock, logger });
-  const analyticsScope = createAnalyticsJobs(alertFactsScope.assembly, {
+  const certificateScope = createCertAssembly(alertFactsScope.assembly, {
+    tx,
+    clock,
+    domains: options.keys?.CERT_DOMAINS ?? [],
+    ...(options.certificateProbe ? { probe: options.certificateProbe } : {}),
+  });
+  const analyticsScope = createAnalyticsJobs(certificateScope.assembly, {
     tx,
     clock,
     appEnv: options.appEnv,
@@ -601,6 +612,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
     closeDocs: () => docsScope.close(),
+    closeCertificates: () => certificateScope.close(),
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
     closeAlertFacts: () => alertFactsScope.close(),

@@ -47,6 +47,9 @@ import {
   removeWechatIdentity,
   updateMe,
 } from "./personal-account.js";
+import { createSmsCode, changePhone } from "./phone-change.js";
+import type { PhoneChangeDeps } from "./phone-change.js";
+import { deleteAccount } from "./account-deletion.js";
 
 export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"> {
   readonly wechat:
@@ -55,9 +58,17 @@ export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"
   readonly config: Pick<Config, "params" | "flags" | "dicts" | "siteConfig">;
   /** 短信通道配没配（决定 MeUser.actions 里有没有换绑手机号）；不给即没配 */
   readonly smsConfigured?: () => boolean;
+  readonly notify?: PhoneChangeDeps["notify"];
+  readonly approval?: PhoneChangeDeps["approval"];
 }
 
 export interface Identity {
+  deleteAccount(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { hasConfirmed: true },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<{ deletedAt: string }>;
   // ---------- 用例函数：自己开事务 ----------
   /** m.session.create：不能静默登录时返回 needPhone，不区分原因、不写库 */
   silentLogin(meta: RequestMeta, input: SilentLoginInput): Promise<SilentLoginResult>;
@@ -100,6 +111,23 @@ export interface Identity {
     input: { wechatIdentityId: string },
     options?: { idem?: IdempotencyContext },
   ): Promise<WechatIdentityRemoveResult>;
+  createSmsCode(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { purpose: "phone_change" },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<{
+    purpose: "phone_change";
+    targetPhoneMask: string;
+    expiresAt: string;
+    resendAfterSec: number;
+  }>;
+  changePhone(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { oldSmsCode: string; newPhoneCode: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<MeUser>;
 
   bootstrap(input: BootstrapInput): Promise<Bootstrap>;
   overview(input: { merchantUserId: string; membership: StoreMembership }): Promise<MeOverview>;
@@ -132,6 +160,8 @@ export function createIdentity(deps: IdentityDeps): Identity {
   const gate = createConsentGate({ tx: deps.tx, clock: deps.clock, docs: deps.docs });
 
   const identity: Identity = {
+    deleteAccount: (principal, meta, input, options) =>
+      deleteAccount(deps, principal, meta, input, options),
     silentLogin: (meta, input) => silentLogin(login, meta, input),
     phoneLogin: (meta, input, options) => phoneLogin(login, meta, input, options),
     logout: (principal, meta) => deps.tx.run((tx) => logoutIn(tx, now(), principal, meta)),
@@ -144,6 +174,10 @@ export function createIdentity(deps: IdentityDeps): Identity {
     listWechatIdentities: (principal, input) => listWechatIdentities(deps, principal, input),
     removeWechatIdentity: (principal, meta, input, options) =>
       removeWechatIdentity(deps, principal, meta, input, options),
+    createSmsCode: (principal, meta, input, options) =>
+      createSmsCode(deps, principal, meta, input, options),
+    changePhone: (principal, meta, input, options) =>
+      changePhone(deps, principal, meta, input, options),
 
     bootstrap: (input) => bootstrap(deps, input),
     overview: (input) => overview(deps, input),

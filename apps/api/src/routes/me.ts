@@ -1,6 +1,8 @@
 import {
   CurrentStoreSchema,
   MeUserSchema,
+  SmsCodeResultSchema,
+  DeletionResultSchema,
   MemberRemovalResultSchema,
   UserNoticeAckResultSchema,
   WechatIdentityListSchema,
@@ -8,6 +10,9 @@ import {
   mMeCurrentStoreReplace,
   mMeMembershipLeave,
   mMeUpdate,
+  mMeChangePhone,
+  mMeDeletionCreate,
+  mSmsCodeCreate,
   mMeUserNoticeAcknowledge,
   mMeWechatIdentityDelete,
   mMeWechatIdentityList,
@@ -33,6 +38,36 @@ function metaOf(c: Context<ApiEnv>): RequestMeta {
 }
 
 export const meHandlers = [
+  defineHandler(mMeDeletionCreate, async (c) => {
+    const result = await merchantServicesOf(c.var.runtime).identity.deleteAccount(
+      merchantSessionOf(c),
+      metaOf(c),
+      c.req.valid("json"),
+      { idem: idemOf(c) },
+    );
+    c.header("Cache-Control", "no-store");
+    return respondByRole(c, { owner: DeletionResultSchema, clerk: DeletionResultSchema }, result);
+  }),
+  defineHandler(mSmsCodeCreate, async (c) => {
+    const result = await merchantServicesOf(c.var.runtime).identity.createSmsCode(
+      merchantSessionOf(c),
+      metaOf(c),
+      c.req.valid("json"),
+      { idem: idemOf(c) },
+    );
+    c.header("Cache-Control", "no-store");
+    return respondByRole(c, { owner: SmsCodeResultSchema, clerk: SmsCodeResultSchema }, result);
+  }),
+  defineHandler(mMeChangePhone, async (c) => {
+    const result = await merchantServicesOf(c.var.runtime).identity.changePhone(
+      merchantSessionOf(c),
+      metaOf(c),
+      c.req.valid("json"),
+      { idem: idemOf(c) },
+    );
+    c.header("Cache-Control", "no-store");
+    return respondByRole(c, { owner: MeUserSchema, clerk: MeUserSchema }, result);
+  }),
   defineHandler(mMeUpdate, async (c) => {
     const result = await merchantServicesOf(c.var.runtime).identity.updateMe(
       merchantSessionOf(c),

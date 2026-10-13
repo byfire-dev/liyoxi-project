@@ -2,10 +2,12 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
 import {
   MeUpdateBodySchema,
+  MeChangePhoneBodySchema,
+  DeletionBodySchema,
+  DeletionResultSchema,
   MeUserSchema,
   MeViewSchema,
   UserNoticeAcknowledgeParamsSchema,
@@ -47,7 +49,7 @@ export const mMeUpdate = merchantRoute({
   },
 });
 
-export const mMeChangePhone = merchantMeta({
+export const mMeChangePhone = merchantRoute({
   method: "post",
   path: "/m/me/change-phone",
   operationId: "m.me.changePhone",
@@ -57,9 +59,17 @@ export const mMeChangePhone = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: { required: true, content: { "application/json": { schema: MeChangePhoneBodySchema } } },
+  },
+  responses: {
+    ...okResponse(MeUserSchema),
+    ...errorResponses(400, 401, 403, 409, 426, 428, 429, 503),
+  },
 });
 
-export const mMeDeletionCreate = merchantMeta({
+export const mMeDeletionCreate = merchantRoute({
   method: "post",
   path: "/m/me/deletion",
   operationId: "m.me.deletion.create",
@@ -69,6 +79,10 @@ export const mMeDeletionCreate = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: {
+    body: { required: true, content: { "application/json": { schema: DeletionBodySchema } } },
+  },
+  responses: { ...okResponse(DeletionResultSchema), ...errorResponses(400, 401, 403, 409, 429) },
 });
 
 export const mMeUserNoticeAcknowledge = merchantRoute({

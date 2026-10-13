@@ -15,12 +15,14 @@ import { membershipAuthorizationsPort } from "../tenant/index.js";
 import {
   findI22Violations,
   findI23Violations,
+  findI24Violations,
   findI25Violations,
   findI8Violations,
   findI9Violations,
 } from "./invariants.js";
 import { machineImplementations } from "./machines.js";
 import { membershipAuthorizations } from "./portal-grants.js";
+import { accountChangeCleanup } from "./empty-account.js";
 
 const check = (
   code: string,
@@ -37,6 +39,7 @@ export const registration = defineRegistration("identity", {
 
     ...identityPiiFields,
     ...machineImplementations(),
+    accountChangeCleanup,
     implement(membershipAuthorizationsPort, membershipAuthorizations),
   ],
   invariants: [
@@ -44,6 +47,7 @@ export const registration = defineRegistration("identity", {
     check("identity.I9", (tx) => findI9Violations(tx)),
     check("identity.I22", (tx) => findI22Violations(tx)),
     check("identity.I23", (tx) => findI23Violations(tx)),
+    check("identity.I24", (tx) => findI24Violations(tx)),
     check("identity.I25", (tx) => findI25Violations(tx)),
   ],
 });

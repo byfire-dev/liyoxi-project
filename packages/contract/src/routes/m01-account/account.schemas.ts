@@ -38,6 +38,38 @@ export const MeUserSchema = z
   .openapi("MeUser");
 export type MeUser = z.infer<typeof MeUserSchema>;
 
+export const SmsCodeCreateBodySchema = z.strictObject({ purpose: z.literal("phone_change") });
+export const SmsCodeResultSchema = z
+  .strictObject({
+    purpose: z.literal("phone_change"),
+    targetPhoneMask: z.string(),
+    expiresAt: InstantSchema,
+    resendAfterSec: z.int().nonnegative(),
+  })
+  .openapi("SmsCodeResult");
+export type SmsCodeResult = z.infer<typeof SmsCodeResultSchema>;
+export const DeletionBodySchema = z.strictObject({ hasConfirmed: z.literal(true) });
+export const DeletionResultSchema = z
+  .strictObject({ deletedAt: InstantSchema })
+  .openapi("DeletionResult");
+export const DeletionBlockerSchema = z
+  .strictObject({
+    kind: z.enum([
+      "subscription_active",
+      "payment_open",
+      "refund_open",
+      "invoice_open",
+      "open_order",
+      "release_online",
+    ]),
+    count: z.int().positive(),
+  })
+  .openapi("DeletionBlocker");
+export const MeChangePhoneBodySchema = z.strictObject({
+  oldSmsCode: z.string().regex(/^\d{4,8}$/),
+  newPhoneCode: z.string().min(1).max(128),
+});
+
 // ---------- 2.3、2.4 成员关系概要 ----------
 
 export const MembershipStoreSchema = z

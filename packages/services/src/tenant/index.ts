@@ -26,6 +26,7 @@ export type { QuotaUsage } from "./quota.js";
 export { assertWithinQuota } from "./quota.js";
 export type { ActiveMembership, TenantReader } from "./repo.js";
 export { DraftNotEmptyError } from "./empty-draft.js";
+export { clearAccountMemberNamesIn } from "./account-name-cleanup.js";
 export { QUALIFICATION_ACTIONS, STORE_NAME_MAX, STORE_NAME_MIN } from "./qualification.js";
 export type {
   QualificationAction,

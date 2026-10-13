@@ -83,6 +83,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     };
     await clean([() => services?.disableModelBudget?.()]);
     await clean([
+      () => services?.closeCertificates?.(),
       () => services?.shutdownMediaJobs?.(),
       () => services?.closeDocs(),
       () => services?.documentConverter?.close(),

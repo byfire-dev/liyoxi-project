@@ -197,8 +197,19 @@ export async function closeEntityForOwnerDeletionIn(
   if (owner.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
   await lockRows(tx, "entity", [owner.entityId]);
   const plan = await ownerGraph(tx, owner.entityId);
+  const accountMemberIds = (
+    await tx.entityMember.findMany({
+      where: { merchantUserId: ctx.actor.id },
+      orderBy: { id: "asc" },
+      select: { id: true },
+    })
+  ).map((row) => row.id);
   await lockRows(tx, "invitation", plan.invitationIds);
-  await lockRows(tx, "entity_member", plan.memberIds);
+  await lockRows(
+    tx,
+    "entity_member",
+    [...new Set([...plan.memberIds, ...accountMemberIds])].sort(),
+  );
   await lockRows(tx, "store", plan.storeIds);
   if (JSON.stringify(plan) !== JSON.stringify(await ownerGraph(tx, owner.entityId)))
     throw new AppError("PRECONDITION_CHANGED");
