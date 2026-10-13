@@ -11,6 +11,7 @@ import { createModelBudgetRuntime } from "./model-budget-runtime.js";
 import { createProbe } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
+import { financialProbeRules } from "./financial-probe-rules.js";
 import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
 import {
@@ -329,6 +330,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         logger,
         rules: [
           ...sqlProbeRules(options.probe.db),
+          ...financialProbeRules(options.probe.db),
           ...operationalProbeRules(
             options.probe.db,
             timers.registry.recurringJobs,
