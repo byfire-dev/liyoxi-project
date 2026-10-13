@@ -11,6 +11,7 @@ import { type AccessSnapshot } from "../../../lib/permissions";
 import { FlowOpsFailure, type FlowOpsApi } from "./api";
 import { actionAllowed, reasonValid, safeText, statusLabel, type FlowAction } from "./model";
 export function actionTitle(kind: FlowAction["kind"]): string {
+  if (kind === "retry-media") return "重试任务";
   return kind === "reschedule"
     ? "重新排期"
     : kind === "cancel"
@@ -23,7 +24,10 @@ export function actionSpec(action: FlowAction, text: string): ConfirmSpec {
   const echo = [
     {
       label: "当前状态",
-      value: statusLabel("status" in action.row ? action.row.status : action.row.processState),
+      value:
+        "mediaJobId" in action.row
+          ? action.row.state
+          : statusLabel("status" in action.row ? action.row.status : action.row.processState),
     },
   ];
   if ("timerId" in action.row)
@@ -38,6 +42,12 @@ export function actionSpec(action: FlowAction, text: string): ConfirmSpec {
       { label: "订阅者", value: action.row.subscriber },
       { label: "事件类型", value: action.row.event.eventType },
     );
+  else if ("mediaJobId" in action.row)
+    echo.push(
+      { label: "媒体任务 ID", value: action.row.mediaJobId },
+      { label: "任务种类", value: action.row.kind },
+      { label: "业务对象", value: `${action.row.subject.type} · ${action.row.subject.id}` },
+    );
   else
     echo.push(
       { label: "收件 ID", value: action.row.webhookEventId },
@@ -49,13 +59,15 @@ export function actionSpec(action: FlowAction, text: string): ConfirmSpec {
   return {
     title: actionTitle(action.kind),
     description:
-      action.kind === "reschedule"
-        ? "只恢复为待触发，不修改到期时间；已到期记录将在下一轮扫描执行。"
-        : action.kind === "cancel"
-          ? "取消后不再执行该定时器，并释放其去重键。"
-          : action.kind === "retry-outbox"
-            ? "只重新投递给本次显示的订阅者，不新建出站事件。"
-            : "只将该死信恢复为待处理，由收件箱再次处理，不新建收件事件。",
+      action.kind === "retry-media"
+        ? "只恢复该任务为待执行并刷新服务端deadline；父对象是否成功由后续任务进程决定。"
+        : action.kind === "reschedule"
+          ? "只恢复为待触发，不修改到期时间；已到期记录将在下一轮扫描执行。"
+          : action.kind === "cancel"
+            ? "取消后不再执行该定时器，并释放其去重键。"
+            : action.kind === "retry-outbox"
+              ? "只重新投递给本次显示的订阅者，不新建出站事件。"
+              : "只将该死信恢复为待处理，由收件箱再次处理，不新建收件事件。",
     echo,
     checkLabel: "我已核对目标与操作影响",
     confirmText: "确认操作",
@@ -80,6 +92,7 @@ export async function submitFlowAction(
       { subscriber: action.row.subscriber, ...body },
       key,
     );
+  else if (action.kind === "retry-media") await api.retryMedia(action.row.mediaJobId, body, key);
   else await api.retryWebhook(action.row.webhookEventId, body, key);
 }
 export function FlowActionDialog({
@@ -113,7 +126,12 @@ export function FlowActionDialog({
     } catch (failure) {
       if (
         failure instanceof FlowOpsFailure &&
-        ["STATE_NOT_ALLOWED", "NOT_FOUND", "PRECONDITION_CHANGED"].includes(failure.code)
+        [
+          "STATE_NOT_ALLOWED",
+          "NOT_FOUND",
+          "PRECONDITION_CHANGED",
+          "MEDIA_JOB_NOT_RETRYABLE",
+        ].includes(failure.code)
       ) {
         await refresh();
         onClose();
@@ -142,9 +160,11 @@ export function FlowActionDialog({
       <p>
         {"timerId" in action.row
           ? action.row.kind
-          : "outboxEventId" in action.row
-            ? `${action.row.event.eventType} · ${action.row.subscriber}`
-            : `${action.row.provider} · ${action.row.eventType}`}
+          : "mediaJobId" in action.row
+            ? `${action.row.kind} · ${action.row.subject.type}`
+            : "outboxEventId" in action.row
+              ? `${action.row.event.eventType} · ${action.row.subscriber}`
+              : `${action.row.provider} · ${action.row.eventType}`}
       </p>
       <FormField label={action.kind === "cancel" ? "原因（必填）" : "备注（可选）"}>
         {(field) => (

@@ -4,6 +4,8 @@ import { readFailure } from "../../../lib/api-errors";
 export type TimerView = components["schemas"]["TimerView"];
 export type OutboxView = components["schemas"]["OutboxDeliveryView"];
 export type WebhookView = components["schemas"]["WebhookEventView"];
+export type MediaView = components["schemas"]["MediaJobView"];
+export type MediaQuery = NonNullable<operations["admin.mediaJob.list"]["parameters"]["query"]>;
 export type TimerQuery = NonNullable<operations["admin.timer.list"]["parameters"]["query"]>;
 export type OutboxQuery = NonNullable<
   operations["admin.outboxDelivery.list"]["parameters"]["query"]
@@ -40,6 +42,20 @@ async function unwrap<T>(result: {
 export function createFlowOpsApi({ api }: Pick<AppServices, "api">) {
   const client = api.client;
   return {
+    media: (query: MediaQuery) =>
+      client.GET("/api/v1/admin/media-jobs", { params: { query } }).then(unwrap),
+    retryMedia: (
+      mediaJobId: string,
+      body: components["schemas"]["MediaJobNoteBody"],
+      key: string,
+    ) =>
+      client
+        .POST("/api/v1/admin/media-jobs/{mediaJobId}/retry", {
+          params: { path: { mediaJobId } },
+          body,
+          headers: { "Idempotency-Key": key },
+        })
+        .then(unwrap),
     timers: (query: TimerQuery) =>
       client.GET("/api/v1/admin/timers", { params: { query } }).then(unwrap),
     outbox: (query: OutboxQuery) =>
