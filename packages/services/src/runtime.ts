@@ -25,6 +25,7 @@ import {
   DramaUsagePort,
 } from "./content/index.js";
 import { createDramaPricing } from "./billing/index.js";
+import { createPlanAdmin } from "./billing/index.js";
 import { latestStaffWecomInviteKey } from "./audit/index.js";
 import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
 import { keyringFromEnv } from "./security/index.js";
@@ -250,6 +251,7 @@ export interface Runtime {
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
+  readonly billingPlansAdmin: ReturnType<typeof createPlanAdmin>;
   readonly notifyMessages: NotifyMessages;
   readonly notify: NotifyDispatcherService;
   readonly content: Content;
@@ -934,6 +936,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     billing,
+    billingPlansAdmin: createPlanAdmin({ tx, clock, staffBriefs }),
     notifyMessages,
     notify,
     staffManagement,

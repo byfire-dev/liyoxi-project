@@ -54,6 +54,7 @@ import { invitationHandlers } from "./invitations.js";
 import { dictItemHandlers } from "./dict-items.js";
 import { billingHandlers } from "./billing.js";
 import { adminBillingHandlers } from "./admin/billing.js";
+import { adminBillingCatalogHandlers } from "./admin/billing-catalog.js";
 import { messageHandlers } from "./messages.js";
 import { notifySettingHandlers } from "./notify-settings.js";
 
@@ -107,6 +108,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...dictItemHandlers,
   ...billingHandlers,
   ...adminBillingHandlers,
+  ...adminBillingCatalogHandlers,
   ...profileHandlers,
   ...publishHandlers,
   ...deliveryHandlers,
