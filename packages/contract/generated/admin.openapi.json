@@ -18219,7 +18219,17 @@
             "x-open-enum": true
           },
           "current": {
-            "$ref": "#/components/schemas/PlanRevisionView"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanRevisionView"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
           },
           "isListed": {
             "type": "boolean"
@@ -18236,7 +18246,17 @@
             "type": "integer"
           },
           "pending": {
-            "$ref": "#/components/schemas/PlanRevisionView"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanRevisionView"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
           },
           "planId": {
             "format": "uuid",
@@ -18459,6 +18479,29 @@
         ],
         "type": "object"
       },
+      "PlanCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_]{1,23}$",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rank": {
+            "maximum": 99,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "rank"
+        ],
+        "type": "object"
+      },
       "PlanItemContentView": {
         "additionalProperties": false,
         "properties": {
@@ -18647,6 +18690,182 @@
           "planName",
           "discountBp",
           "discountedPoints"
+        ],
+        "type": "object"
+      },
+      "PlanRevisionCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "cyclePrices": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "months": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "priceFen": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 2147483647,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "months",
+                "priceFen"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "discountBp": {
+            "maximum": 10000,
+            "minimum": 5000,
+            "type": "integer"
+          },
+          "effectiveDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "firstCyclePromo": {
+            "type": "boolean"
+          },
+          "hasMonthlyReport": {
+            "type": "boolean"
+          },
+          "maxMembers": {
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxStores": {
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "type": "integer"
+          },
+          "monthlyFeeFen": {
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "type": "integer"
+          },
+          "monthlyPoints": {
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "type": "integer"
+          },
+          "notice": {
+            "additionalProperties": false,
+            "properties": {
+              "isBarEnabled": {
+                "type": "boolean"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "summaryNoPrice": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "productionModel": {
+            "enum": [
+              "standard",
+              "advanced",
+              "top"
+            ],
+            "type": "string"
+          },
+          "schedulePriority": {
+            "enum": [
+              "standard",
+              "priority",
+              "rush"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "monthlyFeeFen",
+          "monthlyPoints",
+          "discountBp",
+          "productionModel",
+          "maxStores",
+          "maxMembers",
+          "schedulePriority",
+          "hasMonthlyReport",
+          "effectiveDate",
+          "firstCyclePromo"
+        ],
+        "type": "object"
+      },
+      "PlanRevisionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PlanRevisionView"
+                },
+                {
+                  "properties": {
+                    "plan": {
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "planId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "planId",
+                        "name"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "plan"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
         ],
         "type": "object"
       },
@@ -18854,10 +19073,71 @@
           "createdAt",
           "actions"
         ],
-        "type": [
-          "object",
-          "null"
-        ]
+        "type": "object"
+      },
+      "PlanRevisionWithdrawBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "effectiveAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "planRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "planRevisionId",
+              "effectiveAt"
+            ],
+            "type": "object"
+          },
+          "note": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "PlanSummary": {
+        "properties": {
+          "activeEntityCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mrrFen": {
+            "pattern": "^\\d+$",
+            "type": "string"
+          },
+          "newThisMonthCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "renewedThisMonthCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activeEntityCount",
+          "mrrFen",
+          "newThisMonthCount",
+          "renewedThisMonthCount",
+          "asOf"
+        ],
+        "type": "object"
       },
       "PoolMember": {
         "properties": {
@@ -44908,6 +45188,277 @@
         "x-permission": "assert-in-handler"
       }
     },
+    "/api/v1/admin/plan-revisions": {
+      "get": {
+        "operationId": "admin.planRevision.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "effective",
+                    "superseded",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "enum": [
+                      "pending",
+                      "effective",
+                      "superseded",
+                      "cancelled"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanRevisionPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "套餐调整与公告记录（待生效、已生效、已撤销）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/plan-revisions/{planRevisionId}/withdraw": {
+      "post": {
+        "operationId": "admin.planRevision.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planRevisionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRevisionWithdrawBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanRevisionView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "生效前撤销价目修订，同事务撤回公告",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "billing.plan.edit"
+      }
+    },
     "/api/v1/admin/plans": {
       "get": {
         "operationId": "admin.plan.list",
@@ -45001,6 +45552,190 @@
           }
         },
         "summary": "套餐版本与权益矩阵（当前价目、待生效价目、上下架状态）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "post": {
+        "operationId": "admin.plan.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanAdminColumn"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "新建套餐版本（先建价目修订再上架）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "billing.plan.edit"
+      }
+    },
+    "/api/v1/admin/plans/summary": {
+      "get": {
+        "operationId": "admin.plan.summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "套餐页 KPI：套餐生效家数、月度经常性收入、本月新开通、本月续费",
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
@@ -45242,6 +45977,131 @@
           }
         },
         "summary": "套餐下架（不可新购与续费，已有周期不受影响）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "billing.plan.edit"
+      }
+    },
+    "/api/v1/admin/plans/{planId}/plan-revisions": {
+      "post": {
+        "operationId": "admin.plan.planRevision.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRevisionCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanRevisionView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "编辑版本：月费、积分、折扣、门店与成员上限、制作模型、生效日期（≥今天 + 30 天）、首期优惠；同事务建规则变更公告",
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "billing.plan.edit"
