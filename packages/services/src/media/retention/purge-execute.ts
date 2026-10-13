@@ -13,6 +13,7 @@ import { lockRun } from "./purge-runs.js";
 import { fileMutexKey } from "./types.js";
 import { SWEEP_BATCH } from "./sweep-context.js";
 import type { SweepContext } from "./sweep-context.js";
+import { purgeCandidates } from "./candidates.js";
 
 class PurgeGuard extends Error {}
 async function recordGuard(ctx: SweepContext, runId: string, fileId: string) {
@@ -58,12 +59,20 @@ async function purgeFile(ctx: SweepContext, runId: string, fileId: string) {
               const run = await lockRun(tx, runId);
               if (!run.candidateIds.includes(fileId)) throw new PurgeGuard("运行已结束或候选不符");
               await lockRows(tx, "file_object", [fileId]);
-              const file = await tx.fileObject.findUnique({ where: { id: fileId } });
+              let file = await tx.fileObject.findUnique({ where: { id: fileId } });
               // 公开三段式resumed证明旧claim已提交；上轮可能已经加marker，guard失败也须补偿。
               if (resumed && file?.status === "deleting")
                 attempted = { bucket: file.bucket as ObjectRef["bucket"], key: file.objectKey };
               if (run.state !== "running")
                 throw new PurgeGuard("运行已中止，只恢复已证明的旧删除意图");
+              if (file?.status === "stored") {
+                const current = await purgeAfter(tx, file);
+                if (file.purgeAfter?.getTime() !== current?.getTime())
+                  file = await tx.fileObject.update({
+                    where: { id: fileId },
+                    data: { purgeAfter: current, updatedAt: ctx.deps.clock.now() },
+                  });
+              }
               if (!file || !(await sweepGuard(ctx.deps, tx, file, resumed)))
                 throw new PurgeGuard("删除前当前事实不再满足");
               if (file.status === "stored")
@@ -196,17 +205,10 @@ export async function executePurgeRun(ctx: SweepContext, runId: string) {
     const run = await tx.filePurgeRun.findUniqueOrThrow({ where: { id: runId } });
     if (run.state !== "running") return [];
     return (
-      await tx.fileObject.findMany({
-        where: {
-          id: { in: run.candidateIds },
-          OR: [
-            { status: "stored", purgeAfter: { lte: ctx.deps.clock.now() } },
-            { status: "deleting" },
-          ],
-        },
-        orderBy: { id: "asc" },
+      await purgeCandidates(tx, ctx.deps.clock.now(), {
+        candidateIds: run.candidateIds,
         take: SWEEP_BATCH,
-        select: { id: true },
+        includeDeleting: true,
       })
     ).map((row) => row.id);
   });
@@ -241,16 +243,12 @@ export async function executePurgeRun(ctx: SweepContext, runId: string) {
   await ctx.transaction("run", async (tx) => {
     const run = await lockRun(tx, runId);
     if (run.state !== "running") return;
-    const remaining = await tx.fileObject.count({
-      where: {
-        id: { in: run.candidateIds },
-        OR: [
-          { status: "stored", purgeAfter: { lte: ctx.deps.clock.now() } },
-          { status: "deleting" },
-        ],
-      },
+    const remaining = await purgeCandidates(tx, ctx.deps.clock.now(), {
+      candidateIds: run.candidateIds,
+      take: 1,
+      includeDeleting: true,
     });
-    if (!remaining)
+    if (!remaining.length)
       await tx.filePurgeRun.update({
         where: { id: runId },
         data: { state: "done", finishedAt: ctx.deps.clock.now(), updatedAt: ctx.deps.clock.now() },

@@ -183,7 +183,7 @@ async function latestRun() {
 }
 
 describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120_000 }, () => {
-  it("分步失败不挡后续：pending/production过期、批次3天释放、24小时缓存与OCR只清raw", async () => {
+  it("分步失败不挡后续：pending/production过期、批次遵分类保留期、24小时缓存与OCR只清raw", async () => {
     const pending = await file({
       status: "pending",
       storedAt: null,
@@ -287,7 +287,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     });
     expect(await h.prisma.fileRef.findFirst({ where: { fileId: master.id } })).toMatchObject({
       state: "released",
-      keepUntil: new Date(h.clock.now().getTime() + 3 * DAY),
+      keepUntil: new Date(h.clock.now().getTime() + 7 * DAY),
     });
     expect(await h.prisma.ocrResult.findUnique({ where: { id: raw.id } })).toMatchObject({
       rawEnc: null,
@@ -297,6 +297,12 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
   });
 
   it("每日清单持久去重、auto数量字节熔断；真实批准后漏记当前引用累计3guard中止", async () => {
+    const incoming = await h.prisma.fileObject.findMany({
+      where: { status: "rejected", incomingKey: { not: null } },
+      orderBy: { id: "asc" },
+      take: 100,
+      select: { incomingBucket: true, incomingKey: true },
+    });
     const files = await Promise.all([storeFile(), storeFile(), storeFile()]);
     const job = h.assembly.recurringJob("media.sweep")!;
     expect(job).toMatchObject({
@@ -347,7 +353,17 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
       guardTrips: 3,
       deletedCount: 0,
     });
-    expect(h.fake.storage.callsOf("delete")).toHaveLength(0);
+    // 唯一允许的删除是前组保留的rejected incoming；精确key trace排除任何guard候选。
+    expect(h.fake.storage.callsOf("delete").map((call) => call.input)).toEqual(
+      incoming.map((row) =>
+        expect.objectContaining({ bucket: row.incomingBucket, key: row.incomingKey }),
+      ),
+    );
+    expect(
+      await h.prisma.fileObject.count({
+        where: { id: { in: files.map((row) => row.id) }, status: "stored" },
+      }),
+    ).toBe(3);
     h.clock.advance(DAY);
     n.clock.set(h.clock.now());
     params = { mode: "auto", maxObjects: 2, maxBytes: 15n };
@@ -536,6 +552,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
       createdAt: old,
       firstLinkedAt: old,
     });
+    const decider = await h.make.staff({ createdAt: old });
     const approval = await h.prisma.approvalRequest.create({
       data: {
         id: uuidv7(),
@@ -552,7 +569,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
         requesterStaffId: h.staff.id,
         submittedAt: old,
         decidedAt: old,
-        decidedByStaffId: h.staff.id,
+        decidedByStaffId: decider.id,
         dedupeKey: uuidv7(),
         createdAt: old,
         updatedAt: old,

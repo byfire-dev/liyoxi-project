@@ -2,6 +2,7 @@ import { calendarDate, dayRange, minuteOfDay } from "@liyoxi/shared/time";
 import { uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
 import type { SweepContext } from "./sweep-context.js";
+import { purgeCandidates } from "./candidates.js";
 
 export async function lockRun(tx: Tx, id: string) {
   await tx.$queryRawUnsafe("SELECT id FROM file_purge_run WHERE id=$1::uuid FOR UPDATE", id);
@@ -46,12 +47,7 @@ export async function preparePurgeRun(ctx: SweepContext) {
       })
     )
       return null;
-    const files = await tx.fileObject.findMany({
-      where: { status: "stored", purgeAfter: { lte: now } },
-      orderBy: [{ purgeAfter: "asc" }, { id: "asc" }],
-      take: 5000,
-      select: { id: true, category: true, bucket: true, sizeBytes: true },
-    });
+    const files = await purgeCandidates(tx, now, { take: 5000 });
     let bytes = 0n,
       secure = 0;
     const byCategory: Record<string, { count: number; bytes: string }> = {};

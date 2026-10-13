@@ -213,7 +213,7 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 
 ## W3-06 分步清扫（待ROOT定点验收）
 
-`media.retention.sweep`只接受真实job的signal/runTx，逐阶段独立小事务；失败记摘要及P2后继续下一阶段，观察租约/互斥失效立即中止。维护、候选清单和逐文件互斥分开，不嵌套sessionMutex；外呼传该作用域真实signal。每日北京时间03:00后由持久file_purge_run去重，候选最多5000，执行每轮最多100，list_only只提清单，auto超正式阈值/100原片/50 secure熔断held。批准后每文件重新读四事实，3次guard中止，deletedCount和文件结果同TX。
+`media.retention.sweep`只接受真实job的signal/runTx，逐阶段独立小事务；失败记摘要及P2后继续下一阶段，观察租约/互斥失效立即中止。维护、候选清单和逐文件互斥分开，不嵌套sessionMutex；外呼传该作用域真实signal。每日北京时间03:00后由持久file_purge_run去重，候选最多5000，执行每轮最多100，list_only只提清单，auto超正式阈值/100原片/50 secure熔断held。每日候选还以media自有refs/24小时事实补偿缓存滞后，不能因每轮只修100缓存漏候选或提前done；不扩大run原candidateIds。批准后每文件持锁重算缓存并重新读四事实，3次guard中止，deletedCount和文件结果同TX。
 
 每文件用公开三段式system幂等记录续作未知marker，仅本run/file的resumed接管deleting，不能冒领手工erase。对象调用或settle未知保留deleting和意图，下一轮按最终DB事实接续；aborted运行另限量复用同键证明旧意图，只恢复对象不继续删除或计数；幂等证据超过既有24小时被清理后宁告警/guard拒绝，不猜对象结果。此保证仅覆盖已观察失锁，不能即时撤销外部副作用或未观察的网络窗口。
 
