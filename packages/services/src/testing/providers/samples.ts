@@ -94,6 +94,8 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
     presignVisionGet: { ...SAMPLE_REF, expiresSec: 900, source: { kind: "image" } },
     delete: SAMPLE_REF,
+    restoreVersions: { ...SAMPLE_REF, signal: new AbortController().signal },
+    eraseVersions: { ...SAMPLE_REF, signal: new AbortController().signal },
     abortMultipart: SAMPLE_REF,
     readTo: {
       ...SAMPLE_REF,

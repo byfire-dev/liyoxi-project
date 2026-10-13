@@ -500,7 +500,11 @@ export interface StorageProvider extends ProviderBase {
     input: VisionReadInput,
   ): Promise<ProviderResult<{ url: string; expiresAt: Date }>>;
   /** 删除。对象本来就不存在也算成功 */
-  delete(input: ObjectRef): Promise<ProviderResult<void>>;
+  delete(input: ObjectRef & { signal?: AbortSignal }): Promise<ProviderResult<void>>;
+  /** 移除该精确对象的删除标记；无可恢复版本须明确拒绝，不伪造成功。 */
+  restoreVersions(input: ObjectRef & { signal: AbortSignal }): Promise<ProviderResult<void>>;
+  /** 删除该精确对象全部历史版本与删除标记；可取消、重复调用安全。 */
+  eraseVersions(input: ObjectRef & { signal: AbortSignal }): Promise<ProviderResult<void>>;
   /** 尽力中止指定 incoming 对象的未完成分块；不得处理同前缀的其他对象。 */
   abortMultipart(input: ObjectRef): Promise<ProviderResult<void>>;
 }
@@ -1010,6 +1014,8 @@ export const PROVIDER_METHODS = {
     "presignGet",
     "presignVisionGet",
     "delete",
+    "restoreVersions",
+    "eraseVersions",
     "abortMultipart",
     "readTo",
     "putStream",

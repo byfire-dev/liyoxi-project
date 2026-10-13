@@ -16,6 +16,7 @@ import type { FileRefType } from "../kernel/index.js";
 import type { MediaBatchDeps } from "./batches/types.js";
 import type { MediaAssetsDeps } from "./assets/types.js";
 import type { MediaActor } from "./actor.js";
+import type { RetentionOptions } from "./retention/options.js";
 export type FileRow = FileObject;
 export type { MediaActor } from "./actor.js";
 export interface FileCategoryGuard {
@@ -23,6 +24,7 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  readonly retention?: RetentionOptions;
   readonly assets?: MediaAssetsDeps;
   readonly batches?: MediaBatchDeps;
   readonly production?: MediaProductionDeps;

@@ -2603,7 +2603,7 @@
 | `PROVIDER_UNAVAILABLE` | 503 | 对象存储不可用；没有落库，可用同一个键重试 |
 | `IDEMPOTENCY_IN_PROGRESS` | 409 | 三段式用例处理中 |
 
-**副作用**：先取按 `fileId` 的互斥（见说明），开短事务锁文件行，检查 `status = deleted` 且 `erased_at` 为空；再在事务外移除对象存储的删除标记；再开事务锁文件行、复核守卫（`status = deleted`、`erased_at` 为空、在保留期内），`file_object.status: deleted → stored`，`deleted_at`、`purge_after` 置空（06-media.md:202）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.restore`，`reason_text`）。无出站事件。补偿：事务里复核不通过（其间被彻底删除等）时，把删除标记加回去再返回错误；占用过期后同一个键可以接手续做（再移除一次标记是空操作）。
+**副作用**：先取按 `fileId` 的互斥（见说明），开短事务锁文件行，检查 `status = deleted` 且 `erased_at` 为空；再在事务外移除对象存储的删除标记；再开事务锁文件行、复核守卫（`status = deleted`、`erased_at` 为空、在保留期内），`file_object.status: deleted → stored`，`deleted_at`、`purge_after` 置空（06-media.md:202）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.file.restore`，`reason_text`）。无出站事件。补偿：事务里复核不通过（其间被彻底删除等）时，把删除标记加回去再返回错误；占用过期后同一个键可以接手续做（再移除一次标记是空操作）。
 
 **说明**：恢复与彻底删除（3.64）对同一文件必须串行，否则恢复可能在彻底删除的两段事务之间提交（已是 `deleted` 的文件，彻底删除的事务一不改状态），得到一个 `stored` 却已没有对象版本的文件。做法：两条接口在整个用例期间（事务一之前到事务二提交或失败返回）持有同一把按 `fileId` 的互斥锁（PostgreSQL 会话级 advisory lock，`pg_try_advisory_lock`，键取 `fileId` 的哈希；连接断开自动释放），拿不到返回 `STATE_NOT_ALLOWED`；拿到后在事务一里锁文件行并检查 `status`、`erased_at`。同一幂等键的重放仍由幂等占用（C49）处理。
 
@@ -2640,7 +2640,7 @@
 - 事务一之前取按 `fileId` 的互斥（与 3.63 共用，见 3.63 说明），用例结束释放。
 - 事务一（锁文件行）：复核守卫（状态、`erased_at` 为空、在用引用、回显）；`stored` 的置 `file_object.status: stored → deleting`（此后 `files.link()` 与签发都不再接受它，避免删对象期间又被引用）；`deleted` 的不改状态。
 - 事务外：删除该对象在正式区的全部历史版本（含删除标记），失败则停在 `deleting`，同一个键重试或占用过期后接手续做；不回退。
-- 事务二：`deleting` 的条件更新（`WHERE status = 'deleting'`）置 `file_object.status: deleting → deleted`，同一时刻写 `deleted_at` 与 `erased_at`；`original_name` 置空（行保留，`06-media.md:1877` 待确认 4）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.erase`，`reason_text`）（`06-media.md:200`）。原已是 `deleted` 的文件条件更新 `WHERE status = 'deleted' AND erased_at IS NULL`，只写 `erased_at`、`original_name` 置空与审计，`deleted_at` 不变（`06-media.md:201`）；因为有了 `erased_at`，`restorableUntil` 为 `null`、不再出现 `restore`。
+- 事务二：`deleting` 的条件更新（`WHERE status = 'deleting'`）置 `file_object.status: deleting → deleted`，同一时刻写 `deleted_at` 与 `erased_at`；`original_name` 置空（行保留，`06-media.md:1877` 待确认 4）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.file.erase`，`reason_text`）（`06-media.md:200`）。原已是 `deleted` 的文件条件更新 `WHERE status = 'deleted' AND erased_at IS NULL`，只写 `erased_at`、`original_name` 置空与审计，`deleted_at` 不变（`06-media.md:201`）；因为有了 `erased_at`，`restorableUntil` 为 `null`、不再出现 `restore`。
 - 事务二提交后另起事务执行该分类的清除后钩子（同清除任务：`package_zip`、`publish_list` 改 `zip_bundle`，任意文件释放以它为源的 `derivative` 引用，如派生封面；先锁钩子要改的行，不在持有文件行锁时去锁 `zip_bundle`）；没执行成的由 `media.I8` 每小时修复（`06-media.md:198`、`200`）。
 - 对外答复“已删除”以执行时刻为准（d5-media.md:402）。
 

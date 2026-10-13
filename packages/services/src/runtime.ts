@@ -627,6 +627,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         })
       : undefined;
   const media = createMedia({
+    retention: {
+      sessionMutex,
+      alerts: alertsOf(assembly),
+      staffBriefs,
+    },
     assets: createRuntimeMediaAssets({
       clock,
       assembly,
