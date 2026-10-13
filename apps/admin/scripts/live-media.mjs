@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { selectedLiveTests } from "./live-selection.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const imagePattern = /^sha256:[a-f0-9]{64}$/;
@@ -58,8 +59,7 @@ export async function prepareLiveMedia(args, { run = runTool } = {}) {
     throw new Error("复用输入须同时提供 --video、--resume-video 和 --probe-facts");
   if (values["mediatool-image"] && !imagePattern.test(values["mediatool-image"]))
     throw new Error("--mediatool-image 必须为已验证的完整 sha256 镜像 ID");
-  if (values["test-file"] && values["test-file"] !== "test/e2e/live-output-batch.spec.ts")
-    throw new Error("仅批次用例的受影响重跑可提供精确 --test-file");
+  selectedLiveTests(values["test-file"]);
   if (supplied.length === 3 && values["mediatool-image"]) return { args, close: () => undefined };
 
   const directory = mkdtempSync("/tmp/lyx-w302-live-media-");
