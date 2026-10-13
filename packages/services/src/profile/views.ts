@@ -263,7 +263,14 @@ export async function qualificationView(
     requiredPermits: required,
     contact: await contactView(tx, s, merchantUserId),
     declaration: { currentVersion: QUALIFICATION_DECLARATION_VERSION },
-    actions: s.open && !s.open.submittedAt ? ["submit"] : [],
+    actions:
+      s.open && !s.open.submittedAt
+        ? s.open.kind === "initial"
+          ? s.profile?.finalRejectedAt
+            ? []
+            : ["submit"]
+          : ["discard"]
+        : [],
   };
 }
 /** DTO 随事务落幂等结果时地址为空。首响应/GET 在提交后签地址；重放永不重新签。 */

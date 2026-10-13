@@ -188,6 +188,20 @@ export const QualificationDocUpdateResultSchema = QualificationDocRecognizedSche
   lockVersion: true,
   doc: true,
 });
+export const QualificationDocRemoveResultSchema = z
+  .object({
+    qualificationDocId: IdSchema,
+    removedAt: InstantSchema,
+    qualificationSubmissionId: IdSchema,
+    lockVersion: z.int().min(0),
+  })
+  .openapi("QualificationDocRemoveResult");
+export const QualificationDiscardBodySchema = z
+  .strictObject({
+    qualificationSubmissionId: IdSchema,
+  })
+  .openapi("QualificationDiscardBody");
+export type QualificationDiscardBody = z.infer<typeof QualificationDiscardBodySchema>;
 export type QualificationDraftPatch = z.infer<typeof QualificationDraftPatchSchema>;
 export type ContactPatch = z.infer<typeof ContactPatchSchema>;
 export type QualificationSubmitBody = z.infer<typeof QualificationSubmitBodySchema>;

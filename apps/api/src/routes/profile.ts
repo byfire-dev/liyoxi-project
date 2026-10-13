@@ -15,6 +15,8 @@ import {
   mQualificationDocUpdate,
   mQualificationSubmissionList,
   mQualificationDocDownloadUrls,
+  mQualificationDocRemove,
+  mStoreProfileQualificationDiscard,
   StoreProfileOverviewOwnerSchema,
   StoreProfileOverviewClerkSchema,
   StoreProfileBasicOwnerSchema,
@@ -27,6 +29,7 @@ import {
   QualificationViewClerkSchema,
   QualificationDocRecognizedSchema,
   QualificationDocUpdateResultSchema,
+  QualificationDocRemoveResultSchema,
   ContactViewSchema,
 } from "@liyoxi/contract";
 import { AppError } from "@liyoxi/services";
@@ -59,6 +62,25 @@ const qualificationSaved =
 const qualificationSubmitted =
   mStoreProfileQualificationSubmit.responses[200].content["application/json"].schema.shape.data;
 export const profileHandlers = [
+  defineHandler(mStoreProfileQualificationDiscard, async (c) =>
+    respondByRole<z.infer<typeof QualificationViewOwnerSchema>>(
+      c,
+      { owner: QualificationViewOwnerSchema },
+      await profileOf(c).discardQualification(viewerOf(c), c.req.valid("json"), {
+        idem: idemOf(c),
+      }),
+    ),
+  ),
+  defineHandler(mQualificationDocRemove, async (c) =>
+    ok(
+      c,
+      QualificationDocRemoveResultSchema.parse(
+        await profileOf(c).removeDocument(viewerOf(c), c.req.valid("param").qualificationDocId, {
+          idem: idemOf(c),
+        }),
+      ),
+    ),
+  ),
   defineHandler(mStoreProfileGet, async (c) => {
     noStore(c);
     return respondByRole<

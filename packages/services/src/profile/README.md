@@ -1,5 +1,16 @@
 # 商家档案与首店资质（W1-08a、b）
 
+## W2-11 商家草稿生命周期（SOURCE）
+
+新增 `removeDocument` 与 `discardQualification`，经既有 profile write 落 required 幂等结果。
+`ensureDraft` 按真实门店/主体结论选 initial/new_store/change；change 带入本店生效门店证照，
+new_store 不带入、不接收营业执照。锁轮次65→主体100共享→门店130共享→档案135→完整文件410，
+锁后重验归属、生命周期及真实成员。父行只读，使用共享锁防止INSERT的外键锁升级。
+remove保留已提交证据；discard只接精确ID的change/new_store未提交草稿。软移除、7天引用释放、
+轮次版本/缓存/活动审计同事务，无状态历史/事件；carried来源和旧生效资料不变，缺引用明确失败。
+多轮submit/approval、基础信息重审待审值、终局/SMS/后台仍未开放，actions只暴露实际可用动作。
+新增DB/HTTP各6组及clerk两行，旧断言保留；作者只做所属格式/lint，ROOT串行完成正式验收与生成。
+
 `createStoreProfileAssetInitializer` 增加显式四项组合，旧 initializer 的三项严格入口不扩大。
 组合闭包固定 tenant.readStoreAssetFacts，不接受调用者提供的授权事实或owner替身。
 低序80→100→120→完整130/135后接日历→完整素材370→共同文件410，首次INSERT即写完整四项来源/选项。

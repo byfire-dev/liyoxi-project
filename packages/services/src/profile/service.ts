@@ -3,6 +3,7 @@ import type {
   QualificationDocCreateBody,
   QualificationDocPatch,
   QualificationDraftPatch,
+  QualificationDiscardBody,
   QualificationSubmitBody,
   StoreProfileBasicPatch,
   StoreProfileMediaPatch,
@@ -17,6 +18,7 @@ import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, ProfileViewer, WriteOptions } from "./context.js";
 import { createDoc, docPrecheck, updateDoc } from "./documents.js";
 import { saveDraft } from "./draft.js";
+import { discardDraft, removeDocument } from "./draft-lifecycle.js";
 import { assertProfileComplete, industryOpen, storeGate, storeLocation } from "./gate.js";
 import { withQualificationCall } from "./qualification-kind.js";
 import { overview, assetOverviewActor } from "./read.js";
@@ -217,6 +219,21 @@ export function createProfile(deps: ProfileDeps) {
       input: QualificationDocPatch,
       options?: WriteOptions,
     ) => write(viewer, (tx) => updateDoc(tx, deps, viewer, id, input), options),
+    removeDocument: (viewer: ProfileViewer, id: string, options?: WriteOptions) =>
+      write(viewer, (tx) => removeDocument(tx, deps, viewer, id), options),
+    discardQualification: (
+      viewer: ProfileViewer,
+      input: QualificationDiscardBody,
+      options?: WriteOptions,
+    ) =>
+      write(
+        viewer,
+        async (tx) => {
+          await discardDraft(tx, deps, viewer, input);
+          return qview(tx, viewer);
+        },
+        options,
+      ),
     storeGate: (storeId: string) => deps.tx.run((tx) => storeGate(tx, storeId)),
     assertProfileComplete: (storeId: string) =>
       deps.tx.run((tx) => assertProfileComplete(tx, storeId)),
