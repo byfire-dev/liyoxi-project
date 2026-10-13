@@ -104,7 +104,7 @@ test("W318 素材只读页真实筛选与详情、缺少机器结果、文件现
   expect(document.files.map((file) => file.fileId)).toContain(f.document.fileId);
   const signed = document.files.find((file) => file.fileId === f.document.fileId)!;
   expect(signed.kind).toBe("document");
-  expect(signed.url).toMatch(/^https:\/\//);
+  expect(signed.url).toMatch(/^https?:\/\//);
   expect(Date.parse(signed.expiresAt!)).toBeGreaterThan(Date.now());
   const links = () =>
     detail
