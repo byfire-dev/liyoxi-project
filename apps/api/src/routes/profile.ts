@@ -10,6 +10,7 @@ import {
   mStoreProfileQualificationGet,
   mStoreProfileQualificationUpdate,
   mStoreProfileContactUpdate,
+  mStoreProfileContactSmsCodeCreate,
   mStoreProfileQualificationSubmit,
   mQualificationDocCreate,
   mQualificationDocUpdate,
@@ -62,6 +63,14 @@ const qualificationSaved =
 const qualificationSubmitted =
   mStoreProfileQualificationSubmit.responses[200].content["application/json"].schema.shape.data;
 export const profileHandlers = [
+  defineHandler(mStoreProfileContactSmsCodeCreate, async (c) =>
+    ok(
+      c,
+      await profileOf(c).createContactCode(viewerOf(c), c.req.valid("json").phone, {
+        idem: idemOf(c),
+      }),
+    ),
+  ),
   defineHandler(mStoreProfileQualificationDiscard, async (c) =>
     respondByRole<z.infer<typeof QualificationViewOwnerSchema>>(
       c,

@@ -5,6 +5,9 @@ import type { Tx } from "../kernel/index.js";
 import { findVerifiedEntityByUsccBidx } from "../tenant/index.js";
 import type { ProfileDeps, ProfileViewer } from "./context.js";
 import { assertDocumentsComplete } from "./documents.js";
+import { qualificationChecks } from "./field-checks.js";
+import { contactAvailable } from "./contact.js";
+import { decryptField } from "../security/index.js";
 import {
   ensureProfile,
   refreshCompleteness,
@@ -126,6 +129,18 @@ export async function submitQualification(
   if (license && !license.certNoBidx) throw new AppError("QUALIFICATION_DOCS_INCOMPLETE");
   if (license?.certNoBidx && (await findVerifiedEntityByUsccBidx(tx, license.certNoBidx, entityId)))
     throw new AppError("USCC_TAKEN");
+  if (await contactAvailable(tx, deps)) {
+    const user = await tx.merchantUser.findUniqueOrThrow({
+      where: { id: viewer.principal.merchantUserId },
+    });
+    const isLoginPhone =
+      !!user.phoneEnc &&
+      !!p.contactPhoneEnc &&
+      decryptField(deps.keyring(), "merchant_user.phone_enc", user.phoneEnc) ===
+        decryptField(deps.keyring(), "store_profile.contact_phone_enc", p.contactPhoneEnc);
+    if (!isLoginPhone && p.contactPhoneSource !== "sms_verified")
+      throw new AppError("CONTACT_PHONE_UNVERIFIED");
+  }
   if (!s.store.isPrimary && s.store.entity.verificationStatus !== "verified")
     throw new AppError("ENTITY_NOT_VERIFIED");
   if (
@@ -201,6 +216,7 @@ export async function submitQualification(
     storeId,
     input: { submissionId: round.id, roundNo },
   });
+  const checks = await qualificationChecks(tx, deps, round.id, true);
   await tx.qualificationSubmission.update({
     where: { id: round.id },
     data: {
@@ -217,14 +233,8 @@ export async function submitQualification(
         : {}),
       declarationConfirmedAt: now,
       declarationVersion: input.declarationVersion,
-      checkSummary: {
-        fail: 0,
-        warn: 0,
-        manual: docs.length,
-        suggestedReasonCode: null,
-        suggestedNote: null,
-      },
-      checksRanAt: null,
+      checkSummary: checks.summary,
+      checksRanAt: now,
       approvalRequestId: approval.approvalId,
       submittedAt: now,
       submittedByUserId: viewer.principal.merchantUserId,

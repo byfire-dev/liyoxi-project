@@ -5,10 +5,12 @@ import {
   QualificationDocRemoveResultSchema,
   QualificationViewOwnerSchema,
   FinalRejectImpactSchema,
+  ContactSmsCodeResultSchema,
+  ContactViewSchema,
 } from "@liyoxi/contract";
 import { createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
 import { assertSnapshotsEqual, createFactories, snapshotTables } from "@liyoxi/services/testing";
-import type { FakeStorage } from "@liyoxi/services/testing";
+import type { FakeStorage, FakeSms } from "@liyoxi/services/testing";
 import { signInAsStaff } from "@liyoxi/services/testing";
 import type { ProfileViewer } from "@liyoxi/services";
 import {
@@ -514,6 +516,201 @@ async function roundData(response: Response) {
   expect(response.status, await response.clone().text()).toBe(200);
   return ((await response.json()) as { data: unknown }).data;
 }
+describe("W2-11联系人与人工复核真实HTTP", { timeout: 60000 }, () => {
+  it("contactSmsCode.create/contact.update 真实notify直发与会话核销、重放不重发、启用后不可未验证送审", async () => {
+    expect(
+      HANDLERS.some((h) => h.route.operationId === "m.storeProfile.contactSmsCode.create"),
+    ).toBe(true);
+    const w = await roundOwner(),
+      prisma = w.h.prisma,
+      sms = api.runtime.providers.sms as FakeSms;
+    await prisma.smsTemplate.update({
+      where: { templateKey: "verify_code" },
+      data: {
+        status: "active",
+        signName: "虚构公司",
+        providerTemplateId: "fictional-sms",
+        updatedAt: api.clock.now(),
+      },
+    });
+    const number = "13921709991",
+      key = uuidv7();
+    const codes = (phone: string, codeKey = uuidv7(), session = w.session, store = w.storeId) =>
+      draftRequest("/m/store-profile/contact/sms-codes", session, store, { phone }, codeKey);
+    await expectError(await codes(number, uuidv7(), clerk, storeId), 403, "ROLE_FORBIDDEN");
+    const result = ContactSmsCodeResultSchema.parse(await roundData(await codes(number, key)));
+    expect(result).toMatchObject({ isLoginPhone: false, resendAfterSec: 60 });
+    const call = sms
+      .callsOf("sendSubscribeFallback")
+      .filter((c) => (c.input as { phone: string }).phone === number)
+      .at(-1)!;
+    const code = (call.input as { params: { code: string } }).params.code;
+    const sent = sms.callsOf("sendSubscribeFallback").length;
+    expect(await roundData(await codes(number, key))).toEqual(result);
+    expect(sms.callsOf("sendSubscribeFallback")).toHaveLength(sent);
+    await expectError(await codes(number), 429, "RATE_LIMITED");
+    expect(
+      await prisma.smsVerification.count({
+        where: { merchantUserId: w.session.merchantUserId, purpose: "contact_phone" },
+      }),
+    ).toBe(1);
+    const basic = await w.h.profile.basic(w.viewer),
+      input = {
+        lockVersion: basic.lockVersion,
+        name: "HTTP验证联系人",
+        phoneSource: "input",
+        phone: number,
+        smsCode: code,
+      },
+      saveKey = uuidv7();
+    const save = () =>
+      api.request("/api/v1/m/store-profile/contact", {
+        method: "PATCH",
+        json: input,
+        headers: { ...w.session.withStore(w.storeId), "Idempotency-Key": saveKey },
+        peer: `198.19.211.${++draftPeer}`,
+      });
+    const saved = ContactViewSchema.parse(await roundData(await save()));
+    expect(saved).toMatchObject({
+      phoneVerifyState: "sms_verified",
+      isSmsVerifyAvailable: true,
+      phoneVerifiedAt: api.clock.now().toISOString(),
+    });
+    expect(await roundData(await save())).toEqual(saved);
+    expect(
+      await prisma.smsVerification.findFirstOrThrow({
+        where: { merchantUserId: w.session.merchantUserId, purpose: "contact_phone" },
+      }),
+    ).toMatchObject({ usedAt: api.clock.now() });
+    await prisma.smsTemplate.update({
+      where: { templateKey: "verify_code" },
+      data: { status: "disabled" },
+    });
+    await expectError(await codes("13921709992"), 503, "SMS_UNAVAILABLE");
+    const unverified = await api.request("/api/v1/m/store-profile/contact", {
+      method: "PATCH",
+      json: {
+        lockVersion: saved.lockVersion,
+        name: "待验证联系人",
+        phoneSource: "input",
+        phone: "13921709992",
+      },
+      headers: { ...w.session.withStore(w.storeId), "Idempotency-Key": uuidv7() },
+      peer: `198.19.211.${++draftPeer}`,
+    });
+    expect(ContactViewSchema.parse(await roundData(unverified))).toMatchObject({
+      phoneVerifyState: "unverified",
+      isSmsVerifyAvailable: false,
+    });
+    const draft = await w.h.profile.updateBasic(w.viewer, {
+      draft: true,
+      lockVersion: saved.lockVersion + 1,
+      confirmReview: true,
+      storeName: "短信启用后重审门店",
+    });
+    await prisma.smsTemplate.update({
+      where: { templateKey: "verify_code" },
+      data: { status: "active" },
+    });
+    await expectError(
+      await draftRequest("/m/store-profile/qualification/submit", w.session, w.storeId, {
+        qualificationSubmissionId: draft.pendingChange!.qualificationSubmissionId,
+        declarationConfirmed: true,
+        declarationVersion: "1",
+      }),
+      409,
+      "CONTACT_PHONE_UNVERIFIED",
+    );
+  });
+
+  it("admin.qualificationDoc.update 完整权限/双版本/原证据/required重放与corrected真实批准", async () => {
+    expect(HANDLERS.some((h) => h.route.operationId === "admin.qualificationDoc.update")).toBe(
+      true,
+    );
+    const prisma = await handle.db.prisma(),
+      h = harness(api, prisma),
+      w = await h.owner();
+    const ready = await complete(h, w.viewer);
+    await fixtureSubmit(h, w.viewer, ready.submissionId);
+    const reviewer = await signInAsStaff(prisma, { roleKey: "super_admin" }),
+      editor = await signInAsStaff(prisma, { roleKey: "editor" });
+    const doc = await prisma.qualificationDoc.findUniqueOrThrow({ where: { id: ready.docId } });
+    const round = await prisma.qualificationSubmission.findUniqueOrThrow({
+      where: { id: ready.submissionId },
+    });
+    const input = {
+        lockVersion: round.lockVersion,
+        fields: { name: "HTTP人工修正主体" },
+        note: "按原图核实",
+      },
+      key = uuidv7();
+    const patch = (body: unknown = input, requestKey = key, headers = reviewer.headers) =>
+      api.request(`/api/v1/admin/qualification-docs/${ready.docId}`, {
+        method: "PATCH",
+        json: body,
+        headers: { ...headers, "Idempotency-Key": requestKey },
+        peer: `198.19.211.${++draftPeer}`,
+      });
+    await expectError(await patch(input, uuidv7(), editor.headers), 403, "PERMISSION_DENIED");
+    await expectError(
+      await patch({ ...input, fields: { name: "" } }, uuidv7()),
+      409,
+      "QUALIFICATION_DOCS_INCOMPLETE",
+    );
+    const corrected = QualificationSubmissionDetailSchema.parse(await roundData(await patch()));
+    expect(corrected).toMatchObject({
+      lockVersion: round.lockVersion + 1,
+      approval: { lockVersion: 1 },
+      docs: [
+        {
+          holderName: input.fields.name,
+          isCorrected: true,
+          ocrStatus: "unavailable",
+          fieldChecks: [{ code: "C11", result: "manual" }],
+        },
+      ],
+    });
+    expect(await roundData(await patch())).toEqual(corrected);
+    expect(
+      (await prisma.qualificationDoc.findUniqueOrThrow({ where: { id: doc.id } }))
+        .submittedFieldsEnc,
+    ).toBe(doc.submittedFieldsEnc);
+    const approve = (version: number, approveKey = uuidv7()) =>
+      api.request(`/api/v1/admin/qualification-submissions/${ready.submissionId}/approve`, {
+        method: "POST",
+        json: { lockVersion: version, confirm: { roundNo: 1 } },
+        headers: { ...reviewer.headers, "Idempotency-Key": approveKey },
+        peer: `198.19.211.${++draftPeer}`,
+      });
+    await expectError(await approve(0), 409, "VERSION_CONFLICT");
+    const approveKey = uuidv7(),
+      approved = QualificationSubmissionDetailSchema.parse(
+        await roundData(await approve(1, approveKey)),
+      );
+    expect(approved).toMatchObject({
+      approveMode: "corrected",
+      entity: { name: input.fields.name },
+      outcome: "approved",
+    });
+    expect(await roundData(await approve(1, approveKey))).toEqual(approved);
+    await expectError(
+      await patch({ ...input, lockVersion: corrected.lockVersion }, uuidv7()),
+      409,
+      "APPROVAL_NOT_PENDING",
+    );
+    expect(
+      await prisma.auditLog.count({
+        where: { targetId: doc.id, action: "profile.document.correct" },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.outboxEvent.count({
+        where: { aggregateId: w.store.id, eventType: "store.qualification.approved" },
+      }),
+    ).toBe(1);
+  });
+});
+
 describe("W2-11终局驳回真实HTTP", { timeout: 60000 }, () => {
   it("admin.qualificationSubmission.rejectQuote 正式挂载只读/权限/schema，reject三项确认/幂等/真实终局事实", async () => {
     expect(

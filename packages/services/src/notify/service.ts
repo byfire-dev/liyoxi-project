@@ -22,6 +22,7 @@ export function createNotifyDispatcher(deps: NotifyDispatchDeps) {
       (await runner.scan(enqueue)) + (await fanout.scan(enqueue)),
     validateConfiguration: () => validateConfiguration(deps),
     sendDirect: direct.sendDirect,
+    verificationAvailable: direct.verificationAvailable,
     sendQuotaExceeded: (
       tx: Parameters<typeof sendQuotaExceeded>[0],
       event: Parameters<typeof sendQuotaExceeded>[2],

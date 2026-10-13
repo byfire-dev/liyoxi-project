@@ -8,6 +8,7 @@ import type { ProfileDeps } from "./context.js";
 import { dictRef, permitSpec, submittedFields } from "./repo.js";
 import type { ProfileSnapshot } from "./repo.js";
 import { pendingView } from "./round-basics.js";
+import { readQualificationRecognition } from "../media/index.js";
 
 export const instant = (date: Date | null | undefined) => date?.toISOString() ?? null;
 const day = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
@@ -118,6 +119,7 @@ export async function serviceView(tx: Tx, s: ProfileSnapshot) {
 }
 export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: QualificationDoc) {
   const fields = submittedFields(keyring, doc);
+  const recognition = await readQualificationRecognition(tx, keyring, doc);
   const displayFields = [];
   if (doc.docType === "industry_permit" && doc.permitType) {
     const spec = await permitSpec(tx, doc.permitType);
@@ -144,8 +146,8 @@ export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: Qualific
     scope: doc.scope,
     origin: doc.origin,
     fileId: doc.fileId,
-    ocrStatus: "unavailable",
-    ocrWarnings: [],
+    ocrStatus: recognition.status,
+    ocrWarnings: recognition.warnings,
     hasSubmittedFields: doc.submittedFieldsEnc !== null,
     holderName: doc.holderName,
     certNoMask: doc.certNoMask,
@@ -163,7 +165,12 @@ export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: Qualific
     uploadedAt: doc.createdAt.toISOString(),
   };
 }
-export async function contactView(tx: Tx, s: ProfileSnapshot, merchantUserId: string) {
+export async function contactView(
+  tx: Tx,
+  s: ProfileSnapshot,
+  merchantUserId: string,
+  available = false,
+) {
   const user = await tx.merchantUser.findUnique({
     where: { id: merchantUserId },
     select: { phoneMask: true },
@@ -174,7 +181,7 @@ export async function contactView(tx: Tx, s: ProfileSnapshot, merchantUserId: st
     phoneVerifyState: s.profile?.contactPhoneSource ?? null,
     phoneVerifiedAt: instant(s.profile?.contactPhoneVerifiedAt),
     loginPhoneMask: user?.phoneMask ?? null,
-    isSmsVerifyAvailable: false,
+    isSmsVerifyAvailable: available,
     lockVersion: s.profile?.lockVersion ?? 0,
   };
 }
@@ -264,7 +271,12 @@ export async function qualificationView(
     lastClosedRound: s.last ? await roundView(tx, deps, s.last) : null,
     effectiveDocs,
     requiredPermits: required,
-    contact: await contactView(tx, s, merchantUserId),
+    contact: await contactView(
+      tx,
+      s,
+      merchantUserId,
+      (await deps.contactSms?.available(tx)) ?? false,
+    ),
     declaration: { currentVersion: QUALIFICATION_DECLARATION_VERSION },
     actions:
       s.open && !s.open.submittedAt

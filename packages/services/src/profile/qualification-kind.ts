@@ -19,13 +19,22 @@ import { invalid } from "./validate.js";
 import { onLifecycleWithdrawn } from "./lifecycle-withdrawal.js";
 import { roundBasics, type RoundAddress } from "./round-basics.js";
 import { QualificationImpactPort } from "./ports.js";
+import { qualificationChecks } from "./field-checks.js";
+import { assertPermission, storeScope } from "../authz/index.js";
+import type { StaffContext } from "../authz/index.js";
+import { currentReviewStaff } from "./admin-authorization.js";
 
 // 登记是静态的，依赖由领域用例按本事务绑定，避免不同 runtime/测试之间共享服务实例。
 type DecisionDeps = Pick<ProfileDeps, "clock" | "tenant" | "events"> &
   Partial<Pick<ProfileDeps, "keyring" | "assembly">>;
 const calls = new WeakMap<
   Tx,
-  { deps: DecisionDeps; ctx: IdentityContext; duplicate?: { roundId: string; winnerId: string } }
+  {
+    deps: DecisionDeps;
+    ctx: IdentityContext;
+    staff?: StaffContext;
+    duplicate?: { roundId: string; winnerId: string };
+  }
 >();
 export async function withSystemDuplicateCall<T>(
   tx: Tx,
@@ -48,9 +57,10 @@ export async function withQualificationCall<T>(
   deps: ProfileDeps,
   ctx: IdentityContext,
   fn: () => Promise<T>,
+  staff?: StaffContext,
 ): Promise<T> {
   if (calls.has(tx)) throw new Error("资质领域用例不能重入");
-  calls.set(tx, { deps, ctx });
+  calls.set(tx, { deps, ctx, ...(staff ? { staff } : {}) });
   try {
     return await fn();
   } finally {
@@ -70,6 +80,7 @@ interface DecideArgs {
     heldPoints?: number;
   };
   mode?: "normal" | "override";
+  overrideReason?: string;
   rejectedDocIds?: readonly string[];
   isFinal?: boolean;
 }
@@ -289,7 +300,13 @@ async function conclude(tx: Tx, row: ApprovalRow, decision: ApprovalDecision, ap
       outcome: approved ? "approved" : "rejected",
       ...(!approved && input.isFinal ? { finalRejectedAt: now } : {}),
       ...(duplicate ? { systemRejectCode: "duplicate_entity" } : {}),
-      approveMode: approved ? "normal" : null,
+      approveMode: approved
+        ? input.mode === "override"
+          ? "override"
+          : round.qualificationDocs.some((d) => d.reviewedFieldsEnc)
+            ? "corrected"
+            : "normal"
+        : null,
       updatedAt: now,
     },
   });
@@ -423,12 +440,36 @@ export const qualificationKind = defineApprovalKind<{ submissionId: string; roun
     );
   },
   async revalidate(tx, row, args) {
-    const { deps } = call(tx);
+    const { deps, ctx, staff } = call(tx);
     const { round, input } = await lockedRound(tx, row, args, true);
-    if (input.mode && input.mode !== "normal")
-      throw new AppError("STATE_NOT_ALLOWED", {
-        details: { reason: "recognition_override_not_open" },
-      });
+    if (!deps.keyring) throw new AppError("PRECONDITION_CHANGED");
+    const checks = await qualificationChecks(
+      tx,
+      { clock: deps.clock, keyring: deps.keyring },
+      round.id,
+      true,
+    );
+    if (input.mode === "override") {
+      if (ctx.actor.type !== "staff" || !staff || staff.staff.id !== ctx.actor.id)
+        throw new AppError("PERMISSION_DENIED");
+      const current = await currentReviewStaff(tx, staff, deps.clock.now());
+      if (
+        !(await tx.store.findFirst({ where: { id: round.storeId, ...storeScope(current.scope) } }))
+      )
+        throw new AppError("NOT_FOUND");
+      assertPermission(current, "merchant.qualification.override", deps.clock.now());
+      if (
+        !input.overrideReason ||
+        [...input.overrideReason.trim()].length < 10 ||
+        [...input.overrideReason.trim()].length > 200
+      )
+        throw invalid("放行理由须为10至200字");
+      if (!checks.failures.length)
+        throw new AppError("STATE_NOT_ALLOWED", {
+          details: { reason: "override_requires_failed_checks" },
+        });
+    } else if (checks.failures.length)
+      throw new AppError("QUALIFICATION_CHECK_FAILED", { details: { items: checks.failures } });
     const license = round.qualificationDocs.find((doc) => doc.docType === "business_license");
     if (
       (round.kind === "initial" && !license) ||

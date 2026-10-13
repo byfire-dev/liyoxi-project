@@ -15,6 +15,7 @@ import type { ProfileDeps } from "./context.js";
 import { dictRef, roundInclude, snapshot } from "./repo.js";
 import { addressView, docView, instant } from "./views.js";
 import { pendingView } from "./round-basics.js";
+import { qualificationChecks } from "./field-checks.js";
 export async function staffBrief(tx: Tx, id: string | null): Promise<StaffBrief | null> {
   if (!id) return null;
   const s = await tx.staff.findUnique({ where: { id } });
@@ -209,7 +210,11 @@ export async function adminQualificationGet(
     phoneMask: string | null;
     phoneSource: string | null;
   } | null;
-  const summary = r.checkSummary as {
+  const currentChecks =
+    !r.closedAt && r.approvalRequest!.status === "pending"
+      ? await qualificationChecks(tx, deps, r.id)
+      : null;
+  const summary = (currentChecks?.summary ?? r.checkSummary) as {
     fail: number;
     warn: number;
     manual: number;
@@ -221,7 +226,8 @@ export async function adminQualificationGet(
     const view = await docView(tx, deps.keyring(), deps.clock.now(), doc);
     docs.push({
       ...view,
-      fieldChecks: doc.fieldChecks ?? [],
+      fieldChecks:
+        currentChecks?.documents.find((d) => d.id === doc.id)?.checks ?? doc.fieldChecks ?? [],
       isCorrected: doc.reviewedFieldsEnc !== null,
     });
   }
@@ -329,7 +335,10 @@ export async function adminQualificationGet(
     referenceDocs,
     duplicateUscc: { inReviewElsewhereCount, isVerifiedElsewhere },
     relatedOrders: [...facts.billing.relatedOrders, ...facts.order.relatedOrders],
-    canOverride: false,
+    canOverride:
+      approval.status === "pending" &&
+      (summary?.fail ?? 0) > 0 &&
+      hasPermission(staff, "merchant.qualification.override"),
     actions: approval.actions
       .filter(
         (v) => v === "approve-review" || v === "reject-review" || v === "approve" || v === "reject",
