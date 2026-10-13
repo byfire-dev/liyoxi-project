@@ -3,6 +3,8 @@ export async function tenantRegression(page, scene) {
   const active = (selector) =>
     page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
   const content = () => active("#profile-ready");
+  const field = (label) =>
+    active(".lyx-field:visible").filter({ hasText: label }).locator("input").first();
   const button = (text) => active(".lyx-button").filter({ hasText: new RegExp(`^${text}$`) });
   const calls = () => page.evaluate(() => globalThis.__LYX_TENANT_CALLS__ ?? []);
   await expect(content()).toBeVisible();
@@ -16,13 +18,13 @@ export async function tenantRegression(page, scene) {
     await expect(content()).toContainText("南山店");
     await expect(button("新增门店")).toHaveCount(0);
     await expect(content()).not.toContainText("主体与额度");
-    await expect(button("删除草稿门店")).toHaveCount(0);
-    await expect(button("停用门店")).toHaveCount(0);
+    await expect(button("删除草稿")).toHaveCount(0);
+    await expect(button("停用")).toHaveCount(0);
   } else if (scene === "tenant-store-add") {
     await expect(content()).toContainText("门店额度");
     await expect(active(".lyx-checkbox--checked")).toHaveCount(0);
-    await active('input[aria-label="门店名称"]').fill("新建邻里门店");
-    await active('input[aria-label="街道与门牌号"]').fill("邻里路18号");
+    await field("门店名称").fill("新建邻里门店");
+    await field("街道与门牌号").fill("邻里路18号");
     for (const [field, value] of [
       ["行业", "餐饮"],
       ["品类", "咖啡饮品"],
@@ -31,7 +33,7 @@ export async function tenantRegression(page, scene) {
       ["区县", "福田区"],
     ]) {
       await button(`选择${field}`).click();
-      await active(".lyx-sheet .lyx-button")
+      await active(".lyx-sheet:visible .lyx-button")
         .filter({ hasText: new RegExp(`^${value}$`) })
         .click();
     }
@@ -39,7 +41,7 @@ export async function tenantRegression(page, scene) {
     await expect(content()).toContainText("门店已创建");
     await expect(button("继续完善该店档案")).toBeVisible();
     await expect(button("创建并完善档案")).toHaveClass(/lyx-button--disabled/);
-    await active('input[aria-label="门店名称"]').fill("改名不应重复创建");
+    await field("门店名称").fill("改名不应重复创建");
     await expect(button("创建并完善档案")).toHaveClass(/lyx-button--disabled/);
     const creates = (await calls()).filter((c) => c.path === "/m/stores" && c.method === "POST");
     expect(creates).toHaveLength(1);
@@ -59,14 +61,14 @@ export async function tenantRegression(page, scene) {
     await button("所属门店").click();
     await expect(active(".lyx-sheet")).toContainText("南山店");
     await button("保存门店").click();
-    await expect(active(".lyx-sheet")).toHaveCount(0);
+    await expect(active(".lyx-sheet")).toBeHidden();
     const writes = (await calls()).filter((c) => c.method === "PATCH");
     expect(writes).toHaveLength(1);
     expect(writes[0].data).toEqual({ storeIds: ["00000000-0000-4000-8000-000000000002"] });
     expect(writes[0].key).toBeTruthy();
   } else if (scene === "tenant-invite-owner") {
     await expect(button("发送给微信好友")).toBeVisible();
-    await active('input[aria-label="对方手机号（按要求填写）"]').fill("13900009000");
+    await field("对方手机号（按要求填写）").fill("13900009000");
     await expect(button("发送给微信好友")).toHaveClass(/lyx-button--disabled/);
     await button("保存邀请内容").click();
     await expect(content()).toContainText("限指定手机号");
