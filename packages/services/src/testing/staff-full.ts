@@ -8,6 +8,7 @@ import { createIdentityContext, createTxRunner, staffWorkSourcesOf } from "../ke
 import { createSla } from "../sla/index.js";
 import { createTimers } from "../timers/index.js";
 import { sendStaffWecomInvite } from "../notify/index.js";
+import { readUnassignedStoreOrderIds, syncUnassignedStoreOrders } from "../order/index.js";
 import { assembleForTest } from "./assembly.js";
 import { createClock } from "./clock.js";
 import { createFactories, TEST_KEYRING } from "./data/index.js";
@@ -36,6 +37,10 @@ export async function fullStaffWorld(prisma: PrismaClient) {
     timers,
     keyring: () => TEST_KEYRING,
     workSources: staffWorkSourcesOf(assembly),
+    storeManagerOrders: {
+      readUnassignedIds: readUnassignedStoreOrderIds,
+      syncUnassigned: syncUnassignedStoreOrders,
+    },
     sendActivation: async () => ({ status: "failed" }),
     sendWecomInvite: (input) =>
       tx.run(async (t) =>
