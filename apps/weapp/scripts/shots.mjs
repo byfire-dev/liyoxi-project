@@ -898,7 +898,11 @@ async function shoot(target) {
           await missing.scrollIntoViewIfNeeded();
         }
         if (target.scene === "review-rejected")
-          await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
+          await page
+            .locator(".taro_page_stationed:not(.taro_page_shade) .lyx-card")
+            .filter({ has: page.locator(".lyx-card__title", { hasText: /^审核进度$/ }) })
+            .getByText("证照不清晰", { exact: true })
+            .waitFor({ state: "visible" });
       }
     }
     if (target.kind === "catalog") await searchEntryRegression(page, target.scene);
