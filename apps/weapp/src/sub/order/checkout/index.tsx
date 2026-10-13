@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { formatInteger } from "@liyoxi/shared/format/money";
@@ -32,6 +32,7 @@ import { useSessionStore } from "@/stores/session";
 import { usePublishStore } from "@/stores/publish";
 import { orderApi } from "../private/api";
 import { useOrderResource } from "../private/resource";
+import { ReferencePicker, useOrderReferences } from "../private/reference-ui";
 import "./index.scss";
 const platformName: Record<string, string> = { douyin: "抖音", wechat_channels: "视频号" };
 export default function CheckoutPage() {
@@ -112,10 +113,12 @@ function Checkout({ ids }: { ids: string[] }) {
       });
     }
   }, [quote, intent, guard]);
-  const change = () => {
+  const change = useCallback(() => {
     intent.changed();
     setSubmitError(null);
-  };
+  }, [intent]);
+  const referenceLocked = useCallback(() => active.current || subscribing.current, []);
+  const references = useOrderReferences(change, referenceLocked);
   const selectAccount = (id: string, platform: string, checked: boolean) => {
     if (active.current) return;
     change();
@@ -131,7 +134,9 @@ function Checkout({ ids }: { ids: string[] }) {
     resource.refresh();
   };
   const submit = async () => {
+    const referenceBody = references.body();
     if (
+      referenceBody === null ||
       active.current ||
       resource.loading ||
       !canSubmitOrder(quote, selected, focus, agreed) ||
@@ -157,6 +162,7 @@ function Checkout({ ids }: { ids: string[] }) {
           ...(note.trim() ? { note: note.trim() } : {}),
           agreementVersionId: quote.agreement.agreementVersionId,
           expect: quote.expect,
+          ...referenceBody,
         },
         key,
       );
@@ -398,6 +404,7 @@ function Checkout({ ids }: { ids: string[] }) {
                 }}
               />
             </Card>
+            <ReferencePicker model={references} disabled={busy} />
             <Card title="积分明细">
               <DescList
                 items={[
