@@ -384,6 +384,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     ["m.storeProfile.service.update", "PATCH", "/m/store-profile/service"],
     ["m.storeProfile.qualification.update", "PATCH", "/m/store-profile/qualification"],
     ["m.storeProfile.contact.update", "PATCH", "/m/store-profile/contact"],
+    ["m.storeProfile.contactSmsCode.create", "POST", "/m/store-profile/contact/sms-codes"],
     ["m.storeProfile.qualification.submit", "POST", "/m/store-profile/qualification/submit"],
     ["m.qualificationDoc.create", "POST", "/m/qualification-docs"],
     ["m.qualificationDoc.update", "PATCH", `/m/qualification-docs/${uuidv7()}`],

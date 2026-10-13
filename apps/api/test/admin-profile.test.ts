@@ -85,7 +85,7 @@ describe("后台档案六接口", { timeout: 60000 }, () => {
     expect(detail.docs[0]).toMatchObject({
       fileId: expect.any(String),
       ocrStatus: "unavailable",
-      fieldChecks: [],
+      fieldChecks: [{ code: "C11", field: "ocr", result: "manual" }],
       isCorrected: false,
     });
     expect(JSON.stringify(detail)).not.toContain(p.number);

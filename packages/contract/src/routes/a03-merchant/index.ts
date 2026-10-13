@@ -47,6 +47,7 @@ export * from "./error-details.js";
 
 export * from "./stores.schemas.js";
 export * from "./qualification.schemas.js";
+export { adminQualificationDocUpdate } from "./qualification-docs.js";
 export { adminStoreList, adminStoreGet, adminStoreAssignDeliveryManager } from "./stores.js";
 export {
   adminQualificationSubmissionGet,

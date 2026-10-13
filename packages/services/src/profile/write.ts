@@ -571,6 +571,7 @@ export async function saveContact(
   deps: ProfileDeps,
   viewer: ProfileViewer,
   input: ContactPatch,
+  verified = false,
 ) {
   const now = deps.clock.now(),
     storeId = viewer.membership.storeId;
@@ -588,7 +589,7 @@ export async function saveContact(
   const phone = input.phoneSource === "login" ? original : input.phone;
   if (!phone || !/^1\d{10}$/.test(phone)) throw invalid("登录手机号不可用");
   const sealed = sealPhone(deps.keyring(), "store_profile.contact_phone_enc", phone);
-  const phoneSource = phone === original ? "login" : "unverified";
+  const phoneSource = phone === original ? "login" : verified ? "sms_verified" : "unverified";
   await tx.storeProfile.update({
     where: { storeId },
     data: {
@@ -597,7 +598,7 @@ export async function saveContact(
       contactPhoneEnc: sealed.enc,
       contactPhoneMask: sealed.mask,
       contactPhoneSource: phoneSource,
-      contactPhoneVerifiedAt: null,
+      contactPhoneVerifiedAt: phoneSource === "sms_verified" ? now : null,
     },
   });
   await refreshCompleteness(tx, storeId, now);

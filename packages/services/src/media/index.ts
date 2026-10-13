@@ -1,5 +1,9 @@
 export { createMedia } from "./runtime.js";
 export {
+  readQualificationRecognition,
+  runQualificationFieldChecks,
+} from "./qualification-checks.js";
+export {
   dramaMediaReadiness,
   readCommittedDramaMasters,
   readDramaPosterFileIds,

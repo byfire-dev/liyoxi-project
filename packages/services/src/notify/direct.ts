@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AppError, assertNotInTransaction, uuidv7 } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import type { NotificationProviderResult } from "../providers/types.js";
+import type { Tx } from "../kernel/index.js";
 import { sendVerdict } from "./policy.js";
 import { smsDayUsage } from "./sms-budget.js";
 
@@ -35,6 +36,16 @@ export function directSender(deps: NotifyDispatchDeps) {
   let closed = false;
   const calls = new Set<{ controller: AbortController; done: Promise<unknown> }>();
   const pending = new Set<Promise<{ deliveryId: string; status: string }>>();
+  async function verificationAvailable(tx: Tx) {
+    const template = await tx.smsTemplate.findUnique({ where: { templateKey: "verify_code" } });
+    return !!(
+      deps.providers.sms.configured &&
+      template?.providerTemplateId &&
+      template.signName &&
+      ["active", "suspect"].includes(template.status) &&
+      (await deps.smsEnabled(tx, null))
+    );
+  }
   async function sendDirect(raw: DirectNotificationInput) {
     assertNotInTransaction("notify.sendDirect");
     const job = execute(raw).finally(() => pending.delete(job));
@@ -210,6 +221,7 @@ export function directSender(deps: NotifyDispatchDeps) {
   }
   return {
     sendDirect,
+    verificationAvailable,
     async close() {
       closed = true;
       for (const call of calls) call.controller.abort();

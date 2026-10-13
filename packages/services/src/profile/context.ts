@@ -6,6 +6,7 @@ import type {
   IdentityContext,
   IdempotencyContext,
   TxRunner,
+  Tx,
 } from "../kernel/index.js";
 import type { Media } from "../media/index.js";
 import type { Keyring } from "../security/index.js";
@@ -24,6 +25,11 @@ export interface ProfileDeps {
   readonly keyring: () => Keyring;
   readonly wechat: Pick<WechatProvider, "checkText">;
   readonly currentOpenid: (principal: SessionPrincipal) => Promise<string>;
+  readonly contactSms?: {
+    available(tx: Tx): Promise<boolean>;
+    assertSession(tx: Tx, principal: SessionPrincipal, at: Date): Promise<unknown>;
+    send(phone: string, code: string, directKey: string): Promise<{ status: string }>;
+  };
 }
 export interface ProfileViewer {
   readonly ctx: IdentityContext;

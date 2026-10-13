@@ -220,6 +220,18 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
     wechat: runtime.providers.wechat,
     currentOpenid: (principal) =>
       tx.run((handle) => currentSessionOpenid(handle, principal, appid)),
+    contactSms: {
+      available: (handle) => runtime.notify.verificationAvailable(handle),
+      assertSession: (handle, principal, at) => assertCurrentSession(handle, principal, at, appid),
+      send: (phone, code, directKey) =>
+        runtime.notify.sendDirect({
+          purpose: "verify_code",
+          templateKey: "verify_code",
+          phone,
+          params: { code },
+          directKey,
+        }),
+    },
   });
   const services: MerchantServices = { docs, tenant, identity, profile };
   const initializer = createStoreProfileAssetInitializer({

@@ -25,15 +25,9 @@ import { overview, assetOverviewActor } from "./read.js";
 import { snapshot } from "./repo.js";
 import { submitQualification } from "./submit.js";
 import { assertOwner, assertVersion, checkContent, validateBasics } from "./validate.js";
-import {
-  attachUrls,
-  basicView,
-  contactView,
-  mediaView,
-  qualificationView,
-  serviceView,
-} from "./views.js";
-import { saveBasic, saveContact, saveMedia, saveService } from "./write.js";
+import { attachUrls, basicView, mediaView, qualificationView, serviceView } from "./views.js";
+import { saveBasic, saveMedia, saveService } from "./write.js";
+import { createContactCode, updateContact } from "./contact.js";
 import { qualificationRecords, qualificationDocumentUrl } from "./qualification-read.js";
 import type { CursorQuerySchema, z } from "@liyoxi/contract";
 
@@ -175,19 +169,10 @@ export function createProfile(deps: ProfileDeps) {
         options,
       ),
     async updateContact(viewer: ProfileViewer, input: ContactPatch, options?: WriteOptions) {
-      return checkedWrite(
-        viewer,
-        input.lockVersion,
-        { name: input.name },
-        async (tx) =>
-          contactView(
-            tx,
-            await saveContact(tx, deps, viewer, input),
-            viewer.principal.merchantUserId,
-          ),
-        options,
-      );
+      return updateContact(deps, viewer, input, options);
     },
+    createContactCode: (viewer: ProfileViewer, phone: string, options?: WriteOptions) =>
+      createContactCode(deps, viewer, phone, options),
     submit: (viewer: ProfileViewer, input: QualificationSubmitBody, options?: WriteOptions) =>
       write(
         viewer,
@@ -259,20 +244,46 @@ export function createProfile(deps: ProfileDeps) {
         lockVersion: number;
         confirm: { roundNo: number };
         mode?: "normal" | "override";
+        overrideReason?: string;
         confirmChecks?: readonly string[];
       },
       options?: WriteOptions,
     ) =>
       deps.tx.run(async (tx) => {
         const round = await decisionRound(tx, id, input.staff);
-        return withQualificationCall(tx, deps, ctx, () =>
-          deps.approval.approve(tx, ctx, {
-            approvalId: round.approvalRequestId!,
-            staff: input.staff,
-            lockVersion: input.lockVersion,
-            confirmChecks: input.confirmChecks,
-            args: input,
-          }),
+        return withQualificationCall(
+          tx,
+          deps,
+          ctx,
+          () =>
+            deps.approval.approve(tx, ctx, {
+              approvalId: round.approvalRequestId!,
+              staff: input.staff,
+              lockVersion: input.lockVersion,
+              confirmChecks: input.confirmChecks,
+              note: input.mode === "override" ? input.overrideReason : undefined,
+              ...(input.mode === "override"
+                ? {
+                    audit: {
+                      stream: "activity" as const,
+                      category: "review" as const,
+                      action: "approval.request.approve",
+                      summary: "放行资质审核",
+                      target: { type: "approval_request", id: round.approvalRequestId! },
+                      entityId: round.entityId,
+                      storeId: round.storeId,
+                      reason: { code: "override", text: input.overrideReason },
+                      meta: {
+                        approvalStatus: "approved",
+                        approvalKind: "qualification",
+                        rule: "override",
+                      },
+                    },
+                  }
+                : {}),
+              args: input,
+            }),
+          input.staff,
         );
       }, options),
     reject: (
