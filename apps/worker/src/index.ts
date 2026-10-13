@@ -77,6 +77,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   };
   const dispose = async () => {
     const mutexClosing = database.sessionMutex.close();
+    void mutexClosing.catch(() => undefined);
     let failure: PromiseRejectedResult | undefined;
     const clean = async (closes: readonly (() => unknown)[]) => {
       const results = await settle(closes);
@@ -227,6 +228,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     try {
       activeServices.disableModelBudget?.();
       const mutexClosing = database.sessionMutex.close();
+      void mutexClosing.catch(() => undefined);
       await settle(wechatClosers);
       await runtime.stop();
       await mutexClosing;

@@ -980,6 +980,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     close() {
       return (closing ??= (async () => {
         const mutexClosing = sessionMutex.close();
+        void mutexClosing.catch(() => undefined);
         let failure: PromiseRejectedResult | undefined;
         const settle = async (closes: readonly (() => unknown)[]) => {
           const results = await Promise.allSettled(
