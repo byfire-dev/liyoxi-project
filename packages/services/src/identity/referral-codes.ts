@@ -107,7 +107,7 @@ export function createReferralCodes(deps: Deps): ReferralCodes {
           input,
         ),
       ),
-    create: (ctx, staff, input, options) => {
+    create: async (ctx, staff, input, options) => {
       const parsed = ReferralCodeCreateBodySchema.safeParse(input);
       if (!parsed.success) throw new AppError("VALIDATION_FAILED");
       return write(
@@ -119,7 +119,7 @@ export function createReferralCodes(deps: Deps): ReferralCodes {
           createReferralCodeIn(tx, deps.clock, ctx, current, parsed.data, options.meta),
       );
     },
-    disable: (ctx, staff, id, input, options) => {
+    disable: async (ctx, staff, id, input, options) => {
       const parsed = ReferralCodeDisableBodySchema.safeParse(input);
       if (!parsed.success) throw new AppError("VALIDATION_FAILED");
       return write(ctx, staff, options, [], (tx, current) =>
@@ -135,7 +135,7 @@ export function createReferralCodes(deps: Deps): ReferralCodes {
         ),
       );
     },
-    enable: (ctx, staff, id, input, options) => {
+    enable: async (ctx, staff, id, input, options) => {
       if (!ReferralCodeEnableBodySchema.safeParse(input).success)
         throw new AppError("VALIDATION_FAILED");
       return write(ctx, staff, options, [], (tx, current) =>
