@@ -534,7 +534,7 @@ export function MerchantActionDialog({
   return send ? (
     <ConfirmAction
       open
-      action={intent.id}
+      action="merchant-management"
       spec={{
         title: intent.title,
         description: intent.description,

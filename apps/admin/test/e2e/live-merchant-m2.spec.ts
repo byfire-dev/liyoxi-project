@@ -59,7 +59,7 @@ async function post(page: Page, path: string, body: unknown) {
 async function confirm(page: Page, title: string) {
   await page.getByRole("button", { name: "继续确认", exact: true }).click();
   const modal = page.getByRole("dialog", { name: title, exact: true });
-  const button = modal.getByRole("button", { name: "确认操作", exact: true });
+  const button = modal.getByRole("button", { name: "确认", exact: true });
   await expect(button).toBeDisabled();
   await modal.getByRole("checkbox", { name: "我已核对当前对象、信息和操作" }).check();
   await expect(button).toBeEnabled();
@@ -331,7 +331,7 @@ test("W215 账号申请撤回与渠道停启走真实公口，只读员工无写
     const dialog = page.getByRole("dialog", { name: `${label}渠道码` });
     await dialog.getByRole("checkbox", { name: "我已核对渠道码与操作" }).check();
     const result = wait(page, "POST", `referral-codes/${code.referralCodeId}/${kind}`);
-    await dialog.getByRole("button", { name: "确认操作", exact: true }).click();
+    await dialog.getByRole("button", { name: "确认", exact: true }).click();
     expect((await result).status()).toBe(200);
     expect((await get(page, "referral-codes?q=W215LIVE")).items[0].status).toBe(state);
     await expect(page.getByRole("dialog")).toHaveCount(0);

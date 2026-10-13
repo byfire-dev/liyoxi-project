@@ -3,11 +3,22 @@ import { createProfile } from "../../profile/index.js";
 import { currentSessionOpenid } from "../../identity/index.js";
 import { createTenant } from "../../tenant/index.js";
 import { loadKeyring } from "../../security/index.js";
+import { sampleStaffContext } from "../approval.js";
 import type { AdminLiveFixture } from "./context.js";
 
 /** 独立多店/跨主体前置；初始指派经正式同TX公口，浏览器写口产生后续状态。 */
 const fixture: AdminLiveFixture = async ({ runtime, make }) => {
   if (runtime.env.APP_ENV !== "test") throw new Error("商家页面夹具只接受隔离测试环境");
+  const admin = await runtime.tx.run((tx) =>
+    tx.staff.findFirstOrThrow({ where: { staffRoleKey: "super_admin", status: "active" } }),
+  );
+  await runtime.configAdmin.createDictItem(
+    {
+      staff: await runtime.tx.run((tx) => sampleStaffContext(tx, admin.id)),
+      identity: createIdentityContext({ actor: { type: "staff", id: admin.id, client: "admin" } }),
+    },
+    { typeKey: "account_change_reason", name: "W215虚构身份核对" },
+  );
   const group = await runtime.tx.run((tx) =>
     tx.staffGroup.findFirstOrThrow({
       where: { staffRoleKey: "delivery_manager", isDefault: true },
