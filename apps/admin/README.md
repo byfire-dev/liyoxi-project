@@ -156,7 +156,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 W3-02 后完整入口还需要 Docker 和本机 MinIO。缺省先从固定 mediatool Dockerfile 构建镜像（可复用缓存），在 CPU1、1GiB、无网络且根只读的本轮容器内生成两份合法20秒视频及真实 probe 报告，再运行完整 live 集合。标准片用于20集批次，真实大于20MiB的另一片用于跨刷新续传；认证、样片、两集原质检和新批次用例全部保留，不减少集数、内部并发、原断言或超时。自动准备的容器和卷在确认终止后回收；成功后删除临时输入，失败保留首次观察，不自动补片或重造。
 
-已有合法输入时可复用：`pnpm admin:e2e:live --video <标准片.mp4> --resume-video <大于20MiB的片.mp4> --probe-facts </tmp/lyx-w302-本轮目录/manifest.json> --mediatool-image <sha256:完整镜像ID>`。三个输入参数须一起提供；格式、字节核对和 Provider 边界见[批次验收说明](src/features/delivery/ticket-detail/batch-upload.README.md)。默认完整收集；仅批次的受影响重跑允许原精确 `--test-file test/e2e/live-output-batch.spec.ts`，不能用于声称完整验收。
+已有合法输入时可复用：`pnpm admin:e2e:live --video <标准片.mp4> --resume-video <大于20MiB的片.mp4> --probe-facts </tmp/lyx-w302-本轮目录/manifest.json> --mediatool-image <sha256:完整镜像ID>`。三个输入参数须一起提供；格式、字节核对和 Provider 边界见[批次验收说明](src/features/delivery/ticket-detail/batch-upload.README.md)。默认完整收集；受影响定点可用`--test-file 'test/e2e/live-media-ops.spec.ts,test/e2e/live-flow-ops.spec.ts'`，仅接受至多8个真实已有live文件的精确路径，不能用于声称完整验收。
 
 后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `liveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
 
@@ -211,12 +211,20 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 
 直接访问需 `system≥v` 或 `flow.ops.view`，侧栏仍遵循既有 system 模块等级过滤。操作按钮同时要求 `flow.ops.manage` 和服务端 `actions`。取消定时器须填 5–200 字原因；其他恢复操作接受至多 200 字备注。确认仅针对单个目标，写请求使用当前确认的幂等键。确认回显到期时刻使用带年份的北京时间，重新排期不提交新的 `fireAt`；成功或状态冲突均刷新实际列表，409 会撤下陈旧确认并提示重新核对。
 
-本页只展示服务端已脱敏的失败摘要和固定安全字段，不展示原始载荷。三种传输状态目前用中文普通文本，保持中央状态色调字典原样。M3 媒体任务由 W3-08 在同页接入，本包不渲染未实现的按钮或页签。
+本页只展示服务端已脱敏的失败摘要和固定安全字段，不展示原始载荷。三种传输状态保持中文普通文本。W3-08在同页增加媒体任务页签，只有system查看权限才查询，原flow查看入口及三资源动作保持；人工重试同时要求media.job.retry、failed与服务端actions，不以error.isRetryable替代实际业务守卫。成功重读queued/deadline，父对象由任务进程推进。
 
 `w223.fixture.ts` 通过原真实造数登记口添加本轮隔离库的失败/死信事实，不增加初始员工或改已有角色、旧夹具。`live-flow-ops.spec.ts` 覆盖三查询、两种分页、日期键盘、四个真实恢复动作与状态冲突刷新。只读用例在原员工用例末尾注册独立 `w223-flow-ops-readonly.ts` helper，原员工数量验收结束后才通过真实创建、激活、设密码和 TOTP 接口创建自己的财务员工；不依赖文件排序，不改变旧断言或执行配置。使用原 `pnpm admin:e2e:live` 起栈和清理。截图落在原 `dist/e2e-shots/flow-ops-*.png`，失败 trace 在原 `dist/e2e-live-results`；只读登录的假手机号、口令、激活码和 TOTP 通过 typed 中央客户端与原生 Node fetch 使用，不写入 Playwright 请求步骤或截图。
 
 浏览器请求使用中央客户端已有的 `Request.clone()`；Chrome 对流正文可能只提供实际长度而不提供 CDP `postData`。四动作验收仅观察本夹具五次精确 POST 的只读副本，原请求立即原样发往真实 API，以精确正文和幂等键断言。刻意状态冲突只允许该请求地址对应的一条固定 409 资源错误，其他 console 或 pageerror 仍失败；旧用例监听保持原样。
 
+
+## 文件清除放行与媒体任务（W3-08，本地验收完成）
+
+`/sys/file-purges`是唯一新增页，默认显示proposed/held运行，点行按purgeRunId读取真实候选，另一页签查询已清除文件。数量和字节确认保留服务端原字符串，批准只进入approved等待执行；熔断展示heldReason，不伪造阈值快照。恢复截止/actions/已彻删均来自DTO，原因、危险确认、中央stepup和当前required键沿已有构件。FILE_IN_USE最多20真实摘要，仅已实现且有权限的短剧引用给固定入口，未来页显示关联受限。
+
+媒体任务位于原`/sys/flow-ops?tab=media`，只system查看权限才取数，不收紧原三资源权限。失败重试按真实actions，结果重读queued与deadline，输入/输出、对象键和原始异常不渲染。版本恢复成功UI用明确受控响应覆盖；真实live MinIO恢复不支持时保持503，彻删按真实枚举/精确删除/HEAD404能力处理本轮未入桶虚构对象，核终态与一次审计，不能当作真实历史版本演练。Chrome可能不提供中央克隆POST的postData，沿既有W223方式只读fetch副本精确核正文/key，原请求原样立即外发。模型与真实live定点结论见W3-08状态，类型/build/截图由ROOT串行验收。
+
+本地6模型/运输与shared23目标分轮通过，状态字典30组/108条/0差异，admin/services类型、依赖边界、API/admin生产构建检查通过。新两组真实live与旧flow两组业务分批全绿，最终仅新两组加认证准备3G（12.4秒），已绿旧组未重复；自有库由runner清理。仅新增file_purges一页，原flow_ops仍归W2-23不重计。最后官方登记/挂载与截图归档由ROOT收口；真实历史版本/生产操作、远端CI与业主看样未验。
 
 ## 员工、角色与我的审批（W2-06，本地验收完成）
 

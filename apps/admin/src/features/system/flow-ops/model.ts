@@ -13,12 +13,15 @@ import type {
   TimerView,
   WebhookQuery,
   WebhookView,
+  MediaView,
 } from "./api";
+import { canRetryMedia, mediaSearch } from "./media-model";
 export const FLOW_KEY = ["system", "flow-ops"] as const;
 export const TABS = [
   { key: "timers", label: "失败的定时器" },
   { key: "outbox", label: "死信投递" },
   { key: "webhooks", label: "回调收件箱" },
+  { key: "media", label: "媒体任务" },
 ] as const;
 export type FlowTab = (typeof TABS)[number]["key"];
 export type FlowSearch = Record<string, string>;
@@ -55,11 +58,14 @@ const keys = {
   ],
 } as const;
 export function flowTab(search: Readonly<Record<string, unknown>>): FlowTab {
-  return search.tab === "outbox" || search.tab === "webhooks" ? search.tab : "timers";
+  return search.tab === "outbox" || search.tab === "webhooks" || search.tab === "media"
+    ? search.tab
+    : "timers";
 }
 export function flowSearch(raw: Readonly<Record<string, unknown>>): FlowSearch {
-  const tab = flowTab(raw),
-    candidate = { ...raw };
+  const tab = flowTab(raw);
+  if (tab === "media") return mediaSearch(raw);
+  const candidate = { ...raw };
   if (tab !== "webhooks" && ![10, 20, 50].includes(Number(candidate.pageSize)))
     delete candidate.pageSize;
   if (
@@ -134,15 +140,17 @@ export function canReadFlow(access: AccessSnapshot | null): boolean {
 }
 export function actorKey(access: AccessSnapshot | null): string {
   return access
-    ? `${access.staff.id}:${access.moduleLevels.system ?? "n"}:${canAction(access, "flow.ops.view")}:${canAction(access, "flow.ops.manage")}`
+    ? `${access.staff.id}:${access.moduleLevels.system ?? "n"}:${canAction(access, "flow.ops.view")}:${canAction(access, "flow.ops.manage")}:${canAction(access, "media.job.retry")}`
     : "anonymous";
 }
 export type FlowAction =
   | { kind: "reschedule"; row: TimerView }
   | { kind: "cancel"; row: TimerView }
   | { kind: "retry-outbox"; row: OutboxView }
-  | { kind: "retry-webhook"; row: WebhookView };
+  | { kind: "retry-webhook"; row: WebhookView }
+  | { kind: "retry-media"; row: MediaView };
 export function actionAllowed(access: AccessSnapshot | null, action: FlowAction): boolean {
+  if (action.kind === "retry-media") return canRetryMedia(access, action.row);
   if (!canAction(access, "flow.ops.manage")) return false;
   const actions: readonly string[] = action.row.actions;
   return actions.includes(

@@ -37,6 +37,8 @@ import {
   type FlowSearch,
 } from "./model";
 import "./flow-ops.css";
+import { MediaJobsTab } from "./media-page";
+import { canReadMedia } from "./media-model";
 const route = getRouteApi("/sys/flow-ops");
 const at = (value: string | null) => (value ? appDateTimeFormat.dateTime(new Date(value)) : "—");
 function queryState<Row>(query: {
@@ -53,6 +55,8 @@ function queryState<Row>(query: {
 }
 export function FlowOpsPage() {
   const access = useContext(AccessContext);
+  if (flowTab(route.useSearch()) === "media")
+    return <MediaJobsTab key={actorKey(access)} access={access} />;
   return <FlowOpsContent key={actorKey(access)} access={access} />;
 }
 function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
@@ -62,6 +66,7 @@ function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
     tab = flowTab(search),
     api = createFlowOpsApi(services),
     identity = actorKey(access);
+  const tabs = TABS.filter((item) => item.key !== "media" || canReadMedia(access));
   const [action, setAction] = useState<FlowAction>(),
     [notice, setNotice] = useState<string>();
   const [history, setHistory] = useState<{
@@ -305,7 +310,7 @@ function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
       {tab === "timers" ? (
         <QueryTablePage
           label="流程运维列表"
-          tabs={TABS}
+          tabs={tabs}
           search={tableSearch(search)}
           onSearchChange={changeTable}
           columns={timerColumns}
@@ -320,7 +325,7 @@ function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
       {tab === "outbox" ? (
         <QueryTablePage
           label="流程运维列表"
-          tabs={TABS}
+          tabs={tabs}
           search={tableSearch(search)}
           onSearchChange={changeTable}
           columns={outboxColumns}
@@ -336,7 +341,7 @@ function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
         <section className="lyx-card lyx-table-card" aria-label="流程运维列表">
           <Tabs
             label="流程运维列表的页签"
-            items={TABS}
+            items={tabs}
             activeKey={tab}
             onChange={(key) => {
               setHistory({ scope: "", previous: {} });
@@ -408,7 +413,7 @@ function FlowOpsContent({ access }: { access: AccessSnapshot | null }) {
       ) : null}
       {action ? (
         <FlowActionDialog
-          key={`${action.kind}:${"timerId" in action.row ? action.row.timerId : "outboxEventId" in action.row ? `${action.row.outboxEventId}:${action.row.subscriber}` : action.row.webhookEventId}`}
+          key={`${action.kind}:${"timerId" in action.row ? action.row.timerId : "outboxEventId" in action.row ? `${action.row.outboxEventId}:${action.row.subscriber}` : "mediaJobId" in action.row ? action.row.mediaJobId : action.row.webhookEventId}`}
           action={action}
           access={access}
           api={api}
