@@ -28,7 +28,7 @@ function connections() {
     signal.addEventListener("abort", abort, { once: true });
     return {
       lost: lost.signal,
-      async tryLock(value) {
+      async tryLock(value: bigint) {
         if (held.has(value)) return false;
         key = value;
         held.set(value, owner);
