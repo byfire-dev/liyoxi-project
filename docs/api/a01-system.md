@@ -2411,11 +2411,13 @@
 | `mime` | string | 否 | | 只作参考，规范类型由扩展名推出（→ `file_object.declared_mime`） |
 | `clientToken` | string | 是 | 1–64 字符，`[A-Za-z0-9_-]`（与 m08 同一规则） | 端上生成的续传标识（算法同 d5-media.md:1137）→ `file_object.client_token` |
 | `storeId` | string(uuid) | 门店级分类必填 | | 归属门店（如代传门店素材、证照、样片所属订购项的门店） |
-| `entityId` | string(uuid) | 主体级分类必填 | 有 `storeId` 时由门店推出，不必传 | 归属主体 |
+| `entityId` | string(uuid) | 主体级分类必填（`account_proof` 无主体例外见下） | 有 `storeId` 时由门店推出，不必传 | 归属主体 |
 | `onBehalfStore` | boolean | 否 | 默认 `false` | 员工代商家上传（A35：超过小程序上限的大文件由服务经理在后台代传）；为真时写 `file_object.on_behalf_store_id = storeId` |
 | `production` | object | 分类为 `sample_video`、`final_episode`、`ad_video` 时必填 | | 制作上下文（d5-media.md:1022-1025）：`{ kind: 'sample' \| 'final' \| 'ad', orderItemId?, adId?, episodeNo?, dramaEpisodeMasterId?, aiUsage: { used: boolean, tools: [{ name, version, usedFor }] } }` |
 
 **响应**：`FileRegistration`（2.17）。同一 `clientToken`、同一分类、同一归属、声明大小相同的未确认登记直接复用（同一个写入区 key，分块续传才成立）。
+
+`account_proof` 的窄例外（W2-09）：a03 3.18 允许没有有效成员的账号申请换绑，但仍要求证明材料；仅当前 staff 身份一致、具备 `merchant.account_change.request`、数据范围为 `all`，且未传 `entityId`/`storeId`、`onBehalfStore` 不为 true 时，可登记 secure/platform 证明。有主体则按真实主体或门店校验，允许仅传 `entityId`。该平台材料只可关联无主体账号变更申请，关联前只有原上传员工可签发，关联后仍须 request/approve 权限及真实申请范围；不适用平台文件的一般免范围规则。其它分类与商家能力不变。
 
 **错误**：
 

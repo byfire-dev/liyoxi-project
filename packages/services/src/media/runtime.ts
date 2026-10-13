@@ -1,5 +1,6 @@
 import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
+import type { ClockBoundFileRefType } from "./ports.js";
 import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
 import { register, complete, refresh, cancel } from "./upload.js";
 import { assertUsableForModel, getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
@@ -42,7 +43,12 @@ import { onAssetCalendarImported, onAssetSlaBreach } from "./assets/sla.js";
 import type { DeliveredEvent, FiredTimer, Tx } from "../kernel/index.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
 export function createMedia(options: MediaDeps) {
-  const refTypes = options.assembly.portEntries(fileRefTypePort);
+  const refTypes = new Map(
+    [...options.assembly.portEntries(fileRefTypePort)].map(([key, definition]) => {
+      const factory = definition as Partial<ClockBoundFileRefType>;
+      return [key, factory.withClock ? factory.withClock(options.clock) : definition] as const;
+    }),
+  );
   const guards = options.assembly.portEntries(fileCategoryGuardPort);
   for (const [key, definition] of refTypes) {
     if (!/^[a-z][a-z0-9_]*$/.test(key) || Object.keys(definition.roles).length === 0)

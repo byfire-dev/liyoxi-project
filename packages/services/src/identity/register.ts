@@ -17,14 +17,16 @@ import {
   findI23Violations,
   findI24Violations,
   findI25Violations,
+  findI26Violations,
   findI8Violations,
   findI9Violations,
 } from "./invariants.js";
 import { machineImplementations } from "./machines.js";
 import { membershipAuthorizations } from "./portal-grants.js";
-import { accountChangeCleanup } from "./empty-account.js";
+import { accountChangeKind } from "./account-change-kind.js";
 import { purgePortalSessions, purgeSmsVerifications, purgeUserSessions } from "./retention.js";
 import { onWechatBound } from "./wechat-bound-notice.js";
+import { accountChangeFiles } from "./account-change-files.js";
 
 const check = (
   code: string,
@@ -52,8 +54,9 @@ export const registration = defineRegistration("identity", {
     ),
 
     ...identityPiiFields,
+    ...accountChangeFiles,
     ...machineImplementations(),
-    accountChangeCleanup,
+    accountChangeKind,
     implement(membershipAuthorizationsPort, membershipAuthorizations),
   ],
   invariants: [
@@ -63,5 +66,6 @@ export const registration = defineRegistration("identity", {
     check("identity.I23", (tx) => findI23Violations(tx)),
     check("identity.I24", (tx) => findI24Violations(tx)),
     check("identity.I25", (tx) => findI25Violations(tx)),
+    check("identity.I26", (tx) => findI26Violations(tx)),
   ],
 });

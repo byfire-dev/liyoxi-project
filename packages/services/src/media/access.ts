@@ -144,6 +144,32 @@ export async function registerScope(
   if (input.category === "poster" && !satisfiesLevel(staff.moduleLevels.drama, "edit"))
     throw new AppError("PERMISSION_DENIED");
   await guard?.assert(tx, actor, input);
+  // 无主体的账号换绑也需要证明：仅该分类、全范围员工允许平台归属。
+  if (input.category === "account_proof") {
+    if (!guard) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+    if (!input.entityId && !input.storeId) {
+      if (staff.scope.kind !== "all" || input.onBehalfStore === true) throw notFound();
+      return {
+        scopeType: "platform" as const,
+        entityId: null,
+        storeId: null,
+        onBehalfStoreId: null,
+      };
+    }
+    if (input.entityId && !input.storeId) {
+      const entity = await tx.entity.findFirst({
+        where: { id: input.entityId, ...byEntity(staff.scope).entity },
+        select: { id: true },
+      });
+      if (!entity || input.onBehalfStore === true) throw notFound();
+      return {
+        scopeType: "entity" as const,
+        entityId: entity.id,
+        storeId: null,
+        onBehalfStoreId: null,
+      };
+    }
+  }
   if (scopeType === "platform")
     return { scopeType, entityId: null, storeId: null, onBehalfStoreId: null };
   if (!input.storeId)
@@ -204,6 +230,11 @@ export function canReadCategory(
       return level("drama");
     case "legal_doc":
       return file.scopeType === "platform" ? level("ops") : level("finance") || level("service");
+    case "account_proof":
+      return (
+        staff.permissions.has("merchant.account_change.request") ||
+        staff.permissions.has("merchant.account_change.approve")
+      );
     default:
       throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
   }
@@ -216,6 +247,38 @@ export async function readableByStaff(
 ): Promise<FileRow> {
   const file = await tx.fileObject.findFirst({ where: { id: fileId, ...inStaffScope(staff) } });
   if (!file) throw notFound();
+  if (file.category === "account_proof") {
+    if (!canReadCategory(staff, file)) throw notFound();
+    const refs = await tx.fileRef.findMany({
+      where: { fileId, refType: "account_change_request", role: "proof", state: "live" },
+      select: { refId: true },
+    });
+    if (!refs.length) {
+      if (
+        file.uploadActorType !== "staff" ||
+        file.uploadActorId !== staff.staff.id ||
+        (file.scopeType === "platform" && staff.scope.kind !== "all")
+      )
+        throw notFound();
+    } else {
+      const request = await tx.accountChangeRequest.findFirst({
+        where: {
+          id: { in: refs.map((ref) => ref.refId) },
+          proofFileIds: { has: fileId },
+          ...(staff.scope.kind === "all"
+            ? {}
+            : {
+                OR: [
+                  { entityId: { not: null }, entity: byEntity(staff.scope).entity },
+                  { entityId: null, approvalRequest: { requesterStaffId: staff.staff.id } },
+                ],
+              }),
+        },
+        select: { id: true },
+      });
+      if (!request) throw notFound();
+    }
+  }
   if (
     !canReadCategory(staff, file) &&
     !(
