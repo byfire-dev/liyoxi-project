@@ -47,6 +47,10 @@ export function moment(value: string | null | undefined) {
 export function amount(fen: number | null | undefined) {
   return fen === null || fen === undefined ? "—" : formatMoneyFixed(fen);
 }
+/** 与本域列表既有门店状态选项同标签；共享状态色表尚未登记该生命周期。 */
+export function storeLifecycleLabel(value: unknown): string {
+  return value === "active" ? "在用" : value === "archived" ? "已归档" : "未识别门店状态";
+}
 export function status(value: unknown, column: string) {
   return typeof value === "string"
     ? (statusToneByEnum(column, value)?.admin?.label ?? text(value))

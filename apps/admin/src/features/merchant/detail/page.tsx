@@ -16,6 +16,7 @@ import {
   merchantScope,
   moment,
   status,
+  storeLifecycleLabel,
   text,
   validStoreId,
 } from "./model";
@@ -105,7 +106,7 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
         tags={
           <span>
             {status(row.qualificationStatus, "store.qualification_status")} ·{" "}
-            {status(row.lifecycle, "store.lifecycle")}
+            {storeLifecycleLabel(row.lifecycle)}
             {row.isChangeInReview ? " · 档案变更审核中" : ""}
             {row.isFinalRejected ? " · 最终拒绝" : ""}
           </span>
@@ -164,7 +165,10 @@ function MerchantDetailContent({ storeId }: { storeId: string }) {
                 labelWidth={84}
                 items={[
                   { label: "套餐", value: text(row.subscription.plan?.name) },
-                  { label: "套餐状态", value: text(row.subscription.status) },
+                  {
+                    label: "套餐状态",
+                    value: status(row.subscription.status, "billing_account.sub_status"),
+                  },
                   { label: "套餐截止", value: text(row.subscription.endDate) },
                   { label: "首次上线", value: text(row.liveSummary.firstLiveDate) },
                   { label: "使用截止", value: text(row.liveSummary.latestUsageEndDate) },

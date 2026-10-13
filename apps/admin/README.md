@@ -259,3 +259,12 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 `live-content.spec.ts`和`live-content-site.spec.ts`使用原完整bare live入口，不缩集合；R6作者HEAD f4b71258实际47/47通过（old32+C10+B5）。财务身份复用原隔离员工的专用恢复码，通过正式role PUT临时v/e与独立权限关闭、两真实403并finally恢复完整角色，不增加员工或放松配额。仅精确假COS host转发同轮validated loopback receiver，保URL/path/query/method/body/header/签名及真实receiver验证，不mock业务/API响应。
 
 私有预告片演练严格绑定本轮注册的source/job/asset/drama/template/quality/dst，真实下载核字节/SHA，以原串行CPU1/1GiB固定镜像native转码后发布真实产物并经正式双rendition/install。默认样片分支及其guard保持，不把隔离演练当厂商/真实云认证。`w312-*.png`在本轮immutable产物记录三视口；1366/1440核横滚，1280低于正式shell最小宽有真实overflow annotation。有头/设备、真实合法运营内容及法务审核未验证。完整分轮/首次失败和最终尾检见W3-12状态与交接。
+
+
+## 商家列表、详情与渠道码（W2-15）
+
+`/merchants` 消费正式筛选、分页和同范围 summary；列表进入真实 `/merchants/$storeId` 六个页签，渠道码位于静态 `/merchants/referral-codes`。档案、资质轮次、负责人/跟进、主体成员、账号申请与活动均取实际 DTO；掩码、空值、服务端 actions、版本及确认信息保持，原资质审核仍按 submissionId 导航。
+
+写入统一使用中央 required 幂等意图和再验证，409 刷新事实再核对；敏感签读每次现取，离页/换店/换人后中止并忽略迟到结果。已有员工查看权限者从当前范围选择在职交付经理，其余沿授权候选池；销售码归属同样只取真实可见在职员工。通用跟进不造 store 类型新建旁路，时间按北京时间控件转正式 ISO；M7 商家导出尚无 producer，入口保持隐藏。
+
+定点验收为三个 model.test.ts 八聚合与 `live-merchant-m2.spec.ts` 两真实浏览器聚合，另复用旧 `live-review.spec.ts` 一组；失败与修复事实及最终结果见 [W2-15 状态](../../docs/plan/status/W2-15.md)。fixture 只在隔离库准备合法前置，后继状态由正式 HTTP 写口产生，不操作真实账号、通知或云对象。私有结构与操作边界见 [商家详情 README](src/features/merchant/detail/README.md)。
