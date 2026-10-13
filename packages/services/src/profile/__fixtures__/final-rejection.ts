@@ -211,7 +211,7 @@ export async function impactFixture(h: Harness, viewer: ProfileViewer) {
     if (kind === "order_cancel")
       await h.prisma.dramaOrder.update({
         where: { id: target.id },
-        data: { openCancelRequestId: id },
+        data: { status: "after_sale", subStatus: "cancel_reviewing", openCancelRequestId: id },
       });
     else await h.prisma.ad.update({ where: { id: target.id }, data: { openCancelRequestId: id } });
     return id;

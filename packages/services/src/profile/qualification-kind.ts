@@ -424,7 +424,7 @@ export const qualificationKind = defineApprovalKind<{ submissionId: string; roun
   },
   async revalidate(tx, row, args) {
     const { deps } = call(tx);
-    const { round, input } = await lockedRound(tx, row, args);
+    const { round, input } = await lockedRound(tx, row, args, true);
     if (input.mode && input.mode !== "normal")
       throw new AppError("STATE_NOT_ALLOWED", {
         details: { reason: "recognition_override_not_open" },
