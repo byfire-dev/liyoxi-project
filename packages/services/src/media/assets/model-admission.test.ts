@@ -11,31 +11,55 @@ import { admitModel, modelPermitCurrent } from "./model-admission.js";
 function setup(kind: "asr" | "vision" | "digest" = "asr") {
   const clock = createClock(new Date("2026-10-12T04:00:00Z"));
   const at = clock.now().getTime(),
-    signal = new AbortController();
-  const job = {
+    signal = new AbortController(),
+    assetId = uuidv7(),
+    runId = uuidv7(),
+    fileId = kind === "digest" ? null : uuidv7();
+  const job: MediaJob = {
     id: uuidv7(),
     kind,
+    provider: "fake",
+    mode: kind === "asr" ? "remote" : "local",
+    subjectType: fileId ? "file_object" : "store_asset",
+    subjectId: fileId ?? assetId,
+    parentType: "store_asset",
+    parentId: assetId,
+    dedupeKey: `asset:${assetId}:${runId}:${kind}:${fileId ?? "text"}:v1`,
     state: "running",
     attemptNo: 1,
+    maxAttempts: 3,
+    leaseOwner: "pure-model-admission",
+    externalJobId: null,
+    output: null,
+    errorCode: null,
+    errorMessage: null,
+    isRetryable: false,
     nextRunAt: new Date(at + 120000),
     deadlineAt: new Date(at + (kind === "asr" ? 1800000 : 900000)),
+    billableQty: null,
+    billableUnit: null,
+    estCostMicro: null,
+    startedAt: clock.now(),
+    finishedAt: null,
+    createdAt: clock.now(),
+    updatedAt: clock.now(),
     input: {
       assetMarker: "store_asset_v1",
-      assetId: uuidv7(),
-      fileId: null,
+      assetId,
+      fileId,
       promptVersion: 1,
-      runId: uuidv7(),
+      runId,
       selected: [],
       etag: null,
       crc64: null,
       sizeBytes: null,
       coverFileId: uuidv7(),
     },
-  } as MediaJob;
+  };
   const source = {
     entityId: uuidv7(),
     storeId: uuidv7(),
-    fileIds: kind === "digest" ? [] : [uuidv7()],
+    fileIds: fileId ? [fileId] : [],
     expectedSourceHash: "a".repeat(64),
   };
   const events: string[] = [];
