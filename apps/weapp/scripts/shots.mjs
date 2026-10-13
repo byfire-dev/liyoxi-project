@@ -36,6 +36,7 @@ import { assetRegression } from "../shots/asset-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
 import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
+import { tenantRegression } from "../shots/tenant-regressions.mjs";
 import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
   profileContactRegression,
@@ -115,6 +116,9 @@ const { ASSET_ACTION_SCENES } = await import(
 const { ORDER_REFERENCE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/order-reference-scenes.ts")).href
 );
+const { TENANT_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/tenant-scenes.ts")).href
+);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -136,6 +140,7 @@ for (let index = 0; index < args.length; index += 1) {
       ![
         ...ACCOUNT_SCENES,
         ...PROFILE_SCENES,
+        ...TENANT_SCENES,
         ...BILLING_SCENES,
         ...CATALOG_SCENES,
         ...ORDER_SCENES,
@@ -185,6 +190,19 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
+  ...(all
+    ? TENANT_SCENES
+    : TENANT_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `tenant__${item.name}`,
+    scene: item.name,
+    kind: "tenant",
+    fullPage: false,
+  })),
   ...(all
     ? ORDER_REFERENCE_SCENES
     : ORDER_REFERENCE_SCENES.filter((item) => wantedScenes.includes(item.name))
@@ -352,13 +370,15 @@ const targets = [
           !SETTINGS_SCENES.some((item) => item.route === route) &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
-          !ASSET_UPLOAD_SCENES.some((item) => item.route === route),
+          !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
+          !TENANT_SCENES.some((item) => item.route.split("?")[0] === route),
       )
     : wanted.filter(
         (route) =>
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
-          !ASSET_UPLOAD_SCENES.some((item) => item.route === route),
+          !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
+          !TENANT_SCENES.some((item) => item.route.split("?")[0] === route),
       )
   ).map((route) => ({
     label: route,
@@ -468,6 +488,15 @@ async function shoot(target) {
                   ? "search-guest"
                   : "search-owner";
           }
+          if (kind === "tenant") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "tenant-staff-profile" || scene === "tenant-stores-clerk"
+                ? "mine-clerk"
+                : scene.startsWith("tenant-join-")
+                  ? "mine-guest"
+                  : "mine-owner";
+            globalThis.__LYX_TENANT_SHOT__ = scene;
+          }
           if (kind === "settings") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("guest")
               ? "mine-guest"
@@ -537,7 +566,7 @@ async function shoot(target) {
         .locator(
           target.kind === "settings"
             ? "#settings-ready"
-            : target.kind === "profile"
+            : target.kind === "profile" || target.kind === "tenant"
               ? "#profile-ready"
               : target.kind === "billing"
                 ? "#billing-ready"
@@ -570,6 +599,7 @@ async function shoot(target) {
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);
+      if (target.kind === "tenant") await tenantRegression(page, target.scene);
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
       if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
