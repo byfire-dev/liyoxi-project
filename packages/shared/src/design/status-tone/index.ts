@@ -30,6 +30,7 @@ import { staff } from "./staff.js";
 import { storeAsset } from "./store-asset.js";
 import { subscription } from "./subscription.js";
 import { taskQueue } from "./task-queue.js";
+import { mediaFiles, mediaPurges, mediaJobs } from "./media-ops.js";
 import type { StatusToneEntry, StatusToneGroup } from "./types.js";
 
 export { TONES, UNBOUND_ENUM_NOTE } from "./types.js";
@@ -64,6 +65,9 @@ export const STATUS_TONE_GROUPS: readonly StatusToneGroup[] = [
   staff,
   patrol,
   partnerSettlement,
+  mediaFiles,
+  mediaPurges,
+  mediaJobs,
 ];
 
 /** 按库里的“表.列”与取值找条目；同一对取值在字典里只出现一次 */

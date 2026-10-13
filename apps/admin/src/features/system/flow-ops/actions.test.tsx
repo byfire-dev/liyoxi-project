@@ -36,6 +36,8 @@ function api() {
     timers: vi.fn(),
     outbox: vi.fn(),
     webhooks: vi.fn(),
+    media: vi.fn(),
+    retryMedia: vi.fn(),
   } satisfies FlowOpsApi;
 }
 describe("人工恢复普通确认边界", () => {
