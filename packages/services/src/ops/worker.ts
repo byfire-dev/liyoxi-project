@@ -10,6 +10,7 @@ import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
 import { createProbe } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
+import { operationalProbeRules } from "./operational-probe-rules.js";
 import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
 import {
@@ -153,7 +154,8 @@ export interface WorkerServicesOptions {
   readonly prisma: PrismaClient;
   /** assembleServices({ entry: "worker" }) 的结果；用例传测试装配 */
   readonly assembly: Assembly;
-  readonly channel: Pick<QueueChannel, "enqueue" | "downForMs">;
+  readonly channel: Pick<QueueChannel, "enqueue" | "downForMs"> &
+    Partial<Pick<QueueChannel, "ping">>;
   /** 业务时钟，缺省系统时钟 */
   readonly clock?: Clock;
   /** stg、prod 下内核违规往哪报 */
@@ -286,9 +288,6 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       logger.error({ evt: "profile.consistency_notification_failed" }, "资质一致性提交后通知失败"),
   );
   const tx = profileCommits.tx;
-  const probe = options.probe
-    ? createProbe({ ...options.probe, tx, clock, logger, rules: sqlProbeRules(options.probe.db) })
-    : null;
   const alertFactsScope = createAlertFactsAssembly(
     createInvariantReportingAssembly(options.assembly, { db: prisma, clock }),
     { tx, clock, logger },
@@ -322,6 +321,22 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
+  const probe = options.probe
+    ? createProbe({
+        ...options.probe,
+        tx,
+        clock,
+        logger,
+        rules: [
+          ...sqlProbeRules(options.probe.db),
+          ...operationalProbeRules(
+            options.probe.db,
+            timers.registry.recurringJobs,
+            channel.ping ? () => channel.ping!() : undefined,
+          ),
+        ],
+      })
+    : null;
   const flow = createFlow({ assembly, clock, events });
   invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
   const wechatSources = options.wechat
