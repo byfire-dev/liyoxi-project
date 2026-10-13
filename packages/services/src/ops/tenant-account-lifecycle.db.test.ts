@@ -243,6 +243,7 @@ describe("账号生命周期 callerTx：真实授权、级联及原子性", { ti
           where: { id: w.merchant.owner.id },
           data: {
             status: "removed",
+            displayName: null,
             removedAt: h.clock.now(),
             removeReason: "account_deleted",
             removeActorType: "merchant",

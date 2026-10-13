@@ -238,6 +238,7 @@ async function writeRemoval(
     entityId,
     storeId: ctx.storeId,
     event,
+    ref: "02:692",
     reasonCode: reason,
     set: {
       ...(clearName ? { display_name: null } : {}),
