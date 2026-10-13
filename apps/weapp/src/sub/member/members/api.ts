@@ -1,4 +1,5 @@
-import type { Body, Data } from "@/lib/account-api";
+import type { operations } from "@liyoxi/contract/types/merchant";
+import type { Data } from "@/lib/account-api";
 import type { RequestLayer } from "@/lib/request";
 
 export type Stores = Data<"m.store.list">;
@@ -11,7 +12,13 @@ export type OwnerMembers = Extract<Members, { viewerRole: "owner" }>;
 export type Member = OwnerMembers["items"][number];
 export type Me = Data<"m.me.get">;
 export type Result = Data<"m.invitation.accept">;
-export type { Body, Data };
+export type { Data };
+/** 生成契约允许 requestBody 可选；本域只从正式 content 派生，不另写 DTO。 */
+export type Body<K extends keyof operations> = operations[K] extends { requestBody?: infer R }
+  ? NonNullable<R> extends { content: { "application/json": infer T } }
+    ? T
+    : never
+  : never;
 
 /** 六页唯一生产调用仍为中央request；离线样张仅注入同形调用。 */
 export function createTenantApi(call: RequestLayer["request"]) {
