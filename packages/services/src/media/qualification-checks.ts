@@ -112,7 +112,15 @@ export function runQualificationFieldChecks(input: {
     put("C2", "uscc", input.usccValid ? "pass" : "fail");
     expiry("C3", "validTo");
     if (input.docType === "business_license" && input.claimedType)
-      put("C4", "subjectType", f.subjectType === input.claimedType ? "pass" : "fail");
+      put(
+        "C4",
+        "subjectType",
+        !f.subjectType || f.subjectType === "unknown"
+          ? "manual"
+          : f.subjectType === input.claimedType
+            ? "pass"
+            : "fail",
+      );
     put("C5", "address", "manual");
     if (input.docType === "branch_license" && input.licenseName)
       put(

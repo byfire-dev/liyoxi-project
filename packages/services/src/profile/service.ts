@@ -28,6 +28,7 @@ import { assertOwner, assertVersion, checkContent, validateBasics } from "./vali
 import { attachUrls, basicView, mediaView, qualificationView, serviceView } from "./views.js";
 import { saveBasic, saveMedia, saveService } from "./write.js";
 import { createContactCode, updateContact } from "./contact.js";
+import { recognitionInput, recognitionIntent } from "./recognition.js";
 import { qualificationRecords, qualificationDocumentUrl } from "./qualification-read.js";
 import type { CursorQuerySchema, z } from "@liyoxi/contract";
 
@@ -190,13 +191,22 @@ export function createProfile(deps: ProfileDeps) {
       assertOwner(viewer);
       const raw = await createThreePhaseRunner(deps).run(
         {
-          claim: (tx) => docPrecheck(tx, viewer, input),
-          external: async () => undefined,
-          settle: (tx) => createDoc(tx, deps, viewer, input),
+          claim: async (tx) => {
+            await docPrecheck(tx, viewer, input);
+            return recognitionIntent(tx, deps, viewer, input);
+          },
+          external: async () =>
+            deps.media.ocr ? deps.media.ocr.recognize(recognitionInput(viewer, input)) : null,
+          settle: (tx, ocrResultId, intent) =>
+            createDoc(tx, deps, viewer, input, { ocrResultId, intent }),
         },
         options,
       );
-      return { ...raw, replayed: options.idem?.replayed ?? false };
+      return {
+        ...raw,
+        ...(options.idem?.replayed ? { recognized: null, submitted: null } : {}),
+        replayed: options.idem?.replayed ?? false,
+      };
     },
     updateDocument: (
       viewer: ProfileViewer,

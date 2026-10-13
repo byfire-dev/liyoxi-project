@@ -2,10 +2,17 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 留桩中 |
-| 留桩内容 | 证照上传暂不识别，提交暂不比对 |
-| 骨架里的做法 | profile/documents.ts 回 recognized/submitted=null、doc.ocrStatus=unavailable；手填按字典校验并加密派生；提交 checkSummary 的 manual 为证照数、checksRanAt=null；仅 normal 通过 |
+| 状态 | 已回补 |
+| 留桩内容 | W3-16已回补同步营业执照识别、独立加密结果与资质字段比对，并完成本地代码验收；真实E17/E19保持外部未验 |
+| 骨架里的做法 | 历史M1回recognized/submitted=null并允许字典手填；当前复用真实OCR结果、加密三份证据与原更正/审批路径，未配仍人工 |
 | 登记的工作包 | W1-08a |
 | 回补里程碑 | M3，G3-C |
-| 回补的工作包 | W1-23 拆包后填写 |
+| 回补的工作包 | W3-16 |
 | 依据 | W1-08 第 2、7 节；m03 第 3.12、3.17 节 |
+
+SDK前置构件已合本地main fc983ccc，业务源码0c3631f0经ROOT唯一完整生产审查；
+原始响应bigint留证P2已定点修正并复核通过。两组媒体DB、两组资质DB、unknown/字段核验纯组、
+受改SDK协议、新HTTP闭环与原手填回归及services/API类型已通过；API/worker构建、依赖检查、
+官方probe与登记核对均通过。landed --check为295/318，基线480不变，本包不新增API。
+既有profile.onFileModerated已真实实装，本包不重复登记；同步识别不造异步完成事件。
+行业许可证保持手填，回单异步OCR属W4-04；真实E17样本/OCR精度、E19云权限/隐私/收费及远端CI未验。

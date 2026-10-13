@@ -241,5 +241,9 @@ HTTPS固定官方目标，专用Agent禁止环境代理及跨目标/端口；请
 
 本片仅SDK/Provider/配置组合根；加密识别短TX、scope缓存、日20次、资质三段式仍属W316业务片。
 ROOT官方registry审计0high/critical；common的uuid9.0.1 moderate仅当前未用的v3/v5/v6带buffer API，
-SDK实际两处只用v4；无override/豁免。源码轻静态已做，协议/类型/构建由ROOT串行待验，
+SDK实际两处只用v4；无override/豁免。前置构件两协议/环境组、类型/构建/依赖已通过并合本地main。
+W316业务片兼容补实际Business/负责人角色及原厂商响应，原始bigint按十进制字符串留证；
+业务结果加密与6秒取消仍经原公共接口；受改SDK第1协议组与bigint原文留证定点均通过，
+整包四DB、纯核验、新HTTP闭环与原手填回归、类型、API/worker构建、依赖及官方登记核对均通过，
+W3-16代码验收完成、识别桩已回补；
 真实E17/E19、证照样本准确率、地域隐私/云权限/收费均未验。
