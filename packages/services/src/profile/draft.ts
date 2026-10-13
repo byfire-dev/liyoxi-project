@@ -69,7 +69,7 @@ export async function ensureDraft(tx: Tx, deps: ProfileDeps, viewer: ProfileView
     initial.store.qualificationStatus === "rejected"
       ? await tx.qualificationSubmission.findFirst({
           where: { storeId, outcome: "rejected" },
-          orderBy: { submittedAt: "desc" },
+          orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
           include: roundInclude,
         })
       : null;

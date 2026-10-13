@@ -255,3 +255,15 @@ CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":
 `POST /api/v1/m/stores` 为老板能力，要求当前启用门店上下文、JSON 正式请求及 `Idempotency-Key`。API 固定绑定真实会话校验、Profile.validateStoreBasics 和四项档案/品牌复制 factory；店名与地址外检只投影正式拒绝字段。成功返回当前真实完整老板 StoreCard 并标记 no-store，required 重放保留原响应。
 
 当前记录为 SOURCE 准备；官方契约与 clerk golden 只能经独占验证窗口生成，类型、整叶、资源及最终审查结果另行记录。真实云付费、像素/帧验证和默认模型预算不属于本片。
+
+
+### API 模型与预算连接（W3-15）
+
+自有 ASR/国内 LLM 通过原工厂与唯一事务外呼守卫装配，成对 close 由 server 入口持有；
+借用整套 providers 时不创建或关闭其中的模型驱动。预算用另一条 lazy Redis 连接，
+无离线排队、自动重放或重连，连接/命令时限250ms。未就绪先拒绝本次准入；
+默认零额度或冷账本仍关闭，不自动初始化/恢复或启用付费。
+
+HTTP 排空后依次关闭 runtime、模型与预算连接；部分启动失败仍清理已拥有资源。
+`--test-redis-prefix` 的既有 test 专用守卫也约束预算连接，生产 ledger key 保持原样。
+当前 SOURCE 仅轻检查，真实云、账单与 E22 不由本机替身测试证明。

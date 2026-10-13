@@ -7,6 +7,7 @@ import type { Keyring } from "../security/index.js";
 import type { ProfileDeps } from "./context.js";
 import { dictRef, permitSpec, submittedFields } from "./repo.js";
 import type { ProfileSnapshot } from "./repo.js";
+import { pendingView } from "./round-basics.js";
 
 export const instant = (date: Date | null | undefined) => date?.toISOString() ?? null;
 const day = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
@@ -57,9 +58,11 @@ export async function basicView(tx: Tx, s: ProfileSnapshot) {
     storeTel: p?.storeTel ?? null,
     avgSpendFen: p?.avgSpendFen ?? null,
     brandIntro: p?.brandIntro ?? null,
-    reviewFieldsLocked: s.store.qualificationStatus === "pending",
+    reviewFieldsLocked:
+      s.store.qualificationStatus === "pending" ||
+      (s.open?.kind === "change" && s.open.submittedAt !== null),
     reviewRequiredOnChange: s.store.qualificationStatus === "verified",
-    pendingChange: null,
+    pendingChange: await pendingView(tx, s.open),
     lastEditedAt: instant(p?.lastEditedAt),
     lockVersion: p?.lockVersion ?? 0,
     completeness: s.completeness,
@@ -198,7 +201,7 @@ async function roundView(tx: Tx, deps: ProfileDeps, round: NonNullable<ProfileSn
     declarationConfirmedAt: instant(round.declarationConfirmedAt),
     declarationVersion: round.declarationVersion,
     changedFields: round.changedFields,
-    proposed: null,
+    proposed: await pendingView(tx, round),
     contactSnapshot: contact
       ? { name: contact.name, phoneMask: contact.phoneMask, phoneVerifyState: contact.phoneSource }
       : null,
@@ -247,7 +250,7 @@ export async function qualificationView(
   return {
     viewerRole: "owner" as const,
     storeQualificationStatus: s.store.qualificationStatus,
-    isChangeInReview: false,
+    isChangeInReview: s.open?.kind === "change" && s.open.submittedAt !== null,
     isFinalRejected: s.profile?.finalRejectedAt != null,
     entity: {
       verificationStatus: e.verificationStatus,
@@ -269,7 +272,7 @@ export async function qualificationView(
           ? s.profile?.finalRejectedAt
             ? []
             : ["submit"]
-          : ["discard"]
+          : [...(s.profile?.finalRejectedAt ? [] : ["submit"]), "discard"]
         : [],
   };
 }

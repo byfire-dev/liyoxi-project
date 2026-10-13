@@ -119,7 +119,7 @@ describe("W2-11 商家资质草稿生命周期关键数据库边界", { timeout:
       claimedEntityType: null,
       docs: [{ origin: "carried", fileId: source.fileId }],
     });
-    expect(draft.actions).toEqual(["discard"]);
+    expect(draft.actions).toEqual(["submit", "discard"]);
     const carried = draft.openRound!.docs[0]!;
     const before = await state(viewer);
     const removed = QualificationDocRemoveResultSchema.parse(
