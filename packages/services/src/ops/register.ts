@@ -1,16 +1,28 @@
-// ops 模块的登记（W0-24）：三个周期任务，与违规上报端口的实现。
+// ops 模块的登记：W0-24原三周期任务与W2-24证书检查，及违规上报端口。
 // 依据：x01 第 4.2 节（节奏、模式、漏跑级别）；D7 第 7.6 节（完成期限）；15 分组 第 5.2、5.3 节。
 //   invariant.full   每日 03:30，job，完成期限 3 小时，漏跑 P2；停机错过的那一期补跑。出错重试，至多 3 次。
 //   invariant.quick  每 10 分钟，job，完成期限 30 分钟，漏跑 P2；出错不重试，下一期 10 分钟后就到。
 //   ops.retention    每小时整点，tx，漏跑 P3；补最近一期（停机跨过 0 点、1 点前恢复时每日项还轮得到）。
-// 探针、告警的实现与 ops.cert_check、backup.pgdump 随 G2-D。
+// ops.cert_check由worker逐实例装配；探针、发送通道与backup.pgdump继续随G2-D。
 import { alertsPort, defineRegistration, implement, invariantsPort } from "../kernel/index.js";
 import { unboundAlertFacts } from "./alert-facts.js";
 import { reportingInvariants } from "./invariants/report.js";
 import { runScheduledInvariants, runScheduledRetention } from "./jobs.js";
+import { unboundCertJob } from "./cert-runtime.js";
 
 export const registration = defineRegistration("ops", {
   recurringJobs: [
+    {
+      kind: "ops.cert_check",
+      schedule: { every: "day", at: "09:00" },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 1,
+      deadlineMin: 60,
+      missSeverity: "P3",
+      catchUp: true,
+      run: unboundCertJob,
+    },
     {
       kind: "invariant.full",
       schedule: { every: "day", at: "03:30" },

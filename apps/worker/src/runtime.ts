@@ -183,6 +183,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
           const mediaShutdown = Promise.resolve().then(() => services.shutdownMediaJobs?.());
           const loopResults = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeCertificates?.()),
             Promise.resolve().then(() => services.closeNotify()),
             Promise.resolve().then(() => services.closeAnalytics?.()),
             ...all.map((one) => Promise.resolve().then(() => one.stop())),

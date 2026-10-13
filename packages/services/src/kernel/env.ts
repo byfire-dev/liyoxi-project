@@ -50,6 +50,7 @@ export const ENV_KEYS: readonly string[] = [
   "BIDX_KEYS_FILE",
   "AUTH_KEYS_FILE",
   "ADMIN_IP_ALLOWLIST",
+  "CERT_DOMAINS",
   "SMS_SECRET_ID_FILE",
   "SMS_SECRET_KEY_FILE",
   "SMS_SDK_APP_ID",
@@ -173,6 +174,8 @@ export interface Env {
   readonly AUTH_KEYS?: AuthKeysConfig;
   /** 未配或空白时不限制后台来源；非空列表在认证前执行。 */
   readonly ADMIN_IP_ALLOWLIST?: readonly string[];
+  /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
+  readonly CERT_DOMAINS?: readonly string[];
   readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
@@ -978,6 +981,25 @@ function readAdminIpAllowlist(
   return Object.freeze(entries);
 }
 
+function readCertDomains(source: EnvSource, issues: EnvIssue[]): readonly string[] | undefined {
+  const raw = read(source, "CERT_DOMAINS");
+  if (raw === undefined) return undefined;
+  const domains = raw.split(",").map((domain) => domain.trim().toLowerCase());
+  if (
+    raw.length > 4096 ||
+    domains.length > 16 ||
+    domains.some(
+      (domain) =>
+        domain.length > 200 ||
+        !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain),
+    )
+  ) {
+    issues.push({ key: "CERT_DOMAINS", reason: "须为至多16个逗号分隔的DNS域名，每个至多200字符" });
+    return undefined;
+  }
+  return Object.freeze([...new Set(domains)]);
+}
+
 /**
  * 读取并校验环境变量。任何一项不合格即抛 EnvError，一次列出全部问题。
  * @param source 缺省读 process.env；测试里传对象
@@ -990,6 +1012,7 @@ export function loadEnv(
   const issues: EnvIssue[] = [];
   const appEnv = read(source, "APP_ENV");
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
+  const certDomains = readCertDomains(source, issues);
 
   const parsed = EnvSchema.safeParse({
     APP_ENV: appEnv,
@@ -1051,6 +1074,7 @@ export function loadEnv(
     DATABASE_URL,
     REDIS_URL,
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
+    ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
     ...(ci ? { CI: ci } : {}),
