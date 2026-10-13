@@ -45,6 +45,6 @@ export const payloads = {
     storeId: IdSchema,
     entityId: IdSchema,
     fields: z.array(z.string()),
-    source: z.enum(["merchant", "staff", "review_writeback"]),
+    source: z.enum(["merchant", "staff", "review_writeback", "staff_proxy"]),
   }),
 };

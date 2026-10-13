@@ -27,7 +27,9 @@ import { withQualificationCall } from "./qualification-kind.js";
 import { QualificationImpactPort } from "./ports.js";
 import { reviewDocument } from "./admin-review.js";
 import { currentReviewStaff } from "./admin-authorization.js";
+import { createAdminStoreProfile } from "./admin-store-profile.js";
 export function createAdminProfile(deps: ProfileDeps) {
+  const storeProfile = createAdminStoreProfile(deps);
   async function guard(
     tx: Tx,
     staff: StaffContext,
@@ -66,6 +68,8 @@ export function createAdminProfile(deps: ProfileDeps) {
     return { approvalId: aid, current: staff };
   }
   return {
+    profile: storeProfile.get,
+    updateProfile: storeProfile.update,
     reviewDocument: (
       ctx: IdentityContext,
       staff: StaffContext,

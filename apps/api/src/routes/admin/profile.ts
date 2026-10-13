@@ -2,6 +2,8 @@ import {
   adminStoreList,
   adminStoreGet,
   adminStoreActivityList,
+  adminStoreProfileGet,
+  adminStoreProfileUpdate,
   adminAssignmentHistoryMarkContacted,
   adminStoreAssignDeliveryManager,
   adminQualificationSubmissionGet,
@@ -16,6 +18,29 @@ import { merchantServicesOf } from "../../merchant/services.js";
 import { defineAdminHandler } from "../../routing/admin.js";
 const moduleNeed = { module: "merchant", need: "view" } as const;
 export const adminProfileHandlers = [
+  defineAdminHandler(adminStoreProfileGet, moduleNeed, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await merchantServicesOf(c.var.runtime).profile.admin.profile(
+        staff.ctx,
+        c.req.valid("param").storeId,
+      ),
+    );
+  }),
+  defineAdminHandler(adminStoreProfileUpdate, moduleNeed, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await merchantServicesOf(c.var.runtime).profile.admin.updateProfile(
+        staff.ctx,
+        c.var.identity!,
+        c.req.valid("param").storeId,
+        c.req.valid("json"),
+        { idem: idemOf(c) },
+      ),
+    );
+  }),
   defineAdminHandler(adminAssignmentHistoryMarkContacted, moduleNeed, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(

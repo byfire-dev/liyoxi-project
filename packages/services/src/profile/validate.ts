@@ -173,11 +173,12 @@ export function requiredMissing(
   after: ProfileSnapshot,
   step: number,
   draft: boolean,
+  hasSubmitted = before.store.qualificationStatus !== "unsubmitted",
 ) {
   const old = before.completeness.steps[step - 1]!;
   const next = after.completeness.steps[step - 1]!;
   if (
-    before.store.qualificationStatus !== "unsubmitted" &&
+    hasSubmitted &&
     next.missing.some(
       (m) => !old.missing.some((o) => o.item === m.item && o.permitType === m.permitType),
     )

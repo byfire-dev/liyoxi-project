@@ -260,7 +260,7 @@ export {
   countUnverifiedPrimaryStore,
 } from "./profile/index.js";
 export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
-export { currentSessionOpenid } from "./identity/index.js";
+export { currentSessionOpenid, recentWechatOpenid } from "./identity/index.js";
 export { assertCurrentSession } from "./identity/index.js";
 
 export { createContent } from "./content/index.js";

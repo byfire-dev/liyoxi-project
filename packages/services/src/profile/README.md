@@ -6,7 +6,7 @@
 同事务分别按本店和主体级无店记录取ops/activity，归并稳定时间/序号游标；actor筛选是
 merchant/staff/system逗号列表，游标绑定本店、主体及规范化筛选。投影复用AuditLogItem，
 仅增加reason/changedKeys/isEntityLevel；原始JSON、访问流和请求元数据不出接口。
-GET不写审计或事件，接口响应no-store；summary、跟进和代改仍按W2-11后续任务推进。
+GET不写审计或事件，接口响应no-store；summary与跟进仍按W2-11后续任务推进，代改见下文SOURCE。
 
 ## W2-11 商家草稿生命周期（SOURCE）
 
@@ -183,3 +183,22 @@ worker 在 createEvents 前生成实例 scope，在真实 tenant/approval/media 
 首页在原调用方 Tx 中读取 Tenant 真实成员摘要，并与原商家事实共用一次业务 now。
 老板名取成员列，店员数仅本店有效范围，预览老板优先且至多三人；未到期 pending 才占额。
 GET 不建档案、不补过期状态；既有老板/店员响应裁剪及其他首页字段保持，完整验证待授权。
+
+## W2-11 后台档案免审编辑 SOURCE（2026-10-14）
+
+`profile.admin.profile/updateProfile`接正式GET/PATCH两接口，真实员工范围先验，空档案GET
+不补行。返回生效基础字段、服务/媒体、完整度、待审change与实际最近编辑人；无联系人
+或资质敏感值。员工签图前后重核当前范围/本店live引用/主体，封面复核实际衍生关系；
+幂等回执保原DTO不重新签地址，未配置外部能力不冒充可用。
+
+代改只允许a03§2.6十二个免审字段；禁止键保留到领域明确报FIELD_NOT_PROXY_EDITABLE，
+不静默剥离。复用商家原logo/媒体/服务项应用段，真实staff actor与本店上传文件校验独立，
+不拼商家会话。原商家守卫/版本/必填/审计不变。员工入口一事务仅升一次档案版本，保留
+已提交过资质的必填项（包括已撤回后unsubmitted的历史），不进change轮次或更改联系人。
+
+文本检测走既有三段式：当前实际owner经composition注入identity.recentWechatOpenid，
+缺近2h真实身份即PROVIDER_UNAVAILABLE零业务写；每次外呼前及settle重核owner/权限/
+版本。staff20→entity100共享→store130→profile135，全部相关file预锁后共用应用，
+新引用/替换30天保留、完整度、ops代理审计与原store.profile.changed同TX。正式source
+追加staff_proxy且保留旧staff兼容。源码仅格式/ESLint，ROOT唯一审查及6聚合DB/≤2HTTP
+定点待执行；W2-11整包继续进行中，不代表真实内容安全/平台/资金或远端CI已验。
