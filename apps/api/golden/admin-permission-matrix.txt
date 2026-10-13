@@ -23,6 +23,7 @@ admin.assetDemand.cancel | merchant:view | merchant.asset.demand.create | 11 00 
 admin.assetDemand.complete | merchant:view | merchant.asset.demand.create | 11 00 11 00 00 00 00 00
 admin.assetDemand.create | merchant:view | merchant.asset.demand.create | 11 00 11 00 00 00 00 00
 admin.assetDemand.list | merchant:view | - | 11 11 11 11 11 11 11 11
+admin.assignmentHistory.markContacted | merchant:view | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.assignmentPoolMember.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.auditLog.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.auditLog.list | - | assert-in-handler | 11 11 11 11 11 11 11 11

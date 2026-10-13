@@ -162,8 +162,9 @@ describe("W2-11已联系商家实际HTTP", { timeout: 60000 }, () => {
       key = uuidv7();
     const original = api.runtime.timers.cancel.bind(api.runtime.timers);
     const fault = vi.spyOn(api.runtime.timers, "cancel").mockImplementation(async (tx, input) => {
-      await original(tx, input);
+      const result = await original(tx, input);
       if (input.subject.id === failed.history.id) throw new Error("lyxtest contact cancel fault");
+      return result;
     });
     try {
       expect((await post(failed.history.id, manager, key)).status).toBe(500);
