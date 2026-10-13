@@ -49,6 +49,7 @@ import {
 } from "./personal-account.js";
 import { createSmsCode, changePhone } from "./phone-change.js";
 import type { PhoneChangeDeps } from "./phone-change.js";
+import { deleteAccount } from "./account-deletion.js";
 
 export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"> {
   readonly wechat:
@@ -62,6 +63,12 @@ export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"
 }
 
 export interface Identity {
+  deleteAccount(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { hasConfirmed: true },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<{ deletedAt: string }>;
   // ---------- 用例函数：自己开事务 ----------
   /** m.session.create：不能静默登录时返回 needPhone，不区分原因、不写库 */
   silentLogin(meta: RequestMeta, input: SilentLoginInput): Promise<SilentLoginResult>;
@@ -153,6 +160,8 @@ export function createIdentity(deps: IdentityDeps): Identity {
   const gate = createConsentGate({ tx: deps.tx, clock: deps.clock, docs: deps.docs });
 
   const identity: Identity = {
+    deleteAccount: (principal, meta, input, options) =>
+      deleteAccount(deps, principal, meta, input, options),
     silentLogin: (meta, input) => silentLogin(login, meta, input),
     phoneLogin: (meta, input, options) => phoneLogin(login, meta, input, options),
     logout: (principal, meta) => deps.tx.run((tx) => logoutIn(tx, now(), principal, meta)),

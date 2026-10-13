@@ -5,6 +5,7 @@ import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { Guard, MachineBinding } from "../flow/index.js";
 import { implementKeyed } from "../kernel/index.js";
 import type { PortImplementation } from "../kernel/index.js";
+import { guardSelfDeletion } from "./account-deletion.js";
 
 /** 注册那一行迁移随 args 带的事实 */
 export interface RegisterArgs {
@@ -38,6 +39,7 @@ export const IDENTITY_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>>
     ],
     guards: {
       [rowKey("02:125", "merchant_user.register")]: consentGiven,
+      [rowKey("02:128", "merchant_user.delete")]: guardSelfDeletion,
       [rowKey("02:129", "merchant_user.purge_empty")]: async (tx, facts) =>
         (await tx.entityMember.count({ where: { merchantUserId: facts.subjectId } })) === 0,
     },
