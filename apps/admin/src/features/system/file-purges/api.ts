@@ -1,7 +1,7 @@
 import type { components, operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { readFailure } from "../../../lib/api-errors";
-export type FileView = components["schemas"]["AdminFileView"];
+export type FileView = Awaited<ReturnType<PurgeApi["files"]>>["items"][number];
 export type RunView = components["schemas"]["PurgeRunView"];
 export type FileQuery = NonNullable<operations["admin.file.list"]["parameters"]["query"]>;
 export type RunQuery = NonNullable<operations["admin.purgeRun.list"]["parameters"]["query"]>;

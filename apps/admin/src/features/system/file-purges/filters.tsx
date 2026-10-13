@@ -98,6 +98,7 @@ export function PurgeFilters({
           <>
             <span>清除日期</span>
             <DateRangeField
+              allowEmpty={[true, true]}
               aria-label="文件清除日期范围"
               format="YYYY-MM-DD"
               placeholder={[search.deletedFrom ?? "开始日期", search.deletedTo ?? "结束日期"]}

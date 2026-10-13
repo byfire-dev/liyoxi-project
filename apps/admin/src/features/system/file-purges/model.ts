@@ -99,7 +99,10 @@ export function purgeActorKey(access: AccessSnapshot | null): string {
     : "anonymous";
 }
 export type PurgeAction =
-  { kind: "approve" | "reject"; row: RunView } | { kind: "restore" | "erase"; row: FileView };
+  | { kind: "approve"; row: RunView }
+  | { kind: "reject"; row: RunView }
+  | { kind: "restore"; row: FileView }
+  | { kind: "erase"; row: FileView };
 export function purgeActionAllowed(access: AccessSnapshot | null, action: PurgeAction): boolean {
   if (!hasModuleLevel(access, "system")) return false;
   if (action.kind === "approve" || action.kind === "reject")
