@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { StoreListQuerySchema, StoreListSummaryQuerySchema } from "@liyoxi/contract";
+import {
+  billingOrderContentSchema,
+  StoreListQuerySchema,
+  StoreListSummaryQuerySchema,
+} from "@liyoxi/contract";
 import {
   assembleForTest,
   createLedgerHarness,
@@ -11,6 +15,7 @@ import {
   useSeededDatabase,
 } from "../testing/index.js";
 import type { Tx, TxRunOptions, TxRunner } from "../kernel/index.js";
+import { uuidv7 } from "../kernel/index.js";
 import { harness } from "./__fixtures__/harness.js";
 import { createProfile } from "./service.js";
 
@@ -39,7 +44,29 @@ async function world() {
 
 it("完整本域筛选与来源、own/group/all同范围；F区域按zone、字典投影和summary/list同条件零写", async () => {
   const { h, staff } = await world();
-  const entity = await h.make.entity({ name: "测试主体甲", sourceType: "sales" });
+  const referralId = uuidv7();
+  const referral = await h.prisma.referralCode.create({
+    data: {
+      id: referralId,
+      code: `SUM${referralId.slice(-12).toUpperCase()}`,
+      sourceType: "sales",
+      ownerStaffId: staff.staff.id,
+      status: "active",
+      createdAt: h.clock.now(),
+      updatedAt: h.clock.now(),
+    },
+  });
+  const attribution = {
+    sourceType: referral.sourceType,
+    sourceInviteCode: referral.code,
+    sourceReferralCodeId: referral.id,
+  };
+  const user = await h.make.merchantUser(attribution);
+  const entity = await h.make.entity({
+    name: "测试主体甲",
+    createdByUserId: user.id,
+    ...attribution,
+  });
   await h.make.billingAccount({ entityId: entity.id });
   const a = {
       entity,
@@ -155,6 +182,49 @@ it("跨北京日未推进周期现算、真实退款闸门和净实付店口径�
     promo: null,
     quotedAt: h.clock.now().toISOString(),
   });
+  // 通用账本/关闭阻断夹具只造满足DB kind约束的最小订单；本组要对照真实detail，
+  // 在任何读取与零写快照之前补全其全部历史付款内容，不改全局工厂或购买服务。
+  const completeFixturePayments = async (entityId: string) => {
+    const terms = await h.prisma.subscriptionTerm.findMany({ where: { entityId } });
+    const byOrder = new Map(terms.map((t) => [t.sourceBillingOrderId, t]));
+    const orders = await h.prisma.billingOrder.findMany({ where: { entityId } });
+    for (const order of orders) {
+      const kind = order.type === "topup" ? "topup" : "plan";
+      const existing = billingOrderContentSchema.safeParse(order.contentSnapshot);
+      if (existing.success && existing.data.kind === kind) continue;
+      if (!["plan_new", "plan_renew", "topup"].includes(order.type))
+        throw new Error(`本组夹具未定义付款类型：${order.type}`);
+      const source = byOrder.get(order.id);
+      const content = billingOrderContentSchema.parse(
+        order.type === "topup"
+          ? {
+              v: 1,
+              kind: "topup",
+              packId: pack.id,
+              points: pack.points,
+              payFen: order.amountFen,
+            }
+          : {
+              ...planContent(order.amountFen),
+              ...(source
+                ? {
+                    planId: source.planId,
+                    planRevisionId: source.initialPlanRevisionId,
+                    months: source.months,
+                    cyclePriceFen: source.priceTotalFen,
+                    monthlyPoints: source.monthlyPoints,
+                    discountBp: source.discountBp,
+                  }
+                : {}),
+              quotedAt: order.createdAt.toISOString(),
+            },
+      );
+      await h.prisma.billingOrder.update({
+        where: { id: order.id },
+        data: { contentSnapshot: content },
+      });
+    }
+  };
   const scheduled = await h.owner();
   const order = await h.make.billingOrder({
     entityId: scheduled.entity.id,
@@ -266,6 +336,7 @@ it("跨北京日未推进周期现算、真实退款闸门和净实付店口径�
   const funded = await h.owner(),
     ledger = createLedgerHarness(h.prisma, { clock: h.clock });
   await openTerm(ledger, { entityId: funded.entity.id });
+  await completeFixturePayments(funded.entity.id);
   const fundedRow = (await h.profile.admin.list(staff, query({ entityId: funded.entity.id })))
     .items[0]!;
   const fundedOld = await h.profile.admin.get(staff, funded.store.id);
@@ -276,6 +347,7 @@ it("跨北京日未推进周期现算、真实退款闸门和净实付店口径�
   await h.tx.run((tx) =>
     seedBillingDeletionFacts(tx, h.clock, { entityId: blocked.entity.id, userId: blocked.user.id }),
   );
+  await completeFixturePayments(blocked.entity.id);
   const refund = await h.prisma.refundRequest.findFirstOrThrow({
     where: { entityId: blocked.entity.id, status: "pending_approval" },
   });
