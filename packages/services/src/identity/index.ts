@@ -58,3 +58,4 @@ export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
 export { merchantTargetForNotify, wechatTargetForNotify } from "./notify-facts.js";
 
 export { countActiveMerchantUsers } from "./active-user-count.js";
+export type { ReferralCodes } from "./referral-codes.js";

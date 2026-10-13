@@ -136,6 +136,10 @@ admin.qualificationSubmission.approve | merchant:view | merchant.qualification.r
 admin.qualificationSubmission.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.qualificationSubmission.reject | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
 admin.qualificationSubmission.rejectQuote | merchant:view | merchant.qualification.review | 11 11 00 00 00 00 00 00
+admin.referralCode.create | merchant:view | merchant.referral_code.manage | 11 01 00 00 00 00 00 00
+admin.referralCode.disable | merchant:view | merchant.referral_code.manage | 11 01 00 00 00 00 00 00
+admin.referralCode.enable | merchant:view | merchant.referral_code.manage | 11 01 00 00 00 00 00 00
+admin.referralCode.list | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.role.defaults.get | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.get | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.list | system:view | - | 11 00 00 00 00 00 00 00
