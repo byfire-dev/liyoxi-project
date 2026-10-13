@@ -171,7 +171,7 @@ it("W310 单剧调价审计正式目标已登记", () => {
 });
 
 it("W3-14仅末尾追加素材与需求两个真实审计对象", () => {
-  expect(AUDIT_TARGET_TYPES.slice(-5, -3)).toEqual(["store_asset", "store_asset_demand"]);
+  expect(AUDIT_TARGET_TYPES.slice(-6, -4)).toEqual(["store_asset", "store_asset_demand"]);
   expect(isAuditTargetType("store_asset")).toBe(true);
   expect(isAuditTargetType("store_asset_demand")).toBe(true);
 });

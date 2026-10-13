@@ -60,8 +60,10 @@ beforeAll(async () => {
   db = await handle.db.prisma();
   await runSeed({ tx: app.runtime.tx, clock: app.clock });
   admin = await signInAsStaff(db, { roleKey: "super_admin", now: app.clock.now() });
-  stale = await signInAsStaff(db, { roleKey: "super_admin", now: app.clock.now() });
-  await db.staffSession.update({ where: { id: stale.sessionId }, data: { stepupAt: null } });
+  stale = await signInAsStaff(db, {
+    roleKey: "super_admin",
+    now: new Date(app.clock.now().getTime() - 31 * 60_000),
+  });
   editor = await signInAsStaff(db, { roleKey: "editor", now: app.clock.now() });
   viewer = await signInAsStaff(db, { roleKey: "finance", now: app.clock.now() });
   const current = await sampleStaffContext(db, viewer.staff.id);
