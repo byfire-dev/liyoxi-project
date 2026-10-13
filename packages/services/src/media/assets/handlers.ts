@@ -262,6 +262,15 @@ export function createAssetHandlers(deps: AssetDeps): readonly MediaJobHandler[]
       if (kind === "vision") await lockVisionFiles(tx, job);
       return current(deps, tx, job);
     },
+    retry: async (tx, job) => {
+      if (!["asr", "vision", "doc_extract", "digest"].includes(kind)) return;
+      // 通用admin.retry已持parent→job锁并核failed/current；本输入与原重置同事务。
+      const input = AssetJobInputSchema.parse(job.input);
+      await tx.mediaJob.update({
+        where: { id: job.id },
+        data: { input: { ...input, modelIntentId: uuidv7() } },
+      });
+    },
     prepare: (tx, job) =>
       kind === "digest" || kind === "vision" || (kind === "asr" && job.externalJobId)
         ? Promise.resolve(undefined)

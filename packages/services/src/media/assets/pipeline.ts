@@ -12,20 +12,31 @@ import { assetFiles, rebuildAssetSearch } from "./repo.js";
 import type { AssetDeps } from "./context.js";
 import { assetPromptVersion } from "./types.js";
 
-export const AssetJobInputSchema = z.strictObject({
-  assetMarker: z.literal("store_asset_v1"),
-  assetId: z.uuid(),
-  fileId: z.uuid().nullable(),
-  promptVersion: z.number().int().min(1).max(32767),
-  runId: z.uuid(),
-  selected: z
-    .array(z.enum(["transcript", "vision", "doc_text", "structured_items", "digest", "tech_spec"]))
-    .max(6),
-  etag: z.string().nullable(),
-  crc64: z.string().nullable(),
-  sizeBytes: z.string().regex(/^\d+$/).nullable(),
-  coverFileId: z.uuid(),
-});
+export const AssetJobInputSchema = z
+  .strictObject({
+    assetMarker: z.literal("store_asset_v1"),
+    assetId: z.uuid(),
+    fileId: z.uuid().nullable(),
+    promptVersion: z.number().int().min(1).max(32767),
+    runId: z.uuid(),
+    // 仅人工retry事务写入；缺失沿用首代job.id，显式undefined同样不是合法持久事实。
+    modelIntentId: z.uuid().optional(),
+    selected: z
+      .array(
+        z.enum(["transcript", "vision", "doc_text", "structured_items", "digest", "tech_spec"]),
+      )
+      .max(6),
+    etag: z.string().nullable(),
+    crc64: z.string().nullable(),
+    sizeBytes: z.string().regex(/^\d+$/).nullable(),
+    coverFileId: z.uuid(),
+  })
+  .refine(
+    (value) => !Object.hasOwn(value, "modelIntentId") || typeof value.modelIntentId === "string",
+    {
+      message: "模型重试意图须为明确UUID",
+    },
+  );
 export const AssetJobOutputSchema = z.strictObject({
   status: z.enum(["ok", "skipped", "failed"]),
   reason: z
