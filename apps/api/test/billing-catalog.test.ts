@@ -56,9 +56,9 @@ const request = (path: string, method = "GET", json?: unknown, staff = admin, ke
     headers: { ...staff.headers, ...(key ? { "Idempotency-Key": key } : {}) },
     peer: `198.19.77.${++peer % 250}`,
   });
-async function data(response: Response) {
+async function data<T>(response: Response): Promise<T> {
   expect(response.status, await response.clone().text()).toBe(200);
-  return (await response.json()).data;
+  return ((await response.json()) as { data: T }).data;
 }
 async function error(response: Response, status: number, symbol: string) {
   expect(response.status, await response.clone().text()).toBe(status);
@@ -370,7 +370,7 @@ describe("既有套餐运营正式HTTP与真实库", { timeout: 30000 }, () => {
         peer: `198.19.77.${++peer % 250}`,
       });
     const quote = (): Promise<PlanQuote> =>
-      merchant("/m/plans/quote", "POST", { planId: plan.id, months: 1 }).then(data);
+      merchant("/m/plans/quote", "POST", { planId: plan.id, months: 1 }).then(data<PlanQuote>);
     const first = await quote();
     expect(first.planName).toBe(plan.name);
     // 合法已存在历史，只验证快照不可漂移，不把工厂数据称为真实付款/履约。
@@ -398,7 +398,7 @@ describe("既有套餐运营正式HTTP与真实库", { timeout: 30000 }, () => {
     expect((await quote()).planName).toBe("公开新套餐名");
     await listing(plan.id, "delist");
     expect(
-      (await data(await merchant("/m/plans"))).items.some(
+      (await data<{ items: { planId: string }[] }>(await merchant("/m/plans"))).items.some(
         (row: { planId: string }) => row.planId === plan.id,
       ),
     ).toBe(false);
