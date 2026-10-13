@@ -24,7 +24,8 @@ import type { QueueChannel, WorkerLease, WorkerServices } from "@liyoxi/services
 
 import { createLogger } from "./log.js";
 import { recurringTable } from "./recurring.js";
-import { createWorkerRuntime } from "./runtime.js";
+import { createWorkerRuntime, QUEUE_CONCURRENCY } from "./runtime.js";
+import type { WorkerQueue } from "./runtime.js";
 
 /** 构建时由 build.mjs 写入；没经构建直接跑时是 dev */
 declare const __LYX_VERSION__: string | undefined;
@@ -138,7 +139,13 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     if (!values.check) probeDatabase = connectProbeDatabase(env.DATABASE_URL);
     services = buildWorkerServices({
       ...(probeDatabase
-        ? { probe: { db: probeDatabase.prisma, holder: () => lease?.holder } }
+        ? {
+            probe: {
+              db: probeDatabase.prisma,
+              holder: () => lease?.holder,
+              queues: Object.keys(QUEUE_CONCURRENCY) as WorkerQueue[],
+            },
+          }
         : {}),
       modelDrivers: {
         registerClose: (close) => modelClosers.push(close),

@@ -12,6 +12,8 @@ import { createProbe } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
 import { financialProbeRules } from "./financial-probe-rules.js";
+import { queueProbeRules } from "./queue-probe-rules.js";
+import type { QueueId } from "@liyoxi/contract/registry";
 import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
 import {
@@ -153,7 +155,11 @@ export function connectWorkerDatabase(connectionString: string): {
 
 export interface WorkerServicesOptions {
   readonly sessionMutex?: SessionMutex;
-  readonly probe?: { readonly db: SqlRunner; readonly holder: () => string | undefined };
+  readonly probe?: {
+    readonly db: SqlRunner;
+    readonly holder: () => string | undefined;
+    readonly queues?: readonly QueueId[];
+  };
   /** 明确配置域名；测试可注入不联网的TLS探针。 */
   readonly certificateProbe?: Parameters<typeof createCertAssembly>[1]["probe"];
   /** 本实例自有模型驱动的成对生命周期；close须缓存同一Promise，借用providers不消费此口。 */
@@ -175,7 +181,7 @@ export interface WorkerServicesOptions {
   /** assembleServices({ entry: "worker" }) 的结果；用例传测试装配 */
   readonly assembly: Assembly;
   readonly channel: Pick<QueueChannel, "enqueue" | "downForMs"> &
-    Partial<Pick<QueueChannel, "ping">>;
+    Partial<Pick<QueueChannel, "ping" | "observe">>;
   /** 业务时钟，缺省系统时钟 */
   readonly clock?: Clock;
   /** stg、prod 下内核违规往哪报 */
@@ -351,6 +357,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         rules: [
           ...sqlProbeRules(options.probe.db),
           ...financialProbeRules(options.probe.db),
+          ...queueProbeRules(options.probe.queues ?? [], channel.observe?.bind(channel)),
           ...operationalProbeRules(
             options.probe.db,
             timers.registry.recurringJobs,
