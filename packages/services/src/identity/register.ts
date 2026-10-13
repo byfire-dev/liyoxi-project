@@ -15,6 +15,7 @@ import { membershipAuthorizationsPort } from "../tenant/index.js";
 import {
   findI22Violations,
   findI23Violations,
+  findI24Violations,
   findI25Violations,
   findI8Violations,
   findI9Violations,
@@ -46,6 +47,7 @@ export const registration = defineRegistration("identity", {
     check("identity.I9", (tx) => findI9Violations(tx)),
     check("identity.I22", (tx) => findI22Violations(tx)),
     check("identity.I23", (tx) => findI23Violations(tx)),
+    check("identity.I24", (tx) => findI24Violations(tx)),
     check("identity.I25", (tx) => findI25Violations(tx)),
   ],
 });

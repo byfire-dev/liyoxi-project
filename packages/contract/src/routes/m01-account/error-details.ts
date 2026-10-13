@@ -6,8 +6,10 @@ import type { DomainErrorSymbol } from "../../errors/index.js";
 import { z } from "../../zod.js";
 
 import { AgreementKeySchema } from "./agreement.schemas.js";
+import { DeletionBlockerSchema } from "./account.schemas.js";
 
 export const M01_ERROR_DETAILS = {
+  ACCOUNT_DELETION_BLOCKED: z.strictObject({ blockers: z.array(DeletionBlockerSchema).nonempty() }),
   CONTENT_REJECTED: z.object({ fields: z.array(z.string()) }),
   /** 当前版本按 m01 第 3.12 节的唯一口径判定；该协议此刻没有生效版本时为 null */
   AGREEMENT_VERSION_STALE: z.object({
