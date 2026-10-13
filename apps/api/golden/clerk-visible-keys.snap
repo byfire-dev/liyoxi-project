@@ -360,6 +360,16 @@
   "m.me.currentStore.replace": [
     "storeId"
   ],
+  "m.me.deletion.create": [
+    "code",
+    "error",
+    "fieldErrors",
+    "fieldErrors[].message",
+    "fieldErrors[].path",
+    "message",
+    "requestId",
+    "retryable"
+  ],
   "m.me.get": [
     "memberships",
     "memberships[].entity",

@@ -98,3 +98,8 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 `createSmsCode(principal, meta, {purpose:"phone_change"}, {idem})` 向当前号码发六位码，五分钟有效；仅哈希落库，发送失败补偿删除。`changePhone(principal, meta, {oldSmsCode,newPhoneCode}, {idem})` 通过微信公口在事务外取新号码，最终事务核销最新原号验证码并换绑。错码短事务累加，成功保留当前会话与portal、吊销其他登录会话，重放不重取微信code或重复旧号通知。
 
 账号80之前预锁空占用账号的审批30/申请40全集，两账号按ID升序；锁后新增申请或占用方变化返回BUSY。空账号必须active且从无任何成员行，清理所有个人依附与申请敏感暂存，经flow.purge_empty发deleted事件。账号变更登记当前只支持真实关闭清敏感字段，人工创建/审批生效仍未开放。`notify`/`approval`由API运行时注入，缺SMS通道返回SMS_UNAVAILABLE；旧号安全通知失败不影响已提交结果。
+### 本人账号注销（W2-09）
+
+`deleteAccount(principal, meta, {hasConfirmed:true}, {idem})` 在真实session与账号锁下完成注销。老板调用tenant原六类必需事实与同Tx关闭，店员调用account_deleted移除；全部本人历史成员称呼由tenant窄公口清空，成员120全集已在门店130之前升序锁定。无成员也执行同一清理约束，不读取上层内部表，不用未配零值。
+
+个人会话/身份/FK额度/验证码/提示/企微关系、在审账号变更敏感暂存与账号PII都在原事务清除；同意、交易和审计不删。真实迁移末端的私有sameTx witness守卫防止用args跳过清理，后续失败整笔回滚。成功后同键在鉴权返回401；原merchant_user.deleted消费者异步清站内消息/投递目标。I24巡检检查已注销账号的个人残留，不把法定证据算作残留。

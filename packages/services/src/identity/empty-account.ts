@@ -72,31 +72,16 @@ export async function purgeEmptyAccountIn(
     (await tx.entityMember.count({ where: { merchantUserId: userId } }))
   )
     throw new AppError("PHONE_TAKEN");
-  const current = await pendingAccountChanges(tx, userId);
-  if (current.some((row) => !planned.some((old) => old.id === row.id))) throw new AppError("BUSY");
+  await withdrawAccountChangesIn(tx, deps.approval, userId, planned);
+  await clearPersonalAccountIn(tx, deps.clock.now(), userId);
   const ctx = createIdentityContext({ actor: { type: "system", job: "identity.purge_empty" } });
-  for (const row of current)
-    await deps.approval.withdraw(tx, ctx, { approvalId: row.approvalRequestId });
-  await tx.portalSession.deleteMany({ where: { approvedByUserId: userId } });
-  await tx.userSession.deleteMany({ where: { merchantUserId: userId } });
-  await tx.wechatIdentity.deleteMany({ where: { merchantUserId: userId } });
-  await tx.smsVerification.deleteMany({ where: { merchantUserId: userId } });
-  await tx.merchantUserNotice.deleteMany({ where: { merchantUserId: userId } });
-  await tx.wecomContact.deleteMany({ where: { merchantUserId: userId } });
   await deps.flow.transition(tx, ctx, {
     machine: "merchant_user",
     stateField: "status",
     id: userId,
     event: "merchant_user.purge_empty",
     ref: "02:129",
-    set: {
-      phone_enc: null,
-      phone_bidx: null,
-      phone_mask: null,
-      phone_last4: null,
-      display_name: null,
-      deleted_at: deps.clock.now(),
-    },
+    set: deletedPersonalFields(deps.clock.now()),
     audit: {
       stream: "ops",
       category: "account_security",
@@ -110,3 +95,42 @@ export async function purgeEmptyAccountIn(
     },
   });
 }
+
+export async function withdrawAccountChangesIn(
+  tx: Tx,
+  approval: Pick<Approval, "withdraw">,
+  userId: string,
+  planned: Awaited<ReturnType<typeof pendingAccountChanges>>,
+) {
+  const current = await pendingAccountChanges(tx, userId);
+  if (current.some((row) => !planned.some((old) => old.id === row.id))) throw new AppError("BUSY");
+  const ctx = createIdentityContext({ actor: { type: "system", job: "identity.purge_empty" } });
+  for (const row of current)
+    await approval.withdraw(tx, ctx, { approvalId: row.approvalRequestId });
+}
+
+/** 只清个人依附，不碰交易、审计、同意、成员历史；调用者在原事务持账号锁。 */
+export async function clearPersonalAccountIn(tx: Tx, now: Date, userId: string) {
+  await tx.userSession.updateMany({
+    where: { merchantUserId: userId, revokedAt: null },
+    data: { revokedAt: now, revokeReason: "account_deleted", updatedAt: now },
+  });
+  await tx.portalSession.updateMany({
+    where: { approvedByUserId: userId, revokedAt: null },
+    data: { revokedAt: now, revokeReason: "account_action", updatedAt: now },
+  });
+  await tx.portalSession.deleteMany({ where: { approvedByUserId: userId } });
+  await tx.userSession.deleteMany({ where: { merchantUserId: userId } });
+  await tx.wechatIdentity.deleteMany({ where: { merchantUserId: userId } });
+  await tx.smsVerification.deleteMany({ where: { merchantUserId: userId } });
+  await tx.merchantUserNotice.deleteMany({ where: { merchantUserId: userId } });
+  await tx.wecomContact.deleteMany({ where: { merchantUserId: userId } });
+}
+export const deletedPersonalFields = (now: Date) => ({
+  phone_enc: null,
+  phone_bidx: null,
+  phone_mask: null,
+  phone_last4: null,
+  display_name: null,
+  deleted_at: now,
+});

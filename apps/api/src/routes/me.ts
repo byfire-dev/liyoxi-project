@@ -2,6 +2,7 @@ import {
   CurrentStoreSchema,
   MeUserSchema,
   SmsCodeResultSchema,
+  DeletionResultSchema,
   MemberRemovalResultSchema,
   UserNoticeAckResultSchema,
   WechatIdentityListSchema,
@@ -10,6 +11,7 @@ import {
   mMeMembershipLeave,
   mMeUpdate,
   mMeChangePhone,
+  mMeDeletionCreate,
   mSmsCodeCreate,
   mMeUserNoticeAcknowledge,
   mMeWechatIdentityDelete,
@@ -36,6 +38,16 @@ function metaOf(c: Context<ApiEnv>): RequestMeta {
 }
 
 export const meHandlers = [
+  defineHandler(mMeDeletionCreate, async (c) => {
+    const result = await merchantServicesOf(c.var.runtime).identity.deleteAccount(
+      merchantSessionOf(c),
+      metaOf(c),
+      c.req.valid("json"),
+      { idem: idemOf(c) },
+    );
+    c.header("Cache-Control", "no-store");
+    return respondByRole(c, { owner: DeletionResultSchema, clerk: DeletionResultSchema }, result);
+  }),
   defineHandler(mSmsCodeCreate, async (c) => {
     const result = await merchantServicesOf(c.var.runtime).identity.createSmsCode(
       merchantSessionOf(c),

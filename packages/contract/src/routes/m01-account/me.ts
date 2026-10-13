@@ -2,11 +2,12 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
 import {
   MeUpdateBodySchema,
   MeChangePhoneBodySchema,
+  DeletionBodySchema,
+  DeletionResultSchema,
   MeUserSchema,
   MeViewSchema,
   UserNoticeAcknowledgeParamsSchema,
@@ -68,7 +69,7 @@ export const mMeChangePhone = merchantRoute({
   },
 });
 
-export const mMeDeletionCreate = merchantMeta({
+export const mMeDeletionCreate = merchantRoute({
   method: "post",
   path: "/m/me/deletion",
   operationId: "m.me.deletion.create",
@@ -78,6 +79,10 @@ export const mMeDeletionCreate = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: {
+    body: { required: true, content: { "application/json": { schema: DeletionBodySchema } } },
+  },
+  responses: { ...okResponse(DeletionResultSchema), ...errorResponses(400, 401, 403, 409, 429) },
 });
 
 export const mMeUserNoticeAcknowledge = merchantRoute({

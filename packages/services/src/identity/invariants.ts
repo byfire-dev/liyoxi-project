@@ -88,3 +88,21 @@ export async function findI25Violations(db: Reader): Promise<InvariantViolation[
     detail: { limit: MAX_SESSIONS_PER_IDENTITY, liveSessions: row.live },
   }));
 }
+
+/** 02:I24：注销后所有个人依附已清；同意/交易/审计证据不属于清除对象。 */
+export async function findI24Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT u.id::text AS id FROM merchant_user u WHERE u.status='deleted' AND (
+      EXISTS (SELECT 1 FROM wechat_identity w WHERE w.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM user_session s WHERE s.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM portal_session p WHERE p.approved_by_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM sms_verification s WHERE s.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM merchant_user_notice n WHERE n.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM wecom_contact w WHERE w.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM entity_member m WHERE m.merchant_user_id=u.id AND m.display_name IS NOT NULL)
+    ) ORDER BY u.id LIMIT ${IDENTITY_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "merchant_user", id: row.id },
+    detail: { problem: "residual_personal_data" },
+  }));
+}
