@@ -326,8 +326,11 @@ describe("手机号验证码与换绑的真实事务边界", { timeout: 120_000 
         action: "identity.merchant_user.change_phone",
       },
     });
-    expect(JSON.stringify(audit)).not.toContain(who.phone);
-    expect(JSON.stringify(audit)).not.toContain(request.phone);
+    const auditText = JSON.stringify(audit, (_key, value: unknown) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+    expect(auditText).not.toContain(who.phone);
+    expect(auditText).not.toContain(request.phone);
   });
   it("错码五次独立提交；作废/过期/旧于最新码不取新手机号，不跨账号核销", async () => {
     const who = await user(),
@@ -382,6 +385,9 @@ describe("手机号验证码与换绑的真实事务边界", { timeout: 120_000 
       status: "removed",
       removedAt: h.clock.now(),
       removeReason: "self",
+      removeActorType: "merchant",
+      removeActorId: history.principal.merchantUserId,
+      removeClient: "weapp",
       displayName: null,
     });
     const before = await snapshotTables(h.prisma, [
