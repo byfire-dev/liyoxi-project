@@ -4130,7 +4130,7 @@ export interface components {
             /** Format: uuid */
             storeId: string;
             storeName: string | null;
-            thumbnail: components["schemas"]["SignedUrl"] & (Record<string, never> | null);
+            thumbnail: components["schemas"]["SignedUrl"] | null;
             timelinessTag: components["schemas"]["AssetTag"] & (Record<string, never> | null);
             title: string | null;
             /** @enum {string} */

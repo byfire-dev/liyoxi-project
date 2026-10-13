@@ -36,6 +36,7 @@ import { assetRegression } from "../shots/asset-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
 import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
+import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -96,6 +97,9 @@ const { DELIVERY_SCENES } = await import(
 const { MESSAGE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/message-scenes.ts")).href
 );
+const { SETTINGS_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/settings-scenes.ts")).href
+);
 const { SEARCH_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
 );
@@ -138,6 +142,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
         ...MESSAGE_SCENES,
+        ...SETTINGS_SCENES,
         ...SEARCH_SCENES,
         ...ASSET_SCENES,
         ...ASSET_UPLOAD_SCENES,
@@ -284,6 +289,17 @@ const targets = [
     }),
   ),
   ...(all
+    ? SETTINGS_SCENES
+    : SETTINGS_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `settings__${item.name}`,
+    scene: item.name,
+    kind: "settings",
+    fullPage: false,
+  })),
+  ...(all
     ? SEARCH_SCENES
     : SEARCH_SCENES.filter(
         (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
@@ -333,6 +349,7 @@ const targets = [
           !PUBLISH_SCENES.some((item) => item.route === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !MESSAGE_SCENES.some((item) => item.route === route) &&
+          !SETTINGS_SCENES.some((item) => item.route === route) &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ASSET_UPLOAD_SCENES.some((item) => item.route === route),
@@ -352,7 +369,9 @@ const targets = [
       ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
       : route === "sub/service/messages/index"
         ? { scene: "messages-owner", kind: "message" }
-        : {}),
+        : route === "sub/service/settings/index"
+          ? { scene: "settings-owner", kind: "settings" }
+          : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -449,6 +468,14 @@ async function shoot(target) {
                   ? "search-guest"
                   : "search-owner";
           }
+          if (kind === "settings") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("guest")
+              ? "mine-guest"
+              : scene.endsWith("clerk")
+                ? "mine-clerk"
+                : "mine-owner";
+            globalThis.__LYX_SETTINGS_SHOT__ = scene;
+          }
           if (kind === "search") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
               ? "mine-clerk"
@@ -508,38 +535,41 @@ async function shoot(target) {
     if (target.scene) {
       await page
         .locator(
-          target.kind === "profile"
-            ? "#profile-ready"
-            : target.kind === "billing"
-              ? "#billing-ready"
-              : target.kind === "publish"
-                ? "#publish-ready"
-                : target.kind === "order" || target.kind === "order-reference"
-                  ? "#order-ready"
-                  : target.kind === "catalog"
-                    ? "#catalog-ready"
-                    : target.kind === "search"
-                      ? "#search-ready"
-                      : target.kind === "asset-upload"
-                        ? target.scene.startsWith("asset-uploader-")
-                          ? ".asset-uploader#asset-uploader-ready"
-                          : target.scene.endsWith("loading")
-                            ? ".asset-upload .lyx-skeleton"
-                            : ".asset-upload#asset-upload-ready"
-                        : target.kind === "asset" || target.kind === "asset-action"
-                          ? target.scene === "asset-lib-loading"
-                            ? ".asset-lib .lyx-skeleton"
-                            : "#asset-ready"
-                          : target.kind === "message"
-                            ? target.scene === "messages-loading"
-                              ? ".messages-page .lyx-skeleton"
-                              : "#messages-ready"
-                            : target.kind === "delivery"
-                              ? "#delivery-ready"
-                              : "#account-ready",
+          target.kind === "settings"
+            ? "#settings-ready"
+            : target.kind === "profile"
+              ? "#profile-ready"
+              : target.kind === "billing"
+                ? "#billing-ready"
+                : target.kind === "publish"
+                  ? "#publish-ready"
+                  : target.kind === "order" || target.kind === "order-reference"
+                    ? "#order-ready"
+                    : target.kind === "catalog"
+                      ? "#catalog-ready"
+                      : target.kind === "search"
+                        ? "#search-ready"
+                        : target.kind === "asset-upload"
+                          ? target.scene.startsWith("asset-uploader-")
+                            ? ".asset-uploader#asset-uploader-ready"
+                            : target.scene.endsWith("loading")
+                              ? ".asset-upload .lyx-skeleton"
+                              : ".asset-upload#asset-upload-ready"
+                          : target.kind === "asset" || target.kind === "asset-action"
+                            ? target.scene === "asset-lib-loading"
+                              ? ".asset-lib .lyx-skeleton"
+                              : "#asset-ready"
+                            : target.kind === "message"
+                              ? target.scene === "messages-loading"
+                                ? ".messages-page .lyx-skeleton"
+                                : "#messages-ready"
+                              : target.kind === "delivery"
+                                ? "#delivery-ready"
+                                : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "search") await searchRegression(page, target.scene);
+      if (target.kind === "settings") await settingsRegression(page, target.scene);
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
       if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
@@ -767,7 +797,6 @@ async function shoot(target) {
         await page.waitForTimeout(500);
       }
       if (target.scene.startsWith("login")) {
-        await page.locator("input").fill("13800138000");
         if (target.scene === "login-checked")
           await page.getByText("我已阅读并同意", { exact: true }).click();
         else await page.locator(".lyx-button").filter({ hasText: "手机号快捷登录" }).click();
