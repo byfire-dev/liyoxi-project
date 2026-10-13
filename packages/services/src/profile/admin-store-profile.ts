@@ -319,7 +319,8 @@ export function createAdminStoreProfile(deps: ProfileDeps) {
                     file.uploadActorId !== staff.staff.id ||
                     file.scopeType !== "store" ||
                     file.entityId !== entityId ||
-                    file.storeId !== id
+                    file.storeId !== id ||
+                    file.onBehalfStoreId !== id
                   )
                     refuse("scope_mismatch");
                   return file;

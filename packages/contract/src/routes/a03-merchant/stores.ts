@@ -75,6 +75,7 @@ export const adminStoreProfileUpdate = adminRoute({
   summary: "代改档案（免审字段；必选修改原因 + 备注；带 lockVersion；通知商家，修改前后记入日志）",
   "x-permission": "merchant.profile.proxy_edit",
   "x-idempotent": "required",
+  "x-three-phase": true,
   request: {
     params: StoreIdParamsSchema,
     body: { required: true, content: { "application/json": { schema: ProxyEditBodySchema } } },
