@@ -208,13 +208,17 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 
 `media.retention`提供六个后台接口的真实用例。写操作接收真实员工会话元信息与required幂等上下文；恢复/彻删跨两TX和外呼持同fileId专用sessionMutex，signal传存储原语。恢复结果未知或settle失败也按最终DB事实补回marker，已提交/后继恢复不撤销。彻删失败保留deleting，正式占用过期后同键接续。
 
-彻删同时保护live引用、keepUntil、法定canRelease和引用拥有者readColumns；当前历史投影保守阻断会返回真实引用，精准inUse与sweep/I8/I13另续，不宣称整包清扫完成。删除提交后另TX按ZIP390→派生文件410升序执行hooks，实际media_info/cover沿原release保留30天。COS必须完整枚举精确key版本，Suspended也不遗漏；MinIO未声明版本恢复，明确unsupported。真实桶恢复/清扫/彻删均未验。
+彻删同时保护live引用、keepUntil、法定canRelease和各拥有者精准inUse；缺当前事实明确拒绝。删除提交后另TX按ZIP390→派生文件410升序执行hooks，实际media_info/cover沿原release保留30天。COS必须完整枚举精确key版本，Suspended也不遗漏；MinIO未声明版本恢复，明确unsupported。真实桶恢复/清扫/彻删均未验。
 
 
-## W3-06 分步清扫（待ROOT定点验收）
+## W3-06 分步清扫
 
 `media.retention.sweep`只接受真实job的signal/runTx，逐阶段独立小事务；失败记摘要及P2后继续下一阶段，观察租约/互斥失效立即中止。维护、候选清单和逐文件互斥分开，不嵌套sessionMutex；外呼传该作用域真实signal。每日北京时间03:00后由持久file_purge_run去重，候选最多5000，执行每轮最多100，list_only只提清单，auto超正式阈值/100原片/50 secure熔断held。每日候选还以media自有refs/24小时事实补偿缓存滞后，不能因每轮只修100缓存漏候选或提前done；不扩大run原candidateIds。批准后每文件持锁重算缓存并重新读四事实，3次guard中止，deletedCount和文件结果同TX。
 
 每文件用公开三段式system幂等记录续作未知marker，仅本run/file的resumed接管deleting，不能冒领手工erase。对象调用或settle未知保留deleting和意图，下一轮按最终DB事实接续；aborted运行另限量复用同键证明旧意图，只恢复对象不继续删除或计数；幂等证据超过既有24小时被清理后宁告警/guard拒绝，不猜对象结果。此保证仅覆盖已观察失锁，不能即时撤销外部副作用或未观察的网络窗口。
 
 删除和彻删消费各真实拥有者的精确fileId inUse，不用readColumns历史全表快照充当当前事实；漏接当前事实明确拒绝。OCR raw在本域按rawPurgeAt限量清除，fields/历史不删；需求日期经既有asset_feedback派生、T-0/asset_request.due持久去重，最新notifyScope和成员范围在投递时复核。I8另TX先ZIP390后文件410重试真实缓存/cover钩子，I13检查引用缓存并由sweep补偿。账号证明只在拥有者3年canRelease后沿原release加分类7天，其他法定证据不泛化释放。
+
+本地6组清扫DB、3组精准引用、2组核心回归和1组真实worker装配已分轮通过；唯一独审及候选缓存遗漏点修闭环。
+清单生成与执行均以真实引用/24小时事实补缓存滞后，执行严格限本run原候选，锁内再核全部守卫。
+101文件仅测100批边界，未做生产容量结论。W3-08可消费实际六接口；批准仅代表approved，删除结果须重新读取。
