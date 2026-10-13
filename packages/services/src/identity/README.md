@@ -59,7 +59,7 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 ## 4. 已知的限度
 
-- 休眠检查：五条放行条件做全；“已休眠”的新绑定一律回 `REVERIFY_REQUIRED`。“移出休眠店员”“空草稿让位”两支随 M2（留桩；只会多拦，不会错放）。
+- 休眠检查：五条放行条件保持；新绑定在主体锁后重读当前成员。已休眠店员经 Tenant callerTx 清理，空草稿老板经同事务让位后继续绑定；后续通知/同意角色使用处置后的关系。只有锁后四事实不满足的 `DraftNotEmptyError` 转独立人工重验，依赖/flow 失败原样回滚。此 W2-09 切片待 ROOT 定点验收；其余账号生命周期仍待交付。
 - 新微信绑定只写审计、发事件；写一次性提示的订阅者 `identity.onWechatBound` 随 M2。企业微信联系人的回填随 M7。
 - openid 的 HMAC 快照借 `uscc` 那把盲索引密钥、输入加 `OPENID:` 前缀分域：密钥环里没有 openid 专用的用途。它只是同意记录里的证据快照与限流键，不用于查找。
 - `MeUser.actions` 里的“换绑手机号”要装配处给 `smsConfigured`，现在不给（短信驱动随 G2-D）。

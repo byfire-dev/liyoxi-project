@@ -526,7 +526,12 @@ describe("手机号登录各分支（验收 4）", () => {
         ...h.codes({ openid: nextOpenid(), phone: owner.phone }),
         consents: h.consents(),
       });
-      await h.tenant.createEntity(ctx);
+      const entity = await h.tenant.createEntity(ctx);
+      // 拒绝断言针对真实非空老板；空草稿现在由 W2-09 同事务让位后继续绑定。
+      await prisma.entity.update({
+        where: { id: entity.entityId },
+        data: { verificationStatus: "verified" },
+      });
 
       // 有成员关系、181 天没活跃、换了微信：转人工
       h.clock.advance(181 * DAY);

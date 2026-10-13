@@ -38,6 +38,12 @@ export interface DraftAbandonResult {
   readonly memberId: string;
   readonly storeIds: readonly string[];
 }
+/** 仅表示锁后真实四项草稿事实不满足；依赖和状态机错误不归入此类。 */
+export class DraftNotEmptyError extends AppError {
+  constructor() {
+    super("STATE_NOT_ALLOWED");
+  }
+}
 type DraftDeps = { flow: Flow; assembly: Pick<Assembly, "port">; clock: Clock };
 type DraftPlan = { entityId: string; ownerId: string; userId: string; storeIds: string[] };
 const prepared = new WeakMap<Tx, { deps: DraftDeps; ctx: IdentityContext; plan: DraftPlan }>();
@@ -101,7 +107,7 @@ export async function abandonDraftIn(
   await lockRows(tx, "store", before.stores);
   if (!same(before, await graph(tx, member.entityId))) throw new AppError("PRECONDITION_CHANGED");
   if (!(await emptyDraftFacts(tx, deps.assembly, member.entityId, member.memberId, userId)))
-    throw new AppError("STATE_NOT_ALLOWED");
+    throw new DraftNotEmptyError();
   const plan = {
     entityId: member.entityId,
     ownerId: member.memberId,
