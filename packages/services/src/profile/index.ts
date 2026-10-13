@@ -38,6 +38,9 @@ export { findViolations, PROFILE_INVARIANT_CODES } from "./invariants.js";
 export { registration } from "./register.js";
 
 export { adminProfileFactsPort, implementAdminProfileFacts } from "./admin-ports.js";
+export { adminStoreListBillingPort, adminStoreListOrderPort } from "./admin-list-ports.js";
+export type { StoreListBillingFact, StoreListBillingSelection } from "./admin-list-ports.js";
+export { readAdminStoreSelection } from "./admin-store-list.js";
 export type { AdminFacts, AdminFactsQuery, AdminFactSource } from "./admin-ports.js";
 
 export { profilePiiFields } from "./pii-fields.js";

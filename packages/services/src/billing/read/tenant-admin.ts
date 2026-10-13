@@ -9,7 +9,7 @@ export interface TenantAdminBillingFacts {
   readonly spendablePoints: number;
 }
 
-export async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Promise<string> {
+export function paymentContent(type: string, snapshot: unknown) {
   const parsed = billingOrderContentSchema.safeParse(snapshot);
   const kinds: Readonly<Record<string, string>> = {
     plan_new: "plan",
@@ -18,9 +18,23 @@ export async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Pro
     topup: "topup",
   };
   if (!parsed.success || kinds[type] !== parsed.data.kind) throw new AppError("INTERNAL");
-  const content = parsed.data;
+  return parsed.data;
+}
+export function renderPaymentTitle(
+  type: string,
+  content: ReturnType<typeof paymentContent>,
+  planName?: string,
+) {
   if (content.kind === "topup")
     return `加购积分 ${String(content.points).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+  if (planName === undefined) throw new AppError("INTERNAL");
+  return content.kind === "upgrade"
+    ? `升级${planName}（本期剩余 ${content.remainingDays} 天）`
+    : `${type === "plan_new" ? "开通" : "续费"}${planName} · ${content.months} 个月`;
+}
+export async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Promise<string> {
+  const content = paymentContent(type, snapshot);
+  if (content.kind === "topup") return renderPaymentTitle(type, content);
   let planId: string;
   if (content.kind === "upgrade") {
     const revision = await tx.planRevision.findUnique({
@@ -32,9 +46,7 @@ export async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Pro
   } else planId = content.planId;
   const plan = await tx.plan.findUnique({ where: { id: planId }, select: { name: true } });
   if (!plan) throw new AppError("INTERNAL");
-  return content.kind === "upgrade"
-    ? `升级${plan.name}（本期剩余 ${content.remainingDays} 天）`
-    : `${type === "plan_new" ? "开通" : "续费"}${plan.name} · ${content.months} 个月`;
+  return renderPaymentTitle(type, content, plan.name);
 }
 
 /** 后台主体摘要只读调用方事务；不推进账本、不读余额/订阅状态缓存。 */

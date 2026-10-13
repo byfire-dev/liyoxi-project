@@ -134,7 +134,7 @@
 | sort | enum `StoreListSort` | 否 | 默认 `-lastOrderAt` | 按最近订购、注册时间、累计实付倒序（C44；服务端追加 `id`） |
 | page、pageSize | integer | 否 | 同 C43 | 页码分页 |
 
-M1（W1-08b）：筛选仅开放 q、regionCode、industryCode、categoryCode、qualificationStatus、deliveryManagerId/isManagerUnassigned、entityId、lifecycle；排序只收 registeredAt 或 -registeredAt，缺省 -registeredAt，追加 id。来源、套餐与到期筛选及其他排序400 VALIDATION_FAILED；跨层字段经 profile.admin_facts 的拥有者键取数，未注册按字段 none/0/null。列表非首店 totalPaidFen 为空，详情 paid 仍为主体合计。完整模式的 -createdAt 与 registeredAt 的命名差异在回补时统一。
+W2-11完整读侧：筛选按上表全量开放，默认 -lastOrderAt；正式 -createdAt 与旧 ±registeredAt 映射门店创建时刻，保留旧别名兼容，所有排序追加id，空聚合值排最后。summary去掉sort/page/pageSize。带范围候选集先筛本域字段，再由billing/order各自批量读候选主体/门店；列表分页后批量投影，不逐店调用详情。列表非首店totalPaidFen仍为空，详情paid仍为主体合计。stores.list导出生产者尚未落地，归M7 G7-B后继消费同一scope候选查询；本片不表示导出执行可用。
 
 **StoreRow**
 
