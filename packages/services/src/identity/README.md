@@ -10,6 +10,7 @@ W1-04 的第一个 PR 交会话与鉴权链要的服务：令牌与会话、静�
 | `token.ts` | 令牌 `lyxm_<sid>.<随机数>`：签发、解析、定长比较 |
 | `sessions.ts` | 开会话与上限、每请求校验与续写、按微信身份吊销 |
 | `login.ts` | 静默登录、手机号登录（含休眠检查、改绑、首触来源、同意与指纹） |
+| `personal-account.ts` | 本人称呼、提示关闭、微信身份列表与移除；真实会话、required 重放与身份年龄守卫 |
 | `phone.ts` | 换回来的手机号认不认：只认中国大陆的手机号，区号看原串 |
 | `logout.ts` | 退出登录 |
 | `portal-grants.ts` | 调用方同事务精准吊销下载页授权，tenant 的强制端口实现 |
@@ -49,6 +50,8 @@ await identity.isClientOutdated(clientVersion, flagContext);     // 版本门槛
 微信手机号返回的 `countryCode` / `purePhoneNumber` 若存在，必须分别为 `86` / 归一化大陆号码；事实不一致在登录事务前拒绝，旧的只含 `phone` 替身仍可用。API 身份装配优先显式 AppID，其次运行时完整微信配置，未配本地沿用占位；`currentSessionOpenid(tx, principal, expectedAppid?)` 可校验当前会话身份的 AppID，内容检测不能跨小程序使用 openid。新增真实数据库区号与命名空间回归通过，外部真机登录仍待 E2 验收。
 
 ## 3. 跑用例
+
+W2-09 四个人接口复用当前会话事实：称呼更新沿既有三段式执行器在事务外检测当前 openid，成功重放不再外检；提示关闭保留首次时间；身份列表只投影本人六字段并优先当前身份；移除当前/最后身份不受年龄限制，其他身份依当前身份绑定时间判定。移除只写审计/auth_event，不发新事件；待发订阅随后由原投递任务按 no_target 与原短信回退处理。该片仅所属静态准备，正式类型/数据库/API与官方派生由 ROOT 定点验证。
 
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/identity/

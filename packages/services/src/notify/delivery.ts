@@ -300,6 +300,13 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
       );
       return null;
     }
+    const openid = anchored.identityId
+      ? await deps.wechatTarget(tx, anchored.identityId, n.merchantUserId!)
+      : null;
+    if (anchored.identityId && !openid) {
+      await terminal(tx, deps, d, "skipped", "no_target");
+      return null;
+    }
     const quota = anchored.identityId
       ? await tx.wxSubscribeQuota.findFirst({
           where: {
@@ -315,7 +322,6 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
       await terminal(tx, deps, d, "skipped", "no_quota");
       return null;
     }
-    const openid = await deps.wechatTarget(tx, quota.wechatIdentityId, n.merchantUserId!);
     const stored = NotifyFactSchema.parse(n.vars);
     const archive = await currentStoreArchiveNotification(tx, deps, n);
     const current =
