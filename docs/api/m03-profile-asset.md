@@ -346,7 +346,7 @@ V1.1 的广告风格偏好、禁用内容不出接口（`store_profile.ad_style_
 | requiredPermits | array<{ permitType: DictRef, isProvided: boolean }> | 是 | 所选品类要求的行业许可证（“餐饮 / 火锅品类须上传”）及本轮是否已有 | 字典 `industry` 的 `dict_item.ext` 中 `requiredCerts`，品类取草稿的 `proposed_category_code`，否则 `store_profile.category_code`；`isProvided` 看未关闭轮次有无该 `permit_type` 的未移除行 |
 | contact | ContactView | 是 | 资质联系人 | 见下 |
 | declaration | `{ currentVersion: string }` | 是 | 现行“信息确认”文案版本号，提交时回传 | 配置（默认为契约登记的代码常量，见第 6 节第 1 项） |
-| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 草稿存在且门店非终局驳回 → `submit`；草稿存在 → `discard`（C16） |
+| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 当前 `initial` 草稿且门店非终局驳回 → `submit`；`change` / `new_store` 草稿 → `discard`；多轮提交随 W2-11 后续开放（C16） |
 
 EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`，主体由门店上下文确定。与 m02 的 `EntityBrief` 不同构，按 C87、A132 改名，原名 `EntityBrief`）：
 
@@ -1204,7 +1204,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | 错误码 | HTTP | 何时 |
 | --- | --- | --- |
 | `QUALIFICATION_IN_REVIEW` | 409 | 该轮已提交、在审 |
-| `STATE_NOT_ALLOWED` | 409 | 当前没有草稿，或 id 不是当前草稿 |
+| `STATE_NOT_ALLOWED` | 409 | 当前没有草稿，或 id 不是当前草稿，或是 `initial` 草稿（商家只能丢弃 `change` / `new_store` 草稿） |
 
 **副作用**：
 - 状态迁移：`qualification_submission`：草稿 → 已关闭（`discarded`，04-profile.md:344）；`qualification_doc`：草稿中 → 已移除（所属草稿被丢弃，04-profile.md:479）。
@@ -1212,7 +1212,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 - 不写 `status_transition`（轮次表没有状态列）；`audit_log` activity 流一行。
 - 完整度：第 4 步的“当前资质视图”回到生效轮次或最近一轮，锁 `store_profile`（轮次 → 档案行）重算并写回完整度三列（1.1“完整度缓存”）。
 
-**说明**：草案写作 `DELETE /profile/qualification/draft`；丢弃是轮次的阶段变化、不删行，按动作接口写（A7）。丢弃 `change` 草稿后，基础信息的待审值随之作废，生效值不变。
+**说明**：草案写作 `DELETE /profile/qualification/draft`；丢弃是轮次的阶段变化、不删行，按动作接口写（A7）。商家入口仅接受 `change` / `new_store` 的未提交草稿，初次草稿由原建档链继续处理；系统生命周期订阅的初次草稿丢弃不受此入口限制。丢弃 `change` 草稿后，基础信息的待审值随之作废，生效值不变。
 
 ### 3.17 m.storeProfile.qualification.submit　提交资质审核
 `POST /m/store-profile/qualification/submit`

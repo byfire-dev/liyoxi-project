@@ -48,7 +48,24 @@ export async function docPrecheck(
   viewer: ProfileViewer,
   input: QualificationDocCreateBody,
 ) {
-  await draftPreconditions(tx, viewer.membership.storeId);
+  const { kind } = await draftPreconditions(tx, viewer.membership.storeId);
+  if (kind === "new_store" && input.docType === "business_license")
+    throw new AppError("QUALIFICATION_DOC_NOT_ALLOWED");
+  if (
+    kind === "change" &&
+    input.docType === "business_license" &&
+    (await tx.qualificationSubmission.findFirst({
+      where: {
+        entityId: viewer.membership.entityId,
+        storeId: { not: viewer.membership.storeId },
+        kind: "change",
+        submittedAt: { not: null },
+        closedAt: null,
+        qualificationDocs: { some: { docType: "business_license", removedAt: null } },
+      },
+    }))
+  )
+    throw new AppError("ENTITY_LICENSE_CHANGE_PENDING");
   if (input.docType === "industry_permit")
     await newCode(tx, "permit_type", input.permitType, null, "permitType");
   await newFile(

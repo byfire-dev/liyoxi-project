@@ -23,6 +23,7 @@ import {
   ContactPatchSchema,
   ContactViewSchema,
   QualificationSubmitBodySchema,
+  QualificationDiscardBodySchema,
 } from "./qualification.schemas.js";
 
 export const mStoreProfileGet = merchantRoute({
@@ -183,7 +184,7 @@ export const mStoreProfileQualificationUpdate = merchantRoute({
   },
 });
 
-export const mStoreProfileQualificationDiscard = merchantMeta({
+export const mStoreProfileQualificationDiscard = merchantRoute({
   method: "post",
   path: "/m/store-profile/qualification/discard",
   operationId: "m.storeProfile.qualification.discard",
@@ -191,6 +192,16 @@ export const mStoreProfileQualificationDiscard = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: QualificationDiscardBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(QualificationViewOwnerSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const mStoreProfileQualificationSubmit = merchantRoute({
