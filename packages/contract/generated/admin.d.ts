@@ -329,6 +329,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/assignment-histories/{assignmentHistoryId}/mark-contacted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 新交付经理标记“已联系商家”（关闭联系时限） */
+        post: operations["admin.assignmentHistory.markContacted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/assignment-pool-members": {
         parameters: {
             query?: never;
@@ -4573,6 +4590,17 @@ export interface components {
             validEndDate: string | null;
             /** Format: date */
             validStartDate: string | null;
+        };
+        AssignmentContactView: {
+            /** Format: uuid */
+            assignmentHistoryId: string;
+            /** Format: date-time */
+            contactDueAt: string;
+            contactedAt: string | null;
+            contactedBy: components["schemas"]["StaffBrief"] | null;
+            /** Format: uuid */
+            storeId: string;
+            toStaff: components["schemas"]["StaffBrief"];
         };
         AuditLogDetail: components["schemas"]["AuditLogItem"] & {
             after: {
@@ -10193,6 +10221,94 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.assignmentHistory.markContacted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assignmentHistoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AssignmentContactView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -21,6 +21,7 @@
 | `demo-seed.ts` | 7 位演示员工（只进本地、测试与预发） |
 | `management.ts` | W1-01b 员工增查与角色只读；显式挑展示列，完整查询按 DataScope |
 | `assignment.ts` | 城市、当班与UUID游标轮询，预准备员工锁与只读推荐；按id批量取展示摘要的staffBriefs |
+| `assignment-contact.ts` | W2-11 门店接收人或同组主管标记已联系；当前范围复核、联系事实、SLA timer取消及活动审计同事务 |
 
 ## 2. 装配与用法
 
