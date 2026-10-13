@@ -16,7 +16,7 @@ function deferred<T>() {
   });
   return { promise, resolve, reject };
 }
-const error = (symbol: string, status: number) =>
+const error = (symbol: ApiError["error"], status: number) =>
   new ApiError({ error: symbol, status, message: "private URL", requestId: "test" });
 const result = (id = assetId(101), patch: Partial<FileStatus> = {}): FileStatus => ({
   fileId: id,

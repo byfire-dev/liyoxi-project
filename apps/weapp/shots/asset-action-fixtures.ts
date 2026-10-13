@@ -21,7 +21,7 @@ const fixture = (scene: string) => {
   (globalThis as { __LYX_ASSET_ACTION_CALLS__?: Call[] }).__LYX_ASSET_ACTION_CALLS__ = value.calls;
   return value;
 };
-const error = (symbol: string, status: number) =>
+const error = (symbol: ApiError["error"], status: number) =>
   new ApiError({ error: symbol, status, message: "private", requestId: "offline" });
 function detail(scene: string, value: Fixture) {
   const result = assetDetail();

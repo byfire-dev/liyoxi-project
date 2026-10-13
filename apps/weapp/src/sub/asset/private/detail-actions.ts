@@ -72,6 +72,8 @@ export function createAssetDetailActions(deps: {
     generation = 0;
   let feedbackFlight: object | null = null,
     portraitFlight: object | null = null;
+  let uploadFlight: object | null = null,
+    cancelFlight: object | null = null;
   let selecting = false,
     uploading: Promise<void> | null = null,
     cancelling: Promise<void> | null = null;
@@ -137,7 +139,9 @@ export function createAssetDetailActions(deps: {
     if (uploading) return uploading;
     if (!allowed("portrait-auth") || state.cancelPending || portraitIntent || cancelling)
       return Promise.resolve();
-    const own = generation;
+    const own = generation,
+      flight = {};
+    uploadFlight = flight;
     const work: Promise<void> = (async () => {
       await Promise.resolve();
       try {
@@ -164,7 +168,10 @@ export function createAssetDetailActions(deps: {
       } catch {
         if (current(own)) publish({ portraitMessage: "材料上传未完成，请重试原文件" });
       } finally {
-        if (uploading === work) uploading = null;
+        if (uploadFlight === flight) {
+          uploadFlight = null;
+          uploading = null;
+        }
         // 只释放自身的同步闩，旧请求不能释放后来操作的锁。
         publish();
       }
@@ -334,6 +341,8 @@ export function createAssetDetailActions(deps: {
         entry.job.dispose();
       });
       const previous = uploading;
+      const flight = {};
+      cancelFlight = flight;
       const work: Promise<void> = (async () => {
         try {
           const native = await getPorts();
@@ -385,7 +394,10 @@ export function createAssetDetailActions(deps: {
               portraitMessage: "取消结果未确认，请重试取消后再选择新材料",
             });
         } finally {
-          if (cancelling === work) cancelling = null;
+          if (cancelFlight === flight) {
+            cancelFlight = null;
+            cancelling = null;
+          }
           publish();
         }
       })();
