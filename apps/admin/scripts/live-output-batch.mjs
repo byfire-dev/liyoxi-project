@@ -19,6 +19,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { prepareLiveMedia } from "./live-media.mjs";
+import { selectedLiveTests } from "./live-selection.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADMIN = join(ROOT, "apps/admin");
@@ -346,9 +347,7 @@ async function main(args) {
     },
   });
   const image = values["mediatool-image"];
-  const testFile = values["test-file"];
-  if (testFile && testFile !== "test/e2e/live-output-batch.spec.ts")
-    throw new Error("Only the exact W302 spec can be selected for an affected rerun");
+  const testFiles = selectedLiveTests(values["test-file"]);
   if (!/^sha256:[a-f0-9]{64}$/.test(image ?? ""))
     throw new Error("--mediatool-image requires the exact verified original image ID");
   const original = localUrl("DATABASE_URL", ["postgres:", "postgresql:"]);
@@ -532,15 +531,7 @@ async function main(args) {
     );
     await run(
       "pnpm",
-      [
-        "--filter",
-        "@liyoxi/admin",
-        "exec",
-        "playwright",
-        "test",
-        "--project=live",
-        ...(testFile ? [testFile] : []),
-      ],
+      ["--filter", "@liyoxi/admin", "exec", "playwright", "test", "--project=live", ...testFiles],
       {
         ...toolEnv,
         LYX_ADMIN_LIVE: "1",
