@@ -194,3 +194,18 @@ API 固定绑定 billing/profile/media/order 公口；缺装配、缺账户或�
 
 `createTenantEntitlement` 处理两个原 billing 接续/到期事件。先核同 id 持久化 strict 来源、主体/周期归属，再经实例 notify 回调读取当前有效老板与唯一 `getQuotaUsage`，不信任事件快照、不保存超额标记或自动删成员/门店。
 老板账号80→主体100→老板成员120共享锁后取新时钟；锁后老板关系变化明确重试，关闭、无有效老板或当前未超额不提醒。`tenantQuotaForNotify` 是既有 notify.read keyed port 内的所属读函数，scope 的数组/lookup/reader 共用闭包；API 与 worker 各 attach/close，未绑定或关闭明确失败。通知和消费完成同 caller Tx，失败整笔回滚。当前仅 SOURCE，完整验收待 ROOT 独占窗口。
+
+## 账号生命周期 callerTx 出口（SOURCE）
+
+以下四方法由现 `createTenant` 返回，首参均为真实 `Tx`，只使用该句柄，不打开事务或幂等边界：
+
+- `abandonDraftIn(tx, ctx)`：从本人当前有效老板关系派生空草稿，返回 `{ entityId, memberId, storeIds }`。账号80排他后，排序锁主体100、全部邀请110、成员120及门店130，并重查完整图与四项草稿事实。计费历史与下载授权使用真实强制端口；缺来源不当零。内部 system 上下文与私有 same-Tx/context/目标见证约束唯一让位级联，原邀请接受完整 union 锁后也调用这个命令。
+- `removeMemberIn(tx, ctx, input)`：`input` 为 `{ kind: "owner_remove", memberId }`、`{ kind: "leave" }`、`{ kind: "dormant" }` 或 `{ kind: "account_deleted" }`。账号80→主体100→当前操作人/目标成员120。普通两分支保留原门店成员守卫；后两分支仅移除本人真实有效 clerk，不凭角色快照移除 owner。dormant 记内部 system，account_deleted 记本人 merchant/weapp，两者清空成员称呼；唯一执行段写原 flow/历史/审计/事件，清全部 store_member/lastStoreId。实体锁也串行化真实范围增删，不为只删关系追加门店状态锁。
+- `revokeInvitationIn(tx, ctx, input)`：复用原邀请撤回核心，沿账号80共享→主体100→邀请110→相关成员120→当前门店130，当前老板、归属、pending、by_owner/unshared_leave 和 shared 条件保持，token 清除及真实 expiry timer 取消同事务。
+- `closeEntityForOwnerDeletionIn(tx, ctx)`：本人当前账号和真实有效 owner 经锁后重查，六个真实阻断共用原读口，阻断返回 ACCOUNT_DELETION_BLOCKED。账号80→主体100→邀请110/成员120/门店130完整图，图改变拒绝重试；与 staff 入口共享唯一 tenant 级联执行段。closedBy=owner_deletion，本人 owner 原因 account_deleted 并清称呼，其他成员/门店/邀请为 entity_closed，联动 actor 均本人 merchant/weapp；真实 portal 与 timer 同事务。返回原 CloseEntityResult，withdrawnCancelRequestIds=[]，因广告取消系统撤回是 a03:1124 的后台特有部分，不伪造 order plan。原 staff 低锁 prepare/withdraw、权限/StepUp/双回显与 reason 保持。
+
+本人入口只接合法 merchant/weapp ctx，账号/主体目标由当前关系派生，不接自称 owner、任意 userId 或授权布尔。成员 kind 仅选择业务分支，guard 还核真实当前事实与私有见证。直接 flow/其他 Tx/伪造 system job 不获得迁移权限。新 account_deleted/dormant 的称呼随迁列明确登记于原机器 binding。
+
+调用者必须先完成自己的低序锁全集；可已持本人账号80和相关微信90，再重入四命令。不得在100以上之后补未持账号80、低序审批或同表更小主键。W2-09 待审 account_change 的审批30/申请40、身份认证、newBinding 与五项休眠放行判断由其本域外层拥有；tenant 不能独立证明这些。账号状态、PII、会话、协议与账号审批最终清理亦属 W2-09，本片不宣称完整注销或真实登录休眠行为已实现。callerTxn 后续失败须整体回滚；内核不能追踪绕开 lockRows 的外部原始锁，不扩写其既有边界。
+
+当前仅 SOURCE/轻静态，新增外层事务与并发整叶、旧完整回归、四包类型及尾门禁待 ROOT 串行验证；无新 HTTP/schema/DDL/生成源，W2-10 整包仍进行中。

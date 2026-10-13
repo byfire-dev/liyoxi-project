@@ -1,7 +1,7 @@
 import { assertPermission, entityScope } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import type { Flow, TransitionFacts } from "../flow/index.js";
-import { actorColumns, AppError } from "../kernel/index.js";
+import { actorColumns, AppError, createIdentityContext, lockRows } from "../kernel/index.js";
 import type { Assembly, Clock, IdentityContext, Tx } from "../kernel/index.js";
 import type { Timers } from "../timers/index.js";
 import { readEntityDeletionCounts } from "./close-facts.js";
@@ -32,35 +32,69 @@ export interface CloseEntityResult {
   readonly withdrawnCancelRequestIds: readonly string[];
   readonly revokedPortalGrantCount: number;
 }
-type Prepared = {
-  readonly actor: CloseEntityActor;
-  readonly deps: CloseEntityDeps;
-  readonly input: CloseEntityInput;
-  readonly plan: EntityAdCancelClosePlan;
-};
+type TenantClosePlan = Pick<
+  EntityAdCancelClosePlan,
+  "entityId" | "invitationIds" | "memberIds" | "storeIds"
+>;
+type Prepared = { readonly deps: CloseEntityDeps } & (
+  | {
+      readonly kind: "staff";
+      readonly actor: CloseEntityActor;
+      readonly input: CloseEntityInput;
+      readonly plan: EntityAdCancelClosePlan;
+    }
+  | {
+      readonly kind: "owner";
+      readonly actor: { ctx: IdentityContext };
+      readonly input: { entityId: string; reasonText: string };
+      readonly plan: TenantClosePlan;
+      readonly ownerId: string;
+    }
+);
 // Only the real owner entry sets this after the complete low-lock prepare succeeds.
 // Flow args and caller booleans cannot grant cascade authority.
 const prepared = new WeakMap<Tx, Prepared>();
 async function checkClose(tx: Tx, state: Prepared) {
   const { actor, deps, input } = state;
-  assertPermission(actor.staff, "merchant.entity.close", deps.clock.now());
-  const staff = await tx.staff.findUnique({
-    where: { id: actor.staff.staff.id },
-    select: { status: true, staffRoleKey: true, staffGroupId: true, isLead: true },
-  });
-  if (
-    staff?.status !== "active" ||
-    staff.staffRoleKey !== actor.staff.staff.roleKey ||
-    staff.staffGroupId !== actor.staff.staff.staffGroupId ||
-    staff.isLead !== actor.staff.staff.isLead
-  )
-    throw new AppError("PERMISSION_DENIED");
-  const entity = await tx.entity.findFirst({
-    where: { id: input.entityId, ...entityScope(actor.staff.scope) },
-    select: { lifecycle: true },
-  });
-  if (!entity) throw new AppError("NOT_FOUND");
-  if (entity.lifecycle !== "active") throw new AppError("STATE_NOT_ALLOWED");
+  if (state.kind === "staff") {
+    const { actor, input } = state;
+    assertPermission(actor.staff, "merchant.entity.close", deps.clock.now());
+    const staff = await tx.staff.findUnique({
+      where: { id: actor.staff.staff.id },
+      select: { status: true, staffRoleKey: true, staffGroupId: true, isLead: true },
+    });
+    if (
+      staff?.status !== "active" ||
+      staff.staffRoleKey !== actor.staff.staff.roleKey ||
+      staff.staffGroupId !== actor.staff.staff.staffGroupId ||
+      staff.isLead !== actor.staff.staff.isLead
+    )
+      throw new AppError("PERMISSION_DENIED");
+    const entity = await tx.entity.findFirst({
+      where: { id: input.entityId, ...entityScope(actor.staff.scope) },
+      select: { lifecycle: true },
+    });
+    if (!entity) throw new AppError("NOT_FOUND");
+    if (entity.lifecycle !== "active") throw new AppError("STATE_NOT_ALLOWED");
+  } else {
+    const { ctx } = actor;
+    if (ctx.actor.type !== "merchant" || ctx.actor.client !== "weapp")
+      throw new AppError("ROLE_FORBIDDEN");
+    const [user, member, entity] = await Promise.all([
+      tx.merchantUser.findUnique({ where: { id: ctx.actor.id } }),
+      tx.entityMember.findUnique({ where: { id: state.ownerId } }),
+      tx.entity.findUnique({ where: { id: input.entityId } }),
+    ]);
+    if (
+      user?.status !== "active" ||
+      member?.merchantUserId !== ctx.actor.id ||
+      member.entityId !== input.entityId ||
+      member.role !== "owner" ||
+      member.status !== "active"
+    )
+      throw new AppError("PRECONDITION_CHANGED");
+    if (entity?.lifecycle !== "active") throw new AppError("STATE_NOT_ALLOWED");
+  }
   const counts = await readEntityDeletionCounts(tx, deps.assembly, input.entityId);
   const blockers = Object.entries(counts)
     .map(([kind, count]) => {
@@ -68,14 +102,19 @@ async function checkClose(tx: Tx, state: Prepared) {
       return { kind, count };
     })
     .filter(({ count }) => count > 0);
-  if (blockers.length) throw new AppError("ENTITY_CLOSE_BLOCKED", { details: { blockers } });
+  if (blockers.length)
+    throw new AppError(
+      state.kind === "staff" ? "ENTITY_CLOSE_BLOCKED" : "ACCOUNT_DELETION_BLOCKED",
+      { details: { blockers } },
+    );
+  if (state.kind !== "staff") return;
   const [activeStoreCount, activeMemberCount] = await Promise.all([
     tx.store.count({ where: { entityId: input.entityId, lifecycle: "active" } }),
     tx.entityMember.count({ where: { entityId: input.entityId, status: "active" } }),
   ]);
   if (
-    input.confirm.activeStoreCount !== activeStoreCount ||
-    input.confirm.activeMemberCount !== activeMemberCount
+    state.input.confirm.activeStoreCount !== activeStoreCount ||
+    state.input.confirm.activeMemberCount !== activeMemberCount
   )
     throw new AppError("CONFIRM_MISMATCH");
 }
@@ -133,11 +172,72 @@ export async function closeEntityIn(
   )
     throw new AppError("NOT_FOUND");
   const closer = deps.assembly.port(entityAdCancelClosePort);
-  const grants = deps.assembly.port(membershipAuthorizationsPort);
   // This is the first lock-taking call: staff20/approval30/cancel50/line60 -> tenant100..130.
   const plan = await closer.prepare(tx, input.entityId, [actor.staff.staff.id]);
-  const state: Prepared = { actor, deps, input, plan };
+  const state: Prepared = { kind: "staff", actor, deps, input, plan };
   await checkClose(tx, state);
+  return executeClose(tx, state);
+}
+
+/** 本人注销的tenant联动；账号/身份/审批最终清理由identity外层事务拥有。 */
+export async function closeEntityForOwnerDeletionIn(
+  tx: Tx,
+  deps: CloseEntityDeps,
+  ctx: IdentityContext,
+): Promise<CloseEntityResult> {
+  if (ctx.actor.type !== "merchant" || ctx.actor.client !== "weapp")
+    throw new AppError("ROLE_FORBIDDEN");
+  if (prepared.has(tx)) throw new AppError("INTERNAL");
+  await lockRows(tx, "merchant_user", [ctx.actor.id]);
+  const user = await tx.merchantUser.findUnique({ where: { id: ctx.actor.id } });
+  const owner = await tx.entityMember.findFirst({
+    where: { merchantUserId: ctx.actor.id, status: "active" },
+  });
+  if (user?.status !== "active" || !owner) throw new AppError("NOT_A_MEMBER");
+  if (owner.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
+  await lockRows(tx, "entity", [owner.entityId]);
+  const plan = await ownerGraph(tx, owner.entityId);
+  await lockRows(tx, "invitation", plan.invitationIds);
+  await lockRows(tx, "entity_member", plan.memberIds);
+  await lockRows(tx, "store", plan.storeIds);
+  if (JSON.stringify(plan) !== JSON.stringify(await ownerGraph(tx, owner.entityId)))
+    throw new AppError("PRECONDITION_CHANGED");
+  const actor = {
+    ctx: createIdentityContext({
+      ...ctx,
+      actor: ctx.actor,
+      entityId: owner.entityId,
+      storeId: null,
+    }),
+  };
+  const state: Prepared = {
+    kind: "owner",
+    actor,
+    deps,
+    input: { entityId: owner.entityId, reasonText: "本人注销账号，关闭经营主体" },
+    plan,
+    ownerId: owner.id,
+  };
+  await checkClose(tx, state);
+  return executeClose(tx, state);
+}
+async function ownerGraph(tx: Tx, entityId: string): Promise<TenantClosePlan> {
+  const [invitations, members, stores] = await Promise.all([
+    tx.invitation.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+    tx.entityMember.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+    tx.store.findMany({ where: { entityId }, orderBy: { id: "asc" }, select: { id: true } }),
+  ]);
+  return {
+    entityId,
+    invitationIds: invitations.map((r) => r.id),
+    memberIds: members.map((r) => r.id),
+    storeIds: stores.map((r) => r.id),
+  };
+}
+/** 两入口共用的唯一tenant状态级联，后台取消收尾只在staff分支调用。 */
+async function executeClose(tx: Tx, state: Prepared): Promise<CloseEntityResult> {
+  const { actor, deps, input, plan } = state;
+  const grants = deps.assembly.port(membershipAuthorizationsPort);
   const [invitations, members, stores] = await Promise.all([
     tx.invitation.findMany({
       where: { entityId: input.entityId, status: "pending" },
@@ -173,17 +273,24 @@ export async function closeEntityIn(
       set: { closed_at: now },
       audit: {
         stream: "ops",
-        category: "merchant_lifecycle",
+        category: state.kind === "staff" ? "merchant_lifecycle" : "account_security",
         action: "tenant.entity.close",
         summary: "关闭经营主体",
         entityId: input.entityId,
         target: { type: "entity", id: input.entityId },
-        reason: { code: "staff_close", text: input.reasonText.trim() },
-        meta: { confirm: { ...input.confirm } },
+        reason: {
+          code: state.kind === "staff" ? "staff_close" : "owner_deletion",
+          text: input.reasonText.trim(),
+        },
+        ...(state.kind === "staff" ? { meta: { confirm: { ...state.input.confirm } } } : {}),
       },
       emit: {
         type: "entity.closed",
-        payload: { v: 1, entityId: input.entityId, closedBy: "staff_close" },
+        payload: {
+          v: 1,
+          entityId: input.entityId,
+          closedBy: state.kind === "staff" ? "staff_close" : "owner_deletion",
+        },
       },
     });
     for (const row of invitations) {
@@ -214,20 +321,23 @@ export async function closeEntityIn(
       });
     }
     for (const row of members) {
+      const reason =
+        state.kind === "owner" && row.id === state.ownerId ? "account_deleted" : "entity_closed";
       await deps.flow.transition(tx, actor.ctx, {
         ...common,
         machine: "entity_member",
         stateField: "status",
         id: row.id,
         event: "entity_member.cascade_remove",
-        reasonCode: "entity_closed",
+        reasonCode: reason,
         ref: row.role === "owner" ? "02:695" : "02:692",
         set: {
+          ...(reason === "account_deleted" ? { display_name: null } : {}),
           removed_at: now,
           remove_actor_type: columns.actorType,
           remove_actor_id: columns.actorId,
           remove_client: columns.client,
-          remove_reason: "entity_closed",
+          remove_reason: reason,
           last_store_id: null,
         },
         emit: {
@@ -238,7 +348,7 @@ export async function closeEntityIn(
             entityId: input.entityId,
             merchantUserId: row.merchantUserId,
             role: row.role === "owner" ? "owner" : "clerk",
-            removeReason: "entity_closed",
+            removeReason: reason,
           },
         },
       });
@@ -276,7 +386,10 @@ export async function closeEntityIn(
       entityId: input.entityId,
       now,
     });
-    const withdrawnCancelRequestIds = await closer.withdraw(tx, actor.ctx, plan);
+    const withdrawnCancelRequestIds =
+      state.kind === "staff"
+        ? await deps.assembly.port(entityAdCancelClosePort).withdraw(tx, actor.ctx, state.plan)
+        : [];
     return {
       entityId: input.entityId,
       lifecycle: "closed",

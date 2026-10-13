@@ -57,7 +57,7 @@ import type { ActiveMembership, TenantReader } from "./repo.js";
 import { listStores, rememberCurrentStore } from "./stores.js";
 import { findActiveReferralCode, membershipBriefs } from "./briefs.js";
 import type { ReferralHit } from "./briefs.js";
-import { removeMemberIn } from "./member-removal.js";
+import { removeCallerMemberIn, removeMemberIn } from "./member-removal.js";
 import { listMembersIn, updateMemberIn } from "./member-management.js";
 import type { MemberManagementDeps } from "./member-management.js";
 import { createInvitation, markInvitationSharedIn, revokeInvitationIn } from "./invitations.js";
@@ -77,7 +77,11 @@ import type { TenantAdminReadDeps } from "./admin-read.js";
 import type { StaffContext } from "../authz/index.js";
 import { updateEntityQuota } from "./admin-quota.js";
 import { closeEntity } from "./admin-close.js";
-import type { CloseEntityDeps } from "./entity-close.js";
+import { closeEntityForOwnerDeletionIn } from "./entity-close.js";
+import type { CloseEntityDeps, CloseEntityResult } from "./entity-close.js";
+import { abandonDraftIn } from "./empty-draft.js";
+import type { DraftAbandonResult } from "./empty-draft.js";
+import type { CallerMemberRemoval } from "./member-removal.js";
 
 export interface TenantDeps extends Pick<MemberManagementDeps, "readMemberAssetCounts" | "events"> {
   /** 后台关闭使用完整装配与原 timer；旧用例不要求这组依赖。 */
@@ -196,6 +200,18 @@ export interface Tenant {
   ): Promise<MembershipResult>;
 
   // ---------- 在调用方的事务里 ----------
+  abandonDraftIn(tx: Tx, ctx: IdentityContext): Promise<DraftAbandonResult>;
+  removeMemberIn(
+    tx: Tx,
+    ctx: IdentityContext,
+    input: CallerMemberRemoval,
+  ): Promise<MemberRemovalResult>;
+  revokeInvitationIn(
+    tx: Tx,
+    ctx: IdentityContext,
+    input: InvitationRevokeBody & { readonly invitationId: string },
+  ): Promise<InvitationRevokeResult>;
+  closeEntityForOwnerDeletionIn(tx: Tx, ctx: IdentityContext): Promise<CloseEntityResult>;
   /** 建档首页真实成员摘要：同 caller Tx 与业务时间，仅有效主体/门店。 */
   readStoreMembersBrief(
     tx: Tx,
@@ -253,6 +269,17 @@ export function createTenant(deps: TenantDeps): Tenant {
   const acceptInvitation = createInvitationAcceptor(memberDeps);
   const createStore = createStoreCreator(memberDeps);
   return {
+    abandonDraftIn: (tx, ctx) => abandonDraftIn(tx, deps, ctx),
+    removeMemberIn: (tx, ctx, input) => removeCallerMemberIn(tx, deps, ctx, input),
+    revokeInvitationIn: (tx, ctx, input) => revokeInvitationIn(tx, memberDeps, ctx, input),
+    closeEntityForOwnerDeletionIn: (tx, ctx) => {
+      if (!deps.entityClose) throw new AppError("INTERNAL");
+      return closeEntityForOwnerDeletionIn(
+        tx,
+        { ...deps.entityClose, flow, clock: deps.clock },
+        ctx,
+      );
+    },
     closeEntity: (ctx, staff, input, options) =>
       closeEntity(memberDeps, ctx, staff, input, options),
     updateEntityQuota: (ctx, staff, input, options) =>
