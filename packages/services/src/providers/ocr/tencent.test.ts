@@ -6,6 +6,7 @@ import type {
   Server,
   ServerResponse,
 } from "node:http";
+import type { Duplex } from "node:stream";
 import { brotliCompressSync, gzipSync } from "node:zlib";
 import { ocr } from "tencentcloud-sdk-nodejs-ocr";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +35,7 @@ const license = {
 const servers = new Set<Server>();
 const agents = new Set<Agent>();
 const owned = new Set<ReturnType<typeof createTencentOcr>>();
+const handlerFailures: unknown[] = [];
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
@@ -46,6 +48,18 @@ function json(response: ServerResponse, value: unknown) {
   response.end(JSON.stringify({ Response: value }));
 }
 class LoopbackAgent extends Agent {
+  constructor(private readonly port: number) {
+    super({ keepAlive: false });
+  }
+
+  override createConnection(
+    options: RequestOptions,
+    callback?: (error: Error | null, stream: Duplex) => void,
+  ): Duplex | null | undefined {
+    expect(options.host).toBe(OCR_HOST);
+    return super.createConnection({ ...options, host: "127.0.0.1", port: this.port }, callback);
+  }
+
   // 复用生产的真实response首监听，只有目的地/TLS在私有测试边界换成loopback。
   addRequest(request: ClientRequest, options: RequestOptions): void {
     guardOcrRequest(request);
@@ -62,13 +76,20 @@ async function local(
 ) {
   let calls = 0;
   const server = createServer(async (request, response) => {
-    const parts: Buffer[] = [];
-    for await (const part of request) {
-      if (!Buffer.isBuffer(part)) throw new Error("测试请求未使用字节流");
-      parts.push(part);
+    try {
+      const parts: Buffer[] = [];
+      for await (const part of request) {
+        if (!Buffer.isBuffer(part)) throw new Error("测试请求未使用字节流");
+        parts.push(part);
+      }
+      calls += 1;
+      handler({ headers: request.headers, body: Buffer.concat(parts).toString("utf8") }, response);
+    } catch (error) {
+      // 原断言通过afterEach受控回报；结束HTTP使客户端立即退出，不留异步未处理拒绝或等超时。
+      handlerFailures.push(error);
+      response.statusCode = 500;
+      response.end("测试HTTP断言失败");
     }
-    calls += 1;
-    handler({ headers: request.headers, body: Buffer.concat(parts).toString("utf8") }, response);
   });
   servers.add(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -86,7 +107,7 @@ async function local(
       reqTimeout: 6,
     });
     expect(settings.profile?.httpProfile?.agent).toBeInstanceOf(OcrAgent);
-    const agent = new LoopbackAgent({ keepAlive: false });
+    const agent = new LoopbackAgent(address.port);
     agents.add(agent);
     return new ocr.v20181119.Client({
       ...settings,
@@ -95,7 +116,8 @@ async function local(
         httpProfile: {
           ...settings.profile?.httpProfile,
           protocol: "http://",
-          endpoint: `127.0.0.1:${address.port}`,
+          // SDK由endpoint推导service：保持ocr，只有Agent连接目的地换loopback。
+          endpoint: OCR_HOST,
           agent,
         },
       },
@@ -119,6 +141,9 @@ afterEach(async () => {
   }
   servers.clear();
   vi.useRealTimers();
+  const failure = handlerFailures[0];
+  handlerFailures.length = 0;
+  if (failure !== undefined) throw failure;
 });
 
 describe("营业执照官方SDK：真实loopback协议", () => {
@@ -134,6 +159,7 @@ describe("营业执照官方SDK：真实loopback协议", () => {
       expect(headers["x-tc-action"]).toBe("BizLicenseOCR");
       expect(headers["x-tc-version"]).toBe("2018-11-19");
       expect(headers["x-tc-region"]).toBe(config.region);
+      expect(headers.host).toBe(OCR_HOST);
       expect(headers.authorization).toMatch(
         /^TC3-HMAC-SHA256 Credential=AKID_PUBLIC_OCR\/\d{4}-\d{2}-\d{2}\/ocr\/tc3_request, SignedHeaders=content-type;host, Signature=[a-f0-9]{64}$/,
       );
