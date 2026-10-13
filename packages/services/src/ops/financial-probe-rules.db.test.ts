@@ -152,11 +152,19 @@ it("真实退款交易的处理中三日边界、异常升级、终态排除及�
   expect(await h.sample()).toEqual([]);
   h.clock.advance(1);
   expect(await h.sample()).toEqual([
-    { rule: "billing.refund_stuck", severity: "P2", detail: { processing: 1, abnormal: 0 } },
+    {
+      rule: "billing.refund_stuck",
+      severity: "P2",
+      detail: { processing: 1, abnormal: 0, createdFailed: 0 },
+    },
   ]);
   await h.prisma.refundTxn.update({ where: { id: refund.id }, data: { status: "abnormal" } });
   expect(await h.sample()).toEqual([
-    { rule: "billing.refund_stuck", severity: "P1", detail: { processing: 0, abnormal: 1 } },
+    {
+      rule: "billing.refund_stuck",
+      severity: "P1",
+      detail: { processing: 0, abnormal: 1, createdFailed: 0 },
+    },
   ]);
   for (const status of ["closed", "not_accepted", "abandoned", "succeeded"]) {
     await h.prisma.refundTxn.update({
@@ -171,4 +179,140 @@ it("真实退款交易的处理中三日边界、异常升级、终态排除及�
     },
   };
   await expect(financialProbeRules(noRows)[0]!.sample(now)).rejects.toThrow();
+});
+
+it("created退款有失败码严格超过一小时才报，重试重新计时、终态排除及原级别合并且采样零写", async () => {
+  const h = await setup();
+  const staff = await h.make.staff(),
+    reviewer = await h.make.staff();
+  async function refund(status: "created" | "processing" | "abnormal") {
+    const now = h.clock.now(),
+      order = await h.make.billingOrder(),
+      approvalId = uuidv7(),
+      requestId = uuidv7();
+    await h.prisma.approvalRequest.create({
+      data: {
+        id: approvalId,
+        requestNo: `TK${approvalId.replaceAll("-", "")}`,
+        kind: "plan_refund",
+        category: "approval",
+        subjectType: "billing_order",
+        subjectId: order.id,
+        entityId: order.entityId,
+        status: "approved",
+        summarySnapshot: { title: "退款失败超时观测夹具" },
+        requesterStaffId: staff.id,
+        submitActorType: "staff",
+        submitActorId: staff.id,
+        submitClient: "admin",
+        submittedAt: now,
+        decidedAt: now,
+        decidedByStaffId: reviewer.id,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    await h.prisma.refundRequest.create({
+      data: {
+        id: requestId,
+        approvalRequestId: approvalId,
+        source: "customer_service",
+        entityId: order.entityId,
+        billingOrderId: order.id,
+        paymentTxnId: order.paidPaymentTxnId!,
+        baseAmountFen: order.amountFen,
+        amountFen: order.amountFen,
+        breakdownSnapshot: {},
+        ruleCode: "window",
+        ruleText: "测试退款",
+        reasonCode: "other",
+        status: "executing",
+        execRoute: "wechat_original",
+        executedByStaffId: reviewer.id,
+        executedAt: now,
+        execDueAt: now,
+        slaSnapshot: {},
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    return h.prisma.refundTxn.create({
+      data: {
+        id: uuidv7(),
+        entityId: order.entityId,
+        refundRequestId: requestId,
+        billingOrderId: order.id,
+        paymentTxnId: order.paidPaymentTxnId!,
+        channel: "wechat_jsapi",
+        origin: "system",
+        outRefundNo: uuidv7().replaceAll("-", ""),
+        amountFen: order.amountFen,
+        status,
+        failCode: status === "created" ? "NOT_ENOUGH" : null,
+        lastSubmitAt: new Date(
+          now.getTime() - (status === "processing" ? 3 * 86_400_000 + 1 : 3_600_000),
+        ),
+        submitCount: 1,
+        createdAt: new Date(now.getTime() - (status === "processing" ? 4 * 86_400_000 : 7_200_000)),
+        updatedAt: now,
+        lastQueriedAt: now,
+      },
+    });
+  }
+  const created = await refund("created");
+  const update = (data: Parameters<typeof h.prisma.refundTxn.update>[0]["data"]) =>
+    h.prisma.refundTxn.update({ where: { id: created.id }, data });
+  const stuck = (processing = 0, abnormal = 0) => [
+    {
+      rule: "billing.refund_stuck",
+      severity: abnormal > 0 ? "P1" : "P2",
+      detail: { processing, abnormal, createdFailed: 1 },
+    },
+  ];
+  expect(await h.sample()).toEqual([]); // 最近提交恰好一小时，旧创建时间不提前触发。
+  h.clock.advance(1);
+  expect(await h.sample()).toEqual(stuck());
+  for (const failCode of [null, ""]) {
+    await update({ failCode });
+    expect(await h.sample()).toEqual([]);
+  }
+  await update({ failCode: "NOT_ENOUGH" });
+  for (const status of ["closed", "not_accepted", "abandoned", "succeeded"]) {
+    await update({ status, successAt: status === "succeeded" ? h.clock.now() : null });
+    expect(await h.sample()).toEqual([]);
+  }
+  await update({
+    status: "created",
+    successAt: null,
+    lastSubmitAt: h.clock.now(),
+    submitCount: 2,
+  });
+  expect(await h.sample()).toEqual([]);
+  h.clock.advance(3_600_000);
+  expect(await h.sample()).toEqual([]);
+  h.clock.advance(1);
+  expect(await h.sample()).toEqual(stuck());
+  expect(
+    (await h.prisma.refundTxn.findUniqueOrThrow({ where: { id: created.id } })).outRefundNo,
+  ).toBe(created.outRefundNo);
+  await update({ lastSubmitAt: null, updatedAt: h.clock.now(), lastQueriedAt: h.clock.now() });
+  expect(await h.sample()).toEqual(stuck()); // 缺提交时间回退创建；更新/查询不推迟告警。
+
+  await refund("processing");
+  expect(await h.sample()).toEqual(stuck(1));
+  await refund("abnormal");
+  const snapshot = () =>
+    Promise.all([
+      h.prisma.refundTxn.findMany({ orderBy: { id: "asc" } }),
+      h.prisma.refundRequest.findMany({ orderBy: { id: "asc" } }),
+      h.prisma.paymentTxn.findMany({ orderBy: { id: "asc" } }),
+      h.prisma.billingOrder.findMany({ orderBy: { id: "asc" } }),
+      h.prisma.approvalRequest.findMany({ orderBy: { id: "asc" } }),
+      h.prisma.auditLog.count(),
+      h.prisma.outboxEvent.count(),
+      h.prisma.alertEvent.count(),
+    ]);
+  const before = await snapshot();
+  expect(await h.sample()).toEqual(stuck(1, 1));
+  expect(await snapshot()).toEqual(before);
 });
