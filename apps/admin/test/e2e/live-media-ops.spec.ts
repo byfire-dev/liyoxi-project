@@ -65,9 +65,70 @@ async function confirm(page: Page, title: string, fileId?: string) {
   await expect(button).toBeEnabled();
   return button;
 }
-function assertWire(result: Response, body: object) {
-  expect(result.request().postDataJSON()).toEqual(body);
-  expect(result.request().headers()["idempotency-key"]).toMatch(/^[A-Za-z0-9:_-]{1,128}$/);
+type WirePost = { path: string; body: string; key: string | null };
+async function observeWire(page: Page, paths: string[]) {
+  await page.evaluate(
+    (allowed) => {
+      const nativeFetch = globalThis.fetch,
+        records: WirePost[] = [],
+        pending: Promise<void>[] = [];
+      let overflow = false;
+      const state = globalThis as typeof globalThis & { __w308Wire(): Promise<WirePost[]> };
+      state.__w308Wire = async () => {
+        await Promise.all(pending);
+        if (overflow) throw new Error("W308请求观察超出限定边界");
+        return records;
+      };
+      globalThis.fetch = (input, init) => {
+        if (
+          !(input instanceof Request) ||
+          input.method !== "POST" ||
+          !allowed.includes(new URL(input.url).pathname)
+        )
+          return nativeFetch(input, init);
+        if (pending.length >= 8) {
+          overflow = true;
+          return nativeFetch(input, init);
+        }
+        const copy = input.clone(),
+          path = new URL(input.url).pathname,
+          key = input.headers.get("Idempotency-Key");
+        // 和既有W223一致：原流立即原样外发，只读副本异步核对，不改变请求或响应。
+        const result = nativeFetch(input, init);
+        pending.push(
+          copy
+            .text()
+            .then((body) => {
+              records.push({ path, body, key });
+            })
+            .catch(() => {
+              overflow = true;
+            }),
+        );
+        return result;
+      };
+    },
+    paths.map((path) => `/api/v1/admin/${path}`),
+  );
+}
+async function assertWire(page: Page, result: Response, body: object) {
+  const path = new URL(result.url()).pathname;
+  const records = (
+    await page.evaluate(() =>
+      (globalThis as typeof globalThis & { __w308Wire(): Promise<WirePost[]> }).__w308Wire(),
+    )
+  ).filter((record) => record.path === path);
+  expect(records).toHaveLength(1);
+  expect(records[0]!.body).toBe(JSON.stringify(body));
+  expect(records[0]!.key).toMatch(/^[A-Za-z0-9:_-]{1,128}$/);
+  expect(result.request().headers()["idempotency-key"]).toBe(records[0]!.key);
+}
+async function auditCount(page: Page, fileId: string) {
+  const result = await page.request.get(
+    `/api/v1/admin/audit-logs?stream=ops&category=system_ops&targetType=file_object&targetId=${fileId}`,
+  );
+  expect(result.status()).toBe(200);
+  return (await result.json()).data.totalApprox as number;
 }
 function consoleEvidence(page: Page) {
   const errors: { text: string; url?: string }[] = [],
@@ -176,6 +237,11 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
     rejected = f.runs.find((item) => item.label === "reject")!,
     conflict = f.runs.find((item) => item.label === "conflict")!;
   await page.goto("/sys/file-purges");
+  await observeWire(page, [
+    `purge-runs/${approved.purgeRunId}/approve`,
+    `purge-runs/${rejected.purgeRunId}/reject`,
+    `purge-runs/${conflict.purgeRunId}/approve`,
+  ]);
   await expect(row(page, rejected.purgeRunId)).toContainText("已熔断");
   await row(page, rejected.purgeRunId).click();
   await expect(page).toHaveURL(new RegExp(`purgeRunId=${rejected.purgeRunId}`));
@@ -201,7 +267,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   await approveButton.click();
   const approvedResult = await approvedResponse;
   expect(approvedResult.status()).toBe(200);
-  assertWire(approvedResult, {
+  await assertWire(page, approvedResult, {
     confirm: { candidateCount: 1, candidateBytes: "8" },
     note: "隔离验收放行本次候选清单",
   });
@@ -228,7 +294,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   await rejectButton.click();
   const rejectedResult = await rejectedResponse;
   expect(rejectedResult.status()).toBe(200);
-  assertWire(rejectedResult, { reason: "隔离验收驳回候选清单" });
+  await assertWire(page, rejectedResult, { reason: "隔离验收驳回候选清单" });
   expect((await rejectedResult.json()).data.state).toBe("rejected");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect((await files(page, [rejected.fileId]))[0]).toMatchObject({
@@ -257,7 +323,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   errors.assert();
 });
 
-test("W308 版本IO未支持保持真实503与窗口守卫，failed任务真实重试queued、只读员工无危险动作", async ({
+test("W308 恢复未支持保持503、彻删按Provider事实与窗口守卫，failed任务真实重试queued、只读员工无危险动作", async ({
   page,
   browser,
 }) => {
@@ -267,6 +333,7 @@ test("W308 版本IO未支持保持真实503与窗口守卫，failed任务真实�
     available = f.deleted.find((item) => item.label === "available")!,
     expired = f.deleted.find((item) => item.label === "expired")!;
   await page.goto("/sys/file-purges?tab=files&q=W308-");
+  await observeWire(page, [`files/${available.fileId}/restore`, `files/${available.fileId}/erase`]);
   await expect(row(page, available.fileId)).toContainText("已清除");
   await expect(
     row(page, expired.fileId).getByRole("button", { name: "恢复", exact: true }),
@@ -277,24 +344,51 @@ test("W308 版本IO未支持保持真实503与窗口守卫，failed任务真实�
   expect(closed.status()).toBe(409);
   expect((await closed.json()).error).toBe("FILE_RESTORE_WINDOW_PASSED");
   const original = await files(page, [available.fileId, expired.fileId]);
-  for (const [action, title] of [
-    ["restore", "恢复"],
-    ["erase", "彻底删除"],
-  ] as const) {
-    await row(page, available.fileId).getByRole("button", { name: title, exact: true }).click();
-    await page.getByLabel("原因（必填）").fill("隔离验收未支持版本操作保持原事实");
-    const button = await confirm(page, title, action === "erase" ? available.fileId : undefined),
-      pending = response(page, `files/${available.fileId}/${action}`);
-    await button.click();
-    const result = await pending;
-    errors.allow(result, 503);
-    expect((await result.json()).error).toBe("PROVIDER_UNAVAILABLE");
-    await expect(page.getByRole("dialog", { name: title, exact: true })).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    expect(await files(page, [available.fileId, expired.fileId])).toEqual(original);
-  }
+  await row(page, available.fileId).getByRole("button", { name: "恢复", exact: true }).click();
+  await page.getByLabel("原因（必填）").fill("隔离验收未支持恢复保持原事实");
+  const restoreButton = await confirm(page, "恢复"),
+    restorePending = response(page, `files/${available.fileId}/restore`);
+  await restoreButton.click();
+  const restored = await restorePending;
+  errors.allow(restored, 503);
+  expect((await restored.json()).error).toBe("PROVIDER_UNAVAILABLE");
+  await assertWire(page, restored, { reason: "隔离验收未支持恢复保持原事实" });
+  await expect(page.getByRole("dialog", { name: "恢复", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await files(page, [available.fileId, expired.fileId])).toEqual(original);
+
+  // 实际MinIO支持枚举/彻删并核HEAD404；本虚构对象未写入桶，不冒充历史版本演练。
+  const beforeAudit = await auditCount(page, available.fileId);
+  await row(page, available.fileId).getByRole("button", { name: "彻底删除", exact: true }).click();
+  await page.getByLabel("原因（必填）").fill("隔离验收彻删本轮虚构对象");
+  const eraseButton = await confirm(page, "彻底删除", available.fileId),
+    erasePending = response(page, `files/${available.fileId}/erase`);
+  await eraseButton.click();
+  const erased = await erasePending;
+  expect(erased.status()).toBe(200);
+  await assertWire(page, erased, {
+    reason: "隔离验收彻删本轮虚构对象",
+    confirm: { fileId: available.fileId, category: "poster" },
+  });
+  const erasedData = AdminFilePageSchema.shape.items.element.parse((await erased.json()).data);
+  expect(erasedData).toMatchObject({
+    fileId: available.fileId,
+    status: "deleted",
+    originalName: null,
+    restorableUntil: null,
+    deletedAt: original.find((file) => file.fileId === available.fileId)!.deletedAt,
+  });
+  expect(erasedData.erasedAt).not.toBeNull();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await auditCount(page, available.fileId)).toBe(beforeAudit + 1);
+  const afterGovernance = await files(page, [available.fileId, expired.fileId]);
+  expect(afterGovernance.find((file) => file.fileId === available.fileId)).toEqual(erasedData);
+  expect(afterGovernance.find((file) => file.fileId === expired.fileId)).toEqual(
+    original.find((file) => file.fileId === expired.fileId),
+  );
   await page.goto(`/sys/flow-ops?tab=media&subjectType=file_object&subjectId=${f.job.fileId}`);
+  await observeWire(page, [`media-jobs/${f.job.mediaJobId}/retry`]);
   await expect(page.getByRole("tab", { name: "媒体任务", exact: true })).toBeVisible();
   await expect(row(page, f.job.mediaJobId)).toContainText("CI_IMAGE_UNAVAILABLE");
   expect(await page.content()).not.toContain("W308_PRIVATE_UPSTREAM_DETAIL");
@@ -306,7 +400,7 @@ test("W308 版本IO未支持保持真实503与窗口守卫，failed任务真实�
   await retryButton.click();
   const retried = await pending;
   expect(retried.status()).toBe(200);
-  assertWire(retried, { note: "隔离验收重试真实媒体任务" });
+  await assertWire(page, retried, { note: "隔离验收重试真实媒体任务" });
   expect((await retried.json()).data).toMatchObject({
     mediaJobId: f.job.mediaJobId,
     state: "queued",
@@ -365,7 +459,7 @@ test("W308 版本IO未支持保持真实503与窗口守卫，failed任务真实�
       expect(denied.status()).toBe(403);
       expect((await denied.json()).error).toBe("PERMISSION_DENIED");
     }
-    expect(await files(page, [available.fileId, expired.fileId])).toEqual(original);
+    expect(await files(page, [available.fileId, expired.fileId])).toEqual(afterGovernance);
     expect((await jobs(page, f.job.fileId))[0]?.state).toBe("queued");
     viewerErrors.assert();
   } finally {
