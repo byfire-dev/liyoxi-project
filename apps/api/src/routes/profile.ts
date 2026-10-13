@@ -13,6 +13,8 @@ import {
   mStoreProfileQualificationSubmit,
   mQualificationDocCreate,
   mQualificationDocUpdate,
+  mQualificationSubmissionList,
+  mQualificationDocDownloadUrls,
   StoreProfileOverviewOwnerSchema,
   StoreProfileOverviewClerkSchema,
   StoreProfileBasicOwnerSchema,
@@ -173,4 +175,26 @@ export const profileHandlers = [
       ),
     ),
   ),
+  defineHandler(mQualificationSubmissionList, async (c) => {
+    noStore(c);
+    return ok(
+      c,
+      mQualificationSubmissionList.responses[200].content[
+        "application/json"
+      ].schema.shape.data.parse(
+        await profileOf(c).qualificationHistory(viewerOf(c), c.req.valid("query")),
+      ),
+    );
+  }),
+  defineHandler(mQualificationDocDownloadUrls, async (c) => {
+    noStore(c);
+    return ok(
+      c,
+      mQualificationDocDownloadUrls.responses[200].content[
+        "application/json"
+      ].schema.shape.data.parse(
+        await profileOf(c).documentUrl(viewerOf(c), c.req.valid("param").qualificationDocId),
+      ),
+    );
+  }),
 ];

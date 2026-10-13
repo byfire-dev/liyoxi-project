@@ -22,6 +22,7 @@ export * from "./profile.schemas.js";
 export * from "./qualification.schemas.js";
 export * from "./store-profile.js";
 export * from "./qualification-docs.js";
+export * from "./qualification-submissions.js";
 
 export * from "./store-assets.schemas.js";
 

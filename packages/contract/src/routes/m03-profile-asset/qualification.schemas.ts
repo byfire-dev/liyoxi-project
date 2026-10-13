@@ -193,3 +193,26 @@ export type ContactPatch = z.infer<typeof ContactPatchSchema>;
 export type QualificationSubmitBody = z.infer<typeof QualificationSubmitBodySchema>;
 export type QualificationDocCreateBody = z.infer<typeof QualificationDocCreateBodySchema>;
 export type QualificationDocPatch = z.infer<typeof QualificationDocPatchSchema>;
+
+export const QualificationRecordSchema = QualificationRoundSchema.pick({
+  qualificationSubmissionId: true,
+  kind: true,
+  isResubmit: true,
+  changedFields: true,
+  outcome: true,
+  decidedAt: true,
+  isDecidedBySystem: true,
+  rejectReasons: true,
+  decisionNote: true,
+  systemRejectCode: true,
+  finalRejectedAt: true,
+})
+  .extend({
+    roundNo: z.int().positive(),
+    submittedAt: InstantSchema,
+    uploadedDocs: z.array(QualificationDocSchema.pick({ docType: true, permitType: true })),
+    rejectedDocs: z.array(
+      QualificationDocSchema.pick({ qualificationDocId: true, docType: true, permitType: true }),
+    ),
+  })
+  .openapi("QualificationRecord");

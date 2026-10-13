@@ -32,6 +32,8 @@ import {
   serviceView,
 } from "./views.js";
 import { saveBasic, saveContact, saveMedia, saveService } from "./write.js";
+import { qualificationRecords, qualificationDocumentUrl } from "./qualification-read.js";
+import type { CursorQuerySchema, z } from "@liyoxi/contract";
 
 export function createProfile(deps: ProfileDeps) {
   const read = async <T>(
@@ -110,6 +112,9 @@ export function createProfile(deps: ProfileDeps) {
     media: (viewer: ProfileViewer) => read(viewer, mediaView),
     service: (viewer: ProfileViewer) => read(viewer, serviceView),
     qualification: (viewer: ProfileViewer) => deps.tx.run((tx) => qview(tx, viewer)),
+    qualificationHistory: (viewer: ProfileViewer, query: z.input<typeof CursorQuerySchema>) =>
+      deps.tx.run((tx) => qualificationRecords(tx, deps, viewer, query)),
+    documentUrl: (viewer: ProfileViewer, id: string) => qualificationDocumentUrl(deps, viewer, id),
     async updateBasic(
       viewer: ProfileViewer,
       input: StoreProfileBasicPatch,
