@@ -62,6 +62,12 @@ export * from "./asset-demands.js";
 export * from "./entities.schemas.js";
 export * from "./entity-quota.schemas.js";
 export * from "./entity-close.schemas.js";
+export * from "./merchant-users.schemas.js";
+export {
+  adminMerchantUserDisable,
+  adminMerchantUserEnable,
+  adminMerchantUserForceLogout,
+} from "./merchant-users.js";
 export {
   adminEntityGet,
   adminEntityMemberList,

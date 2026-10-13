@@ -17,6 +17,7 @@ import type {
   PendingConsent,
   PhoneLoginResult,
   SilentLoginResult,
+  MerchantUserStatusView,
 } from "@liyoxi/contract";
 import { maskName } from "@liyoxi/shared/mask";
 
@@ -50,6 +51,14 @@ import {
 import { createSmsCode, changePhone } from "./phone-change.js";
 import type { PhoneChangeDeps } from "./phone-change.js";
 import { deleteAccount } from "./account-deletion.js";
+import { adminUserAction } from "./admin-user-actions.js";
+import type {
+  AdminUserAction,
+  AdminUserActionInput,
+  AdminUserActionOptions,
+} from "./admin-user-actions.js";
+import type { StaffContext } from "../authz/index.js";
+import type { IdentityContext } from "../kernel/index.js";
 
 export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"> {
   readonly wechat:
@@ -63,6 +72,13 @@ export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"
 }
 
 export interface Identity {
+  adminUserAction(
+    ctx: IdentityContext,
+    staff: StaffContext,
+    op: AdminUserAction,
+    input: AdminUserActionInput,
+    options: AdminUserActionOptions,
+  ): Promise<MerchantUserStatusView>;
   deleteAccount(
     principal: SessionPrincipal,
     meta: RequestMeta,
@@ -168,6 +184,8 @@ export function createIdentity(deps: IdentityDeps): Identity {
     reconsent: (principal, meta, input, options) =>
       reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
+    adminUserAction: (ctx, staff, op, input, options) =>
+      adminUserAction(deps, ctx, staff, op, input, options),
     updateMe: (principal, meta, input, options) => updateMe(deps, principal, meta, input, options),
     acknowledgeUserNotice: (principal, meta, input, options) =>
       acknowledgeUserNotice(deps, principal, meta, input, options),
