@@ -416,7 +416,11 @@ describe("W2-11联系人验证与人工资质复核", { timeout: 60000 }, () => 
       where: { targetId: w.docId, action: "profile.document.correct" },
     });
     expect(audits).toHaveLength(1);
-    expect(JSON.stringify(audits)).not.toContain("李测试");
+    expect(
+      JSON.stringify(audits, (_key, value) =>
+        typeof value === "bigint" ? value.toString() : value,
+      ),
+    ).not.toContain("李测试");
   });
 
   it("真实既存OCR比对失败拦normal，corrected清错或super_admin理由放行，事件审计幂等一次", async () => {
