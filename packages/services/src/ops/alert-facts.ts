@@ -58,13 +58,28 @@ export async function writeAlertFact(
   input: AlertInput,
   kind: "event" | "probe",
   at: Date,
+  sampledFor?: Date,
 ): Promise<void> {
   const key = fingerprint(input);
   if (kind !== "event" && kind !== "probe") throw new TypeError("告警类型不合法");
+  if (sampledFor) {
+    // 正常恢复与迟到越限在同一历史行上互斥；resolved不再受部分唯一索引保护。
+    // 下一语句使用新的READ COMMITTED快照再查所有历史，兼顾等待期间新建的活动行。
+    await tx.$queryRawUnsafe(
+      `SELECT id FROM alert_event WHERE fingerprint=$1
+        ORDER BY last_value->>'_sampledFor' DESC NULLS LAST, created_at DESC, id DESC
+        LIMIT 1 FOR UPDATE`,
+      key,
+    );
+  }
   await tx.$executeRawUnsafe(
     `INSERT INTO alert_event
       (id,fingerprint,rule,severity,kind,status,first_seen_at,last_seen_at,last_value,created_at,updated_at)
-      VALUES ($1::uuid,$2,$3,$4,$5,'open',$6,$6,$7::jsonb,$6,$6)
+      SELECT $1::uuid,$2,$3,$4,$5,'open',$6,$6,$7::jsonb,$6,$6
+      WHERE $8::text IS NULL OR NOT EXISTS (
+        SELECT 1 FROM alert_event history WHERE history.fingerprint=$2
+          AND history.last_value->>'_sampledFor' >= $8::text
+      )
       ON CONFLICT (fingerprint) WHERE status IN ('open','acked') DO UPDATE
       SET severity=LEAST(alert_event.severity,EXCLUDED.severity),
         last_seen_at=EXCLUDED.last_seen_at,occurrences=alert_event.occurrences+1,
@@ -73,14 +88,44 @@ export async function writeAlertFact(
           || CASE WHEN alert_event.last_value ? '_notifiedSeverity'
             THEN jsonb_build_object('_notifiedSeverity',alert_event.last_value->>'_notifiedSeverity') ELSE '{}'::jsonb END
           || CASE WHEN alert_event.last_value ? '_robotFailures'
-            THEN jsonb_build_object('_robotFailures',alert_event.last_value->'_robotFailures') ELSE '{}'::jsonb END`,
+            THEN jsonb_build_object('_robotFailures',alert_event.last_value->'_robotFailures') ELSE '{}'::jsonb END
+      WHERE $8::text IS NULL OR alert_event.last_value->>'_sampledFor' IS NULL
+        OR alert_event.last_value->>'_sampledFor' < $8::text`,
     uuidv7(),
     key,
     input.rule,
     input.severity,
     kind,
     at,
-    JSON.stringify(safeAlertDetail(input.detail)),
+    JSON.stringify({
+      ...safeAlertDetail(input.detail),
+      ...(sampledFor ? { _sampledFor: sampledFor.toISOString() } : {}),
+    }),
+    sampledFor?.toISOString() ?? null,
+  );
+}
+
+/** 正常探针只推进已有未恢复事实；每一期至多一次，三次不同的正常观测才恢复。
+ * 与越限复用同一 writer/指纹，保留发生时刻、认领人与通知事实；旧样本不能覆盖新观测。
+ */
+export async function writeHealthyProbeFact(
+  tx: Tx,
+  input: Pick<AlertInput, "rule" | "dimension">,
+  at: Date,
+  sampledFor: Date,
+): Promise<void> {
+  const key = fingerprint({ ...input, severity: "P3", detail: {} });
+  await tx.$executeRawUnsafe(
+    `UPDATE alert_event SET ok_streak=ok_streak+1,
+      status=CASE WHEN ok_streak>=2 THEN 'resolved' ELSE status END,
+      resolved_at=CASE WHEN ok_streak>=2 THEN $2::timestamptz ELSE resolved_at END,
+      last_value=COALESCE(last_value,'{}'::jsonb)||jsonb_build_object('_sampledFor',$3::text),
+      updated_at=$2::timestamptz
+      WHERE fingerprint=$1 AND kind='probe' AND status IN ('open','acked')
+        AND (last_value->>'_sampledFor' IS NULL OR last_value->>'_sampledFor' < $3::text)`,
+    key,
+    at,
+    sampledFor.toISOString(),
   );
 }
 
