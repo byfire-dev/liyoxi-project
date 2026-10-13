@@ -4,7 +4,7 @@ import {
   StaffBriefSchema,
   z,
 } from "@liyoxi/contract";
-import type { operations, components } from "@liyoxi/contract/types/admin";
+import type { operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { accessResult } from "../../system/staff-access";
 
@@ -20,7 +20,9 @@ export type ReferralRow = z.output<typeof RowRead>;
 export type ReferralQuery = NonNullable<
   operations["admin.referralCode.list"]["parameters"]["query"]
 >;
-export type ReferralBody = components["schemas"]["ReferralCodeCreateBody"];
+export type ReferralBody = NonNullable<
+  operations["admin.referralCode.create"]["requestBody"]
+>["content"]["application/json"];
 function read<T>(
   schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } },
   value: unknown,
