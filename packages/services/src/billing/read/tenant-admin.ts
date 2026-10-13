@@ -9,7 +9,7 @@ export interface TenantAdminBillingFacts {
   readonly spendablePoints: number;
 }
 
-async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Promise<string> {
+export async function paymentTitle(tx: Tx, type: string, snapshot: unknown): Promise<string> {
   const parsed = billingOrderContentSchema.safeParse(snapshot);
   const kinds: Readonly<Record<string, string>> = {
     plan_new: "plan",
