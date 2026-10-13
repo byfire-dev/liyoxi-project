@@ -5,6 +5,7 @@ import {
   InstantSchema,
   PageQuerySchema,
   openEnum,
+  orNull,
 } from "../../common/index.js";
 import { BILLING_PARAM_KEY, HEAT_TIER } from "../../enums/index.js";
 import { BILLING_PARAM_VALUES } from "../../billing/params.js";
@@ -75,7 +76,7 @@ export const BillingParamViewSchema = z
       value,
       effectiveAt: InstantSchema,
       changeId: IdSchema,
-      createdBy: StaffBriefSchema.nullable(),
+      createdBy: orNull(StaffBriefSchema),
     }),
     pending: z
       .object({
@@ -84,7 +85,7 @@ export const BillingParamViewSchema = z
         effectiveAt: InstantSchema,
         changeId: IdSchema,
         siteNoticeId: IdSchema.nullable(),
-        createdBy: StaffBriefSchema.nullable(),
+        createdBy: orNull(StaffBriefSchema),
       })
       .nullable(),
     actions: z.array(z.literal("withdraw")),
@@ -116,7 +117,7 @@ export const PricingChangeRecordSchema = z
   .object({
     changeSetId: IdSchema,
     createdAt: InstantSchema,
-    createdBy: StaffBriefSchema.nullable(),
+    createdBy: orNull(StaffBriefSchema),
     note: z.string().nullable(),
     tierItems: z.array(
       z.object({

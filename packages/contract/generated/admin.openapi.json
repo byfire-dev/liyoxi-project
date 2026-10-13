@@ -7136,15 +7136,12 @@
                 "type": "string"
               },
               "createdBy": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/StaffBrief"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -7253,15 +7250,12 @@
                 "type": "string"
               },
               "createdBy": {
-                "allOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/StaffBrief"
                   },
                   {
-                    "type": [
-                      "object",
-                      "null"
-                    ]
+                    "type": "null"
                   }
                 ]
               },
@@ -20216,15 +20210,12 @@
             "type": "string"
           },
           "createdBy": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/StaffBrief"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },

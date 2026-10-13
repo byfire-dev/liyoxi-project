@@ -4670,7 +4670,7 @@ export interface components {
                 billingParamId: string;
                 /** Format: uuid */
                 changeId: string;
-                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                createdBy: components["schemas"]["StaffBrief"] | null;
                 /** Format: date-time */
                 effectiveAt: string;
                 value: number | number[] | {
@@ -4688,7 +4688,7 @@ export interface components {
                 billingParamId: string;
                 /** Format: uuid */
                 changeId: string;
-                createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                createdBy: components["schemas"]["StaffBrief"] | null;
                 /** Format: date-time */
                 effectiveAt: string;
                 /** Format: uuid */
@@ -7169,7 +7169,7 @@ export interface components {
             changeSetId: string;
             /** Format: date-time */
             createdAt: string;
-            createdBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            createdBy: components["schemas"]["StaffBrief"] | null;
             note: string | null;
             notice: {
                 /** Format: date-time */
