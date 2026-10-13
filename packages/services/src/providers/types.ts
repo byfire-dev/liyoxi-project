@@ -758,6 +758,10 @@ export interface BusinessLicenseFields {
   uscc: string;
   /** 法定代表人、经营者或负责人 */
   principal: string;
+  principalRole?: "legal_rep" | "operator" | "branch_head";
+  businessScope?: string;
+  /** 官方原始响应JSON，仅供加密短期留证；不进入API识别字段或日志。 */
+  raw?: string;
   address?: string;
   /** 只从实际识别类型映射；未知不推断企业/个体，也不据此通过比对。 */
   subjectType?: "enterprise" | "individual" | "branch" | "unknown";

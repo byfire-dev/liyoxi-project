@@ -12,6 +12,9 @@ import { draftPreconditions, ensureDraft, linkCarried } from "./draft.js";
 import { ensureProfile, permitSpec, refreshCompleteness, submittedFields } from "./repo.js";
 import { assertVersion, invalid, lockFiles, newCode, newFile } from "./validate.js";
 import { docView } from "./views.js";
+import { readQualificationRecognition } from "../media/index.js";
+import { assertRecognitionIntent, entityTypeCheck } from "./recognition.js";
+import type { RecognitionIntent } from "./recognition.js";
 
 const LICENSE_KEYS = [
   "name",
@@ -81,8 +84,9 @@ export async function createDoc(
   deps: ProfileDeps,
   viewer: ProfileViewer,
   input: QualificationDocCreateBody,
+  recognition?: { ocrResultId: string | null; intent: RecognitionIntent },
 ) {
-  const { round, carried } = await ensureDraft(tx, deps, viewer);
+  const { round, carried, created } = await ensureDraft(tx, deps, viewer);
   await docPrecheck(tx, viewer, input);
   const now = deps.clock.now(),
     { storeId, entityId } = viewer.membership;
@@ -96,6 +100,8 @@ export async function createDoc(
     },
   });
   await lockFiles(tx, [input.fileId, old?.fileId, ...carried.map((d) => d.fileId)]);
+  if (recognition)
+    await assertRecognitionIntent(tx, viewer, input, recognition.intent, round, created);
   await linkCarried(tx, deps, viewer, carried);
   if (old) {
     await tx.qualificationDoc.update({
@@ -122,12 +128,21 @@ export async function createDoc(
       permitType: input.permitType ?? null,
       scope: input.docType === "business_license" ? "entity" : "store",
       fileId: input.fileId,
+      ocrResultId: recognition?.ocrResultId ?? null,
       origin: "uploaded",
       uploadedByUserId: viewer.principal.merchantUserId,
       createdAt: now,
       updatedAt: now,
     },
   });
+  const actual = await readQualificationRecognition(tx, deps.keyring(), doc);
+  const fields = actual.status === "ok" ? actual.fields : null;
+  const current = fields
+    ? await tx.qualificationDoc.update({
+        where: { id: doc.id },
+        data: await derived(tx, deps, doc, fields, false, true),
+      })
+    : doc;
   await deps.media.link(tx, {
     fileId: doc.fileId,
     refType: "qualification_doc",
@@ -154,10 +169,10 @@ export async function createDoc(
   return {
     qualificationSubmissionId: round.id,
     lockVersion: updated.lockVersion,
-    doc: await docView(tx, deps.keyring(), now, doc),
-    recognized: null,
-    submitted: null,
-    entityTypeCheck: null,
+    doc: await docView(tx, deps.keyring(), now, current),
+    recognized: fields,
+    submitted: fields,
+    entityTypeCheck: entityTypeCheck(fields, round.claimedEntityType),
     replayed: false,
   };
 }
@@ -168,6 +183,7 @@ export async function derived(
   doc: QualificationDoc,
   fields: Record<string, string>,
   reviewed = false,
+  recognized = false,
 ) {
   const permit = doc.docType === "industry_permit" ? await permitSpec(tx, doc.permitType!) : null;
   const allowed = permit ? permit.fields.map((f) => f.key) : LICENSE_KEYS;
@@ -176,7 +192,8 @@ export async function derived(
   if (Object.values(fields).some((value) => [...value].length > 2000))
     throw invalid("证照字段过长");
   if (!permit) {
-    if (fields["uscc"] && !validUscc(fields["uscc"])) throw invalid("信用代码格式或校验位不符");
+    if (!recognized && fields["uscc"] && !validUscc(fields["uscc"]))
+      throw invalid("信用代码格式或校验位不符");
     if (
       fields["principalRole"] &&
       !["legal_rep", "operator", "branch_head"].includes(fields["principalRole"])
