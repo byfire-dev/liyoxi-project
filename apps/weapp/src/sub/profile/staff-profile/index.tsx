@@ -2,13 +2,11 @@ import { View } from "@tarojs/components";
 import { Card } from "@/components/Card";
 import { Empty } from "@/components/Empty";
 import { Button } from "@/components/Button";
-import { useContextStore } from "@/stores/context";
 import { Frame, useTenantRead } from "../../member/members/view";
 import { tenantNavigate } from "../../member/members/runtime";
 import { selfProfile } from "./model";
 export default function StaffProfile() {
-  const storeId = useContextStore((s) => s.currentStoreId);
-  const read = useTenantRead(async (api) => {
+  const read = useTenantRead(async (api, storeId) => {
     const me = await api.me(),
       self = selfProfile(me, storeId);
     if (!self) return null;

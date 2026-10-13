@@ -109,7 +109,11 @@ export default function Cert() {
       ...(checked ? { declarationVersion: owner.declaration.currentVersion } : {}),
     };
     void action
-      .run(body, (key) => profileRuntime().then(({ api }) => api.saveQualification(body, key)))
+      .run(body, async (key) => {
+        const { api } = await profileRuntime();
+        if (!action.isCurrent(context)) return;
+        return api.saveQualification(body, key);
+      })
       .then((value) => {
         if (!value || !sameDeclaration(context, key)) return;
         if (
@@ -191,10 +195,9 @@ export default function Cert() {
                       content: "变更内容需要重新审核；审核通过前继续使用当前有效资质",
                     });
                     if (!yes.confirm || !action.isCurrent(context)) return;
-                    return (await profileRuntime()).api.saveQualification(
-                      { lockVersion: null },
-                      key,
-                    );
+                    const { api } = await profileRuntime();
+                    if (!action.isCurrent(context)) return;
+                    return api.saveQualification({ lockVersion: null }, key);
                   })
                   .then(async (value) => {
                     if (value && action.isCurrent(context)) await load();
@@ -224,14 +227,17 @@ export default function Cert() {
                     }
                     disabled={!editable || action.busy || authorizing}
                     onChange={() => {
+                      const context = profileContext();
                       const body = {
                         lockVersion: round?.lockVersion ?? null,
                         claimedEntityType: value,
                       };
                       void action
-                        .run(body, (key) =>
-                          profileRuntime().then(({ api }) => api.saveQualification(body, key)),
-                        )
+                        .run(body, async (key) => {
+                          const { api } = await profileRuntime();
+                          if (!action.isCurrent(context)) return;
+                          return api.saveQualification(body, key);
+                        })
                         .then(async (result) => {
                           if (result) await load();
                         });
@@ -365,9 +371,11 @@ export default function Cert() {
                         onClick={() => {
                           const context = profileContext();
                           void sms
-                            .run({ phone }, (key) =>
-                              profileRuntime().then(({ api }) => api.contactSms({ phone }, key)),
-                            )
+                            .run({ phone }, async (key) => {
+                              const { api } = await profileRuntime();
+                              if (!sms.isCurrent(context)) return;
+                              return api.contactSms({ phone }, key);
+                            })
                             .then((value) => {
                               if (value && sms.isCurrent(context))
                                 setSmsReceipt({
@@ -399,6 +407,7 @@ export default function Cert() {
                   loading={action.busy}
                   disabled={authorizing || sms.busy}
                   onClick={() => {
+                    const context = profileContext();
                     const body = {
                       lockVersion: owner.contact.lockVersion,
                       name,
@@ -408,9 +417,11 @@ export default function Cert() {
                         : {}),
                     };
                     void action
-                      .run(body, (key) =>
-                        profileRuntime().then(({ api }) => api.saveContact(body, key)),
-                      )
+                      .run(body, async (key) => {
+                        const { api } = await profileRuntime();
+                        if (!action.isCurrent(context)) return;
+                        return api.saveContact(body, key);
+                      })
                       .then(async (value) => {
                         if (value) {
                           acceptContact(value);
@@ -444,7 +455,9 @@ export default function Cert() {
                       content: "本轮未提交修改将放弃，历史审核与当前有效档案保留",
                     });
                     if (!yes.confirm || !action.isCurrent(context)) return;
-                    return (await profileRuntime()).api.discard(body, key);
+                    const { api } = await profileRuntime();
+                    if (!action.isCurrent(context)) return;
+                    return api.discard(body, key);
                   })
                   .then(async (value) => {
                     if (value && action.isCurrent(context)) await load();
@@ -496,9 +509,11 @@ export default function Cert() {
                         !sameDeclaration(context, attempt.key)
                       )
                         return;
-                      const value = await submit.run(body, (key) =>
-                        profileRuntime().then(({ api }) => api.submit(body, key)),
-                      );
+                      const value = await submit.run(body, async (key) => {
+                        const { api } = await profileRuntime();
+                        if (!submit.isCurrent(context)) return;
+                        return api.submit(body, key);
+                      });
                       if (value && submit.isCurrent(context)) {
                         setAgreed(false);
                         await submit.continueTo("review", context);

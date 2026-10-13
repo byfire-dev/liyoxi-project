@@ -1,5 +1,5 @@
-import { useState } from "react";
-import Taro, { useRouter } from "@tarojs/taro";
+import { useEffect, useRef, useState } from "react";
+import Taro, { useDidHide, useDidShow, useRouter } from "@tarojs/taro";
 import { View } from "@tarojs/components";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -9,11 +9,33 @@ import { TextButton } from "@/components/TextButton";
 import { Note } from "@/components/Note";
 import { ApiError } from "@/lib/request";
 import { account } from "@/lib/account-runtime";
+import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { ActionError, Frame, TextField, useTenantAction, useTenantRead } from "../members/view";
 import { tenantRuntime, tenantNavigate } from "../members/runtime";
-import { joinLogin, previewLabel, validInvitationToken } from "./runtime";
+import {
+  joinLogin,
+  joinedLoginScope,
+  ownsJoinedLogin,
+  previewLabel,
+  validInvitationToken,
+} from "./runtime";
 export default function JoinPage() {
+  const pageLife = useRef({ generation: 0, visible: true });
+  useDidShow(() => {
+    pageLife.current.visible = true;
+  });
+  useDidHide(() => {
+    pageLife.current.visible = false;
+    pageLife.current.generation++;
+  });
+  useEffect(
+    () => () => {
+      pageLife.current.visible = false;
+      pageLife.current.generation++;
+    },
+    [],
+  );
   const token = useRouter().params.token ?? "";
   const loggedIn = useSessionStore((s) => Boolean(s.accessToken));
   const [agreed, setAgreed] = useState(false),
@@ -39,21 +61,21 @@ export default function JoinPage() {
   const login = useTenantAction("member_join_login"),
     accept = useTenantAction("invitation_accept");
   const preview = read.data;
-  const join = () =>
+  const join = (ownsLogin: () => boolean = () => true) =>
     void accept.run({ token, displayName, id: preview?.invitationId }, async (key, current) => {
       if (preview?.status !== "pending" || !useSessionStore.getState().accessToken)
         throw new Error("请先确认邀请状态并登录");
       const runtime = await tenantRuntime();
-      if (!current()) return;
+      if (!current() || !ownsLogin()) return;
       const result = await runtime.api.accept(
         preview.invitationId,
         { token, ...(displayName.trim() ? { displayName: displayName.trim() } : {}) },
         key,
       );
-      if (current())
+      if (current() && ownsLogin())
         await runtime.selectResult(
           result.storeId,
-          current,
+          () => current() && ownsLogin(),
           result.role === "owner" ? "sub/profile/profile/index" : "sub/profile/staff-profile/index",
         );
       return result;
@@ -65,6 +87,7 @@ export default function JoinPage() {
         version: agreements.data?.items.map((a) => a.currentVersion?.agreementVersionId),
       },
       async (_key, current) => {
+        const pageGeneration = pageLife.current.generation;
         const runtime = await tenantRuntime();
         try {
           const consents =
@@ -88,9 +111,22 @@ export default function JoinPage() {
             attribution: runtime.attribution(),
           });
           if (!current()) return;
+          const expected = {
+            token: result.token,
+            ...joinedLoginScope(result.me, useContextStore.getState()),
+            pageGeneration,
+          };
+          const ownsLogin = () =>
+            ownsJoinedLogin(expected, {
+              token: useSessionStore.getState().accessToken,
+              storeId: useContextStore.getState().currentStoreId,
+              contextRev: useContextStore.getState().contextRev,
+              pageGeneration: pageLife.current.generation,
+              visible: pageLife.current.visible,
+            });
           useSessionStore.getState().setSession(result.token, result.me);
           await account.reloadMe();
-          join();
+          if (ownsLogin()) join(ownsLogin);
         } catch (e) {
           if (e instanceof ApiError && e.error === "AGREEMENT_VERSION_STALE" && current()) {
             setAgreed(false);
@@ -171,7 +207,7 @@ export default function JoinPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button loading={busy} onClick={join}>
+                  <Button loading={busy} onClick={() => join()}>
                     接受邀请并加入
                   </Button>
                 )}

@@ -57,7 +57,7 @@ export default function AddStore() {
     setForm((old) => ({ ...old, options: next(old.options) }));
   const [created, setCreated] = useState<{ storeId: string; token: string | null } | null>(null);
   const token = useSessionStore((s) => s.accessToken);
-  const completed = created !== null && created.storeId === storeId && created.token === token;
+  const completed = created !== null && created.token === token;
   const industryList = useTenantRead((api) => api.dict("industry"));
   const categoryList = useTenantRead(
     (api) => (industry ? api.dict("industry", industry) : Promise.resolve([])),
@@ -72,11 +72,11 @@ export default function AddStore() {
     (api) => (city ? api.dict("region", city) : Promise.resolve([])),
     city ?? "",
   );
-  const source = useTenantRead(async (api) => {
+  const source = useTenantRead(async (api, sourceId) => {
     const stores = await api.stores();
     if (
       stores.viewerRole !== "owner" ||
-      !stores.items.some((s) => s.storeId === storeId && s.lifecycle === "active")
+      !stores.items.some((s) => s.storeId === sourceId && s.lifecycle === "active")
     )
       return null;
     return { service: await api.service(), assets: await api.brandSummary() };
@@ -89,6 +89,7 @@ export default function AddStore() {
     void action.run(
       { name, detail, industry, category, province, city, district, options, storeId },
       async (key, current) => {
+        if (completed) return;
         if (!allowed) throw new Error("当前不可新增门店，请核对门店额度");
         if (!province || !city || !district) throw new Error("请选择省、市、区县");
         const prefix = [
@@ -125,7 +126,7 @@ export default function AddStore() {
           <>
             {completed ? (
               <Card title="门店已创建">
-                <Note>当前已切换到新建门店；如页面跳转失败，可继续完善这家门店</Note>
+                <Note>门店已成功创建；如切换或跳转失败，可继续进入这家门店完善档案</Note>
                 <Button
                   loading={action.busy}
                   onClick={() =>

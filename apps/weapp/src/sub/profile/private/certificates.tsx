@@ -185,13 +185,14 @@ export function Certificate({
             disabled={!Object.keys(fields).length}
             onClick={() => {
               if (!doc) return;
+              const context = profileContext();
               const body = { lockVersion, fields };
               void action
-                .run({ id: doc.qualificationDocId, ...body }, (key) =>
-                  profileRuntime().then(({ api }) =>
-                    api.saveDoc(doc.qualificationDocId, body, key),
-                  ),
-                )
+                .run({ id: doc.qualificationDocId, ...body }, async (key) => {
+                  const { api } = await profileRuntime();
+                  if (!action.isCurrent(context)) return;
+                  return api.saveDoc(doc.qualificationDocId, body, key);
+                })
                 .then(async (value) => {
                   if (value) {
                     setEdit(false);

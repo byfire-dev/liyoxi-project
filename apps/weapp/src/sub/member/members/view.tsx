@@ -10,13 +10,16 @@ import { tenantContext, tenantRuntime } from "./runtime";
 import type { TenantApi } from "./api";
 import "./style.scss";
 export { Frame, TextField, DictPicker } from "../../profile/private/ui";
-function tenantReader<T>(read: (api: TenantApi) => Promise<T>) {
+function tenantReader<T>(read: (api: TenantApi, storeId: string | null) => Promise<T>) {
   return async (current: () => boolean) => {
     const runtime = await tenantRuntime();
-    return current() ? read(runtime.api) : undefined;
+    return current() ? read(runtime.api, useContextStore.getState().currentStoreId) : undefined;
   };
 }
-export function useTenantRead<T>(read: (api: TenantApi) => Promise<T>, readKey = "") {
+export function useTenantRead<T>(
+  read: (api: TenantApi, storeId: string | null) => Promise<T>,
+  readKey = "",
+) {
   const [scopeResource] = useState(() =>
     createResource<T>({
       context: tenantContext,
