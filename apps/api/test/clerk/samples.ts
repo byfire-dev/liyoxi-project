@@ -82,6 +82,26 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  {
+    operationId: "m.smsCode.create",
+    expectedStatus: 503,
+    play: (api, ctx) =>
+      api.request("/api/v1/m/sms-codes", {
+        method: "POST",
+        json: { purpose: "phone_change" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.changePhone",
+    expectedStatus: 400,
+    play: (api, ctx) =>
+      api.request("/api/v1/m/me/change-phone", {
+        method: "POST",
+        json: { oldSmsCode: "000000", newPhoneCode: "fictional-not-issued" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
   ...messageClerkSamples,
   ...reportingClerkSamples,
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),

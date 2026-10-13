@@ -36,7 +36,11 @@ export const IDENTITY_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>>
       "phone_last4",
       "display_name",
     ],
-    guards: { [rowKey("02:125", "merchant_user.register")]: consentGiven },
+    guards: {
+      [rowKey("02:125", "merchant_user.register")]: consentGiven,
+      [rowKey("02:129", "merchant_user.purge_empty")]: async (tx, facts) =>
+        (await tx.entityMember.count({ where: { merchantUserId: facts.subjectId } })) === 0,
+    },
   },
 };
 
