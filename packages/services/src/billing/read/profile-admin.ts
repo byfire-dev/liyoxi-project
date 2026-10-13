@@ -1,5 +1,6 @@
 import type { AdminFacts, AdminFactsQuery } from "../../profile/index.js";
 import type { Tx } from "../../kernel/index.js";
+import { AppError } from "../../kernel/index.js";
 import { getWalletView } from "./index.js";
 import { paymentTitle, readTenantAdminBillingFacts } from "./tenant-admin.js";
 
@@ -42,6 +43,7 @@ export async function readProfileAdminBillingFacts(
       amountFen: true,
     },
   });
+  if (pending && pending.approvalRequest.requestNo === null) throw new AppError("INTERNAL");
   return {
     subscription,
     points: {
@@ -60,7 +62,7 @@ export async function readProfileAdminBillingFacts(
     pendingPointAdjustment: pending
       ? {
           pointAdjustmentRequestId: pending.id,
-          requestNo: pending.approvalRequest.requestNo,
+          requestNo: pending.approvalRequest.requestNo!,
           direction: pending.direction,
           lotKind: pending.lotKind,
           adjustPoints: pending.adjustPoints,
