@@ -36,6 +36,10 @@ opaque 边界组。模型覆盖 A/B/A、未决换绑原体重试、切店/换令
 phone-unavailable/identities，脚本只追加本域登记，默认旧场景与外发/console/pageerror 守卫保留。
 PNG 路径为 `apps/weapp/shots/dist/png/settings__<scene>.png`，源码记录不是已执行证据。
 
+ROOT已执行新增8组及受影响旧1组单测，类型、小程序构建与体积、colors/copy/depcheck通过。
+本域8个及旧登录/我的3个选择性H5场景通过；身份回放仅修准确弹层定位后复跑1组。
+主包679.5KB、总936.7KB。唯一生产独审修正与本地合流事实见W2-13状态台账。
+
 ## 外部验证
 
 真实 iOS/安卓手机号组件、添加其他号码、隐私申报、供应商短信投递和收费能力未验证。

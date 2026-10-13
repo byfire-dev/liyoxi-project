@@ -15516,15 +15516,12 @@
             ]
           },
           "thumbnail": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/SignedUrl"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
