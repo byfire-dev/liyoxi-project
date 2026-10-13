@@ -93,10 +93,12 @@ it("十二键canonical范围/默认/当前真值与GET零写；部分无权/非�
       },
     };
     await reject(
-      h.service.create(actor, {
-        tiers: { S: 3100, A: 2000, B: 1600, C: 1000 },
-        ...params({ key: "adUnitPoints", value: 60 }),
-      }),
+      Promise.resolve().then(() =>
+        h.service.create(actor, {
+          tiers: { S: 3100, A: 2000, B: 1600, C: 1000 },
+          ...params({ key: "adUnitPoints", value: 60 }),
+        }),
+      ),
       "PERMISSION_DENIED",
     );
   }
@@ -118,9 +120,14 @@ it("十二键canonical范围/默认/当前真值与GET零写；部分无权/非�
     params({ key: "minLicenseMonths", value: 4 }, { key: "minLicenseMonths", value: 5 }),
     { tiers: { S: 100, A: 2000, B: 1600, C: 1000 } },
   ])
-    await reject(h.service.create(h.actor, raw), "VALIDATION_FAILED");
+    await reject(
+      Promise.resolve().then(() => h.service.create(h.actor, raw)),
+      "VALIDATION_FAILED",
+    );
   await reject(
-    h.service.create(h.actor, params({ key: "adUnitPoints", value: 50 })),
+    Promise.resolve().then(() =>
+      h.service.create(h.actor, params({ key: "adUnitPoints", value: 50 })),
+    ),
     "CHANGESET_EMPTY",
   );
   expect(await counts(h)).toEqual(before);

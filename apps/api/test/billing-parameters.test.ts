@@ -134,10 +134,10 @@ describe("计费参数四正式路由两组HTTP", { timeout: 30000 }, () => {
     expect(await data(await request(path, "POST", confirm, admin, withdrawKey))).toEqual(withdrawn);
     expect(await db.billingParam.count({ where: { changeId: result.changeSetId } })).toBe(1);
     expect(
-      await db.auditLog.count({ where: { targetId: row.key, action: "billing.param.change" } }),
+      await db.auditLog.count({ where: { targetKey: row.key, action: "billing.param.change" } }),
     ).toBe(1);
     expect(
-      await db.auditLog.count({ where: { targetId: row.key, action: "billing.param.withdraw" } }),
+      await db.auditLog.count({ where: { targetKey: row.key, action: "billing.param.withdraw" } }),
     ).toBe(1);
     expect(
       await db.outboxEvent.count({
