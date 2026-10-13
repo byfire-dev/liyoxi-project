@@ -1,3 +1,4 @@
+import { assetSearch } from "../assets/model";
 import { IdSchema } from "@liyoxi/contract";
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { formatMoneyFixed } from "@liyoxi/shared/format/money";
@@ -11,8 +12,10 @@ export const DETAIL_TABS = [
   "follow",
   "accounts",
   "activity",
+  "assets",
 ] as const;
 export function merchantDetailSearch(raw: Readonly<Record<string, unknown>>) {
+  if (raw.tab === "assets") return { tab: "assets", ...assetSearch(raw) };
   return {
     tab:
       typeof raw.tab === "string" && DETAIL_TABS.some((tab) => tab === raw.tab)
