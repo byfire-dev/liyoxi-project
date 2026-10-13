@@ -140,3 +140,9 @@ export const QualificationRejectBodySchema = z.object({
 export type QualificationApproveBody = z.infer<typeof QualificationApproveBodySchema>;
 export type QualificationRejectBody = z.infer<typeof QualificationRejectBodySchema>;
 export type QualificationSubmissionDetail = z.infer<typeof QualificationSubmissionDetailSchema>;
+export const QualificationDocReviewBodySchema = z.strictObject({
+  lockVersion: z.int().min(0),
+  fields: z.record(z.string(), z.string()).refine((v) => Object.keys(v).length > 0),
+  note: z.string().max(200).optional(),
+});
+export type QualificationDocReviewBody = z.infer<typeof QualificationDocReviewBodySchema>;

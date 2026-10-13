@@ -975,6 +975,8 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 - 联系人存 `store_profile`、不进审核，不调用 `ensureDraft`：审核期间与终局驳回之后都能改，不会被 `QUALIFICATION_IN_REVIEW` 挡住（d9-profile.md:357）；在审轮次的 `contact_snapshot` 不随之改变。
 - 联系人手机号 V1.0 不作为审核结果与交付通知的接收号码（d9-profile.md:777 C6）；原型“用于接收审核结果与交付通知”的文案待改。
 - 端上只有脱敏串，不能把默认号码回填后提交，所以用 `phoneSource` 表达（C40）。
+- W2-11 通过通知公口读取实际短信通道、验证码模板及开关可用性；专用发码与更新联系人均复核当前会话和真实 owner。错误尝试先在独立短事务提交，正确码只在联系人主事务成功时消费；内容安全、版本或晚期写入失败不会消费正确码。
+- 原先短信未配置时保存的 `unverified`，在通道恢复后送审须重新验证；仅当前联系人号码与当前登录号码等值时可按登录号放行，不能沿历史 `login` 标记绕过。真实短信供应商投递仍待平台验证。
 
 ### 3.11 m.storeProfile.contactSmsCode.create　资质联系人手机号发码
 `POST /m/store-profile/contact/sms-codes`
