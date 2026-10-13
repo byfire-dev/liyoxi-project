@@ -67,7 +67,7 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - 新微信绑定发出的真实事件由 `identity.onWechatBound` 写提示，与投递完成同事务；原事件 ID 去重，关闭后重投保持首次关闭时间。消费取得账号80锁后重读状态，停用仍保留提醒供启用后查看，已注销账号不重建提示。排除新微信的通知仍由 notify 负责，企业微信联系人的回填随 M7。
 - openid 的 HMAC 快照借 `uscc` 那把盲索引密钥、输入加 `OPENID:` 前缀分域：密钥环里没有 openid 专用的用途。它只是同意记录里的证据快照与限流键，不用于查找。
 - `MeUser.actions` 里的“换绑手机号”要装配处给 `smsConfigured`，现在不给（短信驱动随 G2-D）。
-- 会话的过期清理（吊销或过期满 30 天的行）没有登记，随清理框架（W0-24）合并后由 M2 的包接。
+- `identity.user_session`、`identity.portal_session`、`identity.sms_verification` 已登记到既有 `ops.retention` 每日项：会话空闲/绝对过期或吊销超过30天、验证码过期超过7天才删；边界时刻保留，验证码使用时间不提前触发清理。使用注入时钟、限量删除及 `SKIP LOCKED`，沿框架最多5批续清和事务回滚，不另建调度。
 - `auth_event` 的写函数在 `audit/auth-event.ts`，是 W1-01a 交的那一份（本包开工时先建的最小实现签名相同，接到 main 时让位）。
 - 区号只能从 `getPhoneNumber` 交回的原串里看（`phone.ts`）：Provider 的接口只交 `phone`，没有区号一项。带 `+区号`、`00区号` 而不是 86 的回 `PHONE_REGION_UNSUPPORTED`；真实驱动（G2-D）要把区号交出来，不能把区号不带加号地拼在号码前面（`+1` 的号码去掉符号与大陆号同形）。
 
