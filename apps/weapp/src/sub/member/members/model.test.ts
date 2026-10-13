@@ -1,5 +1,4 @@
 import { expect, it } from "vitest";
-import { MemberListSchema, MemberUpdateBodySchema } from "@liyoxi/contract";
 import { ApiError, type RequestLayer } from "@/lib/request";
 import {
   TENANT_MEMBER,
@@ -10,14 +9,11 @@ import {
 import { createTenantApi } from "./api";
 import { createTenantAction, currentMembership } from "./model";
 it("成员编辑/移除/本人退出走正式目标与键；满范围校验、同意图失败重试及旧等待零调用", async () => {
-  const owner = MemberListSchema.parse(tenantMembers()),
-    clerk = MemberListSchema.parse(tenantMembers(true));
+  const owner = tenantMembers(),
+    clerk = tenantMembers(true);
   expect(owner.viewerRole).toBe("owner");
   expect(clerk.viewerRole).toBe("clerk");
-  expect(MemberUpdateBodySchema.safeParse({ storeIds: [] }).success).toBe(false);
-  expect(
-    MemberUpdateBodySchema.safeParse({ storeIds: [TENANT_SECOND, TENANT_SECOND] }).success,
-  ).toBe(false);
+  // 空范围/重复范围的正式schema断言在仓库层同源聚合保留，端侧不加载Zod。
   const calls: { path: string; options: Parameters<RequestLayer["request"]>[1] }[] = [];
   const call: RequestLayer["request"] = async <T>(
     path: string,

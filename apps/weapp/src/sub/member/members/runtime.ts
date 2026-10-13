@@ -6,20 +6,7 @@ import { rememberFirstTouch } from "@/lib/account-source";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { createTenantApi } from "./api";
-import type { Me, TenantApi } from "./api";
-import type { Attribution } from "@/lib/account-api";
-export interface TenantRuntime {
-  api: TenantApi;
-  loginCode(): Promise<string>;
-  attribution(): Attribution;
-  selectResult(
-    storeId: string,
-    current: () => boolean,
-    route: string | undefined,
-    alive: () => boolean,
-  ): Promise<void>;
-}
-
+import type { Me, TenantRuntime } from "./api";
 export function tenantContext() {
   const s = useSessionStore.getState(),
     c = useContextStore.getState();

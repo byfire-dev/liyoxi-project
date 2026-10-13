@@ -6,8 +6,8 @@ import {
   type Body,
   type Data,
   type OwnerStores,
+  type TenantRuntime,
 } from "../src/sub/member/members/api";
-import type { TenantRuntime } from "../src/sub/member/members/runtime";
 import type { RequestLayer } from "../src/lib/request";
 import { dicts } from "./profile-fixtures";
 import {
