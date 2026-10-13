@@ -37,7 +37,9 @@ async function post(page: Page, path: string, body: unknown) {
   });
 }
 async function runs(page: Page) {
-  const result = await page.request.get("/api/v1/admin/purge-runs?page=1&pageSize=50");
+  const result = await page.request.get(
+    "/api/v1/admin/purge-runs?state=proposed,held,approved,rejected&page=1&pageSize=50",
+  );
   expect(result.status()).toBe(200);
   return PurgeRunPageSchema.parse((await result.json()).data).items;
 }
