@@ -47,7 +47,9 @@ async function pending(number = uscc()) {
   return { ...world, ready };
 }
 function binding(events = h.events, registration: ModuleRegistration = ports.registration) {
-  const scope = createProfileConsistencyAssembly(assembleForTest({ extra: [registration] }));
+  const scope = createProfileConsistencyAssembly(
+    assembleForTest({ entry: "api", extra: [registration] }),
+  );
   const commits = createProfileConsistencyTransactions(h.tx, () => {});
   const service = createProfileQualificationConsistency({
     ...h,
@@ -470,7 +472,7 @@ describe("W2-11 I7与资质通过订阅共用真实系统决定", { timeout: 600
       where: { id: candidate.ready.submissionId },
       data: { systemRejectCode: null, outcome: null, closedAt: null },
     });
-    const base = assembleForTest({ extra: [ports.registration] }),
+    const base = assembleForTest({ entry: "api", extra: [ports.registration] }),
       scope = createProfileConsistencyAssembly(base),
       peer = binding();
     expect(scope.assembly.subscriber("profile.onTenantLifecycle")!.handle).toBe(

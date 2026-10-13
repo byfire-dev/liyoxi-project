@@ -21,7 +21,7 @@ const check = (code: (typeof PROFILE_INVARIANT_CODES)[number], entityId: string)
         return bound.tx.run((tx) =>
           createProfileQualificationConsistency({
             ...h,
-            assembly: assembleForTest(),
+            assembly: assembleForTest({ entry: "api" }),
             commits: bound,
           }).runI7(tx, { entityIds: [entityId] }, { now: h.clock.now() }),
         );
