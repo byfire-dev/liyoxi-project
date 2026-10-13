@@ -1746,6 +1746,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 跟进记录：按对象（门店、续费周期、逾期订单项、巡检、下架、补发）或主体、门店查询时间线 */
+        get: operations["admin.followUp.list"];
+        put?: never;
+        /** 记录跟进：方式、内容、续费意向（仅续费）、下次跟进时间；同对象此前在办的跟进同事务关闭 */
+        post: operations["admin.followUp.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/follow-ups/{followUpId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 改下次跟进时间（带 lockVersion） */
+        patch: operations["admin.followUp.update"];
+        trace?: never;
+    };
+    "/api/v1/admin/follow-ups/{followUpId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 标记跟进事项完成（可填完成说明） */
+        post: operations["admin.followUp.complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/home-banners": {
         parameters: {
             query?: never;
@@ -3195,6 +3247,23 @@ export interface paths {
         get: operations["admin.store.qualification.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{storeId}/reassign-delivery-manager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 转移交付经理：门店与在办工单、订购单、客服工单一并移交（已归档的不动），通知商家，新经理 1 个工作日内联系 */
+        post: operations["admin.store.reassignDeliveryManager"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6358,6 +6427,40 @@ export interface components {
         FlowOpsNoteBody: {
             note?: string;
         };
+        FollowUpItem: {
+            actions: ("update" | "complete")[];
+            channel: ("wecom" | "phone" | "visit" | "system") | null;
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            doneAt: string | null;
+            doneNote: string | null;
+            /** Format: uuid */
+            entityId: string;
+            /** Format: uuid */
+            followUpId: string;
+            intent: ("confirmed" | "considering" | "declined") | null;
+            isOpen: boolean;
+            lockVersion: number;
+            nextFollowAt: string | null;
+            owner: components["schemas"]["StaffBrief"] | null;
+            recorder: {
+                /** @enum {string} */
+                actorType: "staff" | "system";
+                staff: components["schemas"]["StaffBrief"] | null;
+            };
+            storeId: string | null;
+            /** Format: uuid */
+            subjectId: string;
+            /** @enum {string} */
+            subjectType: "order_item" | "subscription_term" | "store" | "patrol_task" | "takedown_task" | "delivery_reissue";
+        };
+        FollowUpPage: {
+            items: components["schemas"]["FollowUpItem"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
         HandoverBody: {
             /** Format: uuid */
             handoverToStaffId: string;
@@ -6625,6 +6728,21 @@ export interface components {
                 deliveryTicketCount: number;
                 dramaOrderCount: number;
             };
+        };
+        /** @enum {string} */
+        ManagerTransferReason: "workload" | "merchant_request" | "staff_change" | "other";
+        ManagerTransferResult: {
+            /** Format: uuid */
+            batchId: string;
+            contact: components["schemas"]["AssignmentContactView"];
+            deliveryManager: components["schemas"]["StaffBrief"];
+            moved: {
+                deliveryTicketCount: number;
+                dramaOrderCount: number;
+                serviceTicketCount: number;
+            };
+            /** Format: uuid */
+            storeId: string;
         };
         MediaFileView: {
             coverUrl: string | null;
@@ -18189,6 +18307,360 @@ export interface operations {
             };
         };
     };
+    "admin.followUp.list": {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                subjectType?: "order_item" | "subscription_term" | "store" | "patrol_task" | "takedown_task" | "delivery_reissue";
+                subjectId?: string;
+                entityId?: string;
+                storeId?: string;
+                mine?: boolean;
+                isOpen?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FollowUpPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.followUp.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    channel?: "wecom" | "phone" | "visit";
+                    content: string;
+                    /** @enum {string} */
+                    intent?: "confirmed" | "considering" | "declined";
+                    /** Format: date-time */
+                    nextFollowAt?: string;
+                    /** Format: uuid */
+                    subjectId: string;
+                    /** @enum {string} */
+                    subjectType: "order_item" | "subscription_term" | "patrol_task" | "takedown_task" | "delivery_reissue";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FollowUpItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.followUp.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    lockVersion: number;
+                    nextFollowAt: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FollowUpItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.followUp.complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                followUpId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    doneNote?: string;
+                    lockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["FollowUpItem"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.homeBanner.list": {
         parameters: {
             query?: {
@@ -26532,6 +27004,92 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.store.reassignDeliveryManager": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                storeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        /** Format: uuid */
+                        fromStaffId: string;
+                    };
+                    note?: string;
+                    reasonCode: components["schemas"]["ManagerTransferReason"];
+                    /** Format: uuid */
+                    toStaffId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["ManagerTransferResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

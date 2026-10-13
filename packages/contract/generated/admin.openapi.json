@@ -15600,6 +15600,222 @@
         },
         "type": "object"
       },
+      "FollowUpItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "update",
+                "complete"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "wecom",
+                  "phone",
+                  "visit",
+                  "system"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "doneAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "doneNote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entityId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "followUpId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "intent": {
+            "anyOf": [
+              {
+                "enum": [
+                  "confirmed",
+                  "considering",
+                  "declined"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isOpen": {
+            "type": "boolean"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "nextFollowAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recorder": {
+            "additionalProperties": false,
+            "properties": {
+              "actorType": {
+                "enum": [
+                  "staff",
+                  "system"
+                ],
+                "type": "string"
+              },
+              "staff": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "actorType",
+              "staff"
+            ],
+            "type": "object"
+          },
+          "storeId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "subjectId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "subjectType": {
+            "enum": [
+              "order_item",
+              "subscription_term",
+              "store",
+              "patrol_task",
+              "takedown_task",
+              "delivery_reissue"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "followUpId",
+          "subjectType",
+          "subjectId",
+          "entityId",
+          "storeId",
+          "channel",
+          "content",
+          "intent",
+          "nextFollowAt",
+          "isOpen",
+          "owner",
+          "doneAt",
+          "doneNote",
+          "recorder",
+          "createdAt",
+          "lockVersion",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "FollowUpPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FollowUpItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
       "HandoverBody": {
         "additionalProperties": false,
         "properties": {
@@ -17060,6 +17276,67 @@
           "storeId",
           "deliveryManager",
           "synced"
+        ],
+        "type": "object"
+      },
+      "ManagerTransferReason": {
+        "enum": [
+          "workload",
+          "merchant_request",
+          "staff_change",
+          "other"
+        ],
+        "type": "string"
+      },
+      "ManagerTransferResult": {
+        "additionalProperties": false,
+        "properties": {
+          "batchId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/AssignmentContactView"
+          },
+          "deliveryManager": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "moved": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveryTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dramaOrderCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "serviceTicketCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "dramaOrderCount",
+              "deliveryTicketCount",
+              "serviceTicketCount"
+            ],
+            "type": "object"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storeId",
+          "deliveryManager",
+          "batchId",
+          "moved",
+          "contact"
         ],
         "type": "object"
       },
@@ -44417,6 +44694,628 @@
         "x-three-phase": true
       }
     },
+    "/api/v1/admin/follow-ups": {
+      "get": {
+        "operationId": "admin.followUp.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subjectType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "order_item",
+                "subscription_term",
+                "store",
+                "patrol_task",
+                "takedown_task",
+                "delivery_reissue"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subjectId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mine",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isOpen",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FollowUpPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "跟进记录：按对象（门店、续费周期、逾期订单项、巡检、下架、补发）或主体、门店查询时间线",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+        "x-permission": "assert-in-handler"
+      },
+      "post": {
+        "operationId": "admin.followUp.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "channel": {
+                    "enum": [
+                      "wecom",
+                      "phone",
+                      "visit"
+                    ],
+                    "type": "string"
+                  },
+                  "content": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "intent": {
+                    "enum": [
+                      "confirmed",
+                      "considering",
+                      "declined"
+                    ],
+                    "type": "string"
+                  },
+                  "nextFollowAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "subjectId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "subjectType": {
+                    "enum": [
+                      "order_item",
+                      "subscription_term",
+                      "patrol_task",
+                      "takedown_task",
+                      "delivery_reissue"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "subjectType",
+                  "subjectId",
+                  "content"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FollowUpItem"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "记录跟进：方式、内容、续费意向（仅续费）、下次跟进时间；同对象此前在办的跟进同事务关闭",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/follow-ups/{followUpId}": {
+      "patch": {
+        "operationId": "admin.followUp.update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followUpId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "nextFollowAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "nextFollowAt"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FollowUpItem"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "改下次跟进时间（带 lockVersion）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/follow-ups/{followUpId}/complete": {
+      "post": {
+        "operationId": "admin.followUp.complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "followUpId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "doneNote": {
+                    "type": "string"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "lockVersion"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FollowUpItem"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "标记跟进事项完成（可填完成说明）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
     "/api/v1/admin/home-banners": {
       "get": {
         "operationId": "admin.homeBanner.list",
@@ -61453,6 +62352,155 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/stores/{storeId}/reassign-delivery-manager": {
+      "post": {
+        "operationId": "admin.store.reassignDeliveryManager",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storeId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fromStaffId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "fromStaffId"
+                    ],
+                    "type": "object"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "reasonCode": {
+                    "$ref": "#/components/schemas/ManagerTransferReason"
+                  },
+                  "toStaffId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "toStaffId",
+                  "reasonCode",
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ManagerTransferResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "转移交付经理：门店与在办工单、订购单、客服工单一并移交（已归档的不动），通知商家，新经理 1 个工作日内联系",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "merchant.manager.transfer"
       }
     },
     "/api/v1/admin/timers": {

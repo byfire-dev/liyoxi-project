@@ -48,7 +48,13 @@ import { createFlowOps, createAlertActions } from "./ops/index.js";
 import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
-import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
+import {
+  createOrderService,
+  bindOrder,
+  bindOrderStart,
+  readUnassignedStoreOrderIds,
+  syncUnassignedStoreOrders,
+} from "./order/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
@@ -170,6 +176,7 @@ import {
   recommendedStaff,
   createRoleManagement,
   createStaffSelfSecurity,
+  createStaffFollowUps,
 } from "./staff/index.js";
 import type { StaffAuth, createStaffManagement } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
@@ -302,6 +309,7 @@ export interface Runtime {
    */
   readonly staffAuth: StaffAuth;
   readonly staffManagement: ReturnType<typeof createStaffManagement>;
+  readonly followUps: ReturnType<typeof createStaffFollowUps>;
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
@@ -754,6 +762,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     config,
     keyring: () => keyringFromEnv(env),
     workSources: staffWorkSourcesOf(assembly),
+    storeManagerOrders: {
+      readUnassignedIds: readUnassignedStoreOrderIds,
+      syncUnassigned: syncUnassignedStoreOrders,
+    },
     media,
     events,
     sla,
@@ -970,6 +982,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     notifyMessages,
     notify,
     staffManagement,
+    followUps: createStaffFollowUps({ tx, clock, assembly }),
     content,
     contentAdmin,
     media,

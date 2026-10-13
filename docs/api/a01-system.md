@@ -3278,7 +3278,7 @@
 | `ApprovalAction` | `approve` / `reject` / `withdraw` / `approve-review` / `reject-review` | 本文定义（C16），执行在领域资源上 |
 | `ApprovalBadge` | `check_mismatch` / `final_rejected` / `overdue` | 本文定义（`x-open-enum`）：从领域表派生的角标 |
 | `auditStream` | `ops` / `activity` / `access` | 同数据模型 `audit_log.stream` |
-| `auditCategory` | 数据模型 03 分组第 3 节的 17 个登记值，加 A107 补登的 8 个（`system_ops`、`report`、`merchant_quota`、`merchant_lifecycle`、`referral_code`、`ops_config`、`agreement`、`notify_config`），再加 A155 补登的 10 个（`payment`、`invoice`、`recon`、`finance_config`、`docs`、`delivery`、`service_ticket`、`approval`、`review`、`flow`），共 35 个，逐个见下表；与 a02 第 2.7 节对照表一致 | `audit_log.category`（代码登记，`x-open-enum`） |
+| `auditCategory` | 数据模型 03 分组第 3 节的 17 个登记值，加 A107 补登的 8 个（`system_ops`、`report`、`merchant_quota`、`merchant_lifecycle`、`referral_code`、`ops_config`、`agreement`、`notify_config`），再加 A155 补登的 10 个（`payment`、`invoice`、`recon`、`finance_config`、`docs`、`delivery`、`service_ticket`、`approval`、`review`、`flow`），另加W2-11运营跟进 `follow_up`，共 36 个，逐个见下表；与 a02 第 2.7 节对照表一致 | `audit_log.category`（代码登记，`x-open-enum`） |
 | `actorType` | `merchant` / `staff` / `system` / `partner` | 同数据模型 `audit_log.actor_type`（`partner` V1.0 只声明） |
 | `PiiPurpose`（3.41） | `contact_merchant` / `verify_identity` / `finance_ops` / `other` | 本文定义：查看明文的用途 |
 | `dictStructure` | `flat` / `tree` | 同数据模型 `dict_type.structure` |
@@ -3346,6 +3346,7 @@
 | `approval` | 审批决定（按 `approval_request.kind` 的查看模块；A155） |
 | `review` | 审核决定（按 `approval_request.kind` 的查看模块；A155） |
 | `flow` | 流程人工纠偏（a08 3.10；A155） |
+| `follow_up` | 运营跟进记录、改期与完成（a03 3.42–3.44；W2-11） |
 
 内部取值（不出接口，写库时用）：`auth_event.event` 本文写 `login_success`、`login_fail`、`locked`、`step_up`、`logout`，`auth_event.method` 写 `password`、`password+totp`、`password+recovery`、`totp`；`audit_log.auth_method` 写 `password+totp`、`password+recovery`。本文写的审计动作（`audit_log.action`）：`sys.staff.*`（`create`、`update`、`enable`、`disable`、`handover`、`reset_password`、`reset_mfa`、`reissue_activation_code`、`unlock`、`wecom_invite`、`wecom_bind`、`pool_memberships`、`duty`、`password_set`、`password_change`、`totp_enrolled`、`totp_rebound`）、`sys.session.revoke`、`sys.role.edit`、`sys.dict.*`、`sys.param.*`、`sys.calendar.import`、`sys.flag.update`、`flow.checklist.*`、`files.*`、`media.job.retry`、`ops.alert.*`、`ops.invariant.*`、`flow.timer.*`、`flow.outbox.retry`、`ops.webhook.retry`、`pii.<field>.reveal`。
 

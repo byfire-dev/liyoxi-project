@@ -185,3 +185,27 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 企业微信开关默认关闭，手填 userid 的审计标为 manual，不能代表平台核验；开关开启只接 code。扫码用 `WecomProvider.exchangeWebLoginCode({ code })` 在事务外换取 `{ userid }`，随后短事务按 UUID 顺序锁员工、重读当前会话和 userid 归属。启用占用返回真实员工 details，停用/待激活占用可移交并记录来源；未配置、超时或失败不落绑定事实。此 PR 只补 Provider 公共能力及本地替身，真实企业微信驱动仍由 W2-31 拆出的 G7-A 接入和外部验证。
 
 验证：`pnpm exec vitest run --project services packages/services/src/staff/`；真实 HTTP 链在 `apps/api/test/system-security.test.ts`，旧后台鉴权和权限矩阵同时回归。
+
+## W2-11 人工跟进四口
+
+createStaffFollowUps({tx,clock,assembly})由runtime按实例装配，归属只消费已有六类staffFollowUpPort，
+不读上层业务表。人工create在V1拒store、system方式与非续费intent，owner/actor固定当前真实员工。
+按对象切换模块并重新读取角色/组与范围；改期/完成限本人、同组主管或all，旧幂等回执也先检查当前授权。
+员工20→实体100→必要门店130→无rank跟进行，短TX在同主体串行；create只关闭同subjectType+subjectId
+的此前open（含逾期），不关闭其他对象；改期/完成用版本CAS，员工移交仍由原work-source递增版本。
+每个新动作恰好一条activity/follow_up审计，关闭旧待办与新增/审计原子；不产生新事件或timer。
+到期日09:00提醒仍走notify既有followUpsDueForNotify/followUpForNotify与s.followup_due，完成/改期自然退出扫描。
+4DB+2HTTP聚合风险已由ROOT单worker串行验收；summary/V1.1入口不属于本片。
+
+定点风险源码：src/staff/follow-ups.db.test.ts（4组，独立PG max2，真实移交/notify，
+故障注入只在调用方TX结果之后抛错）；apps/api/test/follow-ups.test.ts（2组，正式四路由）。
+生产f4e0be25由ROOT唯一独审无P1/P2，services/API类型、依赖/契约登记及权限矩阵与挂载通过。
+失败只修夹具和正式认证错误期望，未弱化业务断言；真实短信/企微送达与远端CI未验。
+
+## W2-11 门店经理转移
+
+`staffManagement.reassignStoreDeliveryManager`读取当前主管权限、组与门店范围，锁内复核原经理确认值。
+局部工作来源复用既有移交，真实本店在办订单与工单、指派历史、联系SLA及批次事件在同事务完成。
+其他经理、别店及终态事项保持；空负责人订单由order公开口补齐，不捏造原负责人历史或移交数量。
+同键重放仍检查当前权限。客服来源待所属M5登记，当前返回实际零计数。
+3组DB和1组HTTP已通过，覆盖非零移交、并发、撤权与末事件故障整笔回滚；唯一生产审查无P1/P2。

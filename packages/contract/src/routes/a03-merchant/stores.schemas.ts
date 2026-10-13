@@ -17,6 +17,7 @@ import {
   orNull,
 } from "../../common/index.js";
 import { StaffBriefSchema, adminPage } from "../a01-system/structures.js";
+import { AssignmentContactViewSchema } from "./assignment-contact.schemas.js";
 const count = z.int().min(0);
 export const StoreRegionSchema = z.object({
   province: orNull(DictRefSchema),
@@ -182,3 +183,28 @@ export type StoreListQuery = z.infer<typeof StoreListQuerySchema>;
 export type StoreRow = z.infer<typeof StoreRowSchema>;
 export type StoreHeader = z.infer<typeof StoreHeaderSchema>;
 export type ManagerAssignBody = z.infer<typeof ManagerAssignBodySchema>;
+
+export const ManagerTransferReasonSchema = z
+  .enum(["workload", "merchant_request", "staff_change", "other"])
+  .openapi("ManagerTransferReason");
+export const ManagerTransferBodySchema = z.strictObject({
+  toStaffId: IdSchema,
+  reasonCode: ManagerTransferReasonSchema,
+  note: z.string().max(200).optional(),
+  confirm: z.strictObject({ fromStaffId: IdSchema }),
+});
+export const ManagerTransferResultSchema = z
+  .strictObject({
+    storeId: IdSchema,
+    deliveryManager: StaffBriefSchema,
+    batchId: IdSchema,
+    moved: z.strictObject({
+      dramaOrderCount: count,
+      deliveryTicketCount: count,
+      serviceTicketCount: count,
+    }),
+    contact: AssignmentContactViewSchema,
+  })
+  .openapi("ManagerTransferResult");
+export type ManagerTransferBody = z.infer<typeof ManagerTransferBodySchema>;
+export type ManagerTransferResult = z.infer<typeof ManagerTransferResultSchema>;
