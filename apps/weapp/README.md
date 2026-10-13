@@ -146,6 +146,11 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## 消息页与未读角标（W2-19）
 
+W2-13 设置页已补本人账号操作源码，入口与通知复用关系、幂等/未决换绑和外部验证边界见
+[`sub/service/settings/README.md`](src/sub/service/settings/README.md)。只登记设置一页，
+我的页沿原八态菜单开放设置并移出退出；登录 PhoneForm 仅替换为真实号码授权凭证。
+本域8组风险单测及8个H5场景交ROOT选择性验收，不替代真机结论。
+
 `sub/service/messages/index` 使用原生导航，固定八类页签，默认 all/20；游标不解码，续页按 messageId 去重，下拉刷新替换。首页与我的消息入口只显示服务端 summary 的未读真值；无门店时仍能读账号通知。token、contextRev、门店、账号、成员角色和可进门店变化时清除本页缓存及旧角标，旧成功和旧错误均不能回写。消息标题、正文与金额取真实服务端 DTO，店员文案不在页面重造。
 
 单读和全读都按实际 required 契约保留同次意图的键；全读固定首次列表顶部 upToMessageId 与 tab，重试不把新到消息纳入旧意图。成功后读取真实列表/summary，失败不乐观减计数。点击先确认 read 成功，再进入已落地且当前角色允许的目标；跨店提示先切店，未来客服/广告/积分明细目标提示不可访问。协议目标以服务端固定 key 查询现有协议列表，取得真实 currentVersionId 后进入已交付正文页。转账驳回的 payment.detail 与 payment.result 复用已落地付款页、原 owner 准入和真实付款资源 GET，不扩权限。

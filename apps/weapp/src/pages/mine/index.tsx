@@ -28,8 +28,6 @@ export default function Mine() {
   const state = useAccount();
   const token = useSessionStore((value) => value.accessToken);
   const [error, setError] = useState<string | null>(null);
-  const [logout, setLogout] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const load = () => {
     setError(null);
     void account
@@ -161,41 +159,19 @@ export default function Mine() {
                 badge={unread ?? undefined}
                 onClick={() => navigate("sub/service/messages/index")}
               />
+              <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
             </List>
           ) : null}
-          <List>
-            <ListRow title="退出登录" onClick={() => setLogout(true)} />
-          </List>
         </>
       ) : (
         <Skeleton cards={2} />
       )}
+      {!token ? (
+        <List>
+          <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+        </List>
+      ) : null}
       <StoreSwitcher />
-      <Sheet
-        visible={logout}
-        title="退出登录？"
-        description="退出后可继续浏览，管理门店需要重新登录"
-        onClose={() => {
-          if (!exiting) setLogout(false);
-        }}
-        closeOnOverlayClick={!exiting}
-        footer={
-          <Button
-            variant="danger"
-            block
-            loading={exiting}
-            onClick={() => {
-              setExiting(true);
-              void account.logout().finally(() => {
-                setExiting(false);
-                setLogout(false);
-              });
-            }}
-          >
-            退出登录
-          </Button>
-        }
-      />
       <Sheet
         visible={Boolean(token && state.switchedFrom)}
         title="已切换登录账号"
