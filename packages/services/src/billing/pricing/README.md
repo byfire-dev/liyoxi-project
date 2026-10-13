@@ -34,5 +34,6 @@ W3-12 使用 confirm.currentPoints，过时确认必须刷新；不计算价格�
 撤回只写cancelledAt；共享公告只有最后一个需公告参数撤回后才撤，公告和审计同TX。
 变更集按batch/changeId合并、北京日期筛选和分页，返回真实前值、员工、公告与状态；
 列表schema范围取canonical Zod，default取现种子常量。只读GET不写业务。
-本片源码/轻检查待ROOT唯一独审与5–6DB/≤2HTTP目标验收；W4-07仍进行中，完整后台报价
+本片源码已ROOT唯一独审无P1/P2；新增六组DB与两组正式HTTP已备妥、仅格式/ESLint通过，
+待ROOT串行执行；W4-07仍进行中，完整后台报价
 等待真实续费/升级公口，不把本片当M4或真实资金验证已完成。
