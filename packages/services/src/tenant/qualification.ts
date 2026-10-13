@@ -198,7 +198,7 @@ export async function setStoreQualification(
         name: v.name,
         entityType: v.entityType,
         usccEnc: v.usccEnc,
-        usccBidx: v.usccBidx,
+        usccBidx: new Uint8Array(v.usccBidx),
         usccMask: v.usccMask,
         legalRepNameEnc: v.legalRepNameEnc,
         legalRepNameMask: v.legalRepNameMask,
