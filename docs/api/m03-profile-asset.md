@@ -270,7 +270,7 @@ PendingChange（草稿里没有改的类别为空）：
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | qualificationSubmissionId | string(uuid) | 是 | `change` 轮次 | `qualification_submission.id` |
-| phase | enum `RoundPhase` | 是 | 只取 `draft`、`in_review` | 派生 |
+| phase | enum `RoundPhase` | 是 | 基础信息待审值只取 `draft`、`in_review`；资质轮次历史的 `proposed` 可取 `closed` | 派生 |
 | storeName | string \| null | 是 | 待审门店名称 | `qualification_submission.proposed_store_name` |
 | industry | DictRef \| null | 是 | 待审一级行业 | `qualification_submission.proposed_industry_code` + `dict_item.name` |
 | category | DictRef \| null | 是 | 待审二级品类 | `qualification_submission.proposed_category_code` + `dict_item.name` |
@@ -346,7 +346,7 @@ V1.1 的广告风格偏好、禁用内容不出接口（`store_profile.ad_style_
 | requiredPermits | array<{ permitType: DictRef, isProvided: boolean }> | 是 | 所选品类要求的行业许可证（“餐饮 / 火锅品类须上传”）及本轮是否已有 | 字典 `industry` 的 `dict_item.ext` 中 `requiredCerts`，品类取草稿的 `proposed_category_code`，否则 `store_profile.category_code`；`isProvided` 看未关闭轮次有无该 `permit_type` 的未移除行 |
 | contact | ContactView | 是 | 资质联系人 | 见下 |
 | declaration | `{ currentVersion: string }` | 是 | 现行“信息确认”文案版本号，提交时回传 | 配置（默认为契约登记的代码常量，见第 6 节第 1 项） |
-| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 当前 `initial` 草稿且门店非终局驳回 → `submit`；`change` / `new_store` 草稿 → `discard`；多轮提交随 W2-11 后续开放（C16） |
+| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 未提交草稿且门店非终局驳回 → `submit`；`change` / `new_store` 草稿另有 `discard`；在审与已关闭不下发（C16） |
 
 EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`，主体由门店上下文确定。与 m02 的 `EntityBrief` 不同构，按 C87、A132 改名，原名 `EntityBrief`）：
 

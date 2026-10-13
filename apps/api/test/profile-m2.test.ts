@@ -8,6 +8,13 @@ import {
 import { createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
+import { signInAsStaff } from "@liyoxi/services/testing";
+import type { ProfileViewer } from "@liyoxi/services";
+import {
+  QualificationSubmissionDetailSchema,
+  StoreProfileBasicOwnerSchema,
+} from "@liyoxi/contract";
+import { complete, harness, ownedFile, submit as fixtureSubmit } from "./admin-profile-fixtures.js";
 import { merchantServicesOf } from "../src/merchant/services.js";
 import { HANDLERS } from "../src/routes/index.js";
 import { useTestApi } from "../src/testing/index.js";
@@ -465,5 +472,198 @@ describe("W2-11 商家资质草稿写接口", () => {
         },
       }),
     ).toBe(0);
+  });
+});
+
+async function roundOwner() {
+  const session = await signInAsMerchant(api),
+    prisma = await handle.db.prisma(),
+    h = harness(api, prisma);
+  const ctx = createIdentityContext({
+    actor: { type: "merchant", id: session.merchantUserId, client: "weapp" },
+  });
+  const created = await merchantServicesOf(api.runtime).tenant.createEntity(ctx);
+  const viewer: ProfileViewer = {
+    ctx,
+    principal: {
+      sessionId: session.merchantUserId,
+      merchantUserId: session.merchantUserId,
+      wechatIdentityId: session.merchantUserId,
+      consentStamp: "test",
+    },
+    membership: {
+      memberId: created.memberId,
+      entityId: created.entityId,
+      storeId: created.storeId,
+      role: "owner",
+      storeMode: "active",
+    },
+  };
+  const ready = await complete(h, viewer);
+  await fixtureSubmit(h, viewer, ready.submissionId);
+  await h.profile.approve(
+    createIdentityContext({ actor: { type: "system", job: "lyxtest.api_rounds" } }),
+    ready.submissionId,
+    { lockVersion: 0, confirm: { roundNo: 1 } },
+  );
+  const reviewer = await signInAsStaff(prisma, { roleKey: "super_admin" });
+  return { session, h, viewer, reviewer, ...created, ready };
+}
+async function roundData(response: Response) {
+  expect(response.status, await response.clone().text()).toBe(200);
+  return ((await response.json()) as { data: unknown }).data;
+}
+describe("W2-11 真实多轮提交与后台决定HTTP", { timeout: 60000 }, () => {
+  it("m.storeProfile.basic.update / m.storeProfile.qualification.submit / admin.qualificationSubmission.approve 变更值经批准才生效，required键重放无重复决定", async () => {
+    const w = await roundOwner(),
+      basic = await w.h.profile.basic(w.viewer),
+      key = uuidv7();
+    const body = {
+      draft: true,
+      lockVersion: basic.lockVersion,
+      storeName: "HTTP审批后名称",
+      confirmReview: true,
+    };
+    const save = () =>
+      api.request("/api/v1/m/store-profile/basic", {
+        method: "PATCH",
+        json: body,
+        headers: { ...w.session.withStore(w.storeId), "Idempotency-Key": key },
+      });
+    const saved = StoreProfileBasicOwnerSchema.parse(await roundData(await save()));
+    expect(saved).toMatchObject({
+      storeName: basic.storeName,
+      pendingChange: { storeName: body.storeName, phase: "draft" },
+    });
+    const id = saved.pendingChange!.qualificationSubmissionId;
+    const submitted = await draftRequest(
+      "/m/store-profile/qualification/submit",
+      w.session,
+      w.storeId,
+      { qualificationSubmissionId: id, declarationConfirmed: true, declarationVersion: "1" },
+    );
+    expect(QualificationViewOwnerSchema.parse(await roundData(submitted))).toMatchObject({
+      isChangeInReview: true,
+      storeQualificationStatus: "verified",
+    });
+    const replay = await save();
+    expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+    expect(StoreProfileBasicOwnerSchema.parse(await roundData(replay))).toEqual(saved);
+    const detail = QualificationSubmissionDetailSchema.parse(
+      await roundData(
+        await api.request(`/api/v1/admin/qualification-submissions/${id}`, {
+          headers: w.reviewer.headers,
+        }),
+      ),
+    );
+    expect(detail).toMatchObject({
+      kind: "change",
+      proposed: { storeName: body.storeName },
+      store: { name: basic.storeName },
+      referenceDocs: [{ qualificationDocId: w.ready.docId }],
+    });
+    const approveKey = uuidv7(),
+      approve = () =>
+        api.request(`/api/v1/admin/qualification-submissions/${id}/approve`, {
+          method: "POST",
+          json: { lockVersion: detail.approval.lockVersion, confirm: { roundNo: 2 } },
+          headers: { ...w.reviewer.headers, "Idempotency-Key": approveKey },
+        });
+    const approved = QualificationSubmissionDetailSchema.parse(await roundData(await approve()));
+    expect(approved).toMatchObject({ outcome: "approved", store: { name: body.storeName } });
+    expect(await roundData(await approve())).toEqual(approved);
+    expect(
+      await w.h.prisma.outboxEvent.count({
+        where: { aggregateId: w.storeId, eventType: "store.qualification_change.approved" },
+      }),
+    ).toBe(1);
+  });
+
+  it("m.storeProfile.qualification.submit / admin.qualificationSubmission.reject / admin.qualificationSubmission.approve 新店真实往返及主体执照只读参考", async () => {
+    const w = await roundOwner(),
+      store = await w.h.make.store({ entityId: w.entityId });
+    const viewer = { ...w.viewer, membership: { ...w.viewer.membership, storeId: store.id } };
+    await w.h.profile.updateBasic(viewer, {
+      draft: false,
+      lockVersion: 0,
+      brandName: "HTTP新店品牌",
+      storeName: "HTTP新增门店",
+      industryCode: "C900",
+      categoryCode: "C901",
+      address: {
+        provinceCode: "110000",
+        cityCode: "110100",
+        districtCode: "110101",
+        zoneCode: null,
+        detail: "HTTP新增地址",
+        poiName: null,
+        latitude: null,
+        longitude: null,
+      },
+      businessHours: [{ start: "09:00", end: "18:00" }],
+      storeTel: "010-12345678",
+      avgSpendFen: 10000,
+    });
+    const photos = [];
+    for (let n = 0; n < 4; n++) photos.push(await ownedFile(w.h, viewer));
+    await w.h.profile.updateMedia(viewer, {
+      draft: false,
+      lockVersion: 1,
+      groups: {
+        door: [{ fileId: photos[0]!.id }],
+        interior: photos.slice(1).map((p) => ({ fileId: p.id })),
+      },
+    });
+    await w.h.profile.updateService(viewer, {
+      draft: false,
+      lockVersion: 2,
+      serviceItems: [{ name: "HTTP新店服务", priceFen: 1000 }],
+      sellingPointCodes: ["SP99"],
+    });
+    await w.h.profile.updateContact(viewer, {
+      lockVersion: 3,
+      name: "新店联系人",
+      phoneSource: "login",
+    });
+    const draft = await w.h.profile.updateQualification(viewer, { lockVersion: null }),
+      id = draft.openRound!.qualificationSubmissionId;
+    const send = (roundId: string) =>
+      draftRequest("/m/store-profile/qualification/submit", w.session, store.id, {
+        qualificationSubmissionId: roundId,
+        declarationConfirmed: true,
+        declarationVersion: "1",
+      });
+    expect(
+      QualificationViewOwnerSchema.parse(await roundData(await send(id))).openRound,
+    ).toMatchObject({ kind: "new_store", roundNo: 1 });
+    const reject = await api.request(`/api/v1/admin/qualification-submissions/${id}/reject`, {
+      method: "POST",
+      json: { reasonCodes: ["R01"], note: "新店名称需补正", confirm: { roundNo: 1 } },
+      headers: { ...w.reviewer.headers, "Idempotency-Key": uuidv7() },
+    });
+    expect(QualificationSubmissionDetailSchema.parse(await roundData(reject))).toMatchObject({
+      kind: "new_store",
+      outcome: "rejected",
+      referenceDocs: [{ qualificationDocId: w.ready.docId }],
+    });
+    const next = await w.h.profile.updateQualification(viewer, { lockVersion: null });
+    const nextId = next.openRound!.qualificationSubmissionId;
+    await roundData(await send(nextId));
+    const approve = await api.request(`/api/v1/admin/qualification-submissions/${nextId}/approve`, {
+      method: "POST",
+      json: { lockVersion: 0, confirm: { roundNo: 2 } },
+      headers: { ...w.reviewer.headers, "Idempotency-Key": uuidv7() },
+    });
+    expect(QualificationSubmissionDetailSchema.parse(await roundData(approve))).toMatchObject({
+      kind: "new_store",
+      outcome: "approved",
+      store: { qualificationStatus: "verified" },
+    });
+    expect(
+      await w.h.prisma.qualificationDoc.findUniqueOrThrow({ where: { id: w.ready.docId } }),
+    ).toMatchObject({ supersededAt: null });
+    expect(
+      (await w.h.profile.qualificationHistory(viewer, {})).items.map((r) => r.roundNo),
+    ).toEqual([2, 1]);
   });
 });

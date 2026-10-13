@@ -7,7 +7,7 @@
 //   setDeliveryManager     改门店的交付经理并写审计。
 //
 // 加锁：主体（100）→ 门店（130）。调用方（profile）在这之前锁的资质轮次（65）次序更小，不冲突。
-// change、new_store 仅补系统生命周期撤回；提交、通过、驳回仍未开放。
+// W2-11：new_store/change复用真实资质/审批事实；初次链与系统生命周期撤回保持原守卫。
 import { record as recordAudit } from "../audit/index.js";
 import type { AuditRequestMeta } from "../audit/index.js";
 import type { Flow, MergedAudit } from "../flow/index.js";
@@ -25,9 +25,11 @@ export type QualificationAction = (typeof QUALIFICATION_ACTIONS)[number];
 
 export interface StoreQualificationInput {
   readonly storeId: string;
-  /** change/new_store 仅开放系统生命周期撤回。 */
+  /** 初次、新店、变更；非初次商家提交/决定必须带submissionId。 */
   readonly round: "initial" | "new_store" | "change";
   readonly action: QualificationAction;
+  /** 多轮提交与决定必须对应真实资质轮次/审批事实。 */
+  readonly submissionId?: string;
   /** approve 必给：写进主体的认证字段 */
   readonly verified?: VerifiedEntityFields;
   /** reject 必给：原因至少一项、说明必填 */
@@ -91,7 +93,7 @@ export async function setStoreQualification(
   const entityId = store.entityId;
   const entity = await tx.entity.findUniqueOrThrow({ where: { id: entityId } });
   const event =
-    input.round === "change" ? "qualification.change_withdraw" : `qualification.${action}`;
+    input.round === "change" ? `qualification.change_${action}` : `qualification.${action}`;
   const refuse = (reason: string): never => {
     throw new AppError("STATE_NOT_ALLOWED", {
       details: {
@@ -104,13 +106,46 @@ export async function setStoreQualification(
     });
   };
   if (input.round !== "initial") {
-    if (
-      action !== "withdraw" ||
-      ctx.actor.type !== "system" ||
-      !["closed", "abandoned"].includes(entity.lifecycle) ||
-      entity.verificationStatus !== "verified"
-    )
-      refuse("only_system_lifecycle_withdraw_open");
+    if (action === "withdraw") {
+      if (
+        ctx.actor.type !== "system" ||
+        !["closed", "abandoned"].includes(entity.lifecycle) ||
+        entity.verificationStatus !== "verified"
+      )
+        refuse("only_system_lifecycle_withdraw_open");
+    } else {
+      const round = input.submissionId
+        ? await tx.qualificationSubmission.findFirst({
+            where: {
+              id: input.submissionId,
+              entityId,
+              storeId,
+              kind: input.round,
+              submittedAt: { not: null },
+              closedAt: null,
+            },
+            include: { approvalRequest: true },
+          })
+        : null;
+      if (
+        entity.lifecycle !== "active" ||
+        entity.verificationStatus !== "verified" ||
+        !round ||
+        round.approvalRequest?.status !==
+          ({ submit: "pending", approve: "approved", reject: "rejected" } as const)[action]
+      )
+        refuse("qualification_round_fact_required");
+      if (action === "submit") {
+        const member =
+          ctx.actor.type === "merchant"
+            ? await tx.entityMember.findFirst({
+                where: { entityId, merchantUserId: ctx.actor.id, role: "owner", status: "active" },
+              })
+            : null;
+        if (!member) refuse("owner_required");
+      } else if (ctx.actor.type !== "staff" && ctx.actor.type !== "system")
+        refuse("review_actor_required");
+    }
     if (input.round === "new_store" && store.isPrimary) refuse("not_new_store_round");
   } else if (!store.isPrimary) refuse("not_initial_round");
   // 服务层先断言；库里的 ck_store_name_required 兜底
@@ -134,7 +169,9 @@ export async function setStoreQualification(
     emit: {
       none: true,
       primary:
-        input.round === "change" ? "store.qualification_change.withdrawn" : PRIMARY_EVENT[action],
+        input.round === "change"
+          ? `store.qualification_change.${action === "submit" ? "submitted" : action === "approve" ? "approved" : action === "reject" ? "rejected" : "withdrawn"}`
+          : PRIMARY_EVENT[action],
     },
   } as const;
   /** 撤回回到提交前的值：这条链最近一次进入 pending 之前的状态 */
@@ -151,6 +188,24 @@ export async function setStoreQualification(
     storeId,
     ...(input.round === "change" ? {} : await revertTo("store", "qualification_status", storeId)),
   });
+  if (input.round === "change" && action === "approve" && input.verified) {
+    const v = input.verified;
+    if (!v.name.trim() || !v.usccEnc || !v.usccMask || v.usccBidx.byteLength !== 32)
+      refuse("verified_fields_required");
+    await tx.entity.update({
+      where: { id: entityId },
+      data: {
+        name: v.name,
+        entityType: v.entityType,
+        usccEnc: v.usccEnc,
+        usccBidx: v.usccBidx,
+        usccMask: v.usccMask,
+        legalRepNameEnc: v.legalRepNameEnc,
+        legalRepNameMask: v.legalRepNameMask,
+        updatedAt: now,
+      },
+    });
+  }
   if (input.round !== "initial")
     return {
       storeId,
@@ -192,6 +247,40 @@ export async function setStoreQualification(
 
 export const STORE_NAME_MIN = 2;
 export const STORE_NAME_MAX = 30;
+
+/** 审批回调专用：调用方先完成scope/auth/version；本出口复核真实已批准change事实。 */
+export async function renameStore(
+  tx: Tx,
+  now: Date,
+  ctx: IdentityContext,
+  input: { storeId: string; name: string; submissionId: string },
+) {
+  const store = await lockStore(tx, input.storeId, true);
+  const round = await tx.qualificationSubmission.findFirst({
+    where: {
+      id: input.submissionId,
+      storeId: store.id,
+      entityId: store.entityId,
+      kind: "change",
+      closedAt: null,
+      submittedAt: { not: null },
+      proposedStoreName: input.name,
+    },
+    include: { approvalRequest: true },
+  });
+  const name = input.name.trim();
+  if (
+    (ctx.actor.type !== "staff" && ctx.actor.type !== "system") ||
+    !round ||
+    round.approvalRequest?.status !== "approved" ||
+    store.qualificationStatus !== "verified"
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
+  if ([...name].length < STORE_NAME_MIN || [...name].length > STORE_NAME_MAX)
+    throw new AppError("VALIDATION_FAILED");
+  await tx.store.update({ where: { id: store.id }, data: { name, updatedAt: now } });
+  return { storeId: store.id, name };
+}
 
 /** 首店起名：只在资质还没提交（或被驳回待重交）时可改 */
 export async function setStoreName(

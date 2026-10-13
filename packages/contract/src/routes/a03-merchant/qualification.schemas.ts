@@ -11,6 +11,7 @@ import { z } from "../../zod.js";
 import { DictRefSchema, IdSchema, InstantSchema, orNull, openEnum } from "../../common/index.js";
 import { ApprovalDecisionViewSchema } from "../a01-system/approvals.schemas.js";
 import { QualificationDocSchema } from "../m03-profile-asset/qualification.schemas.js";
+import { PendingChangeSchema } from "../m03-profile-asset/profile.schemas.js";
 import { StoreRegionSchema } from "./stores.schemas.js";
 export const AdminQualificationDocSchema = QualificationDocSchema.omit({ hasSubmittedFields: true })
   .extend({
@@ -56,7 +57,7 @@ export const QualificationSubmissionDetailSchema = z
       verifiedAt: orNull(InstantSchema),
       verifiedStores: z.array(z.object({ storeId: IdSchema, name: orNull(z.string()) })),
     }),
-    proposed: z.null(),
+    proposed: orNull(PendingChangeSchema),
     changedFields: z.array(z.string()),
     contact: orNull(
       z.object({

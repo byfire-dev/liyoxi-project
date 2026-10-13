@@ -49,7 +49,7 @@ export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer)
       name: s.store.name,
       isPrimary: s.store.isPrimary,
       qualificationStatus: s.store.qualificationStatus,
-      isChangeInReview: false,
+      isChangeInReview: s.open?.kind === "change" && s.open.submittedAt !== null,
       isFinalRejected: p?.finalRejectedAt != null,
       industry: await dictRef(tx, "industry", p?.industryCode),
       category: await dictRef(tx, "industry", p?.categoryCode),

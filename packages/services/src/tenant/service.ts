@@ -48,7 +48,12 @@ import {
 import { resolveMembership } from "./membership.js";
 import type { StoreMembership } from "./membership.js";
 import { billingAccountPort } from "./ports.js";
-import { setDeliveryManager, setStoreName, setStoreQualification } from "./qualification.js";
+import {
+  renameStore,
+  setDeliveryManager,
+  setStoreName,
+  setStoreQualification,
+} from "./qualification.js";
 import type { StoreQualificationInput, StoreQualificationResult } from "./qualification.js";
 import { assertWithinQuota, getQuotaUsage } from "./quota.js";
 import type { QuotaUsage } from "./quota.js";
@@ -228,12 +233,18 @@ export interface Tenant {
   getQuotaUsage(tx: Tx, entityId: string): Promise<QuotaUsage>;
   /** 仅门店超额阻断新订购，复用调用方事务和当前额度事实。 */
   assertWithinQuota(tx: Tx, entityId: string): Promise<void>;
-  /** 资质 initial 轮次的提交、通过、驳回、撤回：门店与主体两条链同事务 */
+  /** 三种资质轮次；仅initial改主体状态，change执照批准只改认证字段。 */
   setStoreQualification(
     tx: Tx,
     ctx: IdentityContext,
     input: StoreQualificationInput,
   ): Promise<StoreQualificationResult>;
+  /** 真实批准change回调内改名：调用方保证scope/auth/version，此口拒绝历史已关闭轮次。 */
+  renameStore(
+    tx: Tx,
+    ctx: IdentityContext,
+    input: { storeId: string; name: string; submissionId: string },
+  ): Promise<{ storeId: string; name: string }>;
   /** 首店起名 */
   setStoreName(
     tx: Tx,
@@ -354,6 +365,7 @@ export function createTenant(deps: TenantDeps): Tenant {
     assertWithinQuota: (tx, entityId) => assertWithinQuota(tx, { facts }, now(), entityId),
     setStoreQualification: (tx, ctx, input) =>
       setStoreQualification(tx, { flow }, now(), ctx, input),
+    renameStore: (tx, ctx, input) => renameStore(tx, now(), ctx, input),
     setStoreName: (tx, ctx, input) => setStoreName(tx, now(), ctx, input),
     setDeliveryManager: (tx, ctx, input) => setDeliveryManager(tx, now(), ctx, input),
     membershipBriefs: (db, merchantUserId) => membershipBriefs(db, now(), merchantUserId),
