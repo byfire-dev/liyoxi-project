@@ -1,8 +1,14 @@
-import { AdminStoreAssetListQuerySchema, IdSchema, z } from "@liyoxi/contract";
+import {
+  AdminStoreAssetListQuerySchema,
+  AdminAssetDemandListQuerySchema,
+  IdSchema,
+  z,
+} from "@liyoxi/contract";
 import { readContractQuery } from "../../../lib/contract-query";
 import { hasModuleLevel, type AccessSnapshot } from "../../../lib/permissions";
 import type { AssetDetail, AssetQuery, AssetRow, AssetSummaryQuery } from "./api";
 const fields = AdminStoreAssetListQuerySchema.shape;
+const demandFields = AdminAssetDemandListQuerySchema.shape;
 const SearchSchema = z.strictObject({
   assetTab: fields.tab,
   assetId: IdSchema.optional(),
@@ -14,6 +20,9 @@ const SearchSchema = z.strictObject({
   page: fields.page,
   pageSize: fields.pageSize,
   sort: fields.sort,
+  demandStatus: demandFields.status,
+  demandPage: demandFields.page,
+  demandPageSize: demandFields.pageSize,
 });
 export const ASSET_KEYS = [
   "assetTab",
@@ -26,6 +35,9 @@ export const ASSET_KEYS = [
   "page",
   "pageSize",
   "sort",
+  "demandStatus",
+  "demandPage",
+  "demandPageSize",
 ] as const;
 export const ASSET_FILTERS = [
   "type",
@@ -66,7 +78,8 @@ export function fileKindLabel(kind: string): string {
 export const canReadAssets = (access: AccessSnapshot | null) => hasModuleLevel(access, "merchant");
 export function assetSearch(raw: Readonly<Record<string, unknown>>): Record<string, string> {
   const input = { ...raw };
-  if (![10, 20, 50].includes(Number(input.pageSize))) delete input.pageSize;
+  for (const key of ["pageSize", "demandPageSize"])
+    if (![10, 20, 50].includes(Number(input[key]))) delete input[key];
   return readContractQuery(SearchSchema, input, {
     keys: ASSET_KEYS,
     defaults: { assetTab: "all", page: "1", pageSize: "20", sort: "-createdAt" },
@@ -78,9 +91,22 @@ export function assetListQuery(
   raw: Readonly<Record<string, unknown>>,
 ): AssetQuery {
   if (!IdSchema.safeParse(storeId).success) throw new Error("门店地址不正确");
-  const { assetTab, assetId, page, pageSize, sort, hasPortraitAuthFiles, ...filters } =
-    assetSearch(raw);
+  const {
+    assetTab,
+    assetId,
+    page,
+    pageSize,
+    sort,
+    hasPortraitAuthFiles,
+    demandStatus,
+    demandPage,
+    demandPageSize,
+    ...filters
+  } = assetSearch(raw);
   void assetId;
+  void demandStatus;
+  void demandPage;
+  void demandPageSize;
   return {
     ...filters,
     storeId,
