@@ -159,12 +159,25 @@ describe("首页素材最后留桩", () => {
       start = deferred<void>();
     const pending = h.resource.prepare(() => start.promise);
     h.resource.suspend();
-    start.resolve();
-    await pending;
     expect(h.api.demands).not.toHaveBeenCalled();
     h.resource.resume();
     await h.resource.prepare(async () => undefined);
     expect(h.api.demands).toHaveBeenCalledTimes(1);
+    expect(h.resource.snapshot()).toMatchObject({
+      demands: homeAssetDemands,
+      summary: assetSummary,
+      demandsLoading: false,
+      summaryLoading: false,
+    });
+    start.resolve();
+    await pending;
+    expect(h.api.demands).toHaveBeenCalledTimes(1);
+    expect(h.resource.snapshot()).toMatchObject({
+      demands: homeAssetDemands,
+      summary: assetSummary,
+      demandsLoading: false,
+      summaryLoading: false,
+    });
     h.resource.dispose();
     h.resource.resume();
     await h.resource.prepare(async () => undefined);

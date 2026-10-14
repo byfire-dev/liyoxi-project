@@ -52,20 +52,23 @@ export function HomeAssets() {
 function HomeAssetsContent() {
   const [resource] = useState(() => createHomeAssetsResource({ api, scope }));
   const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot),
-    ready = useRef(false);
+    hidden = useRef(false);
   const load = () => resource.prepare(account.start);
   useEffect(() => {
     resource.resume();
-    void resource.prepare(account.start).finally(() => {
-      if (resource.current()) ready.current = true;
-    });
+    void resource.prepare(account.start);
     return () => resource.dispose();
   }, [resource]);
   useDidShow(() => {
+    if (!hidden.current) return;
+    hidden.current = false;
     resource.resume();
-    if (ready.current) void load();
+    void load();
   });
-  useDidHide(() => resource.suspend());
+  useDidHide(() => {
+    hidden.current = true;
+    resource.suspend();
+  });
   const open = (url: string) => {
     if (resource.current()) void Taro.navigateTo({ url });
   };

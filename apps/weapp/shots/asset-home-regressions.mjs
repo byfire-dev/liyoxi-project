@@ -14,7 +14,10 @@ export async function homeAssetsRegression(page, scene) {
     await expect(root().getByText("暂无开放的素材需求", { exact: true })).toBeVisible();
     await expect(root().getByText("门店权限已变化，请重新选择门店", { exact: true })).toBeVisible();
     await expect(root().locator(".home-assets__summary")).toHaveCount(0);
-    await root().getByText("重新加载", { exact: true }).click();
+    await root()
+      .locator(".lyx-button")
+      .filter({ hasText: /^重新加载$/ })
+      .click();
     await expect(root().locator(".home-assets__summary")).toHaveText("0 条素材 · 0 条被采用");
     return;
   }
@@ -24,7 +27,10 @@ export async function homeAssetsRegression(page, scene) {
   if (scene === "asset-home-clerk") {
     await expect(active(".home-page").getByText("上线概览", { exact: true })).toHaveCount(0);
     await expect(active(".home-page").getByText("浏览短剧商城", { exact: true })).toBeVisible();
-    await root().getByText("为此需求上传", { exact: true }).click();
+    await root()
+      .locator(".lyx-text-button")
+      .filter({ hasText: /^为此需求上传$/ })
+      .click();
     await expect(page).toHaveURL(
       /sub\/asset\/upload\/index\?assetDemandId=019aa000-0000-7000-8000-000000000009$/,
     );
@@ -36,7 +42,10 @@ export async function homeAssetsRegression(page, scene) {
     await expect(active(".asset-upload__demands .lyx-chip--selected")).toHaveText("本周门店日常");
   } else {
     await expect(active(".home-page").getByText("上线概览", { exact: true })).toBeVisible();
-    await root().getByText("查看被采用的素材", { exact: true }).click();
+    await root()
+      .locator(".lyx-text-button")
+      .filter({ hasText: /^查看被采用的素材$/ })
+      .click();
     await expect(page).toHaveURL(/sub\/asset\/lib\/index\?uploader=me&status=adopted$/);
     await expect(active(".asset-lib#asset-ready")).toBeVisible();
     await expect(
