@@ -162,10 +162,7 @@ function MerchantAssetsContent({ services, storeId, access, search, change }: As
   ];
   return (
     <section aria-label="门店素材">
-      <p>
-        机器结果不代表人工用途、可用性或肖像授权；写操作以当前权限、服务端 actions
-        与锁版本复核为准。
-      </p>
+      <p>机器识别仅供参考，素材用途、可用性和肖像授权须人工核对。</p>
       {notice ? (
         <Alert type="info" title={notice} closable onClose={() => setNotice(undefined)} />
       ) : null}
