@@ -23,6 +23,7 @@ import {
   assertContentAdminLiveTargets,
   findContentAdminLiveJobIds,
   findAgreementLiveUploadJobIds,
+  createMerchantAssetLiveUploadPump,
   finishW120LiveFixture,
 } from "@liyoxi/services/testing";
 import type { ContentAdminLiveScope, OutputBatchLiveInput } from "@liyoxi/services/testing";
@@ -55,6 +56,7 @@ export async function startOutputBatchLiveServer(options: {
   prefix: string;
   inputs: OutputBatchLiveInput;
   w312?: ContentAdminLiveScope;
+  w318?: unknown;
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
@@ -100,6 +102,7 @@ export async function startOutputBatchLiveServer(options: {
   let closing = false;
   let stopped: Promise<void> | undefined;
   let startupCancellation: Promise<PromiseSettledResult<void>[]> | undefined;
+  let merchantUploads: ReturnType<typeof createMerchantAssetLiveUploadPump> | undefined;
   const cancelStartup = () => {
     closing = true;
     startupCancellation ??= Promise.allSettled(
@@ -110,6 +113,7 @@ export async function startOutputBatchLiveServer(options: {
   const stop = () =>
     (stopped ??= (async () => {
       closing = true;
+      merchantUploads?.beginStop();
       for (const api of apis) api.readiness.state = "draining";
       if (interval) clearInterval(interval);
       // Cancel executor IO before waiting for a pump which may itself be awaiting that IO.
@@ -129,6 +133,7 @@ export async function startOutputBatchLiveServer(options: {
           );
         }),
       );
+      const merchantUploadResults = await Promise.allSettled([merchantUploads?.close()]);
       const inputResults = await Promise.allSettled([masters?.cleanup()]);
       const pngResults = await Promise.allSettled(
         [...renderedPng.keys()].map(async (slot) => {
@@ -153,6 +158,7 @@ export async function startOutputBatchLiveServer(options: {
           ...pumpResults,
           ...agreementResults,
           ...serverResults,
+          ...merchantUploadResults,
           ...inputResults,
           ...pngResults,
           ...transportResults,
@@ -223,6 +229,8 @@ export async function startOutputBatchLiveServer(options: {
     });
     const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
     runtimes.push(batch);
+    if (options.w318 !== undefined)
+      merchantUploads = createMerchantAssetLiveUploadPump(batch, options.w318, options.prefix);
     if (w312) await assertContentAdminLiveTargets(batch, w312);
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
     options.signal?.throwIfAborted();
@@ -330,7 +338,23 @@ export async function startOutputBatchLiveServer(options: {
               if (contentRegistration && contentFiles.size >= 100)
                 throw new Error("W312 observed file registrations exceeded the exact bound");
             }
-            const response = await agreementFetch(request, env);
+            const response = merchantUploads
+              ? await merchantUploads.fetch(
+                  request,
+                  () => agreementFetch(request, env),
+                  async () => {
+                    const headers = new Headers(request.headers);
+                    for (const key of ["content-length", "content-type", "transfer-encoding"])
+                      headers.delete(key);
+                    const me = await batchApi.app.fetch(
+                      new Request(new URL("/api/v1/admin/auth/me", request.url), { headers }),
+                    );
+                    if (!me.ok) return null;
+                    const body = (await me.json()) as { data: unknown };
+                    return StaffMeSchema.parse(body.data).staff.staffId;
+                  },
+                )
+              : await agreementFetch(request, env);
             if (contentRegistration && response.ok && !closing) {
               const value: unknown = await response.clone().json();
               const parsed = FileRegistrationSchema.safeParse(
@@ -419,7 +443,12 @@ async function main() {
     runId = assertScope(env, values["test-redis-prefix"]);
   if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
     throw new Error("Input manifest must be the exact owned temporary file");
-  const manifest = parseOutputBatchLiveManifest(JSON.parse(await readFile(path, "utf8")));
+  const raw: unknown = JSON.parse(await readFile(path, "utf8"));
+  const { w318, ...legacy } =
+    typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w318" in raw
+      ? raw
+      : { w318: undefined };
+  const manifest = parseOutputBatchLiveManifest(w318 === undefined ? raw : legacy);
   const controller = new AbortController();
   let server: Awaited<ReturnType<typeof startOutputBatchLiveServer>> | undefined;
   const cancel = () => {
@@ -437,6 +466,7 @@ async function main() {
       prefix: values["test-redis-prefix"],
       inputs: manifest.inputs,
       w312: manifest.w312,
+      w318,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),

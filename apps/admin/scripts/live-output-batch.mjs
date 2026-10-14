@@ -467,7 +467,7 @@ async function main(args) {
     );
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
     await run(
