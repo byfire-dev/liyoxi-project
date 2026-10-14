@@ -40,12 +40,13 @@ export function AssetConfirm({
       onCancel={close}
       onConfirm={async ({ idempotencyKey }) => {
         if (!active.current) return { outcome: "failed", message: "当前操作已失效，请重新打开" };
-        if (completed.current) return { outcome: "done" };
         if (pending.current) return { outcome: "failed", message: "正在提交，请稍候" };
         pending.current = true;
         try {
-          await prepared.send(api, idempotencyKey, controller.current?.signal);
-          completed.current = true;
+          if (!completed.current) {
+            await prepared.send(api, idempotencyKey, controller.current?.signal);
+            completed.current = true;
+          }
           if (active.current) await refresh();
           return { outcome: "done" };
         } catch (error) {
