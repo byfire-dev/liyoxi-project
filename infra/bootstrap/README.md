@@ -1,26 +1,26 @@
 # 预发节点：首次起环境
 
-把业主那台阿里云服务器变成预发的步骤。形态依据 [ADR-041](../../docs/adr/0041-预发先行-单机预发-共用AppID.md)“决定”第 4 节；任务书 `docs/plan/tasks/W2-25.md`。W2-25 的第一步交付：脚本、Compose、本机演练。桶配置、第四个镜像、推镜像与合并即部署的工作流在第二步。
+把业主那台阿里云服务器变成预发的步骤。形态依据 [ADR-041](../../docs/adr/0041-预发先行-单机预发-共用AppID.md)“决定”第 4 节；任务书 `docs/plan/tasks/W2-25.md`。W2-25 已交付脚本、Compose、本机演练、桶核对工具、四镜像与默认关闭的构建发布流程；真实节点配置和外部发布另按下文逐步验收。
 
 ## 0. 先看这几句
 
 - **谁来做**：下面每一步都是业主执行，或业主在场逐步确认后由调度会话执行（ADR-041 第 4.10 节）。写密钥文件、给发布公钥只有业主做。会话不读密钥目录，不把服务器上的任何值带回对话。
-- **这些步骤还没有在服务器上跑过**。跑过的是本机演练（第 9 节）：同一份 Compose、同一套脚本，在本机的 Docker 上从造密钥走到冒烟。systemd、宿主机 nginx、受限 SSH 三样本机演练不到，只有用例（命令桩掉）与 `nginx -t`。
+- **应用部署步骤仍未在服务器上验收**。历史本机演练见第 9 节。2026-10-14 已在用户本轮授权下核验 root SSH 和节点元信息，并新增三个独立 HTTP 站点作为 ACME 验证入口：`nginx -t`、reload 及稳定后的本机 Host 路径响应均通过。首次 reload 后立即请求曾为 404，稳定后复核全部 200，测试文件已清理。应用、systemd 发布链与 TLS 证书尚未启用；本机演练不能替代这些真实验收。
 - **不动的东西**：宿主机 nginx 上已有的站点（公司官网、`api.timavia.com`）；参考工程留下的容器、卷与导出文件。脚本遇到它们只报告，不处置。
 - 脚本都可以重复执行。每一步后面写了预期输出与回退办法；预期对不上就停，不要往下走。
-- 镜像怎么到节点：正路是 CI 推到镜像仓库、节点只拉（第二步交 `images.yml`）。所以**第 3 步起要等第二步合并、镜像仓库建好之后**；第 1、2 步（初始化、密钥）可以先做。
+- 镜像怎么到节点：CI 推到镜像仓库、节点只拉。2026-10-14 已定 GHCR，发布流程适配已独审、定点验证并合本地 main，远端 PR #1 的四镜像构建通过，required 尚被旧 MinIO 拉取权限及旧基线检查失败阻塞；**第 3 步起仍要等镜像首次发布及节点拉取验证**。第 1、2 步（初始化、密钥）可分别准备，不能因资源已提供跳过逐步验收。
 
 | 路径（节点上） | 是什么 |
 | --- | --- |
 | `/opt/liyoxi/infra/` | 从仓库拷来的 `infra/compose`、`infra/deploy`、`infra/bootstrap`，布局与仓库相同 |
 | `/opt/liyoxi/secrets/` | 密钥文件，目录 0700 只有 root 能进，文件 0400。清单在 [secrets.manifest.json](../deploy/secrets.manifest.json) |
-| `/opt/liyoxi/node.env` | 这台节点自己的非敏感设置：现在只有镜像仓库前缀 |
+| `/opt/liyoxi/node.env` | 这台节点自己的非敏感设置：镜像仓库前缀与可选 Provider 选择/公开标量 |
 | `/opt/liyoxi/release.env` | 现在该跑哪个版本。由节点步骤 `up` 写，systemd 重启容器时读 |
 | `/opt/liyoxi/static/` | 静态资源的宿主机目录，留给发布编排的预置一步（W2-26），现在是空的 |
 
 ## 1. 上服务器之前
 
-照 [checklist.md](checklist.md) 逐项勾完。要点：镜像仓库定了并建好；补 3、补 4 有结论；三条预发域名的 DNS 已加；发布用的密钥对已生成（私钥只进 CI 密文）。
+照 [checklist.md](checklist.md) 逐项勾完。要点：镜像已发布且节点可拉；补 3、补 4 有结论；三条预发域名的 DNS 已加；发布用的密钥对已生成并正确录入。2026-10-14 三个应用预发域名 A 均无记录，DNS 仍待用户配置。资源、方案与核验依据见 [platform-config.md](../../docs/plan/platform-config.md) 第 2.3、2.5 节；不在文档记录私钥及本地路径。
 
 ## 2. 第 1 步：传脚本，节点初始化
 
@@ -235,7 +235,7 @@ pnpm stg:rehearse    # 约两三分钟；pnpm stg:rehearse --keep 演练完不�
 
 ## 12. b：四桶核对与构建发布流水线
 
-a 已经 PR #94 实际合入；b 续交桶声明/比较工具、独立上传器、四镜像与默认关闭的流水线。以下外部操作都尚未执行，服务器/桶/账号仍待业主逐步配置与手验。
+a 已经 PR #94 实际合入；b 已交桶声明/比较工具、独立上传器、四镜像与默认关闭的流水线。2026-10-14 用户截图确认 `lyx-{dev,stg}-{asset,media,pub,secure}-1257198915` 八桶存在，但实际地域、策略、CI、CAM、CORS 与运行凭据未核；节点 SSH 与 HTTP 签发验证入口的核验范围见第 0 节。以下云配置、镜像发布与应用部署仍待逐步验收。
 
 `pnpm stg:buckets -- --check --offline` 只读内置空配置夹具，列四桶差异并退出 1；`--fixture <公开JSON文件>` 可替换完整四桶现状，**offline 不读凭据、不执行 adapter**。退出 0 表示与声明一致，1 表示差异/人工阻断，2 表示参数/响应/Provider 错误；`--offline --apply` 拒绝。生命周期只管 D5 的纯时间规则，不能替代业务引用清理。secure `ci/` 为七天，pub 没有写入区。
 
@@ -243,7 +243,11 @@ a 已经 PR #94 实际合入；b 续交桶声明/比较工具、独立上传器�
 
 只有业主明确设置 `LYX_COS_APPLY_ENABLED=true` 并给 `--apply` 才允许窄 PUT；写前完整读四桶，未知策略/ACL/生命周期/加密、缺桶或不认识的输出均停止，不能删除外部规则。pub 的 Enabled/Suspended 不能被改成“从未开启”。可管理差异依次写私有 ACL、版本/SSE 与完整生命周期，再逐项 GET 读回；失败不报告成功，不删除对象或桶。COSCLI 未证实生命周期命令，AWS 逐操作兼容也无腾讯保证，因此使用官方 SDK 的原生方法，未编造 CLI。
 
-GitHub Actions 的公开 vars 与 encrypted secrets 由业主事后设置。缺省镜像发布、制品写入、部署与体验版上传四个外部开关都关闭，未配置而开启则失败，不以跳过步骤冒充发布成功：
+2026-10-14 业主定用本项目 GHCR，取代此前阿里云镜像仓库建议。源码仓库为 `https://github.com/sanqianyuejia/liyoxi-project`；候选四镜像为 `ghcr.io/sanqianyuejia/liyoxi/{server,gateway,mediatool,weapp-uploader}`，节点前缀候选 `ghcr.io/sanqianyuejia/`。尚未首次发布，公开源码仓库不代表 GHCR 包公开，CI 推送/节点拉取权限与连通性另验。
+
+GHCR 三叶已完成唯一独审修正，镜像/摘要定点 24 项与工作流检查 82 项通过，本地 main 已合 `af73fdc2`、`091da64d`。远端仅移植这三叶到旧 main 并开 [PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1)（head `a5dc447d`），Actions 已实际运行；四镜像构建已通过；原 CI 拉取 `ghcr.io/byfire-dev/minio:latest` 被 denied，另有旧 infra 三项断言失败及历史密钥扫描 23 项测试夹具误报（已只读核对，规则未修），`required` 未通过。新仓库缺少的 `gate-touch` 标签已补，单 job 重跑已通过；旧 MinIO 公开恢复或迁移本机镜像的处理待用户答复。该 PR 不是本地完整 main 的远端同步；首次四镜像发布未发生，不能以本地检查通过代替远端 required 或实际发布。 [四镜像构建运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571462602)成功；[CI 运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571463088)的 verify、web、gate-classify 通过，旧基线失败仍保留。infra 三项分别为留桩状态、CHECK 约束计数和分区快照断言，均不在本 PR 三文件中；不跳过这些检查合并发布。 历史扫描 23 项均属 `generic-api-key`，只读核对为 ASR 配置/回调/发送测试和 W216 临时员工登录夹具四组，未发现真实云或生产凭据迹象；修正须精确限定夹具，不能豁免整个历史提交或关闭扫描。
+
+四项公开 vars 已设置：`STG_REGISTRY=ghcr.io`、`STG_REGISTRY_NAMESPACE=sanqianyuejia/liyoxi`、`STG_WEAPP_APPID=wx66a51228082e82d4`、`STG_WEAPP_API_BASE_URL=https://api.stg.liyoxi.timavia.com`；`STG_IMAGES_PUBLISH_ENABLED` 尚未开启。其余公开 vars 与 encrypted secrets 仍按下表逐项配置。缺省镜像发布、制品写入、部署与体验版上传四个外部开关都关闭，未配置而开启则失败，不以跳过步骤冒充发布成功：
 
 | 类别 | 配置 |
 | --- | --- |
@@ -257,4 +261,4 @@ PR 四镜像只 build，以 `sha-<12HEAD>` 绑定同一源码，小程序原 150
 
 `images.json` 四个镜像各记录 `registryDigest`、`amd64ManifestDigest`、`amd64ConfigDigest`。发布工具按摘要固定查询原始 index/manifest、校验字节 SHA256，且只接受唯一 linux/amd64 平台与其 config；节点实际 a 的 `.Id` 必须匹配同一镜像这三个明确事实之一，兼容 classic 的 config ID 与 containerd 的 index ID。缺字段、坏摘要、未知镜像或重复节点行均在编排前停止，不能只按 tag 放行。输出形状与原字节依据 [Docker Buildx 文档](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/)及[官方 raw 输出实现](https://github.com/docker/buildx/blob/master/util/imagetools/printers.go)，本机仅用真实 Node 与 fake Docker/SSH 核验，无 registry 推送或节点部署。
 
-本机证据仅证明脚本/真实 SDK 请求格式与四镜像能构建。真实 registry/CAM 权限、COS 四桶创建和配置、CDN 授权、SSH 登录/节点发布与微信上传仍未办；本包未启用任何真实开关，没有服务器交付成功结论。
+本机证据仅证明脚本/真实 SDK 请求格式与四镜像能构建。2026-10-14 已有八桶存在截图、真实节点 SSH 及 HTTP ACME 入口核验；真实 registry/CAM 权限、桶地域与配置、CDN 授权、证书签发、节点应用发布及微信上传仍未验。发布开关尚未开启，没有服务器应用交付成功结论。
