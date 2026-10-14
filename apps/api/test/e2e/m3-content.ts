@@ -271,7 +271,8 @@ export async function ensureM3Content({
   assert.equal(batch.items.length, episodeCount);
   const fileIds: string[] = [];
   for (const item of batch.items) {
-    assert.ok(item.uploadKey?.startsWith(batch.prefix), "上传键必须属于 HTTP 创建的当前批次");
+    assert.ok(item.uploadKey, "HTTP 批次必须签发上传键");
+    assert.ok(item.uploadKey.startsWith(batch.prefix), "上传键必须属于 HTTP 创建的当前批次");
     const post = await support.providers.storage.presignPost({
       bucket: "media",
       key: item.uploadKey,

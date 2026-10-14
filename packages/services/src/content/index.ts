@@ -15,7 +15,7 @@ export { DramaUsagePort } from "./ports.js";
 export type { DramaUsage } from "./ports.js";
 export { createContentMaintenance } from "./maintenance.js";
 export type { ContentMaintenance } from "./maintenance.js";
-export { seedDemoContent, DEMO_DRAMAS } from "./demo-seed.js";
+export { seedDemoContent, DEMO_DRAMAS, DEMO_DICT_ITEMS } from "./demo-seed.js";
 export type { ContentDemoDeps } from "./demo-seed.js";
 
 export { matchedFields, normalizeSearch } from "./search.js";

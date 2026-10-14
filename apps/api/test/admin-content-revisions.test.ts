@@ -16,6 +16,7 @@ import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
 import type { SignedInStaff, FakeStorage } from "@liyoxi/services/testing";
 import { useTestApi } from "../src/testing/index.js";
 import type { TestApi } from "../src/testing/index.js";
+import { adminDramaPricingHandlers } from "../src/routes/admin/drama-pricing.js";
 const handle = useTestApi();
 let app: TestApi,
   prisma: Awaited<ReturnType<typeof handle.db.prisma>>,
@@ -78,6 +79,18 @@ const snapshot = (id: string) => ({
 });
 beforeAll(async () => {
   app = await handle.start();
+  const operations = [
+    "admin.dramaPrice.list",
+    "admin.dramaPrice.summary",
+    "admin.dramaPriceRevision.list",
+    "admin.priceTierRevision.list",
+    "admin.drama.dramaPriceRevision.create",
+    "admin.dramaPriceRevision.withdraw",
+  ];
+  expect(adminDramaPricingHandlers.map(({ route }) => route.operationId).sort()).toEqual(
+    [...operations].sort(),
+  );
+  expect(app.api.mountedOperations).toEqual(expect.arrayContaining(operations));
   prisma = await handle.db.prisma();
   await runSeed({ tx: app.runtime.tx, clock: app.clock });
   supervisor = await signInAsStaff(prisma, { roleKey: "super_admin" });

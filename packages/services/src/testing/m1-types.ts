@@ -7,6 +7,8 @@ import type { FakeProviders } from "./providers/index.js";
 import type { AdjustableClock } from "./clock.js";
 import type { M1_PROFILE_DEFAULTS } from "./m1-profile-defaults.js";
 import type { M1StateIds, readM1State } from "./m1-state.js";
+import type { Redis } from "ioredis";
+import type { ModelBudgetTransport } from "../media/index.js";
 
 export interface M1OrderScope {
   readonly entityId: string;
@@ -68,4 +70,12 @@ export interface M1SupportOptions {
   /** 本轮随机 1–12 位小写字母数字；缺省随机生成，不复用别人的库/Redis 前缀。 */
   readonly runId?: string;
   readonly clock?: AdjustableClock;
+  /** 测试外部 IO 预置；缺省不改变既有 M1 替身。 */
+  readonly prepareProviders?: (providers: FakeProviders) => void;
+  /** 只借用同一隔离支架的连接；由原 close 回收，缺省仍不装配模型预算传输。 */
+  readonly modelBudgetTransport?: (input: {
+    readonly redis: Redis;
+    readonly clock: AdjustableClock;
+    readonly redisPrefix: string;
+  }) => Promise<ModelBudgetTransport>;
 }

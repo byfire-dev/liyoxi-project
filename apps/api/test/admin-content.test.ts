@@ -15,6 +15,7 @@ import type {
   ActivityItem,
 } from "@liyoxi/contract";
 import { useTestApi } from "../src/testing/index.js";
+import { adminDramaHandlers } from "../src/routes/admin/dramas.js";
 const h = useTestApi();
 let ownConfigDirectory: string | undefined;
 afterAll(async () => {
@@ -75,6 +76,34 @@ beforeAll(async () => {
     if (previous === undefined) delete process.env.MEDIA_PRODUCTION_FILE;
     else process.env.MEDIA_PRODUCTION_FILE = previous;
   }
+  const operations = [
+    "admin.drama.list",
+    "admin.drama.summary",
+    "admin.drama.get",
+    "admin.drama.activity.list",
+    "admin.drama.dramaEpisode.list",
+    "admin.drama.dramaPermit.list",
+    "admin.drama.listingChecks.get",
+    "admin.drama.mediaReadiness.get",
+    "admin.drama.create",
+    "admin.drama.basic.update",
+    "admin.drama.commercial.update",
+    "admin.drama.cast.replace",
+    "admin.drama.shelve",
+    "admin.drama.delist",
+    "admin.drama.trailer.replace",
+    "admin.drama.confirmPermitRecheck",
+    "admin.drama.dramaPermit.create",
+    "admin.dramaEpisode.update",
+    "admin.dramaPermit.update",
+    "admin.dramaPermit.retire",
+    "admin.drama.copyright.replace",
+    "admin.drama.dramaCopyrightRevision.create",
+  ];
+  expect(adminDramaHandlers.map(({ route }) => route.operationId).sort()).toEqual(
+    [...operations].sort(),
+  );
+  expect(app.api.mountedOperations).toEqual(expect.arrayContaining(operations));
   await runSeed({ tx: app.runtime.tx, clock: app.clock });
   const db = await h.db.prisma();
   admin = await signInAsStaff(db, { roleKey: "super_admin" });

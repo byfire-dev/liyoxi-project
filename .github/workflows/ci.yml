@@ -270,6 +270,8 @@ jobs:
         run: pnpm test --project '!infra' --shard=1/3
       - name: M1 接口主路径
         run: pnpm e2e
+      - name: M3 接口主路径
+        run: pnpm e2e:m3
       # 路由元数据接管（W0-10）：以下四步检查都只读，合计几秒（第一步“路由元数据对账”不连库，在 verify 任务）。
       # 前两步读前面“空库跑全部迁移”一步建的 lyx_migrate_check。后两步不连库，放在这里是因为“待落地数只减不增”
       # 要排在“测试”之后（已挂载处理器的清单由 apps/api 的测试装配导出，W0-22 接上），它出的清单又与下一步的同一步上传。
@@ -290,6 +292,8 @@ jobs:
         run: node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md
       - name: M0 与 M1 接口清零
         run: node infra/ci/landed.mjs --check --require M0,M1
+      - name: M0、M1 与 M3 接口清零
+        run: node infra/ci/landed.mjs --check --require M0,M1,M3
       # 计划 第 8.2 节的表由路由清单生成：V1.0 的接口都有里程碑，表与清单无差异，行与列的合计相符。
       # 顺带出业主评审用的归属汇总（文档 × 里程碑 × operationId），下面上传
       - name: 里程碑归属与计划 第 8.2 节的表
@@ -327,6 +331,8 @@ jobs:
         run: node infra/ci/four-counts.mjs --require M0
       - name: M0 与 M1 四个计数
         run: node infra/ci/four-counts.mjs --require M0,M1
+      - name: M0、M1 与 M3 四个计数
+        run: node infra/ci/four-counts.mjs --require M0,M1,M3
 
   # “测试”的第二片（分法见 test 任务的“测试”一步）。各片各用各的库：数据库客户端、迁移库、MinIO 都自己备
   test-2:

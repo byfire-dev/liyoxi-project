@@ -139,7 +139,13 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     assertTestDatabaseUrl(databaseUrl);
     const env = { ...base, ...fakeKeyEnv(), DATABASE_URL: databaseUrl };
     const { providers } = createProviderHarness({ clock });
+    options.prepareProviders?.(providers);
     providers.storage.capabilities.sts = false;
+    const modelBudgetTransport = await options.modelBudgetTransport?.({
+      redis,
+      clock,
+      redisPrefix,
+    });
     const productionInput = await m1ProductionVideo();
     productionTools = createDeliveryProductionTools(providers, productionInput.report);
     runtime = createRuntime({
@@ -151,6 +157,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       redisKeyPrefix: redisPrefix,
       rateLimitCommandTimeoutMs: 5000,
       providers,
+      modelBudgetTransport,
       logger: createLogger({ svc: "api", env: "test", level: "warn", version: "m1-test" }),
     });
     const apiRuntime = runtime;

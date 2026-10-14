@@ -54,6 +54,8 @@ export * from "./order.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。
 export { createM1Support } from "./m1-support.js";
+export { createM3Support } from "./m3-support.js";
+export type { M3Support, M3SupportOptions, M3MediaScope, M3DrainOptions } from "./m3-support.js";
 export type {
   M1Support,
   M1SupportOptions,
