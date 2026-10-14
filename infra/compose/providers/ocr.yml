@@ -1,0 +1,15 @@
+# 同步证照识别由 API 拥有；worker 不挂 OCR 凭据。
+services:
+  api:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+  check-env:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+secrets:
+  ocr-tencent.json:
+    file: ${LYX_SECRETS_DIR:?}/ocr-tencent.json

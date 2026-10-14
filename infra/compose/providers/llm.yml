@@ -1,0 +1,20 @@
+# 配置不等于预算授权；既有付费准入及冷账本守卫保持。
+services:
+  api:
+    environment:
+      LLM_DOMESTIC_FILE: /run/secrets/llm-domestic.json
+    secrets:
+      - llm-domestic.json
+  worker:
+    environment:
+      LLM_DOMESTIC_FILE: /run/secrets/llm-domestic.json
+    secrets:
+      - llm-domestic.json
+  check-env:
+    environment:
+      LLM_DOMESTIC_FILE: /run/secrets/llm-domestic.json
+    secrets:
+      - llm-domestic.json
+secrets:
+  llm-domestic.json:
+    file: ${LYX_SECRETS_DIR:?}/llm-domestic.json

@@ -105,6 +105,7 @@ if [ "$via_ssh" = 1 ]; then
 fi
 case "$SUPERVISOR" in systemd | compose) ;; *) usage_die "LYX_NODE_SUPERVISOR 只能是 systemd 或 compose" ;; esac
 [ -r "$STG_ENV" ] || usage_die "读不了 infra/compose/env/stg.env"
+NODE_PROVIDERS="$(node_providers)" || exit $?
 
 # 取一项非敏感配置：环境变量优先，其次节点上的 node.env，再次 stg.env
 setting() {
@@ -136,9 +137,13 @@ container() { printf '%s-%s' "$LYX_NODE_PREFIX" "$1"; }
 # docker compose 的公共参数，放进 COMPOSE_ARGS：变量替换的来源是 stg.env、节点上的 node.env（有才带）与当前环境
 COMPOSE_ARGS=()
 compose_args() {
+  local provider
   COMPOSE_ARGS=(compose -p "$LYX_NODE_PROJECT" --env-file "$STG_ENV")
   if [ -f "$NODE_ENV" ]; then COMPOSE_ARGS+=(--env-file "$NODE_ENV"); fi
   COMPOSE_ARGS+=(-f "$COMPOSE_FILE")
+  for provider in $NODE_PROVIDERS; do
+    COMPOSE_ARGS+=(-f "$LYX_SRC/infra/compose/providers/$provider.yml")
+  done
 }
 # compose <标签> <参数…>
 compose() {

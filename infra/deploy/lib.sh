@@ -56,3 +56,59 @@ manifest_rows() {
     }
   ' "$LYX_MANIFEST"
 }
+
+# 可选 Provider 的选择只接受仓内固定名字；与 Compose、systemd 的独立密钥检查共用。
+# 不 source node.env：它只装非敏感的 键=值，不能执行其中的 shell 文本。
+node_providers() {
+  local value="" file count line one selected=""
+  if [ "${LYX_NODE_PROVIDERS+x}" = x ]; then
+    value="$LYX_NODE_PROVIDERS"
+  else
+    for file in "$LYX_NODE_HOME/node.env" "$LYX_SRC/infra/compose/env/stg.env"; do
+      [ -f "$file" ] || continue
+      count="$(awk '/^[[:space:]]*(export[[:space:]]+)?LYX_NODE_PROVIDERS[[:space:]]*=/ { n++ } END { print n+0 }' "$file")"
+      [ "$count" -le 1 ] || usage_die "LYX_NODE_PROVIDERS 不可重复定义"
+      if [ "$count" = 1 ]; then
+        line="$(awk '/^[[:space:]]*(export[[:space:]]+)?LYX_NODE_PROVIDERS[[:space:]]*=/ { print; exit }' "$file")"
+        case "$line" in
+          LYX_NODE_PROVIDERS=*) value="${line#LYX_NODE_PROVIDERS=}" ;;
+          *) usage_die "LYX_NODE_PROVIDERS 须按无引号的 键=值 单独写一行" ;;
+        esac
+        break
+      fi
+    done
+  fi
+  [ "${#value}" -le 256 ] || usage_die "LYX_NODE_PROVIDERS 过长"
+  case "$value" in
+    *[!a-z\ -]*) usage_die "LYX_NODE_PROVIDERS 只接受固定能力名，以空格分隔，不加引号" ;;
+  esac
+  for one in $value; do
+    case "$one" in
+      cos | ci | asr | asr-callback | ocr | llm | media-production) ;;
+      *) usage_die "LYX_NODE_PROVIDERS 含未知能力名" ;;
+    esac
+    case " $selected " in *" $one "*) usage_die "LYX_NODE_PROVIDERS 不可重复选择能力" ;; esac
+    [ -f "$LYX_SRC/infra/compose/providers/$one.yml" ] || usage_die "缺少仓内 Provider 配置：${one}.yml"
+    selected="${selected:+$selected }$one"
+  done
+  case " $selected " in
+    *" asr-callback "*)
+      case " $selected " in *" asr "*) ;; *) usage_die "asr-callback 必须同时启用 asr" ;; esac
+      ;;
+  esac
+  printf '%s\n' "$selected"
+}
+
+# 每组启用后必须齐备的文件。角色去向仍由唯一的 secrets.manifest.json 记录。
+provider_files() {
+  case "$1" in
+    cos) printf '%s\n' "cos-signer-keys.json cos-sts-issuer-keys.json cos-worker-keys.json" ;;
+    ci) printf '%s\n' "ci-worker-keys.json ci-callback-key" ;;
+    asr) printf '%s\n' "asr-tencent.json" ;;
+    asr-callback) printf '%s\n' "asr-callback-key" ;;
+    ocr) printf '%s\n' "ocr-tencent.json" ;;
+    llm) printf '%s\n' "llm-domestic.json" ;;
+    media-production) printf '%s\n' "media-production.json" ;;
+    *) usage_die "未知 Provider 能力" ;;
+  esac
+}

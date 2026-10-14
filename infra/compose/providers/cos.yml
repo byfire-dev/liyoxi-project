@@ -1,0 +1,46 @@
+# 仅由固定 Provider 选择器启用；API 与 worker 不共享角色密钥。
+services:
+  api:
+    environment:
+      COS_REGION: ${COS_REGION:?}
+      COS_BUCKET_SECURE: ${COS_BUCKET_SECURE:?}
+      COS_BUCKET_ASSET: ${COS_BUCKET_ASSET:?}
+      COS_BUCKET_MEDIA: ${COS_BUCKET_MEDIA:?}
+      COS_BUCKET_PUB: ${COS_BUCKET_PUB:?}
+      COS_SIGNER_KEYS_FILE: /run/secrets/cos-signer-keys.json
+      COS_STS_ISSUER_KEYS_FILE: /run/secrets/cos-sts-issuer-keys.json
+    secrets:
+      - cos-signer-keys.json
+      - cos-sts-issuer-keys.json
+  worker:
+    environment:
+      COS_REGION: ${COS_REGION:?}
+      COS_BUCKET_SECURE: ${COS_BUCKET_SECURE:?}
+      COS_BUCKET_ASSET: ${COS_BUCKET_ASSET:?}
+      COS_BUCKET_MEDIA: ${COS_BUCKET_MEDIA:?}
+      COS_BUCKET_PUB: ${COS_BUCKET_PUB:?}
+      COS_WORKER_KEYS_FILE: /run/secrets/cos-worker-keys.json
+    secrets:
+      - cos-worker-keys.json
+  # 只聚合校验格式，不授予实际 API/worker 对方的角色。
+  check-env:
+    environment:
+      COS_REGION: ${COS_REGION:?}
+      COS_BUCKET_SECURE: ${COS_BUCKET_SECURE:?}
+      COS_BUCKET_ASSET: ${COS_BUCKET_ASSET:?}
+      COS_BUCKET_MEDIA: ${COS_BUCKET_MEDIA:?}
+      COS_BUCKET_PUB: ${COS_BUCKET_PUB:?}
+      COS_SIGNER_KEYS_FILE: /run/secrets/cos-signer-keys.json
+      COS_STS_ISSUER_KEYS_FILE: /run/secrets/cos-sts-issuer-keys.json
+      COS_WORKER_KEYS_FILE: /run/secrets/cos-worker-keys.json
+    secrets:
+      - cos-signer-keys.json
+      - cos-sts-issuer-keys.json
+      - cos-worker-keys.json
+secrets:
+  cos-signer-keys.json:
+    file: ${LYX_SECRETS_DIR:?}/cos-signer-keys.json
+  cos-sts-issuer-keys.json:
+    file: ${LYX_SECRETS_DIR:?}/cos-sts-issuer-keys.json
+  cos-worker-keys.json:
+    file: ${LYX_SECRETS_DIR:?}/cos-worker-keys.json

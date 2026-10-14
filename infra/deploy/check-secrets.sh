@@ -37,6 +37,12 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+selected_providers="$(node_providers)" || exit $?
+selected_files=""
+for provider in $selected_providers; do
+  selected_files="$selected_files $(provider_files "$provider")"
+done
+
 # ls -ldn 的第 1 列是类型与权限（末尾可能多一个 @、+、.），第 3 列是属主的 uid：GNU 与 BSD 的 ls 都这样
 mode_of() { ls -ldn "$1" 2>/dev/null | awk '{ print substr($1, 1, 10) }'; }
 owner_of() { ls -ldn "$1" 2>/dev/null | awk '{ print $3 }'; }
@@ -76,6 +82,7 @@ done
 while IFS='|' read -r file uid required mounts env; do
   [ -n "$file" ] || continue
   wanted "$mounts" || continue
+  case " $selected_files " in *" $file "*) required=true ;; esac
   path="$dir/$file"
   if [ ! -e "$path" ] && [ ! -L "$path" ]; then
     [ "$required" = "true" ] && fail "$file" "没有这个文件"

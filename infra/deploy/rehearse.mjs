@@ -74,14 +74,16 @@ function stg(/** @type {string} */ key) {
   return value.trim();
 }
 
-/** 密钥清单 */
+/** 基础演练只生成和检查必填九项，不读取或启用真实 Provider 文件。 */
 function manifest() {
-  /** @type {{ secrets: { file: string, uid: number, services: string }[] }} */
+  /** @type {{ secrets: { file: string, uid: number, required: boolean, services: string }[] }} */
   const parsed = JSON.parse(read("infra/deploy/secrets.manifest.json"));
-  return parsed.secrets.map((one) => ({
-    ...one,
-    services: one.services.split(" ").filter(Boolean),
-  }));
+  return parsed.secrets
+    .filter((one) => one.required)
+    .map((one) => ({
+      ...one,
+      services: one.services.split(" ").filter(Boolean),
+    }));
 }
 
 /** ADR-041 第 4.2 节的表：容器 → 内存上限（字节）；mediatool 另有内存加交换的合计 */
@@ -275,6 +277,7 @@ await runMain(async () => {
     LYX_GATEWAY_PORT: String(port),
     LYX_NODE_SUPERVISOR: "compose",
     LYX_IMAGE_PREFIX: "",
+    LYX_NODE_PROVIDERS: "",
     LYX_API_HOST: hosts.api,
     LYX_ADMIN_HOST: hosts.admin,
     LYX_PORTAL_HOST: hosts.portal,
