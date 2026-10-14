@@ -19,13 +19,15 @@ const DetailRead = AdminStoreAssetDetailSchema.extend({
   reviewedBy: StaffRead.nullable(),
 });
 const PageRead = adminPage(AdminStoreAssetRowSchema);
+export const parseAssetDetail = (value: unknown) => parse(DetailRead, value);
+export const parseAssetRow = (value: unknown) => parse(AdminStoreAssetRowSchema, value);
 export type AssetRow = z.output<typeof AdminStoreAssetRowSchema>;
 export type AssetDetail = z.output<typeof DetailRead>;
 export type AssetQuery = NonNullable<operations["admin.storeAsset.list"]["parameters"]["query"]>;
 export type AssetSummaryQuery = NonNullable<
   operations["admin.storeAsset.summary"]["parameters"]["query"]
 >;
-async function unwrap<T>(result: {
+export async function unwrap<T>(result: {
   data?: { data: T };
   error?: unknown;
   response: Response;

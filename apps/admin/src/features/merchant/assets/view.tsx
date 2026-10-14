@@ -12,6 +12,11 @@ import { DETAIL_QUERY, LIST_QUERY } from "../../../lib/query";
 import { readTableSearch, writeTableSearch } from "../../../lib/table-search";
 import { merchantScope, moment, status, text } from "../detail/model";
 import { createAssetReadApi, type AssetDetail, type AssetRow } from "./api";
+import { AssetActions } from "./actions";
+import { AssetDemands } from "./demands";
+import { AssetEditor } from "./editor";
+import { createAssetWriteApi } from "./write-api";
+import { assetPermission, type AssetIntent } from "./write-model";
 import {
   ASSET_FILTERS,
   ASSET_READ_KEY,
@@ -27,23 +32,32 @@ import {
   signedAssetUrl,
   typeLabels,
 } from "./model";
-export function MerchantAssetsView({
-  services,
-  storeId,
-  access,
-  search,
-  change,
-}: {
+interface AssetViewProps {
   services: AppServices;
   storeId: string;
   access: AccessSnapshot | null;
   search: Readonly<Record<string, unknown>>;
   change(next: Record<string, string>): void;
-}) {
+}
+export function MerchantAssetsView(props: AssetViewProps) {
+  return (
+    <MerchantAssetsContent
+      key={`${merchantScope(props.access)}:${props.storeId}:${JSON.stringify(assetSearch(props.search))}`}
+      {...props}
+    />
+  );
+}
+function MerchantAssetsContent({ services, storeId, access, search, change }: AssetViewProps) {
   const wire = assetSearch(search),
     api = createAssetReadApi(services),
+    writes = createAssetWriteApi(services),
     scope = merchantScope(access),
     permitted = canReadAssets(access);
+  const context = JSON.stringify(wire),
+    [intent, setIntent] = useState<{ id: string; value: AssetIntent; errorScope: string }>(),
+    [notice, setNotice] = useState<string>();
+  const refresh = () =>
+    services.queryClient.invalidateQueries({ queryKey: [...ASSET_READ_KEY, scope, storeId] });
   const rows = useQuery({
     queryKey: [...ASSET_READ_KEY, scope, storeId, "list", assetListQuery(storeId, wire)],
     queryFn: ({ signal }) => api.list(assetListQuery(storeId, wire), signal),
@@ -72,6 +86,8 @@ export function MerchantAssetsView({
     ...DETAIL_QUERY,
     placeholderData: undefined,
   });
+  const errorScope = `${rows.errorUpdatedAt}:${detail.errorUpdatedAt}`;
+  const open = (value: AssetIntent) => setIntent({ id: crypto.randomUUID(), value, errorScope });
   if (!permitted) return <EmptyState title="当前没有商家素材查看权限" />;
   const columns: QueryColumn<AssetRow>[] = [
     {
@@ -145,8 +161,25 @@ export function MerchantAssetsView({
     },
   ];
   return (
-    <section aria-label="门店素材只读">
-      <p>当前仅查看。机器结果不代表人工用途、可用性或肖像授权。</p>
+    <section aria-label="门店素材">
+      <p>
+        机器结果不代表人工用途、可用性或肖像授权；写操作以当前权限、服务端 actions
+        与锁版本复核为准。
+      </p>
+      {notice ? (
+        <Alert type="info" title={notice} closable onClose={() => setNotice(undefined)} />
+      ) : null}
+      <AssetDemands
+        key={`${scope}:${storeId}:${context}`}
+        api={writes}
+        storeId={storeId}
+        access={access}
+        search={wire}
+        change={change}
+        upload={(demandId) => open({ kind: "create", storeId, demandId })}
+        refresh={refresh}
+        notice={setNotice}
+      />
       {summary.isError ? (
         <ErrorState message={summary.error.message} onRetry={() => void summary.refetch()} />
       ) : null}
@@ -174,18 +207,27 @@ export function MerchantAssetsView({
           change(assetSearch({ ...writeTableSearch(next), assetTab: next.tab, assetId: undefined }))
         }
         toolbar={
-          <Select
-            aria-label="素材排序"
-            value={wire.sort}
-            style={{ width: 190 }}
-            options={[
-              { value: "-createdAt", label: "上传时间从新到旧" },
-              { value: "reviewDueAt", label: "审核截止从早到晚" },
-            ]}
-            onChange={(sort: string) =>
-              change(assetSearch({ ...wire, sort, assetId: undefined, page: 1 }))
-            }
-          />
+          <Space wrap>
+            <Select
+              aria-label="素材排序"
+              value={wire.sort}
+              style={{ width: 190 }}
+              options={[
+                { value: "-createdAt", label: "上传时间从新到旧" },
+                { value: "reviewDueAt", label: "审核截止从早到晚" },
+              ]}
+              onChange={(sort: string) =>
+                change(assetSearch({ ...wire, sort, assetId: undefined, page: 1 }))
+              }
+            />
+            {rows.isSuccess &&
+            !rows.isFetching &&
+            assetPermission(access, "merchant.asset.upload_on_behalf") ? (
+              <Button type="primary" onClick={() => open({ kind: "create", storeId })}>
+                代传素材
+              </Button>
+            ) : null}
+          </Space>
         }
         keywordPlaceholder="搜索素材标题或内容"
         filters={[
@@ -237,15 +279,36 @@ export function MerchantAssetsView({
         ) : detail.isError ? (
           <ErrorState message={detail.error.message} onRetry={() => void detail.refetch()} />
         ) : (
-          <AssetReadDetail
-            key={`${scope}:${storeId}:${picked.storeAssetId}:${detail.dataUpdatedAt}`}
-            row={detail.data}
-            refresh={() => void detail.refetch()}
-          />
+          <>
+            <AssetActions
+              key={`actions:${scope}:${storeId}:${picked.storeAssetId}:${detail.dataUpdatedAt}`}
+              row={detail.data}
+              api={writes}
+              access={access}
+              open={open}
+            />
+            <AssetReadDetail
+              key={`${scope}:${storeId}:${picked.storeAssetId}:${detail.dataUpdatedAt}`}
+              row={detail.data}
+              refresh={() => void detail.refetch()}
+            />
+          </>
         )
       ) : (
         <EmptyState title="选择一条素材查看详情" />
       )}
+      {intent && intent.errorScope === errorScope && !rows.isError && !detail.isError ? (
+        <AssetEditor
+          key={intent.id}
+          intent={intent.value}
+          api={writes}
+          services={services}
+          access={access}
+          close={() => setIntent(undefined)}
+          refresh={refresh}
+          notice={setNotice}
+        />
+      ) : null}
     </section>
   );
 }
