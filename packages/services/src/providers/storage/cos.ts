@@ -28,6 +28,9 @@ import {
 import type { CosKey } from "./cos-signature.js";
 import { prepareVisionRead, VISION_CI_REGIONS } from "./vision-signing.js";
 import { changeCosVersions } from "./cos-versions.js";
+import { createBackupStorage } from "./backup-stream.js";
+import { cosBackupTransport } from "./backup-cos.js";
+import type { CosBackupTarget } from "./backup-cos.js";
 
 export interface CosConfig {
   readonly region: string;
@@ -35,6 +38,7 @@ export interface CosConfig {
   readonly signer?: CosKey;
   readonly stsIssuer?: CosKey;
   readonly worker?: CosKey;
+  readonly backup?: CosBackupTarget;
 }
 export interface CosOptions {
   readonly now: () => Date;
@@ -79,7 +83,7 @@ export function createCosStorage(
     STORAGE_BUCKETS.some(
       (bucket) => !/^[a-z0-9][a-z0-9-]{1,50}-[0-9]{5,20}$/.test(config.buckets[bucket]),
     ) ||
-    ![config.signer, config.stsIssuer, config.worker].every(validSecret) ||
+    ![config.signer, config.stsIssuer, config.worker, config.backup?.key].every(validSecret) ||
     (!config.signer && !config.worker)
   )
     throw new TypeError("COS 配置形状不合格");
@@ -101,8 +105,13 @@ export function createCosStorage(
     init: RequestInit,
     maxBytes = 64 * 1024,
     deadline?: number,
+    cleanup = false,
   ): Promise<HttpReply> {
-    if (closed || init.signal?.aborted || (deadline !== undefined && deadline <= Date.now()))
+    if (
+      (closed && !cleanup) ||
+      init.signal?.aborted ||
+      (deadline !== undefined && deadline <= Date.now())
+    )
       throw new Error("COS 已关闭或到期");
     const controller = new AbortController();
     const abort = () => controller.abort();
@@ -211,13 +220,14 @@ export function createCosStorage(
   async function transfer<T>(
     signal: AbortSignal,
     action: (signal: AbortSignal) => Promise<ProviderResult<T>>,
+    timeoutMs = STREAM_TIMEOUT_MS,
   ): Promise<ProviderResult<T>> {
     if (closed || signal.aborted) return UNAVAILABLE();
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     active.add(controller);
-    const timer = setTimeout(abort, STREAM_TIMEOUT_MS);
+    const timer = setTimeout(abort, timeoutMs);
     try {
       return await action(controller.signal);
     } finally {
@@ -422,12 +432,34 @@ export function createCosStorage(
     }
   }
 
+  const backup = createBackupStorage(
+    cosBackupTransport(config, {
+      now: options.now,
+      request: (url, init, cleanup) => request(url, init, undefined, undefined, cleanup),
+    }),
+  );
   return {
     status: "cos",
     configured: true,
     // Bucket versioning is not inferred from a key being configured; E4 verifies it separately.
     capabilities: { sts: config.stsIssuer !== undefined, versioning: false },
     uploadLocation: { region: config.region, buckets: config.buckets },
+    putBackupStream: (input) =>
+      run(() =>
+        transfer(
+          input.signal,
+          (signal) => backup.putBackupStream({ ...input, signal }),
+          30 * 60_000,
+        ),
+      ),
+    headBackup: (input) =>
+      run(() =>
+        transfer(input.signal, (signal) => backup.headBackup({ ...input, signal }), 30 * 60_000),
+      ),
+    copyBackup: (input) =>
+      run(() =>
+        transfer(input.signal, (signal) => backup.copyBackup({ ...input, signal }), 30 * 60_000),
+      ),
     async close() {
       closed = true;
       for (const controller of active) controller.abort();

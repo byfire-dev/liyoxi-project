@@ -163,6 +163,9 @@ export const unconfiguredStorage: StorageProvider = {
   abortMultipart: storageOff,
   readTo: storageOff,
   putStream: storageOff,
+  putBackupStream: storageOff,
+  headBackup: storageOff,
+  copyBackup: storageOff,
 };
 
 const mediaOff = unconfigured("媒体处理", "只有 local、test 有小文件通道");

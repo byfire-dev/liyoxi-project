@@ -41,6 +41,9 @@ import type {
   StorageProvider,
 } from "../types.js";
 import { disposeBody, readBoundedBody } from "./bounded-body.js";
+import { createMinioBackup } from "./backup-minio.js";
+import { BACKUP_TIMEOUT_MS } from "./backup-stream.js";
+import type { BackupTarget } from "../types.js";
 
 export interface MinioConfig {
   /** 服务端读写用的内部地址 */
@@ -52,6 +55,8 @@ export interface MinioConfig {
   secretKey: string;
   /** 四个桶各自的桶名 */
   buckets: Readonly<Record<StorageBucket, string>>;
+  /** 显式备份目标；不创建桶、不借用 asset，也不经业务四桶枚举路由。 */
+  backup?: BackupTarget;
 }
 
 /**
@@ -136,13 +141,14 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
   async function transfer<T>(
     signal: AbortSignal,
     action: (signal: AbortSignal) => Promise<ProviderResult<T>>,
+    timeoutMs = STREAM_TIMEOUT_MS,
   ): Promise<ProviderResult<T>> {
     if (closed || signal.aborted) return failed("unavailable", "对象传输已关闭或取消");
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal.addEventListener("abort", abort, { once: true });
     transfers.add(controller);
-    const timer = setTimeout(abort, STREAM_TIMEOUT_MS);
+    const timer = setTimeout(abort, timeoutMs);
     const promise = action(controller.signal).catch((error: unknown) =>
       toFailure(error, "对象流传输"),
     );
@@ -156,6 +162,7 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       pendingTransfers.delete(promise);
     }
   }
+  const backup = createMinioBackup(config, transferClient);
   // GET 的 Host 参与验签，必须用对外地址签发，不能在签发后改 URL。
   const signingClient =
     config.publicEndpoint && config.publicEndpoint !== config.endpoint
@@ -274,6 +281,24 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
       transferClient.destroy();
       if (signingClient !== client) signingClient.destroy();
     },
+    putBackupStream: (input) =>
+      transfer(
+        input.signal,
+        (signal) => backup.putBackupStream({ ...input, signal }),
+        BACKUP_TIMEOUT_MS,
+      ),
+    headBackup: (input) =>
+      transfer(
+        input.signal,
+        (signal) => backup.headBackup({ ...input, signal }),
+        BACKUP_TIMEOUT_MS,
+      ),
+    copyBackup: (input) =>
+      transfer(
+        input.signal,
+        (signal) => backup.copyBackup({ ...input, signal }),
+        BACKUP_TIMEOUT_MS,
+      ),
 
     async presignPost({ bucket, key, mime, maxBytes, expiresSec }) {
       if (!key.startsWith(INCOMING_PREFIX)) {

@@ -13,7 +13,10 @@ import type {
   ProviderResult,
   StorageBucket,
   StorageProvider,
+  BackupTarget,
 } from "../../providers/types.js";
+import { backupObjectKey, createBackupStorage, validBackupTarget } from "../../providers/index.js";
+import type { BackupTransport } from "../../providers/index.js";
 import { createFakeCore, systemClock } from "./base.js";
 import type { FakeClock, FakeControl } from "./base.js";
 
@@ -36,6 +39,8 @@ export interface FakeStorage extends StorageProvider, FakeControl<Method> {
   capabilities: { sts: boolean; versioning: boolean };
   /** 全部对象，键是 “桶/对象键” */
   readonly objects: Map<string, FakeStoredObject>;
+  /** 仅显式 backup 配置启用；独立物理目标，永不混进四个业务桶对象。 */
+  readonly backupObjects: Map<string, FakeStoredObject>;
   /** 不经签名直接放一个对象（造数据用），返回 etag */
   put(ref: ObjectRef, body: Uint8Array, mime: string): string;
   /** 照预签名表单直传。返回状态码：204 成功；400 超过大小；403 表单过期、被改过或不是本替身签的 */
@@ -53,10 +58,92 @@ function etagOf(body: Uint8Array): string {
 const slot = (ref: ObjectRef) => `${ref.bucket}/${ref.key}`;
 const boundedSize = (n: number) => Number.isSafeInteger(n) && n > 0 && n <= 2 * 1024 ** 3;
 
-export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStorage {
+export function createFakeStorage(
+  options: { clock?: FakeClock; backup?: BackupTarget } = {},
+): FakeStorage {
   const clock = options.clock ?? systemClock;
   const core = createFakeCore<Method>(clock);
   const objects = new Map<string, FakeStoredObject>();
+  const backupObjects = new Map<string, FakeStoredObject>();
+  const backupUploads = new Map<string, { key: string; parts: Uint8Array[] }>();
+  const backupBuckets = {
+    secure: "test-secure-1250000000",
+    asset: "test-asset-1250000000",
+    media: "test-media-1250000000",
+    pub: "test-pub-1250000000",
+  };
+  if (options.backup && !validBackupTarget(options.backup, backupBuckets))
+    throw new TypeError("替身备份目标配置不合法");
+  const backupSlot = (key: string) =>
+    `${options.backup!.bucket}/${backupObjectKey(options.backup!, key)}`;
+  const backupTransport: BackupTransport | undefined = options.backup
+    ? {
+        async begin(key, signal) {
+          signal.throwIfAborted();
+          const uploadId = nextToken("backup");
+          backupUploads.set(uploadId, { key, parts: [] });
+          return { uploadId };
+        },
+        async part(input) {
+          input.signal.throwIfAborted();
+          const upload = backupUploads.get(input.uploadId);
+          if (!upload || upload.key !== input.key || upload.parts.length + 1 !== input.partNumber)
+            throw new Error("替身备份分块归属不一致");
+          upload.parts.push(new Uint8Array(input.body));
+          return { etag: etagOf(input.body) };
+        },
+        async complete(input) {
+          input.signal.throwIfAborted();
+          const upload = backupUploads.get(input.uploadId);
+          if (
+            !upload ||
+            upload.key !== input.key ||
+            input.parts.length !== upload.parts.length ||
+            input.parts.some(
+              (part, index) =>
+                part.partNumber !== index + 1 || part.etag !== etagOf(upload.parts[index]!),
+            )
+          )
+            throw new Error("替身备份完成归属不一致");
+          // 仅内存替身保存完整虚构字节；生产 transport 始终只持一个 5MiB part。
+          const body = new Uint8Array(upload.parts.reduce((sum, part) => sum + part.length, 0));
+          let offset = 0;
+          for (const part of upload.parts) {
+            body.set(part, offset);
+            offset += part.length;
+          }
+          const etag = etagOf(body);
+          backupObjects.set(backupSlot(input.key), {
+            body,
+            etag,
+            mime: "application/octet-stream",
+          });
+          backupUploads.delete(input.uploadId);
+          return { etag };
+        },
+        async abort(input) {
+          input.signal.throwIfAborted();
+          const upload = backupUploads.get(input.uploadId);
+          if (upload && upload.key === input.key) backupUploads.delete(input.uploadId);
+        },
+        async head(input) {
+          input.signal.throwIfAborted();
+          const object = backupObjects.get(backupSlot(input.key));
+          if (!object) return { exists: false, size: 0 };
+          return { exists: true, size: object.body.length, etag: object.etag };
+        },
+        async copy(input) {
+          input.signal.throwIfAborted();
+          const source = backupObjects.get(backupSlot(input.srcKey));
+          if (!source || source.etag !== input.ifMatchEtag) throw new Error("替身备份源etag不一致");
+          const body = new Uint8Array(source.body),
+            etag = etagOf(body);
+          backupObjects.set(backupSlot(input.dstKey), { body, etag, mime: source.mime });
+          return { etag };
+        },
+      }
+    : undefined;
+  const backup = createBackupStorage(backupTransport);
   const versions = new Map<string, FakeStoredObject[]>();
   const posts = new Map<
     string,
@@ -77,7 +164,7 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
   const expired = (at: Date) => clock.now().getTime() > at.getTime();
 
   async function streamRun<T>(
-    method: "readTo" | "putStream",
+    method: "readTo" | "putStream" | "putBackupStream" | "headBackup" | "copyBackup",
     input: unknown,
     signal: AbortSignal,
     action: () => Promise<ProviderResult<T>>,
@@ -111,6 +198,13 @@ export function createFakeStorage(options: { clock?: FakeClock } = {}): FakeStor
   const fake: FakeStorage = {
     status: "fake",
     configured: true,
+    backupObjects,
+    putBackupStream: (input) =>
+      streamRun("putBackupStream", input, input.signal, () => backup.putBackupStream(input)),
+    headBackup: (input) =>
+      streamRun("headBackup", input, input.signal, () => backup.headBackup(input)),
+    copyBackup: (input) =>
+      streamRun("copyBackup", input, input.signal, () => backup.copyBackup(input)),
     capabilities: { sts: true, versioning: false },
     uploadLocation: {
       region: "ap-test-1",

@@ -281,6 +281,48 @@ export interface WechatPayProvider extends ProviderBase {
 export const STORAGE_BUCKETS = ["secure", "asset", "media", "pub"] as const;
 export type StorageBucket = (typeof STORAGE_BUCKETS)[number];
 
+/** 只在驱动工厂绑定，不扩业务桶枚举，也不允许每次调用选择物理桶。 */
+export interface BackupTarget {
+  readonly bucket: string;
+  readonly prefix: string;
+}
+export interface BackupStreamInput {
+  readonly key: string;
+  readonly maxBytes: number;
+  readonly signal: AbortSignal;
+  /** 未配置/取消时不调用；源须响应 signal 并在 return/finally 回收自己的管道。 */
+  readonly body: (signal: AbortSignal) => AsyncIterable<Uint8Array>;
+}
+export interface BackupHeadInput {
+  readonly key: string;
+  readonly ifMatchEtag?: string;
+  readonly signal: AbortSignal;
+}
+export interface BackupCopyInput {
+  readonly srcKey: string;
+  readonly dstKey: string;
+  readonly ifMatchEtag: string;
+  readonly signal: AbortSignal;
+}
+export type BackupHead =
+  | { readonly exists: false; readonly size: 0 }
+  | {
+      readonly exists: true;
+      readonly size: number;
+      readonly etag: string;
+      readonly sha256?: string;
+    };
+export interface BackupWriteResult {
+  readonly etag: string;
+  readonly size: number;
+  readonly sha256: string;
+}
+export interface BackupCopyResult {
+  readonly etag: string;
+  readonly size: number;
+  readonly sha256?: string;
+}
+
 /** 写入区的键前缀：直传只能落在这里，入库时条件复制到正式区（03 第 5.2 节） */
 export const INCOMING_PREFIX = "incoming/";
 
@@ -420,6 +462,12 @@ export interface StorageProvider extends ProviderBase {
     readonly region: string;
     readonly buckets: Readonly<Record<StorageBucket, string>>;
   };
+  /** 备份目标未配置时失败且不读取 body；未知长度加密流一次上传，不聚合完整对象。 */
+  putBackupStream(input: BackupStreamInput): Promise<ProviderResult<BackupWriteResult>>;
+  /** 只读本实例备份目标；可条件绑定 etag，404 是 exists:false。 */
+  headBackup(input: BackupHeadInput): Promise<ProviderResult<BackupHead>>;
+  /** 本实例备份目标内的条件服务端复制，拒绝源 etag 漂移。 */
+  copyBackup(input: BackupCopyInput): Promise<ProviderResult<BackupCopyResult>>;
   /** 签名（写）：≤20MB 的预签名表单，直传到写入区。key 不以 incoming/ 开头即 rejected */
   presignPost(input: {
     bucket: StorageBucket;
@@ -1030,6 +1078,9 @@ export const PROVIDER_METHODS = {
     "abortMultipart",
     "readTo",
     "putStream",
+    "putBackupStream",
+    "headBackup",
+    "copyBackup",
   ],
   media: [
     "probe",

@@ -45,6 +45,13 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+// 备份替身复用同一有界协议边界，经正式入口消费，不跨模块引驱动私有叶。
+export {
+  createBackupStorage,
+  validBackupTarget,
+  backupObjectKey,
+} from "./storage/backup-stream.js";
+export type { BackupTransport } from "./storage/backup-stream.js";
 export { createTencentAsr } from "./asr/tencent.js";
 export { createTencentOcr } from "./ocr/tencent.js";
 export type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";

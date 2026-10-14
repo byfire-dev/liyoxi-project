@@ -247,3 +247,32 @@ W316业务片兼容补实际Business/负责人角色及原厂商响应，原始b
 整包四DB、纯核验、新HTTP闭环与原手填回归、类型、API/worker构建、依赖及官方登记核对均通过，
 W3-16代码验收完成、识别桩已回补；
 真实E17/E19、证照样本准确率、地域隐私/云权限/收费均未验。
+
+## 20. 备份专用流式存储前置（W2-24）
+
+`putBackupStream/headBackup/copyBackup` 均为顶层 Provider 方法，经过原事务外呼守卫。
+工厂的 `backup:{bucket,prefix}` 显式绑定目标，调用仅接受
+`daily/YYYY-MM-DD.dump.age` 或 `monthly/YYYY-MM-DD.dump.age` 的真实日历日期；
+不扩四业务桶枚举、不自动创建备份桶。允许独立物理桶或 secure 的非空专用前缀，
+拒绝借用 asset/media/pub。未配直接返回 unconfigured，不读取源、不发网络请求。
+COS 可在 backup 中显式给独立 region/key，仍须 worker 角色，API signer 不借权。
+
+上传源 `body(signal)` 只打开一次，无需预知最终长度；调用方必须给 `maxBytes`，
+实现上限2GiB、源块上限1MiB、multipart 每块5MiB且顺序等待，不聚合整份备份。
+实际流计算 SHA256，完成后用返回 ETag 绑定 HEAD 并核对长度；HEAD 仅报告确实存在的
+SHA metadata，不把 ETag 当摘要。COPY 绑定源 ETag，再验目标 ETag/长度。
+网络结果不明或 HTTP200 XML Error 均失败；不重发 complete，不据 HEAD 猜成功。
+失败先取消源再回收本次 uploadId；清理信号独立、限2秒，不删除可能已提交的对象。
+实例 close 拒绝新工作并等待所属操作，源必须响应 signal；无法强制停止任意用户JS。
+
+备份传输总预算30分钟，原媒体流180秒预算不变。COS 保持每请求10秒和回应64KiB上限；
+MinIO 使用原显式凭据的单次传输客户端。固定key保留版本化写入语义，不承诺原子防覆盖，
+后续任务负责租约及重试决策。腾讯官方说明版本控制下 forbid-overwrite 无效，见
+[完成分块上传](https://cloud.tencent.com/document/product/436/7742)及
+[条件复制](https://intl.cloud.tencent.com/ko/document/product/436/10881)（2026-10-14核对）。
+
+本片仅存储能力：没有接 pg_dump/age、ENV、定时器或 backup.stale；不证明输入已加密。
+替身须显式 `createFakeStorage({backup})` 才启用，保存在独立 backupObjects；
+共享 factory/target 校验从 providers 公口复用，未新增分层例外。
+备份角色的真实策略必须支持指定前缀上传、HEAD、源条件复制及取消自身分块；
+禁止对象删除与解密私钥上机，真实策略、版本保留和恢复演练仍待外部验收。

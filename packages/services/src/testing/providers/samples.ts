@@ -117,6 +117,21 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       ifAbsent: true,
       signal: new AbortController().signal,
     },
+    putBackupStream: {
+      key: "daily/2026-10-14.dump.age",
+      maxBytes: 3,
+      signal: new AbortController().signal,
+      body: async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      },
+    },
+    headBackup: { key: "daily/2026-10-14.dump.age", signal: new AbortController().signal },
+    copyBackup: {
+      srcKey: "daily/2026-10-14.dump.age",
+      dstKey: "monthly/2026-10-14.dump.age",
+      ifMatchEtag: '"sample-etag"',
+      signal: new AbortController().signal,
+    },
   },
   media: {
     probe: { src: SAMPLE_REF },
