@@ -235,7 +235,7 @@ pnpm stg:rehearse    # 约两三分钟；pnpm stg:rehearse --keep 演练完不�
 
 ## 12. b：四桶核对与构建发布流水线
 
-a 已经 PR #94 实际合入；b 已交桶声明/比较工具、独立上传器、四镜像与默认关闭的流水线。2026-10-14 用户截图确认 `lyx-{dev,stg}-{asset,media,pub,secure}-1257198915` 八桶存在，但实际地域、策略、CI、CAM、CORS 与运行凭据未核；节点 SSH 与 HTTP 签发验证入口的核验范围见第 0 节。以下云配置、镜像发布与应用部署仍待逐步验收。
+a 已经 PR #94 实际合入；b 已交桶声明/比较工具、独立上传器、四镜像与默认关闭的流水线。2026-10-14 用户截图确认 `lyx-{dev,stg}-{asset,media,pub,secure}-1257198915` 八桶存在，同日业主确认预发 `asset/media/pub` 三桶在上海（`ap-shanghai`），数据万象服务开通、三桶绑定及预发 `media` 媒体处理开启。依据为业主回传，会话未做云端复验；开发四桶及预发 `secure` 的地域、开发桶开通、策略、CAM、CORS、运行凭据与真实接口仍待核；节点 SSH 与 HTTP 签发验证入口的核验范围见第 0 节。以下云配置、镜像发布与应用部署仍待逐步验收。
 
 `pnpm stg:buckets -- --check --offline` 只读内置空配置夹具，列四桶差异并退出 1；`--fixture <公开JSON文件>` 可替换完整四桶现状，**offline 不读凭据、不执行 adapter**。退出 0 表示与声明一致，1 表示差异/人工阻断，2 表示参数/响应/Provider 错误；`--offline --apply` 拒绝。生命周期只管 D5 的纯时间规则，不能替代业务引用清理。secure `ci/` 为七天，pub 没有写入区。
 
