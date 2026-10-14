@@ -48,3 +48,41 @@ jobs:
           path: apps/api/dist/e2e-repeat/
           if-no-files-found: error
           retention-days: 30
+  m3-repeat:
+    name: m3-repeat
+    needs: m1-repeat
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi
+      REDIS_URL: redis://localhost:6389/0
+    steps:
+      - name: 检出主分支
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 装 pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: 冻结安装
+        run: pnpm install --frozen-lockfile
+      - name: 生成数据库客户端
+        run: pnpm db:generate
+      - name: 起 PostgreSQL 与 Redis
+        run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      - name: M3 主路径连续十次
+        run: node infra/ci/m3-repeat.mjs --times 10
+      - name: 保存 M3 连续运行结果
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: m3-e2e-repeat
+          path: apps/api/dist/m3-e2e-repeat/
+          if-no-files-found: error
+          retention-days: 30
