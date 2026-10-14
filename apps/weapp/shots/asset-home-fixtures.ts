@@ -39,7 +39,7 @@ export function offlineHomeAssetsRequest(scene: string): RequestLayer["request"]
     ) {
       failed = true;
       throw new ApiError({
-        error: "FORBIDDEN",
+        error: "NOT_A_MEMBER",
         status: 403,
         requestId: "offline",
         message: "private",

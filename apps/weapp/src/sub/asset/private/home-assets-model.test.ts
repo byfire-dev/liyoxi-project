@@ -173,7 +173,7 @@ describe("首页素材最后留桩", () => {
   it("需求／摘要失败分别明确恢复不伪造零；新读取 busy 不被旧成功、错误或 finally 解除", async () => {
     const h = setup();
     h.api.summary.mockRejectedValueOnce(
-      new ApiError({ error: "FORBIDDEN", status: 403, requestId: "test", message: "secret" }),
+      new ApiError({ error: "NOT_A_MEMBER", status: 403, requestId: "test", message: "secret" }),
     );
     await h.resource.refresh();
     expect(h.resource.snapshot()).toMatchObject({
