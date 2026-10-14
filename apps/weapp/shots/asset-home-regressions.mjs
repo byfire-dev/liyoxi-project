@@ -5,6 +5,22 @@ export async function homeAssetsRegression(page, scene) {
     page.locator(`.taro_page_stationed:not(.taro_page_shade) ${selector}`);
   const root = () => active(".home-assets");
   const calls = () => page.evaluate(() => globalThis.__LYX_ASSET_HOME_CALLS__ ?? []);
+  const frame = async () => {
+    await root().scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        root().evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          return (
+            rect.left >= 0 &&
+            rect.right <= globalThis.innerWidth &&
+            rect.top >= 0 &&
+            rect.bottom <= globalThis.innerHeight
+          );
+        }),
+      )
+      .toBe(true);
+  };
   await expect(root().getByText("素材需求", { exact: true })).toBeVisible();
   expect((await calls()).some((path) => path === "/m/asset-demands?status=open&limit=20")).toBe(
     true,
@@ -19,6 +35,7 @@ export async function homeAssetsRegression(page, scene) {
       .filter({ hasText: /^重新加载$/ })
       .click();
     await expect(root().locator(".home-assets__summary")).toHaveText("0 条素材 · 0 条被采用");
+    await frame();
     return;
   }
   await expect(root().locator(".home-assets__summary")).toHaveText("26 条素材 · 8 条被采用");
@@ -63,7 +80,10 @@ export async function homeAssetsRegression(page, scene) {
     ).toBe(true);
   }
   await page.goBack();
+  await expect(
+    page.locator(scene === "asset-home-clerk" ? ".asset-upload" : ".asset-lib"),
+  ).toHaveCount(0);
   await expect(active(".home-assets#asset-home-ready")).toBeVisible();
   await expect(root().locator(".home-assets__summary")).toHaveText("26 条素材 · 8 条被采用");
-  await root().scrollIntoViewIfNeeded();
+  await frame();
 }
