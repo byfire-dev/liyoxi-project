@@ -90,14 +90,14 @@ export function createAssetWriteApi({ api }: Pick<AppServices, "api">) {
       key: string,
       signal?: AbortSignal,
     ) {
-      return unwrap(
-        await c.POST("/api/v1/admin/store-assets/{storeAssetId}/delete", {
-          params: { path: { storeAssetId: id } },
-          body: AdminStoreAssetDeleteBodySchema.parse(body),
-          headers: headers(key),
-          signal,
-        }),
-      );
+      const result = await c.POST("/api/v1/admin/store-assets/{storeAssetId}/delete", {
+        params: { path: { storeAssetId: id } },
+        body: AdminStoreAssetDeleteBodySchema.parse(body),
+        headers: headers(key),
+        signal,
+      });
+      if (result.data?.code === 0) return;
+      await unwrap({ error: result.error, response: result.response });
     },
     async portrait(
       id: string,
