@@ -33,6 +33,7 @@ import {
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
 import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
 import { assetRegression } from "../shots/asset-regressions.mjs";
+import { homeAssetsRegression } from "../shots/asset-home-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
 import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
@@ -107,6 +108,9 @@ const { SEARCH_SCENES } = await import(
 const { ASSET_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/asset-scenes.ts")).href
 );
+const { ASSET_HOME_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-home-scenes.ts")).href
+);
 const { ASSET_UPLOAD_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/asset-upload-scenes.ts")).href
 );
@@ -150,6 +154,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...SETTINGS_SCENES,
         ...SEARCH_SCENES,
         ...ASSET_SCENES,
+        ...ASSET_HOME_SCENES,
         ...ASSET_UPLOAD_SCENES,
         ...ASSET_ACTION_SCENES,
         ...ORDER_REFERENCE_SCENES,
@@ -190,6 +195,17 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
+  ...(all
+    ? ASSET_HOME_SCENES
+    : ASSET_HOME_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: item.name,
+    scene: item.name,
+    kind: "asset-home",
+    fullPage: false,
+  })),
   ...(all
     ? TENANT_SCENES
     : TENANT_SCENES.filter(
@@ -481,12 +497,23 @@ async function shoot(target) {
                 ? "mine-guest"
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
+            if (scene === "home-clerk" || scene === "home-owner")
+              globalThis.__LYX_ASSET_HOME_SHOT__ = `asset-${scene}`;
             if (scene.startsWith("home-") || scene.startsWith("mall-"))
               globalThis.__LYX_SEARCH_SHOT__ = scene.endsWith("clerk")
                 ? "search-clerk"
                 : scene.endsWith("guest")
                   ? "search-guest"
                   : "search-owner";
+          }
+          if (kind === "asset-home") {
+            const clerk = scene === "asset-home-clerk";
+            globalThis.__LYX_ACCOUNT_SHOT__ = clerk ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_CATALOG_SHOT__ = clerk ? "home-clerk" : "home-owner";
+            globalThis.__LYX_SEARCH_SHOT__ = clerk ? "search-clerk" : "search-owner";
+            globalThis.__LYX_ASSET_HOME_SHOT__ = scene;
+            globalThis.__LYX_ASSET_SHOT__ = clerk ? "asset-lib-clerk" : "asset-lib-owner";
+            globalThis.__LYX_ASSET_UPLOAD_SHOT__ = "asset-upload-image";
           }
           if (kind === "tenant") {
             globalThis.__LYX_ACCOUNT_SHOT__ =
@@ -574,33 +601,36 @@ async function shoot(target) {
                   ? "#publish-ready"
                   : target.kind === "order" || target.kind === "order-reference"
                     ? "#order-ready"
-                    : target.kind === "catalog"
-                      ? "#catalog-ready"
-                      : target.kind === "search"
-                        ? "#search-ready"
-                        : target.kind === "asset-upload"
-                          ? target.scene.startsWith("asset-uploader-")
-                            ? ".asset-uploader#asset-uploader-ready"
-                            : target.scene.endsWith("loading")
-                              ? ".asset-upload .lyx-skeleton"
-                              : ".asset-upload#asset-upload-ready"
-                          : target.kind === "asset" || target.kind === "asset-action"
-                            ? target.scene === "asset-lib-loading"
-                              ? ".asset-lib .lyx-skeleton"
-                              : "#asset-ready"
-                            : target.kind === "message"
-                              ? target.scene === "messages-loading"
-                                ? ".messages-page .lyx-skeleton"
-                                : "#messages-ready"
-                              : target.kind === "delivery"
-                                ? "#delivery-ready"
-                                : "#account-ready",
+                    : target.kind === "asset-home"
+                      ? "#asset-home-ready"
+                      : target.kind === "catalog"
+                        ? "#catalog-ready"
+                        : target.kind === "search"
+                          ? "#search-ready"
+                          : target.kind === "asset-upload"
+                            ? target.scene.startsWith("asset-uploader-")
+                              ? ".asset-uploader#asset-uploader-ready"
+                              : target.scene.endsWith("loading")
+                                ? ".asset-upload .lyx-skeleton"
+                                : ".asset-upload#asset-upload-ready"
+                            : target.kind === "asset" || target.kind === "asset-action"
+                              ? target.scene === "asset-lib-loading"
+                                ? ".asset-lib .lyx-skeleton"
+                                : "#asset-ready"
+                              : target.kind === "message"
+                                ? target.scene === "messages-loading"
+                                  ? ".messages-page .lyx-skeleton"
+                                  : "#messages-ready"
+                                : target.kind === "delivery"
+                                  ? "#delivery-ready"
+                                  : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);
       if (target.kind === "tenant") await tenantRegression(page, target.scene);
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
+      if (target.kind === "asset-home") await homeAssetsRegression(page, target.scene);
       if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
       if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
       if (target.kind === "order-reference")
