@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Text, View } from "@tarojs/components";
-import Taro, { useDidHide } from "@tarojs/taro";
+import Taro, { useDidHide, useRouter } from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
@@ -20,6 +20,7 @@ import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { assetScope } from "../private/resource";
 import { assetStatuses } from "../private/api";
+import { homeAssetDemandEntry } from "../private/home-assets-model";
 import type { DemandPage, UploadTags } from "../private/upload-api";
 import {
   uploadTypes,
@@ -87,6 +88,7 @@ const scope = () =>
   );
 const explain = (error: unknown) => (error instanceof Error ? error.message : "操作失败，请重试");
 export default function AssetUpload() {
+  const { params } = useRouter();
   const { me } = useAccount(),
     token = useSessionStore((s) => s.accessToken),
     context = useContextStore();
@@ -95,14 +97,14 @@ export default function AssetUpload() {
     void account.start().catch(() => undefined);
   }, []);
   return key ? (
-    <UploadLoader key={key} ownerScope={key} />
+    <UploadLoader key={key} ownerScope={key} demandId={params.assetDemandId} />
   ) : (
     <PageBody>
       <Empty title={token ? "请选择当前成员门店" : "登录后上传素材"} />
     </PageBody>
   );
 }
-function UploadLoader({ ownerScope }: { ownerScope: string }) {
+function UploadLoader({ ownerScope, demandId }: { ownerScope: string; demandId?: string }) {
   const [runtime, setRuntime] = useState<AssetUploadRuntime | null>(null),
     [error, setError] = useState<string | null>(null),
     [attempt, setAttempt] = useState(0);
@@ -120,7 +122,7 @@ function UploadLoader({ ownerScope }: { ownerScope: string }) {
     };
   }, [ownerScope, attempt]);
   return runtime ? (
-    <UploadContent runtime={runtime} ownerScope={ownerScope} />
+    <UploadContent runtime={runtime} ownerScope={ownerScope} demandId={demandId} />
   ) : (
     <PageBody>
       {error ? (
@@ -140,9 +142,11 @@ function UploadLoader({ ownerScope }: { ownerScope: string }) {
 function UploadContent({
   runtime,
   ownerScope,
+  demandId,
 }: {
   runtime: AssetUploadRuntime;
   ownerScope: string;
+  demandId?: string;
 }) {
   const [life] = useState(() => {
     let alive = true;
@@ -157,6 +161,7 @@ function UploadContent({
     };
   });
   const busy = useRef(false),
+    entryPending = useRef(!!demandId),
     optionFlight = useRef(false),
     optionMore = useRef(false);
   const current = () => life.current() && scope() === ownerScope && runtime.tasks.current();
@@ -189,6 +194,19 @@ function UploadContent({
     try {
       const page = await runtime.api.demands(more ? demands!.nextCursor! : undefined);
       if (!current()) return;
+      if (entryPending.current) {
+        const selected = homeAssetDemandEntry(demandId, page);
+        if (selected) {
+          entryPending.current = false;
+          setMessage(null);
+          setForm((old) => ({ ...old, demandId: selected }));
+        } else if (!page.hasMore) {
+          entryPending.current = false;
+          setMessage("该需求已不可选，请选择当前开放需求");
+        } else {
+          setMessage("请加载更多查找该需求，或明确选择其他需求、不关联");
+        }
+      }
       if (more)
         setDemands((old) => {
           const ids = new Set(old?.items.map((d) => d.assetDemandId));
@@ -242,6 +260,10 @@ function UploadContent({
   };
   const submit = () => {
     if (!current() || busy.current || media.recording) return;
+    if (entryPending.current) {
+      setMessage("请先确认关联需求，或明确选择不关联");
+      return;
+    }
     busy.current = true;
     setSubmitting(true);
     setMessage(null);
@@ -274,7 +296,7 @@ function UploadContent({
           if (busy.current) return;
           platform.reset();
           setMessage(null);
-          setForm(blank(type));
+          setForm((old) => ({ ...blank(type), demandId: old.demandId }));
         }}
       />
       <PageBody>
@@ -380,7 +402,11 @@ function UploadContent({
           <View className="asset-upload__chips asset-upload__demands">
             <Chip
               selected={!form.demandId}
-              onClick={() => setForm((old) => ({ ...old, demandId: null }))}
+              onClick={() => {
+                entryPending.current = false;
+                setMessage(null);
+                setForm((old) => ({ ...old, demandId: null }));
+              }}
             >
               不关联
             </Chip>
@@ -388,7 +414,11 @@ function UploadContent({
               <Chip
                 key={demand.assetDemandId}
                 selected={form.demandId === demand.assetDemandId}
-                onClick={() => setForm((old) => ({ ...old, demandId: demand.assetDemandId }))}
+                onClick={() => {
+                  entryPending.current = false;
+                  setMessage(null);
+                  setForm((old) => ({ ...old, demandId: demand.assetDemandId }));
+                }}
               >
                 {demand.title}
               </Chip>

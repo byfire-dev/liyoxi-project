@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Image, Text, View } from "@tarojs/components";
-import Taro, { useDidHide, useDidShow, usePullDownRefresh, useReachBottom } from "@tarojs/taro";
+import Taro, {
+  useDidHide,
+  useDidShow,
+  usePullDownRefresh,
+  useReachBottom,
+  useRouter,
+} from "@tarojs/taro";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
 import { Empty } from "@/components/Empty";
@@ -19,7 +25,8 @@ import { request } from "@/lib/runtime";
 import type { RequestLayer } from "@/lib/request";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
-import { assetTitle, createAssetApi, type AssetTab } from "../private/api";
+import { assetTitle, createAssetApi, type AssetTab, type AssetFilters } from "../private/api";
+import { homeAssetLibraryEntry } from "../private/home-assets-model";
 import { assetScope, createAssetResource } from "../private/resource";
 import "./index.scss";
 
@@ -60,6 +67,7 @@ const STATUS = [
 ] as const;
 const LABELS = ["整理中", "已采用", "可直接使用", "需肖像授权", "需补拍", "仅供参考"];
 export default function AssetLibrary() {
+  const { params } = useRouter();
   const { me } = useAccount();
   const token = useSessionStore((s) => s.accessToken),
     store = useContextStore();
@@ -68,16 +76,16 @@ export default function AssetLibrary() {
     void account.start().catch(() => undefined);
   }, []);
   return key ? (
-    <LibraryContent key={key} />
+    <LibraryContent key={key} initialFilters={homeAssetLibraryEntry(params)} />
   ) : (
     <PageBody>
       <Empty title={token ? "请选择当前成员门店" : "登录后查看素材"} />
     </PageBody>
   );
 }
-function LibraryContent() {
+function LibraryContent({ initialFilters }: { initialFilters: AssetFilters }) {
   const ready = useRef(false);
-  const [resource] = useState(() => createAssetResource({ api, scope }));
+  const [resource] = useState(() => createAssetResource({ api, scope, initialFilters }));
   const state = useSyncExternalStore(resource.subscribe, resource.snapshot, resource.snapshot);
   const [input, setInput] = useState("");
   const [hidden, setHidden] = useState(false);

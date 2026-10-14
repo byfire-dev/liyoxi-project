@@ -21,6 +21,7 @@ import { WEAPP_PAGES } from "@/pages";
 import { catalogApi } from "../mall/api";
 import { useCatalogResource, useCatalogBadge } from "../mall/resource";
 import { DramaCards, openDrama } from "../mall/cards";
+import { HomeAssets } from "../../sub/asset/private/home-assets";
 import "../mall/catalog.scss";
 import "./index.scss";
 function bannerClick(banner: Home["banners"][number], role: Home["viewerRole"]) {
@@ -138,6 +139,7 @@ function HomeContent() {
                 ))}
               </Swiper>
             ) : null}
+            {home.viewerRole === "owner" || home.viewerRole === "clerk" ? <HomeAssets /> : null}
             {overview ? (
               <Card
                 title="上线概览"

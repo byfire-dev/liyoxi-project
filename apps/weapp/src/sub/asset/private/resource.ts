@@ -44,13 +44,18 @@ export interface AssetState {
   summaryError: string | null;
   moreError: string | null;
 }
-export function createAssetResource(deps: { api: AssetApi; scope(): string | null; id?: string }) {
+export function createAssetResource(deps: {
+  api: AssetApi;
+  scope(): string | null;
+  id?: string;
+  initialFilters?: AssetFilters;
+}) {
   const scope = deps.scope();
   const listeners = new Set<() => void>();
   let alive = true,
     generation = 0;
   let state: AssetState = {
-    filters: {},
+    filters: { ...deps.initialFilters },
     tab: "all",
     page: null,
     summary: null,
