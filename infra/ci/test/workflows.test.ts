@@ -553,6 +553,7 @@ describe("ci.yml", () => {
       // infra 以外的全部测试项目分成三片，这里是第一片；另两片在 test-2、test-3
       "pnpm test --project '!infra' --shard=1/3",
       "pnpm e2e",
+      "pnpm e2e:m3",
       // W0-10：api-check、约束名核对读上面建的迁移库；待落地数只减不增要排在“测试”之后（已挂载处理器的清单由
       // apps/api 的测试装配导出）；计划 第 8.2 节的表（它的下一步上传两份清单，没有 run）
       "node infra/ci/api-check.mjs",
@@ -561,6 +562,7 @@ describe("ci.yml", () => {
       EXPORT_MOUNTED,
       "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
       "node infra/ci/landed.mjs --check --require M0,M1",
+      "node infra/ci/landed.mjs --check --require M0,M1,M3",
       "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
       // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面两步跑它的产物
       "pnpm --filter @liyoxi/worker build",
@@ -570,6 +572,7 @@ describe("ci.yml", () => {
       // W0-30：四个计数，排在“测试”之后（读 apps/api 的用例写出的已挂载清单）；M0 的四样退回去即失败
       "node infra/ci/four-counts.mjs --require M0",
       "node infra/ci/four-counts.mjs --require M0,M1",
+      "node infra/ci/four-counts.mjs --require M0,M1,M3",
     ],
     // “测试”的第二、三片：各自生成客户端、建迁移库、起 MinIO
     "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],
