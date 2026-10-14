@@ -13,7 +13,7 @@ import type { WorkerQueue } from "../src/runtime.js";
 
 const db = useSeededDatabase("worker", { max: 1 }),
   redis = useTestRedis();
-it("正式probe循环真实写完成心跳，worker关闭同时关闭探针且借用池仍可用", async () => {
+it("正式probe循环真实写完成心跳，worker关闭探针与备份且借用池仍可用", async () => {
   const prisma = await db.prisma(),
     clock = createClock();
   await redis.flush();
@@ -75,6 +75,7 @@ it("正式probe循环真实写完成心跳，worker关闭同时关闭探针且�
             severity: job.missSeverity,
           })),
         { fingerprint: "queue.backlog:media_job", severity: "P2" },
+        { fingerprint: "backup.stale", severity: "P1" },
       ].sort((a, b) => a.fingerprint.localeCompare(b.fingerprint)),
     );
     expect([...observed].sort()).toEqual([...queues].sort());
@@ -88,6 +89,9 @@ it("正式probe循环真实写完成心跳，worker关闭同时关闭探针且�
     ).toMatchObject({ severity: "P2", status: "open" });
     await runtime.stop();
     await expect(services.runProbes!()).rejects.toThrow("已关闭");
+    expect(() =>
+      services.assembly.recurringJob("backup.pgdump")!.run({ scheduledFor: clock.now() }),
+    ).toThrow("备份运行时已经关闭");
     expect(await prisma.workerLease.count()).toBe(1);
   } finally {
     await runtime.stop();

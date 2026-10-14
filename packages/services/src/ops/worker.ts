@@ -13,6 +13,7 @@ import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
 import { financialProbeRules } from "./financial-probe-rules.js";
 import { queueProbeRules } from "./queue-probe-rules.js";
+import { backupProbeRules } from "./backup-probe-rules.js";
 import type { QueueId } from "@liyoxi/contract/registry";
 import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
@@ -66,6 +67,7 @@ import { createRuntimeMediaBatches } from "./media-batches-runtime.js";
 import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
 import { createCertAssembly } from "./cert-runtime.js";
+import { createBackupAssembly } from "./backup-runtime.js";
 import type { ModelBudgetTransport, PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -162,6 +164,7 @@ export interface WorkerServicesOptions {
   };
   /** 明确配置域名；测试可注入不联网的TLS探针。 */
   readonly certificateProbe?: Parameters<typeof createCertAssembly>[1]["probe"];
+  readonly backupProcessRunner?: Parameters<typeof createBackupAssembly>[1]["processRunner"];
   /** 本实例自有模型驱动的成对生命周期；close须缓存同一Promise，借用providers不消费此口。 */
   readonly modelDrivers?: {
     registerClose(close: () => Promise<void>): void;
@@ -201,6 +204,7 @@ export interface WorkerServicesOptions {
     readonly ASR_CALLBACK?: Env["ASR_CALLBACK"];
     readonly LLM_DOMESTIC?: Env["LLM_DOMESTIC"];
     readonly CERT_DOMAINS?: Env["CERT_DOMAINS"];
+    readonly BACKUP?: Env["BACKUP"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -214,6 +218,7 @@ export interface WorkerServices {
   readonly runProbes?: (beat?: () => void) => Promise<unknown>;
   readonly closeProbes?: () => Promise<void>;
   readonly closeCertificates?: () => Promise<void>;
+  readonly closeBackups?: () => Promise<void>;
   readonly closeModelDrivers?: () => Promise<void>;
   readonly disableModelBudget?: () => void;
   readonly closeModelBudget?: () => Promise<void>;
@@ -325,7 +330,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     domains: options.keys?.CERT_DOMAINS ?? [],
     ...(options.certificateProbe ? { probe: options.certificateProbe } : {}),
   });
-  const analyticsScope = createAnalyticsJobs(certificateScope.assembly, {
+  const backupScope = createBackupAssembly(certificateScope.assembly, {
+    tx,
+    clock,
+    ...(options.keys?.BACKUP ? { config: options.keys.BACKUP } : {}),
+    storage: () => providers.storage,
+    ...(options.backupProcessRunner ? { processRunner: options.backupProcessRunner } : {}),
+  });
+  const analyticsScope = createAnalyticsJobs(backupScope.assembly, {
     tx,
     clock,
     appEnv: options.appEnv,
@@ -358,6 +370,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           ...sqlProbeRules(options.probe.db),
           ...financialProbeRules(options.probe.db),
           ...queueProbeRules(options.probe.queues ?? [], channel.observe?.bind(channel)),
+          ...backupProbeRules(options.probe.db),
           ...operationalProbeRules(
             options.probe.db,
             timers.registry.recurringJobs,
@@ -443,12 +456,26 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
               },
             }
           : {}),
-        ...(options.keys?.MINIO ? { storage: { minio: options.keys.MINIO } } : {}),
+        ...(options.keys?.MINIO || options.keys?.BACKUP
+          ? {
+              storage: {
+                minio: {
+                  ...options.keys?.MINIO,
+                  ...(options.keys?.BACKUP ? { backup: options.keys.BACKUP.target } : {}),
+                },
+              },
+            }
+          : {}),
         ...(cos
           ? {
               storage: {
                 driver: "cos" as const,
-                cos: { region: cos.region, buckets: cos.buckets, worker: cos.worker },
+                cos: {
+                  region: cos.region,
+                  buckets: cos.buckets,
+                  worker: cos.worker,
+                  ...(options.keys?.BACKUP ? { backup: options.keys.BACKUP.target } : {}),
+                },
               },
             }
           : {}),
@@ -707,6 +734,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     runProbes: (beat) => (probe ? probe.run(beat) : Promise.reject(new Error("探针读侧未配置"))),
     closeProbes: () => probe?.close() ?? Promise.resolve(),
     closeCertificates: () => certificateScope.close(),
+    closeBackups: () => backupScope.close(),
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
     closeAlertFacts: () => alertFactsScope.close(),

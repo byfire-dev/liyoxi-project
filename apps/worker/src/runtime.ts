@@ -185,6 +185,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           const loopResults = await Promise.allSettled([
             Promise.resolve().then(() => services.closeProbes?.()),
             Promise.resolve().then(() => services.closeCertificates?.()),
+            Promise.resolve().then(() => services.closeBackups?.()),
             Promise.resolve().then(() => services.closeNotify()),
             Promise.resolve().then(() => services.closeAnalytics?.()),
             ...all.map((one) => Promise.resolve().then(() => one.stop())),

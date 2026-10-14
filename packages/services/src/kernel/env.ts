@@ -51,6 +51,7 @@ export const ENV_KEYS: readonly string[] = [
   "AUTH_KEYS_FILE",
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
+  "BACKUP_FILE",
   "SMS_SECRET_ID_FILE",
   "SMS_SECRET_KEY_FILE",
   "SMS_SDK_APP_ID",
@@ -117,6 +118,19 @@ export interface ClientErrorProjectsConfig {
   readonly projects: readonly { readonly dsn: string; readonly upstreamDsn?: string }[];
 }
 
+/** 备份只使用独立FILE中的只读连接与公钥；从不回退应用连接或猜测目标。 */
+export interface BackupEnvConfig {
+  readonly databaseUrl: string;
+  readonly recipient: string;
+  readonly maxBytes: number;
+  readonly target: {
+    readonly bucket: string;
+    readonly prefix: string;
+    readonly region?: string;
+    readonly key?: { readonly secretId: string; readonly secretKey: string };
+  };
+}
+
 export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
 export type OcrTencentEnvConfig = z.infer<typeof OcrTencentEnvSchema>;
 export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
@@ -180,6 +194,7 @@ export interface Env {
   readonly ADMIN_IP_ALLOWLIST?: readonly string[];
   /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
   readonly CERT_DOMAINS?: readonly string[];
+  readonly BACKUP?: BackupEnvConfig;
   readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
@@ -553,7 +568,12 @@ function hasProtocol(value: string, protocols: readonly string[]): boolean {
 }
 
 /** 微信敏感文本文件最多4KiB；只接受普通文件，所有诊断均不含路径/内容。 */
-function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): string | undefined {
+function readWechatFile(
+  source: EnvSource,
+  key: string,
+  issues: EnvIssue[],
+  rejectSymlink = false,
+): string | undefined {
   if (read(source, key) !== undefined)
     issues.push({ key, reason: `敏感项只认 ${key}_FILE，任何环境都不接受明文` });
   const fileKey = `${key}_FILE`;
@@ -561,7 +581,10 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
   if (path === undefined) return undefined;
   let fd: number | undefined;
   try {
-    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    fd = openSync(
+      path,
+      constants.O_RDONLY | constants.O_NONBLOCK | (rejectSymlink ? constants.O_NOFOLLOW : 0),
+    );
     const stat = fstatSync(fd);
     if (!stat.isFile() || stat.size > 4096) {
       issues.push({ key: fileKey, reason: "须为不超过4KiB的普通文本文件" });
@@ -578,7 +601,12 @@ function readWechatFile(source: EnvSource, key: string, issues: EnvIssue[]): str
       issues.push({ key: fileKey, reason: "文件内容超过4KiB" });
       return undefined;
     }
-    const value = bytes.subarray(0, offset).toString("utf8").trim();
+    const content = bytes.subarray(0, offset);
+    const value = (
+      rejectSymlink
+        ? new TextDecoder("utf-8", { fatal: true }).decode(content)
+        : content.toString("utf8")
+    ).trim();
     if (value) return value;
     issues.push({ key: fileKey, reason: "文件内容不能为空" });
   } catch {
@@ -1017,6 +1045,122 @@ function readCertDomains(source: EnvSource, issues: EnvIssue[]): readonly string
  * @param source 缺省读 process.env；测试里传对象
  * @param options.groups 成组规则，缺省用 ENV_GROUPS
  */
+function validAgeRecipient(value: string): boolean {
+  const alphabet = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+  if (!/^age1[023456789acdefghjklmnpqrstuvwxyz]{58}$/u.test(value)) return false;
+  const values = [...value.slice(4)].map((letter) => alphabet.indexOf(letter));
+  const hrp = [..."age"].map((letter) => letter.charCodeAt(0));
+  let checksum = 1;
+  for (const digit of [
+    ...hrp.map((letter) => letter >> 5),
+    0,
+    ...hrp.map((letter) => letter & 31),
+    ...values,
+  ]) {
+    const top = checksum >>> 25;
+    checksum = ((checksum & 0x1ffffff) << 5) ^ digit;
+    for (const [index, generator] of [
+      0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3,
+    ].entries())
+      if ((top >>> index) & 1) checksum ^= generator;
+  }
+  return checksum === 1 && (values[51]! & 15) === 0;
+}
+function validBackupConnection(value: string): boolean {
+  try {
+    if (value.length > 2048 || /[\p{Cc}\\]/u.test(value)) return false;
+    const url = new URL(value);
+    const username = decodeURIComponent(url.username);
+    const password = decodeURIComponent(url.password);
+    const database = decodeURIComponent(url.pathname.slice(1));
+    if (
+      !["postgres:", "postgresql:"].includes(url.protocol) ||
+      !url.hostname ||
+      !username ||
+      !database ||
+      [username, password, database].some((field) => /[\p{Cc}]/u.test(field)) ||
+      url.hash
+    )
+      return false;
+    const seen = new Set<string>();
+    for (const [key, field] of url.searchParams) {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (key === "sslmode") {
+        if (!["disable", "allow", "prefer", "require", "verify-ca", "verify-full"].includes(field))
+          return false;
+      } else if (key === "connect_timeout") {
+        if (!/^[0-9]+$/u.test(field) || Number(field) < 1 || Number(field) > 30) return false;
+      } else return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+const BackupEnvSchema = z.strictObject({
+  databaseUrl: z.string().refine(validBackupConnection),
+  recipient: z.string().refine(validAgeRecipient),
+  maxBytes: z
+    .number()
+    .int()
+    .min(1)
+    .max(2 * 1024 * 1024 * 1024)
+    .default(2 * 1024 * 1024 * 1024),
+  target: z.strictObject({
+    bucket: z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/u),
+    prefix: z
+      .string()
+      .max(256)
+      .regex(/^(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*\/)?$/u)
+      .refine((value) => !value.startsWith("incoming/")),
+    region: z
+      .string()
+      .regex(/^[a-z]+(?:-[a-z0-9]+){1,4}$/u)
+      .optional(),
+    key: z
+      .strictObject({
+        secretId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/u),
+        secretKey: z.string().regex(/^[\x21-\x7e]{1,256}$/u),
+      })
+      .optional(),
+  }),
+});
+function readBackup(
+  source: EnvSource,
+  appEnv: string | undefined,
+  cos: Env["COS"],
+  issues: EnvIssue[],
+): BackupEnvConfig | undefined {
+  const text = readWechatFile(source, "BACKUP", issues, true);
+  if (text === undefined) return undefined;
+  try {
+    const parsed = BackupEnvSchema.safeParse(JSON.parse(text));
+    if (!parsed.success) throw new Error();
+    const backup = parsed.data;
+    if (
+      cos &&
+      ([cos.buckets.asset, cos.buckets.media, cos.buckets.pub].includes(backup.target.bucket) ||
+        (backup.target.bucket === cos.buckets.secure && backup.target.prefix === ""))
+    )
+      throw new Error();
+    if (appEnv === "prod") {
+      if (
+        !backup.target.key ||
+        (cos && Object.values(cos.buckets).includes(backup.target.bucket)) ||
+        [cos?.worker, cos?.signer, cos?.stsIssuer].some(
+          (role) => role?.secretId === backup.target.key?.secretId,
+        )
+      )
+        throw new Error();
+    }
+    return backup;
+  } catch {
+    issues.push({ key: "BACKUP_FILE", reason: "须为完整合法的备份JSON；生产须专用目标与独立密钥" });
+    return undefined;
+  }
+}
+
 export function loadEnv(
   source: EnvSource = process.env,
   options: { groups?: readonly EnvGroup[] } = {},
@@ -1046,6 +1190,7 @@ export function loadEnv(
   const wechat = readWechat(source, issues);
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
+  const backup = readBackup(source, appEnv, cos, issues);
   const ci = readCi(source, issues);
   const asrTencent = readModelFile(source, "ASR_TENCENT", issues, AsrTencentEnvSchema);
   const ocrTencent = readModelFile(source, "OCR_TENCENT", issues, OcrTencentEnvSchema);
@@ -1090,6 +1235,7 @@ export function loadEnv(
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
+    ...(backup ? { BACKUP: backup } : {}),
     ...(ci ? { CI: ci } : {}),
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(asrTencent ? { ASR_TENCENT: asrTencent } : {}),

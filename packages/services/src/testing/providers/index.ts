@@ -25,6 +25,7 @@ import type { FakeOcr } from "./ocr.js";
 import { createFakeSms } from "./sms.js";
 import type { FakeSms } from "./sms.js";
 import { createFakeStorage } from "./storage.js";
+export { createFakeStorage } from "./storage.js";
 import type { FakeStorage } from "./storage.js";
 import { createFakeWechatPay } from "./wechat-pay.js";
 import type { FakeWechatPay } from "./wechat-pay.js";
