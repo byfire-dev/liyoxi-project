@@ -2,7 +2,7 @@
 
 依据：[D5](../../../docs/appendix/design/d5-media.md) 第 6.2、6.6、12.1 节；[04](../../../docs/04-adr.md) ADR-030；[D7](../../../docs/appendix/design/d7-platform.md) 第 7.4 节；X-02 任务书。验证结论见 [ADR](../../../docs/adr/0043-mediatool隔离容器本地可行-ffmpeg用Debian仓库的5.1.9-经共享卷里的套接字调用.md)。
 
-商家上传的视频来自任意注册用户，ffmpeg 是历史漏洞密集的解析器。所以解析放在这个容器里做：它没有网络、没有密钥、根文件系统只读，只读写一个与调用端共享的目录。本文写给 W1-22（整套 Compose 复用这份镜像定义）与 G3-A（媒体任务接上调用端）。
+商家上传的视频来自任意注册用户，ffmpeg 是历史漏洞密集的解析器。所以解析放在这个容器里做：它没有网络、没有密钥、根文件系统只读，只读写一个与调用端共享的目录。W1-22 的整套 Compose 已复用这份镜像，媒体任务与 W3-15 素材策略已接入调用端。
 
 ## 1. 这里有什么
 
@@ -67,8 +67,11 @@ mediatool:
 | 内存 | 上限 1GB 是 D5 的约定。预发节点内存小，要调低时见第 6 节的实测 |
 | 镜像版本 | 本地整套环境用 `liyoxi/mediatool:local`（`pnpm stack:build` 出，W1-22 定）；推镜像仓库的标签是 `sha-<12 位提交号>`（D7 第 7.4 节，W2-25）。`:verify` 只是验证时的本地标签 |
 
-`docText` 隔离能力已通过本地真实容器验证；素材策略尚未接入。
-没有做的：进程内实现（没有 Docker 时的开发退路）、整套 Compose（W1-22）。
+`docText` 隔离能力已通过本地真实容器验证，W3-15 的 `doc_extract` 素材策略已接入；
+当前本地代码验收见 [W3-15 状态](../../../docs/plan/status/W3-15.md) 首节。
+整套 Compose 已交付于 `infra/compose/stack.yml` 与预发 `infra/compose/node.yml`，
+worker 与 mediatool 共用任务卷；进程内实现（没有 Docker 时的开发退路）仍未做。
+真实预发节点、跨云传输与资源性能继续按 V11 验收，本机容器结果不代替预发复测。
 
 ### docText 能力前置（W315d）
 
@@ -82,8 +85,10 @@ DOCX保既有ZIP32MiB展开/256entry/8MiB单项/100倍压缩比、CRC/路径/宏
 Mammoth禁外部文件/图片，正文跳过table AST节点。xlsx拒抽；PDF不声称识别/排除
 所有版面表格，不生成结构化表格。此口不返回HTML或相似度，不改变D6转换器。
 
-`MediaToolClient.docText`为兼容可选方法，生产tools接同一外呼守卫与关闭/取消确认；
-默认素材策略、Provider工厂与预算未启用。2026-10-11在Linux arm64真实隔离镜像中，
+`MediaToolClient.docText`为兼容可选方法，生产tools接同一外呼守卫与关闭/取消确认，
+并由 W3-15 的 `doc_extract` 策略消费。ASR/LLM 工厂及 API/worker 配置装配已完成，
+默认模型与全局预算仍关闭，文档抽取本身不调用付费模型。
+2026-10-11在Linux arm64真实隔离镜像中，
 新增11项docText socket用例全部通过，含UTF8/GBK、跳过DOCX表节点、两页中文PDF、
 空文本/加密/损坏、预算、ZIP及取消确认。原完整verify实际44项：43通过，1项因缺业主样片
 按原条件跳过；原沙箱检查全部通过。原199.8MiB五轮probe+poster最慢376ms，三轮

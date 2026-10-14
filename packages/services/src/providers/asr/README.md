@@ -1,8 +1,10 @@
-# 腾讯录音文件识别协议准备（W315a）
+# 腾讯录音文件识别
 
-本块只提供 `createTencentAsr(config, { now }) -> { provider, close }` 构造出口。
-`createProviders` 仍选择原未配 ASR；没有新环境变量、真实账号、回调、预算或任务策略。
-完整 W3-15 继续进行中，四策略、人工降级接线、原子预算与可信 wake 待后继实现。
+W3-15 本地代码已完成并合入 main，当前验收以 [W3-15 状态](../../../../../docs/plan/status/W3-15.md)
+首节为准。`createTencentAsr(config, { now }) -> { provider, close }` 已接入 `createProviders`，
+`ASR_TENCENT_FILE` 经唯一 `loadEnv` 注入 API/worker，并登记各实例的关闭生命周期。
+四种素材理解策略、人工降级、原子预算及可信 wake 已接通；回调只唤醒原 TaskId 回查。
+默认未配仍不转写，全局模型预算默认关闭；FILE 存在不代表付费调用已获授权。
 
 依据为腾讯云国内 [CreateRecTask](https://cloud.tencent.com/document/api/1093/37823)、
 [DescribeTaskStatus](https://cloud.tencent.com/document/api/1093/37822) 与
@@ -25,21 +27,24 @@ Node24 JSON reviver 从原始数字 token 无损读取任务号，查询发送�
 
 旧 `transcribe` 接口、fake 默认30秒和未配“不转写”事实保留。此异步真实驱动的旧同步
 方法明确 unsupported；fake 新任务默认 waiting，完成事实由用例显式给出。
-协议测试采用公开虚构凭据与真实 loopback HTTP，不访问真实云；真实准确率、账单、
-E22开通、回调联调、日200与全局模型预算均未验证，也未宣称完成。
+协议测试采用公开虚构凭据与真实 loopback HTTP，任务与原子预算已有本地验收，
+不访问真实云。E22 开通、真实准确率与账单、公网回调到达、日200文件及全局预算的
+生产容量仍未验证；这些外部边界不因本地代码完成而关闭。
 
-## 可选 CallbackUrl 发送协议（SOURCE）
+## 可选 CallbackUrl 发送协议
 
 显式构造 `TencentAsrOptions.callback={origin,key}` 与每次 `submit.callback={mediaJobId}`
 必须配齐；全省略保持原五字段 JSON/TC3 字节，半配返回 invalid_input/not_accepted 且零传输。
 配置构造时严格校验并复制：固定 HTTPS DNS origin，无路径/query/userinfo，key 沿接收端
 UTF8 字节32–256；UUID 保留接收端小写任意版本语义，不改码、不 trim 或 normalize。
 固定路径 `/api/v1/hooks/asr/media-jobs/{mediaJobId}?sig={HMAC}`，只签 UUID 原文。
-query 不附回调，默认配置/预算、API/worker 装配、单次提交与原期限不变。
+query 不附回调。完整 `ASR_CALLBACK_ORIGIN`/`ASR_CALLBACK_KEY_FILE` 已由 API/worker
+装配到发送端与收件端，缺省不附 CallbackUrl；单次提交、原期限及默认关闭的预算保持。
 
 官方 [CreateRecTask](https://cloud.tencent.com/document/product/1093/37823) 的 CallbackUrl 可选；
 [回调说明](https://cloud.tencent.com/document/product/1093/52632) 规定 POST form-urlencoded、
 requestId=TaskId、JSON code=0 ACK 与最多两次总尝试（2026-10-12 核对）。重试间隔、超时、
 query 逐字保留及供应商签名头未明确。本项目 sig 是自有 bearer-token，不是腾讯签名。
-本地受控 HTTP/真实 verify 组合不调用 wake，不证明实际 callback 到达、DNS/证书、公网权限、
-隐私/费用/真实云准确率或 E22；本片源码尚待独占完整验证与正式审查。
+发送协议前置的受控 HTTP/verify 用例不调用 wake；后续业务 wake、原 TaskId 回查与
+两端装配已有本地验收。不证明实际 callback 到达、DNS/证书、公网权限、隐私/费用、
+真实云准确率或 E22 完成，真实联调继续按外部台账执行。
