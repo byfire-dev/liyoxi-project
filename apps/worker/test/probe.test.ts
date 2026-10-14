@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { buildWorkerServices, createQueueChannel } from "@liyoxi/services";
 import {
   assembleForTest,
@@ -15,7 +15,7 @@ const db = useSeededDatabase("worker", { max: 1 }),
   redis = useTestRedis();
 it("正式probe循环真实写完成心跳，worker关闭探针与备份且借用池仍可用", async () => {
   const prisma = await db.prisma(),
-    clock = createClock();
+    clock = createClock(new Date("2026-01-05T00:00:00Z"));
   await redis.flush();
   const channel = createQueueChannel({
     redisUrl: process.env.REDIS_URL!,
@@ -41,6 +41,7 @@ it("正式probe循环真实写完成心跳，worker关闭探针与备份且借�
     assembly: assembleForTest({ entry: "worker" }),
     probe: { db: prisma, holder: () => "node-a:test", queues },
   });
+  const closeAlertDispatcher = vi.spyOn(services, "closeAlertDispatcher");
   const runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
   try {
     await expect.poll(() => channel.ping(), { timeout: 2000, interval: 10 }).toBe(true);
@@ -88,6 +89,7 @@ it("正式probe循环真实写完成心跳，worker关闭探针与备份且借�
       await prisma.alertEvent.findFirst({ where: { fingerprint: "probe.failed:queue.notify" } }),
     ).toMatchObject({ severity: "P2", status: "open" });
     await runtime.stop();
+    expect(closeAlertDispatcher).toHaveBeenCalledTimes(1);
     await expect(services.runProbes!()).rejects.toThrow("已关闭");
     expect(() =>
       services.assembly.recurringJob("backup.pgdump")!.run({ scheduledFor: clock.now() }),

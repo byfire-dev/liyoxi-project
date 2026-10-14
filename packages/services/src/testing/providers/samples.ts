@@ -187,6 +187,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     analyzeVision: { imageUrls: ["https://example.invalid/vision.jpg"] },
   },
   wecom: {
+    sendRobotMessage: { title: "样例告警", content: "有一项运行事实待处理", mentionAll: false },
     sendAppMessage: {
       toUser: "sample-staff",
       title: "新工单",

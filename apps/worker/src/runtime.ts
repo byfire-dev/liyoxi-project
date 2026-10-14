@@ -182,6 +182,9 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           services.disableModelBudget?.();
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
           const mediaShutdown = Promise.resolve().then(() => services.shutdownMediaJobs?.());
+          const alertResults = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeAlertDispatcher?.()),
+          ]);
           const loopResults = await Promise.allSettled([
             Promise.resolve().then(() => services.closeProbes?.()),
             Promise.resolve().then(() => services.closeCertificates?.()),
@@ -194,7 +197,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           const queueResults = await Promise.allSettled(
             queues.map((one) => Promise.resolve().then(() => one.close(SHUTDOWN_WAIT_MS))),
           );
-          const failed = [...loopResults, ...queueResults].find(
+          const failed = [...alertResults, ...loopResults, ...queueResults].find(
             (result) => result.status === "rejected",
           );
           if (failed?.status === "rejected") throw failed.reason;

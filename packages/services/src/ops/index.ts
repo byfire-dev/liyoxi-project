@@ -38,6 +38,8 @@ export { createBackupAssembly, unboundBackupJob } from "./backup-runtime.js";
 export { readBackupSummary } from "./backup.js";
 export type { BackupChild, BackupProcessRunner, BackupSummary } from "./backup.js";
 export { backupProbeRules, BACKUP_STALE_MS } from "./backup-probe-rules.js";
+export { createAlertDispatcher, DEFAULT_P2_IMMEDIATE } from "./alert-delivery.js";
+export type { AlertDispatcherOptions } from "./alert-delivery.js";
 // KF-1 启动自检：两个进程共用的清单与运行器（runStartupChecks 原在 runtime.ts，挪到这里，那边照旧转导出）
 export { createStartupChecks, runStartupChecks, StartupCheckError } from "./startup.js";
 export type { StartupCheck, StartupCheckDeps } from "./startup.js";

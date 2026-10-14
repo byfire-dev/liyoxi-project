@@ -921,6 +921,8 @@ export type WecomCallbackEvent =
   | { kind: "other"; eventType: string };
 
 export interface WecomProvider extends ProviderBase {
+  /** 机器人配置独立于自建应用；缺省表示该窄能力未配置。 */
+  readonly capabilities?: { readonly robot: boolean };
   /** 后台内嵌扫码的单次 code 换员工 userid；真实驱动交 G7-A。 */
   exchangeWebLoginCode(input: { code: string }): Promise<ProviderResult<{ userid: string }>>;
   /** 员工通知：自建应用消息 */
@@ -929,6 +931,13 @@ export interface WecomProvider extends ProviderBase {
     title: string;
     description: string;
     url?: string;
+    signal?: AbortSignal;
+  }): Promise<NotificationProviderResult<void>>;
+  /** 群机器人文本；成功只证明服务商明确受理，不证明群成员已收到。 */
+  sendRobotMessage(input: {
+    title: string;
+    content: string;
+    mentionAll: boolean;
     signal?: AbortSignal;
   }): Promise<NotificationProviderResult<void>>;
   /** “联系我”二维码 */
@@ -1103,6 +1112,7 @@ export const PROVIDER_METHODS = {
     "verifyAndDecryptCallback",
     "getKfLink",
     "exchangeWebLoginCode",
+    "sendRobotMessage",
   ],
   esign: ["seal"],
   invoice: ["issue"],

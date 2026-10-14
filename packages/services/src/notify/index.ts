@@ -29,7 +29,7 @@ export { createWechatReceiptHandler } from "./wechat-receipts.js";
 export type { WechatReceiptHandler, WechatReceiptInput } from "./wechat-receipts.js";
 
 export { createNotifyDispatcher } from "./service.js";
-export type { NotifyDispatcherService } from "./service.js";
+export type { NotifyDispatcherService, OpsAlertSendInput, OpsAlertSendResult } from "./service.js";
 export type { NotifyDispatchDeps } from "./context.js";
 export type { NotifyQueueRef, NotifyQueueTask } from "./context.js";
 
@@ -41,6 +41,8 @@ export {
 } from "./invariants.js";
 
 export type { DirectNotificationInput } from "./direct.js";
+export { sendSystemAlert, SYSTEM_ALERT_SCENE } from "./system-alert.js";
+export type { SystemAlertInput, SystemAlertResult } from "./system-alert.js";
 
 export { sendStaffWecomInvite } from "./staff-invite.js";
 

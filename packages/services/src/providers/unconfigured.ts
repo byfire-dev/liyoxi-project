@@ -259,8 +259,10 @@ export const unconfiguredLlm: LlmProvider = {
 
 export const unconfiguredWecom: WecomProvider = {
   ...BASE,
+  capabilities: { robot: false },
   exchangeWebLoginCode: unconfigured("企业微信", "后台绑定使用手工录入成员账号"),
   sendAppMessage: unconfiguredNotification("企业微信", "员工只收站内待办"),
+  sendRobotMessage: unconfiguredNotification("企业微信机器人", "告警仅保留站内事实"),
   createContactWay: unconfigured("企业微信", "服务经理二维码人工上传"),
   verifyAndDecryptCallback: unconfigured("企业微信", "没有加好友回调，商家与服务经理人工绑定"),
   getKfLink: unconfigured("企业微信", "在线客服退回小程序原生客服消息"),

@@ -89,6 +89,8 @@ export async function writeAlertFact(
             THEN jsonb_build_object('_notifiedSeverity',alert_event.last_value->>'_notifiedSeverity') ELSE '{}'::jsonb END
           || CASE WHEN alert_event.last_value ? '_robotFailures'
             THEN jsonb_build_object('_robotFailures',alert_event.last_value->'_robotFailures') ELSE '{}'::jsonb END
+          || CASE WHEN alert_event.last_value ? '_delivery'
+            THEN jsonb_build_object('_delivery',alert_event.last_value->'_delivery') ELSE '{}'::jsonb END
       WHERE $8::text IS NULL OR alert_event.last_value->>'_sampledFor' IS NULL
         OR alert_event.last_value->>'_sampledFor' < $8::text`,
     uuidv7(),
@@ -119,7 +121,8 @@ export async function writeHealthyProbeFact(
     `UPDATE alert_event SET ok_streak=ok_streak+1,
       status=CASE WHEN ok_streak>=2 THEN 'resolved' ELSE status END,
       resolved_at=CASE WHEN ok_streak>=2 THEN $2::timestamptz ELSE resolved_at END,
-      last_value=COALESCE(last_value,'{}'::jsonb)||jsonb_build_object('_sampledFor',$3::text),
+      last_value=COALESCE(last_value,'{}'::jsonb)||jsonb_build_object('_sampledFor',$3::text)
+        ||CASE WHEN ok_streak>=2 THEN jsonb_build_object('_recoveryReason','normal') ELSE '{}'::jsonb END,
       updated_at=$2::timestamptz
       WHERE fingerprint=$1 AND kind='probe' AND status IN ('open','acked')
         AND (last_value->>'_sampledFor' IS NULL OR last_value->>'_sampledFor' < $3::text)`,
@@ -149,10 +152,11 @@ export async function writeUnknownProbeFact(
   );
 }
 
-/** 每轮有界恢复静默事件；不改探针、人工结论或通知事实，发送由后续派发负责。 */
+/** 每轮有界恢复静默事件；通道心跳只能由派发器在确认受理后关闭。 */
 export async function resolveQuietEventFacts(tx: Tx, at: Date): Promise<void> {
   await tx.$executeRawUnsafe(
     `WITH quiet AS (SELECT id FROM alert_event WHERE kind='event' AND status IN ('open','acked')
+        AND rule<>'ops.channel_heartbeat'
         AND last_seen_at < $2 ORDER BY last_seen_at,id LIMIT 100 FOR UPDATE SKIP LOCKED)
      UPDATE alert_event a SET status='resolved',resolved_at=$1,updated_at=$1,
        last_value=COALESCE(a.last_value,'{}'::jsonb)||jsonb_build_object('_recoveryReason','quiet')

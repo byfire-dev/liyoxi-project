@@ -22,6 +22,8 @@ import { createDomesticLlm } from "./llm/driver.js";
 import type { DomesticLlmConfig, DomesticLlmOptions } from "./llm/driver.js";
 import { createTencentOcr } from "./ocr/tencent.js";
 import type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";
+import { createWecomRobot } from "./wecom/robot.js";
+import type { WecomRobotConfig, WecomRobotOptions } from "./wecom/robot.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
 import type {
   BeforeProviderCall,
@@ -45,6 +47,8 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+export { createWecomRobot } from "./wecom/robot.js";
+export type { WecomRobotConfig, WecomRobotOptions } from "./wecom/robot.js";
 // 备份替身复用同一有界协议边界，经正式入口消费，不跨模块引驱动私有叶。
 export {
   createBackupStorage,
@@ -78,6 +82,7 @@ export {
  * 它们从哪些环境变量来、怎样并进 loadEnv 与 .env.example，本包没有做，原因见 README.md“环境变量”一节。
  */
 export interface ProviderSettings {
+  wecomRobot?: WecomRobotConfig;
   wechat?: { appid: string; secret: string };
   media?: { ci: CiConfig };
   asr?: TencentAsrConfig;
@@ -110,6 +115,7 @@ export interface CreateProvidersOptions {
   asr?: TencentAsrOptions & { registerClose: (close: () => Promise<void>) => void };
   ocr?: TencentOcrOptions & { registerClose: (close: () => Promise<void>) => void };
   llm?: DomesticLlmOptions & { registerClose: (close: () => Promise<void>) => void };
+  wecomRobot?: WecomRobotOptions & { registerClose: (close: () => Promise<void>) => void };
   media?: {
     now: () => Date;
     registerClose: (close: () => Promise<void>) => void;
@@ -271,6 +277,10 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     throw new ProviderConfigError("llm", "完整配置与自有生命周期须同时提供");
   if (options.llm !== undefined && typeof options.llm?.registerClose !== "function")
     throw new ProviderConfigError("llm", "须提供关闭登记函数");
+  if ((settings.wecomRobot === undefined) !== (options.wecomRobot === undefined))
+    throw new ProviderConfigError("wecom", "机器人完整配置与自有生命周期须同时提供");
+  if (options.wecomRobot !== undefined && typeof options.wecomRobot.registerClose !== "function")
+    throw new ProviderConfigError("wecom", "机器人须提供关闭登记函数");
   const chosen: Providers = {
     ...unconfiguredProviders,
     // 真实驱动的位置：wechat 在 G2-D；media（数据万象）在 G3-A
@@ -325,6 +335,15 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     const driver = createDomesticLlm(settings.llm, options.llm);
     options.llm.registerClose(driver.close);
     chosen.llm = driver.provider;
+  }
+  if (settings.wecomRobot !== undefined && options.wecomRobot !== undefined) {
+    const driver = createWecomRobot(settings.wecomRobot, options.wecomRobot);
+    options.wecomRobot.registerClose(driver.close);
+    chosen.wecom = {
+      ...unconfiguredProviders.wecom,
+      capabilities: { robot: true },
+      sendRobotMessage: driver.sendRobotMessage,
+    };
   }
   const providers = guardProviders(chosen, options.beforeCall ?? noop);
   logProviderStatus(logger, providers);

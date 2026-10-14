@@ -52,6 +52,7 @@ export const ENV_KEYS: readonly string[] = [
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
   "BACKUP_FILE",
+  "ALERTS_FILE",
   "SMS_SECRET_ID_FILE",
   "SMS_SECRET_KEY_FILE",
   "SMS_SDK_APP_ID",
@@ -131,6 +132,13 @@ export interface BackupEnvConfig {
   };
 }
 
+/** worker专属告警配置；机器人只保存原始key，目的地由Provider固定。 */
+export interface AlertsEnvConfig {
+  readonly robotKey?: string;
+  readonly oncallPhones: readonly string[];
+  readonly p2Immediate?: readonly string[];
+}
+
 export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
 export type OcrTencentEnvConfig = z.infer<typeof OcrTencentEnvSchema>;
 export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
@@ -195,6 +203,7 @@ export interface Env {
   /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
   readonly CERT_DOMAINS?: readonly string[];
   readonly BACKUP?: BackupEnvConfig;
+  readonly ALERTS?: AlertsEnvConfig;
   readonly SMS?: SmsEnvConfig;
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
@@ -1161,6 +1170,43 @@ function readBackup(
   }
 }
 
+const AlertsEnvSchema = z.strictObject({
+  robotKey: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,256}$/u)
+    .optional(),
+  oncallPhones: z
+    .array(z.string().regex(/^1[3-9][0-9]{9}$/u))
+    .max(16)
+    .refine((items) => new Set(items).size === items.length)
+    .default([]),
+  p2Immediate: z
+    .array(
+      z
+        .string()
+        .max(120)
+        .regex(/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u),
+    )
+    .max(64)
+    .refine((items) => new Set(items).size === items.length)
+    .optional(),
+});
+function readAlerts(source: EnvSource, issues: EnvIssue[]): AlertsEnvConfig | undefined {
+  const text = readWechatFile(source, "ALERTS", issues, true);
+  if (text === undefined) return undefined;
+  try {
+    const parsed = AlertsEnvSchema.safeParse(JSON.parse(text));
+    if (parsed.success) return parsed.data;
+  } catch {
+    // 仅报告固定键与原因，配置值、路径与电话号码均不进入诊断。
+  }
+  issues.push({
+    key: "ALERTS_FILE",
+    reason: "须为合法的告警JSON，机器人key/值班人/即时规则列表格式错误",
+  });
+  return undefined;
+}
+
 export function loadEnv(
   source: EnvSource = process.env,
   options: { groups?: readonly EnvGroup[] } = {},
@@ -1169,6 +1215,7 @@ export function loadEnv(
   const appEnv = read(source, "APP_ENV");
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
+  const alerts = readAlerts(source, issues);
 
   const parsed = EnvSchema.safeParse({
     APP_ENV: appEnv,
@@ -1233,6 +1280,7 @@ export function loadEnv(
     REDIS_URL,
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
+    ...(alerts ? { ALERTS: alerts } : {}),
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
     ...(backup ? { BACKUP: backup } : {}),

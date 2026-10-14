@@ -36,7 +36,7 @@ import { createDramaPricing } from "../billing/index.js";
 import { staffBriefs } from "../staff/index.js";
 import { latestStaffWecomInviteKey } from "../audit/index.js";
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
-import { createSmsHealth, smsTemplateReader } from "../notify/index.js";
+import { createSmsHealth, smsTemplateReader, sendSystemAlert } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./docs-runtime.js";
 import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
@@ -68,6 +68,7 @@ import { createRuntimeMediaProduction } from "./media-production-runtime.js";
 import { createAlertFactsAssembly } from "./alert-facts-runtime.js";
 import { createCertAssembly } from "./cert-runtime.js";
 import { createBackupAssembly } from "./backup-runtime.js";
+import { createAlertDispatcher } from "./alert-delivery.js";
 import type { ModelBudgetTransport, PromoteRef } from "../media/index.js";
 import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
@@ -102,6 +103,7 @@ import type {
   SessionMutex,
 } from "../kernel/index.js";
 import type { ProviderLogger, Providers } from "../providers/types.js";
+import { notificationFailed } from "../providers/types.js";
 import { createTimers, runTimer, scanDue } from "../timers/index.js";
 import type {
   EnsureRecurringResult,
@@ -205,6 +207,7 @@ export interface WorkerServicesOptions {
     readonly LLM_DOMESTIC?: Env["LLM_DOMESTIC"];
     readonly CERT_DOMAINS?: Env["CERT_DOMAINS"];
     readonly BACKUP?: Env["BACKUP"];
+    readonly ALERTS?: Env["ALERTS"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -219,6 +222,7 @@ export interface WorkerServices {
   readonly closeProbes?: () => Promise<void>;
   readonly closeCertificates?: () => Promise<void>;
   readonly closeBackups?: () => Promise<void>;
+  readonly closeAlertDispatcher?: () => Promise<void>;
   readonly closeModelDrivers?: () => Promise<void>;
   readonly disableModelBudget?: () => void;
   readonly closeModelBudget?: () => Promise<void>;
@@ -313,6 +317,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   let storageClosing: Promise<void> | undefined;
   const closeStorageDrivers = (): Promise<void> =>
     (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
+  const robotClosers: Array<() => Promise<void>> = [];
   const logger = options.logger ?? silent;
   const profileCommits = createProfileConsistencyTransactions(
     createTxRunner({ prisma, appEnv: options.appEnv, report: options.report }),
@@ -430,6 +435,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       appEnv: options.appEnv,
       logger,
       settings: {
+        ...(options.keys?.ALERTS?.robotKey
+          ? { wecomRobot: { key: options.keys.ALERTS.robotKey } }
+          : {}),
         ...(options.keys?.ASR_TENCENT !== undefined ? { asr: options.keys.ASR_TENCENT } : {}),
         ...(options.keys?.LLM_DOMESTIC !== undefined ? { llm: options.keys.LLM_DOMESTIC } : {}),
         ...(options.keys?.SMS
@@ -483,6 +491,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           ? { wechat: { appid: options.wechat.config.appid, secret: options.wechat.config.secret } }
           : {}),
       },
+      ...(options.keys?.ALERTS?.robotKey
+        ? {
+            wecomRobot: { registerClose: (close: () => Promise<void>) => robotClosers.push(close) },
+          }
+        : {}),
       ...(ci?.worker
         ? {
             media: {
@@ -724,6 +737,35 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       ),
   });
   const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
+  const alertDispatcher = options.probe
+    ? createAlertDispatcher({
+        tx,
+        clock,
+        logger,
+        holder: options.probe.holder,
+        ...(options.keys?.ALERTS ? { config: options.keys.ALERTS } : {}),
+        robot: (input) =>
+          providers.wecom.capabilities?.robot === true
+            ? providers.wecom.sendRobotMessage(input)
+            : Promise.resolve(
+                notificationFailed("unconfigured", "告警机器人尚未配置", {
+                  acceptance: "not_accepted",
+                  code: "unconfigured",
+                }),
+              ),
+        sms: (input) => notify.sendOpsAlert(input),
+        bell: (t, input) => sendSystemAlert(t, input, assembly),
+      })
+    : null;
+  let alertClosing: Promise<void> | undefined;
+  const closeAlertDispatcher = () =>
+    (alertClosing ??= (async () => {
+      try {
+        await alertDispatcher?.close();
+      } finally {
+        await Promise.all(robotClosers.map((close) => close()));
+      }
+    })());
 
   return {
     ...(options.sessionMutex ? { sessionMutex: options.sessionMutex } : {}),
@@ -731,10 +773,17 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
     closeDocs: () => docsScope.close(),
-    runProbes: (beat) => (probe ? probe.run(beat) : Promise.reject(new Error("探针读侧未配置"))),
+    runProbes: async (beat) => {
+      if (!probe) throw new Error("探针读侧未配置");
+      const result = await probe.run(beat);
+      // 通道派发有独立预算，不占用探针原20秒采样预算。
+      await alertDispatcher?.run();
+      return result;
+    },
     closeProbes: () => probe?.close() ?? Promise.resolve(),
     closeCertificates: () => certificateScope.close(),
     closeBackups: () => backupScope.close(),
+    closeAlertDispatcher,
     documentConverter,
     closeSmsHealth: () => smsHealth.close(),
     closeAlertFacts: () => alertFactsScope.close(),

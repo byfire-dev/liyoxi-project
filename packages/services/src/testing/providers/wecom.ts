@@ -3,7 +3,7 @@
 
 import { createHash } from "node:crypto";
 
-import { failed, ok } from "../../providers/types.js";
+import { failed, notificationFailed, ok } from "../../providers/types.js";
 import type {
   ProviderMethodName,
   ProviderResult,
@@ -22,6 +22,12 @@ export interface FakeWecomMessage {
   url?: string;
 }
 
+export interface FakeWecomRobotMessage {
+  title: string;
+  content: string;
+  mentionAll: boolean;
+}
+
 export interface FakeContactWay {
   configId: string;
   qrCodeUrl: string;
@@ -30,11 +36,17 @@ export interface FakeContactWay {
 }
 
 export interface FakeWecom
-  extends FakeNotificationControl<"sendAppMessage">, WecomProvider, FakeControl<Method> {
+  extends
+    FakeNotificationControl<"sendAppMessage" | "sendRobotMessage">,
+    WecomProvider,
+    FakeControl<Method> {
+  readonly capabilities: { robot: boolean };
   /** 仅测试预置一次性扫码 code；不访问真实平台。 */
   setWebLoginCode(code: string, userid: string): void;
   /** 发出去的应用消息 */
   readonly messages: FakeWecomMessage[];
+  /** 机器人受理的文本；不复用应用消息记录。 */
+  readonly robotMessages: FakeWecomRobotMessage[];
   /** 生成过的“联系我”二维码 */
   readonly contactWays: FakeContactWay[];
   /** 把一个事件编成回调请求，交给被测的回调入口 */
@@ -49,8 +61,10 @@ function signatureOf(timestamp: string, nonce: string, rawBody: string): string 
 
 export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom {
   const clock = options.clock ?? systemClock;
-  const core = createFakeCore<Method>(clock, ["sendAppMessage"]);
+  const core = createFakeCore<Method>(clock, ["sendAppMessage", "sendRobotMessage"]);
   const messages: FakeWecomMessage[] = [];
+  const robotMessages: FakeWecomRobotMessage[] = [];
+  const capabilities = { robot: true };
   const contactWays: FakeContactWay[] = [];
   let nonceSeq = 0;
   const webLoginCodes = new Map<string, string>();
@@ -58,9 +72,11 @@ export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom 
   return {
     status: "fake",
     configured: true,
+    capabilities,
     ...core.control,
     ...core.notificationControl,
     messages,
+    robotMessages,
     contactWays,
     setWebLoginCode: (code, userid) => {
       webLoginCodes.set(code, userid);
@@ -90,6 +106,25 @@ export function createFakeWecom(options: { clock?: FakeClock } = {}): FakeWecom 
           const message = { ...input };
           delete message.signal;
           messages.push(message);
+          return ok(undefined);
+        },
+        input.signal,
+      ),
+    sendRobotMessage: (input) =>
+      core.runNotification(
+        "sendRobotMessage",
+        input,
+        () => {
+          if (!capabilities.robot)
+            return notificationFailed("unsupported", "机器人能力未开启", {
+              acceptance: "not_accepted",
+              code: "unsupported",
+            });
+          robotMessages.push({
+            title: input.title,
+            content: input.content,
+            mentionAll: input.mentionAll,
+          });
           return ok(undefined);
         },
         input.signal,

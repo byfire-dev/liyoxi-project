@@ -46,13 +46,14 @@ export function directSender(deps: NotifyDispatchDeps) {
       (await deps.smsEnabled(tx, null))
     );
   }
-  async function sendDirect(raw: DirectNotificationInput) {
+  async function sendDirect(raw: DirectNotificationInput, options: { signal?: AbortSignal } = {}) {
     assertNotInTransaction("notify.sendDirect");
-    const job = execute(raw).finally(() => pending.delete(job));
+    const job = execute(raw, options.signal).finally(() => pending.delete(job));
     pending.add(job);
     return job;
   }
-  async function execute(raw: DirectNotificationInput) {
+  async function execute(raw: DirectNotificationInput, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     const input = Input.parse(raw);
     if (closed) throw new AppError("INTERNAL", { message: "通知发送已关闭" });
     if (input.purpose === "staff_activation" && !/^[A-Za-z0-9]{8}$/.test(input.params.code ?? ""))
@@ -66,6 +67,7 @@ export function directSender(deps: NotifyDispatchDeps) {
         ? null
         : await deps.params.get("notify.sms.daily_cap");
     const claimed = await deps.tx.run(async (tx) => {
+      signal?.throwIfAborted();
       // The existing global verify anchor serializes budgets across templates and recipients.
       const keys = [...new Set(["verify_code", input.templateKey])].sort();
       for (const key of keys)
@@ -140,17 +142,20 @@ export function directSender(deps: NotifyDispatchDeps) {
           updatedAt: now,
         },
       });
+      signal?.throwIfAborted();
       return { row, fresh: true };
     });
     if (!claimed.fresh || claimed.row.status !== "sending")
       return { deliveryId: claimed.row.id, status: claimed.row.status };
     const controller = new AbortController();
-    if (closed) controller.abort();
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    if (closed || signal?.aborted) controller.abort();
     const timer = setTimeout(() => controller.abort(), 10_000);
     const call = { controller, done: Promise.resolve<unknown>(undefined) };
     call.done = (async () => {
       let result: NotificationProviderResult<unknown>;
-      if (closed) {
+      if (closed || controller.signal.aborted) {
         result = {
           ok: false,
           reason: "unavailable",
@@ -210,6 +215,7 @@ export function directSender(deps: NotifyDispatchDeps) {
       });
     })().finally(() => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
       calls.delete(call);
     });
     calls.add(call);
