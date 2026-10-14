@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -40,12 +41,13 @@ interface Secret {
 }
 const manifest = (JSON.parse(read("infra/deploy/secrets.manifest.json")) as { secrets: Secret[] })
   .secrets;
+const requiredManifest = manifest.filter((one) => one.required);
 const nodeYml = read("infra/compose/node.yml");
 const stgEnv = read("infra/compose/env/stg.env");
 
 /** node.yml 里一个服务的那一段（四格缩进的各行） */
-function serviceBlock(name: string): string {
-  const block = new RegExp(`^ {2}${name}:\\n((?: {4}.*\\n|\\n)+)`, "m").exec(nodeYml)?.[1];
+function serviceBlock(name: string, source = nodeYml): string {
+  const block = new RegExp(`^ {2}${name}:\\n((?: {4}.*\\n|\\n)+)`, "m").exec(source)?.[1];
   if (!block) throw new Error(`node.yml 里没有服务 ${name}`);
   return block;
 }
@@ -188,7 +190,7 @@ describe("密钥清单与 node.yml", () => {
   it("node.yml 的挂载与清单逐项一致：按服务分挂，*_FILE 指到 /run/secrets/<文件名>", () => {
     for (const service of serviceNames) {
       const block = serviceBlock(service);
-      const expected = manifest.filter((one) => one.services.split(" ").includes(service));
+      const expected = requiredManifest.filter((one) => one.services.split(" ").includes(service));
       expect(listOf(block, "secrets").toSorted(), service).toEqual(
         expected.map((one) => one.file).toSorted(),
       );
@@ -201,7 +203,7 @@ describe("密钥清单与 node.yml", () => {
     // 清单里写的服务名在 node.yml 里都有；顶层 secrets 的来源都在密钥目录下
     const mounted = manifest.flatMap((one) => one.services.split(" ").filter(Boolean));
     for (const service of mounted) expect(serviceNames).toContain(service);
-    for (const one of manifest.filter((entry) => entry.services !== "")) {
+    for (const one of requiredManifest.filter((entry) => entry.services !== "")) {
       expect(nodeYml).toContain(`  ${one.file}:\n    file: \${LYX_SECRETS_DIR:?}/${one.file}\n`);
     }
     // 迁移账号的连接串只给两个一次性容器；mediatool 与 gateway 一项密钥都没有
@@ -299,10 +301,10 @@ describe("gen-secrets.sh 与 check-secrets.sh（任务书 第 7 节第 5 条）"
     expect(existsSync(dir)).toBe(false);
     const first = sh(GEN, ["--dir", dir]);
     expect(first.status, first.output).toBe(0);
-    expect(readdirSync(dir).toSorted()).toEqual(manifest.map((one) => one.file).toSorted());
+    expect(readdirSync(dir).toSorted()).toEqual(requiredManifest.map((one) => one.file).toSorted());
     expect(mode(dir)).toBe("700");
     const before = new Map(
-      manifest.map((one) => [one.file, readFileSync(join(dir, one.file), "utf8")]),
+      requiredManifest.map((one) => [one.file, readFileSync(join(dir, one.file), "utf8")]),
     );
     for (const [file, content] of before) {
       expect(mode(join(dir, file)), file).toBe("400");
@@ -345,7 +347,7 @@ describe("gen-secrets.sh 与 check-secrets.sh（任务书 第 7 节第 5 条）"
     const dir = generatedSecrets();
     const all = sh(CHECK, ["--dir", dir, "--skip-owner"]);
     expect(all.status, all.output).toBe(0);
-    expect(all.output).toContain(`查了 ${manifest.length} 个文件`);
+    expect(all.output).toContain(`查了 ${requiredManifest.length} 个文件`);
     spawnSync("rm", ["-f", join(dir, "auth-keys.json")]);
     expect(sh(CHECK, ["--dir", dir, "--skip-owner", "--service", "postgres"]).status).toBe(0);
     expect(sh(CHECK, ["--dir", dir, "--skip-owner", "--service", "api"]).status).toBe(1);
@@ -373,7 +375,9 @@ describe("gen-secrets.sh 与 check-secrets.sh（任务书 第 7 节第 5 条）"
     ],
   ])("%s：非 0 退出，只报文件名，输出里没有文件内容", (_name, damage, reason) => {
     const dir = generatedSecrets();
-    const contents = manifest.map((one) => readFileSync(join(dir, one.file), "utf8").trim());
+    const contents = requiredManifest.map((one) =>
+      readFileSync(join(dir, one.file), "utf8").trim(),
+    );
     damage(dir);
     const result = sh(CHECK, ["--dir", dir, "--skip-owner"]);
     expect(result.status).toBe(1);
@@ -479,6 +483,332 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
     new RegExp(
       `^docker compose -p lyxt --env-file \\S+infra/compose/env/stg\\.env -f \\S+infra/compose/node\\.yml run --rm --no-deps -T ${service}$`,
     );
+
+  describe("可选 Provider overlays", () => {
+    const roles = ["api", "worker", "check-env"];
+    const allRoles = roles.join(" ");
+    const groups = [
+      {
+        id: "cos",
+        secrets: [
+          { file: "cos-signer-keys.json", env: "COS_SIGNER_KEYS_FILE", services: "api check-env" },
+          {
+            file: "cos-sts-issuer-keys.json",
+            env: "COS_STS_ISSUER_KEYS_FILE",
+            services: "api check-env",
+          },
+          {
+            file: "cos-worker-keys.json",
+            env: "COS_WORKER_KEYS_FILE",
+            services: "worker check-env",
+          },
+        ],
+      },
+      {
+        id: "ci",
+        secrets: [
+          { file: "ci-callback-key", env: "CI_CALLBACK_KEY_FILE", services: allRoles },
+          { file: "ci-worker-keys.json", env: "CI_WORKER_KEYS_FILE", services: "worker check-env" },
+        ],
+      },
+      {
+        id: "asr",
+        secrets: [{ file: "asr-tencent.json", env: "ASR_TENCENT_FILE", services: allRoles }],
+      },
+      {
+        id: "asr-callback",
+        secrets: [{ file: "asr-callback-key", env: "ASR_CALLBACK_KEY_FILE", services: allRoles }],
+      },
+      {
+        id: "ocr",
+        secrets: [{ file: "ocr-tencent.json", env: "OCR_TENCENT_FILE", services: "api check-env" }],
+      },
+      {
+        id: "llm",
+        secrets: [{ file: "llm-domestic.json", env: "LLM_DOMESTIC_FILE", services: allRoles }],
+      },
+      {
+        id: "media-production",
+        secrets: [
+          { file: "media-production.json", env: "MEDIA_PRODUCTION_FILE", services: allRoles },
+        ],
+      },
+    ];
+    const optionalSecrets = groups.flatMap((group) => group.secrets);
+    function optionalFile(dir: string, file: string) {
+      writeFileSync(join(dir, file), "fixture-only-not-a-real-secret\n", { mode: 0o400 });
+    }
+
+    it("七组 overlay 与可选清单精确对应，API/worker 密钥角色隔离，check-env 仅聚合格式", () => {
+      expect(
+        manifest
+          .filter((one) => !one.required)
+          .map((one) => one.file)
+          .toSorted(),
+      ).toEqual(optionalSecrets.map((one) => one.file).toSorted());
+      for (const group of groups) {
+        const source = read(`infra/compose/providers/${group.id}.yml`);
+        const actualRoles = [
+          ...(/^services:\n([\s\S]*?)^secrets:/m.exec(source)?.[1] ?? "").matchAll(
+            /^ {2}([a-z-]+):$/gm,
+          ),
+        ].map((row) => row[1]);
+        expect(actualRoles.toSorted(), group.id).toEqual(
+          roles
+            .filter((role) => group.secrets.some((one) => one.services.split(" ").includes(role)))
+            .toSorted(),
+        );
+        for (const one of group.secrets) {
+          expect(
+            manifest.find((entry) => entry.file === one.file),
+            one.file,
+          ).toMatchObject({
+            ...one,
+            uid: 1000,
+            required: false,
+          });
+          expect(nodeYml).not.toContain(one.file);
+          expect(source).toContain(`  ${one.file}:\n    file: \${LYX_SECRETS_DIR:?}/${one.file}\n`);
+        }
+        for (const role of actualRoles) {
+          const block = serviceBlock(role ?? "", source);
+          const expected = group.secrets.filter((one) =>
+            one.services.split(" ").includes(role ?? ""),
+          );
+          expect(listOf(block, "secrets").toSorted(), `${group.id}/${role}`).toEqual(
+            expected.map((one) => one.file).toSorted(),
+          );
+          for (const one of group.secrets) {
+            if (expected.includes(one))
+              expect(block).toContain(`      ${one.env}: /run/secrets/${one.file}\n`);
+            else expect(block).not.toContain(one.env);
+          }
+          expect(block).not.toMatch(/env_file:|https?:\/\/|:\/\/[^\s"']*:[^\s"']*@/);
+          if (role === "check-env")
+            expect(block).not.toMatch(/^ {4}(volumes|depends_on|networks|network_mode):/m);
+        }
+      }
+      const cos = read("infra/compose/providers/cos.yml");
+      for (const role of roles) {
+        for (const key of [
+          "COS_REGION",
+          ...["SECURE", "ASSET", "MEDIA", "PUB"].map((one) => `COS_BUCKET_${one}`),
+        ]) {
+          expect(serviceBlock(role, cos)).toContain(`      ${key}: \${${key}:?}\n`);
+        }
+      }
+      const ci = read("infra/compose/providers/ci.yml");
+      expect(serviceBlock("api", ci)).not.toMatch(/CI_REGION:|CI_BUCKET_/);
+      for (const role of roles)
+        expect(serviceBlock(role, ci)).toContain("CI_CALLBACK_ORIGIN: ${CI_CALLBACK_ORIGIN:?}");
+      for (const role of ["worker", "check-env"]) {
+        for (const key of [
+          "CI_REGION",
+          ...["SECURE", "ASSET", "MEDIA", "PUB"].map((one) => `CI_BUCKET_${one}`),
+        ]) {
+          expect(serviceBlock(role, ci)).toContain(`      ${key}: \${${key}:?}\n`);
+        }
+      }
+      const callback = read("infra/compose/providers/asr-callback.yml");
+      for (const role of roles)
+        expect(serviceBlock(role, callback)).toContain(
+          "ASR_CALLBACK_ORIGIN: ${ASR_CALLBACK_ORIGIN:?}",
+        );
+      const media = read("infra/compose/providers/media-production.yml");
+      for (const role of ["api", "worker"])
+        expect(listOf(serviceBlock(role, media), "volumes")).toEqual(["work:/work"]);
+      expect(serviceBlock("api", media)).toContain(
+        "    depends_on:\n      mediatool:\n        condition: service_healthy\n",
+      );
+      expect(serviceBlock("check-env")).toContain("    network_mode: none\n");
+      expect(serviceBlock("check-env")).toContain(
+        '    command: ["node", "apps/api/dist/check-env.js"]',
+      );
+    });
+
+    it("默认不启用；node.env 持久选择同时传给 run 与独立密钥检查，显式空值覆盖关闭", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({ LYX_SECRETS_DIR: dir });
+      writeFileSync(join(env.LYX_NODE_HOME, "release.env"), "LYX_TAG=t-provider\n");
+      const defaultRun = sh(STEP, ["run", "api"], { env, fakes: ["docker"] });
+      expect(defaultRun.status, defaultRun.output).toBe(0);
+      expect(defaultRun.lines).toEqual([
+        `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} -f ${join(repoRoot, "infra/compose/node.yml")} up --no-deps api`,
+      ]);
+      writeFileSync(join(env.LYX_NODE_HOME, "node.env"), "LYX_NODE_PROVIDERS=ocr\n");
+      const selected = sh(STEP, ["run", "api"], { env, fakes: ["docker"] });
+      expect(selected.status, selected.output).toBe(0);
+      expect(selected.calls).toEqual([
+        {
+          tag: "t-provider",
+          line: `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} --env-file ${join(env.LYX_NODE_HOME, "node.env")} -f ${join(repoRoot, "infra/compose/node.yml")} -f ${join(repoRoot, "infra/compose/providers/ocr.yml")} up --no-deps api`,
+        },
+      ]);
+      const missing = sh(CHECK, ["--skip-owner", "--service", "api"], { env });
+      expect(missing.status, missing.output).toBe(1);
+      expect(missing.output).toContain("ocr-tencent.json：没有这个文件");
+      const disabledEnv = { ...env, LYX_NODE_PROVIDERS: "" };
+      const disabled = sh(STEP, ["run", "api"], { env: disabledEnv, fakes: ["docker"] });
+      expect(disabled.status, disabled.output).toBe(0);
+      expect(disabled.lines[0]).not.toContain("/compose/providers/");
+      expect(sh(CHECK, ["--skip-owner", "--service", "api"], { env: disabledEnv }).status).toBe(0);
+      optionalFile(dir, "ocr-tencent.json");
+      expect(sh(CHECK, ["--skip-owner", "--service", "api"], { env }).status).toBe(0);
+      expect(stgEnv).toMatch(/^LYX_NODE_PROVIDERS=$/m);
+      const rehearse = read("infra/deploy/rehearse.mjs");
+      expect(rehearse).toMatch(/return parsed\.secrets\s*\.filter\(\(one\) => one\.required\)/);
+      expect(rehearse).toMatch(/LYX_NODE_PROVIDERS: ""/);
+    });
+
+    it("非法选择或 node.env 重复/变形定义在写 release 与资源调用前拒绝", () => {
+      for (const selection of [
+        "unknown",
+        "cos cos",
+        "../cos",
+        "cos\nci",
+        "cos\tci",
+        '"cos"',
+        "cos;ci",
+        "$(id)",
+        "asr-callback",
+        "x".repeat(257),
+      ]) {
+        const env = nodeEnv({ LYX_NODE_PROVIDERS: selection });
+        const result = sh(STEP, ["up", "t-provider"], { env, fakes: ["docker", "systemctl"] });
+        expect(result.status, selection).toBe(2);
+        expect(result.calls, selection).toEqual([]);
+        expect(existsSync(join(env.LYX_NODE_HOME, "release.env")), selection).toBe(false);
+      }
+      for (const content of [
+        "LYX_NODE_PROVIDERS=cos\nLYX_NODE_PROVIDERS=ci\n",
+        "LYX_NODE_PROVIDERS=cos\nexport LYX_NODE_PROVIDERS=ci\n",
+        " LYX_NODE_PROVIDERS=cos\n",
+        'LYX_NODE_PROVIDERS="cos"\n',
+      ]) {
+        const env = nodeEnv();
+        writeFileSync(join(env.LYX_NODE_HOME, "node.env"), content);
+        const result = sh(STEP, ["up", "t-provider"], { env, fakes: ["docker", "systemctl"] });
+        expect(result.status, content).toBe(2);
+        expect(result.calls, content).toEqual([]);
+        expect(existsSync(join(env.LYX_NODE_HOME, "release.env")), content).toBe(false);
+      }
+    });
+
+    it("选中密钥按服务强制齐备且校验 0400，未选中但已存在的坏文件仍拒绝", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({ LYX_SECRETS_DIR: dir, LYX_NODE_PROVIDERS: "cos" });
+      const check = (service: string, selection = "cos") =>
+        sh(CHECK, ["--skip-owner", "--service", service], {
+          env: { ...env, LYX_NODE_PROVIDERS: selection },
+        });
+      const missingWorker = check("worker");
+      expect(missingWorker.status).toBe(1);
+      expect(missingWorker.output).toContain("cos-worker-keys.json：没有这个文件");
+      expect(missingWorker.output).not.toContain("cos-signer-keys.json");
+      expect(missingWorker.output).not.toContain("cos-sts-issuer-keys.json");
+      optionalFile(dir, "cos-worker-keys.json");
+      expect(check("worker").status).toBe(0);
+      const missingApi = check("api");
+      expect(missingApi.status).toBe(1);
+      for (const file of ["cos-signer-keys.json", "cos-sts-issuer-keys.json"]) {
+        expect(missingApi.output).toContain(`${file}：没有这个文件`);
+        optionalFile(dir, file);
+      }
+      chmodSync(join(dir, "cos-worker-keys.json"), 0o440);
+      expect(check("api").status).toBe(0);
+      for (const selection of ["cos", ""]) {
+        const bad = check("worker", selection);
+        expect(bad.status).toBe(1);
+        expect(bad.output).toContain("cos-worker-keys.json：权限要是 0400");
+        expect(bad.output).not.toContain("fixture-only-not-a-real-secret");
+      }
+    });
+
+    it("固定 overlay 缺失先拒绝；无节点选择时读 stg.env，节点空值优先，双 ASR 选择保序", () => {
+      const source = tempDir();
+      mkdirSync(join(source, "infra/compose/env"), { recursive: true });
+      mkdirSync(join(source, "infra/compose/providers"));
+      copyFileSync(
+        join(repoRoot, "infra/compose/node.yml"),
+        join(source, "infra/compose/node.yml"),
+      );
+      writeFileSync(
+        join(source, "infra/compose/env/stg.env"),
+        stgEnv.replace(/^LYX_NODE_PROVIDERS=.*$/m, "LYX_NODE_PROVIDERS=ocr"),
+      );
+      const env = nodeEnv({ LYX_SRC: source });
+      const missing = sh(STEP, ["seed", "t-provider"], {
+        env,
+        fakes: ["docker"],
+        rules: [HEALTHY],
+      });
+      expect(missing.status, missing.output).toBe(2);
+      expect(missing.output).toContain("缺少仓内 Provider 配置：ocr.yml");
+      expect(missing.calls).toEqual([]);
+      for (const id of ["ocr", "asr", "asr-callback"])
+        copyFileSync(
+          join(repoRoot, `infra/compose/providers/${id}.yml`),
+          join(source, `infra/compose/providers/${id}.yml`),
+        );
+      const selected = sh(STEP, ["seed", "t-provider"], {
+        env,
+        fakes: ["docker"],
+        rules: [HEALTHY],
+      });
+      expect(selected.status, selected.output).toBe(0);
+      expect(selected.lines.at(-1)).toContain(
+        `-f ${join(source, "infra/compose/providers/ocr.yml")} run --rm --no-deps -T seed`,
+      );
+      writeFileSync(join(env.LYX_NODE_HOME, "node.env"), "LYX_NODE_PROVIDERS=\n");
+      const off = sh(STEP, ["seed", "t-provider"], { env, fakes: ["docker"], rules: [HEALTHY] });
+      expect(off.status, off.output).toBe(0);
+      expect(off.lines.at(-1)).not.toContain("/compose/providers/");
+      const callback = sh(STEP, ["seed", "t-provider"], {
+        env: { ...env, LYX_NODE_PROVIDERS: "asr-callback asr" },
+        fakes: ["docker"],
+        rules: [HEALTHY],
+      });
+      expect(callback.status, callback.output).toBe(0);
+      expect(callback.lines.at(-1)).toContain(
+        `-f ${join(source, "infra/compose/providers/asr-callback.yml")} -f ${join(source, "infra/compose/providers/asr.yml")} run --rm --no-deps -T seed`,
+      );
+    });
+
+    it("check-env 先拒缺选中文件，再用同一 overlay 单次运行离线格式检查", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({
+        LYX_SECRETS_DIR: dir,
+        LYX_SECRETS_SKIP_OWNER: "1",
+        LYX_NODE_PROVIDERS: "ocr",
+      });
+      const missing = sh(STEP, ["check-env", "t-provider"], {
+        env,
+        fakes: ["docker", "systemctl"],
+      });
+      expect(missing.status, missing.output).toBe(1);
+      expect(missing.calls).toEqual([]);
+      optionalFile(dir, "ocr-tencent.json");
+      const checked = sh(STEP, ["check-env", "t-provider"], {
+        env,
+        fakes: ["docker", "systemctl"],
+      });
+      expect(checked.status, checked.output).toBe(0);
+      expect(checked.calls).toEqual([
+        {
+          tag: "t-provider",
+          line: `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} -f ${join(repoRoot, "infra/compose/node.yml")} -f ${join(repoRoot, "infra/compose/providers/ocr.yml")} run --rm --no-deps -T check-env`,
+        },
+      ]);
+      expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
+      const units = ["api", "worker"].map((role) =>
+        read(`infra/deploy/systemd/lyx-${role}.service`),
+      );
+      for (const [index, unit] of units.entries()) {
+        expect(unit).toContain(`check-secrets.sh --service ${index === 0 ? "api" : "worker"}`);
+        expect(unit).not.toMatch(/EnvironmentFile=|LYX_NODE_PROVIDERS=/);
+      }
+    });
+  });
 
   it("migrate、seed、verify-db：用参数给的标签起一次性容器，不带依赖", () => {
     for (const service of ["migrate", "seed", "verify-db"]) {
