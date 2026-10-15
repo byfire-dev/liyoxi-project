@@ -350,7 +350,7 @@ export async function runObservability({
     env.LYX_NODE_PROVIDERS = selected.join(" ");
     step("check-env", config.tag);
     execute([...compose, "up", "-d", "--wait", "--no-deps", "--pull", "never", "receiver", "api"]);
-    execute([...compose, "create", "--no-deps", "--pull", "never", "worker"]);
+    execute([...compose, "create", "--no-build", "--pull", "never", "worker"]);
     for (const service of ["api", "worker"]) {
       const row = owned(service);
       const mounted = row.Mounts.filter((one) => one.Destination.startsWith("/run/secrets/"))

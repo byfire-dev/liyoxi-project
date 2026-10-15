@@ -83,7 +83,7 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
   expect(JSON.parse(wire[2]!).exception.values[0].stack).toContain("public.js");
 
   const tag = "sha-cccccccccccc";
-  for (const mode of ["absent", "rm-fails", "foreign"] as const) {
+  for (const mode of ["absent", "rm-fails", "foreign", "create-fails"] as const) {
     const home = mkdtempSync(join(tmpdir(), "lyx-rehearse-pure-"));
     mkdirSync(join(home, "secrets"));
     const env = {
@@ -117,7 +117,7 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
         },
         step: (...args: string[]) => {
           steps.push(args);
-          if (args[0] === "check-env") throw failure;
+          if (args[0] === "check-env" && mode !== "create-fails") throw failure;
         },
         run: (args: string[]) => {
           commands.push(args);
@@ -154,11 +154,24 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
               },
             ]);
           } else if (args[0] === "rm") status = mode === "rm-fails" && last === fixtureId ? 1 : 0;
-          else stdout = JSON.stringify({ evt: "telemetry.forward", outcome: "unconfigured" });
+          else {
+            if (mode === "create-fails" && args.includes("create")) status = 1;
+            stdout = JSON.stringify({ evt: "telemetry.forward", outcome: "unconfigured" });
+          }
           return { status, stdout, stderr: "" };
         },
       }).catch((error: unknown) => error);
-      if (mode === "absent") expect(seen).toBe(failure);
+      if (mode === "create-fails") {
+        expect(seen).toBeInstanceOf(Error);
+        expect((seen as Error).message).toContain("Docker步骤失败:compose");
+        expect(commands.find((args) => args.includes("create"))?.slice(-5)).toEqual([
+          "create",
+          "--no-build",
+          "--pull",
+          "never",
+          "worker",
+        ]);
+      } else if (mode === "absent") expect(seen).toBe(failure);
       else {
         expect(seen).toBeInstanceOf(AggregateError);
         expect((seen as AggregateError).errors).toContain(failure);
