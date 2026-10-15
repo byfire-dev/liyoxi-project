@@ -38,6 +38,8 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
   let timerPaused = false;
   const handled = { event: 0, timer: 0, media: 0 };
   const errorSources = new Map<string, number>();
+  const errorChannels = new Map<string, number>();
+  const knownChannels = new Set(["robot", "sms", "bell", "note", "state", "round"]);
   const knownErrorEvents = new Set([
     "ops.probe_incomplete",
     "ops.alert_facts_closed",
@@ -64,6 +66,12 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
             ? fields.loop
             : "other";
       errorSources.set(source, (errorSources.get(source) ?? 0) + 1);
+      if (
+        fields.evt === "ops.alert_channel_failed" &&
+        typeof fields.channel === "string" &&
+        knownChannels.has(fields.channel)
+      )
+        errorChannels.set(fields.channel, (errorChannels.get(fields.channel) ?? 0) + 1);
     },
   };
   const close = () =>
@@ -143,7 +151,12 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
         timerPaused = false;
         runtime!.loops.timer_scan.start();
       },
-      async snapshot(): Promise<M1LoopWorkerSnapshot & { errorSources: Record<string, number> }> {
+      async snapshot(): Promise<
+        M1LoopWorkerSnapshot & {
+          errorSources: Record<string, number>;
+          errorChannels: Record<string, number>;
+        }
+      > {
         activeSignal.throwIfAborted();
         let snapshot: Awaited<ReturnType<typeof resources.snapshot>>;
         try {
@@ -156,6 +169,7 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
           active: runtime!.active,
           errors,
           errorSources: Object.fromEntries(errorSources),
+          errorChannels: Object.fromEntries(errorChannels),
           timerPaused,
           handled: { ...handled },
           cadence: MIXED_WORKER_INTERVALS,

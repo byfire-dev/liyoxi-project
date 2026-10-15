@@ -87,6 +87,10 @@ const SnapshotSchema = z.object({
       ),
     z.int().nonnegative(),
   ),
+  errorChannels: z.partialRecord(
+    z.enum(["robot", "sms", "bell", "note", "state", "round"]),
+    z.int().nonnegative(),
+  ),
   backlog: BacklogSchema,
   backupIo: z.object({
     processes: z.object({
@@ -364,6 +368,7 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
               held: current.lease?.held ?? false,
               errors: current.errors,
               errorSources: current.errorSources,
+              errorChannels: current.errorChannels,
               backlog: current.backlog,
               backupIo: current.backupIo,
               handled: current.handled,
