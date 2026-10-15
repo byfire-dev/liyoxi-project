@@ -1,6 +1,6 @@
 # 五组件私有源码映射（W2-27b2a）
 
-本片仅交付api、worker、admin、portal、weapp真实构建map的私有产物机制。上传未配置且未实现；没有上传CLI、令牌、debug ID注入或SDK修改，不代表错误堆栈已能还原。images工作流接线与既有门禁适配另交独立gate-change；本片落地不自动改变远端发布流程。
+本片仅交付api、worker、admin、portal、weapp真实构建map的私有产物机制。上传未配置且未实现；没有上传CLI、令牌、debug ID注入或SDK修改，不代表错误堆栈已能还原。images工作流接线与既有门禁适配已由独立gate-change de6d5a80合入；上传仍未实现，未声明远端CI或真实符号化已验。
 
 API/worker用external map，admin/portal生产用hidden map，小程序正式构建开启map。分离助手在Docker编译层完成后、最终runtime COPY之前执行；小程序在Taro编译后、原体积检查之前执行。私有副本保留实际发布JS与对应map，发布目录不保留map与终端sourceMappingURL；移除引用时保留行列位置。不会从已发布镜像中临时删除文件，也不上传空目录冒充完成。
 
