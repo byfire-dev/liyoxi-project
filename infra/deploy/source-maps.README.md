@@ -32,6 +32,6 @@ node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
 
 固定组件、入口与路径由助手限定，不接受任意源目录或component。拒绝符号链接、路径穿越、缺map、非v3 map、非配对/内联引用、空文件及超限；单文件64MiB、每组件512MiB、最多4096文件。编译产物需位于私有输出目录之外；公开目录只在全部配对通过后开始替换/去除map，分离失败则构建失败，不继续发布。
 
-manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本地image ID及OCI revision，记录五组件每对JS/map的大小与SHA256。`verify`重新读取镜像事实和全部文件，不只相信manifest；目录0700、私有文件0600，输出仅固定摘要，失败仅固定错误。备份/上传归档不进入原公开images-out artifact。
+manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本地image ID及OCI revision，记录五组件每对JS/map的大小与SHA256。`verify`重读调用方本次docker inspect保存的images.json收据并核全部文件，不只相信manifest；它不自行调用Docker重新查询镜像。目录0700、私有文件0600，输出仅固定摘要，失败仅固定错误。备份/上传归档不进入原公开images-out artifact。
 
 本片不解决错误协议中的frame/debug_meta、上游release/dist与SDK一致性、SaaS可达或真实符号化。上述能力与CLI官方锁版、inject/上传另行实现并验证，默认没有令牌时不能声称上传成功。第三方依赖包自带map不纳入本片五组件第一方发布目录的清理承诺。

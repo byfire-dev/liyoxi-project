@@ -31,7 +31,6 @@ export default defineConfig<"vite">(async (merge) => {
     copy: { patterns: [], options: {} },
     framework: "react",
     compiler: { type: "vite", vitePlugins: [] },
-    ...(isH5 ? {} : { enableSourceMap: true }),
     alias: { "@": path.resolve(root, "src") },
     sass: {
       // 每个 scss 自动可用商家端的样式变量（$lyx-*，W0-26 的生成物，只声明变量、不出样式）
@@ -40,6 +39,7 @@ export default defineConfig<"vite">(async (merge) => {
       ],
     },
     mini: {
+      enableSourceMap: true,
       // Taro 4.2.1 的开发构建别名会把 zustand/react 误指向 React，导致所有页面启动失败。
       debugReact: true,
       postcss: {
