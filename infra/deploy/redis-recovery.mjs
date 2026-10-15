@@ -18,7 +18,7 @@ export const LOG_ROTATION = Object.freeze({
 /** @typedef {{container:{id:string,pid:number,restarts:number,startedAt:string,running:boolean},lease:{holder:string,acquiredAt:string,heartbeatAt:string,ageSeconds:number},event:{publishedAt:string|null,deliveries:{subscriber:string,status:string,consumedAt:string|null}[]},timer:{status:string,firedAt:string|null,result:unknown}}} RecoveryFacts */
 /**
  * 只接受具体事件/任务的完成事实；单靠心跳或零积压不算恢复。时限包含最后一次读取。
- * @param {{before:RecoveryFacts,flushedAt:number,subscribers:string[],read:()=>Promise<RecoveryFacts>,now?:()=>number,sleep?:(ms:number)=>Promise<unknown>}} options
+ * @param {{before:RecoveryFacts,flushedAt:number,subscribers:string[],read:(remainingMs:number)=>Promise<RecoveryFacts>,now?:()=>number,sleep?:(ms:number)=>Promise<unknown>}} options
  */
 export async function waitForRedisRecovery(options) {
   const now = options.now ?? Date.now;
@@ -40,7 +40,7 @@ export async function waitForRedisRecovery(options) {
     throw new Error("恢复演练缺少有效基线");
   for (;;) {
     if (now() - options.flushedAt >= RECOVERY_LIMIT_MS) throw new Error("Redis 恢复超过 120 秒");
-    const facts = await options.read();
+    const facts = await options.read(RECOVERY_LIMIT_MS - (now() - options.flushedAt));
     const elapsedMs = now() - options.flushedAt;
     if (elapsedMs >= RECOVERY_LIMIT_MS) throw new Error("Redis 恢复超过 120 秒");
     if (
@@ -115,11 +115,12 @@ export async function buildRecoveryFixture(root, outFile) {
  */
 export async function holdRecoveryFixture(args, env) {
   const child = spawn("docker", args, { env, stdio: ["pipe", "pipe", "pipe"] });
+  child.stdin.on("error", () => {}); // 提前退出由 closed 的非零结果判定；EPIPE 不得跳过外层清理。
   const lines = createInterface({ input: child.stdout });
   const closed = new Promise((resolve) => child.once("close", (code) => resolve(code)));
   let ended = false;
   const stop = () => {
-    if (!ended) child.kill("SIGTERM");
+    if (!ended) child.kill("SIGKILL");
   };
   const timer = setTimeout(stop, 30_000);
   child.stderr.resume(); // 失败只给固定类别，绝不把容器内部错误原文带回日志。

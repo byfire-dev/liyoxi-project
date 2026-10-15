@@ -787,23 +787,48 @@ await runMain(async () => {
         ],
         { ...env, LYX_TAG: config.tag },
       );
-      const readRecovery = async () => {
-        const [worker] = JSON.parse(
-          mustDocker("读原 worker 身份", ["inspect", name("worker")], { capture: true }).stdout,
-        );
+      const readRecovery = async (remainingMs = 10_000) => {
+        const deadline = Date.now() + remainingMs;
+        const boundedDocker = (/** @type {string[]} */ args) => {
+          const result = spawnSync("docker", args, {
+            env,
+            encoding: "utf8",
+            maxBuffer: 128 * 1024,
+            timeout: Math.max(1, Math.min(4_000, deadline - Date.now())),
+            killSignal: "SIGKILL",
+          });
+          if (result.error || result.status !== 0) throw new StepError("恢复证据读取失败或超时");
+          return result.stdout.trim();
+        };
+        const [worker] = JSON.parse(boundedDocker(["inspect", name("worker")]));
         if (
           worker.Config.Labels["com.docker.compose.project"] !== prefix ||
           worker.Config.Labels["com.docker.compose.service"] !== "worker"
         )
           throw new StepError("worker 不属于本次自有项目");
         const facts = JSON.parse(
-          superSql(`SELECT json_build_object(
+          boundedDocker([
+            "exec",
+            name("postgres"),
+            "psql",
+            "-X",
+            "-q",
+            "-At",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            "postgres",
+            "-d",
+            stg("LYX_DB_NAME"),
+            "-c",
+            `SELECT json_build_object(
           'lease', (SELECT json_build_object('holder',holder,'acquiredAt',acquired_at,'heartbeatAt',heartbeat_at,
             'ageSeconds',extract(epoch FROM clock_timestamp()-heartbeat_at)) FROM worker_lease WHERE name='primary'),
           'event', (SELECT json_build_object('publishedAt',published_at,'deliveries',
             (SELECT coalesce(json_agg(json_build_object('subscriber',subscriber,'status',status,'consumedAt',consumed_at)), '[]'::json)
              FROM outbox_delivery WHERE outbox_event_id='${held.eventId}'::uuid)) FROM outbox_event WHERE id='${held.eventId}'::uuid),
-          'timer', (SELECT json_build_object('status',status,'firedAt',fired_at,'result',result) FROM timer WHERE id='${held.timerId}'::uuid))`),
+          'timer', (SELECT json_build_object('status',status,'firedAt',fired_at,'result',result) FROM timer WHERE id='${held.timerId}'::uuid))`,
+          ]),
         );
         if (!facts.lease || !facts.event || !facts.timer) throw new StepError("恢复证据行缺失");
         return {
