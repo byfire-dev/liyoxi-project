@@ -1,3 +1,8 @@
+import {
+  applyPaymentFallback,
+  expirePayment,
+  scanUnapplied,
+} from "./payment/channel-registration.js";
 import { implement as implementTenantCloseFacts } from "../kernel/index.js";
 import { billingCloseFactsPort, billingHistoryPort } from "../tenant/index.js";
 import { deletionGuard } from "./read/deletion-guard.js";
@@ -132,6 +137,11 @@ export const registration = defineRegistration("billing", {
   ],
   subscribers: [
     {
+      name: "billing.applyPaymentFallback",
+      events: ["payment_txn.succeeded"],
+      handle: applyPaymentFallback,
+    },
+    {
       name: "billing.onTierChanged",
       events: ["drama.tier_changed"],
       handle: async () => {
@@ -139,7 +149,21 @@ export const registration = defineRegistration("billing", {
       },
     },
   ],
+  recurringJobs: [
+    {
+      kind: "tx.unapplied_scan",
+      run: scanUnapplied,
+      schedule: { every: "minutes", minutes: 5 },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 5,
+      deadlineMin: 10,
+      missSeverity: "P1",
+      catchUp: true,
+    },
+  ],
   timerHandlers: [
+    { kind: "po.expire", critical: true, handle: expirePayment },
     { kind: "po.transfer_ttl", handle: handleTransferTtl },
     {
       kind: "pricing.drama_price_effective",

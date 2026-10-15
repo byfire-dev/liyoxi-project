@@ -14,6 +14,9 @@ export const APPLY_STEPS = [
 ] as const;
 export type ApplyStep = (typeof APPLY_STEPS)[number];
 export type PaymentExceptionKind =
+  | "status_mismatch"
+  | "bill_only"
+  | "bank_unmatched"
   | "payer_mismatch"
   | "amount_mismatch"
   | "duplicate_receipt"
@@ -34,6 +37,7 @@ export interface ApplyPaymentInput {
   readonly ctx?: IdentityContext;
 }
 export type ApplyPaymentResult =
+  | { readonly status: "orphan"; readonly paymentExceptionId: string | null }
   | {
       readonly status: "applied";
       readonly billingOrderId: string;

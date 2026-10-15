@@ -192,10 +192,12 @@ export async function merchantOrderView(
     invoiceState: "not_eligible",
     activeInvoiceRequest: null,
     actions:
-      o.channel === "wechat_jsapi" &&
-      o.status === "pending_payment" &&
-      now.getTime() < o.expiresAt.getTime() - 60_000
-        ? ["wechat-prepay"]
+      o.channel === "wechat_jsapi" && o.status === "pending_payment"
+        ? [
+            "sync",
+            "cancel",
+            ...(now.getTime() < o.expiresAt.getTime() - 60000 ? ["wechat-prepay"] : []),
+          ]
         : o.channel === "bank_transfer" &&
             ((o.status === "pending_payment" && now < o.expiresAt) ||
               (o.status === "pending_confirmation" && o.transferState === "proof_submitted"))

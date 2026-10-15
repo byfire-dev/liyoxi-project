@@ -69,7 +69,19 @@ export const paymentMachineBindings: readonly { key: string; binding: MachineBin
   {
     key: chainKey("payment_exception", "status"),
     binding: {
+      companions: ["resolved_at"],
       guards: {
+        [rowKey("08:767", "payment_exception.reclassify")]: async (tx, f) => {
+          const e = await tx.paymentException.findUnique({ where: { id: f.subjectId } });
+          return (
+            e?.kind === "bill_only" &&
+            e.billingOrderId !== null &&
+            e.paymentTxnId === (f.args as { paymentTxnId?: string })?.paymentTxnId
+          );
+        },
+        [rowKey("08:761", "payment_exception.record_healed")]: async (tx, f) =>
+          (await tx.paymentException.findUnique({ where: { id: f.subjectId } }))?.status ===
+          "auto_healed",
         [rowKey("08:760", "payment_exception.open")]: async (tx, facts) =>
           (await tx.paymentException.findUnique({ where: { id: facts.subjectId } }))?.status ===
           "open",

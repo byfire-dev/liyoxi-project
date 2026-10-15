@@ -71,6 +71,7 @@ export function mapTransaction(r: Json): WechatPayTransaction | null {
     transactionId: text(r.transaction_id),
     amountFen: fen(total),
     payerOpenid: text(isObject(r.payer) ? r.payer.openid : undefined),
+    bankType: text(r.bank_type),
     attach: text(r.attach),
     successAt,
   };

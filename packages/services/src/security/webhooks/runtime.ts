@@ -333,6 +333,9 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
       }
       try {
         await deps.tx.run(async (tx) => {
+          // 微信支付T1连收件去重锁一起受2秒上限；T1′与其它来源保持原边界。
+          if (source.provider === "wechatpay" && source.mode === "inline")
+            await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '2s'");
           // 投影不能缓存到事务外；重试时重新 clone 验签快照并读取当前事实。
           // 来源自身异常交给原事务重试/错误映射，只有非法返回值映射 PAYLOAD。
           const projected = source.projectPayload
