@@ -222,7 +222,16 @@ describe("密钥清单与 node.yml", () => {
       const block = serviceBlock(service);
       expect(block, service).not.toMatch(/:\/\/[^\s"']*:[^\s"']*@/);
       expect(block, service).not.toMatch(/^ {6}\w*(PASSWORD|SECRET|TOKEN|_URL|_KEYS?): /m);
-      expect(block, service).toMatch(/^ {4}logging: \*logging$/m);
+      const logAnchor = /^ {4}logging: \*(logging|small-logging)$/m.exec(block)?.[1];
+      const smallService = ["postgres", "redis", "mediatool"].includes(service);
+      expect(smallService ? ["logging", "small-logging"] : ["logging"], service).toContain(
+        logAnchor,
+      );
+      // 独立门禁前置兼容旧统一配置；W2-27 新矩阵另锁定三小三大的精确分配。
+      const small = logAnchor === "small-logging";
+      expect(nodeYml, `${service} 的固定轮转预算`).toContain(
+        `x-${logAnchor}: &${logAnchor}\n  driver: json-file\n  options:\n    max-size: ${small ? "10m" : "20m"}\n    max-file: "${small ? "3" : "5"}"`,
+      );
       if (LONG_RUNNING.includes(service)) {
         expect(block, service).toMatch(/^ {4}restart: "no"$/m);
         expect(block, service).toMatch(/^ {4}stop_grace_period: 60s$/m);
@@ -533,13 +542,32 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
           { file: "media-production.json", env: "MEDIA_PRODUCTION_FILE", services: allRoles },
         ],
       },
+      // W2-27 后继接线可分别交付；出现即完整核对固定 FILE、角色和 overlay，不接受任意新增项。
+      ...[
+        {
+          id: "client-errors",
+          secrets: [
+            {
+              file: "client-error-projects.json",
+              env: "CLIENT_ERROR_PROJECTS_FILE",
+              services: "api check-env",
+            },
+          ],
+        },
+        {
+          id: "alerts",
+          secrets: [{ file: "alerts.json", env: "ALERTS_FILE", services: "worker check-env" }],
+        },
+      ].filter((group) =>
+        group.secrets.some((one) => manifest.some((entry) => entry.file === one.file)),
+      ),
     ];
     const optionalSecrets = groups.flatMap((group) => group.secrets);
     function optionalFile(dir: string, file: string) {
       writeFileSync(join(dir, file), "fixture-only-not-a-real-secret\n", { mode: 0o400 });
     }
 
-    it("七组 overlay 与可选清单精确对应，API/worker 密钥角色隔离，check-env 仅聚合格式", () => {
+    it("固定组 overlay 与可选清单精确对应，API/worker 密钥角色隔离，check-env 仅聚合格式", () => {
       expect(
         manifest
           .filter((one) => !one.required)

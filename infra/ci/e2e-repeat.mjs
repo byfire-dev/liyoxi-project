@@ -28,7 +28,7 @@ export function parseArgs(argv) {
   return options;
 }
 
-/** 两个具名接口链共用执行器；M1默认命令与90秒上限保持，CLI不接受命令覆盖。 */
+/** 具名接口链共用执行器；M1默认命令与90秒上限保持，CLI不接受命令覆盖。 */
 export function runRound({
   session,
   logPath,
@@ -38,7 +38,7 @@ export function runRound({
   script = "e2e",
 }) {
   if (
-    !["e2e", "e2e:m3"].includes(script) ||
+    !["e2e", "e2e:m2", "e2e:m3"].includes(script) ||
     !/^[a-z0-9]{1,12}$/.test(session) ||
     !Number.isInteger(timeoutMs) ||
     timeoutMs < 1 ||
