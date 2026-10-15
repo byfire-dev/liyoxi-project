@@ -51,7 +51,17 @@ const WorkerSnapshot = z.object({
     }),
   }),
   handled: z.object({ event: count, timer: count, media: count }),
-  queues: z.array(z.object({ waiting: count, active: count, failed10Min: count })).min(1),
+  queues: z
+    .array(
+      z.object({
+        name: z.enum(["outbox_delivery", "timer_run", "notify", "media_job", "promote"]),
+        waiting: count,
+        active: count,
+        failed10Min: count,
+        paused: z.boolean(),
+      }),
+    )
+    .min(1),
   cadence: z.object({
     intervals: z.object({
       outbox_relay: z.int().positive(),
