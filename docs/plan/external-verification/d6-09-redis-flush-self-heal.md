@@ -16,3 +16,11 @@
 | 关闭日期 |  |
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
+
+## 执行方法与当前边界
+
+待业主批准真实预发演练窗口后执行，当前仍未开始。先确认本项目实际Compose项目名、六容器健康、PostgreSQL可用与当前worker身份，记录同容器ID/PID/启动时间、RestartCount、worker_lease持有者/acquiredAt/heartbeatAt，以及真实服务产生并已提交的待处理事件、到点任务ID。明确 `LYX_REDIS_FLUSH_ENABLED=true` 且 `STG_FREEZE=false` 后，仅执行 `infra/deploy/node-step.sh redis-flush <本节点项目>`；它核配置来源与容器身份，只清目标DB0，禁止手工对共享开发Redis执行FLUSHALL或删卷。
+
+清空后不重启worker，120秒内分别核同PID、同主租约且心跳前进、全部非空实际subscriber投递完成、目标timer真实fired并有结果。记录清空/完成时间和实际结果；任一缺失不得记通过，随后关闭演练开关。通知、渲染、导出仍由所属里程碑补足各自证据。
+
+`pnpm stg:rehearse --redis-flush --without-image-smoke` 是随机自有六容器、假密钥和正式服务端口的本机检查，默认不启用清空、不接真实预发；输出脱敏 `redis-recovery.json`。本地检查不能替代本项真实预发验收。
