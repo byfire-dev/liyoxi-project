@@ -14,7 +14,11 @@ export const APPLY_STEPS = [
 ] as const;
 export type ApplyStep = (typeof APPLY_STEPS)[number];
 export type PaymentExceptionKind =
-  "amount_mismatch" | "duplicate_receipt" | "paid_after_cancel" | "fulfillment_blocked";
+  | "payer_mismatch"
+  | "amount_mismatch"
+  | "duplicate_receipt"
+  | "paid_after_cancel"
+  | "fulfillment_blocked";
 export interface PaymentDeps {
   readonly clock: Clock;
   readonly events: Pick<Events, "emit">;

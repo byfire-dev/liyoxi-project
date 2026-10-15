@@ -120,6 +120,7 @@ const wechatPayOff = unconfigured("微信支付", "只剩对公转账");
 
 export const unconfiguredWechatPay: WechatPayProvider = {
   ...BASE,
+  signMiniProgramPay: wechatPayOff,
   createJsapiOrder: wechatPayOff,
   verifyAndDecryptNotification: wechatPayOff,
   queryByOutTradeNo: wechatPayOff,

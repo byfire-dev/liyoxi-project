@@ -202,6 +202,13 @@ export const dramaPriceChangedPayload = z.strictObject({
   effectiveAt: InstantSchema,
 });
 export const payloads = {
+  "payment_txn.succeeded": z.strictObject({
+    v: z.literal(1),
+    paymentTxnId: IdSchema,
+    billingOrderId: orNull(IdSchema),
+    amountFen: z.int().positive(),
+    channel: zodEnum(PAY_CHANNEL),
+  }),
   "billing.param_change_scheduled": z.strictObject({
     v: z.literal(1),
     billingParamId: IdSchema,

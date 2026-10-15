@@ -365,6 +365,7 @@ describe("键名清单", () => {
       "SMS_SECRET_KEY_FILE",
       "SMS_SDK_APP_ID",
       "SMS_REGION",
+      "WECHAT_PAY_FILE",
       "WECHAT_APPID",
       "WECHAT_SECRET_FILE",
       "WECHAT_MESSAGE_TOKEN_FILE",

@@ -191,6 +191,21 @@ export const PaymentOrderDetailSchema = z
     channels: z.array(PurchaseChannelSchema),
   })
   .openapi("PaymentOrderDetail");
+export const PaymentOrderWechatPrepayResultSchema = z.object({
+  payParams: z
+    .object({
+      timeStamp: z.string(),
+      nonceStr: z.string(),
+      package: z.string(),
+      signType: z.literal("RSA"),
+      paySign: z.string(),
+    })
+    .nullable(),
+  replayed: z.boolean(),
+  paymentOrder: PaymentOrderDetailSchema,
+});
+export type PaymentOrderWechatPrepayResult = z.infer<typeof PaymentOrderWechatPrepayResultSchema>;
+
 export const PaymentOrderCreateResultSchema = PaymentOrderDetailSchema.extend({
   replayed: z.boolean(),
 });

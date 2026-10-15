@@ -1,6 +1,7 @@
 import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
+  PaymentOrderWechatPrepayResultSchema,
   PaymentOrderCreateBodySchema,
   PaymentOrderCreateResultSchema,
   PaymentOrderDetailSchema,
@@ -118,7 +119,14 @@ export const mPaymentOrderTransferProofCreate = merchantRoute({
   "x-idempotent": "required",
 });
 
-export const mPaymentOrderWechatPrepay = merchantMeta({
+export const mPaymentOrderWechatPrepay = merchantRoute({
+  request: { params: PaymentOrderParamsSchema },
+  responses: {
+    ...okResponse(PaymentOrderWechatPrepayResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503, 504),
+  },
+  "x-three-phase": true,
+  "x-redact-on-replay": ["payParams"],
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/wechat-prepay",
   operationId: "m.paymentOrder.wechatPrepay",

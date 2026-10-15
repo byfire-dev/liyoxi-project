@@ -54,6 +54,8 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  /** 仅测试支付装配身份，渠道IO仍用原FakeWechatPay。默认未配不变。 */
+  readonly wechatPay?: { appid: string; mchid: string };
   /** 证照识别场景显式启用；既有手填场景保持未配置，使用同一公知测试密钥环。 */
   readonly qualificationOcr?: boolean;
   /** External media IO only; real production facts/handlers remain in the Runtime. */
@@ -136,6 +138,19 @@ export function useTestApi(): TestApiHandle {
         // 三份密钥用现造的假密钥：后台登录、敏感字段的用例才跑得起来
         ...fakeKeyEnv(),
         DATABASE_URL: databaseUrl,
+        ...(options.wechatPay
+          ? {
+              WECHAT_PAY: {
+                ...options.wechatPay,
+                merchantSerialNo: "01",
+                merchantPrivateKeyPem: "explicit-test-provider",
+                apiV3Key: "00000000000000000000000000000000",
+                publicKeyId: "PUB_KEY_ID_TEST",
+                publicKeyPem: "explicit-test-provider",
+                notifyUrl: "https://example.invalid/hooks/wechatpay",
+              },
+            }
+          : {}),
         ...(options.redisUrl === undefined ? {} : { REDIS_URL: options.redisUrl }),
       };
       const clock = createClock();

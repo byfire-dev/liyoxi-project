@@ -88,9 +88,12 @@ const extras: MachineBinding = {
         o.entityId === f.ctx.entityId &&
         ["verified", "pending"].includes(o.entity.verificationStatus) &&
         o.type === "plan_new" &&
-        o.channel === "bank_transfer" &&
-        o.transferState === "awaiting_proof" &&
-        o.bankAccountFinanceConfigRevisionId !== null &&
+        ((o.channel === "bank_transfer" &&
+          o.transferState === "awaiting_proof" &&
+          o.bankAccountFinanceConfigRevisionId !== null) ||
+          (o.channel === "wechat_jsapi" &&
+            o.transferState === null &&
+            o.bankAccountFinanceConfigRevisionId === null)) &&
         (await tx.agreementConsent.count({ where: { bizType: "billing_order", bizId: o.id } })) >= 2
       );
     },

@@ -102,6 +102,7 @@ export {
   createPayment,
   openPaymentException,
   APPLY_STEPS,
+  recordChannelSuccess,
   paymentInvariants,
 } from "./payment/index.js";
 export type {

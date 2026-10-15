@@ -80,3 +80,9 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm exec vitest run packages/services/src/provi
 ## 5. 账单样本
 
 `__fixtures__/bill-samples.ts` 是按官方文档 4013071246 的格式自制的，不是真实账单。真实账单的口径由 G4-A、G4-B 在预发复核（V13）。
+
+## W4-01 接线
+
+`createProviders` 已选择完整配置的真实驱动；API/worker 沿注入业务时钟装配。`WECHAT_PAY_FILE` 为独立JSON文件，必含 `mchid`、`merchantSerialNo`、`merchantPrivateKeyPem`、`apiV3Key`、`publicKeyId` 及 `publicKeyPem`、`appid`、`notifyUrl`。全未配保持未配置，部分或非法配置启动拒绝，错误仅列字段名。默认网络超时仍8秒。公共 Provider 只增本地 `signMiniProgramPay`，同样由正式包装守住事务边界。
+
+预下单调用仅在A提交后外呼；支付参数只在B成功后签名，不入幂等持久快照。查单额外保留并校验验签后的 appid/mchid，金额不符和付款人/attach不符交唯一入账入口处理。真实E2商户、云通知、实际资金与密钥轮换仍未验。

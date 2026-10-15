@@ -442,7 +442,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembleProviders({
       appEnv: options.appEnv,
       logger,
+      ...(options.keys?.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       settings: {
+        ...(options.keys?.WECHAT_PAY ? { wechatPay: options.keys.WECHAT_PAY } : {}),
         ...(options.keys?.ALERTS?.robotKey
           ? { wecomRobot: { key: options.keys.ALERTS.robotKey } }
           : {}),

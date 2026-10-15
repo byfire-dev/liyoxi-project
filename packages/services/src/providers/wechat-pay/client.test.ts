@@ -228,6 +228,8 @@ describe("查单 queryByOutTradeNo", () => {
     expect(result).toEqual({
       ok: true,
       value: {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
         outTradeNo: NO,
         tradeState: "SUCCESS",
         transactionId: "4200000000202610040000000001",
