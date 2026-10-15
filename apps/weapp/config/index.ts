@@ -5,6 +5,7 @@
 import path from "node:path";
 
 import { defineConfig, type UserConfigExport } from "@tarojs/cli";
+import type { Plugin } from "vite";
 
 const root = path.resolve(__dirname, "..");
 const isH5 = process.env.TARO_ENV === "h5";
@@ -45,7 +46,7 @@ export default defineConfig<"vite">(async (merge) => {
                     delete bundle["custom-wrapper.js.map"];
                 },
               },
-            },
+            } satisfies Plugin,
           ],
     },
     alias: { "@": path.resolve(root, "src") },
