@@ -14,6 +14,7 @@ import { fakeKeyEnv } from "./m1-fake-keys.js";
 import { m1ProductionVideo } from "./m1-production.js";
 import { assertM1SharedScope, createM1HttpStorage, createM1RealClock } from "./m1-shared.js";
 import { readM1WorkerBacklog } from "./m1-observe.js";
+import { createM1BackupIo } from "./m1-backup.js";
 
 /** IPC input accepts public local fixture configuration only, never arbitrary provider URLs/keys. */
 export const M1WorkerAttachmentSchema = z.strictObject({
@@ -81,6 +82,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
   });
   redis.on("error", () => undefined);
   const clock = createM1RealClock();
+  const backup = createM1BackupIo(attach.scope.runId, clock);
   let database: ReturnType<typeof connectWorkerDatabase> | undefined;
   let probe: ReturnType<typeof connectProbeDatabase> | undefined;
   let channel: ReturnType<typeof createQueueChannel> | undefined;
@@ -100,6 +102,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       closed = true;
       const results = await Promise.allSettled([
         Promise.resolve().then(() => tools?.tools.close()),
+        Promise.resolve().then(() => backup.close()),
         Promise.resolve().then(() => storage.close()),
         Promise.resolve().then(() => channel?.close()),
         Promise.resolve().then(() => lease?.close()),
@@ -139,6 +142,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       ...providers,
       storage: {
         ...storage.storage,
+        ...backup.storage,
         uploadLocation: { region: attach.storage.region, buckets: attach.storage.buckets },
       },
     };
@@ -151,7 +155,8 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       channel,
       providers: boundProviders,
       mediaProductionTools: tools.tools,
-      keys: { ...fakeKeyEnv(), MEDIA_PRODUCTION: tools.env },
+      keys: { ...fakeKeyEnv(), MEDIA_PRODUCTION: tools.env, BACKUP: backup.config },
+      backupProcessRunner: backup.processRunner,
       probe: { db: probe.prisma, holder: () => holder, queues },
     };
     const activeDatabase = database,
@@ -199,6 +204,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
               }
             : null,
           backlog,
+          backupIo: backup.snapshot(),
           queues: observations,
         };
       },

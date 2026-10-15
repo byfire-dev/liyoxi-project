@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "@liyoxi/contract";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
 import { createEvents } from "../events/index.js";
+import { readBackupSummary } from "../ops/index.js";
 import { createFactories } from "./data/index.js";
 import type { M1Support } from "./m1-types.js";
 
@@ -103,6 +104,15 @@ export async function prepareM1WorkerExercise(support: M1Support) {
           where: { subjectId: registered.fileId },
           select: { kind: true, state: true, provider: true, attemptNo: true },
         }),
+        backup: await tx.timer
+          .findFirst({
+            where: { kind: "backup.pgdump", status: "fired", subjectType: null, subjectId: null },
+            orderBy: [{ fireAt: "desc" }, { id: "desc" }],
+            select: { status: true, result: true },
+          })
+          .then((row) =>
+            row ? { status: row.status, summary: readBackupSummary(row.result) } : null,
+          ),
       }));
     },
     async emitUnknown() {

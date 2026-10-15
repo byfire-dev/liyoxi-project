@@ -273,4 +273,6 @@ HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己�
 
 后台support的drain/promote/finishProduction及演示原片等待不再直接认领、调用handler或拨钟；每次观察最多30s，未知事件/订阅者/timer/media kind、失败/死信或未完成不可算排空。IPC快照记录真实PID、lease版本、队列与真实consumer入口计数，访问能力不进stdout/artifact。小代表目标为`apps/api/test/e2e/worker-loop.db.test.ts`，纯守卫为`testing/m1-worker.test.ts`；完整20集后台链留到后继双SHA四步，不重复现已绿直驱HTTP链。
 
+后台测试装配为`backup.pgdump`提供明确BACKUP配置、固定命令/只读参数校验的typed进程流替身，且仅备份三个方法委托worker独享FakeStorage；原createBackup流校验/摘要与timer状态仍实际执行，业务文件上传/head继续真实MinIO。替身不启动pg_dump/age、不建额外桶、不证明备份密文或恢复；缺配备份的catch-up会按正式语义留在dispatched退避，不能为排空过滤该行。取消收回替身流，实例close清空其内存对象。
+
 2026-10-15本地新增五目标已分批通过；同源码真实目标实际等待两次MFA、跨attach读取本轮MinIO字节并排空worker。Node24 fetch以物理Host发送，transport仅将已知逻辑Host/Origin成对映射到本轮真实origin，未知/异源不重写，大小写经Headers规范化；返回对象字节为真正Uint8Array，保持主链原严格字节断言。默认M1二十集单目标60.36秒通过、123项不变量零违规；本片精确核4个owner前缀、8库及12随机桶均已自然清零。真实混跑、完整HTTP主链与生产发布仍按W2-28b另验。

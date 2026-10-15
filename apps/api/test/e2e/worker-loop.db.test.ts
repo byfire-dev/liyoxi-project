@@ -80,6 +80,19 @@ const SnapshotSchema = z.object({
     z.int().nonnegative(),
   ),
   backlog: BacklogSchema,
+  backupIo: z.object({
+    processes: z.object({
+      version: z.int().nonnegative(),
+      dump: z.int().nonnegative(),
+      age: z.int().nonnegative(),
+    }),
+    activeChildren: z.int().nonnegative(),
+    put: z.int().nonnegative(),
+    head: z.int().nonnegative(),
+    copy: z.int().nonnegative(),
+    objects: z.int().nonnegative(),
+    bytes: z.array(z.int().positive()),
+  }),
   timerPaused: z.boolean(),
   handled: z.object({
     event: z.int().nonnegative(),
@@ -256,6 +269,12 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
     await support.drainEvents();
     phase = "domain-facts";
     const facts = await fixture.read();
+    expect(facts.backup?.status).toBe("fired");
+    expect(facts.backup?.summary?.bytes).toBe(64);
+    expect(facts.backup?.summary?.pgDumpVersion).toBe("17.6");
+    expect(Boolean(facts.backup?.summary?.key.match(/^daily\/\d{4}-\d{2}-\d{2}\.dump\.age$/))).toBe(
+      true,
+    );
     expect(facts.invitation.status).toBe("expired");
     expect(facts.timer).toMatchObject({ status: "fired", dispatchNo: 1 });
     expect(facts.file).toMatchObject({
@@ -289,6 +308,17 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
       () => undefined,
     );
     expect(snapshot.errors).toBe(0);
+    expect(snapshot.backupIo.put).toBeGreaterThanOrEqual(1);
+    expect(snapshot.backupIo.head).toBe(snapshot.backupIo.put);
+    expect(snapshot.backupIo.copy).toBe(
+      facts.backup!.summary!.key.endsWith("-01.dump.age") ? snapshot.backupIo.put : 0,
+    );
+    expect(snapshot.backupIo.objects).toBe(snapshot.backupIo.put + snapshot.backupIo.copy);
+    expect(snapshot.backupIo.bytes.every((bytes) => bytes === 64)).toBe(true);
+    expect(snapshot.backupIo.processes.version).toBe(snapshot.backupIo.put);
+    expect(snapshot.backupIo.processes.dump).toBe(snapshot.backupIo.put);
+    expect(snapshot.backupIo.processes.age).toBe(snapshot.backupIo.put);
+    expect(snapshot.backupIo.activeChildren).toBe(0);
     expect(snapshot.lease?.held).toBe(true);
     for (const count of Object.values(snapshot.handled)) expect(count).toBeGreaterThan(0);
     expect(
@@ -327,6 +357,7 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
               errors: current.errors,
               errorSources: current.errorSources,
               backlog: current.backlog,
+              backupIo: current.backupIo,
               handled: current.handled,
               queues: current.queues,
             }
