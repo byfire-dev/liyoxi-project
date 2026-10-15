@@ -413,6 +413,12 @@ async function main() {
           return result;
         } catch (error) {
           // Diagnostic locations only: no message, first stack line, SQL, cause or private RPC value.
+          const httpFailure =
+            error instanceof Error
+              ? error.message.match(
+                  /^M1 ((?:m|admin|portal)\.[A-Za-z0-9.]+): HTTP ([1-5]\d\d), ([A-Z][A-Z0-9_]{0,100})$/,
+                )
+              : null;
           const frames =
             error instanceof Error
               ? (error.stack ?? "")
@@ -444,6 +450,15 @@ async function main() {
                   ? error.name
                   : "other",
               diagnosticCount: diagnostics.count(),
+              ...(httpFailure
+                ? {
+                    httpFailure: {
+                      operationId: httpFailure[1],
+                      status: Number(httpFailure[2]),
+                      error: httpFailure[3],
+                    },
+                  }
+                : {}),
               frames,
             })}\n`,
           );
