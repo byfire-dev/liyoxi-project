@@ -127,3 +127,36 @@ it("十轮串行且会话独立，遇红即停、超时不得伪绿，CLI不接�
     out: join(repoRoot, "apps/api/dist/m2-e2e-repeat"),
   });
 });
+
+it("正式demo在十连成功后必跑且失败不能跳过，结果仍由always保存", () => {
+  const workflow = readFileSync(join(repoRoot, ".github/workflows/e2e-repeat.yml"), "utf8");
+  const expected = [
+    "      - name: M2 正式演示 CLI",
+    "        timeout-minutes: 2",
+    "        run: pnpm demo:m2",
+  ].join("\n");
+  const valid = (source: string) => {
+    const job = source.slice(source.indexOf("\n  m2-repeat:\n"));
+    const steps = job.split(/(?=^ {6}- name: )/m);
+    const demo = steps.findIndex((step) => step.startsWith("      - name: M2 正式演示 CLI\n"));
+    return (
+      demo > 0 &&
+      steps.filter((step) => step.includes("run: pnpm demo:m2")).length === 1 &&
+      steps[demo]?.trimEnd() === expected &&
+      steps[demo - 1]?.includes("run: node infra/ci/m2-repeat.mjs --times 10") === true &&
+      steps[demo + 1]?.startsWith("      - name: 保存 M2 连续运行结果\n        if: always()") ===
+        true
+    );
+  };
+  expect(valid(workflow)).toBe(true);
+  for (const changed of [
+    workflow.replace(`${expected}\n`, ""),
+    workflow.replace(
+      expected,
+      expected.replace("        run:", "        if: always()\n        run:"),
+    ),
+    workflow.replace(expected, expected.replace("pnpm demo:m2", "pnpm demo:m2 || true")),
+    workflow.replace(expected, expected.replace("timeout-minutes: 2", "timeout-minutes: 3")),
+  ])
+    expect(valid(changed)).toBe(false);
+});

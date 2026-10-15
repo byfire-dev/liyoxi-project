@@ -117,6 +117,9 @@ jobs:
         run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
       - name: M2 主路径连续十次
         run: node infra/ci/m2-repeat.mjs --times 10
+      - name: M2 正式演示 CLI
+        timeout-minutes: 2
+        run: pnpm demo:m2
       - name: 保存 M2 连续运行结果
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
