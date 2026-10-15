@@ -131,6 +131,8 @@ export async function createM1HttpBridge(input: {
         if (closed || ran) throw new Error("M1 HTTP 桥每轮只运行一条主链");
         signal.throwIfAborted();
         ran = true;
+        // A W228 read phase may precede this write chain under a different merchant's scope.
+        if (input.phaseClient !== undefined) api.resetObservedReads();
         const identity = m1HttpIdentity(input.attach.chainId);
         const captured: {
           admin?: M1AuthenticatedStaff;
