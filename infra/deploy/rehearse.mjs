@@ -42,6 +42,7 @@ import {
   prepareRecoveryAdmin,
   waitForRedisRecovery,
 } from "./redis-recovery.mjs";
+import { runObservability } from "./observability-rehearsal.mjs";
 
 import {
   assertDockerRunning,
@@ -160,12 +161,13 @@ function freePort() {
  * @param {number} port
  * @param {string} host
  * @param {string} path
- * @param {{ method?: string, bodyBytes?: number, headers?: Record<string, string>, fresh?: boolean }} [options]
+ * @param {{ method?: string, bodyBytes?: number, body?: string, headers?: Record<string, string>, fresh?: boolean, timeoutMs?: number }} [options]
  * @returns {Promise<{ status: number, headers: http.IncomingHttpHeaders, body: string }>}
  */
 function request(port, host, path, options = {}) {
   return new Promise((resolve, reject) => {
-    const size = options.bodyBytes ?? 0;
+    const size =
+      options.body === undefined ? (options.bodyBytes ?? 0) : Buffer.byteLength(options.body);
     let answered = false;
     const req = http.request(
       {
@@ -177,10 +179,16 @@ function request(port, host, path, options = {}) {
           Host: host,
           ...options.headers,
           ...(size > 0
-            ? { "Content-Type": "application/octet-stream", "Content-Length": size }
+            ? {
+                ...(options.body === undefined
+                  ? { "Content-Type": "application/octet-stream" }
+                  : {}),
+                "Content-Length": size,
+              }
             : {}),
         },
-        timeout: 20_000,
+        timeout: options.timeoutMs ?? 20_000,
+        signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
         agent: options.fresh ? false : undefined,
       },
       (res) => {
@@ -203,7 +211,7 @@ function request(port, host, path, options = {}) {
     req.on("error", (error) => {
       if (!answered) reject(new StepError(`请求 ${host}${path} 没成：${error.message}`));
     });
-    if (size > 0) req.write(Buffer.alloc(size, 0x61));
+    if (size > 0) req.write(options.body ?? Buffer.alloc(size, 0x61));
     req.end();
   });
 }
@@ -218,14 +226,18 @@ await runMain(async () => {
         keep: { type: "boolean", default: false },
         release: { type: "boolean", default: false },
         "redis-flush": { type: "boolean", default: false },
+        errors: { type: "boolean", default: false },
+        alerts: { type: "boolean", default: false },
         "without-image-smoke": { type: "boolean", default: false },
       },
     }).values;
   } catch {
     throw new UsageError(
-      "用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke] [--release] [--redis-flush]",
+      "用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke] [--release] [--redis-flush] [--errors] [--alerts]",
     );
   }
+  if ((flags.errors || flags.alerts) && (flags.release || flags["redis-flush"]))
+    throw new UsageError("观测协议演练须与发布/Redis故障演练分轮执行");
   let config = readConfig();
   assertDockerRunning();
   const pgImage = stg("LYX_PG_IMAGE");
@@ -752,6 +764,21 @@ await runMain(async () => {
       tested.status === 0 && /test is successful/.test(tested.stderr),
       tested.stderr.trim().split("\n").slice(-3),
     );
+    if (flags.errors || flags.alerts) {
+      say("自有私网观测协议：默认未配→可选FILE→原生HTTPS收件与受控告警恢复");
+      await runObservability({
+        root,
+        home,
+        env,
+        config,
+        hosts,
+        flags,
+        request: (host, path, options) => request(port, host, path, options),
+        step: (...args) => step(...args),
+        run: docker,
+        bootstrap: prepareRecoveryAdmin,
+      });
+    }
     if (flags["redis-flush"] && evidence) {
       say("自有六容器 Redis 清空：原 worker 不重启，120 秒内恢复真实事件与周期任务");
       prepareRecoveryAdmin(
