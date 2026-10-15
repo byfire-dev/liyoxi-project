@@ -113,6 +113,27 @@ export async function prepareM1WorkerExercise(support: M1Support) {
           .then((row) =>
             row ? { status: row.status, summary: readBackupSummary(row.result) } : null,
           ),
+        alertSms: {
+          sent: await tx.notificationDelivery.count({
+            where: {
+              isDirect: true,
+              channel: "sms",
+              purpose: "ops_alert",
+              smsTemplateKey: "ops_alert",
+              status: "sent",
+              reason: null,
+            },
+          }),
+          other: await tx.notificationDelivery.count({
+            where: {
+              isDirect: true,
+              channel: "sms",
+              purpose: "ops_alert",
+              smsTemplateKey: "ops_alert",
+              OR: [{ status: { not: "sent" } }, { reason: { not: null } }],
+            },
+          }),
+        },
       }));
     },
     async emitUnknown() {

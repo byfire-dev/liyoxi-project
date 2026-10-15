@@ -8,6 +8,7 @@ import { assembleServices } from "../assembly.js";
 import { loadEnv, createQueueChannel } from "../kernel/index.js";
 import { connectWorkerDatabase, connectProbeDatabase, createWorkerLease } from "../ops/index.js";
 import type { WorkerServicesOptions } from "../ops/index.js";
+import { SMS_TEMPLATE_PARAMS } from "../providers/index.js";
 import { createProviderHarness } from "./data/provider-harness.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
 import { fakeKeyEnv } from "./m1-fake-keys.js";
@@ -136,6 +137,20 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     const holder = `mixed:${process.pid}:${randomUUID()}`;
     lease = createWorkerLease({ connectionString: databaseUrl, holder, version: attach.version });
     const { providers } = createProviderHarness({ clock });
+    // Owned fixture configuration precedes worker start; the original direct sender still runs.
+    const oncallPhone = "13800000000";
+    const alertParams = SMS_TEMPLATE_PARAMS.ops_alert;
+    if (!alertParams) throw new TypeError("M1 worker缺少正式运维短信字段定义");
+    await database.prisma.smsTemplate.update({
+      where: { templateKey: "ops_alert" },
+      data: {
+        status: "active",
+        providerTemplateId: "900000001",
+        signName: "本地测试",
+        params: alertParams.map((field) => ({ ...field })),
+        updatedAt: clock.now(),
+      },
+    });
     const input = await m1ProductionVideo();
     tools = createDeliveryProductionTools(providers, input.report, storage.storage);
     const boundProviders = {
@@ -155,7 +170,12 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       channel,
       providers: boundProviders,
       mediaProductionTools: tools.tools,
-      keys: { ...fakeKeyEnv(), MEDIA_PRODUCTION: tools.env, BACKUP: backup.config },
+      keys: {
+        ...fakeKeyEnv(),
+        MEDIA_PRODUCTION: tools.env,
+        BACKUP: backup.config,
+        ALERTS: { oncallPhones: [oncallPhone] },
+      },
       backupProcessRunner: backup.processRunner,
       probe: { db: probe.prisma, holder: () => holder, queues },
     };
@@ -205,6 +225,12 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
             : null,
           backlog,
           backupIo: backup.snapshot(),
+          alertSmsCalls: providers.sms.sent.filter(
+            (message) =>
+              message.kind === "subscribe_fallback" &&
+              message.templateKey === "ops_alert" &&
+              message.phone === oncallPhone,
+          ).length,
           queues: observations,
         };
       },

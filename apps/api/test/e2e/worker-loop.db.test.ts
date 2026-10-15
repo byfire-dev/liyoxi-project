@@ -105,6 +105,7 @@ const SnapshotSchema = z.object({
     objects: z.int().nonnegative(),
     bytes: z.array(z.int().positive()),
   }),
+  alertSmsCalls: z.int().nonnegative(),
   timerPaused: z.boolean(),
   handled: z.object({
     event: z.int().nonnegative(),
@@ -320,6 +321,10 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
       () => undefined,
     );
     expect(snapshot.errors).toBe(0);
+    const alerts = (await fixture.read()).alertSms;
+    expect(alerts.sent).toBeGreaterThan(0);
+    expect(alerts.other).toBe(0);
+    expect(snapshot.alertSmsCalls).toBe(alerts.sent);
     expect(snapshot.backupIo.put).toBeGreaterThanOrEqual(1);
     expect(snapshot.backupIo.head).toBe(snapshot.backupIo.put);
     expect(snapshot.backupIo.copy).toBe(
