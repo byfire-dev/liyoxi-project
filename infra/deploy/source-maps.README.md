@@ -43,3 +43,13 @@ manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本
 后台只认当前应用同origin且没有凭据、查询或片段的实际资产URL；小程序只认明确的本地app/page/分包bundle形态。两客户端先解析原stack，再以各自原scrub检查filename和abs_path；发生去敏变化就丢整帧，不先清掉URL凭据/查询后再冒认路径。V8/JSC/Taro帧使用正行列、按最早调用在前；外部、native、模糊路径与无可靠坐标的帧不补造映射，原去敏stack仍供诊断。转发端只保规范组件/路径/坐标，不转发源码上下文、vars、function或debug_meta；旧无dist信封可保安全相对文件名，不能据此声称具备映射资格。
 
 后继上传必须消费同次构建的私有JS/map，release等于该产物tag、dist等于组件，上传name严格等于上述abs_path。发布JS已移除sourceMappingURL，后继可按官方release/dist方式显式提供SourceMap header关联私有map；本片没有实现上传、CLI锁版/inject或真实SaaS符号化。API/worker自身直报出口另交，portal仍按M6范围处理，不以微型Node SourceMap位置核对冒充真实上游还原。
+
+## 可选上传助手（默认未配置）
+
+`source-map-upload.mjs <私有根目录> <40位source> <sha-12位标签>`仅在`SENTRY_AUTH_TOKEN`存在时执行；缺令牌返回`unconfigured`且不读取私有目录、不下载CLI、不联网。非敏感`LYX_SENTRY_UPLOAD_CONFIG`是JSON，形态为`{"organization":"组织slug","projects":{"api":"项目slug","worker":"项目slug","admin":"项目slug","portal":"项目slug","weapp":"项目slug"}}`，允许组件共用项目，但五个映射须明确。勿把令牌写进命令、配置文件或仓库。
+
+本片只面向默认Sentry SaaS固定`https://sentry.io/`与Linux x64。官方CLI3.8.0下载从固定CDN、20秒/64MiB上限且禁止重定向，按锁内SHA256验证后才执行。运行时单独HOME/最近`.sentryclirc`，TLS验证开启、自动重试0、自动更新关闭、`.env`读取关闭，不继承代理或`SENTRY_ALLOW_FAILURE`。下载与每个命令有界；上传阶段每组件最多90秒、预算总300秒（文件核验/清理另计）。不在本机配置或使用真实令牌。
+
+先verify原manifest/镜像/source/tag与全部hash，再仅把manifest逐项批准的JS/map复制到本轮0700目录，文件0600。CLI逐个组件运行`sourcemaps upload --release <tag> --dist <component> --url-prefix app:///<component> --no-rewrite --strict --wait-for 60`，显式只扫该组件副本的js/map；采用CLI自动Sourcemap引用，不传会覆盖它的HTTP请求header，不注入debug ID。逐个检查CLI未修改副本，末尾重验原产物。失败即停后续组件，不循环重试；已到上游的部分文件不假装撤回，后续由同release/dist再执行恢复。所有退出路径清本轮副本与CLI，原私有根仍交既有外层finally清理。
+
+原产物manifest的`upload: unimplemented`是b2a留下的生产者标记，为兼容原私有格式保留，不作为本助手上传结果；本助手独立返回`unconfigured`或五组件命令全部成功后的`uploaded`收据，不含token/组织/项目。真实SaaS是否按事件还原源码仍须外部验收，不能把命令成功、纯适配器测试或Node SourceMap微型测试写成已符号化。工作流接线另走独立gate，PR构建不能接触密文，map不能放公开GitHub artifact。
