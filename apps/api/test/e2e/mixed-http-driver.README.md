@@ -62,7 +62,10 @@ Step4 HEAD严格绑定previousSource与该旧spec并重放，完全不以HEAD自
 旧版独有GET即使在HEAD清单中消失，也必须实际请求而不能漏验。spec不进公开报告。
 
 3个纯聚合覆盖协议边界、实际OpenAPI/query/详情计划及诊断脱敏，首次3/3通过
-（3.39秒/tests26ms）；随后补EOF取消断言，只复验受影响纯组。
-唯一源码审查指出Step4清单遗漏，已按上述旧spec重放修正并在原reader组加反例；
-API首轮类型仅遗漏实际注册订阅者参数，同批改用本bridge真实注册名单。
-最终类型与独立进程实际运输尚待调度；不重复完整20集单链，留给双SHA四步一次验证。
+（3.39秒/tests26ms）；EOF取消补点只重验协议1组通过，旧spec与安全失败上下文
+补点只重验reader原1组通过（最终5.19秒/tests27ms），其他绿色组复用。
+ROOT唯一83.260秒源码审查指出Step4清单遗漏，已按上述旧spec重放修正并定点关闭；
+API首轮类型仅遗漏实际注册订阅者参数，同批改用本bridge真实注册名单，最终API类型通过。
+普通同步实际main 3c4a0314的唯一ownerNetwork/schema/sink及c413c753纯门禁片，
+所属格式/ESLint/diff与正常Node24 hooks通过；没有DB/构建/容器/GitHub操作。
+独立进程镜像运输尚待双SHA四步一次验证，不重复完整20集单链，不宣称整包完成。
