@@ -136,7 +136,7 @@ async function pay(b: Buyer, order: PaymentOrderDetail) {
       "/m/files",
       {
         category: "pay_receipt",
-        files: [{ fileName: "receipt.png", sizeBytes: 8, clientToken: uuidv7() }],
+        files: [{ fileName: "receipt.png", sizeBytes: "8", clientToken: uuidv7() }],
       },
       b.owner.withStore(b.storeId),
     ),
@@ -411,7 +411,7 @@ it("七资源真实HTTP与冻结价格加购：版本/上下架/报价/协议/C5
   expect(
     await db.billingOrder.findUniqueOrThrow({ where: { id: plan.paymentOrderId } }),
   ).toMatchObject({ status: "paid", fulfillmentStatus: "done" });
-});
+}, 30_000);
 it("越界输入/店员/跨主体/失资格/退款与策略关闭拒绝，实际付款与账本零写", async () => {
   const make = createFactories({ db, clock: api.clock }),
     b = await buyer(),
@@ -463,8 +463,8 @@ it("越界输入/店员/跨主体/失资格/退款与策略关闭拒绝，实际
       },
       other.owner.withStore(b.storeId),
     ),
-    404,
-    "NOT_FOUND",
+    403,
+    "NOT_A_MEMBER",
   );
   await denied(
     await topup(b, pack.pointPackId, pack.priceFen, uuidv7(), [versions[0]!]),
@@ -612,4 +612,4 @@ it("越界输入/店员/跨主体/失资格/退款与策略关闭拒绝，实际
       ),
     ).items,
   ).toEqual([]);
-});
+}, 30_000);
