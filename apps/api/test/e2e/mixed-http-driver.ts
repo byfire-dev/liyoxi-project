@@ -258,7 +258,10 @@ function createPhase(
         throw new MixedFailure("invalid_state");
       await command("pause-timers"); // also verifies no unfinished old order can cross this barrier
       chainRan = true;
-      const result = await bridge.runChain(input);
+      const result = await bridge.runChain({
+        ...input,
+        onStep: (step) => process.stderr.write(`${JSON.stringify({ mixedChainStep: step })}\n`),
+      });
       if (
         diagnostics.count() ||
         result.report.episodeCount !== 20 ||
@@ -423,7 +426,25 @@ async function main() {
                   .slice(0, 8)
               : [];
           process.stderr.write(
-            `${JSON.stringify({ mixedFailure: codes[request.method], method: request.method, frames })}\n`,
+            `${JSON.stringify({
+              mixedFailure: codes[request.method],
+              method: request.method,
+              errorCategory:
+                error instanceof Error &&
+                [
+                  "Error",
+                  "AssertionError",
+                  "ZodError",
+                  "MixedFailure",
+                  "AppError",
+                  "TypeError",
+                  "AggregateError",
+                ].includes(error.name)
+                  ? error.name
+                  : "other",
+              diagnosticCount: diagnostics.count(),
+              frames,
+            })}\n`,
           );
           throw error instanceof MixedFailure
             ? error

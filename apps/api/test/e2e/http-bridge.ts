@@ -103,7 +103,16 @@ export async function createM1HttpBridge(input: {
       origin,
       api,
       support,
-      async runChain(options: { readonly admin?: M1HttpAdmin } = {}) {
+      async runChain(
+        options: {
+          readonly admin?: M1HttpAdmin;
+          readonly onStep?: (value: {
+            step: number;
+            completed: boolean;
+            elapsedMs?: number;
+          }) => void;
+        } = {},
+      ) {
         if (closed || ran) throw new Error("M1 HTTP 桥每轮只运行一条主链");
         signal.throwIfAborted();
         ran = true;
@@ -112,9 +121,19 @@ export async function createM1HttpBridge(input: {
           admin?: M1AuthenticatedStaff;
           state?: M1ChainContext & { readonly scope: M1Scope; readonly sampleId: string };
         } = {};
+        let step = 0;
         const task = runM1Chain({
           api,
           support,
+          say: (message) => {
+            const completed = message.match(/：完成（(\d+)毫秒）$/);
+            if (!completed) step++;
+            options.onStep?.({
+              step,
+              completed: Boolean(completed),
+              ...(completed ? { elapsedMs: Number(completed[1]) } : {}),
+            });
+          },
           externalIO,
           merchantIdentity: identity.merchant,
           reviewerPhone: identity.reviewerPhone,
