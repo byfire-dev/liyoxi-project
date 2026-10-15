@@ -15,11 +15,19 @@ export async function waitM1RealTime(at: Date, signal?: AbortSignal): Promise<vo
   }
   signal?.throwIfAborted();
 }
+const PHASE_CLIENT_IPS = {
+  "head-write": "198.18.0.1",
+  "old-read-write": "198.18.0.2",
+  "head-read": "198.18.0.3",
+} as const;
+export type M1PhaseClient = keyof typeof PHASE_CLIENT_IPS;
 interface HttpOptions {
   readonly origin: string;
   readonly version: string;
   readonly signal?: AbortSignal;
   readonly fetch?: typeof globalThis.fetch;
+  /** W228 declared proxy clients; ordinary M1 does not add a forwarding header. */
+  readonly phaseClient?: M1PhaseClient;
 }
 /** Kept independent of support construction so transport guards need no database. */
 export async function createM1HttpTransport(options: HttpOptions) {
@@ -32,7 +40,8 @@ export async function createM1HttpTransport(options: HttpOptions) {
     origin.pathname !== "/" ||
     origin.search ||
     origin.hash ||
-    !/^[a-zA-Z0-9._-]{1,128}$/.test(options.version)
+    !/^[a-zA-Z0-9._-]{1,128}$/.test(options.version) ||
+    (options.phaseClient !== undefined && !Object.hasOwn(PHASE_CLIENT_IPS, options.phaseClient))
   )
     throw new Error("M1 HTTP 仅接受显式本轮本地服务与构建号");
   const fetch = options.fetch ?? globalThis.fetch;
@@ -82,6 +91,9 @@ export async function createM1HttpTransport(options: HttpOptions) {
   const observedReads: string[] = [];
   return {
     observedReads,
+    resetObservedReads: () => {
+      observedReads.length = 0;
+    },
     waitUntil: (at: Date) => waitM1RealTime(at, options.signal),
     waitForNextMfaStep: () =>
       waitM1RealTime(new Date((Math.floor(Date.now() / 30_000) + 1) * 30_000), options.signal),
@@ -95,6 +107,8 @@ export async function createM1HttpTransport(options: HttpOptions) {
       const { json, headers, peer: ignored, signal: callerSignal, ...rest } = init;
       void ignored; // TCP peer comes from the real socket, never the caller's fixture field.
       const requestHeaders = new Headers(headers);
+      if (options.phaseClient !== undefined)
+        requestHeaders.set("x-forwarded-for", PHASE_CLIENT_IPS[options.phaseClient]);
       const admin = path.startsWith("/api/v1/admin/");
       if (!requestHeaders.has("host"))
         requestHeaders.set("host", admin ? "admin.localhost" : "api.localhost");
@@ -132,6 +146,8 @@ export async function createM1HttpTransport(options: HttpOptions) {
 }
 export async function createM1HttpApi(
   options: HttpOptions & { readonly support: M1Support },
-): Promise<M1Api & { readonly observedReads: readonly string[] }> {
+): Promise<
+  M1Api & { readonly observedReads: readonly string[]; readonly resetObservedReads: () => void }
+> {
   return { ...(await createM1HttpTransport(options)), support: options.support };
 }

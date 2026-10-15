@@ -12,7 +12,7 @@ const step = (text: string, name: string) =>
 describe("W2-26同源工作流消费者", () => {
   it("消费者默认关、同run同源码、成功部署后串行上传；回滚与发布共锁", () => {
     expect(deploy).toContain("vars.STG_DEPLOY_ENABLED == 'true'");
-    expect(deploy).toContain("run-id: ${{ github.event.workflow_run.id }}");
+    expect(deploy).toContain("run-id: ${{ steps.release.outputs.images-run-id }}");
     expect(deploy.indexOf("node infra/deploy/orchestrate.mjs")).toBeLessThan(
       deploy.indexOf("node infra/deploy/upload-release.mjs"),
     );

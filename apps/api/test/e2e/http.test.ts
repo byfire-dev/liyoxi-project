@@ -76,6 +76,12 @@ it("HTTP只发给核验版本的真实目标，保方法/载荷/会话及读请�
   expect(requests[3]?.init?.signal).toBeInstanceOf(AbortSignal);
   await transport.request("/api/v1/m/stores");
   expect(transport.observedReads).toEqual(["/api/v1/m/stores"]);
+  await transport.request("/api/v1/m/me");
+  transport.resetObservedReads();
+  expect(transport.observedReads).toEqual([]);
+  await transport.request("/api/v1/m/stores");
+  await transport.request("/api/v1/m/orders");
+  expect(transport.observedReads).toEqual(["/api/v1/m/stores", "/api/v1/m/orders"]);
   for (const original of [
     { Host: "foreign.localhost", Origin: "http://admin.localhost" },
     { Host: "admin.localhost", Origin: "https://foreign.invalid" },
