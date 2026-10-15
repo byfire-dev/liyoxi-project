@@ -40,7 +40,7 @@ export interface BillingPurchaseDeps {
   events: Events;
   timers: Timers;
   bizNo: BizNoIssuer;
-  media: Pick<Media, "link">;
+  media: Pick<Media, "link"> & Partial<Pick<Media, "enqueueBankReceiptOcr" | "readBankReceiptOcr">>;
   docs: Docs;
   tenant: Tenant;
   keyring: () => Keyring;

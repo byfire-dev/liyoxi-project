@@ -139,6 +139,13 @@ export const registration = defineRegistration("billing", {
   ],
   subscribers: [
     {
+      name: "billing.onOcrCompleted",
+      events: ["media.ocr.completed"],
+      handle: async () => {
+        throw new TypeError("回单OCR消费运行时尚未绑定");
+      },
+    },
+    {
       name: "billing.onCalendarImported",
       events: ["calendar.imported"],
       handle: async () => {

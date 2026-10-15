@@ -18,6 +18,7 @@ import type { Approval, ApprovalRow } from "../../approval/index.js";
 import { dictRef, proofInScope, proofDetailView, orderInScope } from "./purchase-read.js";
 import type { BillingPurchaseDeps } from "./purchase-context.js";
 import { cancelTransferSla, handleTransferSla } from "./transfer-sla.js";
+import { onTransferOcrCompleted } from "./transfer-ocr.js";
 import { onTransferCalendarImported } from "./calendar.js";
 
 export const normalizeBankSerial = (raw: string) =>
@@ -391,6 +392,7 @@ export function createTransferReviewAssembly(base: Assembly) {
       (item) => item.port === approvalKindPort && item.key === "transfer_confirm",
     ).length !== 1 ||
     base.subscribers.filter((item) => item.name === "billing.onCalendarImported").length !== 1 ||
+    base.subscribers.filter((item) => item.name === "billing.onOcrCompleted").length !== 1 ||
     base.timerHandlers.filter((item) => item.kind === "sla.breach").length !== 1
   )
     throw new TypeError("对公复核需要唯一的类型、日历订阅和时限登记");
@@ -406,7 +408,13 @@ export function createTransferReviewAssembly(base: Assembly) {
           handle: (tx: Tx, event: Parameters<typeof onTransferCalendarImported>[2]) =>
             onTransferCalendarImported(tx, current(), event),
         }
-      : item,
+      : item.name === "billing.onOcrCompleted"
+        ? {
+            ...item,
+            handle: (tx: Tx, event: Parameters<typeof onTransferOcrCompleted>[2]) =>
+              onTransferOcrCompleted(tx, current(), event),
+          }
+        : item,
   );
   const timerHandlers = base.timerHandlers.map((item) =>
     item.kind === "sla.breach"

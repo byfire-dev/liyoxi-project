@@ -17,6 +17,7 @@ import { financeConfigAt } from "../finance-config/index.js";
 import { formulaOf } from "../catalog/index.js";
 import { getPurchasePolicy } from "../policy/index.js";
 import type { PurchaseClient } from "../policy/index.js";
+import { receiptForProof, transferCheckViews, TransferCheckResultSchema } from "./transfer-ocr.js";
 import { z } from "zod";
 import type { BillingPurchaseDeps } from "./purchase-context.js";
 const firstConfirmView = z.strictObject({
@@ -276,6 +277,9 @@ async function uploadedBy(tx: Tx, p: TransferProof) {
 export async function proofQueueView(tx: Tx, deps: BillingPurchaseDeps, p: TransferProof) {
   const o = await tx.billingOrder.findUniqueOrThrow({ where: { id: p.billingOrderId } }),
     now = deps.clock.now();
+  const checks = p.checkResult === null ? null : TransferCheckResultSchema.parse(p.checkResult);
+  const checkIs = (key: string, results: readonly string[]) =>
+    checks?.items.some((item) => item.key === key && results.includes(item.result)) === true;
   return TransferProofQueueItemSchema.parse({
     transferProofId: p.id,
     uploadNo: p.uploadNo,
@@ -291,6 +295,9 @@ export async function proofQueueView(tx: Tx, deps: BillingPurchaseDeps, p: Trans
     hints: [
       calendarDate(p.uploadedAt) === calendarDate(now) ? "uploaded_today" : "uploaded_earlier",
       ...(p.firstConfirm !== null ? ["in_review"] : []),
+      ...(checkIs("payer_name", ["fail"]) ? ["payer_name_mismatch"] : []),
+      ...(checkIs("amount", ["fail"]) ? ["amount_mismatch"] : []),
+      ...(checkIs("remark_order_no", ["warn", "fail"]) ? ["remark_missing_order_no"] : []),
     ],
     reviewStatus: p.reviewStatus,
     reviewedAt: iso(p.reviewedAt),
@@ -307,7 +314,7 @@ export async function proofDetailView(
     content = await contentView(tx, o),
     entity = await tx.entity.findUniqueOrThrow({
       where: { id: p.entityId },
-      select: { verificationStatus: true },
+      select: { verificationStatus: true, name: true },
     }),
     file = await tx.fileObject.findUniqueOrThrow({
       where: { id: p.fileId },
@@ -332,6 +339,13 @@ export async function proofDetailView(
       confirmChecks: detail.confirmChecks,
     };
   }
+  const receipt = await receiptForProof(tx, deps, p);
+  const checks = transferCheckViews(p.checkResult, receipt, {
+    entityName: entity.name,
+    amountFen: o.amountFen,
+    orderNo: o.orderNo,
+    createdAt: o.createdAt,
+  });
   const first = p.firstConfirm === null ? null : firstConfirmView.parse(p.firstConfirm);
   return TransferProofDetailSchema.parse({
     ...(await proofQueueView(tx, deps, p)),
@@ -352,8 +366,8 @@ export async function proofDetailView(
     ],
     fileId: p.fileId,
     fileMime: file.mime ?? file.declaredMime,
-    ocr: { status: "unavailable", recognized: null, warnings: [] },
-    checks: [],
+    ocr: { ...receipt, warnings: [...receipt.warnings] },
+    checks,
     firstConfirm:
       first && review
         ? {

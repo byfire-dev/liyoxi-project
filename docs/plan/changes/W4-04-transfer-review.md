@@ -12,3 +12,5 @@
 2026-10-16：actual 基线 `09894fd3`，共享开单部分已普通同步已合 W4-06 的 `97dce83b`，保留其加购分支；W4-05 后续沿同一个报价器扩展。当前实现仍在途，未完成独立审查或业务验收。默认复核阈值为 null、未配置 OCR 保持 unavailable，真实资金/云识别/业主配置不在本机证据内。
 
 调度批准 a07 正式轮次勘误：两复核动作均携 `approvalId`，锁内绑定凭证当前指针与审批 kind/subject/round，approve 保审批 lockVersion。退回重提后新审批版本同为 0，原只传凭证 ID/版本无法识别旧面板；不改变审批框架或 DDL。
+
+已同步回单OCR actual `ec16f048`：只从media正式公口消费enqueue/脱敏read及严格完成载荷，job归属检查留所属media，billing不私查media_job/OCR原值；当前pending指针与file/entity再核，缓存ok立即重算，新/重复事件相同结论零更新。此前c658阶段未接OCR事实保留，当前源码待独审与小量验收，仍不宣称完成。

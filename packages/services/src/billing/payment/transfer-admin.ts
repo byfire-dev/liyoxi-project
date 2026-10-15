@@ -20,6 +20,7 @@ import { financeConfigAt } from "../finance-config/index.js";
 import { adminOrderView, orderInScope, proofDetailView } from "./purchase-read.js";
 import type { BillingPurchaseDeps } from "./purchase-context.js";
 import { armTransferTtl } from "./transfer-sla.js";
+import { receiptForProof, refreshTransferChecks } from "./transfer-ocr.js";
 import { armTransferSla, cancelTransferSla } from "./transfer-sla.js";
 
 export async function assertTransferStaff(
@@ -283,6 +284,13 @@ export async function submitTransferProof(
     _max: { uploadNo: true },
   });
   const id = uuidv7();
+  const ocr = deps.media.enqueueBankReceiptOcr
+    ? await deps.media.enqueueBankReceiptOcr(
+        tx,
+        { ...ctx, entityId: order.entityId, storeId: order.storeId },
+        { fileId: file.id, entityId: order.entityId },
+      )
+    : { ocrResultId: null, status: "unavailable" as const };
   const proof = await tx.transferProof.create({
     data: {
       id,
@@ -290,6 +298,7 @@ export async function submitTransferProof(
       billingOrderId: order.id,
       uploadNo: (last._max.uploadNo ?? 0) + 1,
       fileId: file.id,
+      ocrResultId: ocr.ocrResultId,
       ...(uploader.type === "staff"
         ? { uploadedByStaffId: uploader.id }
         : { uploadedByUserId: uploader.id }),
@@ -310,6 +319,8 @@ export async function submitTransferProof(
     storeId: null,
   });
   await armTransferSla(tx, deps, proof);
+  // 缓存ok不会重发完成事件，新凭证绑定后即读同一正式结果；未配四项unknown。
+  await refreshTransferChecks(tx, deps, proof, await receiptForProof(tx, deps, proof));
   const scoped = { ...ctx, entityId: order.entityId, storeId: order.storeId };
   if (order.status === "pending_payment")
     await deps.flow.transition(tx, scoped, {
@@ -364,7 +375,7 @@ export async function submitTransferProof(
     },
     dedupeKey: `transfer.proof_submitted:${id}`,
   });
-  return proof;
+  return tx.transferProof.findUniqueOrThrow({ where: { id: proof.id } });
 }
 export async function createAdminTransferProof(
   tx: Tx,
