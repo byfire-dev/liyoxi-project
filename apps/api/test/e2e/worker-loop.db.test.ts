@@ -1,0 +1,246 @@
+import { fork } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import {
+  DeleteBucketCommand,
+  DeleteObjectsCommand,
+  HeadBucketCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { expect, it, vi } from "vitest";
+import {
+  createM1Support,
+  createM1RealClock,
+  prepareM1WorkerExercise,
+  waitM1Worker,
+} from "@liyoxi/services/testing";
+import type { M1Attachment, M1LoopWorkerSnapshot as Snapshot } from "@liyoxi/services/testing";
+
+it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/probe、未知拒绝及暂停取消收尾", async () => {
+  vi.stubEnv("APP_ENV", "test");
+  const owner = await createM1Support({ clock: createM1RealClock() });
+  const scope = owner.sharedScope();
+  const attach: M1Attachment = {
+    scope,
+    chainId: "loops",
+    version: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    storage: {
+      endpoint: "http://127.0.0.1:9100",
+      region: "us-east-1",
+      accessKey: "liyoxi",
+      secretKey: "lyx-local-dev",
+      buckets: {
+        secure: `lyx-test-mixed-${scope.runId}-secure`,
+        asset: `lyx-test-mixed-${scope.runId}-asset`,
+        media: `lyx-test-mixed-${scope.runId}-media`,
+        pub: `lyx-test-mixed-${scope.runId}-pub`,
+      },
+    },
+  };
+  const io = new S3Client({
+    endpoint: attach.storage.endpoint,
+    region: attach.storage.region,
+    forcePathStyle: true,
+    credentials: { accessKeyId: "liyoxi", secretAccessKey: "lyx-local-dev" },
+  });
+  const absent = (error: unknown) =>
+    error instanceof Error && ["NotFound", "NoSuchBucket"].includes(error.name);
+  const errors: unknown[] = [],
+    buckets: string[] = [];
+  let support: Awaited<ReturnType<typeof createM1Support>> | undefined;
+  let child: ReturnType<typeof fork> | undefined;
+  let exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined;
+  let sequence = 0;
+  const command = (name: string, first?: M1Attachment) =>
+    new Promise<Snapshot>((resolve, reject) => {
+      const active = child!;
+      const id = ++sequence;
+      const timeout = setTimeout(() => done(new Error("owned worker IPC timeout")), 30_000);
+      const receive = (raw: unknown) => {
+        if (!raw || typeof raw !== "object" || !("id" in raw) || raw.id !== id) return;
+        if (!("ok" in raw) || raw.ok !== true) return done(new Error("owned worker IPC rejected"));
+        clearTimeout(timeout);
+        active.off("message", receive);
+        active.off("exit", failed);
+        resolve(raw as Snapshot);
+      };
+      const failed = () => done(new Error("owned worker exited before reply"));
+      function done(error: Error) {
+        clearTimeout(timeout);
+        active.off("message", receive);
+        active.off("exit", failed);
+        reject(error);
+      }
+      active.on("message", receive);
+      active.once("exit", failed);
+      active.send({ id, command: name, ...(first ? { attach: first } : {}) }, (error) => {
+        if (error) done(new Error("owned worker IPC send failed"));
+      });
+    });
+  const clean = async (action: () => unknown) => {
+    try {
+      await action();
+    } catch (error) {
+      errors.push(error);
+    }
+  };
+  try {
+    for (const bucket of Object.values(attach.storage.buckets)) {
+      try {
+        await io.send(new HeadBucketCommand({ Bucket: bucket }), {
+          abortSignal: AbortSignal.timeout(5000),
+        });
+      } catch (error) {
+        if (!absent(error)) throw error;
+        buckets.push(bucket);
+        continue;
+      }
+      throw new Error("owned bucket already exists");
+    }
+    vi.stubEnv("APP_ENV", "local");
+    support = await createM1Support({
+      attach,
+      backgroundWorker: {
+        resumeTimerScan: async () => {
+          await command("resume-timers");
+        },
+      },
+    });
+    const require = createRequire(
+      new URL("../../../../packages/services/package.json", import.meta.url),
+    );
+    child = fork(new URL("../../../../apps/worker/test/e2e/mixed-worker.ts", import.meta.url), [], {
+      execArgv: ["--import", require.resolve("tsx")],
+      env: {
+        PATH: process.env.PATH,
+        APP_ENV: "local",
+        DATABASE_URL: process.env.DATABASE_URL,
+        REDIS_URL: process.env.REDIS_URL,
+      },
+      stdio: ["ignore", "pipe", "pipe", "ipc"],
+    });
+    child.stdout!.on("data", () => undefined);
+    child.stderr!.on("data", () => undefined);
+    exited = new Promise((resolve) =>
+      child!.once("close", (code, signal) => resolve({ code, signal })),
+    );
+    const started = await command("start", attach);
+    expect(started.pid).toBe(child.pid);
+    expect(started.pid).not.toBe(process.pid);
+    expect(started.lease).toMatchObject({ held: true, version: attach.version });
+    expect((await command("pause-timers")).timerPaused).toBe(true);
+    const fixture = await prepareM1WorkerExercise(support);
+    expect((await fixture.read()).timer.status).toBe("scheduled");
+    expect((await fixture.read()).invitation.status).toBe("pending");
+    await support.promote(fixture.fileId);
+    await command("resume-timers");
+    await support.drainEvents();
+    const facts = await fixture.read();
+    expect(facts.invitation.status).toBe("expired");
+    expect(facts.timer).toMatchObject({ status: "fired", dispatchNo: 1 });
+    expect(facts.file).toMatchObject({
+      status: "stored",
+      sizeBytes: BigInt(support.productionVideo.sizeBytes),
+    });
+    expect(facts.info).toMatchObject({ width: 720, height: 1280, durationMs: 20_000 });
+    expect(facts.jobs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "promote", state: "succeeded", attemptNo: 1 }),
+        expect.objectContaining({ kind: "probe", state: "succeeded", provider: "mediatool" }),
+      ]),
+    );
+    const snapshot = await command("snapshot");
+    expect(snapshot.errors).toBe(0);
+    expect(snapshot.lease?.held).toBe(true);
+    for (const count of Object.values(snapshot.handled)) expect(count).toBeGreaterThan(0);
+    expect(
+      snapshot.queues.every((q) => q.waiting === 0 && q.active === 0 && q.failed10Min === 0),
+    ).toBe(true);
+    await command("pause-timers");
+    child.kill("SIGTERM"); // real cancellation from the paused state, not a fake close result
+    expect(
+      await waitM1Worker(
+        async () => {
+          const value = await Promise.race([exited!, Promise.resolve(null)]);
+          return value;
+        },
+        () => undefined,
+      ),
+    ).toEqual({ code: 0, signal: null });
+    await fixture.emitUnknown();
+    await expect(support.drainEvents()).rejects.toThrow("未知");
+  } catch (error) {
+    errors.push(error);
+  } finally {
+    if (child && exited) {
+      child.kill("SIGTERM");
+      let timer: NodeJS.Timeout | undefined;
+      await clean(async () => {
+        const timeout = new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            child!.kill("SIGKILL");
+            reject(new Error("owned worker shutdown timeout"));
+          }, 30_000);
+        });
+        try {
+          await Promise.race([exited!, timeout]);
+        } catch (error) {
+          // SIGKILL is only the owned fallback; still wait for the actual close before dropping DB.
+          let killedTimer: NodeJS.Timeout | undefined;
+          try {
+            await Promise.race([
+              exited!,
+              new Promise<never>((_resolve, reject) => {
+                killedTimer = setTimeout(
+                  () => reject(new Error("owned worker did not close")),
+                  5000,
+                );
+              }),
+            ]);
+          } finally {
+            clearTimeout(killedTimer);
+          }
+          throw error;
+        } finally {
+          clearTimeout(timer);
+        }
+      });
+    }
+    await clean(() => support?.close());
+    const signal = AbortSignal.timeout(30_000);
+    for (const bucket of buckets)
+      await clean(async () => {
+        let token: string | undefined;
+        try {
+          for (let page = 0; page < 16; page++) {
+            const list = await io.send(
+              new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 250, ContinuationToken: token }),
+              { abortSignal: signal },
+            );
+            const objects =
+              list.Contents?.flatMap((row) => (row.Key ? [{ Key: row.Key }] : [])) ?? [];
+            if (objects.length) {
+              const result = await io.send(
+                new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: objects } }),
+                { abortSignal: signal },
+              );
+              if (result.Errors?.length) throw new Error("owned object cleanup incomplete");
+            }
+            if (list.IsTruncated === false) break;
+            if (list.IsTruncated !== true) throw new Error("owned bucket listing incomplete");
+            if (!list.NextContinuationToken || list.NextContinuationToken === token || page === 15)
+              throw new Error("owned bucket cleanup limit");
+            token = list.NextContinuationToken;
+          }
+          await io.send(new DeleteBucketCommand({ Bucket: bucket }), { abortSignal: signal });
+        } catch (error) {
+          if (!absent(error)) throw error;
+        }
+      });
+    await clean(() => io.destroy());
+    await clean(() => owner.close());
+    vi.unstubAllEnvs();
+  }
+  if (errors.length) throw new AggregateError(errors, "独立worker代表路径或清理失败");
+}, 120_000);

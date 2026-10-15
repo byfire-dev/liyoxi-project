@@ -32,6 +32,7 @@ import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
+import { m1WorkerObserver } from "./m1-observe.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
 import {
   m1ProductionVideo,
@@ -52,6 +53,7 @@ const localUrl = (
 export async function createM1Support(options: M1SupportOptions = {}): Promise<M1Support> {
   options.signal?.throwIfAborted();
   const attach = options.attach;
+  if (options.backgroundWorker && !attach) throw new Error("M1 后台worker模式只接受受保护attach");
   if (attach) {
     assertM1SharedScope(attach.scope);
     if (
@@ -231,7 +233,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         version: attach?.version ?? "m1-test",
       }),
     });
-    if (attach)
+    if (attach && !options.backgroundWorker)
       workerRuntime = createRuntime({
         entry: "worker",
         env: { ...env, MEDIA_PRODUCTION: productionTools.env },
@@ -262,12 +264,17 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         throw new Error("M1 支架已关闭或本轮库归属不一致");
       assertTestDatabaseUrl(apiRuntime.env.DATABASE_URL);
     };
-    const transport = m1Transport(
-      jobRuntime,
-      assertOwned,
-      startedAt,
-      attach ? { realTime: true } : undefined,
-    );
+    const observer = options.backgroundWorker
+      ? m1WorkerObserver(
+          apiRuntime,
+          assertOwned,
+          options.signal,
+          options.backgroundWorker.resumeTimerScan,
+        )
+      : undefined;
+    const transport =
+      observer ??
+      m1Transport(jobRuntime, assertOwned, startedAt, attach ? { realTime: true } : undefined);
     const video = await m1Video();
     return {
       runId,
@@ -302,6 +309,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
             productionInput.video,
             attach ? undefined : createCodecDemoMasterPreparer({ ...apiRuntime, appEnv: "test" }),
             httpStorage,
+            observer?.waitForBatch,
           ),
           params: apiRuntime.config.params,
         });
@@ -325,6 +333,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       ...transport,
       async promote(fileId) {
         assertOwned();
+        if (observer) return observer.promote(fileId);
         const job = await apiRuntime.tx.run((tx) =>
           tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${fileId}` } }),
         );
@@ -361,6 +370,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       },
       finishProduction(fileId, scope) {
         assertOwned();
+        if (observer) return observer.finishProduction(fileId, scope);
         return finishM1Production(
           jobRuntime,
           providers,

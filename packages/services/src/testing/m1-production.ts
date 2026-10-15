@@ -44,6 +44,7 @@ export function createM1ProductionMasterPreparer(
     readonly storage: StorageProvider;
     upload(post: PresignedPost, bytes: Uint8Array): Promise<number>;
   },
+  waitForBatch?: (read: () => Promise<boolean>) => Promise<void>,
 ): NonNullable<ContentDemoDeps["prepareMasters"]> {
   return async (target) => {
     // The original M1 order explicitly selects the 20-episode demo. Other seed fixtures remain models.
@@ -102,6 +103,19 @@ export function createM1ProductionMasterPreparer(
       )
         throw new Error("M1 原片固定字节未被对象替身接受");
       await runtime.media.uploadBatches.complete(actor, item.uploadBatchItemId, {});
+    }
+    if (waitForBatch) {
+      await waitForBatch(async () => {
+        batch = await runtime.media.uploadBatches.get(actor, batch.uploadBatchId);
+        if (
+          batch.items.some((item) => item.state === "rejected") ||
+          ["failed", "expired", "canceled"].includes(batch.state)
+        )
+          throw new Error("M1 原片任务明确失败");
+        return batch.state === "ready";
+      });
+      await runtime.media.uploadBatches.commit(actor, batch.uploadBatchId, {});
+      return;
     }
     for (;;) {
       batch = await runtime.media.uploadBatches.get(actor, batch.uploadBatchId);

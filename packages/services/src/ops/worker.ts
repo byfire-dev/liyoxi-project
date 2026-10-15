@@ -102,7 +102,7 @@ import type {
   QueueChannel,
   SessionMutex,
 } from "../kernel/index.js";
-import type { ProviderLogger, Providers } from "../providers/types.js";
+import type { ProviderLogger, Providers, ProductionMediaTools } from "../providers/types.js";
 import { notificationFailed } from "../providers/types.js";
 import { createTimers, runTimer, scanDue } from "../timers/index.js";
 import type {
@@ -211,6 +211,8 @@ export interface WorkerServicesOptions {
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
+  /** 仅local/test替换外部codec IO，沿既有守卫与本实例关闭链；默认生产装配不变。 */
+  readonly mediaProductionTools?: ProductionMediaTools;
   /** 只给测试装配：样例事件与样例 kind 的名字来源 */
   readonly testEvents?: readonly TestEventDefinition[];
   readonly timerCatalog?: TimerCatalog;
@@ -543,7 +545,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     alerts: alertsOf(assembly),
     logger,
   });
-  const mediaProduction = createRuntimeMediaProduction(options.keys?.MEDIA_PRODUCTION, providers);
+  const mediaProduction = createRuntimeMediaProduction(
+    options.keys?.MEDIA_PRODUCTION,
+    providers,
+    options.mediaProductionTools
+      ? { appEnv: options.appEnv, tools: options.mediaProductionTools }
+      : undefined,
+  );
   mediaClosers.push(() => mediaProduction.close());
   const smsHealth = createSmsHealth({
     db: prisma,

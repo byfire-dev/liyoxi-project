@@ -95,6 +95,8 @@ export interface M1SupportOptions {
   readonly attach?: M1Attachment;
   /** HTTP 桥自有生命周期；默认 M1 不注入。 */
   readonly signal?: AbortSignal;
+  /** 仅受保护attach：独立worker运输，支架只观察，不认领/直接运行handler。 */
+  readonly backgroundWorker?: { readonly resumeTimerScan: () => Promise<void> };
   /** 本轮随机 1–12 位小写字母数字；缺省随机生成，不复用别人的库/Redis 前缀。 */
   readonly runId?: string;
   readonly clock?: AdjustableClock;

@@ -265,4 +265,12 @@ HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己�
 
 前置风险目标为 `http.test.ts` 四聚合和 `http-bridge.db.test.ts` 一个真实HTTP/同库/MinIO目标，后者两次使用同源码，不能当新旧镜像演练。本前置不实现四步编排、发布工作流或同SHA发布阻断；W2-28b仍须在实际镜像进程完成这些验收。
 
+### 对应源码的后台 worker 测试装配
+
+`createM1WorkerResources(attach)` 只在local校验原owner token/随机库/前缀后提供本轮真实MinIO与codec外部IO替身；不建库、重置或删前轮。`apps/worker/test/e2e/mixed-worker.ts` 是独立IPC进程，运行原`buildWorkerServices/createWorkerRuntime`、真实PG主租约与BullMQ消费者。只有outbox_relay/outbox_dispatch/timer_scan/media_job_run的运输扫描为100ms；ensure_recurring、其它域循环、业务实钟、并发、租期/看门狗与媒体poll退避保持原值。它是测试Provider装配，不冒称生产dist入口/生产节奏/真实云通过。
+
+父控制器必须在整链前await `pause-timers`：停真实timer_scan并等待在途scan/队列收完，同时核库中无pending_start与活跃order.start目标。API桥以`backgroundWorker:{resumeTimerScan}`进入只读模式；原runner读pending_start/held后，runDueTimer调用私有IPC `resume-timers`，随后仅观察真实timer_run消费。不能用100ms概率代替这道屏障。其他loop与租约不暂停；每个新版本实例重建屏障状态，stop/SIGTERM从暂停状态照常回收。
+
+后台support的drain/promote/finishProduction及演示原片等待不再直接认领、调用handler或拨钟；每次观察最多30s，未知事件/订阅者/timer/media kind、失败/死信或未完成不可算排空。IPC快照记录真实PID、lease版本、队列与真实consumer入口计数，访问能力不进stdout/artifact。小代表目标为`apps/api/test/e2e/worker-loop.db.test.ts`，纯守卫为`testing/m1-worker.test.ts`；完整20集后台链留到后继双SHA四步，不重复现已绿直驱HTTP链。
+
 2026-10-15本地新增五目标已分批通过；同源码真实目标实际等待两次MFA、跨attach读取本轮MinIO字节并排空worker。Node24 fetch以物理Host发送，transport仅将已知逻辑Host/Origin成对映射到本轮真实origin，未知/异源不重写，大小写经Headers规范化；返回对象字节为真正Uint8Array，保持主链原严格字节断言。默认M1二十集单目标60.36秒通过、123项不变量零违规；本片精确核4个owner前缀、8库及12随机桶均已自然清零。真实混跑、完整HTTP主链与生产发布仍按W2-28b另验。

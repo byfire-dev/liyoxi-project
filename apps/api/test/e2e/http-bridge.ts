@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { serve } from "@hono/node-server";
 import { security } from "@liyoxi/services";
 import { createM1Support } from "@liyoxi/services/testing";
-import type { M1Attachment, M1Scope } from "@liyoxi/services/testing";
+import type { M1Attachment, M1Scope, M1SupportOptions } from "@liyoxi/services/testing";
 import { createApp } from "../../src/app.js";
 import { provideMerchantDeps } from "../../src/merchant/services.js";
 import { HANDLERS } from "../../src/routes/index.js";
@@ -43,13 +43,18 @@ export type M1HttpAdmin = Pick<
 export async function createM1HttpBridge(input: {
   readonly attach: M1Attachment;
   readonly signal?: AbortSignal;
+  readonly backgroundWorker?: M1SupportOptions["backgroundWorker"];
 }) {
   const controller = new AbortController();
   const signal = input.signal
     ? AbortSignal.any([input.signal, controller.signal])
     : controller.signal;
   signal.throwIfAborted();
-  const support = await createM1Support({ attach: input.attach, signal });
+  const support = await createM1Support({
+    attach: input.attach,
+    signal,
+    backgroundWorker: input.backgroundWorker,
+  });
   let server: ReturnType<typeof serve> | undefined;
   let closed = false;
   let ran = false;
