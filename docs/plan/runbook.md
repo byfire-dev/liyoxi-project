@@ -38,6 +38,8 @@ M3 本机接口重放使用 [演示手册](demo/m3.md) 的 `pnpm demo:m3` / `pnp
 
 E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪些规则即时通知见 D7 第 9.3 节。
 
+W2-27b1已提供可选节点配置入口，真实接通未验。获准运维在node.env选择`client-errors alerts`（可分别启闭）；前者只向API挂client-error-projects.json/CLIENT_ERROR_PROJECTS_FILE，后者只向worker挂alerts.json/ALERTS_FILE，check-env聚合做格式检查，默认空保持未配。先按既有check-secrets核文件属性，再跑node-step.sh check-env；通过不等于群/SMS/SaaS已受理或送达。配置形状与重建生效/关闭方式见[两组观测FILE](../../infra/compose/providers/README.md#两组观测-filew2-27b1)。机器人仅原始key，生产host/path固定；客户端DSN仅HTTPS，不能为本机假收件放宽。值班人与接收群仍须E18确认，当前不填虚构接收人。
+
 ### 2.1.1 按请求编号查日志与 gateway 统计
 
 以下只读命令由业主在已部署节点执行，或在业主逐步授权后经既有受限 SSH 调用；本地验证不会连接真实节点。

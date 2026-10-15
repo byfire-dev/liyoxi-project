@@ -4,6 +4,8 @@
 
 W2-27a补充：六常驻容器的json-file轮转须实际核为api/worker/gateway各20MiB×5，postgres/redis/mediatool各10MiB×3，合计390MiB；现有容器须按获准发布流程更新后再inspect，不因YAML已改即记节点已配。Redis演练默认关闭，须明确本项目Compose身份、`LYX_REDIS_FLUSH_ENABLED=true`及`STG_FREEZE=false`，只使用受限`node-step.sh redis-flush <本节点项目>`，结束关闭开关。2026-10-15本机自有六容器已验证原worker不重启、同PID续租及8.875秒内三实际投递/单周期任务完成；前两轮清空前的准备失败保留。真实预发仍未执行，不能用本机结果勾掉本表真实节点事项，见[D6-09](../../docs/plan/external-verification/d6-09-redis-flush-self-heal.md)。
 
+W2-27b1补充（仅本地配置接线）：两组按获准运维选择client-errors/alerts，文件分别为client-error-projects.json（仅api/check-env）与alerts.json（仅worker/check-env）；默认空，选中缺文件拒绝，0400普通非空文件/UID1000由原检查执行。详细格式及启闭见[配置说明](../compose/providers/README.md#两组观测-filew2-27b1)。当前没有真实FILE或预发部署事实，群/值班人/SaaS、假收件演练及源码映射仍待办，不把配置源码和纯检查通过记成节点已配。
+
 | # | 事项 | 谁办 | 卡哪一步 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-10-14 已定本项目 GHCR；候选四镜像见 README 第 12 节。公开 vars 已设置，推送开关未开启；首次发布、包可见性及节点拉取凭证未验。节点前缀候选 `ghcr.io/sanqianyuejia/`；GHCR 三叶已本地验收合 main，[PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1) 的 Actions 已运行，四镜像构建成功，旧 MinIO 拉取 denied、旧 infra 三项断言及历史密钥扫描测试夹具误报仍阻塞 required；门禁分类已重跑通过 | 业主 | 第 3 步起 | 待核 |

@@ -84,7 +84,7 @@ node_providers() {
   esac
   for one in $value; do
     case "$one" in
-      cos | ci | asr | asr-callback | ocr | llm | media-production) ;;
+      cos | ci | asr | asr-callback | ocr | llm | media-production | client-errors | alerts) ;;
       *) usage_die "LYX_NODE_PROVIDERS 含未知能力名" ;;
     esac
     case " $selected " in *" $one "*) usage_die "LYX_NODE_PROVIDERS 不可重复选择能力" ;; esac
@@ -109,6 +109,8 @@ provider_files() {
     ocr) printf '%s\n' "ocr-tencent.json" ;;
     llm) printf '%s\n' "llm-domestic.json" ;;
     media-production) printf '%s\n' "media-production.json" ;;
+    client-errors) printf '%s\n' "client-error-projects.json" ;;
+    alerts) printf '%s\n' "alerts.json" ;;
     *) usage_die "未知 Provider 能力" ;;
   esac
 }

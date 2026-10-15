@@ -1,0 +1,15 @@
+# 客户端错误由既有 API 接收并按文件中的白名单/固定 HTTPS DSN 转发；不交 worker。
+services:
+  api:
+    environment:
+      CLIENT_ERROR_PROJECTS_FILE: /run/secrets/client-error-projects.json
+    secrets:
+      - client-error-projects.json
+  check-env:
+    environment:
+      CLIENT_ERROR_PROJECTS_FILE: /run/secrets/client-error-projects.json
+    secrets:
+      - client-error-projects.json
+secrets:
+  client-error-projects.json:
+    file: ${LYX_SECRETS_DIR:?}/client-error-projects.json
