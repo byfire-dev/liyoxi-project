@@ -530,7 +530,7 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
       },
       {
         id: "ocr",
-        secrets: [{ file: "ocr-tencent.json", env: "OCR_TENCENT_FILE", services: "api check-env" }],
+        secrets: [{ file: "ocr-tencent.json", env: "OCR_TENCENT_FILE", services: allRoles }],
       },
       {
         id: "llm",
