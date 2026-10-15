@@ -132,7 +132,7 @@ export async function fulfillUpgrade(
       payload,
       occurredAt: clock.now,
       bizDate: toDateColumn(clock.today),
-      ...actorColumns(ctx),
+      ...actorColumns(ctx.actor),
       createdAt: clock.now,
     },
   });

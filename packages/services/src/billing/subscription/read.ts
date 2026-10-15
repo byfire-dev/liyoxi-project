@@ -244,6 +244,8 @@ export function createBillingSubscriptions(deps: BillingPurchaseDeps) {
           : []),
         ...(term.status === "active" &&
         term.endsAt > now &&
+        term.endDate <= toDateColumn(addDays(today, 6)) &&
+        !following &&
         !pending &&
         hasPermission(staff, "billing.extension.request")
           ? ["create-term-extension-request"]
@@ -339,7 +341,35 @@ export function createBillingSubscriptions(deps: BillingPurchaseDeps) {
           renewedFen: fen.toString(),
           renewedAheadCount: await tx.subscriptionTerm.count({
             where: {
-              ...byEntity(staff.scope),
+              AND: [
+                byEntity(staff.scope),
+                ...(query.q
+                  ? [
+                      {
+                        entity: {
+                          OR: [
+                            { name: { contains: query.q, mode: "insensitive" as const } },
+                            {
+                              stores: {
+                                some: { name: { contains: query.q, mode: "insensitive" as const } },
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ]
+                  : []),
+                ...(query.managerId
+                  ? [
+                      {
+                        entity: {
+                          stores: { some: { isPrimary: true, deliveryManagerId: query.managerId } },
+                        },
+                      },
+                    ]
+                  : []),
+                ...(query.planId ? [{ planId: query.planId }] : []),
+              ],
               status: "active",
               endsAt: { gt: now },
               endDate: { lte: toDateColumn(addDays(calendarDate(now), 6)) },
@@ -457,7 +487,9 @@ export function createBillingSubscriptions(deps: BillingPurchaseDeps) {
       options: { idem: IdempotencyContext },
     ) => {
       view(actor.staff);
-      assertPermission(actor.staff, "order.renewal.remind");
+      assertPermission(actor.staff, "order.renewal.remind", deps.clock.now());
+      if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== actor.staff.staff.id)
+        throw new AppError("PERMISSION_DENIED");
       return deps.tx.run(async (tx) => {
         const term = await scoped(tx, actor.staff, id),
           now = deps.clock.now(),
@@ -475,7 +507,7 @@ export function createBillingSubscriptions(deps: BillingPurchaseDeps) {
               subjectId: id,
               scene: "renewal",
               bizDate: toDateColumn(bizDate),
-              sentByStaffId: actor.staff.staffId,
+              sentByStaffId: actor.staff.staff.id,
               createdAt: now,
             },
           ],
