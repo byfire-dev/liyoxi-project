@@ -60,6 +60,8 @@ export {
   createM1RealClock,
   waitM1Due,
 } from "./m1-shared.js";
+export { createM2Support } from "./m2-chain.js";
+export type { M2Support, M2FactScope } from "./m2-chain.js";
 export { createP95Fixture } from "./p95-fixture.js";
 export type { P95Dataset } from "./p95-fixture.js";
 export { createM3Support } from "./m3-support.js";
