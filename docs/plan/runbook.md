@@ -346,5 +346,5 @@ local 退出 0 只表示完整功能样本与不变量通过，`passed=null`、
 `capacityVerdict=not_validated`；观测 P95 及 `observedWithin500ms` 不取得容量结论。
 原正式命令 `APP_ENV=test node infra/ci/p95.mjs --profile formal --concurrency 20 --scale 10 --seed 42 --samples 100`
 保留 500ms 判据，安排预发或专用环境，不在开发机反复 FULL。历史 RED 与 D7-16 未验
-保持；本片未恢复 nightly。阶段、缺样本失败与持久化违规口径见
+保持；独立 nightly 已随 `8e6689e0` 恢复，远端运行结果仍须实际核验。阶段、缺样本失败与持久化违规口径见
 [`p95-report.README.md`](../../packages/services/src/testing/p95-report.README.md)。
