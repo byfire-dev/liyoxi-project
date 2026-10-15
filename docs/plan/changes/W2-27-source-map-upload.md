@@ -1,5 +1,13 @@
 # W2-27：私有映射上传助手先于工作流密文接线
 
+| 项 | 内容 |
+| --- | --- |
+| 改了什么 | 将原W2-27上传验收拆为默认未配跳过的独立助手，再由独立gate接工作流密文；固定CLI、同次私有manifest与五组件release/dist路径。 |
+| 原因 | 先闭合有界上传和私有产物隔离，再接可信main密文，避免将源码与既有门禁适配混交。 |
+| 影响的包 | W2-27、W2-29；允许范围及实际验证边界见下文，真实SaaS收件与符号化仍未验。 |
+| 类别 | 拆并、顺序 |
+| PR | 本地上传助手a95db427、独立images gate a66e27df，均已由ROOT正常push并合入实际本地主线。 |
+
 2026-10-15，调度按原W2-27上传验收拆本片：在actual main 9396a045的五组件私有产物和客户端frame口径上，实现独立、默认未配置即跳过的上传助手。允许新增`infra/deploy/source-map-upload.mjs`及声明、固定CLI锁、一个纯测试文件、对应README和任务/状态记录；不在本片修改工作流、门禁或公开artifact。
 
 CLI固定3.8.0（官方2026-09-16发布），Linux x64二进制按官方SHA256验后执行，CI外不安装。ROOT已从官方CDN一次性下载并验Mac arm64版本，真实`--version`/`sourcemaps upload --help`通过；旧`releases files`子命令实际不可用，不能照旧示例实现。已清本轮二进制。上传采用现命令的release/dist/url-prefix、`--no-rewrite`及自动Sourcemap引用；不注入debug ID，不改发布字节。官方依据：[CLI release说明](https://docs.sentry.io/cli/releases/)、[CLI配置](https://docs.sentry.io/cli/configuration/)、[固定版本元数据](https://release-registry.services.sentry.io/apps/sentry-cli/3.8.0)。
