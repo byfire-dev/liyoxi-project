@@ -333,3 +333,18 @@ TLS链信任、主机名和生效时间均核实；剩余<21天P2、<7天P1，�
 关闭/租约取消停止探测和后续写入，已有认领/通知历史保留；此片只记录恢复事实，
 发送通道与未配置事件的静默恢复仍待后续probe。当前SOURCE仅轻静态验证，真实
 部署域名/证书、DNS连通和通知到达尚未外验，不能以本机替身结果宣称生产可用。
+
+### W2-24 P95 隔离工具
+
+已有本地测试 PostgreSQL/Redis 连接参数时，从仓库根运行
+`APP_ENV=test node infra/ci/p95.mjs --profile local --concurrency 1 --scale 0.04 --seed 42 --samples 20`。
+它自行创建/清理本轮测试库与 Redis 前缀，先跑全部实际 full 不变量，完整测 12 路真实
+HTTP，再检查写后不变量。默认报告 `apps/api/dist/p95/report.json`，可用 `--out` 指定
+脱敏报告路径；不接受目标 URL 或阈值参数。准备报价也顺序执行。
+
+local 退出 0 只表示完整功能样本与不变量通过，`passed=null`、
+`capacityVerdict=not_validated`；观测 P95 及 `observedWithin500ms` 不取得容量结论。
+原正式命令 `APP_ENV=test node infra/ci/p95.mjs --profile formal --concurrency 20 --scale 10 --seed 42 --samples 100`
+保留 500ms 判据，安排预发或专用环境，不在开发机反复 FULL。历史 RED 与 D7-16 未验
+保持；本片未恢复 nightly。阶段、缺样本失败与持久化违规口径见
+[`p95-report.README.md`](../../packages/services/src/testing/p95-report.README.md)。
