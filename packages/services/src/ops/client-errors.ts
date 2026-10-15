@@ -1,6 +1,7 @@
 // W2-18：错误信封只进有界内存队列，不进业务事务；上游只来自 FILE 配置的固定映射。
 import { AppError, assertNotInTransaction } from "../kernel/index.js";
 import type { Clock } from "../kernel/index.js";
+import { cleanClientStacktrace } from "@liyoxi/shared/telemetry";
 
 export const CLIENT_ERROR_MAX_BYTES = 200 * 1024;
 export const CLIENT_ERROR_QUEUE_SIZE = 200;
@@ -163,14 +164,14 @@ function sensitiveKey(key: string): boolean {
   );
 }
 
-function scrub(value: unknown, depth = 0): unknown {
+function scrub(value: unknown, depth = 0, component?: unknown): unknown {
   if (depth > 32) return invalid();
   if (typeof value === "string") return scrubText(value);
   if (typeof value === "number") {
     const text = String(value);
     return scrubText(text) === text ? value : "[redacted]";
   }
-  if (Array.isArray(value)) return value.map((one) => scrub(one, depth + 1));
+  if (Array.isArray(value)) return value.map((one) => scrub(one, depth + 1, component));
   if (!record(value)) return value;
   const result: JsonObject = Object.create(null) as JsonObject;
   for (const [key, one] of Object.entries(value)) {
@@ -179,7 +180,12 @@ function scrub(value: unknown, depth = 0): unknown {
       if (record(one) && typeof one.id === "string") result.user = { id: scrubText(one.id) };
       continue;
     }
-    result[scrubText(key)] = scrub(one, depth + 1);
+    if (key === "stacktrace") {
+      const safe = cleanClientStacktrace(scrub(one, depth + 1, component), component);
+      if (safe) result.stacktrace = safe;
+      continue;
+    }
+    result[scrubText(key)] = scrub(one, depth + 1, component);
   }
   return result;
 }
@@ -260,7 +266,7 @@ function parseEnvelope(raw: Uint8Array | string): Parsed {
       value.event_id !== header.event_id
     )
       return invalid();
-    event = scrub(value) as JsonObject;
+    event = scrub(value, 0, value.dist) as JsonObject;
   }
   if (count === 0) return invalid();
   const cleanHeader: JsonObject = Object.create(null) as JsonObject;

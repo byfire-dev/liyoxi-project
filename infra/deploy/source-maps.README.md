@@ -1,6 +1,6 @@
 # 五组件私有源码映射（W2-27b2a）
 
-本片仅交付api、worker、admin、portal、weapp真实构建map的私有产物机制。上传未配置且未实现；没有上传CLI、令牌、debug ID注入或SDK修改，不代表错误堆栈已能还原。images工作流接线与既有门禁适配另交独立gate-change；本片落地不自动改变远端发布流程。
+已交付api、worker、admin、portal、weapp真实构建map的私有产物机制；images工作流接线与既有门禁适配已另随独立gate-change合入本地主线。上传未配置且未实现；没有上传CLI、令牌、debug ID注入或SDK修改，不代表错误堆栈已能还原，也不代表远端已构建发布此版。
 
 API/worker用external map，admin/portal生产用hidden map，小程序正式构建开启map。分离助手在Docker编译层完成后、最终runtime COPY之前执行；小程序在Taro编译后、原体积检查之前执行。私有副本保留实际发布JS与对应map，发布目录不保留map与终端sourceMappingURL；移除引用时保留行列位置。不会从已发布镜像中临时删除文件，也不上传空目录冒充完成。
 
@@ -34,4 +34,12 @@ node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
 
 manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本地image ID及OCI revision，记录五组件每对JS/map的大小与SHA256。`verify`重读调用方本次docker inspect保存的images.json收据并核全部文件，不只相信manifest；它不自行调用Docker重新查询镜像。目录0700、私有文件0600，输出仅固定摘要，失败仅固定错误。备份/上传归档不进入原公开images-out artifact。
 
-本片不解决错误协议中的frame/debug_meta、上游release/dist与SDK一致性、SaaS可达或真实符号化。上述能力与CLI官方锁版、inject/上传另行实现并验证，默认没有令牌时不能声称上传成功。第三方依赖包自带map不纳入本片五组件第一方发布目录的清理承诺。
+第三方依赖包自带map不纳入本片五组件第一方发布目录的清理承诺。
+
+## 事件与私有产物的匹配口径
+
+后台与小程序沿用轻量信封和真实构建号作为release，dist分别固定admin/weapp。安全结构化帧的filename保留manifest中的完整pair.path，abs_path固定为`app:///admin/<pair.path>`或`app:///weapp/<pair.path>`，不能只取basename。例如后台assets/index-Ab12_cd3.js与小程序sub/profile/review/index.js分别对应各自组件的同名私有JS/map。
+
+后台只认当前应用同origin且没有凭据、查询或片段的实际资产URL；小程序只认明确的本地app/page/分包bundle形态。两客户端先解析原stack，再以各自原scrub检查filename和abs_path；发生去敏变化就丢整帧，不先清掉URL凭据/查询后再冒认路径。V8/JSC/Taro帧使用正行列、按最早调用在前；外部、native、模糊路径与无可靠坐标的帧不补造映射，原去敏stack仍供诊断。转发端只保规范组件/路径/坐标，不转发源码上下文、vars、function或debug_meta；旧无dist信封可保安全相对文件名，不能据此声称具备映射资格。
+
+后继上传必须消费同次构建的私有JS/map，release等于该产物tag、dist等于组件，上传name严格等于上述abs_path。发布JS已移除sourceMappingURL，后继可按官方release/dist方式显式提供SourceMap header关联私有map；本片没有实现上传、CLI锁版/inject或真实SaaS符号化。API/worker自身直报出口另交，portal仍按M6范围处理，不以微型Node SourceMap位置核对冒充真实上游还原。
