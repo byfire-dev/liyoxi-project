@@ -193,15 +193,22 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     });
     const productionInput = await m1ProductionVideo();
     if (attach) httpStorage = createM1HttpStorage(attach);
-    const boundProviders = httpStorage
-      ? {
-          ...providers,
-          storage: httpStorage.storage,
-          wechat: createLocalWechat({
-            logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
-          }),
-        }
-      : providers;
+    const boundProviders =
+      httpStorage && attach
+        ? {
+            ...providers,
+            storage: {
+              ...httpStorage.storage,
+              uploadLocation: {
+                region: attach.storage.region,
+                buckets: attach.storage.buckets,
+              },
+            },
+            wechat: createLocalWechat({
+              logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+            }),
+          }
+        : providers;
     productionTools = createDeliveryProductionTools(
       providers,
       productionInput.report,
@@ -279,12 +286,16 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         assertOwned();
         if ((await apiRuntime.config.params.get("order.start_delay_minutes")) !== 0)
           throw new Error("M1 演示要求当前开工延迟为 0；拒绝覆盖已有参数");
+        // Match the official demo CLI's one seed instant; HTTP/jobs keep their real runtime clock.
+        const seededAtMs = attach ? clock.now().getTime() : undefined;
+        const seedClock = seededAtMs === undefined ? clock : { now: () => new Date(seededAtMs) };
         const report = await runDemoSeed({
           ...apiRuntime,
+          clock: seedClock,
           keyring: loadKeyring(env),
           appEnv: attach ? "local" : "test",
           billing: { assembly: apiRuntime.assembly, bizNo: apiRuntime.bizNo },
-          notices: createNotices({ clock, events: apiRuntime.events }),
+          notices: createNotices({ clock: seedClock, events: apiRuntime.events }),
           prepareMasters: createM1ProductionMasterPreparer(
             apiRuntime,
             providers,
