@@ -222,7 +222,16 @@ describe("密钥清单与 node.yml", () => {
       const block = serviceBlock(service);
       expect(block, service).not.toMatch(/:\/\/[^\s"']*:[^\s"']*@/);
       expect(block, service).not.toMatch(/^ {6}\w*(PASSWORD|SECRET|TOKEN|_URL|_KEYS?): /m);
-      expect(block, service).toMatch(/^ {4}logging: \*logging$/m);
+      const logAnchor = /^ {4}logging: \*(logging|small-logging)$/m.exec(block)?.[1];
+      const smallService = ["postgres", "redis", "mediatool"].includes(service);
+      expect(smallService ? ["logging", "small-logging"] : ["logging"], service).toContain(
+        logAnchor,
+      );
+      // 独立门禁前置兼容旧统一配置；W2-27 新矩阵另锁定三小三大的精确分配。
+      const small = logAnchor === "small-logging";
+      expect(nodeYml, `${service} 的固定轮转预算`).toContain(
+        `x-${logAnchor}: &${logAnchor}\n  driver: json-file\n  options:\n    max-size: ${small ? "10m" : "20m"}\n    max-file: "${small ? "3" : "5"}"`,
+      );
       if (LONG_RUNNING.includes(service)) {
         expect(block, service).toMatch(/^ {4}restart: "no"$/m);
         expect(block, service).toMatch(/^ {4}stop_grace_period: 60s$/m);
