@@ -1,3 +1,5 @@
+import { billingWechatHookHandlers } from "./billing-wechat-hooks.js";
+import { billingChannelReadHandlers } from "./billing-channel-read.js";
 import { adminAgreementHandlers } from "./admin/agreements.js";
 import { adminDramaHandlers } from "./admin/dramas.js";
 import { adminDramaPricingHandlers } from "./admin/drama-pricing.js";
@@ -109,6 +111,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...memberHandlers,
   ...invitationHandlers,
   ...dictItemHandlers,
+  ...billingChannelReadHandlers,
+  ...billingWechatHookHandlers,
   ...billingHandlers,
   ...adminBillingHandlers,
   ...adminBillingCatalogHandlers,

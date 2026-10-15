@@ -360,3 +360,5 @@ export function createProviders(options: CreateProvidersOptions): Providers {
   logProviderStatus(logger, providers);
   return providers;
 }
+
+export { createWechatPayNotificationCrypto } from "./wechat-pay/notification.js";

@@ -19487,6 +19487,381 @@
         ],
         "type": "object"
       },
+      "PaymentOrderAdminRow": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "amountFen": {
+            "type": "integer"
+          },
+          "channel": {
+            "enum": [
+              "wechat_jsapi",
+              "bank_transfer"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "contentNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "entity": {
+            "properties": {
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "managerStaff": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "primaryStoreId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "primaryStoreName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "verificationStatus": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "primaryStoreId",
+              "primaryStoreName",
+              "storeCount",
+              "verificationStatus",
+              "managerStaff"
+            ],
+            "type": "object"
+          },
+          "fulfillmentStatus": {
+            "enum": [
+              "none",
+              "done",
+              "blocked"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "hasOpenException": {
+            "type": "boolean"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "paidAmountFen": {
+            "type": "integer"
+          },
+          "paymentOrderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "pendingTransferProofId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "refundedAmountFen": {
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "weapp",
+              "admin"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "status": {
+            "enum": [
+              "pending_payment",
+              "pending_confirmation",
+              "paid",
+              "cancelled",
+              "refunded"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "statusNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "store": {
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "storeId",
+              "name"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "transferState": {
+            "enum": [
+              "awaiting_proof",
+              "proof_submitted",
+              "proof_rejected",
+              "confirm_review",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "type": {
+            "enum": [
+              "plan_new",
+              "plan_renew",
+              "plan_upgrade",
+              "topup"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "paymentOrderId",
+          "orderNo",
+          "createdAt",
+          "entity",
+          "store",
+          "type",
+          "title",
+          "contentNote",
+          "amountFen",
+          "paidAmountFen",
+          "refundedAmountFen",
+          "channel",
+          "status",
+          "transferState",
+          "fulfillmentStatus",
+          "statusNote",
+          "hasOpenException",
+          "source",
+          "pendingTransferProofId",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "PaymentTransactionRow": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "wechat_jsapi",
+              "bank_transfer"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "channelAmountFen": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "channelSuccessAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "channelTxnNo": {
+            "type": "string"
+          },
+          "entity": {
+            "properties": {
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "managerStaff": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "primaryStoreId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "primaryStoreName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "verificationStatus": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "primaryStoreId",
+              "primaryStoreName",
+              "storeCount",
+              "verificationStatus",
+              "managerStaff"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "feeFen": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "isApplied": {
+            "type": "boolean"
+          },
+          "payerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paymentOrder": {
+            "properties": {
+              "orderNo": {
+                "type": "string"
+              },
+              "paymentOrderId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "plan_new",
+                  "plan_renew",
+                  "plan_upgrade",
+                  "topup"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "paymentOrderId",
+              "orderNo",
+              "type"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "paymentTransactionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "reconState": {
+            "enum": [
+              "pending",
+              "matched",
+              "diff",
+              "resolved"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "refundedFen": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "paymentTransactionId",
+          "channelSuccessAt",
+          "channelTxnNo",
+          "channel",
+          "paymentOrder",
+          "entity",
+          "channelAmountFen",
+          "feeFen",
+          "refundedFen",
+          "isApplied",
+          "reconState",
+          "payerName"
+        ],
+        "type": "object"
+      },
       "PendingChange": {
         "properties": {
           "address": {
@@ -49667,6 +50042,526 @@
         "x-permission": "sys.param.edit"
       }
     },
+    "/api/v1/admin/payment-orders": {
+      "get": {
+        "operationId": "admin.paymentOrder.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:plan_new|plan_renew|plan_upgrade|topup)(?:,(?:plan_new|plan_renew|plan_upgrade|topup))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "wechat_jsapi",
+                "bank_transfer"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "weapp",
+                "admin"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasOpenException",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-createdAt",
+              "enum": [
+                "-createdAt",
+                "-amountFen"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "pending_payment",
+                "pending_confirmation",
+                "paid",
+                "cancelled",
+                "refunded"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/PaymentOrderAdminRow"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "付款单列表：单号 / 商家 / 主体、时间、类型、支付方式、状态（5 种）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/payment-orders/summary": {
+      "get": {
+        "operationId": "admin.paymentOrder.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:plan_new|plan_renew|plan_upgrade|topup)(?:,(?:plan_new|plan_renew|plan_upgrade|topup))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "wechat_jsapi",
+                "bank_transfer"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "weapp",
+                "admin"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasOpenException",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-createdAt",
+              "enum": [
+                "-createdAt",
+                "-amountFen"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "all": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cancelled": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "paid": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "pending_confirmation": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "pending_payment": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "refunded": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "all",
+                        "pending_payment",
+                        "pending_confirmation",
+                        "paid",
+                        "cancelled",
+                        "refunded"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "付款单状态筛选条计数",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
     "/api/v1/admin/payment-orders/{paymentOrderId}": {
       "get": {
         "operationId": "admin.paymentOrder.get",
@@ -49777,6 +50672,525 @@
           }
         },
         "summary": "付款单详情（右侧抽屉）：应付 / 实付、生效说明、计算式、支付记录、发票状态、操作日志",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/payment-transactions": {
+      "get": {
+        "operationId": "admin.paymentTransaction.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "successFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "successTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "plan_new",
+                "plan_renew",
+                "plan_upgrade",
+                "topup"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "wechat_jsapi",
+                "bank_transfer"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reconState",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "matched",
+                "diff",
+                "resolved"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isApplied",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/PaymentTransactionRow"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "收款流水：付款单号 / 交易单号 / 商家搜索，时间、类型、方式、对账状态（合计由 summary 按同一筛选给出）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/payment-transactions/summary": {
+      "get": {
+        "operationId": "admin.paymentTransaction.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "successFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "successTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "plan_new",
+                "plan_renew",
+                "plan_upgrade",
+                "topup"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "wechat_jsapi",
+                "bank_transfer"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reconState",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "matched",
+                "diff",
+                "resolved"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isApplied",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "filtered": {
+                          "properties": {
+                            "channelAmountFen": {
+                              "pattern": "^-?\\d+$",
+                              "type": "string"
+                            },
+                            "count": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "count",
+                            "channelAmountFen"
+                          ],
+                          "type": "object"
+                        },
+                        "month": {
+                          "properties": {
+                            "amountFen": {
+                              "pattern": "^-?\\d+$",
+                              "type": "string"
+                            },
+                            "bankCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "count": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "wechatCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "amountFen",
+                            "count",
+                            "wechatCount",
+                            "bankCount"
+                          ],
+                          "type": "object"
+                        },
+                        "monthRefund": {
+                          "properties": {
+                            "amountFen": {
+                              "pattern": "^-?\\d+$",
+                              "type": "string"
+                            },
+                            "count": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "amountFen",
+                            "count"
+                          ],
+                          "type": "object"
+                        },
+                        "openDiff": {
+                          "properties": {
+                            "amountFen": {
+                              "pattern": "^-?\\d+$",
+                              "type": "string"
+                            },
+                            "count": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "earliestBillDate": {
+                              "format": "date",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "count",
+                            "amountFen",
+                            "earliestBillDate"
+                          ],
+                          "type": "object"
+                        },
+                        "today": {
+                          "properties": {
+                            "amountFen": {
+                              "pattern": "^-?\\d+$",
+                              "type": "string"
+                            },
+                            "bankCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "count": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "wechatCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "amountFen",
+                            "count",
+                            "wechatCount",
+                            "bankCount"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "filtered",
+                        "today",
+                        "month",
+                        "monthRefund",
+                        "openDiff"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "收款流水 KPI：今日收款、本月收款、本月退款、对账差异",
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"

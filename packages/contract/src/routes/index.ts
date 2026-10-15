@@ -39,3 +39,6 @@ export const allRegistryOnly = routeRegistry.registryOnly;
 
 /** 路由清单：一条路由一行，带文档、版本、里程碑；生成物 generated/routes.json 就是它 */
 export const routeCatalog = buildRouteCatalog(ROUTE_DOCS, ROUTE_PLACEMENTS);
+
+export * from "./m07-billing/channel-read.schemas.js";
+export * from "./a07-billing-finance/channel-read.schemas.js";

@@ -156,7 +156,7 @@ describe("唯一付款入账入口", () => {
         (await prisma.paymentTxn.findUniqueOrThrow({ where: { id: second.id } })).appliedAt,
       ).toBeNull();
     });
-  it("全额退回不入账、孤儿拒绝；缺付款人与回传数据的微信成功只开差异不入账", async () => {
+  it("全额退回不入账、孤儿仅开差异；缺付款人与回传数据的微信成功只开差异不入账", async () => {
     const { order, receipt } = await setup();
     await prisma.paymentTxn.update({
       where: { id: receipt.id },
@@ -164,7 +164,13 @@ describe("唯一付款入账入口", () => {
     });
     expect((await applyReceipt(h, receipt)).result.status).toBe("skipped");
     const orphan = await h.make.paymentTxn();
-    await expect(applyReceipt(h, orphan)).rejects.toMatchObject({ error: "INTERNAL" });
+    expect((await applyReceipt(h, orphan)).result).toMatchObject({
+      status: "orphan",
+      paymentExceptionId: expect.any(String),
+    });
+    expect(
+      await prisma.paymentException.findFirstOrThrow({ where: { paymentTxnId: orphan.id } }),
+    ).toMatchObject({ kind: "bill_only", billingOrderId: null, status: "open" });
     const wx = await h.make.billingOrder({ status: "pending_payment" });
     const wxReceipt = await h.make.paymentTxn({
       entityId: wx.entityId,

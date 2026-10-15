@@ -1,3 +1,5 @@
+import { createWechatChannel } from "./wechat-channel.js";
+import { createBillingChannelRead } from "./channel-read.js";
 import { createWechatPrepay } from "./wechat-prepay.js";
 import { BillingWalletSchema } from "@liyoxi/contract";
 import type {
@@ -53,7 +55,12 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
       amount,
       deps.wechatPay?.provider.configured ?? false,
     );
+  const wechatChannel = createWechatChannel(deps);
   return {
+    ...createBillingChannelRead(deps),
+    wechatChannel,
+    syncOrder: wechatChannel.sync,
+    cancelOrder: wechatChannel.cancel,
     wechatPrepay: createWechatPrepay(deps),
     getPurchasePolicy: (actor: PurchaseActor, client: PurchaseClient) =>
       deps.tx.run((tx) => policy(tx, actor, client)),

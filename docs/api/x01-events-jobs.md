@@ -539,7 +539,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `billing.sweep.daily` | 每日 00:00 | job | P1 | billing（07） | 对 next_due_at 已到的主体执行 advance（发放与清零兜底）；累加 billing_entity_daily；跑估值 | 07:1587；d7:1578 |
 | `bill.download` | 每日 10:30；失败 30 分钟后重试，14:00 仍失败告警；补扫近 90 天未完成的账单日 | job | P1 | billing（08） | 下载、校验、归档微信账单；解析入 wx_bill_line；匹配交易，补建孤儿交易，开或自愈差异单（`detected_by = reconciliation`；账单上发现的退款成功走与回调同一段退款结果处理代码，08:529、531、669；与回调、查单同类的事实用 h01 2.6 的同一套键，同键已有则跳过），写 recon_day，发 `recon.day_closed` | 08:852；d2:1179；d7:1579 |
-| `tx.unapplied_scan` | 每 5 分钟 | tx | P2 | billing（08） | 成功未入账且没有未决差异单的收款 → applyPayment | 08:307；d2:1180 |
+| `tx.unapplied_scan` | 每 5 分钟 | job | P2 | billing（08） | 成功未入账且没有未决差异单的收款 → applyPayment | 08:307；d2:1180 |
 | `receipt.daily_digest` | 每日 18:00 | job | P3 | billing（08） | 当日对公确认清单（含流水号冲突放行标记）推送超级管理员 | d2:1182；08:1534 |
 | `order.pending_start_sweep` | 每 5 分钟 | tx | P2 | order（09） | 待开工、资质已通过、无在途取消（`drama_order.open_cancel_request_id` 为空）、没有 scheduled / dispatched 的 order.start 的订购单 → timers.arm 补登记或复活（漏了“无在途取消”会让有在途取消的单每 5 分钟复活、到点、跳过地空转） | 09:203、212；01:378；d3:2970、3218 |
 | `patrol.weekly_generate` | 每周一 09:00 | tx | P2 | publish（11） | 按周幂等取批次行，抽样生成巡检任务（`patrol.created`） | 11:463；d3:1887 |

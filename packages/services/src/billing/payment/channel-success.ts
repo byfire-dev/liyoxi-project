@@ -3,15 +3,24 @@ import { billingOrderContentSchema } from "@liyoxi/contract";
 import type { BillingOrder, PaymentTxn } from "@liyoxi/db";
 import { AppError, lockRows } from "../../kernel/index.js";
 import type { Clock, IdentityContext, Tx } from "../../kernel/index.js";
+import { openPaymentException } from "./exception.js";
+import type { PaymentDeps } from "./types.js";
 import type { Events } from "../../events/index.js";
 import type { WechatPayTransaction } from "../../providers/types.js";
 
 export async function recordChannelSuccess(
   tx: Tx,
-  deps: { clock: Clock; events: Pick<Events, "emit">; appid: string; mchid: string },
+  deps: {
+    clock: Clock;
+    events: Pick<Events, "emit">;
+    appid: string;
+    mchid: string;
+    exceptions?: Pick<PaymentDeps, "clock" | "bizNo" | "flow">;
+    detectedBy?: "callback" | "query";
+  },
   ctx: IdentityContext,
   input: { paymentTxnId: string; transaction: WechatPayTransaction },
-): Promise<{ paymentTxnId: string; replayed: boolean }> {
+): Promise<{ paymentTxnId: string; replayed: boolean; conflict?: boolean }> {
   const first = await tx.paymentTxn.findUnique({ where: { id: input.paymentTxnId } });
   if (!first?.billingOrderId || !first.entityId) throw new AppError("NOT_FOUND");
   await lockRows(tx, "billing_order", [first.billingOrderId]);
@@ -48,8 +57,20 @@ export async function recordChannelSuccess(
       receipt.channelPayerRef !== fact.payerOpenid ||
       receipt.channelAttach !== (fact.attach ?? null) ||
       receipt.channelSuccessAt?.getTime() !== fact.successAt.getTime()
-    )
-      throw new AppError("PROVIDER_UNAVAILABLE");
+    ) {
+      if (!deps.exceptions) throw new AppError("PROVIDER_UNAVAILABLE");
+      const order = await tx.billingOrder.findUniqueOrThrow({
+        where: { id: first.billingOrderId },
+      });
+      await openPaymentException(tx, deps.exceptions, ctx, {
+        kind: "status_mismatch",
+        order,
+        receipt,
+        detectedBy: deps.detectedBy ?? "callback",
+        channelFact: fact,
+      });
+      return { paymentTxnId: receipt.id, replayed: true, conflict: true };
+    }
     return { paymentTxnId: receipt.id, replayed: true };
   }
   // closed 也可能收到可信迟到成功；资金事实保留，再由 applyPayment 判付后取消/差异。
@@ -63,6 +84,7 @@ export async function recordChannelSuccess(
       channelAttach: fact.attach ?? null,
       channelSuccessAt: fact.successAt,
       tradeStateRaw: fact.tradeState,
+      bankType: fact.bankType ?? null,
       updatedAt: deps.clock.now(),
     },
   });
