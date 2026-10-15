@@ -1,4 +1,4 @@
-// W1-21 无 Vitest 支架；仅新建本轮测试库，不接受 stack/prod/远程库。
+// W1-21 无 Vitest 支架；仅新建本轮测试库或受保护 attach，不接受任意远程库。
 import { randomBytes } from "node:crypto";
 import { createPrismaClient } from "@liyoxi/db";
 import {
@@ -40,6 +40,7 @@ import {
   finishM1Production,
 } from "./m1-production.js";
 import type { M1Support, M1SupportOptions } from "./m1-types.js";
+import { assertM1OwnerNetwork } from "./m1-owner-network.js";
 
 const localUrl = (
   url: string,
@@ -53,6 +54,10 @@ const localUrl = (
 export async function createM1Support(options: M1SupportOptions = {}): Promise<M1Support> {
   options.signal?.throwIfAborted();
   const attach = options.attach;
+  const ownerNetwork = options.ownerNetwork !== undefined;
+  if (ownerNetwork) assertM1OwnerNetwork(options, process.env);
+  const diagnosticWrite = options.diagnosticWrite;
+  const destination = diagnosticWrite ? { write: diagnosticWrite } : undefined;
   if (options.backgroundWorker && !attach) throw new Error("M1 后台worker模式只接受受保护attach");
   if (attach) {
     assertM1SharedScope(attach.scope);
@@ -72,16 +77,18 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     REDIS_URL: process.env.REDIS_URL,
   });
   const isolationId = attach?.scope.runId ?? options.runId ?? randomBytes(6).toString("hex");
-  localUrl(
-    base.DATABASE_URL,
-    ["postgres:", "postgresql:"],
-    ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-postgres`] : [])],
-  );
-  localUrl(
-    base.REDIS_URL,
-    ["redis:"],
-    ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-redis`] : [])],
-  );
+  if (!ownerNetwork) {
+    localUrl(
+      base.DATABASE_URL,
+      ["postgres:", "postgresql:"],
+      ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-postgres`] : [])],
+    );
+    localUrl(
+      base.REDIS_URL,
+      ["redis:"],
+      ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-redis`] : [])],
+    );
+  }
   const runId = attach?.chainId ?? isolationId;
   if (!/^[a-z0-9]{1,12}$/.test(runId)) throw new Error("M1 runId 要 1–12 位小写字母数字");
   const databaseName = testDatabaseName("api", { session: isolationId, worker: "0", label: "m1" });
@@ -90,7 +97,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   const ownerKey = `${redisPrefix}m1.owner`;
   let redis: Redis | undefined;
   let ownRedisOwner = false;
-  const clock = attach ? createM1RealClock() : (options.clock ?? createClock());
+  const clock = attach || ownerNetwork ? createM1RealClock() : (options.clock ?? createClock());
   // billing/demo-seed 的正式财务种子回溯 25h；只定义本轮历史，不拨动业务或自定义时钟。
   const startedAt = attach
     ? new Date(attach.scope.startedAt)
@@ -103,6 +110,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   let workerRuntime: ReturnType<typeof createRuntime> | undefined;
   let db: ReturnType<typeof createPrismaClient> | undefined;
   let closed = false;
+  let ownerClose: Promise<void> | undefined;
   const clearRedis = async () => {
     // SET 抛错或 NX 冲突都不证明归属；只断开本客户端，不清理其他轮次。
     const client = redis;
@@ -122,7 +130,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     } while (cursor !== "0");
     await client.unlink(ownerKey);
   };
-  const close = async () => {
+  const closeResources = async () => {
     if (closed) return;
     closed = true;
     httpStorage?.abort();
@@ -138,6 +146,22 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           if (ownDatabase) await dropTestDatabase(databaseName);
         },
         clearRedis,
+        async () => {
+          if (!ownerNetwork || !ownDatabase || !ownRedisScope) return;
+          if ((await listTestDatabases({ session: isolationId })).includes(databaseName))
+            throw new Error("M1 ownerNetwork 关闭后本轮数据库仍存在");
+        },
+        async () => {
+          if (!ownerNetwork || !ownDatabase || !ownRedisScope || !redis) return;
+          let cursor = "0";
+          let remaining = 0;
+          do {
+            const [next, keys] = await redis.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);
+            cursor = next;
+            remaining += keys.filter((key) => key.startsWith(redisPrefix)).length;
+          } while (cursor !== "0");
+          if (remaining !== 0) throw new Error("M1 ownerNetwork 关闭后本轮 Redis scope 仍存在");
+        },
       ]) {
         try {
           await action();
@@ -150,6 +174,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     }
     if (errors.length) throw new AggregateError(errors, "M1 本轮资源未完整清理");
   };
+  const close = () => (ownerNetwork ? (ownerClose ??= closeResources()) : closeResources());
   try {
     redis = new Redis(base.REDIS_URL, {
       lazyConnect: true,
@@ -231,6 +256,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         env: attach ? "local" : "test",
         level: "warn",
         version: attach?.version ?? "m1-test",
+        ...(destination ? { destination } : {}),
       }),
     });
     if (attach && !options.backgroundWorker)
@@ -247,6 +273,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           env: "local",
           level: "warn",
           version: attach.version,
+          ...(destination ? { destination } : {}),
         }),
       });
     const apiRuntime = runtime;
@@ -393,17 +420,17 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
             orderBy: [{ code: "asc" }, { subjectType: "asc" }],
             take: 100,
           });
-          process.stdout.write(
-            `M1 全域失败摘要：${JSON.stringify({
-              checksRun: report.checksRun,
-              errors: report.errors.length,
-              counts: rows.map((row) => ({
-                code: row.code,
-                subjectType: row.subjectType,
-                count: row._count._all,
-              })),
-            })}\n`,
-          );
+          const line = `M1 全域失败摘要：${JSON.stringify({
+            checksRun: report.checksRun,
+            errors: report.errors.length,
+            counts: rows.map((row) => ({
+              code: row.code,
+              subjectType: row.subjectType,
+              count: row._count._all,
+            })),
+          })}\n`;
+          if (diagnosticWrite) diagnosticWrite(line);
+          else process.stdout.write(line);
         }
         return report;
       },

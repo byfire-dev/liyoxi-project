@@ -257,6 +257,22 @@ Runtime 的公开任务、checked dispatcher、人工QC与签名下载。codec/c
 
 ## W2-28 HTTP 与同库 attach 前置
 
+### 容器内 HEAD owner 的显式私网
+
+`createM1Support({runId,ownerNetwork})` 只在 `APP_ENV=test`、非 attach 且未传 `clock` 时接受本轮私网；使用禁止 set/advance 的实钟。默认本机 owner 与 attach 原守卫不变。该模式仍走原随机库命名、Redis NX owner token、拒绝已有资源、正式迁移与 `runSeed`，关闭仍只清本轮库/前缀；本片没有 Docker/数据库实跑证据。
+
+`ownerNetwork` 的唯一形状可通过 `M1SupportOptions["ownerNetwork"]` 消费，未知JSONL输入复用testing出口的`M1OwnerNetworkSchema.parse`，不复制DTO或类型断言：`expected:{runId,source,nonce,networkId}`，`receipt:{schemaVersion:1,runId,source,nonce,networkId,containers:{postgres,redis,minio}}`。所有对象键精确匹配（包括拒绝额外symbol/非自有键），runId 为1–12位小写字母数字、source为40位小写hex、nonce为32位、networkId与三个不同的完整容器ID为64位；receipt四项 identity 必须与 expected 及显式 options.runId 一致。nonce与`sharedScope().ownerToken`用途不同，两者和收据只在私有内存或0600任务文件中传递，不进公开报告。
+
+只接受 `postgresql://liyoxi:lyx-local-dev@lyx-mixed-<runId>-postgres:5432/liyoxi`（同值 `postgres:` 也可）与 `redis://lyx-mixed-<runId>-redis:6379/0`。不收任意host/alias/port/credentials/query。后继controller固定MinIO为`lyx-mixed-<runId>-minio:9000`；对应版本attach既有守卫仍核本轮alias、公共开发凭据和四桶，owner不接手对象IO，演示数据由正式attach阶段补种。
+
+收据仅核输入一致性，不能认证真实Docker身份。后继controller须先inspect共享三容器的完整ID/Compose角色、本轮network ID/标签/source/nonce，再连接固定alias；私有`w228-rpc-v1`的`owner.init`只传上述对象，不提供任意SQL/argv。controller只disconnect自己成功建立且再次核身份的本轮连接，不stop/rm共享容器。HEAD镜像内owner负责正式造库迁移补种，phase容器仅attach；不以host owner冒充镜像迁移。纯守卫目标为`testing/m1-owner-network.test.ts`，直接调用无IO helper；本机用临时纯配置只圈该文件，仓库services项目的既有globalSetup保持不变。
+
+`owner.close`无新增返回字段：只在显式ownerNetwork且本实例已取得库/Redis scope时，原drop/clear后、disconnect前只读复查本轮库不存在和前缀完整SCAN为零；任一失败加入原清理错误并拒绝。后继controller只有实际close成功后才能报告`scopeAbsenceVerified:true`，不编造数量；网络membership与对象桶仍各自精确收尾。
+
+私有RPC可传`diagnosticWrite(line)`接两处support logger与原fullInvariants失败摘要，driver只记录私有计数、不转印原文。缺省仍写原stdout，错误、日志脱敏和全不变量失败逻辑不变；RPC stdout只留协议帧由driver保证。
+
+### 默认接口与 attach
+
 `createM1Support()` 默认仍只接受 `APP_ENV=test`，创建随机库/Redis前缀并自清；原 M1 七段数据、二十集与可拨时钟不变。原拥有者可在内存或0600任务文件交出 `sharedScope()`，对应版本通过 `createM1Support({attach:{scope,chainId,version,storage}})` 接入。attach 只接受明确 `APP_ENV=local`、精确测试库/前缀、当前 owner token；拒绝已有栈库/远端/错归属，不重置、不删前轮资源。资源拥有者须在两个版本的连接关闭后清理库/前缀；四桶 MinIO 必须是本轮自有容器或精确自有桶。
 
 HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己的服务源码/处理器构建。它真实监听 HTTP，逐请求核 `/health.version`，未知接口/5xx 失败关闭；IO与只读事实/任务运输也来自该版本，不能拿 HEAD 服务结果替旧版。测试 API/worker 装配与 codec/cloud IO 替身边界必须在混跑报告声明，不能称生产部署或真实转码已验。local 微信使用正式本地协议（十一位 phoneCode 为测试手机号），实际文件经本轮 MinIO 表单、入库与签读，进程切换不依赖 fake maps。
