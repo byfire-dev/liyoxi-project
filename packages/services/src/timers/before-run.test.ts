@@ -5,7 +5,7 @@ import { runTimer, scanDue } from "./index.js";
 import type { ScanDeps } from "./index.js";
 import { workerTimers } from "./__fixtures__/worker.js";
 
-const db = useTestDatabase("timer_prepare");
+const db = useTestDatabase("services");
 const t = workerTimers();
 beforeAll(async () => t.attach(await db.prisma()));
 
