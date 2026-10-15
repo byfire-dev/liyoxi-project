@@ -140,3 +140,5 @@ export type { DramaPricingService, DramaPricingDeps } from "./pricing/revisions.
 export { createWechatChannel } from "./payment/wechat-channel.js";
 export { createWechatPaymentSource } from "./payment/channel-webhook.js";
 export { bindPaymentChannel } from "./payment/channel-registration.js";
+
+export { createTransferReviewAssembly } from "./payment/transfer-review.js";

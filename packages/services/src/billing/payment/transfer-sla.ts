@@ -99,3 +99,19 @@ export async function handleTransferSla(
   });
   return "fired";
 }
+
+export async function armTransferTtl(
+  tx: Tx,
+  deps: Pick<TransferSlaDeps, "timers">,
+  o: { id: string; entityId: string; storeId: string | null; expiresAt: Date },
+) {
+  await deps.timers.arm(tx, {
+    kind: "po.transfer_ttl",
+    subject: { type: "billing_order", id: o.id },
+    fireAt: o.expiresAt,
+    key: `po.transfer_ttl:billing_order:${o.id}:${o.expiresAt.getTime()}`,
+    entityId: o.entityId,
+    ...(o.storeId ? { storeId: o.storeId } : {}),
+    payload: { expiresAt: o.expiresAt.toISOString() },
+  });
+}

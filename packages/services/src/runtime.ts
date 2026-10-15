@@ -90,12 +90,13 @@ import type { Approval } from "./approval/index.js";
 import {
   bindBillingTimers,
   createBillingPurchase,
+  createTransferReviewAssembly,
   createLedger,
   createPayment,
   createFulfillment,
   getNotifyPurchaseMode,
 } from "./billing/index.js";
-import type { BillingPurchase } from "./billing/index.js";
+import type { BillingPurchase, BillingPurchaseDeps } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
 import type { NotifyMessages } from "./notify/index.js";
 import { staffBriefs, createStaffAssembly } from "./staff/index.js";
@@ -453,7 +454,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const invitationScope = createInvitationAssembly(docsScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
-  const assembly = entitlementScope.assembly;
+  const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
+  const assembly = transferReviewScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -887,7 +889,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
   });
   let billingKeys = options.billingKeyring;
-  const billing = createBillingPurchase({
+  const purchaseDeps: BillingPurchaseDeps = {
     ...(env.WECHAT_PAY
       ? {
           wechatPay: {
@@ -916,11 +918,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       bizNo,
       fulfillment: createFulfillment({ clock, events }),
     }),
+    approval,
     docs: docsServices.docs,
     tenant,
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
-  });
+  };
+  const billing = createBillingPurchase(purchaseDeps);
+  transferReviewScope.attach(purchaseDeps);
   const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
   const order = createOrderService({
     tx,
@@ -1092,6 +1097,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([() => modelDrivers?.close()]);
         await settle([() => modelBudget?.close()]);
         await settle([
+          () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),
           () => profileConsistencyScope.close(),
           () => mediaScope.close(),

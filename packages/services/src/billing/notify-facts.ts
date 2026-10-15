@@ -49,9 +49,10 @@ export async function billingAccountForNotify(tx: Tx, entityId: string) {
 export async function transferForNotify(tx: Tx, id: string) {
   const row = await tx.transferProof.findUnique({
     where: { id },
-    include: { billingOrder: { select: { orderNo: true, storeId: true } } },
+    include: { billingOrder: { select: { orderNo: true, storeId: true, status: true } } },
   });
-  return row
+  return row &&
+    (row.reviewStatus !== "pending" || row.billingOrder.status === "pending_confirmation")
     ? {
         bizType: "transfer_proof",
         bizId: row.id,
@@ -60,6 +61,7 @@ export async function transferForNotify(tx: Tx, id: string) {
         status: row.reviewStatus,
         version: row.uploadNo,
         name: row.billingOrder.orderNo,
+        ...(row.dueAt ? { occurredAt: row.dueAt.toISOString() } : {}),
       }
     : null;
 }

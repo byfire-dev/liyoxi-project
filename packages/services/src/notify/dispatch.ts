@@ -150,7 +150,16 @@ export async function currentNotificationFact(
   const fact = NotifyFactSchema.parse(found);
   if (["s.approval_pending", "s.approval_overdue"].includes(spec.sceneKey))
     fact.staffIds = await deps.approvalRecipients(tx, id);
-  if (["s.receipt_pending", "s.payment_exception"].includes(spec.sceneKey))
+  // 已发出的旧SLA事件可能晚于日历修正才消费，必须按当前截止复核。
+  if (
+    spec.sceneKey === "s.finance_overdue" &&
+    (fact.bizType !== "transfer_proof" ||
+      fact.status !== "pending" ||
+      !fact.occurredAt ||
+      new Date(fact.occurredAt) > deps.clock.now())
+  )
+    return null;
+  if (["s.receipt_pending", "s.payment_exception", "s.finance_overdue"].includes(spec.sceneKey))
     fact.staffIds =
       (await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
         roleKey: "finance",

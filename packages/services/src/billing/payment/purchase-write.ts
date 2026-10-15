@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import type {
   PaymentOrderCreateBody,
   TransferProofConfirmBody,
@@ -12,20 +12,24 @@ import type { StaffContext } from "../../authz/index.js";
 import { record } from "../../audit/index.js";
 import { maskName } from "@liyoxi/shared/mask";
 import { paramsAt } from "../../config/index.js";
-import { workHoursAt } from "../../sla/index.js";
+
 import { quotePlan } from "../catalog/index.js";
 import { assertTopupActor, quotePointPack } from "../catalog/point-packs.js";
 import { financeConfigAt } from "../finance-config/index.js";
 import { getPurchasePolicy } from "../policy/index.js";
 import type { PurchaseClient } from "../policy/index.js";
-import {
-  dictRef,
-  merchantOrderView,
-  orderInScope,
-  proofInScope,
-  proofDetailView,
-} from "./purchase-read.js";
+import { merchantOrderView, orderInScope, proofInScope, proofDetailView } from "./purchase-read.js";
 import type { BillingPurchaseDeps, PurchaseActor } from "./purchase-context.js";
+import { armTransferTtl, cancelTransferSla } from "./transfer-sla.js";
+import { assertTransferStaff, submitTransferProof } from "./transfer-admin.js";
+import {
+  normalizeBankSerial,
+  checkBankSerial,
+  lockBankSerial,
+  acceptTransferProof,
+  beginTransferReview,
+} from "./transfer-review.js";
+export { normalizeBankSerial } from "./transfer-review.js";
 
 function owner(actor: PurchaseActor) {
   if (
@@ -45,21 +49,6 @@ async function validOwner(tx: Tx, deps: BillingPurchaseDeps, actor: PurchaseActo
   });
   if (current?.role !== "owner" || current.entityId !== actor.membership.entityId)
     throw new AppError("NOT_FOUND");
-}
-export async function armTransferTtl(
-  tx: Tx,
-  deps: Pick<BillingPurchaseDeps, "timers">,
-  o: { id: string; entityId: string; storeId: string | null; expiresAt: Date },
-) {
-  await deps.timers.arm(tx, {
-    kind: "po.transfer_ttl",
-    subject: { type: "billing_order", id: o.id },
-    fireAt: o.expiresAt,
-    key: `po.transfer_ttl:billing_order:${o.id}:${o.expiresAt.getTime()}`,
-    entityId: o.entityId,
-    ...(o.storeId ? { storeId: o.storeId } : {}),
-    payload: { expiresAt: o.expiresAt.toISOString() },
-  });
 }
 async function consents(
   tx: Tx,
@@ -347,123 +336,20 @@ export async function submitProof(
   });
   if (!order) throw new AppError("NOT_FOUND");
   await validOwner(tx, deps, actor);
-  const now = deps.clock.now();
-  if (order.transferState === "confirm_review") throw new AppError("TRANSFER_PROOF_LOCKED");
-  if (
-    order.channel !== "bank_transfer" ||
-    !(
-      (order.status === "pending_payment" &&
-        ["awaiting_proof", "proof_rejected"].includes(order.transferState ?? "")) ||
-      (order.status === "pending_confirmation" && order.transferState === "proof_submitted")
-    )
-  )
-    throw new AppError("STATE_NOT_ALLOWED");
-  if (order.status === "pending_payment" && now >= order.expiresAt)
-    throw new AppError("PAYMENT_ORDER_EXPIRED", {
-      details: { expiresAt: order.expiresAt.toISOString() },
-    });
-  const old = await tx.transferProof.findFirst({
-    where: { billingOrderId: id, reviewStatus: "pending" },
-  });
-  if (old) await lockRows(tx, "transfer_proof", [old.id]);
-  await lockRows(tx, "file_object", [fileId]);
-  const file = await tx.fileObject.findUnique({ where: { id: fileId } });
-  if (
-    !file ||
-    file.uploadActorType !== "merchant" ||
-    file.uploadActorId !== actor.ctx.actor.id ||
-    file.scopeType !== "entity" ||
-    file.entityId !== order.entityId
-  )
-    throw new AppError("FILE_NOT_USABLE", {
-      details: { fileIds: [fileId], reason: "scope_mismatch" },
-    });
-  const params = await paramsAt(tx, ["sla.review.transfer_proof"], now),
-    policy = params["sla.review.transfer_proof"];
-  const due = policy
-    ? await deps.sla.dueAt(tx, {
-        policy: "review.transfer_proof",
-        ...policy,
-        from: now,
-        workHours: await workHoursAt(tx, now),
-      })
-    : null;
-  if (old)
-    await tx.transferProof.update({
-      where: { id: old.id },
-      data: { reviewStatus: "superseded", lockVersion: { increment: 1 }, updatedAt: now },
-    });
-  const last = await tx.transferProof.aggregate({
-      where: { billingOrderId: id },
-      _max: { uploadNo: true },
-    }),
-    proofId = uuidv7();
-  await tx.transferProof.create({
-    data: {
-      id: proofId,
-      entityId: order.entityId,
-      billingOrderId: id,
-      uploadNo: (last._max.uploadNo ?? 0) + 1,
-      fileId,
-      uploadedByUserId: actor.ctx.actor.id,
-      uploadedAt: now,
-      reviewStatus: "pending",
-      dueAt: due?.dueAt ?? null,
-      ...(due ? { slaSnapshot: { ...due.snapshot } } : {}),
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  await deps.media.link(tx, {
-    fileId,
-    refType: "transfer_proof",
-    refId: proofId,
-    role: "main",
-    entityId: order.entityId,
-    storeId: null,
-  });
-  const payload = {
-    v: 1 as const,
-    transferProofId: proofId,
-    billingOrderId: id,
-    entityId: order.entityId,
-    dueAt: due?.dueAt.toISOString() ?? null,
-  };
-  if (order.status === "pending_payment")
-    await deps.flow.transition(tx, actor.ctx, {
-      machine: "billing_order",
-      stateField: "status",
-      id,
-      event: "billing_order.submit_proof",
-      set: { transfer_state: "proof_submitted" },
-      args: { transferProofId: proofId },
-      audit: {
-        stream: "activity",
-        category: "payment",
-        action: "billing.transfer_proof.submit",
-        summary: "提交对公凭证",
-        target: { type: "transfer_proof", id: proofId },
-      },
-      emit: { none: true, primary: "transfer.proof_submitted" },
-    });
-  await deps.events.emit(tx, actor.ctx, {
-    type: "transfer.proof_submitted",
-    payload,
-    aggregate: { type: "transfer_proof", id: proofId },
-    dedupeKey: `transfer.proof_submitted:${proofId}`,
-  });
-  if (order.status !== "pending_payment") {
-    await audit(tx, actor.ctx, "billing.transfer_proof.submit", proofId, "替换对公凭证");
-  }
+  await submitTransferProof(
+    tx,
+    deps,
+    actor.ctx,
+    order,
+    { fileId },
+    { type: "merchant", id: actor.ctx.actor.id! },
+  );
   return merchantOrderView(
     tx,
     deps,
     await tx.billingOrder.findUniqueOrThrow({ where: { id } }),
     client,
   );
-}
-export function normalizeBankSerial(raw: string) {
-  return raw.normalize("NFKC").replace(/[\s-]/gu, "").toUpperCase();
 }
 async function audit(
   tx: Tx,
@@ -499,50 +385,6 @@ async function audit(
     },
   );
 }
-async function serialConflicts(tx: Tx, serial: string, excludeId?: string) {
-  return tx.paymentTxn.findMany({
-    where: {
-      channel: "bank_transfer",
-      channelTxnNo: serial,
-      ...(excludeId ? { id: { not: excludeId } } : {}),
-    },
-    include: { billingOrder: { select: { orderNo: true } } },
-  });
-}
-async function checkSerial(
-  tx: Tx,
-  serial: string,
-  input: TransferProofConfirmBody,
-  excludeId?: string,
-) {
-  const conflicts = await serialConflicts(tx, serial, excludeId);
-  if (!serial)
-    throw new AppError("VALIDATION_FAILED", {
-      details: { fieldErrors: [{ path: "bankSerialNo", message: "请填写有效银行流水号" }] },
-    });
-  if (input.payerBankCode) {
-    const items = await tx.dictItem.findMany({
-      where: { dictTypeKey: "bank", code: input.payerBankCode, isEnabled: true },
-    });
-    if (!items.length) throw new AppError("DICT_ITEM_DISABLED");
-  }
-  if (conflicts.length) {
-    if (!input.payerBankCode || conflicts.some((c) => c.payerBank === input.payerBankCode))
-      throw new AppError("BANK_SERIAL_DUPLICATE", {
-        details: {
-          conflicts: await Promise.all(
-            conflicts.map(async (c) => ({
-              ref: c.billingOrder?.orderNo ?? c.outTradeNo,
-              payerBank: await dictRef(tx, "bank", c.payerBank),
-            })),
-          ),
-        },
-      });
-    const expected = conflicts.map((c) => c.billingOrder?.orderNo ?? c.outTradeNo).sort(),
-      actual = [...new Set(input.confirm.conflictOrderNos ?? [])].sort();
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new AppError("CONFIRM_MISMATCH");
-  } else if (input.confirm.conflictOrderNos?.length) throw new AppError("CONFIRM_MISMATCH");
-}
 async function assertConfirmation(
   tx: Tx,
   deps: BillingPurchaseDeps,
@@ -561,11 +403,10 @@ async function assertConfirmation(
     throw new AppError("VALIDATION_FAILED");
   if (order.createdByStaffId === staff.staff.id) throw new AppError("CONFIRMER_IS_ORDER_CREATOR");
   const finance = await financeConfigAt(tx, deps.clock.now());
-  if (
+  return (
     finance.controls.receiptSecondReviewFen !== null &&
     order.amountFen >= finance.controls.receiptSecondReviewFen
-  )
-    throw new AppError("STATE_NOT_ALLOWED");
+  );
 }
 export async function confirmProof(
   tx: Tx,
@@ -575,11 +416,10 @@ export async function confirmProof(
   id: string,
   input: TransferProofConfirmBody,
 ) {
-  assertPermission(staff, "finance.receipt.confirm", deps.clock.now());
+  await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm");
   const first = await proofInScope(tx, staff.scope, id);
   await lockRows(tx, "billing_order", [first.billingOrderId]);
-  const order = await orderInScope(tx, staff.scope, first.billingOrderId),
-    now = deps.clock.now();
+  const order = await orderInScope(tx, staff.scope, first.billingOrderId);
   const before = await proofInScope(tx, staff.scope, id);
   if (before.lockVersion !== input.lockVersion)
     throw new AppError("VERSION_CONFLICT", { details: { lockVersion: before.lockVersion } });
@@ -589,96 +429,38 @@ export async function confirmProof(
     order.transferState !== "proof_submitted"
   )
     throw new AppError("STATE_NOT_ALLOWED");
-  await assertConfirmation(tx, deps, ctx, staff, order, input);
-  const serial = normalizeBankSerial(input.bankSerialNo);
-  // 290 → 流水咨询锁 → 300 → 310 → 420。所有主体/付款行共享同一渠道与规范化流水键；
-  // 首次冲突查询前取得，直到事务提交/回滚才释放，不用复合唯一索引替代冲突回显。
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`lyx:billing:transfer-confirm:bank_transfer:${serial}`}, 0))`;
-  await checkSerial(tx, serial, input);
-  const latest = await tx.paymentTxn.aggregate({
-      where: { billingOrderId: order.id },
-      _max: { attemptNo: true },
-    }),
-    attemptNo = (latest._max.attemptNo ?? 0) + 1,
-    txnId = uuidv7();
-  // 290 → 300 → 310：先插入本事务真实收款行并锁到它。守卫拒绝时整事务回滚，不留下成功交易。
-  await tx.paymentTxn.create({
-    data: {
-      id: txnId,
-      entityId: order.entityId,
-      billingOrderId: order.id,
-      channel: "bank_transfer",
-      attemptNo,
-      outTradeNo: `${order.orderNo}-${String(attemptNo).padStart(2, "0")}-${randomBytes(3).toString("hex").toUpperCase()}`,
-      amountFen: order.amountFen,
-      channelAmountFen: input.confirm.receivedAmountFen,
-      channelPayerRef: (
-        await tx.entity.findUniqueOrThrow({ where: { id: order.entityId }, select: { name: true } })
-      ).name,
-      status: "succeeded",
-      channelTxnNo: serial,
-      bankSerialRaw: input.bankSerialNo,
-      payerBank: input.payerBankCode ?? null,
-      channelSuccessAt: now,
-      transferProofId: id,
+  const needsReview = await assertConfirmation(tx, deps, ctx, staff, order, input);
+  let result;
+  if (needsReview) {
+    if (!deps.approval) throw new AppError("INTERNAL");
+    const serial = normalizeBankSerial(input.bankSerialNo);
+    await lockBankSerial(tx, serial);
+    await checkBankSerial(tx, serial, input);
+    await lockRows(tx, "transfer_proof", [id]);
+    const proof = await proofInScope(tx, staff.scope, id);
+    if (proof.lockVersion !== input.lockVersion || proof.reviewStatus !== "pending")
+      throw new AppError("VERSION_CONFLICT");
+    result = await beginTransferReview(tx, deps, deps.approval, ctx, staff, proof, order, input);
+  } else {
+    await acceptTransferProof(tx, deps, ctx, {
+      proof: before,
+      input,
       confirmedByStaffId: staff.staff.id,
-      reconState: "matched",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  await lockRows(tx, "payment_txn", [txnId]);
-  await lockRows(tx, "transfer_proof", [id]);
-  const proof = await proofInScope(tx, staff.scope, id);
-  if (proof.lockVersion !== input.lockVersion)
-    throw new AppError("VERSION_CONFLICT", { details: { lockVersion: proof.lockVersion } });
-  if (
-    proof.reviewStatus !== "pending" ||
-    order.status !== "pending_confirmation" ||
-    order.transferState !== "proof_submitted" ||
-    order.channel !== "bank_transfer"
-  )
-    throw new AppError("STATE_NOT_ALLOWED");
-  await assertConfirmation(
-    tx,
-    deps,
-    ctx,
-    staff,
-    await orderInScope(tx, staff.scope, order.id),
-    input,
-  );
-  await checkSerial(tx, serial, input, txnId);
-  await tx.transferProof.update({
-    where: { id },
-    data: {
-      reviewStatus: "accepted",
-      reviewedByStaffId: staff.staff.id,
-      reviewedAt: now,
-      lockVersion: { increment: 1 },
-      updatedAt: now,
-    },
-  });
-  await deps.payment.applyPayment(tx, {
-    paymentTxnId: txnId,
-    ctx: { ...ctx, entityId: order.entityId, storeId: order.storeId },
-  });
+    });
+    result = {
+      ...(await proofDetailView(tx, deps, await proofInScope(tx, staff.scope, id), staff)),
+      outcome: "paid" as const,
+    };
+  }
   await audit(
     tx,
     { ...ctx, entityId: order.entityId, storeId: order.storeId },
     "billing.transfer_proof.confirm",
     id,
-    "确认到账",
+    needsReview ? "提交到账二人复核" : "确认到账",
     { confirm: input.confirm, confirmChecks: input.confirmChecks },
   );
-  return {
-    ...(await proofDetailView(
-      tx,
-      deps,
-      await tx.transferProof.findUniqueOrThrow({ where: { id } }),
-      staff,
-    )),
-    outcome: "paid" as const,
-  };
+  return result;
 }
 export async function rejectProof(
   tx: Tx,
@@ -728,6 +510,7 @@ export async function rejectProof(
       updatedAt: now,
     },
   });
+  await cancelTransferSla(tx, deps.timers, id);
   await deps.flow.transition(
     tx,
     { ...ctx, entityId: order.entityId, storeId: order.storeId },

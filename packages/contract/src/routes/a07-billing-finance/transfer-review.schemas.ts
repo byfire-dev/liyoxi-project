@@ -39,6 +39,7 @@ export const AdminTransferProofCreateBodySchema = z
   .openapi("AdminTransferProofCreateBody");
 export const TransferProofApproveReviewBodySchema = z
   .strictObject({
+    approvalId: IdSchema,
     lockVersion: z.int().nonnegative(),
     confirm: z.strictObject({ orderNo: z.string().min(1), receivedAmountFen: z.int().positive() }),
     confirmChecks: z
@@ -53,6 +54,7 @@ export const TransferProofApproveReviewBodySchema = z
   .openapi("TransferProofApproveReviewBody");
 export const TransferProofRejectReviewBodySchema = z
   .strictObject({
+    approvalId: IdSchema,
     note: z.string().trim().min(1).max(200),
   })
   .openapi("TransferProofRejectReviewBody");

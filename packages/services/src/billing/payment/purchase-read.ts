@@ -4,6 +4,7 @@ import {
   TransferProofDetailSchema,
   TransferProofQueueItemSchema,
   fulfillResultSchema,
+  ApprovalDecisionViewSchema,
 } from "@liyoxi/contract";
 import type { BillingOrder, TransferProof, Prisma } from "@liyoxi/db";
 import { byEntity, hasPermission, satisfiesLevel } from "../../authz/index.js";
@@ -16,7 +17,18 @@ import { financeConfigAt } from "../finance-config/index.js";
 import { formulaOf } from "../catalog/index.js";
 import { getPurchasePolicy } from "../policy/index.js";
 import type { PurchaseClient } from "../policy/index.js";
+import { z } from "zod";
 import type { BillingPurchaseDeps } from "./purchase-context.js";
+const firstConfirmView = z.strictObject({
+  bankSerialRaw: z.string(),
+  bankSerialNorm: z.string(),
+  payerBank: z.string().nullable(),
+  receivedAmountFen: z.int().positive(),
+});
+const title = (content: Awaited<ReturnType<typeof contentView>>) =>
+  content.kind === "topup"
+    ? `加购 ${content.points ?? 0} 积分`
+    : `${content.planName ?? "套餐"} · ${content.months ?? 1} 个月`;
 export const iso = (at: Date | null): string | null => at?.toISOString() ?? null;
 export async function staffBrief(tx: Tx, id: string | null) {
   if (!id) return null;
@@ -278,6 +290,7 @@ export async function proofQueueView(tx: Tx, deps: BillingPurchaseDeps, p: Trans
     isOverdue: p.reviewStatus === "pending" && p.dueAt !== null && now > p.dueAt,
     hints: [
       calendarDate(p.uploadedAt) === calendarDate(now) ? "uploaded_today" : "uploaded_earlier",
+      ...(p.firstConfirm !== null ? ["in_review"] : []),
     ],
     reviewStatus: p.reviewStatus,
     reviewedAt: iso(p.reviewedAt),
@@ -305,10 +318,25 @@ export async function proofDetailView(
       orderBy: { uploadNo: "desc" },
     }),
     finance = await financeConfigAt(tx, deps.clock.now());
+  let review: z.infer<typeof TransferProofDetailSchema>["review"] = null;
+  if (p.reviewApprovalRequestId !== null) {
+    if (!deps.approval) throw new AppError("INTERNAL");
+    const detail = await deps.approval.get(tx, staff, p.reviewApprovalRequestId);
+    const role = detail.requester
+      ? await tx.staffRole.findUnique({ where: { key: detail.requester.roleKey } })
+      : null;
+    review = {
+      ...ApprovalDecisionViewSchema.parse(detail),
+      requestNo: detail.requestNo,
+      requesterRoleName: role ? `${role.name}${detail.requester?.isLead ? "主管" : ""}` : null,
+      confirmChecks: detail.confirmChecks,
+    };
+  }
+  const first = p.firstConfirm === null ? null : firstConfirmView.parse(p.firstConfirm);
   return TransferProofDetailSchema.parse({
     ...(await proofQueueView(tx, deps, p)),
     order: {
-      title: `${content.planName ?? "套餐"} · ${content.months ?? 1} 个月`,
+      title: title(content),
       formulaText: (await formulaView(tx, o))?.text ?? null,
       createdAt: iso(o.createdAt),
       expiresAt: iso(o.expiresAt),
@@ -326,8 +354,17 @@ export async function proofDetailView(
     fileMime: file.mime ?? file.declaredMime,
     ocr: { status: "unavailable", recognized: null, warnings: [] },
     checks: [],
-    firstConfirm: null,
-    review: null,
+    firstConfirm:
+      first && review
+        ? {
+            bankSerialRaw: first.bankSerialRaw,
+            payerBank: await dictRef(tx, "bank", first.payerBank),
+            receivedAmountFen: first.receivedAmountFen,
+            confirmedBy: review.requester,
+            confirmedAt: review.submittedAt,
+          }
+        : null,
+    review,
     rejectReason: await dictRef(tx, "reject_reason", p.rejectReasonCode),
     rejectNote: p.rejectNote,
     otherUploads: others.map((r) => ({
@@ -349,7 +386,17 @@ export async function proofDetailView(
               : []),
             ...(hasPermission(staff, "finance.receipt.reject") ? ["reject"] : []),
           ]
-        : [],
+        : p.reviewStatus === "pending" &&
+            o.status === "pending_confirmation" &&
+            o.transferState === "confirm_review" &&
+            review
+          ? [
+              ...(review.actions.includes("approve-review") && o.createdByStaffId !== staff.staff.id
+                ? ["approve-review"]
+                : []),
+              ...(review.actions.includes("reject-review") ? ["reject-review"] : []),
+            ]
+          : [],
   });
 }
 export function assertProofView(staff: StaffContext) {
@@ -430,7 +477,7 @@ export async function adminOrderView(
     entity: await entityRef(tx, o.entityId),
     store: store ? { storeId: store.id, name: store.name } : null,
     type: o.type,
-    title: `${content.planName ?? "套餐"} · ${content.months ?? 1} 个月`,
+    title: title(content),
     contentNote: o.fulfillmentNote,
     amountFen: o.amountFen,
     paidAmountFen: o.paidAmountFen,

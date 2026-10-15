@@ -2163,7 +2163,7 @@
 | 乐观锁 | 带复核审批单的 `lockVersion` |
 | 对应画板 | A:Receipts（复核中的凭证）；我的待审批 |
 
-**请求**：路径 `transferProofId`。请求体 `ApproveBody`，`confirmChecks` 必含 `bank_statement_checked`（复核人同样在银行流水里核对到账）。
+**请求**：路径 `transferProofId`。请求体 `ApproveBody`，另必填 `approvalId`（string(uuid)，本面板 `review.approvalId`）；`confirmChecks` 必含 `bank_statement_checked`（复核人同样在银行流水里核对到账）。锁内核 `approvalId` 与凭证当前复核单一致，审批类型/主体/轮次归属及审批单 `lockVersion` 一致；退回后重提的新复核单即使版本同为 0，旧面板也不能批准新轮。
 
 **响应**：`TransferProofDetail`（`reviewStatus = accepted`，`outcome = paid`）。
 
@@ -2185,7 +2185,7 @@
 | 乐观锁 | 不带（驳回的守卫没有列锁版本） |
 | 对应画板 | A:Receipts；我的待审批 |
 
-**请求**：路径 `transferProofId`。请求体 `RejectBody`：`note` 必填；`reasonCodes` 不传——字典 `reject_reason` 没有对公复核场景（14-config-data.md:124-131 只播种了 `transfer` 凭证驳回等 6 个场景），退回原因写在 `note` 里；14 分组若补场景再启用。
+**请求**：路径 `transferProofId`。请求体 `RejectBody`，另必填 `approvalId`（string(uuid)，本面板 `review.approvalId`）；锁内核当前凭证指针与该审批的类型/主体/轮次归属，旧面板不能退回新轮。`note` 必填；`reasonCodes` 不传——字典 `reject_reason` 没有对公复核场景（14-config-data.md:124-131 只播种了 `transfer` 凭证驳回等 6 个场景），退回原因写在 `note` 里；14 分组若补场景再启用。
 
 **响应**：`TransferProofDetail`（凭证仍 `pending`，`firstConfirm = null`）。
 
