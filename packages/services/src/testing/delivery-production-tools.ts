@@ -7,6 +7,7 @@ import type {
   MediaWorkspace,
   ProbeReport,
   ProductionMediaTools,
+  StorageProvider,
 } from "../providers/types.js";
 import { failed, ok } from "../providers/types.js";
 import type { FakeProviders, FakeStorage } from "./providers/index.js";
@@ -21,6 +22,7 @@ const jpeg = new Uint8Array([255, 216, 255, 217]);
 export function createDeliveryProductionTools(
   providers: Pick<FakeProviders, "storage" | "media">,
   sourceReport?: ProbeReport,
+  storage?: StorageProvider,
 ) {
   const paths = new Map<string, Video>(),
     objects = new Map<string, Omit<Video, "bytes">>();
@@ -138,7 +140,20 @@ export function createDeliveryProductionTools(
         return await action({
           path: (name) => `${prefix}${name}`,
           download: async (input) => {
-            const object = providers.storage.objects.get(`${input.bucket}/${input.key}`);
+            const remote = storage
+              ? await storage.readObject({
+                  bucket: input.bucket,
+                  key: input.key,
+                  maxBytes: input.size,
+                  ifMatchEtag: input.etag,
+                  signal,
+                })
+              : undefined;
+            const object = storage
+              ? remote?.ok
+                ? { body: remote.value, etag: input.etag }
+                : undefined
+              : providers.storage.objects.get(`${input.bucket}/${input.key}`);
             if (signal.aborted) return failed("unavailable", "canceled");
             if (!object || object.etag !== input.etag || object.body.length !== input.size)
               return failed("rejected", "source changed");
@@ -163,15 +178,32 @@ export function createDeliveryProductionTools(
               (input.expectedSha256 !== undefined && sha(output.bytes) !== input.expectedSha256)
             )
               return failed("rejected", "owned output mismatch");
-            const etag = providers.storage.put(
-              input.dst,
-              output.bytes,
+            const mime =
               input.name === "poster.jpg"
                 ? "image/jpeg"
                 : input.name === "watermark.png"
                   ? "image/png"
-                  : "video/mp4",
-            );
+                  : "video/mp4";
+            const saved = storage
+              ? await storage.putStream({
+                  ...input.dst,
+                  body: async function* (active) {
+                    active.throwIfAborted();
+                    for (let at = 0; at < output.bytes.length; at += 64 * 1024)
+                      yield output.bytes.subarray(at, at + 64 * 1024);
+                  },
+                  size: output.bytes.length,
+                  sha256: sha(output.bytes),
+                  contentType: mime,
+                  contentIdentity: input.contentIdentity,
+                  ifAbsent: true,
+                  signal,
+                })
+              : undefined;
+            if (storage && !saved?.ok) return failed("unavailable", "owned output storage failed");
+            const etag = saved?.ok
+              ? saved.value.etag
+              : providers.storage.put(input.dst, output.bytes, mime);
             objects.set(`${input.dst.bucket}/${input.dst.key}`, {
               label: output.label,
               width: output.width,
@@ -188,9 +220,41 @@ export function createDeliveryProductionTools(
   const transcode = providers.media.transcode;
   providers.media.transcode = async (input) => {
     assertNotInTransaction("delivery-test-cloud");
-    const source = providers.storage.objects.get(`${input.src.bucket}/${input.src.key}`);
+    const head = storage ? await storage.head({ ...input.src, signal: input.signal }) : undefined;
+    const read =
+      storage && head?.ok && head.value.exists && head.value.etag
+        ? await storage.readObject({
+            ...input.src,
+            maxBytes: head.value.size,
+            ifMatchEtag: head.value.etag,
+            signal: input.signal,
+          })
+        : undefined;
+    const source = storage
+      ? read?.ok
+        ? { body: read.value }
+        : undefined
+      : providers.storage.objects.get(`${input.src.bucket}/${input.src.key}`);
     if (!source) return failed("rejected", "missing source");
-    providers.storage.put(input.dst, source.body, "video/mp4");
+    if (storage) {
+      const copied = await storage.putStream({
+        ...input.dst,
+        body: async function* (active) {
+          active.throwIfAborted();
+          for (let at = 0; at < source.body.length; at += 64 * 1024)
+            yield source.body.subarray(at, at + 64 * 1024);
+        },
+        size: source.body.length,
+        sha256: sha(source.body),
+        contentIdentity: sha(
+          new TextEncoder().encode(JSON.stringify([input.src, input.dst, input.userData])),
+        ),
+        contentType: "video/mp4",
+        ifAbsent: true,
+        signal: input.signal ?? AbortSignal.timeout(30_000),
+      });
+      if (!copied.ok) return copied;
+    } else providers.storage.put(input.dst, source.body, "video/mp4");
     objects.set(`${input.dst.bucket}/${input.dst.key}`, {
       ...(objects.get(`${input.src.bucket}/${input.src.key}`) ?? { label: null }),
       width: 720,

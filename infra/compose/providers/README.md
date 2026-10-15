@@ -1,4 +1,4 @@
-# M3 预发节点的可选 Provider 配置
+# 预发节点的可选 Provider 与观测配置
 
 基础 `node.yml` 保持未配置降级。`node-step.sh` 只按 `LYX_NODE_PROVIDERS` 选中本目录的固定文件；不接受外部 Compose 路径，不把整个密钥目录挂进容器。此处只交付本地配置能力，未执行服务器部署或真实云请求。
 
@@ -10,7 +10,7 @@
 LYX_NODE_PROVIDERS=asr ocr
 ```
 
-可选名字为 `cos ci asr asr-callback ocr llm media-production`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
+可选名字为 `cos ci asr asr-callback ocr llm media-production client-errors alerts`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
 
 选择顺序是进程环境、节点 `node.env`、仓库 `stg.env`。进程环境显式为空会关闭本次调用的所有可选能力；永久启用必须写在节点 `node.env`，确保 systemd 重启时仍使用同一配置。删除某一名字后，后续重建容器不再挂载该组；修改配置本身不会重建已经运行的容器，需按现有发布步骤生效。
 
@@ -31,6 +31,8 @@ LYX_NODE_PROVIDERS=asr ocr
 | `ocr` | `ocr-tencent.json` → `OCR_TENCENT_FILE` | API |
 | `llm` | `llm-domestic.json` → `LLM_DOMESTIC_FILE` | API、worker |
 | `media-production` | `media-production.json` → `MEDIA_PRODUCTION_FILE` | API、worker |
+| `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
+| `alerts` | `alerts.json` → `ALERTS_FILE` | worker |
 
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
 
@@ -47,6 +49,16 @@ COS 的地域和四桶挂给 API/worker；CI 的地域和四桶只挂给 worker�
 文件内容沿用 [环境变量示例](../../../.env.example) 和 [配置解析器](../../../packages/services/src/kernel/env.ts) 的严格格式：角色密钥是独立 `secretId/secretKey` JSON；ASR 与 OCR 使用各自 JSON（OCR 另有 `region`）；国内模型提供 `text`、`vision` 两路的 `primary/backup`，不填写任意上游 URL。两种回调密钥应使用各自独立文件和密钥。
 
 `media-production.json` 的 `workDir` 必须对应挂载目录 `/work`，`socketPath` 为 `/work/.sock/mediatool.sock`，并包含完整 `aigc` 主体字段及六个 `templates` ID。主体信息与模板 ID 必须由实际平台和业务配置确认，不能把示例 ID 当作真实可用模板。媒体生产的云存储和云处理还需要分别准备 `cos`、`ci`。
+
+## 两组观测 FILE（W2-27b1）
+
+由获准运维在节点 `node.env` 选择 `LYX_NODE_PROVIDERS=client-errors alerts`，两个名字可分别启用，也可与原七组组合。默认空不挂这两份文件，不启动新的外呼能力；选中后文件必须存在并通过原 `check-secrets` 属性检查与 `check-env` 格式检查。文件内容只在既有进程里读取，不写进 Compose environment、命令参数或日志；API 不挂 alerts，worker 不挂 client-errors。
+
+`client-error-projects.json` 严格为 `projects` 数组，1–3项；每项只允许必填 `dsn` 与可选 `upstreamDsn`，均须合法 HTTPS DSN（公钥用户名、数字项目号，无密码/查询/片段），项目白名单不能重复。上游未填不代表已接通 SaaS；生产解析器不接受本机 HTTP 假地址。
+
+`alerts.json` 为不超过4KiB的严格JSON，只允许可选 `robotKey`、`oncallPhones`、`p2Immediate`。robotKey只能是既有格式的原始token，不是URL；值班号码至多16个且不重复，规则名字至多64个且不重复。省略p2Immediate沿现有首月默认白名单，显式空数组表示P2均非即时；规则是否已登记仍由既有worker装配核对。未给机器人key/值班人时相应通道仍未配置，不能把文件存在或格式通过当成接受/送达。
+
+本片只让已实现配置公口从节点文件抵达正确角色。假收件演练、源码映射上传、真实群/短信/SaaS接通与费用授权均未在本片执行；没有添加可改写生产机器人URL或放宽客户端DSN的配置。
 
 ## 启动前检查与真实验收边界
 

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { COMPARE_FIELDS } from "@liyoxi/contract";
-import type { M1Support, M1Scope, M1MediaScope } from "@liyoxi/services/testing";
+import type { M1Support, M1Scope, M1MediaScope, M1HttpObjectIO } from "@liyoxi/services/testing";
 import { activateM1Staff, bootstrapM1Admin } from "./m1-auth.js";
 import type { M1AuthenticatedStaff } from "./m1-auth.js";
 import { createM1Caller } from "./runner-api.js";
@@ -39,6 +39,15 @@ export interface M1ChainInput {
   readonly episodeCount?: number;
   readonly uploadConcurrency?: number;
   readonly seedDemo?: (admin: M1AuthenticatedStaff) => ReturnType<M1Support["seedDemo"]>;
+  /** 混跑两遍各自的真实身份输入；默认 M1 数据与步骤保持原样。 */
+  readonly merchantIdentity?: {
+    readonly loginCode: string;
+    readonly phoneCode: string;
+    readonly uscc: string;
+  };
+  readonly bootstrapAdmin?: (api: M1Api) => Promise<M1AuthenticatedStaff>;
+  readonly reviewerPhone?: string;
+  readonly externalIO?: M1HttpObjectIO;
   readonly qualificationDoc?: (
     context: M1ChainContext & {
       readonly qualificationDocId: string;
@@ -95,6 +104,10 @@ export async function runM1Chain({
   episodeCount = 20,
   uploadConcurrency = 4,
   seedDemo,
+  merchantIdentity,
+  bootstrapAdmin = bootstrapM1Admin,
+  reviewerPhone = "19900000002",
+  externalIO,
   qualificationDoc,
   beforeOrder,
   beforeEpisodes,
@@ -118,7 +131,7 @@ export async function runM1Chain({
     return value;
   }
   const actors = await step("后台真实引导、激活、登录与二次验证", async () => {
-    const admin = await bootstrapM1Admin(api);
+    const admin = await bootstrapAdmin(api);
     const seeded = await (seedDemo ? seedDemo(admin) : support.seedDemo());
     // staff.I6 requires an active lead in every nonempty group, including the bootstrap group.
     const members = (await call("admin.staff.list", admin.headers, { query: { limit: 100 } }))
@@ -143,7 +156,7 @@ export async function runM1Chain({
     const manager = seeded.staff.find((s) => s.key === "delivery_manager");
     assert.ok(manager?.activation, "干净演示库必须产出交付经理激活码");
     const reviewer = await activateM1Staff(api, {
-      phone: "19900000002",
+      phone: reviewerPhone,
       staffId: manager.staffId,
       activationCode: manager.activation.code,
     });
@@ -162,10 +175,12 @@ export async function runM1Chain({
         agreementVersionId: a.currentVersion!.agreementVersionId,
       }));
     assert.equal(consents.length, 2);
-    const loginCode = `m1-login-${support.runId}`,
-      phoneCode = `m1-phone-${support.runId}`;
-    support.providers.wechat.sessions.set(loginCode, { openid: `oM1_${support.runId}` });
-    support.providers.wechat.phones.set(phoneCode, "13700000121");
+    const loginCode = merchantIdentity?.loginCode ?? `m1-login-${support.runId}`,
+      phoneCode = merchantIdentity?.phoneCode ?? `m1-phone-${support.runId}`;
+    if (!merchantIdentity) {
+      support.providers.wechat.sessions.set(loginCode, { openid: `oM1_${support.runId}` });
+      support.providers.wechat.phones.set(phoneCode, "13700000121");
+    }
     const login = await call(
       "m.session.phoneLogin",
       {},
@@ -188,14 +203,14 @@ export async function runM1Chain({
   });
   const headers = owner.headers;
   const context: M1ChainContext = { api, support, ...actors, owner };
-  function upload(
+  async function upload(
     registration: Pick<M1Result<"admin.file.create">, "mode" | "post" | "key" | "expiresAt">,
     bytes: Uint8Array,
   ) {
     assert.equal(registration.mode, "post");
     assert.ok(registration.post, "本轮实际存储必须签发直传表单");
     assert.equal(
-      support.providers.storage.upload(
+      await (externalIO?.upload ?? support.providers.storage.upload)(
         {
           ...registration.post,
           key: registration.key,
@@ -204,7 +219,7 @@ export async function runM1Chain({
         bytes,
       ),
       204,
-      "实际替身表单直传必须成功",
+      "实际表单直传必须成功",
     );
   }
   async function merchantFile(
@@ -225,7 +240,7 @@ export async function runM1Chain({
     });
     const file = registrations.items[0];
     assert.ok(file);
-    upload(file, image);
+    await upload(file, image);
     await call("m.file.complete", headers, { body: {}, params: { fileId: file.fileId } });
     await support.promote(file.fileId);
     assert.equal(
@@ -299,7 +314,7 @@ export async function runM1Chain({
         lockVersion: doc.lockVersion,
         fields: {
           name: "M1演示经营主体",
-          uscc: fakeUscc(),
+          uscc: merchantIdentity?.uscc ?? fakeUscc(),
           principal: "演示负责人",
           principalRole: "legal_rep",
           subjectType: "enterprise",
@@ -485,9 +500,11 @@ export async function runM1Chain({
       assert.equal(held.holds.filter((h) => h.status === "held").length, 1);
       assert.equal(held.wallet?.heldTotalQty, quote.totalChargePoints);
       const timer = await support.orderTimer(scope);
-      support.clock.set(
-        new Date(Math.max(support.clock.now().getTime(), timer.fireAt.getTime()) + 1),
+      const afterFire = new Date(
+        Math.max(support.clock.now().getTime(), timer.fireAt.getTime()) + 1,
       );
+      if (api.waitUntil) await api.waitUntil(afterFire);
+      else support.clock.set(afterFire);
       const fired = await support.runDueTimer(scope, timer.timerId);
       assert.equal(fired.outcome, "fired");
       assert.ok(fired.dispatchNo > 0);
@@ -565,7 +582,7 @@ export async function runM1Chain({
         },
       },
     });
-    upload(file, support.productionVideo.bytes);
+    await upload(file, support.productionVideo.bytes);
     await call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
     if (finish) await finishProduction(file.fileId, category, episodeNo);
     return file.fileId;
@@ -614,7 +631,9 @@ export async function runM1Chain({
     });
     await call("admin.sample.push", admin, { params: sampleParams, body: {} });
     const signed = await call("m.sample.downloadUrls", headers, { params: sampleParams, body: {} });
-    const actual = support.providers.storage.fetch(signed.url);
+    const actual = externalIO
+      ? await externalIO.readSigned(signed.url)
+      : support.providers.storage.fetch(signed.url);
     assert.equal(actual.status, 200);
     if (actual.status !== 200) throw new Error("实际样片签名不能读取");
     assert.deepEqual(actual.body, support.productionVideo.bytes);
@@ -705,7 +724,9 @@ export async function runM1Chain({
         params: { orderItemId: scope.orderItemId },
         body: { kind: "episode", episodeNo },
       });
-      const fetched = support.providers.storage.fetch(download.url);
+      const fetched = externalIO
+        ? await externalIO.readSigned(download.url)
+        : support.providers.storage.fetch(download.url);
       assert.equal(fetched.status, 200);
       if (fetched.status !== 200) throw new Error("实际成片签名不能读取");
       assert.deepEqual(fetched.body, support.productionVideo.bytes);

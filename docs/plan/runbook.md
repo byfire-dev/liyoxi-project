@@ -38,6 +38,8 @@ M3 本机接口重放使用 [演示手册](demo/m3.md) 的 `pnpm demo:m3` / `pnp
 
 E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪些规则即时通知见 D7 第 9.3 节。
 
+W2-27b1已提供可选节点配置入口，真实接通未验。获准运维在node.env选择`client-errors alerts`（可分别启闭）；前者只向API挂client-error-projects.json/CLIENT_ERROR_PROJECTS_FILE，后者只向worker挂alerts.json/ALERTS_FILE，check-env聚合做格式检查，默认空保持未配。先按既有check-secrets核文件属性，再跑node-step.sh check-env；通过不等于群/SMS/SaaS已受理或送达。配置形状与重建生效/关闭方式见[两组观测FILE](../../infra/compose/providers/README.md#两组观测-filew2-27b1)。机器人仅原始key，生产host/path固定；客户端DSN仅HTTPS，不能为本机假收件放宽。值班人与接收群仍须E18确认，当前不填虚构接收人。
+
 ### 2.1.1 按请求编号查日志与 gateway 统计
 
 以下只读命令由业主在已部署节点执行，或在业主逐步授权后经既有受限 SSH 调用；本地验证不会连接真实节点。
@@ -207,7 +209,7 @@ argv；stderr不持久化。输入pg_dump不落盘，经age公钥流加密后上
 | 5.2 | 数据库按时间点恢复：克隆新实例、核对、切换 | 待填 | 待填（实测值记 platform-config.md 第 2.5 节） | 全量不变量校验（D7 第 9.6 节） | 待填 |
 | 5.3 | 从异地逻辑备份恢复：取离线私钥、解密、导入空实例 | 见第5.3.1节 | 待真实演练量取 | `prisma migrate status` 与全量不变量校验 | 已填步骤；未演练 |
 | 5.4 | 按时间点恢复后的单号流水处理 | 待填（D2 第 9.5 节的手册） | 待填 | 待填 | 待填 |
-| 5.5 | Redis 清空后的自愈 | 预发：认准容器名 `lyx-redis`（同机留着参考工程已停的 Redis 容器，不要碰）。清空用容器里的 `redis-cli`，口令在只挂给它的 `/run/secrets/redis-auth.conf`；清空后不用重启，队列、限流、缓存由 worker 与 api 按 PostgreSQL 重建（D7 第 7.3 节）。连数据卷一起重来：`systemctl stop lyx-redis` → `docker rm lyx-redis` → `docker volume rm lyx-node-redisdata` → `systemctl start lyx-redis` | 待填（演练时量） | `node-step.sh status` 通过；自愈的判据见外部验证 `d6-09-redis-flush-self-heal.md` | 已填（预发的操作；自愈本身未演练） |
+| 5.5 | Redis 清空后的自愈 | 仅在获准演练窗口，将本节点非敏感配置中的 `LYX_REDIS_FLUSH_ENABLED=true`、`STG_FREEZE=false` 明确写好，执行 `node-step.sh redis-flush <本节点Compose项目>`；默认项目是 `liyoxi-node`，须与实际配置相符。脚本核项目、node.yml配置标签与容器ID后仅清DB0，不按同名 `lyx-redis` 盲清，不删卷、不重启worker。结束立即恢复开关false。共享开发Redis禁止使用此入口 | 本机自有六容器8.875秒；真实预发待量 | 同PID和同主租约心跳前进，指定已提交事件的非空实际投递全部完成，指定到点timer真实fired；详见外部验证 `d6-09-redis-flush-self-heal.md` | 本机已演练（2026-10-15）；真实预发未演练 |
 | 5.6 | 发布回滚 | 经任务书第 8 节授权后：`node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --rollback --summary rollback.json`；目标缺省上一成功版，可指定 `--tag`。先 api/gateway 后 worker，不迁移、不补种、不重新预置资源；目标镜像须已在本地。跨过任一“回滚不安全”记录即拒绝，只有 `--force --reason <说明>` 越过并记录。也可在 main 手动触发默认关闭的 .github/workflows/rollback-stg.yml，须 STG_DEPLOY_ENABLED=true 且 execute=true；与发布共用deploy-stg串行锁，保存回滚/持续探测摘要，仍须任务书第8节逐步授权 | 待实跑量 | JSON 摘要 exitCode=0、节点 releases.log 有成功记录、smoke 的真实版本与目标一致；b1用成对 --probe-config / --probe-summary 保存持续探测，全资源与DB核对失败非0 | 已填执行方法；预发未演练 |
 | 5.7 | 节点与桶重建 | 独占机器的节点重建：照 `infra/bootstrap/README.md` 从第 1 步重走，脚本都可以重复执行；当前预发节点还挂着公司官网，按 ADR-041 不重建节点；数据卷 `lyx-node-pgdata` 还在则库不丢，密钥目录还在则不用重新生成。桶：待填（W2-25 的第二步交桶配置脚本）。D7 第 10.6 节第 18 项 | 待填 | 重建后的预发通过冒烟；桶配置无差异 | 待填 |
 

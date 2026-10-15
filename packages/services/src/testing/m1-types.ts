@@ -9,6 +9,27 @@ import type { M1_PROFILE_DEFAULTS } from "./m1-profile-defaults.js";
 import type { M1StateIds, readM1State } from "./m1-state.js";
 import type { Redis } from "ioredis";
 import type { ModelBudgetTransport } from "../media/index.js";
+import type { createMinioStorage, PresignedPost } from "../providers/index.js";
+
+export interface M1HttpObjectIO {
+  upload(post: PresignedPost, bytes: Uint8Array): Promise<number>;
+  readSigned(url: string): Promise<ReturnType<FakeProviders["storage"]["fetch"]>>;
+}
+
+/** 只由原资源拥有者在内存/0600任务文件中交给本轮镜像；不得进入公开报告。 */
+export interface M1SharedScope {
+  readonly runId: string;
+  readonly databaseName: string;
+  readonly redisPrefix: string;
+  readonly ownerToken: string;
+  readonly startedAt: string;
+}
+export interface M1Attachment {
+  readonly scope: M1SharedScope;
+  readonly chainId: string;
+  readonly version: string;
+  readonly storage: NonNullable<Parameters<typeof createMinioStorage>[0]>;
+}
 
 export interface M1OrderScope {
   readonly entityId: string;
@@ -34,6 +55,8 @@ export interface M1Support {
   readonly runtime: Runtime;
   readonly clock: AdjustableClock;
   readonly providers: FakeProviders;
+  /** 仅受保护 attach 装配；真实对象 IO 与对应版本 worker 共用同一 MinIO 客户端。 */
+  readonly httpIO?: M1HttpObjectIO;
   readonly profileDefaults: typeof M1_PROFILE_DEFAULTS;
   readonly video: {
     readonly bytes: Uint8Array;
@@ -65,8 +88,13 @@ export interface M1Support {
   finishProduction(fileId: string, scope: M1MediaScope): Promise<void>;
   fullInvariants(): Promise<InvariantRunResult>;
   close(): Promise<void>;
+  /** 只导出本轮随机库能力；attach实例关闭只关连接，资源仍由原拥有者清理。 */
+  sharedScope(): M1SharedScope;
 }
 export interface M1SupportOptions {
+  readonly attach?: M1Attachment;
+  /** HTTP 桥自有生命周期；默认 M1 不注入。 */
+  readonly signal?: AbortSignal;
   /** 本轮随机 1–12 位小写字母数字；缺省随机生成，不复用别人的库/Redis 前缀。 */
   readonly runId?: string;
   readonly clock?: AdjustableClock;

@@ -20,6 +20,13 @@ x-logging: &logging
     max-size: 20m
     max-file: "5"
 
+# 六个常驻容器：3×20m×5 + 3×10m×3 = 390MiB（不含一次性工具容器）。
+x-small-logging: &small-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 services:
   # 主版本与 server 镜像里的 pg_dump 对齐；镜像与 infra/compose/local.yml 同一个（stg.env）。
   # 以镜像自带的 postgres 用户（999）起，不经 root：超级用户的口令文件属主也是它。
@@ -52,7 +59,7 @@ services:
     oom_score_adj: -500
     stop_grace_period: 60s
     restart: "no"
-    logging: *logging
+    logging: *small-logging
 
   # 队列、限流、缓存同用。写满即报错而不是淘汰；开 AOF；清空后由 PostgreSQL 自愈。口令在只挂给它的那一个文件里。
   redis:
@@ -87,7 +94,7 @@ services:
     mem_limit: 96m
     stop_grace_period: 60s
     restart: "no"
-    logging: *logging
+    logging: *small-logging
 
   # 约束照抄 infra/docker/mediatool/compose.verify.yml（README 第 3 节），一条不少；不带环境变量，不挂任何密钥。
   # 与它不同的只有内存：这台机器给不出 1GB，上限 256MB，超出的靠交换区，内存加交换合计 1GB（ADR-041 第 4.2 节）。
@@ -112,7 +119,7 @@ services:
     oom_score_adj: 500
     stop_grace_period: 60s
     restart: "no"
-    logging: *logging
+    logging: *small-logging
 
   api:
     image: ${LYX_IMAGE_PREFIX:-}liyoxi/server:${LYX_TAG:?}

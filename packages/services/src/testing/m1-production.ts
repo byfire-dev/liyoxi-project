@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createIdempotencyContext } from "../kernel/index.js";
 import { loadCliStaffContext } from "../staff/index.js";
 import type { ContentDemoDeps } from "../content/index.js";
-import type { ProbeReport } from "../providers/types.js";
+import type { ProbeReport, StorageProvider, PresignedPost } from "../providers/types.js";
 import type { Runtime } from "../runtime.js";
 import type { FakeProviders } from "./providers/index.js";
 import type { AdjustableClock } from "./clock.js";
@@ -39,11 +39,18 @@ export function createM1ProductionMasterPreparer(
   runtime: Runtime,
   providers: FakeProviders,
   video: M1Support["video"],
-  otherDemoMasters: NonNullable<ContentDemoDeps["prepareMasters"]>,
+  otherDemoMasters: ContentDemoDeps["prepareMasters"],
+  external?: {
+    readonly storage: StorageProvider;
+    upload(post: PresignedPost, bytes: Uint8Array): Promise<number>;
+  },
 ): NonNullable<ContentDemoDeps["prepareMasters"]> {
   return async (target) => {
     // The original M1 order explicitly selects the 20-episode demo. Other seed fixtures remain models.
-    if (target.totalEpisodes !== 20) return otherDemoMasters(target);
+    if (target.totalEpisodes !== 20 && !external) {
+      if (!otherDemoMasters) throw new Error("M1 其他演示原片缺实际准备器");
+      return otherDemoMasters(target);
+    }
     const staff = await runtime.tx.run((tx) => loadCliStaffContext(tx, target.staffId));
     const actor = {
       identity: target.identity,
@@ -82,14 +89,17 @@ export function createM1ProductionMasterPreparer(
     for (const item of batch.items) {
       if (!item.uploadKey || !item.uploadKey.startsWith(batch.prefix))
         throw new Error("M1 原片上传目标不属于本批次");
-      const signed = await providers.storage.presignPost({
+      const signed = await (external?.storage ?? providers.storage).presignPost({
         bucket: "media",
         key: item.uploadKey,
         mime: "video/mp4",
         maxBytes: video.sizeBytes,
         expiresSec: 600,
       });
-      if (!signed.ok || providers.storage.upload(signed.value, video.bytes) !== 204)
+      if (
+        !signed.ok ||
+        (await (external?.upload ?? providers.storage.upload)(signed.value, video.bytes)) !== 204
+      )
         throw new Error("M1 原片固定字节未被对象替身接受");
       await runtime.media.uploadBatches.complete(actor, item.uploadBatchItemId, {});
     }
@@ -130,6 +140,7 @@ export async function finishM1Production(
   fileId: string,
   scope: M1MediaScope,
   drain: () => Promise<unknown>,
+  external?: { readonly storage: StorageProvider; waitUntil(at: Date): Promise<void> },
 ) {
   const file = await runtime.tx.run(async (tx) => {
     const file = await tx.fileObject.findUniqueOrThrow({ where: { id: fileId } });
@@ -151,7 +162,22 @@ export async function finishM1Production(
       throw new Error("M1 制作任务不属于本轮交付范围");
     return file;
   });
-  const object = providers.storage.objects.get(`${file.bucket}/${file.objectKey}`);
+  const bucket = file.bucket;
+  if (bucket !== "secure" && bucket !== "asset" && bucket !== "media" && bucket !== "pub")
+    throw new Error("M1 制作输入桶不合法");
+  const read = external
+    ? await external.storage.readObject({
+        bucket,
+        key: file.objectKey,
+        maxBytes: video.sizeBytes,
+        ...(file.etag ? { ifMatchEtag: file.etag } : {}),
+      })
+    : undefined;
+  const object = external
+    ? read?.ok
+      ? { body: read.value }
+      : undefined
+    : providers.storage.objects.get(`${file.bucket}/${file.objectKey}`);
   if (!object || object.body.length !== video.sizeBytes || sha(object.body) !== video.sha256)
     throw new Error("M1 制作输入字节不匹配");
   const jobId = await runtime.tx.run((tx) => runtime.media.enqueueProbe(tx, fileId));
@@ -164,7 +190,12 @@ export async function finishM1Production(
       }),
     );
     await runtime.media.jobs.run({ jobId: watermark.id });
-    clock.advance(5000); // The existing remote job's public five-second poll becomes due.
+    if (external) {
+      const submitted = await runtime.tx.run((tx) =>
+        tx.mediaJob.findUniqueOrThrow({ where: { id: watermark.id } }),
+      );
+      await external.waitUntil(submitted.nextRunAt);
+    } else clock.advance(5000); // The existing remote job's public five-second poll becomes due.
     await runtime.media.jobs.run({ jobId: watermark.id });
     await drain();
   }

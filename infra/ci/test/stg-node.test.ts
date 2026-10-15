@@ -542,13 +542,32 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
           { file: "media-production.json", env: "MEDIA_PRODUCTION_FILE", services: allRoles },
         ],
       },
+      // W2-27 后继接线可分别交付；出现即完整核对固定 FILE、角色和 overlay，不接受任意新增项。
+      ...[
+        {
+          id: "client-errors",
+          secrets: [
+            {
+              file: "client-error-projects.json",
+              env: "CLIENT_ERROR_PROJECTS_FILE",
+              services: "api check-env",
+            },
+          ],
+        },
+        {
+          id: "alerts",
+          secrets: [{ file: "alerts.json", env: "ALERTS_FILE", services: "worker check-env" }],
+        },
+      ].filter((group) =>
+        group.secrets.some((one) => manifest.some((entry) => entry.file === one.file)),
+      ),
     ];
     const optionalSecrets = groups.flatMap((group) => group.secrets);
     function optionalFile(dir: string, file: string) {
       writeFileSync(join(dir, file), "fixture-only-not-a-real-secret\n", { mode: 0o400 });
     }
 
-    it("七组 overlay 与可选清单精确对应，API/worker 密钥角色隔离，check-env 仅聚合格式", () => {
+    it("固定组 overlay 与可选清单精确对应，API/worker 密钥角色隔离，check-env 仅聚合格式", () => {
       expect(
         manifest
           .filter((one) => !one.required)

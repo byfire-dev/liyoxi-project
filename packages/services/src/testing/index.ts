@@ -54,6 +54,12 @@ export * from "./order.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。
 export { createM1Support } from "./m1-support.js";
+export {
+  assertM1SharedScope,
+  createM1HttpStorage,
+  createM1RealClock,
+  waitM1Due,
+} from "./m1-shared.js";
 export { createM2Support } from "./m2-chain.js";
 export type { M2Support, M2FactScope } from "./m2-chain.js";
 export { createP95Fixture } from "./p95-fixture.js";
@@ -67,6 +73,9 @@ export type {
   M1Scope,
   M1MediaScope,
   M1StateIds,
+  M1SharedScope,
+  M1Attachment,
+  M1HttpObjectIO,
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
