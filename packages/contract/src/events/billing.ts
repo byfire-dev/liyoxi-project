@@ -234,6 +234,13 @@ export const payloads = {
   "pricing.drama_price_changed": dramaPriceChangedPayload,
   "billing_order.created": billingOrderCreatedPayload,
   "transfer.proof_submitted": transferProofSubmittedPayload,
+  "transfer.sla_breached": z.strictObject({
+    v: z.literal(1),
+    transferProofId: IdSchema,
+    billingOrderId: IdSchema,
+    entityId: IdSchema,
+    dueAt: InstantSchema,
+  }),
   "transfer.rejected": transferRejectedPayload,
   "billing.points.granted": pointsGrantedPayload,
   "billing.points.purchased": pointsPurchasedPayload,
