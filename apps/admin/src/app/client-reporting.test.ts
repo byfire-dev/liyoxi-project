@@ -44,6 +44,64 @@ function setup(overrides: Partial<AdminClientReportingOptions> = {}) {
 }
 const eventOf = (raw: string) => JSON.parse(raw.split("\n")[2]!);
 
+it("W227帧：后台实际信封绑定build/admin与同源完整资产路径，原去敏及发送限制保持", async () => {
+  const origin = "https://admin.example.invalid",
+    build = "sha-0123456789ab";
+  const { reporter, sender } = setup({ origin, build });
+  const error = new Error("联系 13800138000");
+  error.stack = [
+    "Error: fixture",
+    `at fail (${origin}/assets/index-Ab12_cd3.js:5:8)`,
+    `boot@${origin}/assets/index-Ab12_cd3.js:1:2`,
+    `at foreign (https://elsewhere.invalid/assets/index-Ab12_cd3.js:2:2)`,
+    `at credential (https://user:pass@admin.example.invalid/assets/index-Ab12_cd3.js:3:3)`,
+    `at query (${origin}/assets/index-Ab12_cd3.js?token=raw-secret:4:4)`,
+    `at phone (${origin}/assets/13800138000-Ab12_cd3.js:1:1)`,
+    `at token (${origin}/assets/lyxm_fictional-Ab12_cd3.js:1:1)`,
+  ].join("\n");
+  reporter.capture(error);
+  reporter.capture(error);
+  expect(sender).toHaveBeenCalledTimes(1);
+  const raw = sender.mock.calls[0]![0],
+    event = eventOf(raw);
+  expect(event).toMatchObject({ release: build, dist: "admin" });
+  expect(event.exception.values[0].stacktrace.frames).toEqual([
+    {
+      filename: "assets/index-Ab12_cd3.js",
+      abs_path: "app:///admin/assets/index-Ab12_cd3.js",
+      lineno: 1,
+      colno: 2,
+      in_app: true,
+    },
+    {
+      filename: "assets/index-Ab12_cd3.js",
+      abs_path: "app:///admin/assets/index-Ab12_cd3.js",
+      lineno: 5,
+      colno: 8,
+      in_app: true,
+    },
+  ]);
+  expect(raw).not.toMatch(/13800138000|user:pass|raw-secret/);
+  expect(event.exception.values[0].stack).toContain("elsewhere.invalid");
+  await flush();
+  const unknown = new Error("unknown frame");
+  unknown.stack = "at /srv/server.js:3:7";
+  reporter.capture(unknown);
+  expect(eventOf(sender.mock.calls[1]![0]).exception.values[0]).toMatchObject({
+    stack: unknown.stack,
+  });
+  expect(eventOf(sender.mock.calls[1]![0]).exception.values[0].stacktrace).toBeUndefined();
+  await flush();
+  for (let index = 0; index < 9; index += 1) {
+    reporter.capture(`bounded-${index}`);
+    await flush();
+  }
+  expect(sender).toHaveBeenCalledTimes(10);
+  const off = setup({ dsn: "", origin });
+  off.reporter.capture(error);
+  expect(off.sender).not.toHaveBeenCalled();
+});
+
 describe("后台轻量信封：真实中央请求路径与安全边界", () => {
   it("production helper经generated typedPOST发送raw envelope，保留中央请求头/cookie/202", async () => {
     const requests: Request[] = [];

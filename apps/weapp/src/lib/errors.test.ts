@@ -24,6 +24,58 @@ function setup(options: { dsn?: string; wired?: boolean; userId?: string | null 
   return { reporter, send, state };
 }
 
+it("W227帧：小程序实际信封保release/weapp和分包完整路径，未知帧不冒认且开关限量保持", () => {
+  const env = setup();
+  const error = new Error("联系 13912345678");
+  error.stack = [
+    "Error: fixture",
+    "at fail (app.js:5:8)",
+    "page@/appservice/__APP__/pages/mall/index.js:2:7",
+    "at sub/profile/review/index.js:1:1",
+    "at https://elsewhere.invalid/app.js:3:4",
+    "at app.js?token=lyxm_fictional:4:5",
+    "at pages/13800138000/index.js:1:1",
+    "at sub/91430100MA4L1ABC2X/review/index.js:1:1",
+    "at sub/lyxm_fictional/review/index.js:1:1",
+  ].join("\n");
+  env.reporter.capture("handler", error);
+  env.reporter.capture("handler", error);
+  expect(env.send).toHaveBeenCalledTimes(1);
+  const raw = env.send.mock.calls[0]![0],
+    event = JSON.parse(raw.split("\n")[2]!);
+  expect(event).toMatchObject({ release: "1.2.3", dist: "weapp" });
+  expect(event.exception.values[0].stacktrace.frames).toEqual([
+    {
+      filename: "sub/profile/review/index.js",
+      abs_path: "app:///weapp/sub/profile/review/index.js",
+      lineno: 1,
+      colno: 1,
+      in_app: true,
+    },
+    {
+      filename: "pages/mall/index.js",
+      abs_path: "app:///weapp/pages/mall/index.js",
+      lineno: 2,
+      colno: 7,
+      in_app: true,
+    },
+    { filename: "app.js", abs_path: "app:///weapp/app.js", lineno: 5, colno: 8, in_app: true },
+  ]);
+  expect(raw).not.toMatch(/13912345678|13800138000|91430100MA4L1ABC2X|lyxm_fictional/);
+  const unknown = new Error("unknown frame");
+  unknown.stack = "at /srv/server.js:2:3";
+  env.reporter.capture("handler", unknown);
+  const unmapped = JSON.parse(env.send.mock.calls[1]![0].split("\n")[2]!).exception.values[0];
+  expect(unmapped.stack).toBe(unknown.stack);
+  expect(unmapped.stacktrace).toBeUndefined();
+  for (let index = 0; index < 12; index += 1) env.reporter.capture("handler", `bounded-${index}`);
+  expect(env.send).toHaveBeenCalledTimes(ERROR_REPORTS_PER_MINUTE);
+  for (const off of [setup({ dsn: "" }), setup({ wired: false })]) {
+    off.reporter.capture("handler", error);
+    expect(off.send).not.toHaveBeenCalled();
+  }
+});
+
 describe("发不发", () => {
   it("上报函数没接上、或没配 DSN：不发请求", () => {
     const unwired = setup({ wired: false });

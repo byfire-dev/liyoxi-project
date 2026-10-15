@@ -47,6 +47,75 @@ afterEach(async () => {
 });
 
 describe("错误信封：有界解析、固定白名单与二次去敏", () => {
+  it("W227帧：转发只留规范组件路径及正坐标，旧无dist仅诊断文件名，PII与debug_meta仍丢弃", async () => {
+    const { instance, send } = setup();
+    const canonical = {
+      filename: "sub/profile/review/index.js",
+      abs_path: "app:///weapp/sub/profile/review/index.js",
+      lineno: 2,
+      colno: 9,
+      in_app: true,
+    };
+    const frames = [
+      {
+        ...canonical,
+        function: "private function",
+        vars: { token: "raw-secret" },
+        pre_context: ["private source"],
+      },
+      { ...canonical, abs_path: "https://elsewhere.invalid/app.js" },
+      { ...canonical, colno: 0 },
+      { ...canonical, filename: "../app.js" },
+      { filename: "app.js", lineno: 3, colno: 4, in_app: true },
+    ];
+    instance.accept(
+      envelope({
+        ...EVENT,
+        release: "sha-0123456789ab",
+        dist: "weapp",
+        debug_meta: { images: [{ debug_id: "private-debug" }] },
+        exception: { values: [{ type: "Error", value: "13800138000", stacktrace: { frames } }] },
+      }),
+    );
+    instance.accept(
+      envelope({
+        ...EVENT,
+        exception: {
+          values: [
+            {
+              stacktrace: {
+                frames: [
+                  { filename: "app.js", vars: { token: "raw-secret" }, lineno: 7, in_app: true },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    );
+    instance.accept(
+      envelope({
+        ...EVENT,
+        dist: "unknown",
+        exception: {
+          values: [{ stack: "unknown diagnostic", stacktrace: { frames: [canonical] } }],
+        },
+      }),
+    );
+    await instance.drain();
+    expect(send).toHaveBeenCalledTimes(3);
+    const sent = send.mock.calls.map((call) => JSON.parse(String(call[1]!.body).split("\n")[2]!));
+    expect(sent[0]).toMatchObject({ release: "sha-0123456789ab", dist: "weapp" });
+    expect(sent[0].exception.values[0].stacktrace.frames).toEqual([canonical]);
+    expect(sent[1].exception.values[0].stacktrace.frames).toEqual([{ filename: "app.js" }]);
+    expect(sent[2].exception.values[0]).toEqual({ stack: "unknown diagnostic" });
+    for (const call of send.mock.calls)
+      expect(String(call[1]!.body)).not.toMatch(
+        /raw-secret|private source|private function|private-debug|13800138000|debug_meta/,
+      );
+    expect(instance.snapshot()).toMatchObject({ forwarded: 3, failed: 0 });
+  });
+
   it("受理不等待 fetch；固定 FILE 上游、禁止重定向，输出长度是真正 UTF-8 字节数", async () => {
     let finish!: (response: Response) => void;
     const send = vi.fn<typeof fetch>().mockImplementation(
