@@ -16,8 +16,8 @@ LYX_SOURCE_MAPS_DIR="$(node infra/deploy/source-maps.mjs init "${TMPDIR:-/tmp}")
 MAPS_DIR="$LYX_SOURCE_MAPS_DIR"
 export SOURCE TAG REPOSITORY_URL LYX_SOURCE_MAPS_DIR MAPS_DIR
 trap 'node infra/deploy/source-maps.mjs cleanup "$LYX_SOURCE_MAPS_DIR"' EXIT
-docker buildx bake -f infra/docker/source-maps.hcl --progress plain server-bundle
-docker buildx bake -f infra/docker/source-maps.hcl --progress plain gateway-bundle
+docker buildx bake --allow="fs.write=$LYX_SOURCE_MAPS_DIR" -f infra/docker/source-maps.hcl --progress plain server-bundle
+docker buildx bake --allow="fs.write=$LYX_SOURCE_MAPS_DIR" -f infra/docker/source-maps.hcl --progress plain gateway-bundle
 WEAPP_VERSION="$TAG" pnpm weapp:build
 docker image inspect "liyoxi/server:$TAG" "liyoxi/gateway:$TAG" > "$LYX_SOURCE_MAPS_DIR/images.json"
 node infra/deploy/source-maps.mjs finalize "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
@@ -30,7 +30,7 @@ node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
 
 ## 校验与失败边界
 
-固定组件、入口与路径由助手限定，不接受任意源目录或component。拒绝符号链接、路径穿越、缺map、非v3 map、非配对/内联引用、空文件及超限；单文件64MiB、每组件512MiB、最多4096文件。编译产物需位于私有输出目录之外；公开目录只在全部配对通过后开始替换/去除map，分离失败则构建失败，不继续发布。
+固定组件、入口与路径由助手限定，不接受任意源目录或component。拒绝符号链接、路径穿越、缺map、非v3 map、非配对/内联引用、空文件及超限；单文件64MiB、每组件512MiB、最多4096文件。Taro会删除未使用的SDK custom-wrapper.js却遗留其map，小程序post generateBundle只在该JS不存在时删除同名孤立map；其他未配对仍拒绝。编译产物需位于私有输出目录之外；公开目录只在全部配对通过后开始替换/去除map，分离失败则构建失败，不继续发布。buildx只授予init创建且核对所有权的本轮绝对目录写权限，不使用通配或关闭全局检查。
 
 manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本地image ID及OCI revision，记录五组件每对JS/map的大小与SHA256。`verify`重读调用方本次docker inspect保存的images.json收据并核全部文件，不只相信manifest；它不自行调用Docker重新查询镜像。目录0700、私有文件0600，输出仅固定摘要，失败仅固定错误。备份/上传归档不进入原公开images-out artifact。
 

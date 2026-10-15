@@ -192,6 +192,10 @@ it("固定bake双target同build输入，分离在finalCOPY/体积前且finally�
     weapp.search(/const result = spawnSync\(\s*process\.execPath/),
   );
   expect(weapp).toContain("finally {\n    if (owned) await cleanup(privateRoot);");
+  const mini = read("apps/weapp/config/index.ts");
+  expect(mini).toContain('order: "post"');
+  expect(mini).toContain('if (!Object.hasOwn(bundle, "custom-wrapper.js"))');
+  expect(mini).toContain('delete bundle["custom-wrapper.js.map"]');
   expect(read("apps/api/scripts/build.mjs")).toContain('sourcemap: "external"');
   expect(read("apps/worker/scripts/build.mjs")).toContain('sourcemap: "external"');
   for (const app of ["admin", "portal"])
