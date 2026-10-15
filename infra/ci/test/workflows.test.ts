@@ -99,7 +99,7 @@ function jobBody(workflow: string, id: string): string {
   return (shapeOf(workflow).jobs.find((job) => job.id === id)?.lines ?? []).join("\n");
 }
 
-// 仅默认关闭的可信发布与回滚任务可引用明确的加密凭据；构建与其余工作流仍禁止。
+// 默认关闭的可信发布/回滚任务及下述唯一私有映射上传步骤可引用明确凭据。
 const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: string[] }[]> = {
   "images.yml": [
     {
@@ -144,6 +144,31 @@ const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: str
     },
   ],
 };
+const SOURCE_MAP_UPLOAD_NAME = "      - name: 上传本轮私有源码映射（显式启用）";
+const SOURCE_MAP_TOKEN = "          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}";
+const SOURCE_MAP_UPLOAD_STEP = [
+  SOURCE_MAP_UPLOAD_NAME,
+  "        if: vars.STG_SOURCE_MAP_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+  "        env:",
+  SOURCE_MAP_TOKEN,
+  "          LYX_SENTRY_UPLOAD_CONFIG: ${{ vars.LYX_SENTRY_UPLOAD_CONFIG }}",
+  "          TAG: ${{ steps.source.outputs.tag }}",
+  '        run: node infra/deploy/source-map-upload.mjs "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"',
+].join("\n");
+
+function approvedSourceMapStep(workflow: string, name: string): boolean {
+  if (name !== "images.yml") return false;
+  const shape = shapeOf(workflow);
+  const jobs = shape.jobs.filter((job) => job.id === "build-images");
+  if (shape.problems.length || jobs.length !== 1) return false;
+  const body = jobs[0]!.lines.join("\n");
+  if (/(?:^|[\s[{,])[&*][\w-]+(?=\s|[,\]}]|$)/m.test(body)) return false;
+  const steps = body
+    .split(/(?=^ {6}- )/m)
+    .filter((step) => step.startsWith(SOURCE_MAP_UPLOAD_NAME));
+  return steps.length === 1 && steps[0]!.trimEnd() === SOURCE_MAP_UPLOAD_STEP;
+}
+
 function unapprovedCredentials(workflow: string, name: string): string {
   const approved = new Map<string, string[]>();
   for (const job of CREDENTIAL_JOBS[name] ?? []) {
@@ -156,6 +181,9 @@ function unapprovedCredentials(workflow: string, name: string): string {
   }
   let inJobs = false;
   let keys: string[] | undefined;
+  let jobId = "";
+  let inSourceMapUpload = false;
+  const sourceMapApproved = approvedSourceMapStep(workflow, name);
   // 只定位原始行，不拿 shapeOf 压缩过的正文替换原文；合法空行不改变任务范围。
   return workflow
     .split("\n")
@@ -164,10 +192,19 @@ function unapprovedCredentials(workflow: string, name: string): string {
         if (indentOf(line) === 0) {
           inJobs = line === "jobs:";
           keys = undefined;
+          jobId = "";
+          inSourceMapUpload = false;
         } else if (inJobs && indentOf(line) === 2) {
-          keys = approved.get(line.match(JOB_KEY)?.[1] ?? "");
+          jobId = line.match(JOB_KEY)?.[1] ?? "";
+          keys = approved.get(jobId);
+          inSourceMapUpload = false;
+        } else if (inJobs && /^ {6}- /.test(line)) {
+          inSourceMapUpload =
+            sourceMapApproved && jobId === "build-images" && line === SOURCE_MAP_UPLOAD_NAME;
         }
       }
+      if (inSourceMapUpload && line === SOURCE_MAP_TOKEN)
+        return line.replace("secrets.SENTRY_AUTH_TOKEN", "");
       return inJobs && keys
         ? line.replace(/\bsecrets\.([\w]+)/g, (reference: string, key: string) =>
             keys!.includes(key) ? "" : reference,
@@ -202,6 +239,47 @@ describe("发布凭据例外的反例", () => {
     const runner =
       "jobs:\n  build:\n    name: build\n    runs-on: &runner ubuntu-24.04\n  other:\n    name: other\n    runs-on: *runner\n";
     expect(unapprovedCredentials(runner, "ci.yml")).not.toMatch(/\bsecrets\./);
+  });
+  it("私有映射凭据仅固定上传步骤可用，PR/错条件/额外入口/锚点仍拒绝", () => {
+    const valid = [
+      "jobs:",
+      "  build-images:",
+      "    name: build-images",
+      "    steps:",
+      SOURCE_MAP_UPLOAD_STEP,
+      "      - name: 下一步不取凭据",
+      "        run: true",
+    ].join("\n");
+    expect(unapprovedCredentials(valid, "images.yml")).not.toMatch(/\bsecrets\./);
+    expect(unapprovedCredentials(valid, "ci.yml")).toMatch(/\bsecrets\./);
+    for (const invalid of [
+      valid.replaceAll("build-images", "build"),
+      valid.replace(SOURCE_MAP_UPLOAD_NAME, "      - name: 其他步骤"),
+      valid.replace(/ {8}if: .+\n/, ""),
+      valid.replace(/ {8}if: .+/, "        if: github.event_name == 'pull_request'"),
+      valid.replace(
+        "STG_SOURCE_MAP_UPLOAD_ENABLED == 'true'",
+        "STG_SOURCE_MAP_UPLOAD_ENABLED != 'true'",
+      ),
+      valid.replace("refs/heads/main", "refs/heads/other"),
+      valid.replace("        env:", "        env: &credentials"),
+      valid.replace(
+        SOURCE_MAP_TOKEN,
+        `${SOURCE_MAP_TOKEN}\n          EXTRA: \${{ secrets.OTHER_TOKEN }}`,
+      ),
+      valid.replace(
+        "    steps:",
+        "    env:\n      TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n    steps:",
+      ),
+      valid.replace(
+        "      - name: 下一步不取凭据\n        run: true",
+        "      - name: PR步骤\n        env:\n          TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n        run: true",
+      ),
+      valid.replace('"$GITHUB_SHA" "$TAG"', '"$GITHUB_SHA" "$TAG" && echo extra'),
+      valid.replace(SOURCE_MAP_UPLOAD_STEP, `${SOURCE_MAP_UPLOAD_STEP}\n        if: true`),
+      valid.replace(SOURCE_MAP_UPLOAD_STEP, `${SOURCE_MAP_UPLOAD_STEP}\n${SOURCE_MAP_UPLOAD_STEP}`),
+    ])
+      expect(unapprovedCredentials(invalid, "images.yml")).toMatch(/\bsecrets\./);
   });
   for (const [name, jobs] of Object.entries(CREDENTIAL_JOBS)) {
     for (const job of jobs) {
