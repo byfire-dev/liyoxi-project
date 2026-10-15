@@ -44,6 +44,11 @@ import type { DeliveredEvent, FiredTimer, Tx } from "../kernel/index.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
 import { createMediaRetention } from "./retention/service.js";
 import { createQualificationOcr } from "./ocr/service.js";
+import {
+  createBankReceiptOcrHandler,
+  enqueueBankReceiptOcr,
+  readBankReceiptOcr,
+} from "./ocr/receipt.js";
 export function createMedia(options: MediaDeps) {
   const refTypes = new Map(
     [...options.assembly.portEntries(fileRefTypePort)].map(([key, definition]) => {
@@ -121,6 +126,7 @@ export function createMedia(options: MediaDeps) {
   const assetDeps = options.assets ? { ...deps, assets: options.assets } : undefined;
   const baseHandlers = [
     createPromoteHandler(deps),
+    createBankReceiptOcrHandler(deps),
     ...createWechatImageHandlers(deps),
     ...createModerationHandlers(deps),
     createProbeHandler(deps),
@@ -156,6 +162,13 @@ export function createMedia(options: MediaDeps) {
   });
   return {
     ocr: createQualificationOcr(deps),
+    enqueueBankReceiptOcr: (
+      tx: Tx,
+      ctx: Parameters<typeof enqueueBankReceiptOcr>[2],
+      input: Parameters<typeof enqueueBankReceiptOcr>[3],
+    ) => enqueueBankReceiptOcr(deps, tx, ctx, input),
+    readBankReceiptOcr: (tx: Tx, input: Parameters<typeof readBankReceiptOcr>[2]) =>
+      readBankReceiptOcr(deps, tx, input),
     retention: createMediaRetention(deps),
     get assets() {
       return (assets ??= createMediaAssets(deps));
