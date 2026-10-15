@@ -26,7 +26,7 @@ HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到
 
 每次必须实际API/worker PID不同、worker持有同版租约、错误为0；排空同时核数据库pending/dead/media submitted等事实与真实队列等待/active/failed，不直接tick/consume/jobs.run。旧不认识的类型由对应版driver按自身登记拒绝，未来合法timer不冒认积压。phase.close只证明真实worker childclose0和bridge关闭；owner.close成功后才记数据库不存在/全前缀SCAN0及四桶HEAD404，不虚构leaseReleased或清理计数。
 
-旧读清单来自旧SHA自身三份OpenAPI。返回的私有完整GET readSpec带旧source，第四步绑定previousSource重放同清单；无path参数集合逐项成功与清单精确对照，详情属于完整旧清单并用真实对象ID。必填query、邀请token均由本轮合法数据/正式HTTP前置提供，不硬编码当前89条、不随机UUID探路或泛放404。读响应公开只留operationId/200。
+旧读清单来自旧SHA自身三份OpenAPI。返回的私有完整GET readSpec带旧source，第四步绑定previousSource重放同清单；无path参数集合逐项成功与清单精确对照，详情属于完整旧清单并用真实对象ID。必填及组合约束query、邀请token均由本轮合法数据/正式HTTP前置提供，不硬编码当前95条、不随机UUID探路或泛放404。读响应公开只留operationId/200。三phase各声明固定测试代理客户端，原限流不改；显式W228新链起点重置内存观测，保本条链全部成功GET且不混入上一主体的读记录。
 
 ## 私有RPC与期限
 
@@ -36,6 +36,12 @@ HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到
 
 ## 当前验证边界
 
-新增五纯聚合已有绿色记录；版本定义例外、私有协议/安全read_failed、旧spec传递和报告路径点修只重跑受影响聚合。infra类型单项已通过；最初lint prefer-const与macOS系统临时目录别名误拒保留。真实双SHA构建/两20集HTTP链及清理仍待ROOT唯一内容审查、driver实际合流和重资源位授权后执行，不能把纯替身通过写成真实混跑已验。先合driver、再由controller普通同步其actual main；缺driver必须失败，不能借HEAD叶补旧版。工作流/同SHA发布gate由独立分支交付。
+新增五纯聚合和infra类型已有绿色记录；版本定义例外、私有协议/安全read_failed、旧spec传递和报告路径点修只重跑受影响聚合。ROOT唯一源码审查54.173秒，no-comparable提前跳过HEAD的P2已定点关闭；后续窄差分逐点核对。最初lint prefer-const与macOS系统临时目录别名误拒保留。工作流/同SHA发布gate由独立分支交付，未访问GitHub或部署。
 
 首次真实演练在68.516秒于薄层构建失败：Dockerfile将`FROM sha256:<config image ID>`解析为仓库名；HEAD build target本身完成。改为精确ID的create/cp/commit，保唯一身份文本和父镜像核验；原失败报告与共享依赖保全、未创建owner的清理事实保留，尚不算整轮通过。
+
+2026-10-16，[第8轮正式报告](../../outputs/m2/w228-mixed-20261016-8.json)首次完整通过，用时226.757秒（含构建与清理）。HEAD `ddf558d264390faa45406c3e54708a6f93f888a9`、显式prev `a914c90a95a0d9a60ebd9d464ae2ca0c8ec8f5ab`各由自身归档构建；两条20集链最终live/live/in_service/isLive，各123项不变量零错误/违规。OLD读95列表/52详情，最后HEAD严格旧spec读95列表/47详情，全部200；三phase真实worker租约、全库积压/错误与五队列零、childclose0和bridge关闭均通过。owner实际DB不存在/前缀SCAN0/四桶HEAD404、共享依赖保全与总体cleanup均true，无自有容器残留。
+
+前七轮RED不覆盖：第5轮OLD首后台登录429，HEAD激活/重登已用满同IP档位；第6轮163.912秒止于跟进列表空query，纯canonical检查同时发现素材列表组合scope；第7轮226.072秒两条业务链均绿，最后复读混入前一主体观测路径而失败，未采该次HTTP状态。分别仅修固定测试客户端、真实scope参数和chain内存观测起点，原全集合/200/20集/123/30秒/600秒判据均保持。
+
+本次`productionChangedFiles=0`，是本地同生产源码的bootstrap装配与运输证据，未证明在役`v*`标签兼容、远端main工作流或真实云IO。D7-19仅混跑本地半项到位，删列三步/CHECK替换迁移演练未验，整项不关闭。
