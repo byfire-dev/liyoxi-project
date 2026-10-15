@@ -53,6 +53,8 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 `Runtime.billing` 由 `createBillingPurchase` 构造，显式注入事务、时钟、账本、原入账、协议、主体、media、SLA、配置与密钥读取器。`getPurchasePolicy`、`listPlans`、`quotePlanPurchase` 与 `wallet` 只读；策略由 shared 的有序首匹配纯函数给出，参数与财务版本按同一注入时刻读。钱包复用账本读侧及 tenant 额度。
 
+新建付款单的报价与购买策略仍取账户锁后的账本时刻；协议同意保留 docs 实际采样时间，完成同意后再取真实创建时刻。收款银行版本、对公有效期参数和截止时间均按该创建时刻读取或计算，避免同意晚于新单、跨银行版本生效时选到旧账户。复用未完成单保持既有行为：同版本同意由唯一约束保留原记录，协议换版时仍可能追加新版本同意，本次时序修复不改变该语义。
+
 `createOrder` 在实体、已有付款单锁后拿账户，重算报价、对比金额、写两份协议同意与 FK 单号，捕获生效收款账户版本、登记 TTL。新内容快照可带创建时 `planName`；旧快照缺项才回查当前名称，不参与履约计价。商家 DTO 只在本次响应解密账号并禁止缓存；幂等最终 JSON 快照按契约脱敏，重放 `bankAccount.accountNo=null`。
 
 `submitProof` 只接受当前老板、同归属 stored/pay_receipt 文件，按 files 端口永久 link。替换将旧凭证置 superseded，不多写一次主状态迁移；`due_at` 和 SLA 快照真实计算。`getAdminOrder` 与 `getProof` 按资源范围查询，超范围 404；`listProofs` 与 `proofSummary` 是 global 处理队列，同过滤条件计数，详情不签发文件 URL。

@@ -171,16 +171,17 @@ export async function createOrder(
     await consents(tx, deps, actor, open, input.agreementVersionIds);
     return { ...(await merchantOrderView(tx, deps, open, client)), replayed: false };
   }
-  const finance = await financeConfigAt(tx, now);
+  const id = uuidv7(),
+    orderNo = await deps.bizNo.next(tx, "FK");
+  await consents(tx, deps, actor, { id, orderNo }, input.agreementVersionIds);
+  const createdAt = deps.clock.now();
+  const finance = await financeConfigAt(tx, createdAt);
   if (!finance.bank)
     throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: quote.policy.channels } });
-  const params = await paramsAt(tx, ["billing.payment.transfer_valid_days"], now),
-    id = uuidv7(),
-    orderNo = await deps.bizNo.next(tx, "FK"),
+  const params = await paramsAt(tx, ["billing.payment.transfer_valid_days"], createdAt),
     expiresAt = new Date(
-      now.getTime() + params["billing.payment.transfer_valid_days"] * 86_400_000,
+      createdAt.getTime() + params["billing.payment.transfer_valid_days"] * 86_400_000,
     );
-  await consents(tx, deps, actor, { id, orderNo }, input.agreementVersionIds);
   const order = await tx.billingOrder.create({
     data: {
       id,
@@ -202,8 +203,8 @@ export async function createOrder(
       clientPlatform: client.platform,
       clientVersion: client.appVersion ?? null,
       placedByUserId: actor.ctx.actor.id,
-      createdAt: now,
-      updatedAt: now,
+      createdAt,
+      updatedAt: createdAt,
     },
   });
   await deps.flow.transition(tx, actor.ctx, {
