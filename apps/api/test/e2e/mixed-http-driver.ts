@@ -408,6 +408,23 @@ async function main() {
           if (diagnostics.count()) throw new MixedFailure(codes[request.method]);
           return result;
         } catch (error) {
+          // Diagnostic locations only: no message, first stack line, SQL, cause or private RPC value.
+          const frames =
+            error instanceof Error
+              ? (error.stack ?? "")
+                  .split("\n")
+                  .slice(1)
+                  .flatMap((line) => {
+                    const match = line.match(
+                      /^\s+at [^\n]*\/repo\/((?:apps|packages)\/(?:[\w.-]+\/)*[\w.-]+\.[cm]?[jt]sx?):(\d+):(\d+)/,
+                    );
+                    return match ? [`${match[1]}:${match[2]}:${match[3]}`] : [];
+                  })
+                  .slice(0, 8)
+              : [];
+          process.stderr.write(
+            `${JSON.stringify({ mixedFailure: codes[request.method], method: request.method, frames })}\n`,
+          );
           throw error instanceof MixedFailure
             ? error
             : new MixedFailure(controller.signal.aborted ? "cancelled" : codes[request.method]);
