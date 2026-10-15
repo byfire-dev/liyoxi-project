@@ -56,8 +56,10 @@ HTTP transport固定注入对应X-Forwarded-For；真实TCP及各版口令/MFA�
 
 ## 旧 OpenAPI reader
 
-old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（当前89），
+old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（当前95），
 六个必填query用正式字典、实际店、北京时间年份、搜索词和真实HTTP邀请令牌。
+跟进列表另带实际entityId，素材列表另带实际storeId，满足字段各自可选但组合必需的正式约束；
+原pure聚合逐项校验现有canonical query，并精确比较全部operationId集合，不用旧固定数量漏读。
 邀请经正式创建，读取后正式撤回；不是SQL假行。未来新增未知必填输入直接失败，
 不省略接口。真实跨版admin口令/MFA、商家phoneLogin重登；不复用上版headers。
 本轮7个ID映射可用详情，并复读已成功observedReads对应的真实详情；

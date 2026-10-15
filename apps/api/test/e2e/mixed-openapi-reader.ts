@@ -112,14 +112,15 @@ export function mixedReadPlan(
     "m.invitation.lookup": { token: input.token },
     "admin.assetDemand.list": { storeId: input.access.ids.storeId },
     "admin.calendarDay.list": { year: String(input.year) },
+    "admin.followUp.list": { entityId: input.access.ids.entityId },
+    "admin.storeAsset.list": { storeId: input.access.ids.storeId },
   };
   for (const row of operations) {
     if (row.path.includes("{")) continue;
-    const query = new URLSearchParams();
+    // Some canonical queries require a combination although OpenAPI marks each field optional.
+    const query = new URLSearchParams(values[row.operationId]);
     for (const key of row.required) {
-      const value = values[row.operationId]?.[key];
-      if (!value) throw new MixedFailure("read_failed");
-      query.set(key, value);
+      if (!query.get(key)) throw new MixedFailure("read_failed");
     }
     all.push({ operationId: row.operationId, path: row.path + (query.size ? "?" + query : "") });
   }
