@@ -1,0 +1,9 @@
+{
+  "version": "3.8.0",
+  "releasedAt": "2026-09-16T14:40:24.217Z",
+  "registry": "https://release-registry.services.sentry.io/apps/sentry-cli/3.8.0",
+  "linuxX64": {
+    "url": "https://downloads.sentry-cdn.com/sentry-cli/3.8.0/sentry-cli-Linux-x86_64",
+    "sha256": "13f8cb34ae01a6a272d7d7c22e277a105286615b4020de900ea95a8de47cdbb6"
+  }
+}

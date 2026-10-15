@@ -108,6 +108,13 @@ jobs:
           docker image inspect "liyoxi/server:$TAG" "liyoxi/gateway:$TAG" > "$LYX_SOURCE_MAPS_DIR/images.json"
           node infra/deploy/source-maps.mjs finalize "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"
           node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"
+      - name: 上传本轮私有源码映射（显式启用）
+        if: vars.STG_SOURCE_MAP_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          LYX_SENTRY_UPLOAD_CONFIG: ${{ vars.LYX_SENTRY_UPLOAD_CONFIG }}
+          TAG: ${{ steps.source.outputs.tag }}
+        run: node infra/deploy/source-map-upload.mjs "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"
       - name: 打包同一源码的构建产物
         env:
           TAG: ${{ steps.source.outputs.tag }}
@@ -127,7 +134,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
-      - name: 只清本轮私有映射（上传未配置且未实现）
+      - name: 只清本轮私有映射
         if: always()
         run: |
           if [ -n "${LYX_SOURCE_MAPS_DIR:-}" ]; then
