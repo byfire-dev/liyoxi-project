@@ -20,8 +20,32 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain("pg_dump --version");
     expect(body).toContain("--check");
     expect(body).toContain("-m unittest -v test_adapter.py");
-    expect(body.match(/org\.opencontainers\.image\.source=/g)).toHaveLength(2);
-    expect(body.match(/org\.opencontainers\.image\.revision=/g)).toHaveLength(2);
+    expect(body.match(/org\.opencontainers\.image\.source=/g)).toHaveLength(1);
+    expect(body.match(/org\.opencontainers\.image\.revision=/g)).toHaveLength(1);
+    const bake = readFileSync(join(repoRoot, "infra/docker/source-maps.hcl"), "utf8");
+    const common = bake.split('target "common" {')[1]!.split('\ntarget "server-build"')[0]!;
+    expect(common).toContain('context = "."');
+    expect(common).toContain("args = { LYX_BUILD = TAG }");
+    expect(common).toContain('"org.opencontainers.image.source" = REPOSITORY_URL');
+    expect(common).toContain('"org.opencontainers.image.revision" = SOURCE');
+    expect(body).toContain("SOURCE: ${{ github.sha }}");
+    expect(body).toContain("REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}");
+    for (const name of ["server", "gateway"]) {
+      const base = bake.split(`target "${name}-build" {`)[1]!.split("\n}")[0]!;
+      expect(base).toContain('inherits = ["common"]');
+      expect(base).toContain(`dockerfile = "infra/docker/${name}/Dockerfile"`);
+      expect(bake).toContain(`group "${name}-bundle" { targets = ["${name}", "${name}-maps"] }`);
+      const image = bake.split(`target "${name}" {`)[1]!.split("\n}")[0]!;
+      const maps = bake.split(`target "${name}-maps" {`)[1]!.split("\n}")[0]!;
+      expect(image).toContain(`inherits = ["${name}-build"]`);
+      expect(image).toContain(`target = "${name}"`);
+      expect(image).toContain('tags = ["liyoxi/' + name + ':${TAG}"]');
+      expect(image).toContain('output = ["type=docker"]');
+      expect(maps).toContain(`inherits = ["${name}-build"]`);
+      expect(maps).toContain('target = "source-maps"');
+      expect(maps).toContain(`output = ["type=local,dest=\${MAPS_DIR}/${name}"]`);
+      expect(maps).not.toMatch(/tags\s*=/);
+    }
     expect(body).toContain("${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}");
     expect(body).toContain("org.opencontainers.image.revision=${GITHUB_SHA}");
     expect(body).not.toMatch(/secrets\.|docker (push|login)|artifact\.put|orchestrate\.mjs/);
