@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { buildWorkerServices } from "@liyoxi/services";
 import { createM1WorkerResources, waitM1Worker } from "@liyoxi/services/testing";
 import type { M1LoopWorkerSnapshot } from "@liyoxi/services/testing";
-import { createWorkerRuntime } from "../../src/runtime.js";
+import { createWorkerRuntime, QUEUE_CONCURRENCY } from "../../src/runtime.js";
 import type { Logger } from "../../src/log.js";
 
 /** Only necessary transport scheduling is accelerated; all other cadence/lease/concurrency is real. */
@@ -24,7 +24,7 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
   signal?.throwIfAborted();
   let resources: Awaited<ReturnType<typeof createM1WorkerResources>>;
   try {
-    resources = await createM1WorkerResources(raw);
+    resources = await createM1WorkerResources(raw, Object.keys(QUEUE_CONCURRENCY));
   } catch {
     throw new WorkerStartupFailure("resources");
   }

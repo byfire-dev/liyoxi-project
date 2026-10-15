@@ -39,7 +39,7 @@ it("后台worker纯守卫：错误能力/环境先拒，未知与死信不能排
   vi.stubEnv("APP_ENV", "prod");
   const fetch = vi.fn<typeof globalThis.fetch>();
   vi.stubGlobal("fetch", fetch);
-  await expect(createM1WorkerResources(attach)).rejects.toThrow("local");
+  await expect(createM1WorkerResources(attach, ["outbox_delivery"])).rejects.toThrow("local");
   vi.stubEnv("APP_ENV", "test");
   await expect(
     createM1Support({ backgroundWorker: { resumeTimerScan: async () => {} } }),

@@ -267,7 +267,7 @@ HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己�
 
 ### 对应源码的后台 worker 测试装配
 
-`createM1WorkerResources(attach)` 只在local校验原owner token/随机库/前缀后提供本轮真实MinIO与codec外部IO替身；不建库、重置或删前轮。`apps/worker/test/e2e/mixed-worker.ts` 是独立IPC进程，运行原`buildWorkerServices/createWorkerRuntime`、真实PG主租约与BullMQ消费者。只有outbox_relay/outbox_dispatch/timer_scan/media_job_run的运输扫描为100ms；ensure_recurring、其它域循环、业务实钟、并发、租期/看门狗与媒体poll退避保持原值。它是测试Provider装配，不冒称生产dist入口/生产节奏/真实云通过。
+`createM1WorkerResources(attach, workerQueues)` 只在local校验原owner token/随机库/前缀后提供本轮真实MinIO与codec外部IO替身；不建库、重置或删前轮。私有入口按本版本实际`QUEUE_CONCURRENCY`传入消费者清单，探针与快照共用该清单，不把未来契约队列当作已装配消费者。`apps/worker/test/e2e/mixed-worker.ts` 是独立IPC进程，运行原`buildWorkerServices/createWorkerRuntime`、真实PG主租约与BullMQ消费者。只有outbox_relay/outbox_dispatch/timer_scan/media_job_run的运输扫描为100ms；ensure_recurring、其它域循环、业务实钟、并发、租期/看门狗与媒体poll退避保持原值。它是测试Provider装配，不冒称生产dist入口/生产节奏/真实云通过。
 
 父控制器必须在整链前await `pause-timers`：停真实timer_scan并等待在途scan/队列收完，同时核库中无pending_start与活跃order.start目标。API桥以`backgroundWorker:{resumeTimerScan}`进入只读模式；原runner读pending_start/held后，runDueTimer调用私有IPC `resume-timers`，随后仅观察真实timer_run消费。不能用100ms概率代替这道屏障。其他loop与租约不暂停；每个新版本实例重建屏障状态，stop/SIGTERM从暂停状态照常回收。
 

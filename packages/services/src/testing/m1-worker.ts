@@ -41,10 +41,18 @@ export const M1WorkerAttachmentSchema = z.strictObject({
   }),
 });
 
-export async function createM1WorkerResources(raw: unknown) {
+export async function createM1WorkerResources(raw: unknown, workerQueues: readonly string[]) {
   const attach = M1WorkerAttachmentSchema.parse(raw);
   assertM1SharedScope(attach.scope);
   if (process.env.APP_ENV !== "local") throw new Error("M1 独立worker仅允许local自有attach");
+  // The corresponding-source app supplies its actual consumers, not future registry queues.
+  const queues = workerQueues.map((id) => {
+    const registered = QUEUES.find((queue) => queue.id === id);
+    if (!registered) throw new TypeError("M1 worker需要明确且已登记的实际消费者清单");
+    return registered.id;
+  });
+  if (!queues.length || new Set(queues).size !== queues.length)
+    throw new TypeError("M1 worker需要明确且已登记的实际消费者清单");
   const env = loadEnv({
     APP_ENV: "local",
     LOG_LEVEL: "warn",
@@ -144,7 +152,7 @@ export async function createM1WorkerResources(raw: unknown) {
       providers: boundProviders,
       mediaProductionTools: tools.tools,
       keys: { ...fakeKeyEnv(), MEDIA_PRODUCTION: tools.env },
-      probe: { db: probe.prisma, holder: () => holder, queues: QUEUES.map((queue) => queue.id) },
+      probe: { db: probe.prisma, holder: () => holder, queues },
     };
     const activeDatabase = database,
       activeChannel = channel,
@@ -173,10 +181,10 @@ export async function createM1WorkerResources(raw: unknown) {
         const row = await activeDatabase.prisma.workerLease.findUnique({
           where: { name: "primary" },
         });
-        const queues = await Promise.all(
-          QUEUES.map(async (queue) => ({
-            name: queue.id,
-            ...(await activeChannel.observe!(queue.id, clock.now(), 100)),
+        const observations = await Promise.all(
+          queues.map(async (id) => ({
+            name: id,
+            ...(await activeChannel.observe!(id, clock.now(), 100)),
           })),
         );
         return {
@@ -191,7 +199,7 @@ export async function createM1WorkerResources(raw: unknown) {
               }
             : null,
           backlog,
-          queues,
+          queues: observations,
         };
       },
     };
