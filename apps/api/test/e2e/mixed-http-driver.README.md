@@ -43,10 +43,16 @@ ownerNetwork只消费services的唯一schema；expected/receipt四项身份严�
 任何失败不返回成功收尾。
 
 phase fork镜像自带worker，真实PID/PG租约版本/BullMQ/全库积压及错误零共同核。
-整链前暂停真实timer_scan并等待屏障，原held断言后才恢复；七段、20集、单上传、
+准备原片后、下单前暂停真实timer_scan并等待屏障，原held断言后才恢复；七段、20集、单上传、
 30秒观察与业务实钟不变。API桥只观察，不能用controller直接调用handler替代旧版。
 文件与签读用本轮MinIO；codec、备份进程/备份对象、SMS是明确外部IO替身。
 这不证明生产dist健康、真实云处理、备份恢复或短信送达。
+
+W228三阶段分别声明固定代理客户端198.18.0.1/2/3，测试桥只信任回环一跳，
+HTTP transport固定注入对应X-Forwarded-For；真实TCP及各版口令/MFA重登保持。
+这避免HEAD激活与重登恰好用满匿名IP每分钟10次后，OLD首登录被429拒绝。
+普通M1未显式选phase时不添加转发头；不改生产限流、不清计数、不等待窗口。
+修正尚待同源两版正式四步验证，不把前一轮HEAD20集/123不变量绿色冒称完整混跑通过。
 
 ## 旧 OpenAPI reader
 
