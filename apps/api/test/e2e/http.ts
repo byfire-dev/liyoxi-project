@@ -91,6 +91,9 @@ export async function createM1HttpTransport(options: HttpOptions) {
   const observedReads: string[] = [];
   return {
     observedReads,
+    resetObservedReads: () => {
+      observedReads.length = 0;
+    },
     waitUntil: (at: Date) => waitM1RealTime(at, options.signal),
     waitForNextMfaStep: () =>
       waitM1RealTime(new Date((Math.floor(Date.now() / 30_000) + 1) * 30_000), options.signal),
@@ -143,6 +146,8 @@ export async function createM1HttpTransport(options: HttpOptions) {
 }
 export async function createM1HttpApi(
   options: HttpOptions & { readonly support: M1Support },
-): Promise<M1Api & { readonly observedReads: readonly string[] }> {
+): Promise<
+  M1Api & { readonly observedReads: readonly string[]; readonly resetObservedReads: () => void }
+> {
   return { ...(await createM1HttpTransport(options)), support: options.support };
 }
