@@ -2,7 +2,7 @@ import { createPrivateKey, X509Certificate } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   assertProject,
   envelope,
@@ -11,6 +11,7 @@ import {
   runObservability,
   upstreamDsn,
   verifyReceipts,
+  waitForGatewayReady,
 } from "../../deploy/observability-rehearsal.mjs";
 import { TEST_CA, TEST_CERT, TEST_KEY } from "../../deploy/test/fixtures/observability-tls.mjs";
 import { repoRoot } from "./helpers.js";
@@ -114,6 +115,112 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
   expect(JSON.parse(wire[1]!).length).toBe(Buffer.byteLength(wire[2]!));
   expect(JSON.parse(wire[2]!).exception.values[0].stack).toContain("public.js");
 
+  for (const status of [200, 502]) {
+    vi.useFakeTimers({ toFake: ["setTimeout", "Date", "performance"] });
+    try {
+      const times: number[] = [];
+      const pending = waitForGatewayReady(
+        async () => {
+          times.push(performance.now());
+          return { status };
+        },
+        "api.localhost",
+        "configured",
+      ).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(times).toEqual([]);
+      await vi.runAllTimersAsync();
+      const seen = await pending;
+      expect(times[0]).toBe(10_001);
+      expect(performance.now()).toBeLessThanOrEqual(15_000);
+      if (status === 200) expect(seen).toBeUndefined();
+      else expect((seen as Error).message).toBe("观测错误接口未就绪:configured:status=502");
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  for (const readiness of ["eventually", "timeout"] as const) {
+    const home = mkdtempSync(join(tmpdir(), "lyx-rehearse-ready-"));
+    mkdirSync(join(home, "secrets"));
+    const requests: { method: string; timeoutMs?: number }[] = [];
+    const failure = new Error("pure stop-after-ready-and-posts");
+    let ready = false;
+    vi.useFakeTimers({ toFake: ["setTimeout", "Date", "performance"] });
+    try {
+      const start = performance.now();
+      const pending = runObservability({
+        root: repoRoot,
+        home,
+        env: {
+          LYX_NODE_PROJECT: project,
+          LYX_NODE_PREFIX: project,
+          LYX_NODE_PROVIDERS: "",
+          LYX_NODE_HOME: home,
+          LYX_SECRETS_DIR: join(home, "secrets"),
+        },
+        config: { tag: "sha-cccccccccccc", images: { server: "liyoxi/server:sha-cccccccccccc" } },
+        hosts: { api: "api.localhost", admin: "admin.localhost" },
+        flags: { errors: true, alerts: true },
+        request: async (host, path, options) => {
+          requests.push(options);
+          if (options.method === "GET") {
+            expect([host, path, options.headers.Origin]).toEqual([
+              "api.localhost",
+              "/readyz",
+              "http://api.localhost",
+            ]);
+            ready = readiness === "eventually" && requests.length === 2;
+            return { status: ready ? 200 : 502 };
+          }
+          expect(ready).toBe(true);
+          return { status: 202 };
+        },
+        bootstrap: () => {
+          throw failure;
+        },
+        step: () => {
+          throw new Error("pure readiness must not stop/start worker");
+        },
+        run: (args) => ({
+          status: 0,
+          stderr: "",
+          stdout:
+            args[0] === "inspect"
+              ? JSON.stringify([
+                  {
+                    Config: {
+                      Labels: {
+                        "com.docker.compose.project": project,
+                        "com.docker.compose.service": args.at(-1)!.replace(`${project}-`, ""),
+                      },
+                    },
+                  },
+                ])
+              : args[0] === "container"
+                ? ""
+                : JSON.stringify({ evt: "telemetry.forward", outcome: "unconfigured" }),
+        }),
+      }).catch((error: unknown) => error);
+      await vi.runAllTimersAsync();
+      const seen = await pending;
+      expect(performance.now() - start).toBeLessThanOrEqual(15_000);
+      expect(
+        requests
+          .filter((one) => one.method === "GET")
+          .every((one) => one.timeoutMs! > 0 && one.timeoutMs! <= 1_000),
+      ).toBe(true);
+      expect(requests.filter((one) => one.method === "POST")).toHaveLength(
+        readiness === "eventually" ? 2 : 0,
+      );
+      if (readiness === "eventually") expect(seen).toBe(failure);
+      else expect((seen as Error).message).toBe("观测错误接口未就绪:default:status=502");
+    } finally {
+      vi.useRealTimers();
+      rmSync(home, { recursive: true, force: true });
+    }
+  }
+
   const tag = "sha-cccccccccccc";
   for (const mode of ["absent", "rm-fails", "foreign", "create-fails"] as const) {
     const home = mkdtempSync(join(tmpdir(), "lyx-rehearse-pure-"));
@@ -145,7 +252,7 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
         },
         request: async (...args: unknown[]) => {
           requests.push(args);
-          return { status: 202 };
+          return { status: args[1] === "/readyz" ? 200 : 202 };
         },
         step: (...args: string[]) => {
           steps.push(args);
@@ -224,8 +331,8 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
         ),
       ).toBe(false);
       expect(env.LYX_NODE_PROVIDERS).toBe("");
-      expect(requests).toHaveLength(2);
-      const admin = requests[1]![2] as { headers: Record<string, string> };
+      expect(requests).toHaveLength(3);
+      const admin = requests[2]![2] as { headers: Record<string, string> };
       expect(admin.headers).toMatchObject({
         Origin: "http://admin.localhost",
         "X-LYX-Admin": "1",

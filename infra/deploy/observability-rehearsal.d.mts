@@ -4,6 +4,22 @@ export const WRONG_HOST: string;
 export function assertProject(project: string): void;
 export function publicDsn(index: number): string;
 export function upstreamDsn(index: number): string;
+interface ErrorRequestOptions {
+  method: string;
+  body: string;
+  headers: Record<string, string>;
+  timeoutMs?: number;
+}
+type ErrorRequest = (
+  host: string,
+  path: string,
+  options: ErrorRequestOptions,
+) => Promise<{ status: number }>;
+export function waitForGatewayReady(
+  request: ErrorRequest,
+  host: string,
+  phase: "default" | "configured",
+): Promise<void>;
 export function envelope(index: number, eventId: string): string;
 export function receive(project: string): void;
 export function verifyReceipts(
@@ -39,15 +55,7 @@ export function runObservability(options: {
   config: { tag: string; images: { server: string } };
   hosts: { api: string; admin: string };
   flags: { errors: boolean; alerts: boolean };
-  request: (
-    host: string,
-    path: string,
-    options: {
-      method: string;
-      body: string;
-      headers: Record<string, string>;
-    },
-  ) => Promise<{ status: number }>;
+  request: ErrorRequest;
   step: (...args: string[]) => void;
   run: (args: string[], options: object) => { status: number; stdout: string; stderr: string };
   bootstrap: (args: string[], env: NodeJS.ProcessEnv) => void;

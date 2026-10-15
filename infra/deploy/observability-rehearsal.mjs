@@ -16,6 +16,28 @@ export const publicDsn = (index) =>
   `https://public_fixture_${index}@client.example.invalid/${index}`;
 export const upstreamDsn = (index) =>
   `https://upstream_fixture_${index}@${ERROR_HOST}/relay/${index}`;
+
+export async function waitForGatewayReady(request, host, phase) {
+  const deadline = performance.now() + 15_000;
+  // nginx各worker有自己的缓存；选配API重建后先让原10秒TTL全部过期。
+  if (phase === "configured") await new Promise((resolve) => setTimeout(resolve, 10_001));
+  let status = 0;
+  while (performance.now() < deadline) {
+    const response = await request(host, "/readyz", {
+      method: "GET",
+      body: "",
+      headers: { Origin: `http://${host}` },
+      timeoutMs: Math.max(1, Math.min(1_000, Math.floor(deadline - performance.now()))),
+    }).catch(() => ({ status: 0 }));
+    status = response.status;
+    if (status === 200) return;
+    const remaining = deadline - performance.now();
+    if (remaining > 0)
+      await new Promise((resolve) => setTimeout(resolve, Math.min(500, remaining)));
+  }
+  throw new Error(`观测错误接口未就绪:${phase}:status=${status}`);
+}
+
 export function envelope(index, eventId) {
   const payload = JSON.stringify({
     event_id: eventId,
@@ -290,9 +312,10 @@ export async function runObservability({
       throw new Error("观测清理拒绝非自有容器");
     execute(["rm", "-f", row.Id]);
   };
-  const sendErrors = async () => {
+  const sendErrors = async (phase) => {
     const ids = [];
-    if (flags.errors)
+    if (flags.errors) {
+      await waitForGatewayReady(request, hosts.api, phase);
       for (const [index, host, path] of [
         [101, hosts.api, "/api/v1/m/client-errors"],
         [102, hosts.admin, "/api/v1/admin/client-errors"],
@@ -305,15 +328,17 @@ export async function runObservability({
             "Content-Type": "application/x-sentry-envelope",
             ...(index === 102 ? { Origin: `http://${host}`, "X-LYX-Admin": "1" } : {}),
           },
-        });
-        if (response.status !== 202) throw new Error("真实错误接口未受理");
+        }).catch(() => ({ status: 0 }));
+        if (response.status !== 202)
+          throw new Error(`观测错误接口未受理:${phase}:status=${response.status}`);
         ids.push(id);
       }
+    }
     return ids;
   };
   owned("api");
   owned("worker");
-  await sendErrors();
+  await sendErrors("default");
   if (flags.errors) {
     const logs = execute(["logs", "--tail", "200", `${project}-api`]);
     if (
@@ -415,7 +440,7 @@ export async function runObservability({
       Object.keys(receiver.NetworkSettings.Networks).join() !== `${project}-node`
     )
       throw new Error("假收件端端口或网络越界");
-    const eventIds = await sendErrors();
+    const eventIds = await sendErrors("configured");
     const { build } = createRequire(join(root, "apps/worker/package.json"))("esbuild");
     const bundle = join(directory, "fixture.mjs");
     await build({

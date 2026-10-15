@@ -161,7 +161,7 @@ function freePort() {
  * @param {number} port
  * @param {string} host
  * @param {string} path
- * @param {{ method?: string, bodyBytes?: number, body?: string, headers?: Record<string, string>, fresh?: boolean }} [options]
+ * @param {{ method?: string, bodyBytes?: number, body?: string, headers?: Record<string, string>, fresh?: boolean, timeoutMs?: number }} [options]
  * @returns {Promise<{ status: number, headers: http.IncomingHttpHeaders, body: string }>}
  */
 function request(port, host, path, options = {}) {
@@ -187,7 +187,8 @@ function request(port, host, path, options = {}) {
               }
             : {}),
         },
-        timeout: 20_000,
+        timeout: options.timeoutMs ?? 20_000,
+        signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
         agent: options.fresh ? false : undefined,
       },
       (res) => {
