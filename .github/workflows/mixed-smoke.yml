@@ -1,0 +1,44 @@
+# W2-28：只在 main 合入后执行；不新增 PR required，不接真实云或业务密钥。
+name: mixed-smoke
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mixed-smoke-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  mixed-smoke:
+    name: mixed-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 检出对应源码及可比历史
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: 启动本 runner 独占的三个依赖
+        run: docker compose -p liyoxi -f infra/compose/local.yml up -d --wait postgres redis minio
+      - name: 两版镜像同库四步验证
+        run: timeout --signal=TERM --kill-after=30s 8m node infra/ci/mixed-version-smoke.mjs --report "$RUNNER_TEMP/mixed-smoke.json"
+      - name: 只保存白名单混跑报告
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mixed-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/mixed-smoke.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 只清本 runner 独占依赖
+        if: always()
+        run: docker compose -p liyoxi -f infra/compose/local.yml down --volumes
