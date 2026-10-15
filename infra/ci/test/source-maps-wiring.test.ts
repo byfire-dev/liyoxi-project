@@ -40,12 +40,26 @@ function checkWiring(job: string) {
     .split("      - name: 打包同一源码的构建产物\n")[1]!
     .split("      - name: 保存构建产物")[0]!;
   expect(pack).not.toContain("LYX_SOURCE_MAPS_DIR");
-  const cleanup = job.split("      - name: 只清本轮私有映射（上传未配置且未实现）\n")[1]!;
+  const cleanup = job.split("      - name: 只清本轮私有映射\n")[1]!;
   expect(cleanup).toContain("if: always()");
   expect(cleanup).toContain('if [ -n "${LYX_SOURCE_MAPS_DIR:-}" ]; then');
   expect(cleanup).toContain('node infra/deploy/source-maps.mjs cleanup "$LYX_SOURCE_MAPS_DIR"');
   expect(cleanup).not.toMatch(/rm\s/);
-  expect(job).not.toMatch(/secrets\.|sentry-cli|inject|docker (?:push|login)|continue-on-error/);
+  const upload = job
+    .split("      - name: 上传本轮私有源码映射（显式启用）\n")[1]!
+    .split("      - name:")[0]!;
+  expect(upload.trim()).toBe(
+    `if: vars.STG_SOURCE_MAP_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          SENTRY_AUTH_TOKEN: \${{ secrets.SENTRY_AUTH_TOKEN }}
+          LYX_SENTRY_UPLOAD_CONFIG: \${{ vars.LYX_SENTRY_UPLOAD_CONFIG }}
+          TAG: \${{ steps.source.outputs.tag }}
+        run: node infra/deploy/source-map-upload.mjs "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"`,
+  );
+  expect(job.match(/source-map-upload\.mjs/g)).toHaveLength(1);
+  expect(job.replace(upload, "")).not.toMatch(
+    /secrets\.|sentry-cli|inject|docker (?:push|login)|continue-on-error/,
+  );
 }
 
 it("私有映射接线绑定同源码、仅授权自有root、校验后公开打包且失败仍精确清理，反例必须拒绝", () => {
