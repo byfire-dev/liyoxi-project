@@ -2,6 +2,8 @@
 
 首次起环境（[README.md](README.md)）之前逐项勾完。这里只记“办了没有、谁办的、哪天”，不记任何密钥、口令与它们所在的路径。业主的决定与原话以[业主清单](../../docs/plan/owner-checklist.md)为准，办完回填[平台配置核对表](../../docs/plan/platform-config.md) 第 2.5 节。
 
+W2-27a补充：六常驻容器的json-file轮转须实际核为api/worker/gateway各20MiB×5，postgres/redis/mediatool各10MiB×3，合计390MiB；现有容器须按获准发布流程更新后再inspect，不因YAML已改即记节点已配。Redis演练默认关闭，须明确本项目Compose身份、`LYX_REDIS_FLUSH_ENABLED=true`及`STG_FREEZE=false`，只使用受限`node-step.sh redis-flush <本节点项目>`，结束关闭开关。2026-10-15本机自有六容器已验证原worker不重启、同PID续租及8.875秒内三实际投递/单周期任务完成；前两轮清空前的准备失败保留。真实预发仍未执行，不能用本机结果勾掉本表真实节点事项，见[D6-09](../../docs/plan/external-verification/d6-09-redis-flush-self-heal.md)。
+
 | # | 事项 | 谁办 | 卡哪一步 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-10-14 已定本项目 GHCR；候选四镜像见 README 第 12 节。公开 vars 已设置，推送开关未开启；首次发布、包可见性及节点拉取凭证未验。节点前缀候选 `ghcr.io/sanqianyuejia/`；GHCR 三叶已本地验收合 main，[PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1) 的 Actions 已运行，四镜像构建成功，旧 MinIO 拉取 denied、旧 infra 三项断言及历史密钥扫描测试夹具误报仍阻塞 required；门禁分类已重跑通过 | 业主 | 第 3 步起 | 待核 |

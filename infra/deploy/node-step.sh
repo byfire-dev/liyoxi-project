@@ -20,6 +20,7 @@
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
+#   redis-flush <项目>  显式演练开关开启且未冻结时，只清本 node.yml 项目 Redis 的 DB 0
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
 #   stop <服务>        停一个服务（按 Compose 里的 stop_grace_period 等它收尾）
@@ -47,9 +48,10 @@ DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats redis-flush"
 USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签] | logs <六服务> <UUID> | log-stats <1–1440分钟>"
 
+USAGE="$USAGE | redis-flush <本节点项目>"
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
   via_ssh=1
@@ -70,6 +72,9 @@ need_services() {
   for one in "$@"; do in_list "$one" "$SERVICES" || usage_die "不认识的服务 ${one}。服务有：$SERVICES"; done
 }
 case "$step" in
+  redis-flush)
+    [ $# -eq 1 ] && [[ "$1" =~ ^[a-z0-9][a-z0-9_-]{0,62}$ ]] || usage_die "redis-flush 必须明确给出本节点 Compose 项目名"
+    ;;
   logs)
     [ $# -eq 2 ] || usage_die "logs 只接受服务名与 UUID 请求编号"
     need_services "$1"
@@ -337,11 +342,34 @@ step_log_read() (
   [ -z "$output" ] || printf '%s\n' "$output"
 )
 
+# 这是显式破坏性演练入口，不属于发布流程。先核 Compose 身份，再按不可复用的容器 ID 执行。
+step_redis_flush() {
+  local project="$1" tag id identity files provider output
+  [ "$(setting LYX_REDIS_FLUSH_ENABLED)" = true ] || die "Redis 清空演练未显式开启"
+  [ "$(setting STG_FREEZE)" = false ] || die "节点冻结或冻结配置未知，拒绝 Redis 清空"
+  [ "$project" = "$LYX_NODE_PROJECT" ] || die "Compose 项目确认不匹配"
+  tag="$(current_tag)"
+  [ -n "$tag" ] || die "没有本节点当前版本，拒绝 Redis 清空"
+  need_tag "$tag"
+  id="$(compose "$tag" ps -a -q redis)" || die "读不到本项目 Redis"
+  [[ "$id" =~ ^[a-f0-9]{64}$ ]] || die "本项目必须恰有一个 Redis 容器"
+  files="$COMPOSE_FILE"
+  for provider in $NODE_PROVIDERS; do files="$files,$LYX_SRC/infra/compose/providers/$provider.yml"; done
+  identity="$(docker inspect -f '{{.Id}}|{{.Name}}|{{.State.Running}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{index .Config.Labels "com.docker.compose.project.config_files"}}|{{index .Config.Labels "com.docker.compose.oneoff"}}|{{len .HostConfig.PortBindings}}' "$id")" || die "核对 Redis 身份失败"
+  [ "$identity" = "$id|/$(container redis)|true|$project|redis|$files|False|0" ] || die "Redis 容器不属于本 node.yml 项目，拒绝清空"
+  [ "$(setting STG_FREEZE)" = false ] || die "节点已冻结，拒绝 Redis 清空"
+  # 口令只在目标容器中从既有只读 secret 读入环境，既不进宿主 argv，也不输出。
+  output="$(docker exec "$id" timeout 10 sh -c 'REDISCLI_AUTH="$(sed -n "s/^requirepass //p" /run/secrets/redis-auth.conf)"; [ -n "$REDISCLI_AUTH" ] || exit 1; export REDISCLI_AUTH; exec redis-cli --no-auth-warning -n 0 FLUSHDB SYNC')" || die "Redis 清空执行失败"
+  [ "$output" = OK ] || die "Redis 未明确确认清空，演练失败"
+  say "本项目 Redis DB 0 已清空；未重启任何容器"
+}
+
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
 . "$LYX_SRC/infra/deploy/node-weapp.sh"
 
 case "$step" in
+  redis-flush) step_redis_flush "$1" ;;
   logs) step_log_read logs "$1" "$2" 60 5001 ;;
   log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
