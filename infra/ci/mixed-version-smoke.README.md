@@ -1,0 +1,39 @@
+# W2-28 四步真实HTTP/worker混跑
+
+这是测试执行器，不是部署入口。每个SHA都从自己的git archive构建server的build target，保对应版API、服务、契约与worker源码；再仅以实际image ID为FROM，复制唯一40位SHA文本到`/repo/.mixed-source-sha`。driver读取固定文件核身份，不能仅反射请求version；不挂HEAD源码到旧版。测试层不进入正式server镜像。
+
+```sh
+node infra/ci/mixed-version-smoke.mjs --report /tmp/mixed-smoke-本轮.json
+node infra/ci/mixed-version-smoke.mjs --prev <40位祖先提交SHA> --report /tmp/mixed-smoke-另一轮.json
+```
+
+HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到达的最近`v[0-9]*`标签；没有标签时取第一父，仅报告bootstrap，源变化计数不能当已发布版本兼容。显式prev只收完整祖先SHA。HEAD缺构建定义或两版缺driver均失败；仅无祖先或旧版缺server Dockerfile可记no-comparable，不把缺测试能力/构建失败写成跳过。源/driver能力在创建资源前核对。
+
+`--report`须为新JSON文件，拒绝覆盖已有文件及用户符号链接目录；macOS固定`/tmp→/private/tmp`、`/var→/private/var`系统别名可用。报告0600、原子更新，只含来源、镜像ID/driver hash、阶段/PID、真实worker租约及排空事实、operationId/status和清理布尔。失败只固定阶段/错误码；read_failed仅可附已选旧spec的安全operationId，无URL/query、原始错误、猜测HTTP状态。私有RPC、密码/MFA、scope ownerToken、headers/access和readSpec不进报告或日志。
+
+## 本地前置与所有权
+
+只接受本机Unix Docker context，以及既有local.yml的`liyoxi`项目、固定`lyx-postgres/lyx-redis/lyx-minio`三healthy服务。执行器不启动、停止、删除这些共享服务/卷，不运行compose up/down、pull或prune。独占重资源位后才运行真实构建；冷依赖或构建耗时不能通过延长预算解决。CI可由独立工作流先启动自己独占的同名依赖，本机不能照抄CI的down清理。
+
+执行器创建随机internal私网，只把已核ID的三依赖连接为本轮固定alias；ownerNetwork严格收据绑定runId/source/nonce/networkId及三个ID，地址/端口从runId派生。HEAD owner实际迁移/播种自己的随机库、Redis前缀和四桶，持续持有资源；各phase只attach。默认M1及数据库全局localhost规则不变。
+
+## 四步
+
+1. HEAD owner创建并持有本轮资源，返回私有attach能力。
+2. HEAD API主进程fork自身源码worker为独立Node进程；完整20集/并发1真实HTTP主链A，正式队列/租约处理并排空后关闭。
+3. 旧版API/自身workerattach同资源，真实重新登录并读取HEAD结果，再用独立身份/业务对象跑完整20集主链B；排空并关闭旧进程。
+4. 新HEAD API/自身worker读取旧版结果，再排空关闭；HEAD owner清库/前缀/四桶，最后撤本轮网络membership和自有镜像tag/归档目录。
+
+每次必须实际API/worker PID不同、worker持有同版租约、错误为0；排空同时核数据库pending/dead/media submitted等事实与真实队列等待/active/failed，不直接tick/consume/jobs.run。旧不认识的类型由对应版driver按自身登记拒绝，未来合法timer不冒认积压。phase.close只证明真实worker childclose0和bridge关闭；owner.close成功后才记数据库不存在/全前缀SCAN0及四桶HEAD404，不虚构leaseReleased或清理计数。
+
+旧读清单来自旧SHA自身三份OpenAPI。返回的私有完整GET readSpec带旧source，第四步绑定previousSource重放同清单；无path参数集合逐项成功与清单精确对照，详情属于完整旧清单并用真实对象ID。必填query、邀请token均由本轮合法数据/正式HTTP前置提供，不硬编码当前89条、不随机UUID探路或泛放404。读响应公开只留operationId/200。
+
+## 私有RPC与期限
+
+固定`w228-rpc-v1` JSONL，每条≤1MiB、单请求在途、正整数id一致；stdout噪声/乱序/额外字段失败。方法只owner.init/close和phase.start/chain/read/drain/close，CLI模式只owner/phase，固定Node/既有tsx/本版driver路径，不收任意命令或端点。worker内部沿原IPC，无第二套调度机制。协议字段双方核对稿由调度保留，不在公开artifact保存私有消息。
+
+本地总上限600秒包含两次顺序构建和全部清理；工作到540秒即停止，预留60秒清理。driver每次观察原30秒上限保持，两个完整链不缩集数。SIGTERM/SIGINT先保存失败白名单报告、取消在途RPC/命令，再尽力精确收尾；外层CI可施加更紧的8分钟TERM/30秒KILL，不能把被强杀前尚未证实的清理写成通过。任何阶段或清理失败均非零，没有自动重试。
+
+## 当前验证边界
+
+新增五纯聚合已有绿色记录；版本定义例外、私有协议/安全read_failed、旧spec传递和报告路径点修只重跑受影响聚合。infra类型单项已通过；最初lint prefer-const与macOS系统临时目录别名误拒保留。真实双SHA构建/两20集HTTP链及清理仍待ROOT唯一内容审查、driver实际合流和重资源位授权后执行，不能把纯替身通过写成真实混跑已验。先合driver、再由controller普通同步其actual main；缺driver必须失败，不能借HEAD叶补旧版。工作流/同SHA发布gate由独立分支交付。
