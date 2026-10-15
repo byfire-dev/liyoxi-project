@@ -14,6 +14,7 @@ import { createProviders, ProviderConfigError } from "../index.js";
 import { guardOcrRequest, OCR_HOST, OcrAgent } from "./agent.js";
 import { createTencentOcr } from "./tencent.js";
 import { parseBusinessLicense } from "./parse.js";
+import { parseBankReceipt } from "./receipt.js";
 
 // 所有凭据、证照与URL均为公开虚构标记；真实固定SDK只请求本测试的loopback服务器。
 const config = {
@@ -422,5 +423,94 @@ describe("营业执照官方SDK：真实loopback协议", () => {
       for (const marker of [imageUrl, config.secretId, config.secretKey])
         expect(JSON.stringify(method.mock.calls)).not.toContain(marker);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("银行回单官方SDK与保守解析", () => {
+  it("BankSlipOCR固定首页协议；金额/时刻独立期望、未知键/冲突不猜、取消零附加IO", async () => {
+    const result = {
+      RequestId: "receipt-public",
+      BankSlipInfos: [
+        { Name: "付款账号", Value: "1234567890123456" },
+        { Name: "交易金额", Value: "1,234.56" },
+        { Name: "币种", Value: "人民币" },
+        { Name: "日期", Value: "2026-10-16T12:34:56+08:00" },
+        { Name: "未核户名", Value: "不能猜成付款户名" },
+      ],
+    };
+    const http = await local(({ headers, body }, response) => {
+      expect(headers["x-tc-action"]).toBe("BankSlipOCR");
+      expect(headers["x-tc-version"]).toBe("2018-11-19");
+      expect(headers.host).toBe(OCR_HOST);
+      expect(headers.authorization).toMatch(/^TC3-HMAC-SHA256 /);
+      expect(JSON.parse(body)).toEqual({ ImageUrl: imageUrl, IsPdf: true, PdfPageNumber: 1 });
+      json(response, result);
+    });
+    const driver = http.driver();
+    expect(http.calls()).toBe(0);
+    expect(await driver.provider.recognizeBankReceipt({ fileUrl: imageUrl })).toMatchObject({
+      ok: true,
+      value: {
+        payerName: null,
+        payeeName: null,
+        remark: null,
+        payerAccount: "1234567890123456",
+        amountFen: 123456,
+        tradedAt: "2026-10-16T04:34:56.000Z",
+        warnings: ["MISSING_PAYER_NAME", "MISSING_PAYEE_NAME", "MISSING_REMARK"],
+      },
+    });
+    const variants = [
+      [
+        { Name: "交易金额", Value: "1.00" },
+        { Name: "交易金额", Value: "2.00" },
+        { Name: "币种", Value: "CNY" },
+      ],
+      [
+        { Name: "交易金额", Value: "1.234" },
+        { Name: "币种", Value: "CNY" },
+      ],
+      [
+        { Name: "交易金额", Value: "123.00" },
+        { Name: "币种", Value: "USD" },
+      ],
+      [{ Name: "交易金额", Value: "123.00" }],
+    ];
+    for (const fields of variants)
+      expect(
+        parseBankReceipt({
+          RequestId: "public",
+          BankSlipInfos: [result.BankSlipInfos[0], ...fields],
+        })?.amountFen,
+      ).toBeNull();
+    for (const date of [
+      "2026年10月16日",
+      "2026年10月16日 12:34:56",
+      "2026-02-30T12:00:00Z",
+      "2026-10-16T24:00:00Z",
+    ])
+      expect(
+        parseBankReceipt({
+          RequestId: "public",
+          BankSlipInfos: [result.BankSlipInfos[0], { Name: "日期", Value: date }],
+        })?.tradedAt,
+      ).toBeNull();
+    expect(
+      parseBankReceipt({
+        RequestId: "public",
+        BankSlipInfos: [{ Name: "金额别名", Value: "1.00" }],
+      }),
+    ).toBeUndefined();
+    const controller = new AbortController();
+    controller.abort();
+    expect(
+      await driver.provider.recognizeBankReceipt({ fileUrl: imageUrl, signal: controller.signal }),
+    ).toMatchObject({ ok: false, reason: "rejected" });
+    await driver.close();
+    expect(await driver.provider.recognizeBankReceipt({ fileUrl: imageUrl })).toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+    expect(http.calls()).toBe(1);
   });
 });

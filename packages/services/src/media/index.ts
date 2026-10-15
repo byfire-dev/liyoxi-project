@@ -95,3 +95,6 @@ export {
 } from "./assets/facts.js";
 
 export type { MediaRetention } from "./retention/service.js";
+
+export { BankReceiptOcrInputSchema } from "./ocr/receipt.js";
+export type { BankReceiptOcrInput, BankReceiptOcrRead } from "./ocr/receipt.js";
