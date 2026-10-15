@@ -38,7 +38,7 @@ M3 本机接口重放使用 [演示手册](demo/m3.md) 的 `pnpm demo:m3` / `pnp
 
 E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪些规则即时通知见 D7 第 9.3 节。
 
-W2-27b1已提供可选节点配置入口，真实接通未验。获准运维在node.env选择`client-errors alerts`（可分别启闭）；前者只向API挂client-error-projects.json/CLIENT_ERROR_PROJECTS_FILE，后者只向worker挂alerts.json/ALERTS_FILE，check-env聚合做格式检查，默认空保持未配。先按既有check-secrets核文件属性，再跑node-step.sh check-env；通过不等于群/SMS/SaaS已受理或送达。配置形状与重建生效/关闭方式见[两组观测FILE](../../infra/compose/providers/README.md#两组观测-filew2-27b1)。机器人仅原始key，生产host/path固定；客户端DSN仅HTTPS，不能为本机假收件放宽。值班人与接收群仍须E18确认，当前不填虚构接收人。
+W2-27已提供可选节点配置入口，真实接通未验。获准运维在node.env选择`client-errors alerts server-errors`（可分别启闭）；client-errors只向API挂client-error-projects.json/CLIENT_ERROR_PROJECTS_FILE，alerts只向worker挂alerts.json/ALERTS_FILE，server-errors向API/worker挂server-errors.json/SERVER_ERRORS_FILE且各进程仅消费本组件DSN；check-env聚合做格式检查，默认空保持未配。先按既有check-secrets核文件属性，再跑`infra/deploy/node-step.sh check-env <已核镜像标签>`；通过不等于群/SMS/SaaS已受理或送达。配置形状与重建生效/关闭方式见[观测FILE](../../infra/compose/providers/README.md#两组观测-filew2-27b1)。机器人仅原始key，生产host/path固定；DSN仅HTTPS，不能为本机假收件放宽。值班人与接收群仍须E18确认，当前不填虚构接收人。
 
 ### 2.1.1 按请求编号查日志与 gateway 统计
 
@@ -95,24 +95,24 @@ provider_msg_id及receipt字段；同步受理不等于真实到达，没有回�
 | 3 | 已付未履约 | 待填 | 待填 | 待填 | 是 | 待填 |
 | 4 | 付款单超期未关 | 待填 | 待填 | 待填 | | 待填 |
 | 5 | 退款卡住 | 待填 | 待填 | 待填 | | 待填 |
-| 6 | 出站表积压 | 待填 | 待填（D7 写 `outbox:retry`） | 待填 | 是（清空预发 Redis 触发） | 待填 |
-| 7 | 定时器滞后 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 8 | 队列积压 | 待填 | 待填 | 待填 | 是 | 待填 |
+| 6 | 出站表积压 | 见规则6，事件/投递、主租约、Redis | `node-step.sh status`；死信重投用流程运维页，无`outbox:retry` CLI | 研发/节点运维；E18待定 | 是（清空预发 Redis 触发） | 已填处置；真实预发未演练 |
+| 7 | 定时器滞后 | 见规则7，timer期限/租约/失败摘要 | `node-step.sh status`；失败timer用流程运维页重新排期 | 研发/节点运维；E18待定 | 是 | 已填处置；真实预发未演练 |
+| 8 | 队列积压 | 见规则8，实际装配队列的观测事实 | `node-step.sh status`；无全局队列恢复CLI | 研发/节点运维；E18待定 | 是 | 已填处置；真实预发未演练 |
 | 9 | 对账差异 | 见第 3 节 | 待填 | 待填 | 是 | 待填 |
 | 10 | 不变量校验失败 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 11 | worker 失联 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 12 | 周期任务漏跑 | 待填 | 待填 | 待填 | 是（清空预发 Redis 触发） | 待填 |
+| 11 | worker 失联 | 见规则11，worker容器与数据库租约心跳 | `node-step.sh status` | 研发/节点运维；E18待定 | 是 | 已填处置；外部拨测未配 |
+| 12 | 周期任务漏跑 | 见规则12，登记周期/期限与对应timer | `node-step.sh status`；仅failed行可经流程运维页恢复 | 研发及该任务owner；E18待定 | 是（清空预发 Redis 触发） | 已填处置；真实预发未演练 |
 | 13 | 接口错误率与延迟 | 待填 | 待填 | 待填 | | 待填 |
 | 14 | 滥用 | 待填 | 待填 | 待填 | | 待填 |
 | 15 | 通知失败 | 待填 | 待填 | 待填 | | 待填 |
 | 16 | 外部额度 | 待填 | 待填 | 待填 | | 待填 |
 | 17 | 数据库 | 待填 | 待填 | 待填 | | 待填 |
-| 18 | Redis 内存 | 待填 | 待填 | 待填 | | 待填 |
-| 19 | 证书到期 | 待填 | 待填 | 待填 | | 待填 |
-| 20 | 备份 | 见第2.4节，实际timer成功摘要/脱敏失败与目标HEAD | 现有告警CLI；不直接改timer | 待填（E18） | 真实恢复另验 | 已填处置；未演练 |
+| 18 | Redis 内存 | 见规则18，使用率/配置上限与队列保留 | `node-step.sh status`；仓库无内存采样/清键CLI | 节点运维/研发；E18待定 | | 已填处置；云监控未配 |
+| 19 | 证书到期 | 见规则19，显式域名及真实TLS检查摘要 | `node-step.sh status`；续签依已批准证书方案 | 域名/证书运维；E18待定 | | 已填处置；真实DNS/证书未验 |
+| 20 | 备份 | 见第2.4节，实际timer成功摘要/脱敏失败与目标HEAD | failed行经流程运维页恢复；现有告警CLI不补跑 | 研发/存储运维；E18待定 | 真实恢复另验 | 已填七栏处置；真实恢复未演练 |
 | 21 | 工作日历缺失 | 待填 | 待填 | 待填 | | 待填 |
 | 22 | 端上异常 | 待填 | 待填 | 待填 | | 待填 |
-| 23 | 对外不可用 | 待填 | 待填 | 待填 | | 待填 |
+| 23 | 对外不可用 | 见规则23，外部拨测、DNS/TLS与分层探活 | `node-step.sh status`、`node-step.sh log-stats 5` | 节点/网络运维与研发；E18待定 | | 已填处置；外部拨测未配 |
 | 24 | 开关与购买策略变更 | 待填（非故障，知会） | — | 待填 | | 待填 |
 | 25 | 对象清除超限 | 待填；恢复步骤见第 5.1 节 | 待填 | 待填 | | 待填 |
 | 26 | 编码纪律被绕过 | 待填 | 待填 | 待填 | | 待填 |
@@ -133,7 +133,117 @@ provider_msg_id及receipt字段；同步受理不等于真实到达，没有回�
 | 升级 | 多久没恢复找谁 |
 | 事后 | 要不要补不变量校验、补对账、记一条演练或事故记录 |
 
+以下九条是W2-27验收8的本地文书交付，不表示真实节点、云监控、SaaS或E18已接通。节点命令仅由获准运维在已部署的本项目执行；`status`不收标签，`check-env`必须收已核镜像标签，`logs`只收六服务名和真实请求UUID，`log-stats`只收1–1440分钟。没有请求UUID的worker循环，不虚构一个UUID去查空日志；使用运维获准的脱敏容器日志与数据库只读事实，不能把整个日志、载荷或密钥复制到工单。
+
+当前正式人工运输恢复入口是后台“流程运维”页`/sys/flow-ops`：单事件+必填subscriber的`admin.outboxEvent.retry`仅将该对dead→retry；`admin.timer.reschedule`仅将指定failed→scheduled，不接受新fireAt。均按真实权限、确认/幂等和审计执行。`pending/retry/leased`投递、`scheduled/dispatched`timer由原扫描/租约恢复；不存在通用`outbox:retry`、补任意历史期次或全局队列resume CLI，不用临时SQL/BullMQ控制台替代未实现入口。受限`alerts-ack.js ack/close`只认领/关闭单告警，`reset-webhook`只复位死回调，不重投出站事件或补跑timer；精确参数及权限见[worker手册](../../apps/worker/README.md)。认领不等于恢复，人工关闭不发送“已恢复”；探针按连续三个不同正常期次恢复，发送结果另按第2.1.2节核查。
+
+#### 规则6 出站表积压
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `outbox.unpublished`最老未发布事件>60秒为P2、>300秒为P1；`outbox.delivery_lag`到点投递>300秒为P2、>900秒为P1；`outbox.dead`存在即P1。Redis排空不等于数据库事件已消费。 |
+| 先看 | `node-step.sh status`的worker/Redis；流程运维页的事件ID、subscriber、status、attempts、nextAttemptAt与脱敏lastError；只读核`outbox_event.published_at`和该对`outbox_delivery`，关联worker循环错误。 |
+| 判断 | 未发布看relay与数据库；已发布但投递滞后看dispatch、队列/Redis和处理器；dead已耗尽，原扫描不会自动恢复。一次队列超时可能已入队，不能据超时判断丢失。 |
+| 处置 | 先恢复真实worker租约、Redis或处理器故障，观察原扫描及退避推进；仅dead对由有`flow.ops.manage`的人员在流程运维页选定事件和subscriber重投，保同一幂等意图，复核该对实际done及业务结果。 |
+| 不要做 | 不重发业务事件、不改payload或业务状态、不直接重置attempts/dispatchNo，不清共享Redis或全部重投；不使用尚未实现的`outbox:retry`命令。 |
+| 升级 | P1/死信立即交研发及节点运维；P2修复后下一轮仍增长或升为P1立即升级。E18接收人未定时明确通知业主落实负责人，不假称机器人/SMS已到达。 |
+| 事后 | 记录事件/订阅者、故障窗口、恢复操作与审计、实际消费结果及必要的对应领域不变量；按第6.2节另记真实演练，本机8.875秒证据不能替代预发验收。 |
+
+#### 规则7 定时器滞后
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `timer.lag`按scheduled且`COALESCE(retry_at,fire_at)`到点的最老滞后判定，>120秒P2、>600秒P1；存在failed或已入队且长期过租约的dispatched行另报P2。 |
+| 先看 | `node-step.sh status`，流程运维页按timer ID/kind/对象筛选；核fireAt、retryAt、status、attempts、leaseUntil、isEnqueued和lastError，不仅看队列长度。 |
+| 判断 | 原因区分扫描循环未跑、worker/Redis故障、处理器失败和运行中的长任务；尚未到retryAt是合法退避，未过租约不等于失联。 |
+| 处置 | 修复依赖后让scheduled到点/过期dispatched由原扫描认领；只有failed行可在流程运维页重新排期，保原fireAt及业务期限，观察正式处理结果。业务已不需要的失败timer须由owner判断后按现有取消入口留原因。 |
+| 不要做 | 不调早业务期限、不把运行中的长任务改scheduled、不改租约或直接写fired；不以关闭告警代替执行，不构造补跑CLI。 |
+| 升级 | P1、关键业务影响或反复failed立即交任务owner/研发；普通P2在恢复依赖后的下一计划扫描仍未推进即升级节点运维。E18名单仍待业主确认。 |
+| 事后 | 保存原到期/重试/完成时刻、原失败摘要、恢复审计及实际业务结果；涉及积分/金额由owner核对应不变量，不因提醒补到就推定账务正确。 |
+
+#### 规则8 队列积压
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `queue.backlog:<队列>`为P2：实际装配outbox_delivery/notify等待数>500、timer_run>200、media_job/promote>100，或最老等待>300秒、全局暂停已知持续>600秒。近10分钟失败数仅详情，无独立告警阈值。 |
+| 先看 | `node-step.sh status`及告警lastValue的waiting/active/failed10Min、oldestWaitingComplete、paused、pausedForSec、pauseTimeSource；核真实消费者及外部服务错误。当前未装配docs/export/maintenance不冒报健康零。 |
+| 判断 | 区分等待过多、耗时处理、依赖失败和全局暂停；worker发布关停用的是本地pause，不等于Redis全局暂停。时间窗口缺失只能用保守首次观测下界，观测失败/不完整不能记健康。 |
+| 处置 | 外部依赖故障先恢复或按任务原退避等待；修复实际worker/消费者后观察等待下降、最老等待推进与数据库任务完成。异常全局暂停交研发核来源并制定受审恢复操作，仓库当前没有可执行的全局resume CLI。 |
+| 不要做 | 不清队列、删Redis键、重建数据库终态或盲目加并发，不将failed10Min自行改成新阈值；不直接对BullMQ执行任意重试/恢复来绕过正式运输状态。 |
+| 升级 | 最老继续增长、影响核心链或伴随P1时立即交对应任务owner；其余P2在依赖恢复后仍无进展交研发/节点运维。E18与真实外部通知未验。 |
+| 事后 | 按同队列保存前后观测及暂停来源、依赖故障窗口和实际完成数；确认未重复业务副作用，告警恢复与外部受理分别记证据。 |
+
+#### 规则11 worker失联
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `/health`中worker为down，数据库`worker_lease.heartbeat_at`距数据库当前时间>60秒；D7要求外部拨测发P1。worker自己停机后不能靠自身probe继续报活。 |
+| 先看 | `node-step.sh status`的本节点六容器/版本及worker项；获准只读核holder、holderVersion、acquiredAt、heartbeatAt和容器PID/RestartCount，关联数据库连接与worker退出日志。 |
+| 判断 | 区分容器退出/OOM、数据库或专用续租连接故障、部署切换与备用实例接管；失联告警不凭操作员本机时钟推断，也不把容器running等同持有租约。单机预发没有第二台worker可自动承诺接管。 |
+| 处置 | 先修数据库/资源/配置根因；确需恢复进程时按已批准发布或回滚流程处理，不执行不存在的worker-start节点步骤。随后核正式续租与心跳推进，再核出站/定时器实际处理。 |
+| 不要做 | 不手改/删除worker_lease、不伪造heartbeat、不同时强启两个主实例；Redis恢复演练要求原worker不重启，不能通过重启掩盖该验收失败。 |
+| 升级 | P1立即交节点运维和研发；数据库同时down交数据库负责人。外部拨测/E18未配时先由业主落实人工值守，不声称已具备无人值守电话告警。 |
+| 事后 | 记录失联与恢复时刻、原/新holder及容器身份、是否发布/接管、实际积压恢复与事故原因；将真实预发演练另记第6.2节。 |
+
+#### 规则12 周期任务漏跑
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `recurring.missed:<kind>`按本环境真实登记的missSeverity报警；检查最近已超过完成期限的计划期次未fired，或同kind存在failed行。完成期限可长于调度间隔，不能只看最新一行。 |
+| 先看 | 正式timers登记的schedule/deadlineMin/catchUp/missSeverity及对应dedupeKey、scheduledFor；流程运维页/获准只读timer的status、attempts、lastError、result，另核worker和数据库。 |
+| 判断 | 区分未登记期次、仍在合法期限内、处理器失败和历史failed未处置；新一期fired不自动证明旧失败已解决。原补登记对catchUp任务只补最近一格，不补所有历史期次。 |
+| 处置 | 恢复worker/依赖后观察原周期登记和扫描；已存在failed行可在流程运维页按单ID重新排期并核业务键幂等。缺失历史行或已完成行无通用补跑入口，交任务owner评估正式业务补偿，不直接造timer。 |
+| 不要做 | 不删除旧失败、批量重置状态、修改计划期次/业务日期或把重复调用当补账；告警CLI不补跑。备份另按规则20，资金扫描另由财务owner核账。 |
+| 升级 | 按登记P1立即交任务owner及研发，涉及资金同时通知财务；P2/P3在后续合法期次仍漏跑或失败持续时升级。E18未定不虚构响应名单。 |
+| 事后 | 记录应跑/实际完成期次、deadline、恢复审计与合法result；保留历史failed处置结论，并由任务owner核对应业务结果或不变量。 |
+
+#### 规则18 Redis内存
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | D7阈值为使用率>75% P2、>90% P1；node.yml当前Redis为64mb/noeviction，写满会失败。当前生产probe只做真实ping/队列观测，没有Redis内存采样规则，不能从ping成功推定容量健康。 |
+| 先看 | 获准的云/节点监控中的used_memory与有效maxmemory、OOM/写失败和队列保留；`node-step.sh status`只验证运行/探活，不提供使用率。当前云监控未配置，不能填已收件。 |
+| 判断 | 区分持续积压、完成/失败任务未按保留策略清理、异常大键与上限配置不合负载；node.yml上限不是宿主机总内存，不能用宿主空闲量替代Redis使用率。 |
+| 处置 | 先定位所属队列及异常增长，核现有完成/失败保留1小时是否实际生效；只在审批后调整容量/保留配置并按发布流程生效。需要大键诊断时由运维在受限只读工具中限量执行，仓库无清键CLI。 |
+| 不要做 | 不输出Redis认证、不用KEYS全扫或批量删键、不改为淘汰业务键的策略，不把受限redis-flush演练命令当生产容量处置。 |
+| 升级 | >90%、写入失败或连带主链故障立即交节点运维/研发；P2持续增长且配置修复未落实时升级容量负责人。E18和真实云阈值仍待落实。 |
+| 事后 | 记录指标来源、有效上限、增长类别和获准配置变更；核队列/数据库积压与业务副作用，后续在云监控回填实际阈值及通知收据。 |
+
+#### 规则19 证书到期
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `ops.cert_check`每日北京时间09:00检查显式CERT_DOMAINS：剩余<21天P2、<7天P1，不可信/未生效P1、不可达P2；未配为cert.unconfigured，不是健康。 |
+| 先看 | 对应timer的真实result及domain/status/remainingDays，确认实际服务证书的SAN、信任链和有效期；先分清DNS未解析、网络失败与即将到期，不打印私钥。 |
+| 判断 | 区分续签失败、已签未安装/未reload、域名不匹配、链不全及DNS/网络不可达；CERT_DOMAINS只接受显式域名，不自动猜测尚未接通的读域名。 |
+| 处置 | 获准证书维护窗口按既有证书方案续签、安装并校验nginx配置后reload，再从实际访问路径核新证书；保公司官网既有站点。仓库没有证书续签或任意证书检查CLI，不直接改timer/告警结果。 |
+| 不要做 | 不提交私钥、关闭TLS/主机名验证、使用覆盖不到子域的通配符，不为清告警移除实际在用域名；不以已签文件替代线上证书核验。 |
+| 升级 | P1/已影响访问立即交证书/域名运维和研发；P2续签流程未能在剩余有效期内落实即升级业主。DNS及真实证书/E18当前未验。 |
+| 事后 | 记录签发/安装/实测有效期及域名，不留证书秘密；正式每日期次连续三次正常才自动恢复，原通知受理/到达另核，不伪造三次采样。 |
+
+#### 规则23 对外不可用
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | D7要求外部每分钟拨测`/health`，除HTTP成功还须断言`worker === "ok"`且`probeAgeSec`为非负有限数值并<180；null、缺失、未知或类型不符均失败。连续两次失败发P1，云监控直接电话/SMS；当前外部拨测与接收人未配，不能把本机status成功当公网可用证明。 |
+| 先看 | 外部失败时刻/HTTP或DNS/TLS错误；在获准节点执行`node-step.sh status`核六容器、经gateway的healthz/readyz及worker项，`node-step.sh log-stats 5`核真实5xx样本；有请求UUID才用logs查。 |
+| 判断 | 区分DNS/TLS/网络入口故障、gateway/API故障、数据库/Redis不可用和worker失联。status只读的节点探活及worker正常不证明外部链路或`/health`整体正常，统计零样本也不是零错误证明。 |
+| 处置 | 按失败层交网络/证书/节点/研发负责人修复；确属发布回归才走已授权回滚步骤，不迁库或清数据。恢复后从外部实际域名复核HTTP、TLS及health内容，并观察正常拨测。 |
+| 不要做 | 不关闭鉴权/限流/TLS来让拨测转绿，不把未知/degraded强改健康，不覆盖同机公司官网，不盲目重启库或清Redis。 |
+| 升级 | 连续两次失败立即按P1交节点/网络运维及研发，数据库故障同时升级数据库负责人；外部拨测/E18尚缺时由业主指定人工联络，不能声称自动电话已可用。 |
+| 事后 | 记录公网与节点两侧证据、故障窗口、原因和恢复/回滚收据，按第6.2节登记真实演练；云监控/外部拨测核对项只在真实验证后改为已验。 |
+
 ### 2.4 规则20：逻辑备份失败或过期
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `backup.stale`无成功记录或最近成功完成距今>26小时为P1；backup.failed为失败事实，未配不能fired成功，摘要损坏/未来时刻走未知探针失败。 |
+| 先看 | timer的kind/status/attempts/lastError、最近真实firedAt与合法四字段result，核BACKUP_FILE挂载及目标对象HEAD；使用下文只读角色、工具与存储检查，不输出配置内容。 |
+| 判断 | 区分未配/权限/工具版本/进程管道失败、超时或取消、密文大小异常及月首COPY失败；目标可能已有版本，未知结果不能据固定key猜成功。 |
+| 处置 | 修复已证实根因，让原合法重试继续；只有failed行才经流程运维页单ID重新排期。无历史成功/缺失期次交owner处理原catchUp与正式补偿，无通用备份补跑CLI；运行后必须取得合法摘要与真实HEAD。 |
+| 不要做 | 不把明文dump落盘、不将密码进argv，不把告警ack/close当补跑，不直接改timer成功、删对象版本或清共享库/Redis；未核身份/权限不重复上传。 |
+| 升级 | 无可验证备份或>26小时立即交研发/存储运维及业主，涉及数据丢失按恢复流程处理；E18与真实桶/发送授权仍待落实。 |
+| 事后 | 保存脱敏key/bytes/seconds/pgDumpVersion、HEAD/版本及恢复操作审计；真实可恢复性仍须第5.3节/第6.1节独立演练，不以上传成功关闭恢复验收。 |
 
 `backup.pgdump` 每日北京时间03:10，经原job模式以30分钟租约续租，最多3次尝试，
 完成期限3小时。每次失败记录静态 `backup.failed` 事实；缺配同样失败，不能记成成功。
