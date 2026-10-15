@@ -70,6 +70,11 @@ jobs:
           "$RUNNER_TEMP/cos-tools/bin/python" infra/bootstrap/cos-adapter/adapter.py --check
           cd infra/bootstrap/cos-adapter && "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_adapter.py
           "$RUNNER_TEMP/cos-tools/bin/python" -m unittest -v test_artifact_reader.py
+      - name: 准备本轮私有源码映射目录
+        run: |
+          set -eu
+          dir="$(node infra/deploy/source-maps.mjs init "$RUNNER_TEMP")"
+          echo "LYX_SOURCE_MAPS_DIR=$dir" >> "$GITHUB_ENV"
       - name: 冻结安装与小程序构建（含原体积门禁）
         env:
           WEAPP_API_BASE_URL: ${{ vars.STG_WEAPP_API_BASE_URL || 'https://api-stg.invalid' }}
@@ -79,13 +84,14 @@ jobs:
       - name: 构建四镜像并加载上传 SDK
         env:
           TAG: ${{ steps.source.outputs.tag }}
+          SOURCE: ${{ github.sha }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          MAPS_DIR: ${{ env.LYX_SOURCE_MAPS_DIR }}
         run: |
           set -eu
           node infra/docker/weapp-uploader/check-lock.mjs
           for image in server gateway; do
-            docker build -f "infra/docker/$image/Dockerfile" --build-arg "LYX_BUILD=$TAG" \
-              --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
-              --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "liyoxi/$image:$TAG" .
+            docker buildx bake --allow="fs.write=$LYX_SOURCE_MAPS_DIR" -f infra/docker/source-maps.hcl --progress plain "$image-bundle"
           done
           for image in mediatool weapp-uploader; do
             docker build \
@@ -94,6 +100,14 @@ jobs:
           done
           docker run --rm --network none "liyoxi/server:$TAG" pg_dump --version | grep -E '^pg_dump \(PostgreSQL\) 17\.'
           docker run --rm --network none --read-only --tmpfs /tmp "liyoxi/weapp-uploader:$TAG" --check
+      - name: 核对五组件私有映射与镜像同源
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          set -eu
+          docker image inspect "liyoxi/server:$TAG" "liyoxi/gateway:$TAG" > "$LYX_SOURCE_MAPS_DIR/images.json"
+          node infra/deploy/source-maps.mjs finalize "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"
+          node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"
       - name: 打包同一源码的构建产物
         env:
           TAG: ${{ steps.source.outputs.tag }}
@@ -113,6 +127,12 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+      - name: 只清本轮私有映射（上传未配置且未实现）
+        if: always()
+        run: |
+          if [ -n "${LYX_SOURCE_MAPS_DIR:-}" ]; then
+            node infra/deploy/source-maps.mjs cleanup "$LYX_SOURCE_MAPS_DIR"
+          fi
 
   publish-images:
     name: publish-images
