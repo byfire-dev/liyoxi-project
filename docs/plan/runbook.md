@@ -225,7 +225,7 @@ provider_msg_id及receipt字段；同步受理不等于真实到达，没有回�
 
 | 栏 | 处置 |
 | --- | --- |
-| 现象 | D7要求外部每分钟拨测`/health`连续两次失败发P1，云监控直接电话/SMS；当前外部拨测与接收人未配，不能把本机status成功当公网可用证明。 |
+| 现象 | D7要求外部每分钟拨测`/health`，除HTTP成功还须断言`worker === "ok"`且`probeAgeSec`为非负有限数值并<180；null、缺失、未知或类型不符均失败。连续两次失败发P1，云监控直接电话/SMS；当前外部拨测与接收人未配，不能把本机status成功当公网可用证明。 |
 | 先看 | 外部失败时刻/HTTP或DNS/TLS错误；在获准节点执行`node-step.sh status`核六容器、经gateway的healthz/readyz及worker项，`node-step.sh log-stats 5`核真实5xx样本；有请求UUID才用logs查。 |
 | 判断 | 区分DNS/TLS/网络入口故障、gateway/API故障、数据库/Redis不可用和worker失联。status只读的节点探活及worker正常不证明外部链路或`/health`整体正常，统计零样本也不是零错误证明。 |
 | 处置 | 按失败层交网络/证书/节点/研发负责人修复；确属发布回归才走已授权回滚步骤，不迁库或清数据。恢复后从外部实际域名复核HTTP、TLS及health内容，并观察正常拨测。 |
