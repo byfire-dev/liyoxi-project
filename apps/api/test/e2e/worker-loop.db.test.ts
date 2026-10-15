@@ -9,13 +9,38 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { expect, it, vi } from "vitest";
+import { z } from "@liyoxi/contract";
 import {
   createM1Support,
   createM1RealClock,
   prepareM1WorkerExercise,
   waitM1Worker,
 } from "@liyoxi/services/testing";
-import type { M1Attachment, M1LoopWorkerSnapshot as Snapshot } from "@liyoxi/services/testing";
+import type { M1Attachment } from "@liyoxi/services/testing";
+
+const SnapshotSchema = z.object({
+  pid: z.int().positive(),
+  version: z.string().regex(/^[a-f0-9]{40}$/),
+  lease: z.object({ held: z.boolean(), version: z.string().regex(/^[a-f0-9]{40}$/) }).nullable(),
+  active: z.boolean(),
+  errors: z.int().nonnegative(),
+  timerPaused: z.boolean(),
+  handled: z.object({
+    event: z.int().nonnegative(),
+    timer: z.int().nonnegative(),
+    media: z.int().nonnegative(),
+  }),
+  queues: z
+    .array(
+      z.object({
+        waiting: z.int().nonnegative(),
+        active: z.int().nonnegative(),
+        failed10Min: z.int().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+type Snapshot = z.output<typeof SnapshotSchema>;
 
 it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/probe、未知拒绝及暂停取消收尾", async () => {
   vi.stubEnv("APP_ENV", "test");
@@ -52,18 +77,34 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
   let child: ReturnType<typeof fork> | undefined;
   let exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined;
   let sequence = 0;
-  const command = (name: string, first?: M1Attachment) =>
+  const command = (
+    name: "start" | "snapshot" | "pause-timers" | "resume-timers",
+    first?: M1Attachment,
+  ) =>
     new Promise<Snapshot>((resolve, reject) => {
       const active = child!;
       const id = ++sequence;
       const timeout = setTimeout(() => done(new Error("owned worker IPC timeout")), 30_000);
       const receive = (raw: unknown) => {
         if (!raw || typeof raw !== "object" || !("id" in raw) || raw.id !== id) return;
-        if (!("ok" in raw) || raw.ok !== true) return done(new Error("owned worker IPC rejected"));
+        if (!("ok" in raw) || raw.ok !== true) {
+          const failure = z
+            .object({
+              phase: z.enum(["resources", "build", "self-check", "lease", "snapshot", "worker"]),
+            })
+            .safeParse(raw);
+          return done(
+            new Error(
+              `owned worker IPC rejected: ${name}/${failure.success ? failure.data.phase : "unknown"}`,
+            ),
+          );
+        }
         clearTimeout(timeout);
         active.off("message", receive);
         active.off("exit", failed);
-        resolve(raw as Snapshot);
+        const parsed = SnapshotSchema.safeParse(raw);
+        if (!parsed.success) return reject(new Error("owned worker IPC snapshot invalid"));
+        resolve(parsed.data);
       };
       const failed = () => done(new Error("owned worker exited before reply"));
       function done(error: Error) {

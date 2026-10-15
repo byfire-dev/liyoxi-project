@@ -99,11 +99,11 @@ export const m1WorkerSettled = (row: M1WorkerBacklog) =>
   row.unpublished + row.unsettled + row.dueTimers + row.mediaPending === 0;
 
 export function assertM1WorkerKnown(backlog: M1WorkerBacklog, subscribers: readonly string[]) {
-  const known = {
-    events: EVENTS.map((row) => row.name) as readonly string[],
+  const known: Record<keyof M1WorkerBacklog["kinds"], readonly string[]> = {
+    events: EVENTS.map((row) => row.name),
     subscribers,
     timers: [...TIMERS, ...JOBS].map((row) => row.kind),
-    media: MEDIA_JOB_KIND.values as readonly string[],
+    media: MEDIA_JOB_KIND.values,
   };
   for (const key of ["events", "subscribers", "timers", "media"] as const)
     if (

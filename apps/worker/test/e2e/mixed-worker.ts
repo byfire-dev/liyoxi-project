@@ -13,9 +13,22 @@ export const MIXED_WORKER_INTERVALS = {
   domainIntervals: { media_job_run: 100 },
 } as const;
 
+type StartupPhase = "resources" | "build" | "self-check" | "lease" | "snapshot";
+class WorkerStartupFailure extends Error {
+  constructor(readonly phase: StartupPhase) {
+    super("M1 worker受控阶段失败");
+  }
+}
+
 export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
   signal?.throwIfAborted();
-  const resources = await createM1WorkerResources(raw);
+  let resources: Awaited<ReturnType<typeof createM1WorkerResources>>;
+  try {
+    resources = await createM1WorkerResources(raw);
+  } catch {
+    throw new WorkerStartupFailure("resources");
+  }
+  let phase: StartupPhase = "build";
   const lifetime = new AbortController();
   const activeSignal = signal ? AbortSignal.any([signal, lifetime.signal]) : lifetime.signal;
   let runtime: ReturnType<typeof createWorkerRuntime> | undefined;
@@ -77,8 +90,10 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
         void close().catch(() => undefined);
       },
     });
+    phase = "self-check";
     await services.selfCheck();
     activeSignal.throwIfAborted();
+    phase = "lease";
     runtime.start();
     await waitM1Worker(
       async () => {
@@ -108,8 +123,14 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
       },
       async snapshot(): Promise<M1LoopWorkerSnapshot> {
         activeSignal.throwIfAborted();
+        let snapshot: Awaited<ReturnType<typeof resources.snapshot>>;
+        try {
+          snapshot = await resources.snapshot();
+        } catch {
+          throw new WorkerStartupFailure("snapshot");
+        }
         return {
-          ...(await resources.snapshot()),
+          ...snapshot,
           active: runtime!.active,
           errors,
           timerPaused,
@@ -118,13 +139,13 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
         };
       },
     };
-  } catch (error) {
+  } catch {
     try {
       await close();
     } catch {
       throw new Error("M1 worker启动及清理失败");
     }
-    throw error;
+    throw new WorkerStartupFailure(phase);
   }
 }
 
@@ -193,9 +214,13 @@ async function main() {
             await send({ id, ok: true });
             process.disconnect();
           } else throw new Error("M1 worker命令不匹配当前阶段");
-        } catch {
+        } catch (error) {
           await stop().catch(() => undefined);
-          await send({ id, ok: false, phase: command === "start" ? "start" : "worker" });
+          await send({
+            id,
+            ok: false,
+            phase: error instanceof WorkerStartupFailure ? error.phase : "worker",
+          });
           process.exitCode = 1;
           process.disconnect?.();
         }
