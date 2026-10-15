@@ -125,7 +125,7 @@ import {
   createCiWebhookSource,
   createAsrWebhookSource,
 } from "../security/index.js";
-import type { WebhookSource } from "../security/index.js";
+import type { WebhookSource, Webhooks } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
 /** worker 主池（D7 第 8.3 节）：10 条连接，语句 30 秒、等锁 3 秒、事务内空闲 60 秒 */
@@ -253,6 +253,7 @@ export interface WorkerServices {
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
   readonly closeWebhooks?: () => void;
+  readonly webhooks?: Webhooks;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
@@ -884,6 +885,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembly,
     events,
     timers,
+    webhooks,
     providers,
     selfCheck: async () => {
       await runStartupChecks(startupChecks);

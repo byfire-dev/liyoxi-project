@@ -94,6 +94,8 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
   try {
     activeSignal.throwIfAborted();
     const base = buildWorkerServices({ ...resources.options, logger });
+    const webhooks = base.webhooks;
+    if (!webhooks) throw new Error("M1 worker缺正式回调接收公口");
     const services: typeof base = {
       ...base,
       consume: (ref) => {
@@ -107,6 +109,11 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
       promoteFile: (ref) => {
         handled.media++;
         return base.promoteFile(ref);
+      },
+      scanPromote: async (beat) => {
+        const count = await base.scanPromote(beat);
+        await resources.pumpWechatCallbacks(webhooks);
+        return count;
       },
     };
     runtime = createWorkerRuntime({
