@@ -150,7 +150,24 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
         expect.objectContaining({ kind: "probe", state: "succeeded", provider: "mediatool" }),
       ]),
     );
-    const snapshot = await command("snapshot");
+    const snapshot = await waitM1Worker(
+      async () => {
+        const current = await command("snapshot");
+        if (
+          current.errors ||
+          !current.active ||
+          !current.lease?.held ||
+          current.version !== attach.version ||
+          current.lease.version !== attach.version ||
+          current.queues.some((queue) => queue.failed10Min > 0)
+        )
+          throw new Error("owned worker failed or lost its lease while waiting for queue ACK");
+        return current.queues.every((queue) => queue.waiting === 0 && queue.active === 0)
+          ? current
+          : null;
+      },
+      () => undefined,
+    );
     expect(snapshot.errors).toBe(0);
     expect(snapshot.lease?.held).toBe(true);
     for (const count of Object.values(snapshot.handled)) expect(count).toBeGreaterThan(0);
