@@ -42,8 +42,8 @@ import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
 import type { Docs } from "./docs/index.js";
-import { createClientErrorForwarder } from "./ops/index.js";
-import type { ClientErrorForwarder } from "./ops/index.js";
+import { createClientErrorForwarder, createServerErrorReporter } from "./ops/index.js";
+import type { ClientErrorForwarder, ServerErrorReporter } from "./ops/index.js";
 import { createFlowOps, createAlertActions } from "./ops/index.js";
 import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
@@ -214,6 +214,8 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  /** 仅进程入口提供自有dist目录；测试/借用装配不自动启用服务端出口。 */
+  readonly serverErrorRoot?: URL;
   /** API自有ASR/LLM/OCR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
   readonly modelDrivers?: {
     registerClose(close: () => Promise<void>): void;
@@ -260,6 +262,7 @@ export interface Runtime {
   readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
   readonly subscribeResults: SubscribeResults;
   readonly clientErrors: ClientErrorForwarder;
+  readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
   readonly billing: BillingPurchase;
@@ -970,6 +973,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
 
   let closing: Promise<void> | undefined;
+  const serverErrors = options.serverErrorRoot
+    ? createServerErrorReporter({
+        component: entry,
+        release: version,
+        artifactRoot: options.serverErrorRoot,
+        dsn: env.SERVER_ERRORS?.[entry]?.dsn,
+        clock,
+        logger,
+      })
+    : undefined;
   return {
     sessionMutex,
     docs: docsServices.docs,
@@ -979,6 +992,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     analytics,
     subscribeResults,
     clientErrors,
+    ...(serverErrors ? { serverErrors } : {}),
     webhooks,
     order,
     billing,
@@ -1064,6 +1078,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           unbindNoticeLink,
           ...wechatClosers,
           () => clientErrors.close(),
+          () => serverErrors?.close(),
         ]);
         await settle([
           unbindOrderStart,

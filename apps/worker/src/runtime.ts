@@ -78,8 +78,25 @@ export interface WorkerRuntime {
 
 export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntime {
   const { services, channel, lease, logger, monotonic } = options;
-  const onError = (name: string, error: unknown): void =>
+  const onError = (name: string, error: unknown): void => {
     logger.error({ loop: name, err: error }, "循环的这一轮出错，下一轮照常");
+    services.serverErrors?.capture(error, "worker.loop", name);
+  };
+  const queued =
+    <T>(name: WorkerQueue, handle: (data: T) => Promise<unknown>) =>
+    async (data: T): Promise<void> => {
+      try {
+        await handle(data);
+      } catch (error) {
+        try {
+          logger.error({ queue: name, err: error }, "队列处理器出错，原失败语义保持");
+        } catch {
+          /* 保留原处理器错误。 */
+        }
+        services.serverErrors?.capture(error, "worker.queue", name);
+        throw error;
+      }
+    };
   const loop = (name: WorkerLoop, run: (beat: () => void) => Promise<unknown>): Loop =>
     createLoop({
       name,
@@ -95,26 +112,34 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
     ensure_recurring: loop("ensure_recurring", () => services.ensureRecurring()),
   };
   const consumers: Record<WorkerQueue, QueueConsumer> = {
-    notify: channel.consume<NotifyQueueRef>("notify", QUEUE_CONCURRENCY.notify, (ref) =>
-      services.notifyDeliver(ref),
+    notify: channel.consume<NotifyQueueRef>(
+      "notify",
+      QUEUE_CONCURRENCY.notify,
+      queued<NotifyQueueRef>("notify", (ref) => services.notifyDeliver(ref)),
     ),
     outbox_delivery: channel.consume<DeliveryRef>(
       "outbox_delivery",
       QUEUE_CONCURRENCY.outbox_delivery,
-      async (ref) => void (await services.consume(ref)),
+      queued<DeliveryRef>("outbox_delivery", (ref) => services.consume(ref)),
     ),
-    media_job: channel.consume<{ jobId: string }>("media_job", QUEUE_CONCURRENCY.media_job, (ref) =>
-      services.promoteFile(ref),
+    media_job: channel.consume<{ jobId: string }>(
+      "media_job",
+      QUEUE_CONCURRENCY.media_job,
+      queued<{ jobId: string }>("media_job", (ref) => services.promoteFile(ref)),
     ),
-    promote: channel.consume<unknown>("promote", QUEUE_CONCURRENCY.promote, async (raw) => {
-      const ref = legacyPromoteRef.safeParse(raw);
-      if (!ref.success) throw new Error("历史媒体队列参数不合法");
-      return channel.enqueue("media_job", `media-${ref.data.jobId}`, ref.data);
-    }),
+    promote: channel.consume<unknown>(
+      "promote",
+      QUEUE_CONCURRENCY.promote,
+      queued<unknown>("promote", async (raw) => {
+        const ref = legacyPromoteRef.safeParse(raw);
+        if (!ref.success) throw new Error("历史媒体队列参数不合法");
+        return channel.enqueue("media_job", `media-${ref.data.jobId}`, ref.data);
+      }),
+    ),
     timer_run: channel.consume<TimerRef>(
       "timer_run",
       QUEUE_CONCURRENCY.timer_run,
-      async (ref) => void (await services.runTimer(ref)),
+      queued<TimerRef>("timer_run", (ref) => services.runTimer(ref)),
     ),
   };
   const domainLoops: Record<string, Loop> = Object.fromEntries(

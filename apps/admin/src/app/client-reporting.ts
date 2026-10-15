@@ -1,5 +1,7 @@
 // W2-18：轻量 Sentry 错误信封，不装 SDK；业务请求、响应正文和凭据不进入信封。
 import type { paths as AdminPaths } from "@liyoxi/contract/types/admin";
+import { clientErrorFrames } from "@liyoxi/shared/telemetry";
+import type { ClientErrorFrame } from "@liyoxi/shared/telemetry";
 
 import type { AdminApi } from "../lib/api";
 
@@ -22,6 +24,8 @@ export interface AdminClientReportingOptions {
   /** 公开 DSN；空串或不合规时不发送。 */
   readonly dsn: string;
   readonly build: string;
+  /** 当前应用origin；测试可明确注入，生产默认当前浏览器origin。 */
+  readonly origin?: string;
   readonly sender: (raw: string) => Promise<unknown>;
   readonly now?: () => number;
   readonly uuid?: () => string;
@@ -84,12 +88,22 @@ function validDsn(dsn: string): boolean {
   }
 }
 
-function describe(error: unknown): { type: string; value: string; stack?: string } {
+function describe(
+  error: unknown,
+  origin?: string,
+): { type: string; value: string; stack?: string; frames?: readonly ClientErrorFrame[] } {
   if (error instanceof Error)
     return {
       type: scrub(error.name || "Error"),
       value: scrub(error.message),
-      ...(typeof error.stack === "string" ? { stack: scrub(error.stack) } : {}),
+      ...(typeof error.stack === "string"
+        ? {
+            stack: scrub(error.stack),
+            frames: clientErrorFrames(error.stack, "admin", origin).filter(
+              (one) => scrub(one.filename) === one.filename && scrub(one.abs_path) === one.abs_path,
+            ),
+          }
+        : {}),
     };
   if (typeof error === "string") return { type: "Error", value: scrub(error) };
   if (typeof error === "number" || typeof error === "boolean")
@@ -124,7 +138,10 @@ export function createAdminClientReporting(
         seen.size >= ADMIN_ERROR_SESSION_LIMIT
       )
         return;
-      const { type, value, stack } = describe(error);
+      const { type, value, stack, frames } = describe(
+        error,
+        options.origin ?? (typeof location === "undefined" ? undefined : location.origin),
+      );
       const fingerprint = `${kind}|${type}|${value}`;
       if (seen.has(fingerprint)) return;
       const at = now();
@@ -143,9 +160,19 @@ export function createAdminClientReporting(
         platform: "javascript",
         level: "error",
         release: scrub(options.build),
+        dist: "admin",
         tags: { kind, clientPlatform: "web" },
         ...(userId && UUID.test(userId) ? { user: { id: userId } } : {}),
-        exception: { values: [{ type, value, ...(stack ? { stack } : {}) }] },
+        exception: {
+          values: [
+            {
+              type,
+              value,
+              ...(stack ? { stack } : {}),
+              ...(frames?.length ? { stacktrace: { frames } } : {}),
+            },
+          ],
+        },
       };
       const raw = [
         JSON.stringify({

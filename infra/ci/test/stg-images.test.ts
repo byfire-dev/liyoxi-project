@@ -48,7 +48,21 @@ describe("W2-25b 构建与外部写边界", () => {
     }
     expect(body).toContain("${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}");
     expect(body).toContain("org.opencontainers.image.revision=${GITHUB_SHA}");
-    expect(body).not.toMatch(/secrets\.|docker (push|login)|artifact\.put|orchestrate\.mjs/);
+    const upload = body
+      .split("      - name: 上传本轮私有源码映射（显式启用）\n")[1]!
+      .split("      - name:")[0]!;
+    expect(upload.trim()).toBe(
+      `if: vars.STG_SOURCE_MAP_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          SENTRY_AUTH_TOKEN: \${{ secrets.SENTRY_AUTH_TOKEN }}
+          LYX_SENTRY_UPLOAD_CONFIG: \${{ vars.LYX_SENTRY_UPLOAD_CONFIG }}
+          TAG: \${{ steps.source.outputs.tag }}
+        run: node infra/deploy/source-map-upload.mjs "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"`,
+    );
+    expect(body.match(/source-map-upload\.mjs/g)).toHaveLength(1);
+    expect(body.replace(upload, "")).not.toMatch(
+      /secrets\.|docker (push|login)|artifact\.put|orchestrate\.mjs/,
+    );
     expect(body).not.toContain("packages: write");
     expect(images).toContain("name: images-build-${{ github.sha }}");
   });

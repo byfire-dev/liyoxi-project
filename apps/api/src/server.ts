@@ -10,7 +10,13 @@ import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 
 import { serve } from "@hono/node-server";
-import { createRuntime, loadEnv, runStartupChecks } from "@liyoxi/services";
+import {
+  createRuntime,
+  drainServerErrors,
+  installServerErrorHandlers,
+  loadEnv,
+  runStartupChecks,
+} from "@liyoxi/services";
 import type { Runtime } from "@liyoxi/services";
 
 import { testRedisKeyPrefix } from "./cli/test-redis-prefix.js";
@@ -37,6 +43,7 @@ export async function main(): Promise<void> {
   }
 
   let runtime: Runtime | undefined;
+  let removeErrorHandlers: ReturnType<typeof installServerErrorHandlers> | undefined;
   let modelBudget: ReturnType<typeof createApiModelBudgetTransport> | undefined;
   // 模型驱动可在runtime返回前被创建；入口先持有唯一关闭Promise作为失败兜底。
   const modelClosers: Array<() => Promise<void>> = [];
@@ -49,6 +56,7 @@ export async function main(): Promise<void> {
       if (failure?.status === "rejected") throw failure.reason;
     }));
   const dispose = async () => {
+    removeErrorHandlers?.();
     const runtimeResult = await Promise.allSettled([
       Promise.resolve().then(() => runtime?.close()),
     ]);
@@ -78,6 +86,7 @@ export async function main(): Promise<void> {
         close: closeModelDrivers,
       },
       entry: "api",
+      serverErrorRoot: new URL("./", import.meta.url),
       env,
       version: VERSION,
       redisKeyPrefix,
@@ -98,6 +107,11 @@ export async function main(): Promise<void> {
     await runStartupChecks(runtime.startupChecks);
 
     const { logger } = runtime;
+    if (runtime.serverErrors)
+      removeErrorHandlers = installServerErrorHandlers({
+        reporter: runtime.serverErrors,
+        log: (error, kind) => logger.fatal({ evt: kind, err: error }, "api 未捕获异常，退出"),
+      });
     const server = serve({ fetch: api.app.fetch, port, hostname: values.host }, (address) => {
       api.readiness.state = "ready";
       logger.info(
@@ -117,17 +131,19 @@ export async function main(): Promise<void> {
           .catch((error: unknown) => logger.error({ evt: "api.close", err: error }, "断开连接出错"))
           .finally(() => {
             logger.info({ evt: "api.stopped" }, "api 已退出");
-            process.exit(0);
+            process.exit(removeErrorHandlers?.hasFailed() ? 1 : 0);
           });
       });
     };
     process.on("SIGTERM", () => stop("SIGTERM"));
     process.on("SIGINT", () => stop("SIGINT"));
   } catch (error) {
+    runtime?.serverErrors?.capture(error, "process.start");
     // 环境变量、参数定义、模块登记、路由挂载、启动自检的报错都不带配置值，可以原样打出来
     const message = error instanceof Error ? error.message : String(error);
     if (runtime) runtime.logger.fatal({ evt: "api.start_failed" }, message);
     else console.error(`api 启动失败：${message}`);
+    await drainServerErrors(runtime?.serverErrors);
     await dispose().catch(() => undefined);
     process.exit(1);
   }

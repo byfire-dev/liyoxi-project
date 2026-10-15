@@ -1,4 +1,6 @@
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
+import { createServerErrorReporter, reportWorkerOutcome } from "./server-errors.js";
+import type { ServerErrorReporter } from "./server-errors.js";
 import { createDeliveryProductionAssembly } from "./delivery-production-runtime.js";
 import { createApprovalSlaAssembly } from "./approval-sla-runtime.js";
 import {
@@ -158,6 +160,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly serverErrorSource?: Readonly<{ release: string; artifactRoot: URL }>;
   readonly sessionMutex?: SessionMutex;
   readonly probe?: {
     readonly db: SqlRunner;
@@ -208,6 +211,7 @@ export interface WorkerServicesOptions {
     readonly CERT_DOMAINS?: Env["CERT_DOMAINS"];
     readonly BACKUP?: Env["BACKUP"];
     readonly ALERTS?: Env["ALERTS"];
+    readonly SERVER_ERRORS?: Env["SERVER_ERRORS"];
   };
   /** 换掉十二个 Provider：只有用例会给（替身）。不给即 assembleProviders 按环境选实现 */
   readonly providers?: Providers;
@@ -219,6 +223,8 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  readonly serverErrors?: ServerErrorReporter;
+  readonly closeServerErrors?: () => Promise<void>;
   readonly sessionMutex?: SessionMutex;
   readonly runProbes?: (beat?: () => void) => Promise<unknown>;
   readonly closeProbes?: () => Promise<void>;
@@ -659,7 +665,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     deliverySlaScope.close();
     unbindDelivery();
   };
-  const delivery = { tx, subscribers: events.subscribers, channel, alerts };
+  const delivery = {
+    tx,
+    subscribers: events.subscribers,
+    channel,
+    alerts,
+    onFailure: (outcome: "retry" | "dead") =>
+      reportWorkerOutcome(serverErrors, "delivery", outcome),
+  };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
   const approval = createApproval({
@@ -701,7 +714,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   // 扫描里出错过的主体（进程内的记忆）：下一轮排到正常的主体后面，不占着名额饿死别人
   const laggards = new Map<string, number>();
-  const timing = { tx, assembly, registry: timers.registry, clock, alerts, channel };
+  const timing = {
+    tx,
+    assembly,
+    registry: timers.registry,
+    clock,
+    alerts,
+    channel,
+    onFailure: (outcome: "retry" | "failed") => reportWorkerOutcome(serverErrors, "timer", outcome),
+  };
   const notify = createRuntimeNotify({
     tx,
     clock,
@@ -775,7 +796,18 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       }
     })());
 
+  const serverErrors = options.serverErrorSource
+    ? createServerErrorReporter({
+        component: "worker",
+        release: options.serverErrorSource.release,
+        artifactRoot: options.serverErrorSource.artifactRoot,
+        dsn: options.keys?.SERVER_ERRORS?.worker?.dsn,
+        clock,
+        logger,
+      })
+    : undefined;
   return {
+    ...(serverErrors ? { serverErrors, closeServerErrors: () => serverErrors!.close() } : {}),
     ...(options.sessionMutex ? { sessionMutex: options.sessionMutex } : {}),
     ...(ownsModels ? { closeModelDrivers: () => modelDrivers!.close() } : {}),
     disableModelBudget: () => modelBudget.disable(),

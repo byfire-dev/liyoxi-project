@@ -370,6 +370,7 @@ describe("键名清单", () => {
       "WECHAT_MESSAGE_TOKEN_FILE",
       "WECHAT_MESSAGE_AES_KEY_FILE",
       "CLIENT_ERROR_PROJECTS_FILE",
+      "SERVER_ERRORS_FILE",
       "COS_REGION",
       "COS_BUCKET_SECURE",
       "COS_BUCKET_ASSET",

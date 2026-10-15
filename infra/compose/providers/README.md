@@ -10,7 +10,7 @@
 LYX_NODE_PROVIDERS=asr ocr
 ```
 
-可选名字为 `cos ci asr asr-callback ocr llm media-production client-errors alerts`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
+可选名字为 `cos ci asr asr-callback ocr llm media-production client-errors alerts server-errors`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
 
 选择顺序是进程环境、节点 `node.env`、仓库 `stg.env`。进程环境显式为空会关闭本次调用的所有可选能力；永久启用必须写在节点 `node.env`，确保 systemd 重启时仍使用同一配置。删除某一名字后，后续重建容器不再挂载该组；修改配置本身不会重建已经运行的容器，需按现有发布步骤生效。
 
@@ -33,6 +33,7 @@ LYX_NODE_PROVIDERS=asr ocr
 | `media-production` | `media-production.json` → `MEDIA_PRODUCTION_FILE` | API、worker |
 | `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
 | `alerts` | `alerts.json` → `ALERTS_FILE` | worker |
+| `server-errors` | `server-errors.json` → `SERVER_ERRORS_FILE` | API、worker |
 
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
 
@@ -61,6 +62,10 @@ COS 的地域和四桶挂给 API/worker；CI 的地域和四桶只挂给 worker�
 本片只让已实现配置公口从节点文件抵达正确角色。假收件演练、源码映射上传、真实群/短信/SaaS接通与费用授权均未在本片执行；没有添加可改写生产机器人URL或放宽客户端DSN的配置。
 
 ## 启动前检查与真实验收边界
+
+服务端自身错误出口单独选择`server-errors`，不复用客户端项目文件。server-errors.json为≤4KiB普通UTF8严格JSON，形如`{ "api": { "dsn": "https://public@errors.example.invalid/1" }, "worker": { "dsn": "https://public@errors.example.invalid/2" } }`，至少配置一个组件；只允许api/worker及各自dsn，无任意endpoint或额外字段。DSN须HTTPS、公钥用户名/数字项目，无密码/查询/片段；两个常驻进程仅消费本组件，check-env离线聚合校验。默认空选择不挂文件，未配组件不外呼，文件内容不进入argv/environment/log。
+
+此配置不增加SDK、性能追踪或源码映射上传；服务端只报固定摘要/安全标签和自有dist第一方坐标，不传原始stack、SQL、请求、cause或details。真实SaaS收件和源码还原仍另行验收，不能以配置存在或本地替身通过冒称接通。
 
 先按已有发布流程运行 `check-secrets.sh`，再运行 `node-step.sh check-env <镜像标签>`。独立的 `check-secrets.sh --service api` / `--service worker` 会读取同一选择器，只要求本服务所需文件；因此 systemd 启动前也会检查。输出只报文件名、键名和原因，不打印文件内容。
 

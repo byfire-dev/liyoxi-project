@@ -62,6 +62,7 @@ export const ENV_KEYS: readonly string[] = [
   "WECHAT_MESSAGE_TOKEN_FILE",
   "WECHAT_MESSAGE_AES_KEY_FILE",
   "CLIENT_ERROR_PROJECTS_FILE",
+  "SERVER_ERRORS_FILE",
   "COS_REGION",
   "COS_BUCKET_SECURE",
   "COS_BUCKET_ASSET",
@@ -117,6 +118,12 @@ export interface WechatConfig {
 /** 上报项目白名单与固定上游；只能来自 CLIENT_ERROR_PROJECTS_FILE。 */
 export interface ClientErrorProjectsConfig {
   readonly projects: readonly { readonly dsn: string; readonly upstreamDsn?: string }[];
+}
+
+/** 两个服务端组件的独立上游；不借客户端项目白名单，默认均未配。 */
+export interface ServerErrorsConfig {
+  readonly api?: Readonly<{ dsn: string }>;
+  readonly worker?: Readonly<{ dsn: string }>;
 }
 
 /** 备份只使用独立FILE中的只读连接与公钥；从不回退应用连接或猜测目标。 */
@@ -208,6 +215,7 @@ export interface Env {
   /** 整组未配置时没有此项；敏感字段只能从 FILE 读取。 */
   readonly WECHAT?: WechatConfig;
   readonly CLIENT_ERROR_PROJECTS?: ClientErrorProjectsConfig;
+  readonly SERVER_ERRORS?: ServerErrorsConfig;
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
@@ -1207,6 +1215,23 @@ function readAlerts(source: EnvSource, issues: EnvIssue[]): AlertsEnvConfig | un
   return undefined;
 }
 
+function readServerErrors(source: EnvSource, issues: EnvIssue[]): ServerErrorsConfig | undefined {
+  const text = readWechatFile(source, "SERVER_ERRORS", issues, true);
+  if (text === undefined) return undefined;
+  try {
+    const project = z.strictObject({ dsn: z.string().max(2_048).refine(validErrorDsn) });
+    const parsed = z
+      .strictObject({ api: project.optional(), worker: project.optional() })
+      .refine((one) => one.api !== undefined || one.worker !== undefined)
+      .safeParse(JSON.parse(text));
+    if (parsed.success) return parsed.data;
+  } catch {
+    /* 只保固定键/原因，不保路径、DSN或原始JSON错误。 */
+  }
+  issues.push({ key: "SERVER_ERRORS_FILE", reason: "须为api/worker独立合法HTTPS DSN的严格JSON" });
+  return undefined;
+}
+
 export function loadEnv(
   source: EnvSource = process.env,
   options: { groups?: readonly EnvGroup[] } = {},
@@ -1216,6 +1241,7 @@ export function loadEnv(
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
   const alerts = readAlerts(source, issues);
+  const serverErrors = readServerErrors(source, issues);
 
   const parsed = EnvSchema.safeParse({
     APP_ENV: appEnv,
@@ -1281,6 +1307,7 @@ export function loadEnv(
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
     ...(alerts ? { ALERTS: alerts } : {}),
+    ...(serverErrors ? { SERVER_ERRORS: serverErrors } : {}),
     ...(minio ? { MINIO: minio } : {}),
     ...(cos ? { COS: cos } : {}),
     ...(backup ? { BACKUP: backup } : {}),

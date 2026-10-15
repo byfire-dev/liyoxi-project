@@ -34,6 +34,7 @@ const IDS = [
   "media-production",
   "client-errors",
   "alerts",
+  "server-errors",
 ];
 const OPTIONAL = [
   "cos-signer-keys.json",
@@ -48,6 +49,7 @@ const OPTIONAL = [
   "media-production.json",
   "client-error-projects.json",
   "alerts.json",
+  "server-errors.json",
 ];
 const CORE = [
   "postgres-password",
@@ -122,7 +124,7 @@ function optional(w: ReturnType<typeof world>, file: string, value = marker) {
 }
 
 describe("W2-27b1 固定观测FILE接线", () => {
-  it("完整九组与十二optional精确登记，新两组最小角色/FILE挂载且base不借用", () => {
+  it("完整十组与十三optional精确登记，三观测组最小角色/FILE挂载且base不借用", () => {
     const w = world();
     expect(
       readdirSync(join(repoRoot, "infra/compose/providers"))
@@ -151,27 +153,30 @@ describe("W2-27b1 固定观测FILE接线", () => {
         id: "client-errors",
         file: "client-error-projects.json",
         env: "CLIENT_ERROR_PROJECTS_FILE",
-        role: "api",
+        roles: ["api", "check-env"],
       },
-      { id: "alerts", file: "alerts.json", env: "ALERTS_FILE", role: "worker" },
+      { id: "alerts", file: "alerts.json", env: "ALERTS_FILE", roles: ["worker", "check-env"] },
+      {
+        id: "server-errors",
+        file: "server-errors.json",
+        env: "SERVER_ERRORS_FILE",
+        roles: ["api", "worker", "check-env"],
+      },
     ]) {
       expect(manifest.find((one) => one.file === group.file)).toMatchObject({
         file: group.file,
         uid: 1000,
         required: false,
         env: group.env,
-        services: `${group.role} check-env`,
+        services: group.roles.join(" "),
       });
       const source = read(`infra/compose/providers/${group.id}.yml`);
-      expect([...source.matchAll(/^ {2}([a-z-]+):$/gm)].map((row) => row[1])).toEqual([
-        group.role,
-        "check-env",
-      ]);
+      expect([...source.matchAll(/^ {2}([a-z-]+):$/gm)].map((row) => row[1])).toEqual(group.roles);
       expect(source).toContain(`  ${group.file}:\n    file: \${LYX_SECRETS_DIR:?}/${group.file}\n`);
       expect(
         source.match(new RegExp(`${group.env}: /run/secrets/${group.file}`, "g")),
-      ).toHaveLength(2);
-      expect(source.match(new RegExp(`- ${group.file}`, "g"))).toHaveLength(2);
+      ).toHaveLength(group.roles.length);
+      expect(source.match(new RegExp(`- ${group.file}`, "g"))).toHaveLength(group.roles.length);
       expect(source).not.toMatch(/env_file:|https?:\/\/|volumes:|networks:|depends_on:/);
       expect(read("infra/compose/node.yml")).not.toContain(group.file);
       expect(read("infra/compose/node.yml")).not.toContain(group.env);

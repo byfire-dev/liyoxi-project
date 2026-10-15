@@ -41,6 +41,8 @@ export interface TimerRef {
 }
 
 export interface TimerRunDeps {
+  /** 失败短事务提交后的可选旁路，queued/inline共用，不影响原结果。 */
+  readonly onFailure?: (outcome: "retry" | "failed") => void | Promise<void>;
   readonly tx: TxRunner;
   readonly assembly: Pick<Assembly, "timerHandler">;
   readonly registry: TimerRegistry;

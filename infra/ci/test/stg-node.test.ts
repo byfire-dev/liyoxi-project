@@ -542,6 +542,10 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
           { file: "media-production.json", env: "MEDIA_PRODUCTION_FILE", services: allRoles },
         ],
       },
+      {
+        id: "server-errors",
+        secrets: [{ file: "server-errors.json", env: "SERVER_ERRORS_FILE", services: allRoles }],
+      },
       // W2-27 后继接线可分别交付；出现即完整核对固定 FILE、角色和 overlay，不接受任意新增项。
       ...[
         {

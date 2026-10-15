@@ -55,6 +55,12 @@ export type {
   ClientErrorSnapshot,
   ClientErrorForwarder,
 } from "./client-errors.js";
+export {
+  createServerErrorReporter,
+  drainServerErrors,
+  installServerErrorHandlers,
+} from "./server-errors.js";
+export type { ServerErrorKind, ServerErrorOptions, ServerErrorReporter } from "./server-errors.js";
 export { createFlowOps, assertFlowOpsRead } from "./flow-ops.js";
 export type { FlowOps, FlowOpsActor, FlowOpsDeps } from "./flow-ops.js";
 export { createAlertActions } from "./alert-actions.js";
