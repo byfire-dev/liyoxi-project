@@ -940,6 +940,9 @@ await runMain(async () => {
           process.execPath,
           [
             join(root, "infra/deploy/orchestrate.mjs"),
+            // Rehearsal-only injected precheck; not an actual mixed-version result.
+            "--compat-result",
+            "passed",
             "--local",
             ...args,
             "--summary",
