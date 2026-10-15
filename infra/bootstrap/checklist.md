@@ -6,6 +6,8 @@ W2-27a补充：六常驻容器的json-file轮转须实际核为api/worker/gatewa
 
 W2-27b1补充（仅本地配置接线）：两组按获准运维选择client-errors/alerts，文件分别为client-error-projects.json（仅api/check-env）与alerts.json（仅worker/check-env）；默认空，选中缺文件拒绝，0400普通非空文件/UID1000由原检查执行。详细格式及启闭见[配置说明](../compose/providers/README.md#两组观测-filew2-27b1)。当前没有真实FILE或预发部署事实，群/值班人/SaaS、假收件演练及源码映射仍待办，不把配置源码和纯检查通过记成节点已配。
 
+2026-10-15当前补充：已合server-errors可选组，server-errors.json/SERVER_ERRORS_FILE仅挂api/worker/check-env，两常驻进程各消费本组件DSN；与上述两组可分别启闭，默认仍空。选中后先由原check-secrets验证普通文件/0400/UID1000，再以`infra/deploy/node-step.sh check-env <已核镜像标签>`离线校验。配置源码/本机假收件/映射产物及上传助手已经本地交付，不表示此节点已挂真实FILE或SaaS已收件/符号化；原b1段保留当时边界。具体九规则处置见[运行手册](../../docs/plan/runbook.md#23-处置说明的写法)。
+
 | # | 事项 | 谁办 | 卡哪一步 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-10-14 已定本项目 GHCR；候选四镜像见 README 第 12 节。公开 vars 已设置，推送开关未开启；首次发布、包可见性及节点拉取凭证未验。节点前缀候选 `ghcr.io/sanqianyuejia/`；GHCR 三叶已本地验收合 main，[PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1) 的 Actions 已运行，四镜像构建成功，旧 MinIO 拉取 denied、旧 infra 三项断言及历史密钥扫描测试夹具误报仍阻塞 required；门禁分类已重跑通过 | 业主 | 第 3 步起 | 待核 |
@@ -21,3 +23,7 @@ W2-27b1补充（仅本地配置接线）：两组按获准运维选择client-err
 | 11 | 宿主机 nginx 的覆盖文件 `--nginx-oom` 装不装（内存见底时别先杀它；要等 nginx 下次重启才生效） | 业主定 | 第 1 步的一个参数 | 未办 |
 | 12 | 2026-10-14 截图已确认 `lyx-stg-secure-1257198915` 及其余开发/预发七桶存在；业主同日确认预发 `asset/media/pub` 三桶在上海（`ap-shanghai`），数据万象服务及三桶绑定、预发 `media` 媒体处理已开通。开发四桶及预发 `secure` 的地域、策略、CAM、CORS、运行凭据与真实接口仍待核；本行自动上传及每日备份验收仍未完成 | 业主 | 第二步的自动上传；每日备份 | 待核 |
 | 13 | 启用合并即部署：把仓库变量 `STG_DEPLOY_ENABLED` 设为 `true`（同意一次）。工作流在第二步交 | 业主 | 首次起环境验收之后 | 未办 |
+| 14 | E18接收群/机器人与值班人落实后，按ALERTS_FILE格式提供受控配置；P1机器人/SMS各自受理与到达分别核验，不以铃铛成功替代。实际值不写本表 | 业主/运维 | 真实告警演练前 | 未办 |
+| 15 | 云监控按任务书配置CPU、内存、磁盘80%提醒；另核Redis有效maxmemory与使用率，D7为>75% P2、>90% P1。当前worker的ping/队列观测不含内存采样，监控来源及接收人须真实验明 | 业主/节点运维 | 真实容量告警验收前 | 未办 |
+| 16 | 外部每分钟请求实际预发域名的`/health`，连续两次失败P1，落实云监控电话/SMS及恢复通知；分别验证DNS/TLS、公网请求与接收结果，不以节点status替代 | 业主/节点运维 | DNS及真实环境就绪后 | 未办 |
+| 17 | 错误项目按组件配置客户端/服务端FILE，上传令牌仅进入获准CI密文步骤；同release/dist真实错误收件及源码还原逐项留证。项目映射、工作流开关及权限须核实际配置，不能以本地助手通过写成已接通 | 业主/运维 | 真实SaaS验收前 | 未办 |
