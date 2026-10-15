@@ -12,6 +12,13 @@ import { Redis } from "ioredis";
 import { createNotices } from "../config/index.js";
 import { runDemoSeed } from "../demo-seed.js";
 import { createLogger } from "../logger.js";
+import { createLocalWechat } from "../providers/index.js";
+import {
+  assertM1SharedScope,
+  createM1HttpStorage,
+  createM1RealClock,
+  waitM1Due,
+} from "./m1-shared.js";
 import { runInvariants } from "../ops/index.js";
 import { createRuntime } from "../runtime.js";
 import { loadKeyring } from "../security/index.js";
@@ -33,37 +40,65 @@ import {
 } from "./m1-production.js";
 import type { M1Support, M1SupportOptions } from "./m1-types.js";
 
-const localUrl = (url: string, protocols: readonly string[]) => {
+const localUrl = (
+  url: string,
+  protocols: readonly string[],
+  hosts = ["127.0.0.1", "localhost"],
+) => {
   const parsed = new URL(url);
-  if (!protocols.includes(parsed.protocol) || !["127.0.0.1", "localhost"].includes(parsed.hostname))
+  if (!protocols.includes(parsed.protocol) || !hosts.includes(parsed.hostname))
     throw new Error("M1 演示只接受本地测试 PostgreSQL/Redis");
 };
 export async function createM1Support(options: M1SupportOptions = {}): Promise<M1Support> {
-  if (process.env.APP_ENV !== "test")
+  options.signal?.throwIfAborted();
+  const attach = options.attach;
+  if (attach) {
+    assertM1SharedScope(attach.scope);
+    if (
+      process.env.APP_ENV !== "local" ||
+      options.clock ||
+      !/^[a-z0-9]{1,12}$/.test(attach.chainId) ||
+      !/^[a-zA-Z0-9._-]{1,128}$/.test(attach.version)
+    )
+      throw new Error("M1 attach 必须显式local/独立链标识/对应版本，且禁止可拨时钟");
+  } else if (process.env.APP_ENV !== "test")
     throw new Error("M1 接口重放仅在 APP_ENV=test 的新隔离库执行");
   const base = loadEnv({
-    APP_ENV: "test",
+    APP_ENV: attach ? "local" : "test",
     LOG_LEVEL: "warn",
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
   });
-  localUrl(base.DATABASE_URL, ["postgres:", "postgresql:"]);
-  localUrl(base.REDIS_URL, ["redis:"]);
-  const runId = options.runId ?? randomBytes(6).toString("hex");
+  const isolationId = attach?.scope.runId ?? options.runId ?? randomBytes(6).toString("hex");
+  localUrl(
+    base.DATABASE_URL,
+    ["postgres:", "postgresql:"],
+    ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-postgres`] : [])],
+  );
+  localUrl(
+    base.REDIS_URL,
+    ["redis:"],
+    ["127.0.0.1", "localhost", ...(attach ? [`lyx-mixed-${isolationId}-redis`] : [])],
+  );
+  const runId = attach?.chainId ?? isolationId;
   if (!/^[a-z0-9]{1,12}$/.test(runId)) throw new Error("M1 runId 要 1–12 位小写字母数字");
-  const databaseName = testDatabaseName("api", { session: runId, worker: "0", label: "m1" });
-  const redisPrefix = `lyx:test:${runId}:0:`;
-  const ownerToken = randomBytes(16).toString("hex");
+  const databaseName = testDatabaseName("api", { session: isolationId, worker: "0", label: "m1" });
+  const redisPrefix = `lyx:test:${isolationId}:0:`;
+  const ownerToken = attach?.scope.ownerToken ?? randomBytes(16).toString("hex");
   const ownerKey = `${redisPrefix}m1.owner`;
   let redis: Redis | undefined;
   let ownRedisOwner = false;
-  const clock = options.clock ?? createClock();
+  const clock = attach ? createM1RealClock() : (options.clock ?? createClock());
   // billing/demo-seed 的正式财务种子回溯 25h；只定义本轮历史，不拨动业务或自定义时钟。
-  const startedAt = new Date(clock.now().getTime() - 25 * 3_600_000);
+  const startedAt = attach
+    ? new Date(attach.scope.startedAt)
+    : new Date(clock.now().getTime() - 25 * 3_600_000);
   let ownDatabase = false;
   let ownRedisScope = false;
   let runtime: Awaited<ReturnType<typeof createRuntime>> | undefined;
   let productionTools: ReturnType<typeof createDeliveryProductionTools> | undefined;
+  let httpStorage: ReturnType<typeof createM1HttpStorage> | undefined;
+  let workerRuntime: ReturnType<typeof createRuntime> | undefined;
   let db: ReturnType<typeof createPrismaClient> | undefined;
   let closed = false;
   const clearRedis = async () => {
@@ -88,11 +123,14 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   const close = async () => {
     if (closed) return;
     closed = true;
+    httpStorage?.abort();
     const errors: unknown[] = [];
     try {
       for (const action of [
+        () => workerRuntime?.close(),
         () => runtime?.close(),
         () => productionTools?.tools.close(),
+        () => httpStorage?.close(),
         () => db?.$disconnect(),
         async () => {
           if (ownDatabase) await dropTestDatabase(databaseName);
@@ -119,22 +157,29 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     // 错误由 connect/命令 Promise 传回；不让 ioredis 默认日志暴露连接信息。
     redis.on("error", () => undefined);
     await redis.connect();
-    if ((await redis.set(ownerKey, ownerToken, "NX")) !== "OK")
-      throw new Error("M1 scope 已被另一轮使用，拒绝清理或覆盖");
-    ownRedisOwner = true;
-    let cursor = "0";
-    do {
-      const [next, keys] = await redis.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);
-      cursor = next;
-      if (keys.some((key) => key !== ownerKey))
-        throw new Error("M1 Redis scope 已有数据，拒绝覆盖或清理上一轮");
-    } while (cursor !== "0");
-    if ((await listTestDatabases({ session: runId })).includes(databaseName))
-      throw new Error("M1 测试库已经存在，拒绝重置上一轮的库");
-    ownRedisScope = true;
-    // 已取得独占的随机 scope；失败时也只收本轮刚创建的库。
-    ownDatabase = true;
-    await createSeededDatabase(databaseName, { clock });
+    if (attach) {
+      if ((await redis.get(ownerKey)) !== ownerToken)
+        throw new Error("M1 attach 自有Redis能力已失效");
+      if (!(await listTestDatabases({ session: isolationId })).includes(databaseName))
+        throw new Error("M1 attach 自有数据库不存在；拒绝创建或重置");
+    } else {
+      if ((await redis.set(ownerKey, ownerToken, "NX")) !== "OK")
+        throw new Error("M1 scope 已被另一轮使用，拒绝清理或覆盖");
+      ownRedisOwner = true;
+      let cursor = "0";
+      do {
+        const [next, keys] = await redis.scan(cursor, "MATCH", `${redisPrefix}*`, "COUNT", 500);
+        cursor = next;
+        if (keys.some((key) => key !== ownerKey))
+          throw new Error("M1 Redis scope 已有数据，拒绝覆盖或清理上一轮");
+      } while (cursor !== "0");
+      if ((await listTestDatabases({ session: isolationId })).includes(databaseName))
+        throw new Error("M1 测试库已经存在，拒绝重置上一轮的库");
+      ownRedisScope = true;
+      // 已取得独占的随机 scope；失败时也只收本轮刚创建的库。
+      ownDatabase = true;
+      await createSeededDatabase(databaseName, { clock });
+    }
     const databaseUrl = testDatabaseUrl(databaseName);
     assertTestDatabaseUrl(databaseUrl);
     const env = { ...base, ...fakeKeyEnv(), DATABASE_URL: databaseUrl };
@@ -147,33 +192,75 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       redisPrefix,
     });
     const productionInput = await m1ProductionVideo();
-    productionTools = createDeliveryProductionTools(providers, productionInput.report);
+    if (attach) httpStorage = createM1HttpStorage(attach);
+    const boundProviders = httpStorage
+      ? {
+          ...providers,
+          storage: httpStorage.storage,
+          wechat: createLocalWechat({
+            logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
+          }),
+        }
+      : providers;
+    productionTools = createDeliveryProductionTools(
+      providers,
+      productionInput.report,
+      httpStorage?.storage,
+    );
     runtime = createRuntime({
       entry: "api",
       env: { ...env, MEDIA_PRODUCTION: productionTools.env },
       mediaProductionTools: productionTools.tools,
-      version: "m1-test",
+      version: attach?.version ?? "m1-test",
       clock,
       redisKeyPrefix: redisPrefix,
       rateLimitCommandTimeoutMs: 5000,
-      providers,
+      providers: boundProviders,
       modelBudgetTransport,
-      logger: createLogger({ svc: "api", env: "test", level: "warn", version: "m1-test" }),
+      logger: createLogger({
+        svc: "api",
+        env: attach ? "local" : "test",
+        level: "warn",
+        version: attach?.version ?? "m1-test",
+      }),
     });
+    if (attach)
+      workerRuntime = createRuntime({
+        entry: "worker",
+        env: { ...env, MEDIA_PRODUCTION: productionTools.env },
+        mediaProductionTools: productionTools.tools,
+        version: attach.version,
+        clock,
+        redisKeyPrefix: redisPrefix,
+        providers: boundProviders,
+        logger: createLogger({
+          svc: "worker",
+          env: "local",
+          level: "warn",
+          version: attach.version,
+        }),
+      });
     const apiRuntime = runtime;
+    const jobRuntime = workerRuntime ?? apiRuntime;
     db = createPrismaClient({ connectionString: databaseUrl, max: 3 });
     const readDb = db;
     const assertOwned = () => {
+      options.signal?.throwIfAborted();
       if (
         closed ||
-        apiRuntime.env.APP_ENV !== "test" ||
+        apiRuntime.env.APP_ENV !== (attach ? "local" : "test") ||
         apiRuntime.env.DATABASE_URL !== databaseUrl ||
-        databaseName !== testDatabaseName("api", { session: runId, worker: "0", label: "m1" })
+        databaseName !== testDatabaseName("api", { session: isolationId, worker: "0", label: "m1" })
       )
         throw new Error("M1 支架已关闭或本轮库归属不一致");
       assertTestDatabaseUrl(apiRuntime.env.DATABASE_URL);
     };
-    const transport = m1Transport(apiRuntime, assertOwned, startedAt);
+    const transport = m1Transport(
+      jobRuntime,
+      assertOwned,
+      startedAt,
+      attach ? { realTime: true } : undefined,
+    );
     const video = await m1Video();
     return {
       runId,
@@ -182,6 +269,9 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       runtime: apiRuntime,
       clock,
       providers,
+      ...(httpStorage
+        ? { httpIO: { upload: httpStorage.upload, readSigned: httpStorage.readSigned } }
+        : {}),
       video,
       productionVideo: productionInput.video,
       profileDefaults: M1_PROFILE_DEFAULTS,
@@ -192,14 +282,15 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         const report = await runDemoSeed({
           ...apiRuntime,
           keyring: loadKeyring(env),
-          appEnv: "test",
+          appEnv: attach ? "local" : "test",
           billing: { assembly: apiRuntime.assembly, bizNo: apiRuntime.bizNo },
           notices: createNotices({ clock, events: apiRuntime.events }),
           prepareMasters: createM1ProductionMasterPreparer(
             apiRuntime,
             providers,
             productionInput.video,
-            createCodecDemoMasterPreparer({ ...apiRuntime, appEnv: "test" }),
+            attach ? undefined : createCodecDemoMasterPreparer({ ...apiRuntime, appEnv: "test" }),
+            httpStorage,
           ),
           params: apiRuntime.config.params,
         });
@@ -233,28 +324,41 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           job.state !== "queued"
         )
           throw new Error("M1 文件缺本轮待执行 promote");
-        await apiRuntime.media.promote({ jobId: job.id });
+        await jobRuntime.media.promote({ jobId: job.id });
         const file = await readDb.fileObject.findUniqueOrThrow({ where: { id: fileId } });
+        const bucket = file.bucket;
+        if (bucket !== "secure" && bucket !== "asset" && bucket !== "media" && bucket !== "pub")
+          throw new Error("M1 文件桶不合法");
+        const exists = httpStorage
+          ? await httpStorage.storage.head({
+              bucket,
+              key: file.objectKey,
+            })
+          : null;
         if (
           file.status !== "stored" ||
-          !providers.storage.objects.has(`${file.bucket}/${file.objectKey}`)
+          (httpStorage
+            ? !exists?.ok || !exists.value.exists
+            : !providers.storage.objects.has(`${file.bucket}/${file.objectKey}`))
         )
           throw new Error("M1 文件实际入库未完成");
       },
       installKnownMedia(fileId, scope) {
         assertOwned();
+        if (attach) throw new Error("M1 HTTP 模式不接手手填技术事实");
         return installM1KnownMedia(apiRuntime, providers, runId, fileId, scope);
       },
       finishProduction(fileId, scope) {
         assertOwned();
         return finishM1Production(
-          apiRuntime,
+          jobRuntime,
           providers,
           clock,
           productionInput.video,
           fileId,
           scope,
           () => transport.drainEvents(),
+          httpStorage ? { storage: httpStorage.storage, waitUntil: waitM1Due } : undefined,
         );
       },
       async fullInvariants() {
@@ -281,6 +385,16 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           );
         }
         return report;
+      },
+      sharedScope() {
+        assertOwned();
+        return {
+          runId: isolationId,
+          databaseName,
+          redisPrefix,
+          ownerToken,
+          startedAt: startedAt.toISOString(),
+        };
       },
       close,
     };

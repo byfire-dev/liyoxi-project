@@ -254,3 +254,15 @@ Runtime 的公开任务、checked dispatcher、人工QC与签名下载。codec/c
 替身，固定报告不是运行时原生探测声明，替身水印也不是视觉验收；原生探测与叠加
 另有真实容器/浏览器证据。其他60/40集原演示模型不计媒体技术覆盖。财务种子的
 正式25小时历史由本轮 startedAt 描述，注入 clock 不变；通用运输守卫仍拒绝更早事件。
+
+## W2-28 HTTP 与同库 attach 前置
+
+`createM1Support()` 默认仍只接受 `APP_ENV=test`，创建随机库/Redis前缀并自清；原 M1 七段数据、二十集与可拨时钟不变。原拥有者可在内存或0600任务文件交出 `sharedScope()`，对应版本通过 `createM1Support({attach:{scope,chainId,version,storage}})` 接入。attach 只接受明确 `APP_ENV=local`、精确测试库/前缀、当前 owner token；拒绝已有栈库/远端/错归属，不重置、不删前轮资源。资源拥有者须在两个版本的连接关闭后清理库/前缀；四桶 MinIO 必须是本轮自有容器或精确自有桶。
+
+HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己的服务源码/处理器构建。它真实监听 HTTP，逐请求核 `/health.version`，未知接口/5xx 失败关闭；IO与只读事实/任务运输也来自该版本，不能拿 HEAD 服务结果替旧版。测试 API/worker 装配与 codec/cloud IO 替身边界必须在混跑报告声明，不能称生产部署或真实转码已验。local 微信使用正式本地协议（十一位 phoneCode 为测试手机号），实际文件经本轮 MinIO 表单、入库与签读，进程切换不依赖 fake maps。
+
+`runChain({admin?})` 复用七段主链：没有 admin 时真实引导；后轮用前轮私有 admin 能力重新登录/MFA，经真实员工接口创建独立质检人。每轮 `chainId` 产生独立虚构商家手机号/USCC/对象命名；返回 `report/initialization/observedReads` 与私有 `access`，禁止把 `access` 写入公开报告。真实时钟拒绝 `set/advance`，TOTP、定时器与水印回查按实际到期等待，每次等待/worker排空上限三十秒；未知事件/退避或死信/未完成仍失败。
+
+前置风险目标为 `http.test.ts` 四聚合和 `http-bridge.db.test.ts` 一个真实HTTP/同库/MinIO目标，后者两次使用同源码，不能当新旧镜像演练。本前置不实现四步编排、发布工作流或同SHA发布阻断；W2-28b仍须在实际镜像进程完成这些验收。
+
+2026-10-15本地新增五目标已分批通过；同源码真实目标实际等待两次MFA、跨attach读取本轮MinIO字节并排空worker。Node24 fetch以物理Host发送，transport仅将已知逻辑Host/Origin成对映射到本轮真实origin，未知/异源不重写，大小写经Headers规范化；返回对象字节为真正Uint8Array，保持主链原严格字节断言。默认M1二十集单目标60.36秒通过、123项不变量零违规；本片精确核4个owner前缀、8库及12随机桶均已自然清零。真实混跑、完整HTTP主链与生产发布仍按W2-28b另验。

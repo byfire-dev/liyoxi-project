@@ -31,7 +31,12 @@ async function ownOrder(tx: Tx, scope: M1OrderScope) {
   );
   return order;
 }
-export function m1Transport(runtime: Runtime, assertOwned: () => void, startedAt: Date) {
+export function m1Transport(
+  runtime: Runtime,
+  assertOwned: () => void,
+  startedAt: Date,
+  options?: { readonly realTime: boolean },
+) {
   const alerts = alertsOf(runtime.assembly);
   const timerDeps = {
     tx: runtime.tx,
@@ -102,9 +107,16 @@ export function m1Transport(runtime: Runtime, assertOwned: () => void, startedAt
     },
     async drainEvents() {
       assertOwned();
+      const deadline = performance.now() + 30_000;
+      const check = () => {
+        assertOwned();
+        if (options?.realTime && performance.now() >= deadline)
+          throw new Error("M1 HTTP worker 排空超过三十秒");
+      };
       let expanded = 0,
         consumed = 0;
       for (let round = 0; round < 32; round++) {
+        check();
         expanded += (await runtime.events.expand()).events;
         const { claimed, dead } = await runtime.tx.run((tx) => claimDeliveries(tx));
         guard(dead.length === 0);
@@ -121,6 +133,7 @@ export function m1Transport(runtime: Runtime, assertOwned: () => void, startedAt
           return { expanded, consumed };
         }
         for (const ref of claimed) {
+          check();
           const event = await runtime.tx.run((tx) =>
             tx.outboxEvent.findUniqueOrThrow({ where: { id: ref.eventId } }),
           );

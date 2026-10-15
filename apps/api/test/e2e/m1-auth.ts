@@ -56,7 +56,8 @@ export async function activateM1Staff(
   let cookie = cookieOf(confirmation);
   if (input.relogin) {
     // 首管理员验证登录主路径。第二员工用真实 confirm-totp 已签发的会话，避免重复登录耗掉同 IP 配额。
-    api.support.clock.advance(30_000);
+    if (api.waitForNextMfaStep) await api.waitForNextMfaStep();
+    else api.support.clock.advance(30_000);
     const login = await m1Data<{ ticket: string }>(
       await post("login", { phone: input.phone, password }, cookie),
       "后台登录",
@@ -98,4 +99,35 @@ export async function bootstrapM1Admin(api: M1Api): Promise<M1AuthenticatedStaff
     activationCode: result.activationCode,
     relogin: true,
   });
+}
+
+/** 已初始化的同库第二遍：真实口令登录/MFA，不重引导或伪造会话。 */
+export async function loginM1Staff(
+  api: M1Api,
+  input: Pick<M1AuthenticatedStaff, "staffId" | "phone" | "password" | "secret" | "recoveryCodes">,
+): Promise<M1AuthenticatedStaff> {
+  const login = await m1Data<{ ticket: string }>(
+    await api.request("/api/v1/admin/auth/login", {
+      method: "POST",
+      headers: WRITE,
+      json: { phone: input.phone, password: input.password },
+    }),
+    "已初始化员工登录",
+  );
+  if (api.waitForNextMfaStep) await api.waitForNextMfaStep();
+  else api.support.clock.advance(30_000);
+  const verified = await api.request("/api/v1/admin/auth/verify-mfa", {
+    method: "POST",
+    headers: WRITE,
+    json: { ticket: login.ticket, method: "totp", code: codeNow(input.secret, api) },
+  });
+  const me = await m1Data<StaffMe>(verified, "已初始化员工二次验证");
+  if (me.staff.staffId !== input.staffId) throw new Error("M1 重登员工归属不一致");
+  const headers = { ...WRITE, cookie: cookieOf(verified) };
+  const current = await m1Data<StaffMe>(
+    await api.request("/api/v1/admin/auth/me", { headers }),
+    "已初始化员工身份",
+  );
+  if (current.staff.staffId !== input.staffId) throw new Error("M1 重登会话归属不一致");
+  return { ...input, headers };
 }
