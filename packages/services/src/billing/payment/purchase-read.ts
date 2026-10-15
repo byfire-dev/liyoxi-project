@@ -104,6 +104,7 @@ async function formulaView(tx: Tx, o: BillingOrder) {
     return formulaOf(args.monthlyFeeFen ?? 0, o.amountFen, args.months ?? 1);
   if (o.formulaCode === "plan_cycle")
     return { code: "plan_cycle", args, text: `${args.months} 个月` };
+  if (o.formulaCode === "topup") return { code: "topup", args, text: `加购 ${args.points} 积分` };
   return { code: o.formulaCode, args, text: "" };
 }
 async function fulfillmentView(tx: Tx, o: BillingOrder) {
