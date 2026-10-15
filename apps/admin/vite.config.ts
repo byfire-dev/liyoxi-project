@@ -98,7 +98,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: mode === "e2e" ? "dist/e2e-app" : "dist/app",
       emptyOutDir: true,
-      sourcemap: false,
+      sourcemap: mode === "production" ? "hidden" : false,
     },
     server: {
       port: 5183,

@@ -70,6 +70,7 @@ RUN --mount=type=cache,id=lyx-pnpm-store,target=/pnpm/store \
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 COPY apps/worker/ apps/worker/
+COPY infra/deploy/source-maps.mjs infra/deploy/source-maps.mjs
 # 构建号写进产物：api 读 LYX_BUILD（/health 的 version），worker 读 LYX_BUILD_VERSION（租约的 holder_version）。
 # 上下文里没有 .git，不给就是 dev。
 ARG LYX_BUILD=dev
@@ -77,7 +78,13 @@ RUN set -eux; \
     export LYX_BUILD="${LYX_BUILD}" LYX_BUILD_VERSION="${LYX_BUILD}"; \
     pnpm db:generate; \
     pnpm --filter @liyoxi/api build; \
-    pnpm --filter @liyoxi/worker build
+    pnpm --filter @liyoxi/worker build; \
+    node infra/deploy/source-maps.mjs split api /repo /private-source-maps "$LYX_BUILD"; \
+    node infra/deploy/source-maps.mjs split worker /repo /private-source-maps "$LYX_BUILD"
+
+# 同一build DAG的私有local exporter；最终镜像只COPY已分离的dist。
+FROM scratch AS source-maps
+COPY --from=build /private-source-maps/ /
 
 
 # ---- 生产依赖：api、worker、db 三个包的 dependencies，不带开发依赖 ----

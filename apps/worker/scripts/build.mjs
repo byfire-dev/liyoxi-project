@@ -57,7 +57,7 @@ const options = {
   platform: "node",
   format: "esm",
   target: "node24",
-  sourcemap: true,
+  sourcemap: "external",
   external: EXTERNAL,
   define: { __LYX_VERSION__: JSON.stringify(version()) },
   // 打进来的 CommonJS 依赖（pg 等）要用 require 取 Node 内置模块（做法借自参考工程 apps/worker/tsup.config.ts）

@@ -31,6 +31,7 @@ export default defineConfig<"vite">(async (merge) => {
     copy: { patterns: [], options: {} },
     framework: "react",
     compiler: { type: "vite", vitePlugins: [] },
+    ...(isH5 ? {} : { enableSourceMap: true }),
     alias: { "@": path.resolve(root, "src") },
     sass: {
       // 每个 scss 自动可用商家端的样式变量（$lyx-*，W0-26 的生成物，只声明变量、不出样式）

@@ -47,7 +47,7 @@ const options = {
   format: "esm",
   platform: "node",
   target: "node24",
-  sourcemap: true,
+  sourcemap: "external",
   metafile: true,
   logLevel: "warning",
   define: { __LYX_BUILD__: JSON.stringify(process.env.LYX_BUILD?.trim() || "dev") },
