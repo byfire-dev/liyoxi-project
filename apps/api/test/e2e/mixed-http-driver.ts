@@ -228,11 +228,13 @@ function createPhase(
         child!.once("close", (code, signal) => resolve({ code, signal })),
       );
       WorkerSnapshot.parse(await command("start", attach));
-      await command("pause-timers");
       bridge = await createM1HttpBridge({
         attach,
         signal,
         diagnosticWrite: diagnostics.write,
+        beforeOrder: async () => {
+          await command("pause-timers");
+        },
         backgroundWorker: {
           resumeTimerScan: async () => {
             await command("resume-timers");
@@ -240,7 +242,7 @@ function createPhase(
         },
       });
       const worker = await snapshot();
-      if (!worker.timerPaused) throw new MixedFailure("start_failed");
+      if (worker.timerPaused) throw new MixedFailure("start_failed");
       if (diagnostics.count()) throw new MixedFailure("start_failed");
       return {
         protocol: MIXED_PROTOCOL,
@@ -256,7 +258,6 @@ function createPhase(
       const input = Chain.parse(raw);
       if ((phase === "old-read-write") !== Boolean(input.admin))
         throw new MixedFailure("invalid_state");
-      await command("pause-timers"); // also verifies no unfinished old order can cross this barrier
       chainRan = true;
       const result = await bridge.runChain({
         ...input,
