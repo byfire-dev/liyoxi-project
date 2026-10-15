@@ -44,6 +44,7 @@ export async function createM1HttpBridge(input: {
   readonly attach: M1Attachment;
   readonly signal?: AbortSignal;
   readonly backgroundWorker?: M1SupportOptions["backgroundWorker"];
+  readonly diagnosticWrite?: M1SupportOptions["diagnosticWrite"];
 }) {
   const controller = new AbortController();
   const signal = input.signal
@@ -54,6 +55,7 @@ export async function createM1HttpBridge(input: {
     attach: input.attach,
     signal,
     backgroundWorker: input.backgroundWorker,
+    diagnosticWrite: input.diagnosticWrite,
   });
   let server: ReturnType<typeof serve> | undefined;
   let closed = false;

@@ -31,6 +31,25 @@ export interface M1Attachment {
   readonly storage: NonNullable<Parameters<typeof createMinioStorage>[0]>;
 }
 
+export interface M1OwnerNetworkIdentity {
+  readonly runId: string;
+  readonly source: string;
+  readonly nonce: string;
+  readonly networkId: string;
+}
+/** controller 已核实际 Docker 身份后的私有收据；不是支架自行认证网络。 */
+export interface M1OwnerNetwork {
+  readonly expected: M1OwnerNetworkIdentity;
+  readonly receipt: M1OwnerNetworkIdentity & {
+    readonly schemaVersion: 1;
+    readonly containers: {
+      readonly postgres: string;
+      readonly redis: string;
+      readonly minio: string;
+    };
+  };
+}
+
 export interface M1OrderScope {
   readonly entityId: string;
   readonly storeId: string;
@@ -93,6 +112,10 @@ export interface M1Support {
 }
 export interface M1SupportOptions {
   readonly attach?: M1Attachment;
+  /** 仅 test/nonattach owner：本轮固定私网、正式迁移补种、实钟；不进公开报告。 */
+  readonly ownerNetwork?: M1OwnerNetwork;
+  /** 私有 RPC 的诊断出口；缺省保留原 stdout。调用方不得转印日志原文。 */
+  readonly diagnosticWrite?: (line: string) => void;
   /** HTTP 桥自有生命周期；默认 M1 不注入。 */
   readonly signal?: AbortSignal;
   /** 仅受保护attach：独立worker运输，支架只观察，不认领/直接运行handler。 */
