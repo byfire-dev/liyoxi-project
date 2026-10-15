@@ -249,15 +249,10 @@ export async function fourSteps({
   let phase;
   try {
     budget.remaining();
-    if (!versions.previous) {
-      report.status = "no-comparable";
-      report.cleanup = { ok: true, resourcesCreated: false };
-      return report;
-    }
     report.stage = "dependencies";
     checkpoint(report);
     await backend.prepare();
-    for (const source of [versions.head, versions.previous]) {
+    for (const source of versions.previous ? [versions.head, versions.previous] : [versions.head]) {
       report.stage = source === versions.head ? "build-head" : "build-previous";
       checkpoint(report);
       const row = await backend.build(source);
@@ -296,11 +291,14 @@ export async function fourSteps({
     report.owner = { source: owner.source, pid: owner.pid };
     const writes = [];
     let oldReadSpec;
-    for (const [index, [source, kind]] of [
-      [versions.head, "head-write"],
-      [versions.previous, "old-read-write"],
-      [versions.head, "head-read"],
-    ].entries()) {
+    const phases = versions.previous
+      ? [
+          [versions.head, "head-write"],
+          [versions.previous, "old-read-write"],
+          [versions.head, "head-read"],
+        ]
+      : [[versions.head, "head-write"]];
+    for (const [index, [source, kind]] of phases.entries()) {
       budget.remaining();
       report.stage = kind;
       checkpoint(report);
@@ -399,21 +397,19 @@ export async function fourSteps({
       checkpoint(report);
     }
     requireFact(!signal?.aborted, "cancelled");
-    report.status = "passed";
+    report.status = versions.previous ? "passed" : "no-comparable";
   } catch (error) {
     report.failure = error instanceof MixedFailure ? error.code : "controller";
     if (error instanceof MixedFailure && error.operationId) report.operationId = error.operationId;
   } finally {
-    if (versions.previous) {
-      try {
-        report.cleanup = await backend.cleanup();
-      } catch {
-        report.cleanup = { ok: false };
-      }
-      if (!report.cleanup.ok || signal?.aborted || budget.elapsed() > 600_000) {
-        report.status = "failed";
-        report.failure ??= "cleanup";
-      }
+    try {
+      report.cleanup = await backend.cleanup();
+    } catch {
+      report.cleanup = { ok: false };
+    }
+    if (!report.cleanup.ok || signal?.aborted || budget.elapsed() > 600_000) {
+      report.status = "failed";
+      report.failure ??= "cleanup";
     }
     report.elapsedMs = Math.round(budget.elapsed());
     checkpoint(report);
@@ -459,9 +455,7 @@ export async function main(argv = process.argv.slice(2)) {
     save = reportWriter(options.report);
     save(current);
     const versions = await selectVersions({ prev: options.prev, budget });
-    const backend = versions.previous
-      ? dockerBackend({ root: ROOT, budget, signal: abort.signal })
-      : undefined;
+    const backend = dockerBackend({ root: ROOT, budget, signal: abort.signal });
     current = await fourSteps({
       versions,
       backend,

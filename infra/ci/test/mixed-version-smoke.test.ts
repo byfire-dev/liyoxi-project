@@ -199,7 +199,36 @@ it("W228 controller：固定CLI、真实prev定义与driver能力拒绝，严格
     budget: deadline(),
   });
   expect(noBaseline.status).toBe("no-comparable");
-  expect(calls).toEqual([]);
+  expect(calls).toEqual([
+    "prepare",
+    `build:${HEAD}`,
+    "owner",
+    "start:head-write",
+    "head-write:phase.chain",
+    "head-write:phase.drain",
+    "close:head-write",
+    "cleanup",
+  ]);
+  expect(noBaseline.steps).toHaveLength(1);
+  const headFailure = fakeBackend("head-write:phase.chain");
+  const failedHead = await fourSteps({
+    versions: { head: HEAD, previous: null, baseline: "none" },
+    backend: headFailure.backend,
+    budget: deadline(),
+  });
+  expect(failedHead).toMatchObject({ status: "failed", failure: "rpc-remote" });
+  expect(headFailure.calls.at(-1)).toBe("cleanup");
+  const cleanupFailure = fakeBackend();
+  cleanupFailure.backend.cleanup = async () => {
+    throw new MixedFailure("cleanup");
+  };
+  expect(
+    await fourSteps({
+      versions: { head: HEAD, previous: null, baseline: "none" },
+      backend: cleanupFailure.backend,
+      budget: deadline(),
+    }),
+  ).toMatchObject({ status: "failed", failure: "cleanup" });
   const temp = makeTempDir("mixed-report-");
   try {
     const target = join(temp.dir, "report.json"),

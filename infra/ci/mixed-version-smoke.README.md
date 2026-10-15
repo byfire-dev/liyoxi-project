@@ -7,7 +7,7 @@ node infra/ci/mixed-version-smoke.mjs --report /tmp/mixed-smoke-本轮.json
 node infra/ci/mixed-version-smoke.mjs --prev <40位祖先提交SHA> --report /tmp/mixed-smoke-另一轮.json
 ```
 
-HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到达的最近`v[0-9]*`标签；没有标签时取第一父，仅报告bootstrap，源变化计数不能当已发布版本兼容。显式prev只收完整祖先SHA。HEAD缺构建定义或两版缺driver均失败；仅无祖先或旧版缺server Dockerfile可记no-comparable，不把缺测试能力/构建失败写成跳过。源/driver能力在创建资源前核对。
+HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到达的最近`v[0-9]*`标签；没有标签时取第一父，仅报告bootstrap，源变化计数不能当已发布版本兼容。显式prev只收完整祖先SHA。HEAD缺构建定义或两版缺driver均失败；仅无祖先或旧版缺server Dockerfile可记no-comparable，不把缺测试能力/构建失败写成跳过。无可比版本仍实际执行HEAD构建、迁移播种、完整主链、排空和关闭清理，全部成功才记no-comparable。源/driver能力在创建资源前核对。
 
 `--report`须为新JSON文件，拒绝覆盖已有文件及用户符号链接目录；macOS固定`/tmp→/private/tmp`、`/var→/private/var`系统别名可用。报告0600、原子更新，只含来源、镜像ID/driver hash、阶段/PID、真实worker租约及排空事实、operationId/status和清理布尔。失败只固定阶段/错误码；read_failed仅可附已选旧spec的安全operationId，无URL/query、原始错误、猜测HTTP状态。私有RPC、密码/MFA、scope ownerToken、headers/access和readSpec不进报告或日志。
 
