@@ -4,7 +4,8 @@ import { pathToFileURL } from "node:url";
 import { buildWorkerServices } from "@liyoxi/services";
 import { createM1WorkerResources, waitM1Worker } from "@liyoxi/services/testing";
 import type { M1LoopWorkerSnapshot } from "@liyoxi/services/testing";
-import { createWorkerRuntime, QUEUE_CONCURRENCY } from "../../src/runtime.js";
+import { createWorkerRuntime, LOOP_INTERVALS_MS, QUEUE_CONCURRENCY } from "../../src/runtime.js";
+import { DOMAIN_LOOPS } from "../../src/domain-loops.js";
 import type { Logger } from "../../src/log.js";
 
 /** Only necessary transport scheduling is accelerated; all other cadence/lease/concurrency is real. */
@@ -36,12 +37,25 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
     closing: Promise<void> | undefined;
   let timerPaused = false;
   const handled = { event: 0, timer: 0, media: 0 };
+  const errorSources = new Map<string, number>();
+  const knownLoops = new Set([
+    ...Object.keys(LOOP_INTERVALS_MS),
+    ...DOMAIN_LOOPS.map((loop) => loop.name),
+    "media_job_run.pause",
+  ]);
   const logger: Logger = {
     debug: () => undefined,
     info: () => undefined,
     warn: () => undefined,
-    error: () => {
+    error: (fields) => {
       errors++;
+      const source =
+        fields.evt === "ops.probe_incomplete"
+          ? "ops.probe_incomplete"
+          : typeof fields.loop === "string" && knownLoops.has(fields.loop)
+            ? fields.loop
+            : "other";
+      errorSources.set(source, (errorSources.get(source) ?? 0) + 1);
     },
   };
   const close = () =>
@@ -121,7 +135,7 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
         timerPaused = false;
         runtime!.loops.timer_scan.start();
       },
-      async snapshot(): Promise<M1LoopWorkerSnapshot> {
+      async snapshot(): Promise<M1LoopWorkerSnapshot & { errorSources: Record<string, number> }> {
         activeSignal.throwIfAborted();
         let snapshot: Awaited<ReturnType<typeof resources.snapshot>>;
         try {
@@ -133,6 +147,7 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
           ...snapshot,
           active: runtime!.active,
           errors,
+          errorSources: Object.fromEntries(errorSources),
           timerPaused,
           handled: { ...handled },
           cadence: MIXED_WORKER_INTERVALS,

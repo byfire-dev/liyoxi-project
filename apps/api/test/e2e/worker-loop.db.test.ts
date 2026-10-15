@@ -10,6 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { expect, it, vi } from "vitest";
 import { z } from "@liyoxi/contract";
+import { EVENTS, JOBS, LOOPS, SUBSCRIBERS, TIMERS } from "@liyoxi/contract/registry";
 import {
   FILE_OBJECT_STATUS,
   INVITATION_STATUS,
@@ -25,12 +26,60 @@ import {
 } from "@liyoxi/services/testing";
 import type { M1Attachment } from "@liyoxi/services/testing";
 
+const knownKinds = (values: readonly string[], registered: readonly string[]) => {
+  const known = values.filter((value) => registered.includes(value));
+  return { known, unknownCount: values.length - known.length };
+};
+const BacklogSchema = z.object({
+  unpublished: z.int().nonnegative(),
+  unsettled: z.int().nonnegative(),
+  deadDeliveries: z.int().nonnegative(),
+  dueTimers: z.int().nonnegative(),
+  deadTimers: z.int().nonnegative(),
+  mediaPending: z.int().nonnegative(),
+  mediaFailed: z.int().nonnegative(),
+  published: z.int().nonnegative(),
+  consumed: z.int().nonnegative(),
+  kinds: z
+    .object({
+      events: z.array(z.string()).max(512),
+      subscribers: z.array(z.string()).max(512),
+      timers: z.array(z.string()).max(512),
+      media: z.array(z.string()).max(512),
+    })
+    .transform((kinds) => ({
+      events: knownKinds(
+        kinds.events,
+        EVENTS.map((row) => row.name),
+      ),
+      subscribers: knownKinds(
+        kinds.subscribers,
+        SUBSCRIBERS.map((row) => row.name),
+      ),
+      timers: knownKinds(
+        kinds.timers,
+        [...TIMERS, ...JOBS].map((row) => row.kind),
+      ),
+      media: knownKinds(kinds.media, MEDIA_JOB_KIND.values),
+    })),
+});
 const SnapshotSchema = z.object({
   pid: z.int().positive(),
   version: z.string().regex(/^[a-f0-9]{40}$/),
   lease: z.object({ held: z.boolean(), version: z.string().regex(/^[a-f0-9]{40}$/) }).nullable(),
   active: z.boolean(),
   errors: z.int().nonnegative(),
+  errorSources: z.record(
+    z
+      .string()
+      .refine(
+        (value) =>
+          ["other", "ops.probe_incomplete", "media_job_run.pause"].includes(value) ||
+          LOOPS.some((loop) => loop.id === value),
+      ),
+    z.int().nonnegative(),
+  ),
+  backlog: BacklogSchema,
   timerPaused: z.boolean(),
   handled: z.object({
     event: z.int().nonnegative(),
@@ -276,6 +325,8 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
               active: current.active,
               held: current.lease?.held ?? false,
               errors: current.errors,
+              errorSources: current.errorSources,
+              backlog: current.backlog,
               handled: current.handled,
               queues: current.queues,
             }
