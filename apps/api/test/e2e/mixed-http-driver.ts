@@ -12,7 +12,7 @@ import {
 import type { M1Attachment } from "@liyoxi/services/testing";
 import { createM1HttpBridge } from "./http-bridge.js";
 import { createMixedOwner } from "./mixed-http-driver.owner.js";
-import { readMixedOpenApi } from "./mixed-openapi-reader.js";
+import { readMixedOpenApi, MixedReadSpec } from "./mixed-openapi-reader.js";
 import {
   assertMixedSource,
   MixedAccess,
@@ -70,6 +70,8 @@ const Chain = z.strictObject({ admin: MixedAdmin.optional() });
 const Read = z.strictObject({
   previousAccess: MixedAccess,
   observedReads: z.array(z.string().startsWith("/api/v1/").max(4096)).max(1024),
+  previousSource: MixedSource.optional(),
+  readSpec: MixedReadSpec.optional(),
 });
 const Empty = z.strictObject({});
 
@@ -126,7 +128,11 @@ function createPhase(
     });
   const snapshot = async () => {
     const value = WorkerSnapshot.parse(await command("snapshot"));
-    assertM1WorkerKnown(value.backlog);
+    if (!bridge) throw new MixedFailure("invalid_state");
+    assertM1WorkerKnown(
+      value.backlog,
+      bridge.support.runtime.events.subscribers.all.map((row) => row.name),
+    );
     if (
       !attach ||
       value.pid !== child?.pid ||
@@ -213,8 +219,6 @@ function createPhase(
       );
       WorkerSnapshot.parse(await command("start", attach));
       await command("pause-timers");
-      const worker = await snapshot();
-      if (!worker.timerPaused) throw new MixedFailure("start_failed");
       bridge = await createM1HttpBridge({
         attach,
         signal,
@@ -225,6 +229,8 @@ function createPhase(
           },
         },
       });
+      const worker = await snapshot();
+      if (!worker.timerPaused) throw new MixedFailure("start_failed");
       if (diagnostics.count()) throw new MixedFailure("start_failed");
       return {
         protocol: MIXED_PROTOCOL,
@@ -276,7 +282,23 @@ function createPhase(
     async read(raw: unknown) {
       if (!bridge || closing) throw new MixedFailure("invalid_state");
       const input = Read.parse(raw);
-      const result = await readMixedOpenApi(bridge.api, { ...input, signal });
+      if (
+        phase === "head-read"
+          ? !input.previousSource || !input.readSpec
+          : input.previousSource || input.readSpec
+      )
+        throw new MixedFailure("invalid_state");
+      const replay =
+        phase === "head-read" && input.previousSource && input.readSpec
+          ? { previousSource: input.previousSource, readSpec: input.readSpec }
+          : undefined;
+      const result = await readMixedOpenApi(bridge.api, {
+        previousAccess: input.previousAccess,
+        observedReads: input.observedReads,
+        source,
+        signal,
+        ...(replay ? { replay } : {}),
+      });
       if (diagnostics.count()) throw new MixedFailure("read_failed");
       return result;
     },

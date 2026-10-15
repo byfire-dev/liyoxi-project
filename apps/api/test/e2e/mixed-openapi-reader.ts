@@ -1,4 +1,4 @@
-// Reads this revision's committed OpenAPI, never a controller-supplied HEAD route inventory.
+// Old phase exports its committed GET projection; HEAD replays that same private old spec.
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { z } from "@liyoxi/contract";
@@ -6,7 +6,7 @@ import type { M1Api } from "./in-process.js";
 import { loginM1Staff } from "./m1-auth.js";
 import { createM1Caller } from "./runner-api.js";
 import { m1HttpIdentity } from "./http-bridge.js";
-import { MixedFailure } from "./mixed-http-driver.protocol.js";
+import { MixedFailure, MixedReadFailure, MixedSource } from "./mixed-http-driver.protocol.js";
 import type { MixedPrivateAccess } from "./mixed-http-driver.protocol.js";
 
 const Parameter = z.object({ in: z.string(), name: z.string(), required: z.boolean().optional() });
@@ -25,6 +25,30 @@ const Document = z.object({
 });
 type Operation = { operationId: string; path: string; required: readonly string[] };
 export type MixedRead = { operationId: string; path: string };
+export const MixedReadSpec = z
+  .strictObject({
+    source: MixedSource,
+    operations: z
+      .array(
+        z.strictObject({
+          operationId: z.string().regex(/^[A-Za-z][A-Za-z0-9_.]{0,127}$/),
+          path: z.string().regex(/^\/api\/v1\/(m|admin|portal)\/[^?#\\\s]*$/),
+          required: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9_]*$/)).max(32),
+        }),
+      )
+      .min(1)
+      .max(2048),
+  })
+  .refine(
+    (spec) =>
+      new Set(spec.operations.map((row) => row.operationId)).size === spec.operations.length,
+  );
+export function replayMixedReadSpec(source: string, previousSource: string, raw: unknown) {
+  const spec = MixedReadSpec.parse(raw);
+  if (MixedSource.parse(previousSource) === source || spec.source !== previousSource)
+    throw new MixedFailure("read_failed");
+  return spec;
+}
 export function mixedReadOperations(rawDocuments: readonly unknown[]): Operation[] {
   const result: Operation[] = [];
   for (const raw of rawDocuments) {
@@ -117,30 +141,62 @@ export function mixedReadPlan(
   if (!all.length || !objects.length) throw new MixedFailure("read_failed");
   return { operations: all, details: objects };
 }
+export async function readMixedGets(
+  api: Pick<M1Api, "request">,
+  rows: readonly MixedRead[],
+  adminHeaders: Readonly<Record<string, string>>,
+  merchantHeaders: Readonly<Record<string, string>>,
+  signal: AbortSignal,
+) {
+  const result: { operationId: string; status: number }[] = [];
+  for (const row of rows) {
+    signal.throwIfAborted();
+    try {
+      const response = await api.request(row.path, {
+        headers: row.path.startsWith("/api/v1/admin/") ? adminHeaders : merchantHeaders,
+        signal,
+      });
+      await response.body?.cancel();
+      if (response.status !== 200) throw new MixedFailure("read_failed");
+      result.push({ operationId: row.operationId, status: response.status });
+    } catch {
+      throw new MixedReadFailure(row.operationId); // selected validated old spec only, never the URL
+    }
+  }
+  return result;
+}
 export async function readMixedOpenApi(
   api: M1Api,
   input: {
     previousAccess: MixedPrivateAccess;
     observedReads: readonly string[];
     signal: AbortSignal;
+    source: string;
+    replay?: { previousSource: string; readSpec: z.output<typeof MixedReadSpec> };
   },
 ) {
-  const operations = mixedReadOperations(
-    await Promise.all(
-      ["merchant", "admin", "portal"].map(
-        async (surface) =>
-          JSON.parse(
-            await readFile(
-              new URL(
-                "../../../../packages/contract/generated/" + surface + ".openapi.json",
-                import.meta.url,
-              ),
-              "utf8",
+  const readSpec = input.replay
+    ? replayMixedReadSpec(input.source, input.replay.previousSource, input.replay.readSpec)
+    : MixedReadSpec.parse({
+        source: input.source,
+        operations: mixedReadOperations(
+          await Promise.all(
+            ["merchant", "admin", "portal"].map(
+              async (surface) =>
+                JSON.parse(
+                  await readFile(
+                    new URL(
+                      "../../../../packages/contract/generated/" + surface + ".openapi.json",
+                      import.meta.url,
+                    ),
+                    "utf8",
+                  ),
+                ) as unknown,
             ),
-          ) as unknown,
-      ),
-    ),
-  );
+          ),
+        ),
+      });
+  const operations = readSpec.operations;
   const signedIn = await loginM1Staff(api, input.previousAccess.admin);
   const call = createM1Caller(api);
   const agreements = await call("m.agreement.list", {}, { query: { scene: "login" } });
@@ -184,21 +240,23 @@ export async function readMixedOpenApi(
       token: invitation?.token ?? "",
       year: new Date(Date.now() + 8 * 3600_000).getUTCFullYear(),
     });
-    const read = async (rows: readonly MixedRead[]) => {
-      const result: { operationId: string; status: number }[] = [];
-      for (const row of rows) {
-        input.signal.throwIfAborted();
-        const response = await api.request(row.path, {
-          headers: row.path.startsWith("/api/v1/admin/") ? signedIn.headers : merchantHeaders,
-          signal: input.signal,
-        });
-        await response.body?.cancel();
-        if (response.status !== 200) throw new MixedFailure("read_failed");
-        result.push({ operationId: row.operationId, status: response.status });
-      }
-      return result;
+    return {
+      operations: await readMixedGets(
+        api,
+        plan.operations,
+        signedIn.headers,
+        merchantHeaders,
+        input.signal,
+      ),
+      details: await readMixedGets(
+        api,
+        plan.details,
+        signedIn.headers,
+        merchantHeaders,
+        input.signal,
+      ),
+      readSpec,
     };
-    return { operations: await read(plan.operations), details: await read(plan.details) };
   } finally {
     if (invitation)
       await call("m.invitation.revoke", merchantHeaders, {

@@ -8,7 +8,12 @@ import {
   MixedAccess,
   serveMixedRpc,
 } from "./mixed-http-driver.protocol.js";
-import { mixedReadOperations, mixedReadPlan } from "./mixed-openapi-reader.js";
+import {
+  mixedReadOperations,
+  mixedReadPlan,
+  replayMixedReadSpec,
+  readMixedGets,
+} from "./mixed-openapi-reader.js";
 
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value) + "\n");
 const input = async function* (chunks: readonly Uint8Array[]) {
@@ -178,6 +183,62 @@ it("本版旧OpenAPI全无参GET、六真实query与实际详情全部规划，�
   expect(() =>
     mixedReadOperations([{ paths: { "/outside": { get: { operationId: "bad" } } } }]),
   ).toThrow();
+  const oldSource = "b".repeat(40);
+  const oldOnly = { operationId: "admin.old.only", path: "/api/v1/admin/old-only", required: [] };
+  const replay = replayMixedReadSpec(source, oldSource, {
+    source: oldSource,
+    operations: [...operations, oldOnly],
+  });
+  expect(
+    mixedReadPlan(replay.operations, options).operations.some(
+      (row) => row.operationId === oldOnly.operationId,
+    ),
+  ).toBe(true); // HEAD's current document does not contain this old GET.
+  expect(() => replayMixedReadSpec(source, source, replay)).toThrow();
+  expect(() => replayMixedReadSpec(source, "c".repeat(40), replay)).toThrow();
+  expect(() =>
+    replayMixedReadSpec(source, oldSource, {
+      ...replay,
+      operations: [{ ...oldOnly, method: "post" }],
+    }),
+  ).toThrow();
+  const failureOutput: string[] = [];
+  await expect(
+    serveMixedRpc(
+      input([
+        encode({
+          protocol: MIXED_PROTOCOL,
+          id: 1,
+          method: "phase.read",
+          params: {},
+        }),
+      ]),
+      async (line) => {
+        failureOutput.push(line);
+      },
+      async () =>
+        readMixedGets(
+          {
+            request: async () => {
+              throw new Error("synthetic-private-url-secret-500");
+            },
+          },
+          [oldOnly],
+          {},
+          {},
+          new AbortController().signal,
+        ),
+    ),
+  ).rejects.toThrow();
+  expect(JSON.parse(failureOutput[0]!)).toEqual({
+    protocol: MIXED_PROTOCOL,
+    id: 1,
+    ok: false,
+    errorCode: "read_failed",
+    operationId: oldOnly.operationId,
+  });
+  expect(failureOutput[0]).not.toContain("synthetic-private");
+  expect(failureOutput[0]).not.toContain("status");
 });
 
 it("私有日志只累计固定级别错误，不保留原文或把损坏记录当成功", () => {

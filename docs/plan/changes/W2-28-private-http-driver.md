@@ -8,12 +8,15 @@
 | 类别 | 小改 |
 | PR | — |
 
-ROOT批准此同一机制范围与917行支持规模偏差：固定pipe/字节上限/取消与真实child退出、
+ROOT批准初版此同一机制917行支持规模偏差：固定pipe/字节上限/取消与真实child退出、
 owner精确四桶归集清理、跨版重登与全部旧OpenAPI查询/真实详情。无新依赖/生产业务、
 DDL/租约/队列抽象。source只读固定构建元数据文本，并与controller的精确镜像身份共同核；
 不允许把HEAD源码挂到旧镜像。私有能力不进公开报告。
 
 本地只运行3个纯聚合与所属格式/ESLint；首次3/3通过，补EOF取消后定点复验。
-API类型及源码独审待调度，未跑DB/构建/容器/完整HTTP链或GitHub。
+唯一源码审查指出Step4必须回放旧版清单，已补source绑定的私有旧GET投影与原组反例，
+不让HEAD清单掩盖旧GET；API首轮缺实际订阅者参数已同批窄修，最终类型待调度。
+同批批准失败仅带已选旧spec的安全operationId，不输出URL/query/rawerror或猜HTTP状态。
+未跑DB/构建/容器/完整HTTP链或GitHub。
 owner/phase关闭仅报告实际完成事实，未另读租约不得报告leaseReleased。
 外部IO替身与bootstrap基线语义见同目录driver README，不提前宣称混跑完成。

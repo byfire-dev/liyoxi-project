@@ -57,6 +57,12 @@ export class MixedFailure extends Error {
     super("Mixed driver failed");
   }
 }
+export class MixedReadFailure extends MixedFailure {
+  constructor(readonly operationId: string) {
+    super("read_failed");
+    if (!/^[A-Za-z][A-Za-z0-9_.]{0,127}$/.test(operationId)) throw new MixedFailure("read_failed");
+  }
+}
 /** Raw diagnostic lines are never retained; errors and malformed records remain failures. */
 export function mixedDiagnostics() {
   let errors = 0;
@@ -123,6 +129,7 @@ export async function serveMixedRpc(
         id,
         ok: false,
         errorCode: error instanceof MixedFailure ? error.code : "invalid_request",
+        ...(error instanceof MixedReadFailure ? { operationId: error.operationId } : {}),
       };
     }
     chunks = [];

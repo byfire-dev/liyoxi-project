@@ -16,6 +16,7 @@ controller 从精确 SHA 的上下文构建本版测试镜像，再用精确 ima
 请求为一行 JSON：
 {protocol:"w228-rpc-v1",id:正递增整数,method,params}。
 响应为同协议/id与 ok:true,result，或 ok:false,errorCode。
+read_failed仅可额外携带已选旧spec的安全operationId；不带请求路径或猜测HTTP状态。
 每条请求/响应最多1MiB；错误码固定，不输出 message、stack、URL或原始日志。
 失败、截断或没有显式 close 的 EOF 均失败退出；SIGTERM/controller预算取消
 仍等待自有子进程与资源关闭。controller总预算600秒，driver工作预算540秒，清理独立有界。
@@ -31,7 +32,7 @@ API日志进入可选诊断sink，仅累计固定级别错误/损坏记录，不
 | owner.close | {}；成功返回closed:true、scopeAbsenceVerified:true、bucketsAbsent:true |
 | phase.start | {source,attach,phase}，phase为head-write/old-read-write/head-read；返回source、apiPid、真实worker快照及apiDiagnosticErrors |
 | phase.chain | {admin?}；head-write真实bootstrap，old-read-write必须传前轮admin并实际重登；返回report/initialization/observedReads/private access |
-| phase.read | {previousAccess,observedReads}；返回operationId/status列表与详情列表，绝不回显令牌/路径 |
+| phase.read | old阶段输入{previousAccess,observedReads}，返回operationId/status与详情、私有readSpec；head-read另必须传previousSource/readSpec，绝不回显令牌/查询路径 |
 | phase.drain | {}；返回原只读drain结果、真实worker快照与API错误计数 |
 | phase.close | {}；成功返回workerStopped:true、bridgeClosed:true，不伪称另读过租约释放 |
 
@@ -49,14 +50,19 @@ phase fork镜像自带worker，真实PID/PG租约版本/BullMQ/全库积压及�
 
 ## 旧 OpenAPI reader
 
-只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（当前89），
+old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（当前89），
 六个必填query用正式字典、实际店、北京时间年份、搜索词和真实HTTP邀请令牌。
 邀请经正式创建，读取后正式撤回；不是SQL假行。未来新增未知必填输入直接失败，
 不省略接口。真实跨版admin口令/MFA、商家phoneLogin重登；不复用上版headers。
 本轮7个ID映射可用详情，并复读已成功observedReads对应的真实详情；
 没有对应GET的merchantUserId/sampleId不捏造路径，样片沿orderItemId读取。
 所有计划读均要求200；5xx、404、未知路径或未完成失败，不能把权限拒绝记授权成功。
+old阶段同时通过私有RPC传回完整GET投影readSpec（含路径模板/必填query/source）；
+Step4 HEAD严格绑定previousSource与该旧spec并重放，完全不以HEAD自己的OpenAPI覆盖。
+旧版独有GET即使在HEAD清单中消失，也必须实际请求而不能漏验。spec不进公开报告。
 
 3个纯聚合覆盖协议边界、实际OpenAPI/query/详情计划及诊断脱敏，首次3/3通过
 （3.39秒/tests26ms）；随后补EOF取消断言，只复验受影响纯组。
-类型与独立进程实际运输尚待调度；不重复完整20集单链，留给后继双SHA四步一次验证。
+唯一源码审查指出Step4清单遗漏，已按上述旧spec重放修正并在原reader组加反例；
+API首轮类型仅遗漏实际注册订阅者参数，同批改用本bridge真实注册名单。
+最终类型与独立进程实际运输尚待调度；不重复完整20集单链，留给双SHA四步一次验证。
