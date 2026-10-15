@@ -14,20 +14,28 @@ interface Facts {
   };
   timer: { status: string; firedAt: string | null; result: unknown };
 }
-const { waitForRedisRecovery, LOG_ROTATION, RECOVERY_LIMIT_MS } = (await import(
-  pathToFileURL(join(repoRoot, "infra/deploy/redis-recovery.mjs")).href
-)) as {
-  LOG_ROTATION: Record<string, { size: string; files: string; mib: number }>;
-  RECOVERY_LIMIT_MS: number;
-  waitForRedisRecovery: (options: {
-    before: Facts;
-    flushedAt: number;
-    subscribers: string[];
-    read: () => Promise<Facts>;
-    now: () => number;
-    sleep: (ms: number) => Promise<void>;
-  }) => Promise<{ elapsedMs: number }>;
-};
+const { waitForRedisRecovery, LOG_ROTATION, RECOVERY_LIMIT_MS, prepareRecoveryAdmin } =
+  (await import(pathToFileURL(join(repoRoot, "infra/deploy/redis-recovery.mjs")).href)) as {
+    LOG_ROTATION: Record<string, { size: string; files: string; mib: number }>;
+    RECOVERY_LIMIT_MS: number;
+    prepareRecoveryAdmin: (
+      args: string[],
+      env: NodeJS.ProcessEnv,
+      run: (
+        command: string,
+        args: string[],
+        options: object,
+      ) => { status: number; stdout: string; stderr: string },
+    ) => void;
+    waitForRedisRecovery: (options: {
+      before: Facts;
+      flushedAt: number;
+      subscribers: string[];
+      read: () => Promise<Facts>;
+      now: () => number;
+      sleep: (ms: number) => Promise<void>;
+    }) => Promise<{ elapsedMs: number }>;
+  };
 const ID = "a".repeat(64);
 const project = "lyxrh-aabbcc";
 const step = join(repoRoot, "infra/deploy/node-step.sh");
@@ -172,6 +180,17 @@ describe("W2-27a 精确轮转与自有 Redis 恢复", () => {
       '"redis-flush": { type: "boolean", default: false }',
     );
     expect(RECOVERY_LIMIT_MS).toBe(120_000);
+    const phase = readFileSync(join(repoRoot, "infra/deploy/rehearse.mjs"), "utf8").split(
+      'if (flags["redis-flush"] && evidence) {',
+    )[1]!;
+    const order = [
+      "prepareRecoveryAdmin(",
+      "buildRecoveryFixture(",
+      "holdRecoveryFixture(",
+      'step("redis-flush", prefix)',
+    ].map((name) => phase.indexOf(name));
+    expect(order.every((offset) => offset >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
   it("未明确开启/冻结/项目与容器身份错误均零exec，不会清共享开发Redis", () => {
@@ -194,6 +213,50 @@ describe("W2-27a 精确轮转与自有 Redis 恢复", () => {
   });
 
   it("合法目标只按核定ID清DB0、口令不入argv；协议/命令失败保持失败", () => {
+    const calls: Array<{ command: string; args: string[]; options: object }> = [];
+    const cli = (command: string, args: string[], options: object) => {
+      calls.push({ command, args, options });
+      return { status: 0, stdout: "激活码：本地替身不可输出", stderr: "" };
+    };
+    expect(
+      prepareRecoveryAdmin(["compose", "-p", project], { LYX_NODE_PROJECT: project }, cli),
+    ).toBeUndefined();
+    expect(calls[0]!.args).toEqual([
+      "compose",
+      "-p",
+      project,
+      "run",
+      "--rm",
+      "-T",
+      "--no-deps",
+      "--pull",
+      "never",
+      "--name",
+      `${project}-recovery-admin`,
+      "api",
+      "node",
+      "apps/worker/dist/staff-bootstrap.js",
+      "--name",
+      "恢复演练",
+      "--phone",
+      "19900000999",
+    ]);
+    expect(calls[0]!.options).toEqual(
+      expect.objectContaining({ timeout: 30_000, killSignal: "SIGKILL" }),
+    );
+    expect(calls[1]!.args).toEqual(["rm", "-f", `${project}-recovery-admin`]);
+    expect(() =>
+      prepareRecoveryAdmin(["compose", "-p", project], { LYX_NODE_PROJECT: project }, () => ({
+        status: 1,
+        stdout: "激活码：不可输出",
+        stderr: "SQL及凭据不可输出",
+      })),
+    ).toThrow(/^演练管理员正式CLI前置失败$/);
+    const count = calls.length;
+    expect(() =>
+      prepareRecoveryAdmin(["compose", "-p", "liyoxi"], { LYX_NODE_PROJECT: "liyoxi" }, cli),
+    ).toThrow("项目不匹配");
+    expect(calls).toHaveLength(count);
     const result = flush();
     expect(result.status, result.stderr).toBe(0);
     expect(result.calls[0]).toContain(`compose -p ${project}`);

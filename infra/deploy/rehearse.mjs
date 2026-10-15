@@ -39,6 +39,7 @@ import {
   buildRecoveryFixture,
   holdRecoveryFixture,
   LOG_ROTATION,
+  prepareRecoveryAdmin,
   waitForRedisRecovery,
 } from "./redis-recovery.mjs";
 
@@ -753,6 +754,18 @@ await runMain(async () => {
     );
     if (flags["redis-flush"] && evidence) {
       say("自有六容器 Redis 清空：原 worker 不重启，120 秒内恢复真实事件与周期任务");
+      prepareRecoveryAdmin(
+        [
+          "compose",
+          "-p",
+          prefix,
+          "--env-file",
+          join(root, "infra/compose/env/stg.env"),
+          "-f",
+          join(root, "infra/compose/node.yml"),
+        ],
+        { ...env, LYX_TAG: config.tag },
+      );
       const bundle = join(home, "redis-recovery-fixture.mjs");
       await buildRecoveryFixture(root, bundle);
       const postgres = info.get("postgres");

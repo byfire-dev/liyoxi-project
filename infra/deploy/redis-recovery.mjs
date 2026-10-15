@@ -1,5 +1,5 @@
 // @ts-check
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -14,6 +14,53 @@ export const LOG_ROTATION = Object.freeze({
   worker: { size: "20m", files: "5", mib: 100 },
   gateway: { size: "20m", files: "5", mib: 100 },
 });
+
+/** 演示种子刻意不建超管；只在本次全新独占库经既有正式 CLI 建首位账号。
+ * @param {string[]} composeArgs @param {NodeJS.ProcessEnv} env @param {typeof spawnSync} [run]
+ */
+export function prepareRecoveryAdmin(composeArgs, env, run = spawnSync) {
+  const project = env.LYX_NODE_PROJECT ?? "";
+  if (
+    !/^lyxrh-[a-f0-9]{6}$/.test(project) ||
+    composeArgs[composeArgs.indexOf("-p") + 1] !== project
+  )
+    throw new Error("演练管理员前置项目不匹配");
+  const name = `${project}-recovery-admin`;
+  try {
+    const result = run(
+      "docker",
+      [
+        ...composeArgs,
+        "run",
+        "--rm",
+        "-T",
+        "--no-deps",
+        "--pull",
+        "never",
+        "--name",
+        name,
+        "api",
+        "node",
+        "apps/worker/dist/staff-bootstrap.js",
+        "--name",
+        "恢复演练",
+        "--phone",
+        "19900000999",
+      ],
+      { env, encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 16 * 1024 },
+    );
+    // stdout含一次性激活码，绝不打印/返回/持久化；不把CLI错误原文传到演练日志。
+    if (result.error || result.status !== 0) throw new Error("演练管理员正式CLI前置失败");
+  } finally {
+    run("docker", ["rm", "-f", name], {
+      env,
+      encoding: "utf8",
+      timeout: 5_000,
+      killSignal: "SIGKILL",
+      maxBuffer: 16 * 1024,
+    });
+  }
+}
 
 /** @typedef {{container:{id:string,pid:number,restarts:number,startedAt:string,running:boolean},lease:{holder:string,acquiredAt:string,heartbeatAt:string,ageSeconds:number},event:{publishedAt:string|null,deliveries:{subscriber:string,status:string,consumedAt:string|null}[]},timer:{status:string,firedAt:string|null,result:unknown}}} RecoveryFacts */
 /**
@@ -123,7 +170,18 @@ export async function holdRecoveryFixture(args, env) {
     if (!ended) child.kill("SIGKILL");
   };
   const timer = setTimeout(stop, 30_000);
-  child.stderr.resume(); // 失败只给固定类别，绝不把容器内部错误原文带回日志。
+  let category = "unknown";
+  let diagnostic = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    // 只认助手源码的固定阶段；Docker/驱动/数据库的错误原文绝不回显。
+    diagnostic = (diagnostic + String(chunk)).slice(-256);
+    const match =
+      /Redis 恢复演练事实准备失败:(identity|environment|database|assembly|actor|calendar|timer|lock)\n/.exec(
+        diagnostic,
+      );
+    if (match) category = match[1];
+  });
   try {
     const raw = await new Promise((resolve, reject) => {
       lines.once("line", resolve);
@@ -164,6 +222,6 @@ export async function holdRecoveryFixture(args, env) {
     await closed;
     clearTimeout(timer);
     lines.close();
-    throw new Error("Redis 恢复演练事实准备失败");
+    throw new Error(`Redis 恢复演练事实准备失败（${category}）`);
   }
 }

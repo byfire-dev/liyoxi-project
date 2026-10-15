@@ -24,3 +24,5 @@
 清空后不重启worker，120秒内分别核同PID、同主租约且心跳前进、全部非空实际subscriber投递完成、目标timer真实fired并有结果。记录清空/完成时间和实际结果；任一缺失不得记通过，随后关闭演练开关。通知、渲染、导出仍由所属里程碑补足各自证据。
 
 `pnpm stg:rehearse --redis-flush --without-image-smoke` 是随机自有六容器、假密钥和正式服务端口的本机检查，默认不启用清空、不接真实预发；输出脱敏 `redis-recovery.json`。本地检查不能替代本项真实预发验收。
+
+2026-10-15本机检查第三轮通过：同原worker/PID和同主租约下，8.875秒内目标calendar事件的三实际subscriber投递全部完成，单个invariant.quick真实fired并有结果；前两轮在flush前因种子无超管的前置假设失败，修为既有正式bootstrap CLI后通过。临时六容器及卷/网络已清理。本项真实预发状态仍为未开始，不把本机结果写成关闭。

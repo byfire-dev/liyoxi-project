@@ -19,6 +19,7 @@ import {
   slotAtOrBefore,
 } from "../../packages/services/src/timers/index.ts";
 
+let stage = "identity";
 async function main() {
   const [project, postgresAddress] = process.argv.slice(2);
   if (
@@ -27,22 +28,26 @@ async function main() {
     !/^172\.30\.(4[2-9]|5[0-7])\.\d{1,3}$/.test(postgresAddress ?? "")
   )
     throw new Error("fixture identity");
+  stage = "environment";
   const env = loadEnv();
   const url = new URL(env.DATABASE_URL);
   if (env.APP_ENV !== "stg" || url.hostname !== "postgres" || url.pathname !== "/liyoxi")
     throw new Error("fixture environment");
   const db = createPrismaClient({ connectionString: env.DATABASE_URL, max: 2 });
   try {
+    stage = "database";
     const [database] = await db.$queryRawUnsafe(
       "SELECT current_database() AS name, host(inet_server_addr()) AS address",
     );
     if (database?.name !== "liyoxi" || database.address !== postgresAddress)
       throw new Error("fixture database");
+    stage = "assembly";
     const tx = createTxRunner({ prisma: db, appEnv: "stg" });
     const assembly = assembleServices({ entry: "worker", appEnv: "stg" });
     const events = createEvents({ assembly, tx, clock: systemClock });
     const calendar = createCalendarAdmin({ tx, clock: systemClock, events });
     const timers = createTimers({ assembly });
+    stage = "actor";
     const staff = await tx.run(async (handle) => {
       const row = await handle.staff.findFirst({
         where: { staffRoleKey: "super_admin", status: "active" },
@@ -54,6 +59,7 @@ async function main() {
     const year = new Date().getUTCFullYear() + 1;
     const day = new Date(Date.UTC(year, 0, 4));
     while (day.getUTCDay() === 0 || day.getUTCDay() === 6) day.setUTCDate(day.getUTCDate() + 1);
+    stage = "calendar";
     const imported = await calendar.import(
       {
         staff,
@@ -68,6 +74,7 @@ async function main() {
       },
     );
     if (!imported.isChanged) throw new Error("fixture unchanged");
+    stage = "timer";
     const job = timers.registry.recurringJobs.find((item) => item.kind === "invariant.quick");
     if (!job || job.schedule.every !== "minutes" || job.schedule.minutes !== 10)
       throw new Error("fixture registered job");
@@ -83,6 +90,7 @@ async function main() {
       .sort();
     if (!subscribers.length) throw new Error("fixture subscribers");
     // 两个服务事务都已经提交；独立短事务只锁已有行，不更改事件或 timer 的技术状态。
+    stage = "lock";
     await tx.run(
       async (handle) => {
         const event = await handle.outboxEvent.findUniqueOrThrow({
@@ -130,6 +138,6 @@ async function main() {
 
 main().catch(() => {
   // 不输出服务错误、SQL、stack、连接串或员工事实。
-  process.stderr.write("Redis 恢复演练事实准备失败\n");
+  process.stderr.write(`Redis 恢复演练事实准备失败:${stage}\n`);
   process.exitCode = 1;
 });
