@@ -259,6 +259,7 @@
 | `pnpm demo:m0`（加 `--keep` 跑完不删演示库） | M0 的演示：建一个 `lyx_test_demo_m0_<进程号>` 库，跑全部迁移与种子，把样例链路走一遍并逐步打印（带幂等键的写用例 → 同键重放 → 状态历史、审计、出站事件 → 订阅者 → 定时器 → 全量不变量），末尾打印四个计数；跑完删掉自己建的库与 Redis 键，可反复跑。要本地的 PostgreSQL 与 Redis 在运行并给出连接参数。同一条链路的用例是 `packages/services/src/testing/m0-chain.db.test.ts`。见 [README](packages/services/src/testing/README.md) 第 12 节 |
 | `pnpm e2e`；`node infra/ci/e2e-repeat.mjs --times 10` | M1 的完整替身接口链：真实后台登录与商家建档、对公入账、20 集订购开工、制作交付和上线核验；每轮独立测试库/Redis 前缀，最后 full 不变量零违规。单轮含初始化与清理 ≤90 秒，十轮无重试；失败保留日志和部分汇总。合并后 main 手动 `e2e-repeat`，开发者工具与真机仍单独手验。 |
 | `pnpm demo:m1`（加 `--stack` 只播种手验库） | 缺省在本轮新隔离库复用同一真实接口主路径，讲解实际结果并清理自己的资源；要求明确 APP_ENV=test 与本机 PG/Redis。--stack 仅接受 APP_ENV=local 的本机 lyx_stack，不重置已有库、不激活已有员工；开工延迟当前默认0，实际非0明确拒绝。说明见 [M1 演示手册](docs/plan/demo/m1.md) 与 [合流回顾](docs/plan/retro/m1.md)。 |
+| `pnpm e2e:m2`；`pnpm demo:m2` | 共用 M1 二十集真实接口主链和 M2 生命周期/运输恢复；本机单路上传，明确 `CI=true` 才用原 M1 四路，90秒判据不变。本机分段目标不代替完整链或十连；说明与实际结果见 [M2 演示手册](docs/plan/demo/m2.md) 与 [合流回顾](docs/plan/retro/m2.md)。 |
 | `pnpm e2e:m3`；`node infra/ci/m3-repeat.mjs --times 10` | M3 的真实接口合流目标；与 M1 共用顺序执行、独立会话、90秒总墙钟和失败摘要，M3产物另存 `apps/api/dist/m3-e2e-repeat/`。失败不重试、不把超时或被中止的轮次记绿；本轮资源由主链自然收尾。真实云、预发与真机仍按外部台账单列。 |
 | `pnpm demo:m3` | M3的隔离演示入口，调用同一正式接口主链；连续两次核演示种子与业务数量，第二次零新增，拒绝生产库。说明见 [M3 演示手册](docs/plan/demo/m3.md) 与 [合流回顾](docs/plan/retro/m3.md)。 |
 | `node infra/ci/check-stubs.mjs` | 留桩门禁：34 个计划行精确关联功能留桩文件及既有未来页面登记，检查模板键、回补点和合法 M0–M8，M0/M1 必须已回补；删除文件、页面或只改计划回补点都失败。 |
