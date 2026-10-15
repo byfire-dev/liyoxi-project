@@ -243,6 +243,11 @@ export function createWechatPayDriver(
       if (!result.notification) return failed("rejected", "不在登记清单内的通知类型");
       return ok(result.notification);
     },
+    notificationCrypto: {
+      verifyNotification,
+      reopenResource: (resource, kid) =>
+        parseObject(keyring.decrypt(resource, kid)?.plaintext ?? ""),
+    },
     verifyNotification,
     reopenResource: (resourceCipher, kid) =>
       parseObject(keyring.decrypt(resourceCipher, kid)?.plaintext ?? ""),

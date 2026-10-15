@@ -2123,6 +2123,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payment-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 付款单列表：单号 / 商家 / 主体、时间、类型、支付方式、状态（5 种） */
+        get: operations["admin.paymentOrder.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payment-orders/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 付款单状态筛选条计数 */
+        get: operations["admin.paymentOrder.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/payment-orders/{paymentOrderId}": {
         parameters: {
             query?: never;
@@ -2132,6 +2166,40 @@ export interface paths {
         };
         /** 付款单详情（右侧抽屉）：应付 / 实付、生效说明、计算式、支付记录、发票状态、操作日志 */
         get: operations["admin.paymentOrder.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payment-transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 收款流水：付款单号 / 交易单号 / 商家搜索，时间、类型、方式、对账状态（合计由 summary 按同一筛选给出） */
+        get: operations["admin.paymentTransaction.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payment-transactions/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 收款流水 KPI：今日收款、本月收款、本月退款、对账差异 */
+        get: operations["admin.paymentTransaction.summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7206,6 +7274,85 @@ export interface components {
             transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
             /** @enum {string} */
             type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+        };
+        PaymentOrderAdminRow: {
+            actions: string[];
+            amountFen: number;
+            /** @enum {string} */
+            channel: "wechat_jsapi" | "bank_transfer" | (string & {});
+            contentNote: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            entity: {
+                /** Format: uuid */
+                entityId: string;
+                managerStaff: components["schemas"]["StaffBrief"] | null;
+                name: string;
+                /** Format: uuid */
+                primaryStoreId: string | null;
+                primaryStoreName: string | null;
+                storeCount: number;
+                verificationStatus: string;
+            };
+            /** @enum {string} */
+            fulfillmentStatus: "none" | "done" | "blocked" | (string & {});
+            hasOpenException: boolean;
+            orderNo: string;
+            paidAmountFen: number;
+            /** Format: uuid */
+            paymentOrderId: string;
+            /** Format: uuid */
+            pendingTransferProofId: string | null;
+            refundedAmountFen: number;
+            /** @enum {string} */
+            source: "weapp" | "admin" | (string & {});
+            /** @enum {string} */
+            status: "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded" | (string & {});
+            statusNote: string | null;
+            store: {
+                name: string | null;
+                /** Format: uuid */
+                storeId: string;
+            } | null;
+            title: string;
+            /** @enum {string|null} */
+            transferState: "awaiting_proof" | "proof_submitted" | "proof_rejected" | "confirm_review" | (string & {}) | null;
+            /** @enum {string} */
+            type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+        };
+        PaymentTransactionRow: {
+            /** @enum {string} */
+            channel: "wechat_jsapi" | "bank_transfer" | (string & {});
+            channelAmountFen: number;
+            /** Format: date-time */
+            channelSuccessAt: string;
+            channelTxnNo: string;
+            entity: {
+                /** Format: uuid */
+                entityId: string;
+                managerStaff: components["schemas"]["StaffBrief"] | null;
+                name: string;
+                /** Format: uuid */
+                primaryStoreId: string | null;
+                primaryStoreName: string | null;
+                storeCount: number;
+                verificationStatus: string;
+            } | null;
+            feeFen: number | null;
+            isApplied: boolean;
+            payerName: string | null;
+            paymentOrder: {
+                orderNo: string;
+                /** Format: uuid */
+                paymentOrderId: string;
+                /** @enum {string} */
+                type: "plan_new" | "plan_renew" | "plan_upgrade" | "topup" | (string & {});
+            } | null;
+            /** Format: uuid */
+            paymentTransactionId: string;
+            /** @enum {string} */
+            reconState: "pending" | "matched" | "diff" | "resolved" | (string & {});
+            refundedFen: number;
         };
         PendingChange: {
             address: {
@@ -20623,6 +20770,187 @@ export interface operations {
             };
         };
     };
+    "admin.paymentOrder.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                no?: string;
+                entityId?: string;
+                storeId?: string;
+                type?: string;
+                channel?: "wechat_jsapi" | "bank_transfer";
+                source?: "weapp" | "admin";
+                hasOpenException?: "true" | "false";
+                createdFrom?: string;
+                createdTo?: string;
+                sort?: "-createdAt" | "-amountFen";
+                page?: number;
+                pageSize?: number;
+                tab?: "all" | "pending_payment" | "pending_confirmation" | "paid" | "cancelled" | "refunded";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["PaymentOrderAdminRow"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paymentOrder.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                no?: string;
+                entityId?: string;
+                storeId?: string;
+                type?: string;
+                channel?: "wechat_jsapi" | "bank_transfer";
+                source?: "weapp" | "admin";
+                hasOpenException?: "true" | "false";
+                createdFrom?: string;
+                createdTo?: string;
+                sort?: "-createdAt" | "-amountFen";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            all: number;
+                            cancelled: number;
+                            paid: number;
+                            pending_confirmation: number;
+                            pending_payment: number;
+                            refunded: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.paymentOrder.get": {
         parameters: {
             query?: never;
@@ -20687,6 +21015,198 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paymentTransaction.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                successFrom?: string;
+                successTo?: string;
+                orderType?: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+                channel?: "wechat_jsapi" | "bank_transfer";
+                reconState?: "pending" | "matched" | "diff" | "resolved";
+                isApplied?: "true" | "false";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: components["schemas"]["PaymentTransactionRow"][];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paymentTransaction.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                successFrom?: string;
+                successTo?: string;
+                orderType?: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+                channel?: "wechat_jsapi" | "bank_transfer";
+                reconState?: "pending" | "matched" | "diff" | "resolved";
+                isApplied?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            filtered: {
+                                channelAmountFen: string;
+                                count: number;
+                            };
+                            month: {
+                                amountFen: string;
+                                bankCount: number;
+                                count: number;
+                                wechatCount: number;
+                            };
+                            monthRefund: {
+                                amountFen: string;
+                                count: number;
+                            };
+                            openDiff: {
+                                amountFen: string;
+                                count: number;
+                                /** Format: date */
+                                earliestBillDate: string | null;
+                            };
+                            today: {
+                                amountFen: string;
+                                bankCount: number;
+                                count: number;
+                                wechatCount: number;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

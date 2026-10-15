@@ -231,6 +231,7 @@ function createPhase(
       bridge = await createM1HttpBridge({
         attach,
         signal,
+        phaseClient: input.phase,
         diagnosticWrite: diagnostics.write,
         beforeOrder: async () => {
           await command("pause-timers");

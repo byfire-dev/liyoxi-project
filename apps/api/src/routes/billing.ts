@@ -1,5 +1,7 @@
 import {
   mPaymentOrderWechatPrepay,
+  mPaymentOrderCancel,
+  mPaymentOrderSync,
   mWalletGet,
   mPurchasePolicyGet,
   mPlanList,
@@ -26,6 +28,27 @@ function client(c: Context<ApiEnv>) {
   };
 }
 export const billingHandlers = [
+  defineHandler(mPaymentOrderSync, async (c) =>
+    ok(
+      c,
+      await c.var.runtime.billing.syncOrder(
+        actor(c),
+        client(c),
+        c.req.valid("param").paymentOrderId,
+      ),
+    ),
+  ),
+  defineHandler(mPaymentOrderCancel, async (c) =>
+    ok(
+      c,
+      await c.var.runtime.billing.cancelOrder(
+        actor(c),
+        client(c),
+        c.req.valid("param").paymentOrderId,
+        { idem: idemOf(c) },
+      ),
+    ),
+  ),
   defineHandler(mPaymentOrderWechatPrepay, async (c) => {
     c.header("Cache-Control", "no-store");
     return ok(

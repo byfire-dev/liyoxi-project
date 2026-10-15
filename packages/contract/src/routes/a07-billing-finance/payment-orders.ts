@@ -1,3 +1,9 @@
+import {
+  AdminPaymentOrderListQuerySchema,
+  AdminPaymentOrderSummaryQuerySchema,
+  AdminPaymentOrderPageSchema,
+  AdminPaymentOrderSummarySchema,
+} from "./channel-read.schemas.js";
 import { adminRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { PaymentOrderParamsSchema } from "../m07-billing/purchase.schemas.js";
@@ -6,7 +12,12 @@ import { PaymentOrderAdminDetailSchema } from "./purchase.schemas.js";
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { adminMeta } from "../meta-only.js";
 
-export const adminPaymentOrderList = adminMeta({
+export const adminPaymentOrderList = adminRoute({
+  request: { query: AdminPaymentOrderListQuerySchema },
+  responses: {
+    ...okResponse(AdminPaymentOrderPageSchema),
+    ...errorResponses(400, 401, 403, 404, 503),
+  },
   method: "get",
   path: "/admin/payment-orders",
   operationId: "admin.paymentOrder.list",
@@ -24,7 +35,12 @@ export const adminPaymentOrderCreate = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminPaymentOrderSummary = adminMeta({
+export const adminPaymentOrderSummary = adminRoute({
+  request: { query: AdminPaymentOrderSummaryQuerySchema },
+  responses: {
+    ...okResponse(AdminPaymentOrderSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 503),
+  },
   method: "get",
   path: "/admin/payment-orders/summary",
   operationId: "admin.paymentOrder.summary",

@@ -20,7 +20,7 @@ import type { ProviderCall, ProviderName, Providers } from "./index.js";
 
 // 接口清单、三者一致、外呼前钩子的用例（W0-19 任务书 第 7 节第 10 条，第 10 节第 6 步，第 11 节第 3 项）。
 
-const NOT_METHODS = ["status", "configured", "capabilities"];
+const NOT_METHODS = ["status", "configured", "capabilities", "notificationCrypto"];
 
 describe("十二个接口", () => {
   it("名字与顺序照 ADR-039", () => {

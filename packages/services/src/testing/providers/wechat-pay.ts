@@ -31,6 +31,7 @@ import {
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 
+import { createWechatPayNotificationCrypto } from "../../providers/index.js";
 import { failed, ok } from "../../providers/types.js";
 import type {
   ProviderFailure,
@@ -515,6 +516,18 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
         }
       }
       return due.length;
+    },
+
+    get notificationCrypto() {
+      return wire
+        ? createWechatPayNotificationCrypto(
+            {
+              verifiers: [{ serial: wire.serial, pem: wire.publicKeyPem }],
+              apiV3Keys: { current: { kid: "fake-v1", key: wire.apiV3Key } },
+            },
+            () => clock.now(),
+          )
+        : undefined;
     },
 
     signMiniProgramPay: (input) =>

@@ -228,6 +228,7 @@ export interface WechatPayTransaction {
   /** 预下单时带的回传数据，原样返回 */
   attach?: string;
   successAt?: Date;
+  bankType?: string;
 }
 
 export interface WechatPayRefund {
@@ -243,6 +244,67 @@ export type WechatPayNotification =
   | { kind: "transaction"; id: string; transaction: WechatPayTransaction }
   | { kind: "refund"; id: string; refund: WechatPayRefund };
 
+export interface ResourceCipher {
+  algorithm: string;
+  ciphertext: string;
+  nonce: string;
+  associated_data?: string;
+  original_type?: string;
+}
+export type NotificationFailureKind =
+  /** 验签不过，或四个请求头不全 */
+  | "signature_invalid"
+  /** 时间戳与本机相差超过 5 分钟 */
+  | "timestamp_skewed"
+  /** Wechatpay-Serial 在验签身份表里查不到 */
+  | "key_not_found"
+  /** 验签通过但解不开：APIv3 密钥或版本不对 */
+  | "decrypt_failed"
+  /** 报文不全：外层不是 JSON、缺 id、resource 不合规，或解密后缺必需字段、状态与事件类型对不上 */
+  | "payload_invalid";
+
+export interface NotificationFailure {
+  ok: false;
+  kind: NotificationFailureKind;
+  /** 签名带探测前缀（WECHATPAY/SIGNTEST/）：照常回失败，不计入验签失败告警 */
+  probe: boolean;
+  /** 给日志看的一句话；不含请求体、签名与任何密钥 */
+  detail: string;
+}
+
+/** 长期保留的摘要（h01 第 2.4 节 WechatpayPayload.summary）：任何层级都没有 openid 与 payer */
+export interface NotificationSummary {
+  serial: string;
+  outTradeNo: string;
+  outRefundNo?: string;
+  transactionId: string;
+  refundId?: string;
+  state: string;
+  amountFen: number;
+  /** 成功时间，UTC */
+  successAt?: string;
+}
+
+export interface NotificationSuccess {
+  ok: true;
+  /** 通知 id：同一事件重复投递时不变 */
+  id: string;
+  eventType: string;
+  /** 验签所用身份的序列号 */
+  serial: string;
+  /** 实际解开密文的 APIv3 密钥版本 */
+  kid: string;
+  /** 报文 resource 原样：收件行存它，重处理时按 kid 重新解密 */
+  resourceCipher: ResourceCipher;
+  /** 解密后的资源，键名保持微信的写法 */
+  resource: Record<string, unknown>;
+  /** 登记清单内的四种事件给出归一的内容与摘要；清单外的事件两项都是 null */
+  notification: WechatPayNotification | null;
+  summary: NotificationSummary | null;
+}
+
+export type NotificationResult = NotificationSuccess | NotificationFailure;
+
 export interface MiniProgramPayParams {
   appId: string;
   timeStamp: string;
@@ -253,6 +315,14 @@ export interface MiniProgramPayParams {
 }
 
 export interface WechatPayProvider extends ProviderBase {
+  /** 仅本地密码学；不能发网络请求，重处理事务内可按持久kid解密。 */
+  readonly notificationCrypto?: {
+    verifyNotification(input: {
+      headers: Record<string, string | undefined>;
+      rawBody: Uint8Array | string;
+    }): NotificationResult;
+    reopenResource(resourceCipher: ResourceCipher, kid: string): Record<string, unknown> | null;
+  };
   /** 本地生成调起参数，仍经 Provider 事务边界守卫。 */
   signMiniProgramPay(input: { prepayId: string }): Promise<ProviderResult<MiniProgramPayParams>>;
   /** 预下单。幂等于商户单号：同一单号、同样的入参重复调用返回同一个结果 */

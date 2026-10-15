@@ -1,3 +1,4 @@
+import { hookRoute } from "../builders.js";
 // 外部回调与探活 · wechatpay（docs/api/h01-hooks.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { hookMeta } from "../meta-only.js";
@@ -11,7 +12,16 @@ export const hooksWechatpayRefundNotify = hookMeta({
   "x-idempotent-by": ["uq_webhook_event_provider_event_id"],
 });
 
-export const hooksWechatpayTransactionNotify = hookMeta({
+export const hooksWechatpayTransactionNotify = hookRoute({
+  responses: {
+    200: { description: "空响应；已持久接收" },
+    400: { description: "载荷非法" },
+    401: { description: "验签拒绝" },
+    404: { description: "来源未配置" },
+    413: { description: "报文超限" },
+    429: { description: "限流" },
+    500: { description: "解密或持久失败" },
+  },
   method: "post",
   path: "/hooks/wechatpay/transactions",
   operationId: "hooks.wechatpay.transaction.notify",

@@ -170,6 +170,15 @@ export const paymentExceptionOpenedPayload = z.strictObject({
   transition: z.literal("payment_exception.open"),
 });
 
+/** 查单补记或既存bill_only重分类：只给身份与正式迁移键。 */
+export const paymentExceptionAutoHealedPayload = z.strictObject({
+  v: z.literal(1),
+  paymentExceptionId: IdSchema,
+  fromState: orNull(z.literal("open")),
+  toState: z.literal("auto_healed"),
+  transition: z.enum(["payment_exception.record_healed", "payment_exception.reclassify"]),
+});
+
 export const billingOrderCreatedPayload = z.strictObject({
   v: z.literal(1),
   billingOrderId: IdSchema,
@@ -242,4 +251,5 @@ export const payloads = {
   "billing_order.cancelled": billingOrderCancelledPayload,
   "billing_order.fulfillment_blocked": billingOrderFulfillmentBlockedPayload,
   "payment_exception.opened": paymentExceptionOpenedPayload,
+  "payment_exception.auto_healed": paymentExceptionAutoHealedPayload,
 } as const;

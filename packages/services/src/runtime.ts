@@ -1,3 +1,4 @@
+import { createWechatPaymentSource, bindPaymentChannel } from "./billing/index.js";
 import {
   createRuntimeMediaAssets,
   createMediaAssetsAssembly,
@@ -603,6 +604,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sources: options.webhookSources ?? [
       ...wechatSources,
+      createWechatPaymentSource({
+        provider: () => providers.wechatPay,
+        identity: () => env.WECHAT_PAY,
+        channel: () => billing.wechatChannel,
+        alerts: alertsOf(assembly),
+      }),
       createCiWebhookSource({
         key: env.CI?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
@@ -914,6 +921,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
   });
+  const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
   const order = createOrderService({
     tx,
     clock,
@@ -1100,6 +1108,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           unbindOrderStart,
           unbindOrder,
           unbindBilling,
+          unbindPaymentChannel,
           unbindContent,
           unbindPublish,
           unbindDelivery,
