@@ -11,6 +11,13 @@ import {
 import { expect, it, vi } from "vitest";
 import { z } from "@liyoxi/contract";
 import {
+  FILE_OBJECT_STATUS,
+  INVITATION_STATUS,
+  MEDIA_JOB_KIND,
+  MEDIA_JOB_STATE,
+  TIMER_STATUS,
+} from "@liyoxi/contract/enums";
+import {
   createM1Support,
   createM1RealClock,
   prepareM1WorkerExercise,
@@ -41,6 +48,18 @@ const SnapshotSchema = z.object({
     .min(1),
 });
 type Snapshot = z.output<typeof SnapshotSchema>;
+const FactsSchema = z.object({
+  invitation: z.object({ status: z.enum(INVITATION_STATUS.values) }),
+  timer: z.object({ status: z.enum(TIMER_STATUS.values), dispatchNo: z.int().nonnegative() }),
+  file: z.object({ status: z.enum(FILE_OBJECT_STATUS.values) }),
+  jobs: z.array(
+    z.object({
+      kind: z.enum(MEDIA_JOB_KIND.values),
+      state: z.enum(MEDIA_JOB_STATE.values),
+      attemptNo: z.int().nonnegative(),
+    }),
+  ),
+});
 
 it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/probe、未知拒绝及暂停取消收尾", async () => {
   vi.stubEnv("APP_ENV", "test");
@@ -76,15 +95,18 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
   let support: Awaited<ReturnType<typeof createM1Support>> | undefined;
   let child: ReturnType<typeof fork> | undefined;
   let exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }> | undefined;
+  let fixture: Awaited<ReturnType<typeof prepareM1WorkerExercise>> | undefined;
+  let phase = "prepare";
   let sequence = 0;
   const command = (
     name: "start" | "snapshot" | "pause-timers" | "resume-timers",
     first?: M1Attachment,
+    timeoutMs = 30_000,
   ) =>
     new Promise<Snapshot>((resolve, reject) => {
       const active = child!;
       const id = ++sequence;
-      const timeout = setTimeout(() => done(new Error("owned worker IPC timeout")), 30_000);
+      const timeout = setTimeout(() => done(new Error("owned worker IPC timeout")), timeoutMs);
       const receive = (raw: unknown) => {
         if (!raw || typeof raw !== "object" || !("id" in raw) || raw.id !== id) return;
         if (!("ok" in raw) || raw.ok !== true) {
@@ -166,17 +188,24 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
     exited = new Promise((resolve) =>
       child!.once("close", (code, signal) => resolve({ code, signal })),
     );
+    phase = "start";
     const started = await command("start", attach);
     expect(started.pid).toBe(child.pid);
     expect(started.pid).not.toBe(process.pid);
     expect(started.lease).toMatchObject({ held: true, version: attach.version });
+    phase = "pause-before-target";
     expect((await command("pause-timers")).timerPaused).toBe(true);
-    const fixture = await prepareM1WorkerExercise(support);
+    phase = "fixture";
+    fixture = await prepareM1WorkerExercise(support);
     expect((await fixture.read()).timer.status).toBe("scheduled");
     expect((await fixture.read()).invitation.status).toBe("pending");
+    phase = "promote";
     await support.promote(fixture.fileId);
+    phase = "resume-timers";
     await command("resume-timers");
+    phase = "drain";
     await support.drainEvents();
+    phase = "domain-facts";
     const facts = await fixture.read();
     expect(facts.invitation.status).toBe("expired");
     expect(facts.timer).toMatchObject({ status: "fired", dispatchNo: 1 });
@@ -191,6 +220,7 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
         expect.objectContaining({ kind: "probe", state: "succeeded", provider: "mediatool" }),
       ]),
     );
+    phase = "queue-ack";
     const snapshot = await waitM1Worker(
       async () => {
         const current = await command("snapshot");
@@ -215,7 +245,9 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
     expect(
       snapshot.queues.every((q) => q.waiting === 0 && q.active === 0 && q.failed10Min === 0),
     ).toBe(true);
+    phase = "pause-before-close";
     await command("pause-timers");
+    phase = "close";
     child.kill("SIGTERM"); // real cancellation from the paused state, not a fake close result
     expect(
       await waitM1Worker(
@@ -226,9 +258,30 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
         () => undefined,
       ),
     ).toEqual({ code: 0, signal: null });
+    phase = "unknown";
     await fixture.emitUnknown();
     await expect(support.drainEvents()).rejects.toThrow("未知");
   } catch (error) {
+    // Only this owned target's enum facts and actual IPC counts; diagnostic failure cannot mask it.
+    const current = child?.connected
+      ? await command("snapshot", undefined, 1000).catch(() => undefined)
+      : undefined;
+    const facts = FactsSchema.safeParse(await fixture?.read().catch(() => undefined));
+    console.error(
+      JSON.stringify({
+        phase,
+        ...(facts.success ? { facts: facts.data } : {}),
+        ...(current
+          ? {
+              active: current.active,
+              held: current.lease?.held ?? false,
+              errors: current.errors,
+              handled: current.handled,
+              queues: current.queues,
+            }
+          : {}),
+      }),
+    );
     errors.push(error);
   } finally {
     if (child && exited) {
