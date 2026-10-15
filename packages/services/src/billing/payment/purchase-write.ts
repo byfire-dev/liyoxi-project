@@ -14,6 +14,7 @@ import { maskName } from "@liyoxi/shared/mask";
 import { paramsAt } from "../../config/index.js";
 import { workHoursAt } from "../../sla/index.js";
 import { quotePlan } from "../catalog/index.js";
+import { assertTopupActor, quotePointPack } from "../catalog/point-packs.js";
 import { financeConfigAt } from "../finance-config/index.js";
 import { getPurchasePolicy } from "../policy/index.js";
 import type { PurchaseClient } from "../policy/index.js";
@@ -66,13 +67,14 @@ async function consents(
   actor: PurchaseActor,
   order: { id: string; orderNo: string },
   versions: readonly string[],
+  scene: "plan_purchase" | "topup" = "plan_purchase",
 ) {
   const selected = await tx.agreementVersion.findMany({
     where: { id: { in: [...versions] } },
     select: { agreementKey: true },
   });
   const current = await deps.docs.currentVersions(tx);
-  for (const agreementKey of ["member", "points"]) {
+  for (const agreementKey of scene === "topup" ? ["points"] : ["member", "points"]) {
     if (!selected.some((v) => v.agreementKey === agreementKey))
       throw new AppError("AGREEMENT_VERSION_STALE", {
         details: { agreementKey, currentAgreementVersionId: current.get(agreementKey)?.id ?? null },
@@ -87,7 +89,7 @@ async function consents(
       select: { name: true, usccEnc: true, usccMask: true },
     });
   await deps.docs.assertConsents(tx, actor.ctx, {
-    scene: "plan_purchase",
+    scene,
     method: "by_action",
     consents: versions.map((agreementVersionId) => ({ agreementVersionId })),
     signer: {
@@ -124,48 +126,96 @@ export async function createOrder(
     throw new AppError("PURCHASE_QUALIFICATION_REQUIRED", {
       details: { verificationStatus: entity.verificationStatus },
     });
-  if (input.pointPackId || !input.planId) throw new AppError("STATE_NOT_ALLOWED");
+  if (Boolean(input.pointPackId) === Boolean(input.planId)) throw new AppError("VALIDATION_FAILED");
+  const topup = input.pointPackId !== undefined;
+  if (topup) await assertTopupActor(tx, deps, actor);
+  // 在账户锁前定位可复用行并按290加锁；锁后仍重新读取目录与报价。
+  const initialPack = topup
+    ? await tx.pointPack.findUnique({ where: { id: input.pointPackId! } })
+    : null;
+  const initialHash = initialPack
+    ? createHash("sha256")
+        .update(
+          JSON.stringify({
+            v: 1,
+            kind: "topup",
+            packId: initialPack.id,
+            points: initialPack.points,
+            payFen: initialPack.priceFen,
+          }),
+        )
+        .digest("hex")
+    : null;
   const open = await tx.billingOrder.findFirst({
     where: {
       entityId: entity.id,
-      type: { in: ["plan_new", "plan_renew", "plan_upgrade"] },
+      ...(topup
+        ? { type: "topup", quoteHash: initialHash ?? "missing", channel: input.channel }
+        : { type: { in: ["plan_new", "plan_renew", "plan_upgrade"] } }),
       status: { in: ["pending_payment", "pending_confirmation"] },
     },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   if (open) await lockRows(tx, "billing_order", [open.id]);
   const clock = await deps.ledger.lockAccount(tx, entity.id),
     now = clock.now;
-  const { quote, content } = await quotePlan(
-    tx,
-    entity.id,
-    now,
-    {
-      planId: input.planId,
-      ...(input.months === undefined ? {} : { months: input.months }),
-      ...(input.intent === undefined ? {} : { intent: input.intent }),
-    },
-    (type, amount) =>
-      getPurchasePolicy(
+  const policy = (type: string, amount: number) =>
+    getPurchasePolicy(
+      tx,
+      deps.config,
+      entity.id,
+      now,
+      client,
+      type,
+      amount,
+      deps.wechatPay?.provider.configured ?? false,
+    );
+  const quoted = topup
+    ? null
+    : await quotePlan(
         tx,
-        deps.config,
         entity.id,
         now,
-        client,
-        type,
-        amount,
-        deps.wechatPay?.provider.configured ?? false,
-      ),
-  );
-  if (quote.payFen !== input.expectAmountFen)
+        {
+          planId: input.planId!,
+          ...(input.months === undefined ? {} : { months: input.months }),
+          ...(input.intent === undefined ? {} : { intent: input.intent }),
+        },
+        policy,
+      );
+  const packQuote = topup
+    ? await quotePointPack(tx, entity.id, input.pointPackId!, now, policy)
+    : null;
+  const content = packQuote?.content ?? quoted!.content,
+    payFen = content.payFen,
+    purchasePolicy = packQuote?.policy ?? quoted!.quote.policy,
+    formula = packQuote
+      ? {
+          code: "topup",
+          args: { points: packQuote.pack.points, priceFen: packQuote.pack.priceFen },
+        }
+      : quoted!.quote.formula,
+    orderType = topup ? "topup" : "plan_new";
+  if (payFen !== input.expectAmountFen)
     throw new AppError("QUOTE_CHANGED", {
-      details: { kind: "plan", amountFen: quote.payFen, quote },
+      details: packQuote
+        ? {
+            kind: "topup",
+            amountFen: payFen,
+            pointPack: {
+              pointPackId: packQuote.pack.id,
+              points: packQuote.pack.points,
+              priceFen: packQuote.pack.priceFen,
+            },
+          }
+        : { kind: "plan", amountFen: payFen, quote: quoted!.quote },
     });
-  if (!quote.policy.channels.find((c) => c.code === input.channel)?.isEnabled)
-    throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: quote.policy.channels } });
+  if (!purchasePolicy.channels.find((c) => c.code === input.channel)?.isEnabled)
+    throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: purchasePolicy.channels } });
   const quoteHash = createHash("sha256")
     .update(JSON.stringify({ ...content, quotedAt: undefined }))
     .digest("hex");
-  if (open) {
+  if (open && (!topup || (open.quoteHash === quoteHash && open.channel === input.channel))) {
     if (open.quoteHash !== quoteHash || open.channel !== input.channel)
       throw new AppError("OPEN_ORDER_EXISTS", {
         details: { paymentOrderId: open.id, orderNo: open.orderNo },
@@ -178,16 +228,30 @@ export async function createOrder(
           expiresAt: open.expiresAt.toISOString(),
         },
       });
-    await consents(tx, deps, actor, open, input.agreementVersionIds);
+    await consents(
+      tx,
+      deps,
+      actor,
+      open,
+      input.agreementVersionIds,
+      topup ? "topup" : "plan_purchase",
+    );
     return { ...(await merchantOrderView(tx, deps, open, client)), replayed: false };
   }
   const id = uuidv7(),
     orderNo = await deps.bizNo.next(tx, "FK");
-  await consents(tx, deps, actor, { id, orderNo }, input.agreementVersionIds);
+  await consents(
+    tx,
+    deps,
+    actor,
+    { id, orderNo },
+    input.agreementVersionIds,
+    topup ? "topup" : "plan_purchase",
+  );
   const createdAt = deps.clock.now();
   const finance = await financeConfigAt(tx, createdAt);
   if (input.channel === "bank_transfer" && !finance.bank)
-    throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: quote.policy.channels } });
+    throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: purchasePolicy.channels } });
   const params = await paramsAt(
       tx,
       ["billing.payment.transfer_valid_days", "billing.payment.order_timeout_minutes"],
@@ -205,15 +269,15 @@ export async function createOrder(
       orderNo,
       entityId: entity.id,
       storeId: actor.membership.storeId,
-      type: "plan_new",
+      type: orderType,
       status: "pending_payment",
       channel: input.channel,
       source: "weapp",
       contentSnapshot: content,
-      formulaCode: quote.formula.code,
-      formulaArgs: quote.formula.args,
+      formulaCode: formula.code,
+      formulaArgs: formula.args,
       quoteHash,
-      amountFen: quote.payFen,
+      amountFen: payFen,
       expiresAt,
       transferState: input.channel === "bank_transfer" ? "awaiting_proof" : null,
       bankAccountFinanceConfigRevisionId:
@@ -248,9 +312,9 @@ export async function createOrder(
         billingOrderId: id,
         entityId: entity.id,
         storeId: order.storeId,
-        orderType: "plan_new",
+        orderType,
         channel: input.channel,
-        amountFen: quote.payFen,
+        amountFen: payFen,
       },
       dedupeKey: `billing_order.created:${id}`,
     },

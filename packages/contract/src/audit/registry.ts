@@ -164,6 +164,7 @@ export const AUDIT_TARGET_TYPES = [
   "plan_revision", // W4-07：不可变价目修订创建与生效前撤回
   "price_tier_revision", // W4-07：只增等级模板价，同次保存一审计
   "file_purge_run", // W3-06：真实清除运行放行与驳回
+  "point_pack", // W4-06：积分包创建、编辑与上下架
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

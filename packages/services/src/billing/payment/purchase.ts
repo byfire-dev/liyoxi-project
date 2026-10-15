@@ -1,5 +1,6 @@
 import { createWechatChannel } from "./wechat-channel.js";
 import { createBillingChannelRead } from "./channel-read.js";
+import { createPointPacks } from "../catalog/point-packs.js";
 import { createWechatPrepay } from "./wechat-prepay.js";
 import { BillingWalletSchema } from "@liyoxi/contract";
 import type {
@@ -57,6 +58,7 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
     );
   const wechatChannel = createWechatChannel(deps);
   return {
+    pointPacks: createPointPacks(deps),
     ...createBillingChannelRead(deps),
     wechatChannel,
     syncOrder: wechatChannel.sync,
@@ -85,13 +87,15 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
       deps.tx.run(async (tx) => {
         const view = await getWalletView(tx, actor.membership.entityId, deps.clock.now()),
           params = await paramsAt(tx, deps.clock.now());
-        await policy(tx, actor, client, "topup");
+        const purchasePolicy = await policy(tx, actor, client, "topup");
         const blockReason =
           view.subscription.status !== "active"
             ? "no_active_plan"
             : view.subscription.isRefundPending
               ? "refund_in_progress"
-              : "not_offered";
+              : purchasePolicy.mode !== "in_app"
+                ? "not_offered"
+                : null;
         return BillingWalletSchema.parse({
           ...view,
           subscription: {
@@ -109,7 +113,7 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
               : null,
           },
           usage: await deps.tenant.getQuotaUsage(tx, actor.membership.entityId),
-          topUp: { canTopUp: false, blockReason },
+          topUp: { canTopUp: blockReason === null, blockReason },
           rules: {
             adUnitPoints: params.adUnitPoints,
             discountedAdUnitPoints:

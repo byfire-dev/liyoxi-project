@@ -493,7 +493,7 @@ describe("fulfill：只履约一次，受阻不留残留", () => {
   );
 
   it(
-    "受阻：实收与应付不符、加购与升级的内容（M4 才履约）、快照指的修订不属于那个套餐、快照不合结构——都不留残留",
+    "受阻：实收与应付不符、升级仍未实现、快照指的修订不属于那个套餐、快照不合结构——都不留残留",
     async () => {
       h.clock.set(at("2026-03-10T10:00:00"));
       const { entity } = await h.make.merchant({ verified: true });
@@ -501,13 +501,31 @@ describe("fulfill：只履约一次，受阻不留残留", () => {
       const content = good.contentSnapshot as Record<string, unknown>;
       const orders = {
         AMOUNT_MISMATCH: await paidPlanOrder(h, { entityId: entity.id, paidAmountFen: 599_999 }),
-        topup: await h.make.billingOrder({
+        upgrade: await h.make.billingOrder({
           entityId: entity.id,
-          type: "topup",
+          type: "plan_upgrade",
           amountFen: 100_000,
           fulfillmentStatus: "none",
           fulfilledAt: null,
-          contentSnapshot: { v: 1, kind: "topup", packId: uuidv7(), points: 1000, payFen: 100_000 },
+          contentSnapshot: {
+            v: 1,
+            kind: "upgrade",
+            termId: uuidv7(),
+            fromPlanRevisionId: uuidv7(),
+            toPlanRevisionId: uuidv7(),
+            quotedAt: h.clock.now().toISOString(),
+            quotedOn: "2026-03-10",
+            monthIndex: 0,
+            remainingDays: 10,
+            baseDays: 30,
+            remainingFullMonths: 0,
+            feeDeltaPerMonthFen: 300000,
+            pointsDeltaPerMonth: 3000,
+            proratedFen: 100000,
+            payFen: 100000,
+            topupPoints: 1000,
+            validUntil: new Date(h.clock.now().getTime() + 60000).toISOString(),
+          },
         }),
         revision: await h.make.billingOrder({
           entityId: entity.id,
@@ -534,10 +552,10 @@ describe("fulfill：只履约一次，受阻不留残留", () => {
         reasonCode: "AMOUNT_MISMATCH",
         detail: { paidAmountFen: 599_999, payFen: 600_000 },
       });
-      expect(await blocked(orders.topup)).toEqual({
+      expect(await blocked(orders.upgrade)).toEqual({
         status: "blocked",
         reasonCode: "UNEXPECTED",
-        detail: { problem: "content_kind_not_supported", kind: "topup" },
+        detail: { problem: "content_kind_not_supported", kind: "upgrade" },
       });
       expect(await blocked(orders.revision)).toMatchObject({
         status: "blocked",
