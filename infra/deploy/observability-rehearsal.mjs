@@ -77,10 +77,11 @@ export function receive(project) {
 }
 
 /** 收件是判据；入口202、铃铛成功、仅落库均不能替代外部通道受理。 */
-export function verifyReceipts(records, { project, eventIds, alerts }) {
+export function verifyReceipts(records, { project, dimension, eventIds, alerts }) {
   assertProject(project);
-  if (!Array.isArray(records) || records.length !== eventIds.length + (alerts ? 2 : 0))
-    throw new Error("观测收件数量不符");
+  if (!new RegExp(`^${project}/obs-[a-f0-9]{6}$`).test(dimension))
+    throw new Error("观测收件目标不符");
+  if (!Array.isArray(records) || records.length > 8) throw new Error("观测收件数量不符");
   for (const [index, eventId] of eventIds.entries()) {
     const id = 101 + index;
     const rows = records.filter((row) => row.path === `/relay/api/${id}/envelope/`);
@@ -109,23 +110,56 @@ export function verifyReceipts(records, { project, eventIds, alerts }) {
     )
       throw new Error("错误信封固定映射或清洗不符");
   }
-  if (alerts) {
-    const rows = records.filter((row) => row.path === `/cgi-bin/webhook/send?key=${project}_robot`);
-    const messages = rows.map((row) => {
-      if (row.host !== "qyapi.weixin.qq.com" || !row.type?.startsWith("application/json"))
-        throw new Error("机器人固定主机或协议不符");
-      const body = JSON.parse(row.body);
-      if (body.msgtype !== "text" || body.text.mentioned_list !== undefined)
-        throw new Error("机器人文本协议不符");
-      return body.text.content;
-    });
+  const rows = records.filter((row) => row.path === `/cgi-bin/webhook/send?key=${project}_robot`);
+  if (records.length !== eventIds.length + rows.length || (!alerts && rows.length))
+    throw new Error("观测收件包含未知协议");
+  const messages = rows.map((row) => {
+    if (row.host !== "qyapi.weixin.qq.com" || row.type !== "application/json; charset=utf-8")
+      throw new Error("机器人固定主机或协议不符");
+    const body = JSON.parse(row.body);
     if (
-      messages.length !== 2 ||
-      !messages[0].includes(`告警 P2 webhook.backlog:${project}`) ||
-      !messages[1].includes(`已恢复 P2 webhook.backlog:${project}`)
+      body.msgtype !== "text" ||
+      typeof body.text?.content !== "string" ||
+      Buffer.byteLength(body.text.content) > 2048 ||
+      !/^狸有戏运维\n(?:告警|已恢复) P[123] [a-z][a-z0-9_.:/-]+(?:；[^\n]+)?$/.test(
+        body.text.content,
+      ) ||
+      (body.text.mentioned_list !== undefined &&
+        JSON.stringify(body.text.mentioned_list) !== '["@all"]')
+    )
+      throw new Error("机器人文本协议不符");
+    return body.text.content;
+  });
+  const target = ["告警", "已恢复"].map(
+    (phase) => `狸有戏运维\n${phase} P2 webhook.backlog:${dimension}`,
+  );
+  const targeted = messages.filter((message) =>
+    target.some(
+      (prefix) =>
+        message.startsWith(prefix) &&
+        ["", "；", "\n"].includes(message.slice(prefix.length, prefix.length + 1)),
+    ),
+  );
+  if (alerts) {
+    if (
+      targeted.length !== 2 ||
+      targeted[0] !== target[0] ||
+      targeted[1] !== target[1] ||
+      rows.some(
+        (row) =>
+          target.includes(JSON.parse(row.body).text.content) &&
+          JSON.parse(row.body).text.mentioned_list !== undefined,
+      )
     )
       throw new Error("告警与恢复未依次收件");
   }
+  return {
+    dimension,
+    envelopes: eventIds.length,
+    targetRobots: targeted.length,
+    backgroundRobots: messages.length - targeted.length,
+    total: records.length,
+  };
 }
 
 /** 仅生成本轮临时overlay；节点配置及Provider固定地址均不修改。 */
@@ -179,6 +213,7 @@ export async function runObservability({
   bootstrap,
 }) {
   const project = env.LYX_NODE_PROJECT;
+  const dimension = `${project}/obs-${randomBytes(3).toString("hex")}`;
   assertProject(project);
   if (
     env.LYX_NODE_PREFIX !== project ||
@@ -427,10 +462,12 @@ export async function runObservability({
       project,
       address,
       flags.alerts ? "alerts" : "tls",
+      dimension,
     ]);
     const fact = JSON.parse(result.stdout.trim());
     if (
       !fact.tlsVerified ||
+      fact.dimension !== dimension ||
       (flags.alerts &&
         (!fact.recovered || fact.notifyCount !== 2 || fact.bells !== 2 || !fact.unconfigured))
     )
@@ -447,7 +484,13 @@ export async function runObservability({
         ]).stdout,
       );
       try {
-        verifyReceipts(records, { project, eventIds, alerts: flags.alerts });
+        const receipt = verifyReceipts(records, {
+          project,
+          dimension,
+          eventIds,
+          alerts: flags.alerts,
+        });
+        console.log(JSON.stringify({ evt: "observability.receipts", ...receipt }));
         break;
       } catch (error) {
         if (Date.now() >= deadline) throw error;

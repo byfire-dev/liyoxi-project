@@ -18,12 +18,13 @@ import { createProviders } from "../../packages/services/src/providers/index.ts"
 
 let stage = "identity";
 async function main() {
-  const [project, address, mode] = process.argv.slice(2);
+  const [project, address, mode, dimension] = process.argv.slice(2);
   if (
-    process.argv.length !== 5 ||
+    process.argv.length !== 6 ||
     !/^lyxrh-[a-f0-9]{6}$/.test(project) ||
     !/^172\.30\.(4[2-9]|5[0-7])\.\d{1,3}$/.test(address) ||
-    !["tls", "alerts"].includes(mode)
+    !["tls", "alerts"].includes(mode) ||
+    !new RegExp(`^${project}/obs-[a-f0-9]{6}$`).test(dimension)
   )
     throw new Error();
   const env = loadEnv();
@@ -63,7 +64,7 @@ async function main() {
     { env: childEnv, timeout: 4_000, stdio: "ignore" },
   );
   if (!wrongHostRejected || untrusted.status !== 0) throw new Error();
-  if (mode === "tls") return { tlsVerified: true };
+  if (mode === "tls") return { tlsVerified: true, dimension };
   if (!env.ALERTS?.robotKey || env.ALERTS.robotKey !== `${project}_robot`) throw new Error();
   stage = "database";
   const db = createPrismaClient({ connectionString: env.DATABASE_URL, max: 2 });
@@ -126,14 +127,14 @@ async function main() {
       rules: [
         {
           key: "observability",
-          targets: [{ rule: "webhook.backlog", dimension: project }],
+          targets: [{ rule: "webhook.backlog", dimension }],
           async sample() {
             return healthy
               ? []
               : [
                   {
                     rule: "webhook.backlog",
-                    dimension: project,
+                    dimension,
                     severity: "P2",
                     detail: { controlledSample: true },
                   },
@@ -164,19 +165,19 @@ async function main() {
     await sample();
     const first = await dispatcher.run();
     let fact = await db.alertEvent.findFirstOrThrow({
-      where: { fingerprint: `webhook.backlog:${project}` },
+      where: { fingerprint: `webhook.backlog:${dimension}` },
     });
     if (
-      first.accepted !== 0 ||
       first.unconfigured < 1 ||
       fact.notifyCount !== 0 ||
-      fact.lastValue._delivery.robot.status !== "not_accepted"
+      fact.lastValue._delivery.robot.status !== "not_accepted" ||
+      fact.lastValue._delivery.robot.failures !== 0
     )
       throw new Error();
     stage = "open";
     configured = true;
     clock.at = new Date(clock.at.getTime() + 60_000);
-    if ((await dispatcher.run()).accepted !== 1) throw new Error();
+    if ((await dispatcher.run()).accepted < 1) throw new Error();
     fact = await db.alertEvent.findUniqueOrThrow({ where: { id: fact.id } });
     if (
       fact.status !== "open" ||
@@ -190,7 +191,7 @@ async function main() {
       clock.at = new Date(clock.at.getTime() + 1_000);
       await sample();
     }
-    if ((await dispatcher.run()).accepted !== 1) throw new Error();
+    if ((await dispatcher.run()).accepted < 1) throw new Error();
     fact = await db.alertEvent.findUniqueOrThrow({ where: { id: fact.id } });
     const notifications = await db.notification.findMany({
       where: { bizType: "alert_event", bizId: fact.id },
@@ -223,6 +224,7 @@ async function main() {
     if ((await db.notification.count({ where: { bizType: "alert_event", bizId: fact.id } })) !== 2)
       throw new Error();
     result = {
+      dimension,
       tlsVerified: true,
       unconfigured: true,
       recovered: true,

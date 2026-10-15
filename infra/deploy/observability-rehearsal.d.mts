@@ -10,10 +10,17 @@ export function verifyReceipts(
   records: unknown,
   options: {
     project: string;
+    dimension: string;
     eventIds: readonly string[];
     alerts: boolean;
   },
-): void;
+): {
+  dimension: string;
+  envelopes: number;
+  targetRobots: number;
+  backgroundRobots: number;
+  total: number;
+};
 interface Trust {
   environment: { NODE_EXTRA_CA_CERTS: string };
   volumes: string[];

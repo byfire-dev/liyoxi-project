@@ -17,6 +17,7 @@ import { repoRoot } from "./helpers.js";
 
 it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；纯检查不运行容器或网络", async () => {
   const project = "lyxrh-abc123";
+  const dimension = `${project}/obs-abcdef`;
   for (const invalid of ["liyoxi-node", "lyxrh-abc12", "lyxrh-ABC123", "../lyxrh-abc123"])
     expect(() => assertProject(invalid)).toThrow();
   const ca = new X509Certificate(TEST_CA),
@@ -57,12 +58,36 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
     type: "application/json; charset=utf-8",
     body: JSON.stringify({
       msgtype: "text",
-      text: { content: `${phase} P2 webhook.backlog:${project}` },
+      text: { content: `狸有戏运维\n${phase} P2 webhook.backlog:${dimension}` },
     }),
   }));
   const valid = [...records, ...robots];
-  const expected = { project, eventIds: ids, alerts: true };
-  expect(() => verifyReceipts(valid, expected)).not.toThrow();
+  const expected = { project, dimension, eventIds: ids, alerts: true };
+  expect(verifyReceipts(valid, expected)).toMatchObject({
+    envelopes: 2,
+    targetRobots: 2,
+    backgroundRobots: 0,
+    total: 4,
+  });
+  const background = {
+    ...robots[0],
+    body: JSON.stringify({
+      msgtype: "text",
+      text: { content: "狸有戏运维\n已恢复 P2 recurring.missed:prior" },
+    }),
+  };
+  const prefixCollision = {
+    ...robots[0],
+    body: robots[0]!.body.replace("obs-abcdef", "obs-abcdef-extra"),
+  };
+  expect(verifyReceipts([...valid, background, prefixCollision], expected)).toMatchObject({
+    targetRobots: 2,
+    backgroundRobots: 2,
+    total: 6,
+  });
+  expect(() =>
+    verifyReceipts(valid, { ...expected, dimension: `${project}/obs-123456` }),
+  ).toThrow();
   for (const broken of [
     [...valid, records[0]],
     [{ ...records[0], auth: "Sentry sentry_key=request-controlled" }, ...valid.slice(1)],
@@ -76,6 +101,13 @@ it("自有项目/只读测试CA/固定收件协议及停worker后失败恢复；
       ...valid.slice(1),
     ],
     [...records, robots[1], robots[0]],
+    [...valid, robots[0]],
+    [
+      ...records,
+      { ...robots[0], body: robots[0]!.body.replace("obs-abcdef", "obs-123456") },
+      robots[1],
+    ],
+    [...valid, background, background, background, background, background],
   ])
     expect(() => verifyReceipts(broken, expected)).toThrow();
   const wire = envelope(101, ids[0]).split("\n");
