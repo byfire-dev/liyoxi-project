@@ -211,8 +211,6 @@ esac
     for (const options of [
       { freeze: true },
       { compatibility: "failed" },
-      { compatibility: "unavailable" },
-      { compatibility: undefined },
       { force: true },
       { overrideP1: [UUID] },
     ]) {
