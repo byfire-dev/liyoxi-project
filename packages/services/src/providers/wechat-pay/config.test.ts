@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { PROVIDER_METHODS } from "../types.js";
+import { createProviders } from "../index.js";
+import { createRecordingLogger } from "../../testing/index.js";
 import {
   generateCertificateIdentity,
   generateIdentity,
@@ -292,6 +294,14 @@ describe("齐全", () => {
   });
 
   it("createWechatPay 给出真实驱动", () => {
+    expect(
+      createProviders({
+        appEnv: "test",
+        logger: createRecordingLogger(),
+        settings: { wechatPay: full },
+        wechatPay: DEPS,
+      }).wechatPay,
+    ).toMatchObject({ status: "wechatpay-v3", configured: true });
     expect(createWechatPay(full, DEPS)).toMatchObject({
       status: "wechatpay-v3",
       configured: true,

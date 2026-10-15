@@ -156,7 +156,7 @@ describe("唯一付款入账入口", () => {
         (await prisma.paymentTxn.findUniqueOrThrow({ where: { id: second.id } })).appliedAt,
       ).toBeNull();
     });
-  it("全额退回不入账；微信或孤儿入口拒绝且无写入", async () => {
+  it("全额退回不入账、孤儿拒绝；缺付款人与回传数据的微信成功只开差异不入账", async () => {
     const { order, receipt } = await setup();
     await prisma.paymentTxn.update({
       where: { id: receipt.id },
@@ -171,10 +171,19 @@ describe("唯一付款入账入口", () => {
       billingOrderId: wx.id,
       amountFen: wx.amountFen,
     });
-    await expect(applyReceipt(h, wxReceipt)).rejects.toMatchObject({ error: "INTERNAL" });
-    expect((await prisma.billingOrder.findUniqueOrThrow({ where: { id: wx.id } })).status).toBe(
-      "pending_payment",
-    );
+    expect((await applyReceipt(h, wxReceipt)).result).toMatchObject({
+      status: "exception",
+      kind: "payer_mismatch",
+    });
+    expect(await prisma.billingOrder.findUniqueOrThrow({ where: { id: wx.id } })).toMatchObject({
+      status: "cancelled",
+      cancelReason: "payer_mismatch",
+      paidAmountFen: 0,
+    });
+    expect(
+      await prisma.paymentTxn.findUniqueOrThrow({ where: { id: wxReceipt.id } }),
+    ).toMatchObject({ appliedAt: null });
+    expect(await prisma.ledgerOperation.count({ where: { entityId: wx.entityId } })).toBe(0);
   });
   it("同去重键旧差异已处理时不重新开单、不复活标记", async () => {
     const { order } = await setup();

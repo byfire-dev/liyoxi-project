@@ -148,7 +148,7 @@ export function createPayment(deps: PaymentDeps): Payment {
             entityId: order.entityId,
             storeId: order.storeId,
             orderType: order.type as "plan_new" | "plan_renew" | "plan_upgrade" | "topup",
-            channel: receipt.channel,
+            channel: receipt.channel === "wechat_jsapi" ? "wechat_jsapi" : "bank_transfer",
             amountFen: receipt.channelAmountFen,
             paidPaymentTxnId: receipt.id,
             placedByUserId: order.placedByUserId,

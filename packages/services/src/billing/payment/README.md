@@ -1,6 +1,6 @@
 # payment：唯一付款入账入口
 
-W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上。第 1–5 节为 W1-11a 入账入口，第 6 节为 W1-11b 创建与财务确认主链；微信仍归 M4。
+W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上。第 1–5 节为 W1-11a 入账入口，第 6 节为 W1-11b 创建与财务确认主链；W4-01 回补微信预下单及可信成功入账，见第7节。
 
 ## 1. 入口与依赖
 
@@ -47,7 +47,7 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 ## 5. 留桩
 
-只接受 `bank_transfer`；微信与孤儿交易抛 `INTERNAL`，补单选项尚未实现，登记 [M4 留桩](../../../../../docs/plan/stubs/m4-billing-payment-channels.md)。升级与加购仍由第一段的内容留桩返回受阻。四类差异只开不处理，M4 接重试履约、退款与恢复流程。本包没有路由、实际银行操作、微信 Provider 或新迁移。
+M1时只接受 `bank_transfer`；W4-01已回补关联付款单的可信微信成功入账，孤儿仍抛 `INTERNAL`，补单选项尚未实现，登记 [M4 留桩](../../../../../docs/plan/stubs/m4-billing-payment-channels.md)。升级与加购仍由第一段的内容留桩返回受阻。四类差异只开不处理，M4 接重试履约、退款与恢复流程。本包没有路由、实际银行操作、微信 Provider 或新迁移。
 
 ## 6. 购买与对公凭证主链（W1-11b）
 
@@ -68,3 +68,11 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 新增每日 full/P1、不自愈项：`payment.I12` 保留配置审批与生效时刻检查，并核对对公单捕获的版本是该单创建时已经批准、生效的最新 bank_account（与 financeConfigAt 同按 effective_at、id 倒序），历史正确版本不因后来配置生效而违规。配置错误仍报 finance_config_revision，订单错误报 billing_order 和归属 entityId。`I14` 核对待确认单与恰一张 pending 凭证双向一致，`I15` 核对 accepted 与恰一笔 succeeded 收款双向一致。账本原不变量测试完整保留，新项在 `payment/purchase-invariants.test.ts`。
 
 目标用例：`apps/api/test/billing.test.ts`、`apps/worker/test/transfer-ttl.test.ts`、`billing/demo-seed.test.ts`、`payment/purchase-invariants.test.ts`、`shared/purchase-policy/policy.test.ts`。八项既定留桩见 W1-11b 状态文件；本包不改表结构、既有入账函数签名或层白名单。
+
+## 7. W4-01 微信预下单
+
+`Runtime.billing.wechatPrepay` 消费当前真实会话与老板成员关系，按主体100→付款单290→交易300取得或创建尝试；服务器策略、金额、资格、退款与北京时间日限额都在事务内复核。A提交后才调微信JSAPI，B重读并保存prepay；有效同payer尝试只重签，换payer先查关旧尝试后建下一尝试。调起参数仅B成功后出本次响应，持久幂等结果始终为null，同键重放不重复签名或调用渠道。
+
+可信已付查单先经`recordChannelSuccess`独立提交资金事实，再调原`applyPayment`与保存点履约。金额不符、付款人或正式attach编码不符取消并开原差异；业务履约受阻保已付，账户忙/基础设施失败只回滚入账，保已成功未入账与唯一事件。微信按原时限参数创建单并登记`po.expire`；其处理器、回调、sync/cancel与兜底仍由W4-02完成。
+
+本地新6DB+2HTTP聚合首轮8/8通过（11.07秒）；覆盖A已提交/未知应答、C50、占用/B拒绝、换payer、真实履约一次、不符/退款闸门、保存点与账户忙恢复。Provider精确24项通过（4.25秒），services/API类型通过。外部IO使用typed替身与既有官方签名向量，不代表E2真实商户、密钥、资金或微信消息验收。

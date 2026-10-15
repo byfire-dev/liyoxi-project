@@ -3,7 +3,13 @@ import { randomBytes } from "node:crypto";
 import type { BillingOrder, PaymentTxn } from "@liyoxi/db";
 import type { PaymentOrderWechatPrepayResult } from "@liyoxi/contract";
 import { calendarDate } from "@liyoxi/shared/time";
-import { AppError, createThreePhaseRunner, lockRows, uuidv7 } from "../../kernel/index.js";
+import {
+  AppError,
+  createIdentityContext,
+  createThreePhaseRunner,
+  lockRows,
+  uuidv7,
+} from "../../kernel/index.js";
 import type { IdempotencyContext, Tx } from "../../kernel/index.js";
 import type { ProviderResult, WechatPayTransaction } from "../../providers/types.js";
 import { getEntitlements } from "../read/index.js";
@@ -141,6 +147,11 @@ export function createWechatPrepay(deps: WechatPrepayDeps) {
       },
     });
   }
+  const factContext = (actor: PurchaseActor) =>
+    createIdentityContext({
+      ...actor.ctx,
+      actor: { type: "system", job: "billing.wechat_prepay" },
+    });
   async function paid(
     actor: PurchaseActor,
     receipt: PaymentTxn,
@@ -152,12 +163,12 @@ export function createWechatPrepay(deps: WechatPrepayDeps) {
       recordChannelSuccess(
         tx,
         { clock: deps.clock, events: deps.events, appid: pay.appid, mchid: pay.mchid },
-        actor.ctx,
+        factContext(actor),
         { paymentTxnId: receipt.id, transaction: fact },
       ),
     );
     await deps.tx.run((tx) =>
-      deps.payment.applyPayment(tx, { paymentTxnId: receipt.id, ctx: actor.ctx }),
+      deps.payment.applyPayment(tx, { paymentTxnId: receipt.id, ctx: factContext(actor) }),
     );
     return { receipt, prepayId: null };
   }
@@ -214,7 +225,10 @@ export function createWechatPrepay(deps: WechatPrepayDeps) {
             let receipt = attempt.receipt;
             if (receipt.status === "succeeded") {
               await deps.tx.run((tx) =>
-                deps.payment.applyPayment(tx, { paymentTxnId: receipt.id, ctx: actor.ctx }),
+                deps.payment.applyPayment(tx, {
+                  paymentTxnId: receipt.id,
+                  ctx: factContext(actor),
+                }),
               );
               return { receipt, prepayId: null };
             }

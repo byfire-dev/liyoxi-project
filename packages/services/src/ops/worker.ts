@@ -198,6 +198,7 @@ export interface WorkerServicesOptions {
   readonly logger?: ProviderLogger;
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
+    readonly WECHAT_PAY?: Env["WECHAT_PAY"];
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
