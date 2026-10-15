@@ -86,3 +86,11 @@ M1时只接受 `bank_transfer`；W4-01已回补关联付款单的可信微信成
 `po.expire`通过真实timer运输的beforeRun查关单，处理器仍在原TX锁后复核并迁移；关键类降级走同一路径。孤儿成功收款只确保bill_only/bank_unmatched差异存在，关联后的bill_only只在实际首次入账/重新归类时自愈；人工restore、rebuild_order与差异解决仍由W4-11承接。
 
 本地六DB及四HTTP聚合分轮全部通过，原apply与资金探针各一精确目标通过；services/API类型、Provider四精确目标及层级检查通过。扫描先排除已有open/resolving差异再取有界100笔，每笔独立事务；`payment_exception.auto_healed`按原正式事件载荷校验。官方生成覆盖本包9路，真实挂载由四HTTP覆盖。外部IO使用typed替身与正式签名向量，不代表E2真实商户、支付、云或退款验收；详细命令与首轮夹具修正见W4-02状态。
+
+## 9. W4-03 统一入账的渠道竞争验证
+
+`pendingPlanOrder`追加可选`channel`（默认银行不变）；`pendingWechatReceipt`只建`created`尝试，成功事实仍经正式`recordChannelSuccess`提交。`channel.property.test.ts`复用公共harness，两业务连接池各max1，在`txn.apply`处保留首事务并用`pg_blocking_pids`确认真实第二连接等待。固定seed42低3轮，覆盖同交易重放、另一成功款、金额差异及不同主体在锁保留期间仍可完成；按独立整数模型核月分摊和一份履约事实。
+
+渠道提交前、入账位、履约后及提交前中断均逐表比较；已提交资金事实不随后续入账回滚丢失。保存点三个真实写点业务拒绝只留paid/blocked与差异，普通入账重放保持冻结结果；显式fulfill可恢复账本且不再收款，差异处理及受阻字段收口仍属W4-11。
+
+`apps/api/test/billing-channel-concurrency.test.ts`一聚合低3轮，用正式建单/预下单与真实RSA/GCM通知原文，确认回调、sync、cancel三条实际DB事务同时等待本轮付款单行锁后才释放；GET和全入口重放核唯一入账、周期、流水、历史和事件。本轮不改旧银行/200轮性质判据，不使用真实商户、资金或平台账号。新增service3+旧bank1定点4/4G，HTTP三轮1/1G（总16.03s），services/API类型通过；HTTP重放保留原Redis每单3秒限流，自然等窗口到期，不清键或改额度。三次测试夹具RED与精确清理事实见W4-03状态文件，未重复旧完整矩阵。
