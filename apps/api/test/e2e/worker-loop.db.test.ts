@@ -74,8 +74,16 @@ const SnapshotSchema = z.object({
       .string()
       .refine(
         (value) =>
-          ["other", "ops.probe_incomplete", "media_job_run.pause"].includes(value) ||
-          LOOPS.some((loop) => loop.id === value),
+          [
+            "other",
+            "ops.probe_incomplete",
+            "ops.alert_facts_closed",
+            "ops.alert_unknown_rule",
+            "ops.alert_write_failed",
+            "ops.alert_channel_failed",
+            "profile.consistency_notification_failed",
+            "media_job_run.pause",
+          ].includes(value) || LOOPS.some((loop) => loop.id === value),
       ),
     z.int().nonnegative(),
   ),

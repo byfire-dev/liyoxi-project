@@ -38,6 +38,14 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
   let timerPaused = false;
   const handled = { event: 0, timer: 0, media: 0 };
   const errorSources = new Map<string, number>();
+  const knownErrorEvents = new Set([
+    "ops.probe_incomplete",
+    "ops.alert_facts_closed",
+    "ops.alert_unknown_rule",
+    "ops.alert_write_failed",
+    "ops.alert_channel_failed",
+    "profile.consistency_notification_failed",
+  ]);
   const knownLoops = new Set([
     ...Object.keys(LOOP_INTERVALS_MS),
     ...DOMAIN_LOOPS.map((loop) => loop.name),
@@ -50,8 +58,8 @@ export async function startM1LoopWorker(raw: unknown, signal?: AbortSignal) {
     error: (fields) => {
       errors++;
       const source =
-        fields.evt === "ops.probe_incomplete"
-          ? "ops.probe_incomplete"
+        typeof fields.evt === "string" && knownErrorEvents.has(fields.evt)
+          ? fields.evt
           : typeof fields.loop === "string" && knownLoops.has(fields.loop)
             ? fields.loop
             : "other";
