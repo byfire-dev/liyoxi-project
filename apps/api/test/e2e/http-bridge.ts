@@ -184,7 +184,15 @@ export async function createM1HttpBridge(input: {
           access: {
             admin,
             merchantHeaders: state.owner.headers,
-            ids: { ...state.scope, sampleId: state.sampleId },
+            ids: {
+              entityId: state.scope.entityId,
+              storeId: state.scope.storeId,
+              merchantUserId: state.scope.merchantUserId,
+              orderId: state.scope.orderId,
+              orderItemId: state.scope.orderItemId,
+              deliveryTicketId: state.scope.deliveryTicketId,
+              sampleId: state.sampleId,
+            },
           },
         };
       },
