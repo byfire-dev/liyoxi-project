@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  chmodSync,
   mkdirSync,
   openSync,
   closeSync,
@@ -202,4 +203,43 @@ it("固定bake双target同build输入，分离在finalCOPY/体积前且finally�
     expect(read(`apps/${app}/vite.config.ts`)).toContain(
       'mode === "production" ? "hidden" : false',
     );
+});
+
+it("回拷保留发布JS原0644与0755权限，私有JS/map仍0600且发布字节与清单哈希一致", () => {
+  const repo = temp(),
+    output = temp(),
+    data = fixture(repo, "api"),
+    executable = join(data.root, "check-env.js");
+  writeFileSync(executable, "const check = true;\n//# sourceMappingURL=check-env.js.map\n");
+  writeFileSync(
+    `${executable}.map`,
+    JSON.stringify({
+      version: 3,
+      file: "check-env.js",
+      sources: ["src/check-env.ts"],
+      sourcesContent: ["const check: boolean = true;"],
+      names: [],
+      mappings: "AAAA",
+    }),
+  );
+  chmodSync(data.file, 0o644);
+  chmodSync(executable, 0o755);
+  expect(run("split", "api", repo, output, tag)).toMatchObject({ status: 0, stderr: "" });
+  const fragment = JSON.parse(readFileSync(join(output, "api.json"), "utf8"));
+  const modes = [];
+  for (const file of [data.file, executable]) {
+    const name = file.split("/").at(-1)!,
+      privateFile = join(output, "api", name),
+      published = readFileSync(file);
+    modes.push(statSync(file).mode & 0o777);
+    expect(statSync(privateFile).mode & 0o777).toBe(0o600);
+    expect(statSync(`${privateFile}.map`).mode & 0o777).toBe(0o600);
+    expect(published).toEqual(readFileSync(privateFile));
+    expect(fragment.files.find((pair: { path: string }) => pair.path === name)).toMatchObject({
+      size: published.byteLength,
+      sha256: createHash("sha256").update(published).digest("hex"),
+    });
+    expect(existsSync(`${file}.map`)).toBe(false);
+  }
+  expect(modes).toEqual([0o644, 0o755]);
 });
