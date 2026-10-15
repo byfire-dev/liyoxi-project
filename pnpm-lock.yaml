@@ -332,6 +332,9 @@ importers:
       sanitize-html:
         specifier: 2.17.7
         version: 2.17.7
+      tencentcloud-sdk-nodejs-ocr:
+        specifier: 4.1.322
+        version: 4.1.322
     devDependencies:
       esbuild:
         specifier: 0.28.2

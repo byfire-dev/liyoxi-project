@@ -1,6 +1,6 @@
 // 任务进程的构建（W0-23）：node scripts/build.mjs。产物在 dist/：index.js（任务进程）、redis-compat.js（兼容脚本）、
 // seed.js（播种的镜像内入口，W1-22）、staff-bootstrap.js（建第一位超级管理员的引导命令，W1-01a）。
-// 工作区的包都是源码包，连同第三方依赖一起打进产物；只留下面两个包在外面：它们运行时要读自己包里的文件，
+// 工作区的包都是源码包，连同第三方依赖一起打进产物；下面列出的包保留运行时模块边界或要读自己包里的文件，
 // 不能打进去，所以也写在本包的 dependencies 里，产物从 apps/worker/node_modules 解析得到。
 // 02 第 3.3 节定的构建工具是 tsup，它就是包了一层 esbuild；tsup 8.5.1 的依赖 chokidar@4.0.3 过不了
 // 可信级别检查（pnpm-workspace.yaml 的 trustPolicy），装不上，这里直接用锁文件里已有的 esbuild。
@@ -13,7 +13,15 @@ import { fileURLToPath } from "node:url";
 
 import { build } from "esbuild";
 
-const EXTERNAL = ["bullmq", "ioredis", "mammoth", "sanitize-html", "pdfjs-dist", "@napi-rs/canvas"];
+const EXTERNAL = [
+  "bullmq",
+  "ioredis",
+  "mammoth",
+  "sanitize-html",
+  "pdfjs-dist",
+  "@napi-rs/canvas",
+  "tencentcloud-sdk-nodejs-ocr",
+];
 
 function version() {
   if (process.env.LYX_BUILD_VERSION) return process.env.LYX_BUILD_VERSION;
