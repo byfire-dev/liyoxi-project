@@ -27,8 +27,18 @@ import type { RunTimerOutcome, TimerRef, TimerRunDeps } from "./scan.js";
 export const TIMER_BACKOFF_SEC = [60, 120, 300, 900, 1800] as const;
 
 export async function runTimer(deps: TimerRunDeps, ref: TimerRef): Promise<RunTimerOutcome> {
+  const observed = (outcome: RunTimerOutcome): RunTimerOutcome => {
+    if (outcome === "retry" || outcome === "failed") {
+      try {
+        void Promise.resolve(deps.onFailure?.(outcome)).catch(() => undefined);
+      } catch {
+        /* 不污染持久结果。 */
+      }
+    }
+    return outcome;
+  };
   const job = recurringJobOf(deps.registry, ref.kind);
-  if (job?.mode === "job") return runJobTimer(deps, ref, job);
+  if (job?.mode === "job") return observed(await runJobTimer(deps, ref, job));
   try {
     return await deps.tx.run(async (tx): Promise<RunTimerOutcome> => {
       const timer = await readTimer(tx, ref.timerId);
@@ -56,7 +66,7 @@ export async function runTimer(deps: TimerRunDeps, ref: TimerRef): Promise<RunTi
       return outcome;
     });
   } catch (error) {
-    return failTimer(deps, ref, error);
+    return observed(await failTimer(deps, ref, error));
   }
 }
 

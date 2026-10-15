@@ -43,3 +43,5 @@ manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本
 后台只认当前应用同origin且没有凭据、查询或片段的实际资产URL；小程序只认明确的本地app/page/分包bundle形态。两客户端先解析原stack，再以各自原scrub检查filename和abs_path；发生去敏变化就丢整帧，不先清掉URL凭据/查询后再冒认路径。V8/JSC/Taro帧使用正行列、按最早调用在前；外部、native、模糊路径与无可靠坐标的帧不补造映射，原去敏stack仍供诊断。转发端只保规范组件/路径/坐标，不转发源码上下文、vars、function或debug_meta；旧无dist信封可保安全相对文件名，不能据此声称具备映射资格。
 
 后继上传必须消费同次构建的私有JS/map，release等于该产物tag、dist等于组件，上传name严格等于上述abs_path。发布JS已移除sourceMappingURL，后继可按官方release/dist方式显式提供SourceMap header关联私有map；本片没有实现上传、CLI锁版/inject或真实SaaS符号化。API/worker自身直报出口另交，portal仍按M6范围处理，不以微型Node SourceMap位置核对冒充真实上游还原。
+
+服务端出口伴随使用相同命名口径：dist固定api/worker，release沿镜像的VERSION（Docker构建已将两入口版本设为同一tag），上传name对应`app:///api/<pair.path>`或`app:///worker/<pair.path>`。只把装配注入的自有dist目录内固定第一方JS/已知API chunk转换为相对文件和正坐标，绝不上传绝对服务器路径或原始stack；没有可靠帧时仅固定摘要，不伪造源码还原。客户端HTTP信封仍拒绝服务端映射帧，独立SERVER_ERRORS_FILE不会扩大客户端公口。实现、独审与验证状态以W2-27台账为准。

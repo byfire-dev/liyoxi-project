@@ -19,6 +19,8 @@ import {
   EnvError,
   loadEnv,
   setPortLogger,
+  installServerErrorHandlers,
+  drainServerErrors,
 } from "@liyoxi/services";
 import type { QueueChannel, WorkerLease, WorkerServices } from "@liyoxi/services";
 
@@ -66,6 +68,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   let budgetRedis: Redis | undefined;
   let lease: WorkerLease | undefined;
   let services: WorkerServices | undefined;
+  let removeErrorHandlers: ReturnType<typeof installServerErrorHandlers> | undefined;
   let probeDatabase: ReturnType<typeof connectProbeDatabase> | undefined;
   const settle = (closes: readonly (() => unknown)[]) =>
     Promise.allSettled(closes.map((close) => Promise.resolve().then(close)));
@@ -77,6 +80,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     }
   };
   const dispose = async () => {
+    removeErrorHandlers?.();
     const mutexClosing = database.sessionMutex.close();
     void mutexClosing.catch(() => undefined);
     let failure: PromiseRejectedResult | undefined;
@@ -107,7 +111,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     await clean([closeModelDrivers]);
     await clean([() => services?.closeModelBudget?.()]);
     await clean([closeBudgetRedis]);
-    await clean([() => services?.closeAlertFacts?.()]);
+    await clean([() => services?.closeAlertFacts?.(), () => services?.closeServerErrors?.()]);
     await clean([() => mutexClosing]);
     await clean([
       () => wechatRedis?.disconnect(),
@@ -140,6 +144,9 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     }
     if (!values.check) probeDatabase = connectProbeDatabase(env.DATABASE_URL);
     services = buildWorkerServices({
+      ...(!values.check
+        ? { serverErrorSource: { release: VERSION, artifactRoot: new URL("./", import.meta.url) } }
+        : {}),
       ...(probeDatabase
         ? {
             probe: {
@@ -196,6 +203,8 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     await services.selfCheck();
   } catch (error) {
     // 自检或装配失败也回收本进程创建的资源；没有启动消费者，不借其它进程的连接。
+    services?.serverErrors?.capture(error, "process.start");
+    await drainServerErrors(services?.serverErrors);
     await dispose();
     throw error;
   }
@@ -215,6 +224,11 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   }
   const activeChannel = channel;
   const activeServices = services;
+  if (services.serverErrors)
+    removeErrorHandlers = installServerErrorHandlers({
+      reporter: services.serverErrors,
+      log: (error, kind) => logger.error({ evt: kind, err: error }, "worker 未捕获异常，退出"),
+    });
 
   let runtime: ReturnType<typeof createWorkerRuntime>;
   try {
@@ -225,6 +239,8 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     });
     runtime = createWorkerRuntime({ services, channel, lease, logger });
   } catch (error) {
+    services.serverErrors?.capture(error, "process.start");
+    await drainServerErrors(services.serverErrors);
     await dispose();
     throw error;
   }
@@ -232,6 +248,7 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
   const shutdown = async (signal: string): Promise<void> => {
     if (stopping) return;
     stopping = true;
+    removeErrorHandlers?.();
     logger.info({ signal }, "收到终止信号：停循环、收在途任务、让出租约");
     let failed = false;
     try {
@@ -244,11 +261,14 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
     } catch (error) {
       failed = true;
       logger.error({ err: error }, "任务关停失败");
+      activeServices.serverErrors?.capture(error, "process.close");
+      await drainServerErrors(activeServices.serverErrors);
     } finally {
       // runtime已完成业务drain；同一缓存Promise也覆盖stop自身提前失败的兜底。
       await settle([() => activeServices.closeProbes?.()]);
       const modelsClosed = await settle([closeModelDrivers]);
       const closed = await settle([
+        () => activeServices.closeServerErrors?.(),
         closeBudgetRedis,
         () => activeChannel.close(),
         () => lease?.close(),
@@ -258,13 +278,15 @@ export async function main(args: readonly string[] = process.argv.slice(2)): Pro
       ]);
       failed ||= [...modelsClosed, ...closed].some((result) => result.status === "rejected");
     }
-    process.exit(failed ? 1 : 0);
+    process.exit(failed || removeErrorHandlers?.hasFailed() ? 1 : 0);
   };
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
   try {
     runtime.start();
   } catch (error) {
+    activeServices.serverErrors?.capture(error, "process.start");
+    await drainServerErrors(activeServices.serverErrors);
     await settle([() => runtime.stop()]);
     await dispose();
     throw error;

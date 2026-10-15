@@ -95,6 +95,7 @@ export const onError: ErrorHandler<ApiEnv> = (error, c) => {
   const resolved = resolve(error);
   if (ERRORS[resolved.symbol].http >= 500) {
     c.get("log").error({ evt: "http.error", error: resolved.symbol, err: error }, "请求出错");
+    c.get("runtime")?.serverErrors?.capture(error, "api.5xx");
   }
   return respond(c, resolved);
 };

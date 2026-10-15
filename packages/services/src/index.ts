@@ -373,6 +373,12 @@ export type {
   ClientErrorSnapshot,
   ClientErrorForwarder,
 } from "./ops/index.js";
+export {
+  createServerErrorReporter,
+  drainServerErrors,
+  installServerErrorHandlers,
+} from "./ops/index.js";
+export type { ServerErrorKind, ServerErrorOptions, ServerErrorReporter } from "./ops/index.js";
 export { createFlowOps, assertFlowOpsRead, createAlertActions } from "./ops/index.js";
 export type {
   FlowOps,
