@@ -941,6 +941,9 @@ await runMain(async () => {
           [
             join(root, "infra/deploy/orchestrate.mjs"),
             "--local",
+            // Rehearsal-only injected precheck; not an actual mixed-version result.
+            "--compat-result",
+            "passed",
             ...args,
             "--summary",
             summary,
