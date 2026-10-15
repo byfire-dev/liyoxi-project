@@ -231,9 +231,9 @@ API无预算transport的新提交仍关闭，查询不新扣提交槽。原KF-1�
 
 ## 19. 营业执照官方SDK前置构件（W3-16）
 
-固定`ocr@4.1.322/common@4.1.220`，只实现`BizLicenseOCR`；签名与可取消请求走官方SDK公开request。
+固定`ocr@4.1.322/common@4.1.220`；W3-16实现`BizLicenseOCR`，W4-04前置追加`BankSlipOCR`，签名与可取消请求复用官方SDK公开request。
 API显式消费`OCR_TENCENT_FILE`，严格普通JSON文件仅`secretId/secretKey/region`，最多4KiB，
-任何环境均拒同名明文。未配保持unconfigured；worker、行业许可证及银行回单未接入。
+任何环境均拒同名明文。未配保持unconfigured，行业许可证未接；worker银行回单源码已装配，验证和部署另记。
 构造零IO，实际请求最多六秒并中止底层；自有modelDrivers登记关闭，借用providers不消费配置。
 HTTPS固定官方目标，专用Agent禁止环境代理及跨目标/端口；请求identity且解压前拒绝编码响应，正文上限1MiB。
 失败仅静态说明，不输出URL、凭据、原响应或SDK异常。类型unknown及不能解析的期限不补事实，
@@ -286,3 +286,13 @@ ops每日任务使用现镜像固定PG17+/age工具，以只读角色导出→�
 缺配/失败保留失败事实，不把unconfigured当备份成功；超过26小时由backup.stale监测。
 配置、故障与离线恢复步骤见[运维手册](../../../../../docs/plan/runbook.md)第2.4/5.3.1节。
 本地现造身份只经内存FIFO解密验证PGDMP，真实云策略及预发完整恢复仍另验。
+
+
+## W4-04 银行回单识别前置
+
+`recognizeBankReceipt({fileUrl,signal})`固定BankSlipOCR、IsPdf=true、PdfPageNumber=1，不调用BizLicense替代回单。
+六字段nullable；只消费官方明确的付款账号、交易金额、币种与日期，未知户名/备注保持null与missing告警。
+币种不明、重复冲突、金额非整分或日期缺完整时刻或时区均不猜；无任何可用字段返回unreadable。
+API/worker自有OCR驱动均登记同实例modelDrivers关闭，ASR/LLM原角色保持；借用providers不消费配置。
+前置唯一独审及三个窄点核0阻断；services/API类型通过，新SDK/解析1、DB1与旧执照协议1合并3/3G。
+未执行真实云调用；官方字段依据、首类型RED与云/节点未验边界见W4-04前置变更记录。

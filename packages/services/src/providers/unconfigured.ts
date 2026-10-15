@@ -233,6 +233,7 @@ const ocrOff = unconfigured("证照识别", "商家手填、审核人手工核�
 export const unconfiguredOcr: OcrProvider = {
   ...BASE,
   recognizeBusinessLicense: ocrOff,
+  recognizeBankReceipt: ocrOff,
   extractLicenseFields: ocrOff,
 };
 

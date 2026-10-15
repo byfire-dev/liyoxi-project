@@ -335,11 +335,10 @@ export interface Runtime {
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
   const ownsModels =
-    entry === "api" &&
     options.providers === undefined &&
-    (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC || !!env.OCR_TENCENT);
+    ((entry === "api" && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC)) || !!env.OCR_TENCENT);
   const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
-  const ownsOcr = entry === "api" && options.providers === undefined && !!env.OCR_TENCENT;
+  const ownsOcr = options.providers === undefined && !!env.OCR_TENCENT;
   const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
   const modelDrivers = ownsModels ? options.modelDrivers : undefined;
   if (
@@ -350,7 +349,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ownsAsr
         ? "API ASR配置须成对提供本实例关闭登记与关闭函数"
         : ownsOcr
-          ? "API OCR配置须成对提供本实例关闭登记与关闭函数"
+          ? "OCR配置须成对提供本实例关闭登记与关闭函数"
           : "API LLM配置须成对提供本实例关闭登记与关闭函数",
     );
   if (entry === "worker" && env.CI && !env.CI.worker)
@@ -470,7 +469,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       settings: {
         ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
         ...(ownsOcr ? { ocr: env.OCR_TENCENT } : {}),
-        ...(ownsModels && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
+        ...(ownsModels && entry === "api" && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
         ...(env.SMS
           ? {
               sms: {
@@ -522,7 +521,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             },
           }
         : {}),
-      ...(ownsModels && env.LLM_DOMESTIC
+      ...(ownsModels && entry === "api" && env.LLM_DOMESTIC
         ? {
             llm: {
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
