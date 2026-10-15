@@ -7,7 +7,7 @@ import { makeTempDir, repoRoot } from "./helpers.js";
 
 const repository = "fixture/project",
   source = "a".repeat(40);
-const run = (name: "images" | "mixed-smoke", id: number, number = 1) => ({
+const run = (name: string, id: number, number = 1) => ({
   id,
   name,
   run_number: number,
