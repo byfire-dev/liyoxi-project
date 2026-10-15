@@ -231,6 +231,7 @@ function createPhase(
       bridge = await createM1HttpBridge({
         attach,
         signal,
+        phaseClient: input.phase,
         diagnosticWrite: diagnostics.write,
         beforeOrder: async () => {
           await command("pause-timers");
@@ -259,7 +260,10 @@ function createPhase(
       if ((phase === "old-read-write") !== Boolean(input.admin))
         throw new MixedFailure("invalid_state");
       chainRan = true;
-      const result = await bridge.runChain(input);
+      const result = await bridge.runChain({
+        ...input,
+        onStep: (step) => process.stderr.write(`${JSON.stringify({ mixedChainStep: step })}\n`),
+      });
       if (
         diagnostics.count() ||
         result.report.episodeCount !== 20 ||
@@ -409,6 +413,56 @@ async function main() {
           if (diagnostics.count()) throw new MixedFailure(codes[request.method]);
           return result;
         } catch (error) {
+          // Diagnostic locations only: no message, first stack line, SQL, cause or private RPC value.
+          const httpFailure =
+            error instanceof Error
+              ? error.message.match(
+                  /^M1 ((?:m|admin|portal)\.[A-Za-z0-9.]+): HTTP ([1-5]\d\d), ([A-Z][A-Z0-9_]{0,100})$/,
+                )
+              : null;
+          const frames =
+            error instanceof Error
+              ? (error.stack ?? "")
+                  .split("\n")
+                  .slice(1)
+                  .flatMap((line) => {
+                    const match = line.match(
+                      /^\s+at [^\n]*\/repo\/((?:apps|packages)\/(?:[\w.-]+\/)*[\w.-]+\.[cm]?[jt]sx?):(\d+):(\d+)/,
+                    );
+                    return match ? [`${match[1]}:${match[2]}:${match[3]}`] : [];
+                  })
+                  .slice(0, 8)
+              : [];
+          process.stderr.write(
+            `${JSON.stringify({
+              mixedFailure: codes[request.method],
+              method: request.method,
+              errorCategory:
+                error instanceof Error &&
+                [
+                  "Error",
+                  "AssertionError",
+                  "ZodError",
+                  "MixedFailure",
+                  "AppError",
+                  "TypeError",
+                  "AggregateError",
+                ].includes(error.name)
+                  ? error.name
+                  : "other",
+              diagnosticCount: diagnostics.count(),
+              ...(httpFailure
+                ? {
+                    httpFailure: {
+                      operationId: httpFailure[1],
+                      status: Number(httpFailure[2]),
+                      error: httpFailure[3],
+                    },
+                  }
+                : {}),
+              frames,
+            })}\n`,
+          );
           throw error instanceof MixedFailure
             ? error
             : new MixedFailure(controller.signal.aborted ? "cancelled" : codes[request.method]);
