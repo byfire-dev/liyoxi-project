@@ -279,6 +279,7 @@
 | `pnpm exec vitest run --project api test/admin-auth.test.ts test/admin-matrix.test.ts`（前面加 `LYX_UPDATE_GOLDEN=1` 重写权限矩阵的黄金文件） | 只跑后台鉴权链的接口层用例：登录、激活、再验证、退出九条，防跨站，再验证后用原幂等键重放；权限矩阵回放（已挂载的后台路由 × 8 角色 × 主管与否，对黄金文件 `apps/api/golden/admin-permission-matrix.txt` 并逐格请求）。后台接口怎么登记、怎么写用例见 [README](apps/api/README.md) 第 8 节 |
 | `pnpm --filter @liyoxi/services exec vitest run src/billing/subscription/ src/billing/ports.test.ts` | 只跑履约（W1-11a 的账本侧）的用例：付清后建周期与发放计划、发首月、过期后重新开通、预约周期接续、周期不重叠、逐步故障注入、并发、性质测试（分摊不连库 200 轮；履约连库缺省 10 轮、固定种子，`LYX_FC_RUNS`、`LYX_FC_SEED` 可改）、三条不变量与两个端口。连带种子的测试库，要本地的 PostgreSQL 与 `DATABASE_URL`。`createFulfillment`、`fulfill` 怎么用、哪些算受阻，见 [README](packages/services/src/billing/subscription/README.md) |
 | `pnpm contract:compat` | W2-28a：从本地在役 `weapp-v*` 标签比较商家契约，后台/下载页比较最近在役 `v*`；无标签分别报无可比版本，缺快照失败。退役格式和六类判据见 [infra/ci](infra/ci/README.md#9-在役契约兼容w2-28a)。真实混跑与发布阻断由 W2-28b 交付，a 不表示整包完成 |
+| `node infra/ci/mixed-version-smoke.mjs --prev <完整提交SHA> --report <新报告.json>` | W2-28b：不同源码镜像同库四步，真实 HTTP 与独立 worker；保留二十集主链、实钟、30秒观察与10分钟整包上限。省略 prev 按发布标签或第一父提交选择；本地样本与 main CI 分列，运行边界见 [infra/ci](infra/ci/README.md#91-双版本混跑与发布阻断w2-28b) |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
