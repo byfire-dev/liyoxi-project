@@ -1,6 +1,6 @@
 # W2-28 四步真实HTTP/worker混跑
 
-这是测试执行器，不是部署入口。每个SHA都从自己的git archive构建server的build target，保对应版API、服务、契约与worker源码；再仅以实际image ID为FROM，复制唯一40位SHA文本到`/repo/.mixed-source-sha`。driver读取固定文件核身份，不能仅反射请求version；不挂HEAD源码到旧版。测试层不进入正式server镜像。
+这是测试执行器，不是部署入口。每个SHA都从自己的git archive构建server的build target，保对应版API、服务、契约与worker源码；再仅从实际image ID创建不启动、无网络的自有临时容器，复制唯一40位SHA文本到`/repo/.mixed-source-sha`后commit薄层，并核实际Parent等于原image ID。driver读取固定文件核身份，不能仅反射请求version；不挂HEAD源码到旧版。测试层不进入正式server镜像。
 
 ```sh
 node infra/ci/mixed-version-smoke.mjs --report /tmp/mixed-smoke-本轮.json
@@ -37,3 +37,5 @@ HEAD固定为脚本所在检出的当前提交。默认prev取第一父所能到
 ## 当前验证边界
 
 新增五纯聚合已有绿色记录；版本定义例外、私有协议/安全read_failed、旧spec传递和报告路径点修只重跑受影响聚合。infra类型单项已通过；最初lint prefer-const与macOS系统临时目录别名误拒保留。真实双SHA构建/两20集HTTP链及清理仍待ROOT唯一内容审查、driver实际合流和重资源位授权后执行，不能把纯替身通过写成真实混跑已验。先合driver、再由controller普通同步其actual main；缺driver必须失败，不能借HEAD叶补旧版。工作流/同SHA发布gate由独立分支交付。
+
+首次真实演练在68.516秒于薄层构建失败：Dockerfile将`FROM sha256:<config image ID>`解析为仓库名；HEAD build target本身完成。改为精确ID的create/cp/commit，保唯一身份文本和父镜像核验；原失败报告与共享依赖保全、未创建owner的清理事实保留，尚不算整轮通过。

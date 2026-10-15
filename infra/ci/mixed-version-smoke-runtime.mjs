@@ -405,12 +405,19 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
       const layer = join(privateRoot, `layer-${source}`);
       mkdirSync(layer, { mode: 0o700 });
       writeFileSync(join(layer, ".mixed-source-sha"), `${source}\n`, { mode: 0o600, flag: "wx" });
-      writeFileSync(
-        join(layer, "Dockerfile"),
-        `FROM ${base.id}\nCOPY .mixed-source-sha /repo/.mixed-source-sha\nLABEL org.opencontainers.image.revision="${source}" lyx.mixed.run="${runId}" lyx.mixed.owner="${nonce}"\n`,
-        { mode: 0o600, flag: "wx" },
+      // Dockerfile FROM parses a config image ID as a repository name; create accepts the exact ID.
+      const layerId = await docker(["create", "--network", "none", ...labels, base.id]);
+      requireFact(ID.test(layerId), "container-identity");
+      const layerEntry = { id: layerId, mode: "layer", removed: false };
+      containers.push(layerEntry);
+      requireFact((await owned(layerId)).image === base.id, "image-identity");
+      await docker(["cp", join(layer, ".mixed-source-sha"), `${layerId}:/repo/.mixed-source-sha`]);
+      await docker(["commit", layerId, tag]);
+      requireFact(
+        (await docker(["image", "inspect", "--format", "{{.Parent}}", tag])) === base.id,
+        "image-identity",
       );
-      await cmd("docker", ["build", "--pull=false", "-t", tag, layer], 30_000);
+      await removeContainer(layerEntry);
       const image = JSON.parse(await docker(["image", "inspect", "--format", IMAGE, tag]));
       requireFact(
         /^sha256:[a-f0-9]{64}$/.test(image.id) &&

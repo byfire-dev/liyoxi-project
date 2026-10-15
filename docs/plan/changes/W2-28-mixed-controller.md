@@ -2,7 +2,7 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 改了什么 | 在worker前置d22c5b2a后实现独立controller：两SHA自身归档/build target与精确image ID薄层、私有JSONL、HEAD owner资源、三phase两20集链/旧spec读及600秒含清理。 |
+| 改了什么 | 在worker前置d22c5b2a后实现独立controller：两SHA自身归档/build target与精确image ID创建/commit薄层、私有JSONL、HEAD owner资源、三phase两20集链/旧spec读及600秒含清理。 |
 | 原因 | 旧M1支架直驱不能证明对应版独立worker调度；需要真实隔离进程/队列/租约，并避免把HEAD driver挂给旧代码或清共享依赖。 |
 | 影响的包 | W2-28、W2-26；仅infra/ci两mjs、新五纯聚合、本域README及此标准记录。caller独立owner/API driver、m2最小owned-network伴随先实际合入，最后普通同步；公共task/status由ROOT收口。 |
 | 类别 | 顺序 |
@@ -13,3 +13,5 @@
 只在旧版没有server Dockerfile或确实无祖先时允许no-comparable；HEAD缺定义、旧版有定义却缺driver、其他错误都失败。唯一审查发现无可比版本提前返回的P2，已改为仍完成HEAD构建、迁移播种、主链、排空及清理，任一步失败保持RED；原版本聚合纳入对应成功与失败判据。完整旧GET spec只走私有通道，第四步绑定旧source，不能用HEAD清单覆盖；实际owner清零与phase进程关闭分别证明，不虚构清理数量或lease查询。
 
 五纯聚合和infra单项类型已有绿色记录，轻lint prefer-const及报告路径误拒macOS系统别名的失败保留；后继精确版本/RPC字段补充纳入原聚合。真实构建/双版本HTTP及清理尚待一次ROOT审查与唯一重资源位执行；工作流/发布门禁另交，不将本地纯适配器结果写成混跑或真实云验收完成。
+
+首轮真实演练68.516秒在身份薄层失败：Dockerfile FROM不接受config image ID为本地来源，误作仓库解析；实际HEAD build target已完成。最窄改为同image ID创建未启动的无网络容器，仅复制SHA文本并commit，核Parent后精确删除容器。原报告cleanup通过、owner未创建，不将分段构建成功写成完整混跑通过。
