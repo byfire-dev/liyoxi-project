@@ -4,8 +4,8 @@
 //
 // 进程运行时给事务入口、时钟、配置、装配结果、出站事件与十二个 Provider（W0-22；内核小修补接齐了后两样）；
 // 状态迁移运行时上还没有，在这里按它们建。
-//   微信能力 取运行时上的 providers.wechat：local、test 是本地的假微信，用例经 createRuntime 的 providers 换成替身；
-//            stg、prod 在真实驱动到位之前是“未配置”的那一个，调用即回未配置，两条登录回 503 WECHAT_UNAVAILABLE，不崩溃。
+//   微信能力 取运行时上的 providers.wechat：完整配置时使用 W2-21 的真实驱动；未配置时 local/test 用本地替身，
+//            stg/prod 受控返回 WECHAT_UNAVAILABLE。用例还可显式注入替身，不把替身成功当真实平台验收。
 //   密钥环   登录要算手机号的盲索引与密文。用到时才从环境变量里的密钥文件造（security.loadKeyring）：
 //            只校验会话的请求用不到它，没配密钥的进程照样起得来、验得了会话。
 // 用例与本地的演示装配经 provideMerchantDeps 换成测试密钥环与 appid（要在第一次取服务之前给）。
@@ -47,8 +47,8 @@ export interface MerchantDeps {
 }
 
 /**
- * 占位的 appid：真实的 AppID 随微信的真实驱动一起配置进来（E2；G2-D）。在那之前本地与测试只有假微信，
- * 微信身份行与同意记录里记的是这个占位值（留桩 m2-identity-login-wechat-fake.md）。
+ * 未配置 AppID 的占位值；实际装配优先显式测试依赖或 W2-21 的 runtime.env.WECHAT.appid。
+ * W2-13 已接原生手机号凭证采集；真实平台与真机仍须 E2/V19 外部验收。
  */
 export const PLACEHOLDER_WEAPP_APPID = "wx0000000000000000";
 

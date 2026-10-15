@@ -55,7 +55,7 @@ async function run(argv: string[], env = source) {
   return { exit, out, err, text: [...out, ...err].join("\n") };
 }
 const args = () => ["--staff-id", staffId, "--confirm-staff-no", String(staffNo)];
-describe("过期首管理员受限补发CLI", { timeout: SLOW }, () => {
+describe("staff_reissue_activation / 过期首管理员受限补发CLI", { timeout: SLOW }, () => {
   it("缺参数/未知参数不打开运行时；未显式prod允许在连接前拒绝", async () => {
     expect((await run([])).exit).toBe(1);
     expect((await run(["--not-owned"])).exit).toBe(1);

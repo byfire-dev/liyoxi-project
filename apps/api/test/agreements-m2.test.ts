@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { createIdentityContext, runSeed, SEED_MODULES } from "@liyoxi/services";
 import type { AgreementActor } from "@liyoxi/services";
+import type { operations } from "@liyoxi/contract/types/admin";
 import type {
   AgreementDetail,
   AgreementVersionMutationResult,
@@ -58,8 +59,26 @@ async function actorFor(
     },
   };
 }
-async function call<T>(path: string, method = "GET", json?: unknown, headers = editor.headers) {
-  const response = await api.request(`/api/v1${path}`, {
+type AgreementOperation = Extract<keyof operations, `admin.agreement${string}`>;
+function requestPath(operationId: AgreementOperation, path: string, method: string) {
+  const route = api.api.mounted.find((entry) => entry.operationId === operationId);
+  if (!route) throw new Error(`实际路由未挂载：${operationId}`);
+  expect(route.method).toBe(method);
+  expect(`/api/v1${path.split("?")[0]}`.split("/")).toEqual(
+    route.path
+      .split("/")
+      .map((part) => (/^\{[^}]+\}$/.test(part) ? expect.stringMatching(/^[^/]+$/) : part)),
+  );
+  return `/api/v1${path}`;
+}
+async function call<T>(
+  operationId: AgreementOperation,
+  path: string,
+  method = "GET",
+  json?: unknown,
+  headers = editor.headers,
+) {
+  const response = await api.request(requestPath(operationId, path, method), {
     method,
     headers: {
       ...headers,
@@ -100,12 +119,13 @@ describe("W212八条后台协议接口真实pipeline", () => {
       prisma.auditLog.count({ where: { category: "agreement" } }),
     ]);
     const list = await call<{ items: { agreementKey: string }[]; total: number }>(
+      "admin.agreement.list",
       "/admin/agreements?page=1&pageSize=3",
     );
     expect(list.response.status).toBe(200);
     expect(list.body.data).toMatchObject({ total: 6 });
     expect(list.body.data.items).toHaveLength(3);
-    const detail = await call<AgreementDetail>("/admin/agreements/user");
+    const detail = await call<AgreementDetail>("admin.agreement.get", "/admin/agreements/user");
     expect(detail.response.status).toBe(200);
     expect(detail.body.data.agreementKey).toBe("user");
     expect(
@@ -116,7 +136,9 @@ describe("W212八条后台协议接口真实pipeline", () => {
         prisma.auditLog.count({ where: { category: "agreement" } }),
       ]),
     ).toEqual(before);
-    expect((await call("/admin/agreements/unknown")).response.status).toBe(404);
+    expect((await call("admin.agreement.get", "/admin/agreements/unknown")).response.status).toBe(
+      404,
+    );
   });
   it("admin.agreement.agreementVersion.create / admin.agreementVersion.update：同一实际worker转换、Idem与版本冲突", async () => {
     const signed = await signInAsStaff(await testApi.db.prisma(), {
@@ -129,7 +151,11 @@ describe("W212八条后台协议接口真实pipeline", () => {
       pdf = await fixture.file(actor, "pdf");
     const input = { sourceFileId: source.id, pdfFileId: pdf.id };
     const key = crypto.randomUUID(),
-      path = "/api/v1/admin/agreements/user/agreement-versions";
+      path = requestPath(
+        "admin.agreement.agreementVersion.create",
+        "/admin/agreements/user/agreement-versions",
+        "POST",
+      );
     const request = () =>
       api.request(path, {
         method: "POST",
@@ -155,7 +181,11 @@ describe("W212八条后台协议接口真实pipeline", () => {
       summary: "真实接口虚构变更",
     };
     const updateKey = crypto.randomUUID(),
-      updatePath = `/api/v1/admin/agreement-versions/${dto.version.agreementVersionId}`;
+      updatePath = requestPath(
+        "admin.agreementVersion.update",
+        `/admin/agreement-versions/${dto.version.agreementVersionId}`,
+        "PATCH",
+      );
     const patch = () =>
       api.request(updatePath, {
         method: "PATCH",
@@ -183,6 +213,7 @@ describe("W212八条后台协议接口真实pipeline", () => {
         changedDto,
       );
       const fresh = await call(
+        "admin.agreementVersion.update",
         updatePath.replace("/api/v1", ""),
         "PATCH",
         {
@@ -197,6 +228,7 @@ describe("W212八条后台协议接口真实pipeline", () => {
       unavailable.mockRestore();
     }
     const conflict = await call(
+      "admin.agreementVersion.update",
       `/admin/agreement-versions/${dto.version.agreementVersionId}`,
       "PATCH",
       update,
@@ -221,6 +253,7 @@ describe("W212八条后台协议接口真实pipeline", () => {
     const actor = await actorFor(signed);
     const d = await fixture.draft(actor, "member");
     const scheduled = await call<Schedule>(
+      "admin.agreementVersion.schedule",
       `/admin/agreement-versions/${d.version.id}/schedule`,
       "POST",
       { lockVersion: 0 },
@@ -232,6 +265,7 @@ describe("W212八条后台协议接口真实pipeline", () => {
       refId: d.version.id,
     });
     const withdrawn = await call<Withdrawal>(
+      "admin.agreementVersion.withdraw",
       `/admin/agreement-versions/${d.version.id}/withdraw`,
       "POST",
       { reason: "虚构接口撤回" },
@@ -266,11 +300,15 @@ describe("W212八条后台协议接口真实pipeline", () => {
       ip: "203.0.113.20",
     });
     const result = await call<{ items: AgreementConsentItem[]; total: number }>(
+      "admin.agreementConsent.list",
       "/admin/agreement-consents?consentedFrom=2026-10-09&consentedTo=2026-10-09",
     );
     expect(result.response.status).toBe(200);
     expect(result.body.data.items.map((r) => r.agreementConsentId)).toContain(signed.id);
-    const detail = await call<AgreementConsentDetail>(`/admin/agreement-consents/${signed.id}`);
+    const detail = await call<AgreementConsentDetail>(
+      "admin.agreementConsent.get",
+      `/admin/agreement-consents/${signed.id}`,
+    );
     expect(detail.response.status).toBe(200);
     expect(detail.body.data).toMatchObject({
       device: { model: "Fictional" },
@@ -280,12 +318,21 @@ describe("W212八条后台协议接口真实pipeline", () => {
     expect(JSON.stringify(detail.body)).not.toMatch(
       /must-not-leak|Bearer never|phoneEnc|openidHmac/,
     );
-    expect((await call("/admin/agreement-consents?consentedFrom=2024-01-01")).response.status).toBe(
-      400,
-    );
     expect(
-      (await call("/admin/agreement-consents?bizId=01890000-0000-7000-8000-000000000001")).response
-        .status,
+      (
+        await call(
+          "admin.agreementConsent.list",
+          "/admin/agreement-consents?consentedFrom=2024-01-01",
+        )
+      ).response.status,
+    ).toBe(400);
+    expect(
+      (
+        await call(
+          "admin.agreementConsent.list",
+          "/admin/agreement-consents?bizId=01890000-0000-7000-8000-000000000001",
+        )
+      ).response.status,
     ).toBe(400);
   });
   it("索引六键与默认30天：单号不解除日期窗口，日期单侧补界且366天包含", async () => {
@@ -299,20 +346,30 @@ describe("W212八条后台协议接口真实pipeline", () => {
       consentedAt: new Date(api.clock.now().getTime() - 40 * 86400000),
     });
     const plain = await call<{ items: AgreementConsentItem[] }>(
+      "admin.agreementConsent.list",
       `/admin/agreement-consents?no=${old.bizNo}`,
     );
     expect(plain.body.data.items.map((r) => r.agreementConsentId)).not.toContain(old.id);
     const indexed = await call<{ items: AgreementConsentItem[] }>(
+      "admin.agreementConsent.list",
       `/admin/agreement-consents?consentNo=${old.seq}`,
     );
     expect(indexed.body.data.items.map((r) => r.agreementConsentId)).toContain(old.id);
     expect(
-      (await call("/admin/agreement-consents?consentedFrom=2025-10-10&consentedTo=2026-10-10"))
-        .response.status,
+      (
+        await call(
+          "admin.agreementConsent.list",
+          "/admin/agreement-consents?consentedFrom=2025-10-10&consentedTo=2026-10-10",
+        )
+      ).response.status,
     ).toBe(200);
     expect(
-      (await call("/admin/agreement-consents?consentedFrom=2025-10-09&consentedTo=2026-10-10"))
-        .response.status,
+      (
+        await call(
+          "admin.agreementConsent.list",
+          "/admin/agreement-consents?consentedFrom=2025-10-09&consentedTo=2026-10-10",
+        )
+      ).response.status,
     ).toBe(400);
   });
   it("模块权限/Idem/严格输入在prepare前拒绝；外员工文件不可枚举且无写入", async () => {
@@ -320,23 +377,46 @@ describe("W212八条后台协议接口真实pipeline", () => {
       roleKey: "delivery_manager",
       now: api.clock.now(),
     });
-    const denied = await call("/admin/agreements", "GET", undefined, limited.headers);
+    const denied = await call(
+      "admin.agreement.list",
+      "/admin/agreements",
+      "GET",
+      undefined,
+      limited.headers,
+    );
     expect(denied.response.status).toBe(403);
-    const missing = await api.request("/api/v1/admin/agreements/ad_service/agreement-versions", {
-      method: "POST",
-      json: {},
-      headers: editor.headers,
-    });
+    const missing = await api.request(
+      requestPath(
+        "admin.agreement.agreementVersion.create",
+        "/admin/agreements/ad_service/agreement-versions",
+        "POST",
+      ),
+      {
+        method: "POST",
+        json: {},
+        headers: editor.headers,
+      },
+    );
     expect(missing.status).toBe(400);
-    const strict = await call("/admin/agreements/ad_service/agreement-versions", "POST", {
-      contentHtml: "should-not-accept-client-html",
-    });
+    const strict = await call(
+      "admin.agreement.agreementVersion.create",
+      "/admin/agreements/ad_service/agreement-versions",
+      "POST",
+      {
+        contentHtml: "should-not-accept-client-html",
+      },
+    );
     expect(strict.response.status).toBe(400);
     const owner = await fixture.actor(),
       pdf = await fixture.file(owner, "pdf");
-    const foreign = await call("/admin/agreements/ad_service/agreement-versions", "POST", {
-      pdfFileId: pdf.id,
-    });
+    const foreign = await call(
+      "admin.agreement.agreementVersion.create",
+      "/admin/agreements/ad_service/agreement-versions",
+      "POST",
+      {
+        pdfFileId: pdf.id,
+      },
+    );
     expect(foreign.response.status).toBe(404);
     expect(await fixture.prisma.fileRef.count({ where: { fileId: pdf.id } })).toBe(0);
   });

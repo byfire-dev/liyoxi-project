@@ -3,6 +3,7 @@ import { runSeed, uuidv7 } from "@liyoxi/services";
 import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
 import type { SignedInStaff } from "@liyoxi/services/testing";
 import type { StaffWecomSchema, z } from "@liyoxi/contract";
+import type { operations } from "@liyoxi/contract/types/admin";
 type StaffWecom = z.infer<typeof StaffWecomSchema>;
 import type {
   StaffDetail,
@@ -24,13 +25,33 @@ const handle = useTestApi();
 let app: TestApi, admin: SignedInStaff;
 let p: Awaited<ReturnType<typeof handle.db.prisma>>;
 let counter = 0;
-const req = (path: string, method = "GET", json?: unknown, key = uuidv7(), who = admin) =>
-  app.request(`/api/v1/admin${path}`, {
+type StaffOperation = Extract<
+  keyof operations,
+  `admin.staff${string}` | "admin.assignmentPoolMember.list"
+>;
+function req(
+  operationId: StaffOperation,
+  path: string,
+  method = "GET",
+  json?: unknown,
+  key = uuidv7(),
+  who = admin,
+) {
+  const route = app.api.mounted.find((entry) => entry.operationId === operationId);
+  if (!route) throw new Error(`实际路由未挂载：${operationId}`);
+  expect(route.method).toBe(method);
+  expect(`/api/v1/admin${path.split("?")[0]}`.split("/")).toEqual(
+    route.path
+      .split("/")
+      .map((part) => (/^\{[^}]+\}$/.test(part) ? expect.stringMatching(/^[^/]+$/) : part)),
+  );
+  return app.request(`/api/v1/admin${path}`, {
     method,
     ...(json === undefined ? {} : { json }),
     headers: { ...who.headers, "Idempotency-Key": key },
     peer: `198.19.41.${++counter}`,
   });
+}
 async function data<T>(response: Response): Promise<T> {
   expect(response.status, await response.clone().text()).toBe(200);
   return ((await response.json()) as { data: T }).data;
@@ -41,7 +62,7 @@ async function failure(response: Response, status: number, error: string) {
 }
 async function create(roleKey = "editor", activateNow = true) {
   return data<StaffMutationResult>(
-    await req("/staff", "POST", {
+    await req("admin.staff.create", "/staff", "POST", {
       name: `员工${counter}`,
       phone: `136${String(23000000 + counter).slice(-8)}`,
       roleKey,
@@ -65,16 +86,24 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       audit: await p.auditLog.count(),
       events: await p.outboxEvent.count(),
     };
-    const counts = await data<StaffCounts>(await req("/staff/summary"));
+    const counts = await data<StaffCounts>(await req("admin.staff.summary", "/staff/summary"));
     expect(counts.total).toBeGreaterThanOrEqual(2);
-    const groups = await data<{ items: StaffGroupSummary[] }>(await req("/staff-groups"));
+    const groups = await data<{ items: StaffGroupSummary[] }>(
+      await req("admin.staffGroup.list", "/staff-groups"),
+    );
     expect(groups.items).toHaveLength(8);
-    const sessions = await data<AdminPage<StaffSessionView>>(await req("/staff-sessions"));
+    const sessions = await data<AdminPage<StaffSessionView>>(
+      await req("admin.staffSession.list", "/staff-sessions"),
+    );
     expect(sessions.items.some((r) => r.staffSessionId === admin.sessionId)).toBe(true);
     expect(JSON.stringify(sessions)).not.toMatch(/tokenHash|cookie|passwordHash/);
-    const pool = await data<PoolMemberList>(await req("/assignment-pool-members?pool=editor"));
+    const pool = await data<PoolMemberList>(
+      await req("admin.assignmentPoolMember.list", "/assignment-pool-members?pool=editor"),
+    );
     expect(pool).toMatchObject({ items: [], cursors: [] });
-    const work = await data<OpenWorkSummary>(await req(`/staff/${row.staff.staffId}/open-work`));
+    const work = await data<OpenWorkSummary>(
+      await req("admin.staff.openWork.get", `/staff/${row.staff.staffId}/open-work`),
+    );
     expect(work.total).toBe(0);
     expect({
       history: await p.assignmentHistory.count(),
@@ -87,6 +116,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     const row = await create("editor", false),
       key = uuidv7();
     const response = await req(
+      "admin.staff.enable",
       `/staff/${row.staff.staffId}/enable`,
       "POST",
       { activationDelivery: "manual" },
@@ -97,6 +127,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     expect(enabled.activation?.activationCode).toMatch(/^[A-Z0-9]{8}$/);
     const replay = await data<StaffMutationResult>(
       await req(
+        "admin.staff.enable",
         `/staff/${row.staff.staffId}/enable`,
         "POST",
         { activationDelivery: "manual" },
@@ -108,13 +139,20 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       activation: { activationCode: null, replayed: true },
     });
     await failure(
-      await req(`/staff/${row.staff.staffId}/enable`, "POST", { activationDelivery: "sms" }, key),
+      await req(
+        "admin.staff.enable",
+        `/staff/${row.staff.staffId}/enable`,
+        "POST",
+        { activationDelivery: "sms" },
+        key,
+      ),
       409,
       "IDEMPOTENCY_KEY_REUSED",
     );
     const secondKey = uuidv7();
     const issued = await data<ActivationIssue>(
       await req(
+        "admin.staff.reissueActivationCode",
         `/staff/${row.staff.staffId}/reissue-activation-code`,
         "POST",
         { activationDelivery: "manual" },
@@ -125,6 +163,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     expect(
       await data<ActivationIssue>(
         await req(
+          "admin.staff.reissueActivationCode",
           `/staff/${row.staff.staffId}/reissue-activation-code`,
           "POST",
           { activationDelivery: "manual" },
@@ -142,14 +181,14 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     const row = await create("cs");
     const id = row.staff.staffId;
     const updated = await data<StaffDetail>(
-      await req(`/staff/${id}`, "PATCH", {
+      await req("admin.staff.update", `/staff/${id}`, "PATCH", {
         displayName: "接单客服",
         lockVersion: row.staff.lockVersion,
       }),
     );
     expect(updated.displayName).toBe("接单客服");
     await failure(
-      await req(`/staff/${id}`, "PATCH", {
+      await req("admin.staff.update", `/staff/${id}`, "PATCH", {
         displayName: "陈旧",
         lockVersion: row.staff.lockVersion,
       }),
@@ -157,7 +196,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       "VERSION_CONFLICT",
     );
     const member = await data<StaffDetail>(
-      await req(`/staff/${id}/pool-memberships`, "PUT", {
+      await req("admin.staff.poolMembership.replace", `/staff/${id}/pool-memberships`, "PUT", {
         memberships: [{ pool: "cs" }],
         lockVersion: updated.lockVersion,
       }),
@@ -174,11 +213,25 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       },
     });
     const duty = await data<PoolMember>(
-      await req(`/staff/${cs.staff.id}/duty`, "PATCH", { onDuty: false }, uuidv7(), cs),
+      await req(
+        "admin.staff.duty.update",
+        `/staff/${cs.staff.id}/duty`,
+        "PATCH",
+        { onDuty: false },
+        uuidv7(),
+        cs,
+      ),
     );
     expect(duty.onDuty).toBe(false);
     await failure(
-      await req(`/staff/${id}/duty`, "PATCH", { onDuty: false }, uuidv7(), cs),
+      await req(
+        "admin.staff.duty.update",
+        `/staff/${id}/duty`,
+        "PATCH",
+        { onDuty: false },
+        uuidv7(),
+        cs,
+      ),
       403,
       "PERMISSION_DENIED",
     );
@@ -188,22 +241,34 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     const id = row.staff.staffId,
       body = { confirm: { staffNo: row.staff.staffNo }, activationDelivery: "manual" };
     await failure(
-      await req(`/staff/${id}/reset-password`, "POST", { ...body, confirm: { staffNo: 999999 } }),
+      await req("admin.staff.resetPassword", `/staff/${id}/reset-password`, "POST", {
+        ...body,
+        confirm: { staffNo: 999999 },
+      }),
       409,
       "CONFIRM_MISMATCH",
     );
     expect(
-      (await data<StaffMutationResult>(await req(`/staff/${id}/reset-password`, "POST", body)))
-        .activation?.purpose,
+      (
+        await data<StaffMutationResult>(
+          await req("admin.staff.resetPassword", `/staff/${id}/reset-password`, "POST", body),
+        )
+      ).activation?.purpose,
     ).toBe("reset_password");
     expect(
-      (await data<StaffMutationResult>(await req(`/staff/${id}/reset-mfa`, "POST", body)))
-        .activation?.purpose,
+      (
+        await data<StaffMutationResult>(
+          await req("admin.staff.resetMfa", `/staff/${id}/reset-mfa`, "POST", body),
+        )
+      ).activation?.purpose,
     ).toBe("activate");
     await p.staff.update({ where: { id }, data: { failTrusted: 3, failUntrusted: 4 } });
     expect(
-      (await data<StaffDetail>(await req(`/staff/${id}/unlock`, "POST", { bucket: "trusted" })))
-        .security,
+      (
+        await data<StaffDetail>(
+          await req("admin.staff.unlock", `/staff/${id}/unlock`, "POST", { bucket: "trusted" }),
+        )
+      ).security,
     ).toMatchObject({ failTrusted: 0, failUntrusted: 4 });
   });
   it("admin.staff.inviteWecom / admin.staff.bindWecom：真实站内提醒、绑定接管与无重复外发", async () => {
@@ -211,15 +276,19 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       id = row.staff.staffId,
       key = uuidv7();
     expect(
-      await data<StaffWecom>(await req(`/staff/${id}/invite-wecom`, "POST", {}, key)),
+      await data<StaffWecom>(
+        await req("admin.staff.inviteWecom", `/staff/${id}/invite-wecom`, "POST", {}, key),
+      ),
     ).toMatchObject({ status: "invited", qrUrl: null });
-    await data(await req(`/staff/${id}/invite-wecom`, "POST", {}, key));
+    await data(await req("admin.staff.inviteWecom", `/staff/${id}/invite-wecom`, "POST", {}, key));
     expect(
       await p.notification.count({ where: { staffId: id, notifySceneKey: "s.wecom_invite" } }),
     ).toBe(1);
     expect(
       await data<StaffWecom>(
-        await req(`/staff/${id}/bind-wecom`, "POST", { wecomUserid: "lyx_api_member" }),
+        await req("admin.staff.bindWecom", `/staff/${id}/bind-wecom`, "POST", {
+          wecomUserid: "lyx_api_member",
+        }),
       ),
     ).toMatchObject({ status: "bound", userid: "lyx_api_member" });
   });
@@ -229,7 +298,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     const make = createFactories({ db: p, clock: app.clock });
     const store = await make.store({ deliveryManagerId: from.staff.staffId });
     const moved = await data<HandoverResult>(
-      await req(`/staff/${from.staff.staffId}/handover`, "POST", {
+      await req("admin.staff.handover", `/staff/${from.staff.staffId}/handover`, "POST", {
         handoverToStaffId: to.staff.staffId,
         reason: "reassigned",
       }),
@@ -241,7 +310,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       to.staff.staffId,
     );
     await failure(
-      await req(`/staff/${to.staff.staffId}/disable`, "POST", {
+      await req("admin.staff.disable", `/staff/${to.staff.staffId}/disable`, "POST", {
         reason: "resigned",
         handoverToStaffId: from.staff.staffId,
         confirm: { staffNo: to.staff.staffNo, openWorkCount: 0 },
@@ -250,7 +319,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       "CONFIRM_MISMATCH",
     );
     const disabled = await data<HandoverResult>(
-      await req(`/staff/${to.staff.staffId}/disable`, "POST", {
+      await req("admin.staff.disable", `/staff/${to.staff.staffId}/disable`, "POST", {
         reason: "resigned",
         handoverToStaffId: from.staff.staffId,
         confirm: { staffNo: to.staff.staffNo, openWorkCount: 1 },
@@ -264,12 +333,19 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
   it("admin.staffSession.revoke：真实其他会话吊销、当前拒绝且错误不写审计", async () => {
     const other = await signInAsStaff(p, { roleKey: "editor", now: app.clock.now() });
     const result = await data<StaffSessionView>(
-      await req(`/staff-sessions/${other.sessionId}/revoke`, "POST", { reason: "测试下线" }),
+      await req("admin.staffSession.revoke", `/staff-sessions/${other.sessionId}/revoke`, "POST", {
+        reason: "测试下线",
+      }),
     );
     expect(result.revokeReason).toBe("admin");
     const count = await p.auditLog.count();
     await failure(
-      await req(`/staff-sessions/${admin.sessionId}/revoke`, "POST", {}),
+      await req(
+        "admin.staffSession.revoke",
+        `/staff-sessions/${admin.sessionId}/revoke`,
+        "POST",
+        {},
+      ),
       409,
       "SELF_OPERATION_FORBIDDEN",
     );
@@ -279,7 +355,14 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
     const row = await create();
     const editor = await signInAsStaff(p, { roleKey: "editor", now: app.clock.now() });
     await failure(
-      await req(`/staff/${row.staff.staffId}/unlock`, "POST", {}, uuidv7(), editor),
+      await req(
+        "admin.staff.unlock",
+        `/staff/${row.staff.staffId}/unlock`,
+        "POST",
+        {},
+        uuidv7(),
+        editor,
+      ),
       403,
       "PERMISSION_DENIED",
     );
@@ -291,7 +374,7 @@ describe("W2-03完整18真实HTTP与守卫", { timeout: SLOW }, () => {
       },
     });
     await failure(
-      await req(`/staff/${row.staff.staffId}/reset-mfa`, "POST", {
+      await req("admin.staff.resetMfa", `/staff/${row.staff.staffId}/reset-mfa`, "POST", {
         confirm: { staffNo: row.staff.staffNo },
         activationDelivery: "manual",
       }),

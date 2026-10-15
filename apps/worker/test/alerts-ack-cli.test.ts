@@ -44,7 +44,7 @@ async function run(
   return { code, out, err, text: [...out, ...err].join("\n") };
 }
 
-describe("W223 alerts-ack薄壳", { timeout: 120000 }, () => {
+describe("alerts_ack / W223 alerts-ack薄壳", { timeout: 120000 }, () => {
   it("严格单命令/单对象/员工/原因校验在读环境和密钥前完成，取消亦不读环境", async () => {
     let reads = 0;
     const source = Object.defineProperty({}, "DATABASE_URL", {
