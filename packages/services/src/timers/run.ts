@@ -40,6 +40,8 @@ export async function runTimer(deps: TimerRunDeps, ref: TimerRef): Promise<RunTi
   const job = recurringJobOf(deps.registry, ref.kind);
   if (job?.mode === "job") return observed(await runJobTimer(deps, ref, job));
   try {
+    // Preparation owns any external IO; the business TX still rechecks the current claim.
+    await deps.beforeRun?.(ref);
     return await deps.tx.run(async (tx): Promise<RunTimerOutcome> => {
       const timer = await readTimer(tx, ref.timerId);
       if (timer?.status !== "dispatched" || timer.dispatchNo !== ref.dispatchNo) return "stale";
