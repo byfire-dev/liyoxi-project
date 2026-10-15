@@ -6,7 +6,7 @@ import {
 } from "@liyoxi/contract";
 import { createConfig } from "../config/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
-import { notifyReadOf, uuidv7 } from "../kernel/index.js";
+import { notifyReadOf, remindersOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
 import type {
   NotifyDispatchDeps,
@@ -384,6 +384,30 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  if (event.type === "manual_reminder.sent") {
+    const payload = EVENT_PAYLOAD_SCHEMAS["manual_reminder.sent"].parse(event.payload);
+    if (payload.scene !== "renewal" || payload.subjectType !== "subscription_term") return 0;
+    const row = await tx.manualReminderLog.findUnique({
+      where: { id: payload.manualReminderLogId },
+    });
+    if (
+      !row ||
+      row.subjectId !== payload.subjectId ||
+      row.subjectType !== payload.subjectType ||
+      row.scene !== payload.scene ||
+      row.bizDate.toISOString().slice(0, 10) !== payload.bizDate
+    )
+      return 0;
+    if (
+      !(
+        await remindersOf(deps.assembly).revalidate(tx, "R1", {
+          termId: payload.subjectId,
+          now: deps.clock.now(),
+        })
+      ).valid
+    )
+      return 0;
+  }
   if (event.type === "store.archived" || event.type === "entity_member.removed") {
     const source = await storeArchiveSource(tx, event.id);
     if (!source || source.type !== event.type) return 0;
@@ -503,7 +527,7 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
         : deps,
       spec,
       fact,
-      { event, node: "N0" },
+      { event, node: event.type === "manual_reminder.sent" ? "M" : "N0" },
     );
   }
   return made;

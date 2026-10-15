@@ -140,6 +140,17 @@ export const SUBSCRIPTION_EVENT_PAYLOADS = {
   renewal_scheduled: z.null(),
   downgrade_scheduled: z.null(),
   expired: z.null(),
+  upgraded: z.strictObject({
+    monthIndex: z.int().nonnegative(),
+    remainingDays: z.int().nonnegative(),
+    baseDays: z.int().positive(),
+    remainingFullMonths: z.int().nonnegative(),
+    feeDeltaPerMonthFen: FenSchema.nonnegative(),
+    pointsDeltaPerMonth: PointsSchema.nonnegative(),
+    proratedFen: FenSchema.nonnegative(),
+    payFen: FenSchema.positive(),
+    topupPoints: PointsSchema.nonnegative(),
+  }),
 } as const satisfies Record<string, z.ZodType>;
 export type SubscriptionEventPayloadType = keyof typeof SUBSCRIPTION_EVENT_PAYLOADS;
 export type SubscriptionEventPayload<

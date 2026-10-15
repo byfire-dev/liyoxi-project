@@ -37,6 +37,7 @@ import { blockedResult, FulfillBlockedError, isNotBlockage } from "./blocked.js"
 import { buildTerm } from "./terms.js";
 import type { FulfillDeps } from "./types.js";
 import { fulfillTopup, previousTopup } from "./topup.js";
+import { fulfillUpgrade, previousUpgrade } from "./upgrade.js";
 
 export interface FulfillInput {
   /** 已支付的付款单 */
@@ -219,6 +220,7 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
     content: BillingOrderContent,
   ): Promise<FulfillDone> {
     if (content.kind === "topup") return previousTopup(tx, order, content);
+    if (content.kind === "upgrade") return previousUpgrade(tx, order, content);
     const term = await tx.subscriptionTerm.findUnique({
       where: { sourceBillingOrderId: order.id },
     });
@@ -289,17 +291,12 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
               payFen: content.payFen,
             });
           }
-          // 升级仍由W4-05回补；加购只消费付款单冻结快照与原账本purchase。
-          if (content.kind === "upgrade") {
-            throw new FulfillBlockedError("UNEXPECTED", {
-              problem: "content_kind_not_supported",
-              kind: content.kind,
-            });
-          }
           const done =
             content.kind === "topup"
               ? await fulfillTopup(tx, deps, clock, order, content, ctx)
-              : await fulfillPlan(tx, clock, account, order, content, ctx);
+              : content.kind === "upgrade"
+                ? await fulfillUpgrade(tx, deps, clock, account, order, content, ctx)
+                : await fulfillPlan(tx, clock, account, order, content, ctx);
           const writtenAccount =
             content.kind === "topup" ? await loadAccount(tx, order.entityId) : account;
 

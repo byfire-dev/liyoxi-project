@@ -7,6 +7,9 @@
 // “谁出错过”是进程内的记忆（库里没有这一列）：重启即忘，多实例各记各的，最坏是多挡一轮。
 import type { Alerts, Clock, TxRunner } from "../kernel/index.js";
 import type { Db, Ledger } from "./ledger/index.js";
+import type { RecurringRunContext, Tx } from "../kernel/index.js";
+import type { LocalDate } from "@liyoxi/shared/time";
+import { addDays, calendarDate } from "@liyoxi/shared/time";
 
 /** 一轮至多处理多少个主体（D1 第 6.2 节） */
 export const ADVANCE_SWEEP_LIMIT = 200;
@@ -98,4 +101,50 @@ export async function advanceDueAccounts(
     options.beat?.();
   }
   return { due: due.length, advanced, skipped, failed };
+}
+
+/** 日任务运输：每页有界、每主体独立事务；日快照/估值由本域正式回放写者注入。 */
+export async function sweepSubscriptionDaily(
+  deps: {
+    ledger: Pick<Ledger, "advance">;
+    snapshot: (tx: Tx, entityId: string, through: LocalDate) => Promise<void>;
+  },
+  context: RecurringRunContext,
+) {
+  if (!context.runTx || !context.signal) throw new TypeError("账务日任务要求受租约保护的运输");
+  const through = addDays(calendarDate(context.scheduledFor), -1);
+  let cursor: string | undefined;
+  let processed = 0,
+    failed = 0;
+  for (;;) {
+    context.signal.throwIfAborted();
+    const rows = await context.runTx((tx) =>
+      tx.billingAccount.findMany({
+        where: cursor ? { entityId: { gt: cursor } } : {},
+        orderBy: { entityId: "asc" },
+        take: ADVANCE_SWEEP_LIMIT,
+        select: { entityId: true },
+      }),
+    );
+    if (!rows.length) break;
+    for (const row of rows) {
+      context.signal.throwIfAborted();
+      try {
+        await context.runTx(async (tx) => {
+          context.signal!.throwIfAborted();
+          await deps.ledger.advance(tx, row.entityId);
+          await deps.snapshot(tx, row.entityId, through);
+          context.signal!.throwIfAborted();
+        });
+        processed++;
+      } catch {
+        context.signal.throwIfAborted();
+        failed++;
+      }
+      cursor = row.entityId;
+    }
+    if (rows.length < ADVANCE_SWEEP_LIMIT) break;
+  }
+  if (failed) throw new Error("账务日任务部分主体未完成");
+  return { processed, through };
 }

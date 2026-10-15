@@ -111,4 +111,20 @@ const i12 = check(
 );
 
 /** 订阅一侧的三条，按编号 */
-export const subscriptionInvariants: readonly InvariantRegistration[] = [i9, i10, i12];
+const i15 = check(
+  "billing.I15",
+  "P2",
+  `SELECT 'plan_revision' AS subject_type, id AS subject_id, NULL::uuid AS entity_id,
+          jsonb_build_object('problem','multiple_pending_plan_revisions') AS detail
+     FROM (SELECT id, row_number() OVER (PARTITION BY plan_id ORDER BY effective_at,id) AS n
+             FROM plan_revision WHERE effective_at > $2::timestamptz AND cancelled_at IS NULL) p
+    WHERE n > 1
+    UNION ALL
+   SELECT 'billing_param', id, NULL::uuid,
+          jsonb_build_object('problem','multiple_pending_parameter_revisions')
+     FROM (SELECT id, row_number() OVER (PARTITION BY key ORDER BY effective_at,id) AS n
+             FROM billing_param WHERE effective_at > $2::timestamptz AND cancelled_at IS NULL) p
+    WHERE n > 1`,
+);
+
+export const subscriptionInvariants: readonly InvariantRegistration[] = [i9, i10, i12, i15];

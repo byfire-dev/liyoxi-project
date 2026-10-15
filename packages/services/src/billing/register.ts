@@ -23,7 +23,10 @@ import {
   billingConsentFacts,
   transferForNotify,
   paymentExceptionForNotify,
+  renewalForNotify,
 } from "./notify-facts.js";
+import { remindersPort } from "../kernel/index.js";
+import { listTermsDueForReminder, revalidateRenewal } from "./subscription/reminders.js";
 import { getPurchasePolicy } from "@liyoxi/shared/purchase-policy";
 import { readSubscribePlan } from "../notify/index.js";
 import { billingPiiFields } from "./pii-fields.js";
@@ -59,6 +62,11 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implementKeyed(remindersPort, "R1", {
+      targets: listTermsDueForReminder,
+      revalidate: revalidateRenewal,
+    }),
+    notifyReaderImplementation(currentNotifyReadPort, "renewalForNotify", renewalForNotify),
     implementAdminProfileFacts("billing", readProfileAdminBillingFacts),
     implementStoreList(adminStoreListBillingPort, readProfileStoreListBilling),
     implementTenantCloseFacts(billingCloseFactsPort, { deletionGuard }),

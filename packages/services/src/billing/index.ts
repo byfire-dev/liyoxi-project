@@ -116,6 +116,8 @@ export type {
 } from "./payment/index.js";
 export { createBillingPurchase } from "./payment/purchase.js";
 export { createPointPacks } from "./catalog/point-packs.js";
+export { createBillingSubscriptions } from "./subscription/read.js";
+export { listTermsDueForReminder } from "./subscription/reminders.js";
 export type { PointPackActor } from "./catalog/point-packs.js";
 export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./payment/purchase.js";
 export {
