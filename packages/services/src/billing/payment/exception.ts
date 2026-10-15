@@ -97,14 +97,16 @@ export async function openPaymentException(
     },
     emit: {
       type: healed ? "payment_exception.auto_healed" : "payment_exception.opened",
-      payload: {
-        v: 1,
-        paymentExceptionId: id,
-        kind,
-        billingOrderId: order?.id ?? null,
-        paymentTxnId: receipt.id,
-        amountFen,
-      },
+      payload: healed
+        ? { v: 1, paymentExceptionId: id }
+        : {
+            v: 1,
+            paymentExceptionId: id,
+            kind,
+            billingOrderId: order?.id ?? null,
+            paymentTxnId: receipt.id,
+            amountFen,
+          },
       dedupeKey: `${healed ? "payment_exception.auto_healed" : "payment_exception.opened"}:${id}`,
     },
   });

@@ -181,6 +181,9 @@ async function merchantCard(tx: Tx, order: Order, cutoff: Date | null, now: Date
       ? { invoiceRequestId: request.id, requestNo: request.requestNo, status: request.status }
       : null,
     actions: [
+      ...(order.channel === "wechat_jsapi" && order.status === "pending_payment"
+        ? ["sync", "cancel"]
+        : []),
       ...(order.channel === "wechat_jsapi" &&
       order.status === "pending_payment" &&
       now.getTime() < order.expiresAt.getTime() - 60_000

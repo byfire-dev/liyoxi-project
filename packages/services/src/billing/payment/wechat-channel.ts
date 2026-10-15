@@ -216,7 +216,7 @@ export function createWechatChannel(deps: WechatChannelDeps) {
     tx: Tx,
     order: BillingOrder,
     ctx: IdentityContext,
-    reason: "user" | "expired",
+    reason: "user" | "timeout",
   ) {
     const current = await tx.billingOrder.findUniqueOrThrow({ where: { id: order.id } });
     if (
@@ -240,7 +240,7 @@ export function createWechatChannel(deps: WechatChannelDeps) {
         fireAt: deps.clock.now(),
         payload: { expiresAt: current.expiresAt.toISOString(), cancelReason: reason },
         entityId: current.entityId,
-        storeId: current.storeId,
+        ...(current.storeId ? { storeId: current.storeId } : {}),
       });
       return "cancelling" as const;
     }
@@ -396,12 +396,12 @@ export function createWechatChannel(deps: WechatChannelDeps) {
       });
       if (due) await persist(await observe(due.receipts, true), due.order);
     },
-    async expire(tx: Tx, id: string, reason: "user" | "expired" = "expired") {
+    async expire(tx: Tx, id: string, reason: "user" | "timeout" = "timeout") {
       await lockRows(tx, "billing_order", [id]);
       const order = await tx.billingOrder.findUnique({ where: { id } });
       if (!order || order.channel !== "wechat_jsapi" || order.status !== "pending_payment")
         return "skipped" as const;
-      if (reason === "expired" && order.expiresAt > deps.clock.now()) return "skipped" as const;
+      if (reason === "timeout" && order.expiresAt > deps.clock.now()) return "skipped" as const;
       const result = await cancelLocked(tx, order, system(order), reason);
       if (result === "cancelling") throw new AppError("PROVIDER_UNAVAILABLE");
       return "fired" as const;

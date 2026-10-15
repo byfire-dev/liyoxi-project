@@ -112,7 +112,7 @@ const extras: MachineBinding = {
       return (
         o !== null &&
         o.channel === "wechat_jsapi" &&
-        ["user", "expired"].includes(f.reasonCode ?? "") &&
+        ["user", "timeout"].includes(f.reasonCode ?? "") &&
         (await tx.paymentTxn.count({
           where: { billingOrderId: o.id, status: { not: "closed" } },
         })) === 0

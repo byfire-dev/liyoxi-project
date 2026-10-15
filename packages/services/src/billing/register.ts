@@ -158,7 +158,7 @@ export const registration = defineRegistration("billing", {
       leaseSec: 120,
       maxAttempts: 5,
       deadlineMin: 10,
-      missSeverity: "P1",
+      missSeverity: "P2",
       catchUp: true,
     },
   ],
