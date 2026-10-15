@@ -3,6 +3,15 @@ import { IdSchema } from "../common/index.js";
 import { z } from "../zod.js";
 const fileFact = z.object({ v: z.literal(1), fileId: IdSchema }).strict();
 export const payloads = {
+  "media.ocr.completed": z.strictObject({
+    v: z.literal(1),
+    ocrResultId: IdSchema,
+    fileId: IdSchema,
+    entityId: IdSchema,
+    mediaJobId: IdSchema,
+    docType: z.literal("bank_receipt"),
+    status: z.enum(["ok", "unavailable", "unreadable"]),
+  }),
   "asset.processed": z.strictObject({
     v: z.literal(1),
     storeAssetId: IdSchema,

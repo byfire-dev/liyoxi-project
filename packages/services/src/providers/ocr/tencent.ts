@@ -2,9 +2,10 @@ import { ocr } from "tencentcloud-sdk-nodejs-ocr";
 import type { ClientConfig } from "tencentcloud-sdk-nodejs-common";
 import { z } from "zod";
 import { failed, ok } from "../types.js";
-import type { BusinessLicenseFields, OcrProvider, ProviderResult } from "../types.js";
+import type { OcrProvider, ProviderResult } from "../types.js";
 import { OCR_HOST, OcrAgent } from "./agent.js";
 import { parseBusinessLicense } from "./parse.js";
+import { parseBankReceipt } from "./receipt.js";
 
 const configSchema = z
   .object({
@@ -34,7 +35,7 @@ function isImageUrl(value: unknown): value is string {
   }
 }
 
-/** 固定营业执照 API；构造零 IO，不接行业许可证/银行回单或默认重试。 */
+/** 固定营业执照/银行回单 API；构造零IO，不接行业许可证或默认重试。 */
 export function createTencentOcr(
   config: TencentOcrConfig,
   options: TencentOcrOptions = {},
@@ -69,71 +70,80 @@ export function createTencentOcr(
     throw new TypeError("证照识别驱动构造失败");
   }
   const controllers = new Set<AbortController>();
-  const pending = new Set<Promise<ProviderResult<BusinessLicenseFields>>>();
+  const pending = new Set<Promise<unknown>>();
   let closed = false;
   let closing: Promise<void> | undefined;
+  function recognize<T>(
+    input: { imageUrl: string; signal?: AbortSignal },
+    action: "BizLicenseOCR" | "BankSlipOCR",
+    parse: (raw: unknown) => T | undefined,
+  ): Promise<ProviderResult<T>> {
+    if (closed) return Promise.resolve(failed("unavailable", "证照识别驱动已关闭"));
+    if (!isImageUrl(input.imageUrl))
+      return Promise.resolve(failed("rejected", "证照图片地址不合法"));
+    if (input.signal?.aborted) return Promise.resolve(failed("rejected", "证照识别调用已取消"));
+    const controller = new AbortController();
+    controllers.add(controller);
+    const abort = () => controller.abort();
+    input.signal?.addEventListener("abort", abort, { once: true });
+    if (input.signal?.aborted) abort();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+    const work = (async (): Promise<ProviderResult<T>> => {
+      try {
+        if (controller.signal.aborted) return failed("rejected", "证照识别调用已取消");
+        // generated BizLicenseOCR 不收 RequestOptions；SDK 公开 request 原样传递 signal 并签名。
+        const raw: unknown = await client.request(
+          action,
+          action === "BankSlipOCR"
+            ? { ImageUrl: input.imageUrl, IsPdf: true, PdfPageNumber: 1 }
+            : {
+                ImageUrl: input.imageUrl,
+                EnableCopyWarn: true,
+                EnablePeriodComplete: true,
+                EnableBusinessCertificate: false,
+              },
+          { signal: controller.signal },
+        );
+        if (controller.signal.aborted) return failed("unavailable", "证照识别调用未完成");
+        const fields = parse(raw);
+        return fields ? ok(fields) : failed("rejected", "证照识别结果不可识别");
+      } catch (error) {
+        // SDK 异常可能夹带请求 URL、响应正文和凭据；任何路径都不输出/记录原异常。
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          [
+            "FailedOperation.ImageDecodeFailed",
+            "FailedOperation.NoBizLicense",
+            "FailedOperation.OcrFailed",
+            "LimitExceeded.TooLargeFileError",
+            "InvalidParameterValue.InvalidParameterValueLimit",
+          ].includes(typeof error.code === "string" ? error.code : "")
+        )
+          return failed("rejected", "证照识别结果不可识别");
+        return failed("unavailable", timedOut ? "证照识别调用超时" : "证照识别服务暂不可用");
+      } finally {
+        clearTimeout(timer);
+        input.signal?.removeEventListener("abort", abort);
+        controllers.delete(controller);
+      }
+    })();
+    pending.add(work);
+    void work.then(() => pending.delete(work));
+    return work;
+  }
   const provider: OcrProvider = {
     status: "tencent",
     configured: true,
     extractLicenseFields: () => Promise.resolve(failed("unsupported", "行业许可证识别暂未接入")),
-    recognizeBusinessLicense(input) {
-      if (closed) return Promise.resolve(failed("unavailable", "证照识别驱动已关闭"));
-      if (!isImageUrl(input.imageUrl))
-        return Promise.resolve(failed("rejected", "证照图片地址不合法"));
-      if (input.signal?.aborted) return Promise.resolve(failed("rejected", "证照识别调用已取消"));
-      const controller = new AbortController();
-      controllers.add(controller);
-      const abort = () => controller.abort();
-      input.signal?.addEventListener("abort", abort, { once: true });
-      if (input.signal?.aborted) abort();
-      let timedOut = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        controller.abort();
-      }, timeoutMs);
-      const work = (async (): Promise<ProviderResult<BusinessLicenseFields>> => {
-        try {
-          if (controller.signal.aborted) return failed("rejected", "证照识别调用已取消");
-          // generated BizLicenseOCR 不收 RequestOptions；SDK 公开 request 原样传递 signal 并签名。
-          const raw: unknown = await client.request(
-            "BizLicenseOCR",
-            {
-              ImageUrl: input.imageUrl,
-              EnableCopyWarn: true,
-              EnablePeriodComplete: true,
-              EnableBusinessCertificate: false,
-            },
-            { signal: controller.signal },
-          );
-          if (controller.signal.aborted) return failed("unavailable", "证照识别调用未完成");
-          const fields = parseBusinessLicense(raw);
-          return fields ? ok(fields) : failed("rejected", "证照识别结果不可识别");
-        } catch (error) {
-          // SDK 异常可能夹带请求 URL、响应正文和凭据；任何路径都不输出/记录原异常。
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error &&
-            [
-              "FailedOperation.ImageDecodeFailed",
-              "FailedOperation.NoBizLicense",
-              "FailedOperation.OcrFailed",
-              "LimitExceeded.TooLargeFileError",
-              "InvalidParameterValue.InvalidParameterValueLimit",
-            ].includes(typeof error.code === "string" ? error.code : "")
-          )
-            return failed("rejected", "证照识别结果不可识别");
-          return failed("unavailable", timedOut ? "证照识别调用超时" : "证照识别服务暂不可用");
-        } finally {
-          clearTimeout(timer);
-          input.signal?.removeEventListener("abort", abort);
-          controllers.delete(controller);
-        }
-      })();
-      pending.add(work);
-      void work.then(() => pending.delete(work));
-      return work;
-    },
+    recognizeBusinessLicense: (input) => recognize(input, "BizLicenseOCR", parseBusinessLicense),
+    recognizeBankReceipt: (input) =>
+      recognize({ imageUrl: input.fileUrl, signal: input.signal }, "BankSlipOCR", parseBankReceipt),
   };
   return {
     provider,

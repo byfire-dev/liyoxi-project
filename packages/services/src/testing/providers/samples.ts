@@ -163,6 +163,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     cancel: { jobId: "fake-job-1", family: "media" },
   },
   ocr: {
+    recognizeBankReceipt: { fileUrl: "https://example.invalid/receipt.pdf" },
     recognizeBusinessLicense: { imageUrl: "https://example.invalid/license.jpg" },
     extractLicenseFields: {
       fileUrl: "https://example.invalid/permit.jpg",
