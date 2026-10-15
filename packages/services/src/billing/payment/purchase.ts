@@ -87,7 +87,6 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
       deps.tx.run(async (tx) => {
         const view = await getWalletView(tx, actor.membership.entityId, deps.clock.now()),
           params = await paramsAt(tx, deps.clock.now());
-        await policy(tx, actor, client, "topup");
         const purchasePolicy = await policy(tx, actor, client, "topup");
         const blockReason =
           view.subscription.status !== "active"

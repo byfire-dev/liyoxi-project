@@ -3,7 +3,7 @@
 import { adminRoute } from "../builders.js";
 import { z } from "../../zod.js";
 import { IdSchema, InstantSchema, orNull, okResponse, errorResponses } from "../../common/index.js";
-const integer = z.int().max(2147483647);
+const integer = z.int().min(-2147483648).max(2147483647);
 export const PointPackCreateBodySchema = z.object({
   points: integer.min(100),
   priceFen: integer.positive(),

@@ -42,7 +42,7 @@ await tx.run(async (handle) => {
 | `CONSTRAINT_VIOLATION` | 新周期与同主体预约、生效、已到期的周期相交（`detail.problem = term_overlap`，带两个周期）；没有生效周期却挂着预约周期（`scheduled_without_active`）；数据库报完整性约束冲突（`detail.sqlState`） |
 | `ADVANCE_FAILED` | 履约开头的推进出错 |
 | `SELF_CHECK_FAILED` | 写入时自检不一致 |
-| `UNEXPECTED` | 其余：快照不合结构、修订不属于那个套餐、链尾被延长过算不出起止（`term_dates`）、升级与加购的内容（留桩，M4） |
+| `UNEXPECTED` | 其余：快照不合结构、修订不属于那个套餐、链尾被延长过算不出起止（`term_dates`）、升级的内容（留桩，W4-05） |
 
 不算受阻、原样抛出、整个入账事务回滚的：死锁、序列化失败、锁等待超时（`tx.run` 会整个重试）；等账户锁超过 3 秒的 `ACCOUNT_BUSY`；连接断开、语句被取消、事务超时；内核的违规断言。付款单没付清即调是代码缺陷，抛 `LedgerError("guard")`。
 
@@ -71,8 +71,14 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 ## 5. 已知的限度
 
-- 升级、加购两种内容不履约，返回 `blocked`（留桩 `docs/plan/stubs/m4-billing-fulfill-upgrade-topup.md`）。
+- 升级内容仍返回 `blocked`，由W4-05回补；加购已接原账本purchase，见第6节。协作桩`docs/plan/stubs/m4-billing-fulfill-upgrade-topup.md`不整体关闭。
 - 链尾被补偿延长过之后再续费：止日的次日不在锚定日上，起止算不出来，按受阻处理；M1 没有延长，做延长时定规则。
 - 重放时的结果是照库里的事实还原的（周期、首月批次、优惠占用），不读付款单上存的那一份。
 - `billing.I12` 核对套餐的计划合计、已发放批次成本与未发放计划合计，以及已发放批次与其月份分摊逐项一致；也核对加购批次成本。只查套餐与加购两种付款单；升级付款单、已退款付款单的两句随 M4。受阻的付款单有没有未决差异单归付款一侧的 `payment.I4`。
 - 计费账户端口的实现拿不到注入的时钟：账户行的时间取主体行的 `created_at`（同一事务里 tenant 按注入的时钟写的）。
+
+## 6. W4-06 加购
+
+`topup.ts`只消费付款单冻结的`packId/points/payFen`，由公共fulfill在同一保存点内调原`ledger.purchase`。先付款单290、交易300、账户420；账本以`purchase:billing_order:{id}`防重，履约仍登记原`fulfill:billing_order:{id}`，只一个永久addon批次及两种原事件。档位之后改价、下架不改历史付款单，也不影响已付单按快照履约。
+
+加购付款时套餐已到期也照常入账，余额处于停用；重新开通沿原resumeAddon恢复，不新设过期日或消费顺序。`previousTopup`从真实操作/批次还原首次结果。新`topup.test.ts`验证可信收款、零重复、故障回滚与到期恢复，执行结果以W4-06状态为准；外部真实资金仍E2未验。
