@@ -49,6 +49,8 @@ import type { FakeClock, FakeControl } from "./base.js";
 type Method = ProviderMethodName<WechatPayProvider>;
 
 export interface FakeWechatPayOrder {
+  appid: string;
+  mchid: string;
   outTradeNo: string;
   prepayId: string;
   description: string;
@@ -199,6 +201,8 @@ function fromWire(
     return { kind: "refund", id, refund: refund as WechatPayRefund };
   }
   const transaction = {
+    appid: r.appid,
+    mchid: r.mchid,
     outTradeNo: r.out_trade_no,
     tradeState: r.trade_state,
     transactionId: r.transaction_id,
@@ -225,6 +229,8 @@ function beijingDate(at: Date): string {
 
 function transactionOf(order: FakeWechatPayOrder): WechatPayTransaction {
   return {
+    appid: order.appid,
+    mchid: order.mchid,
     outTradeNo: order.outTradeNo,
     tradeState: order.tradeState,
     transactionId: order.transactionId,
@@ -511,6 +517,18 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       return due.length;
     },
 
+    signMiniProgramPay: (input) =>
+      run("signMiniProgramPay", input, () =>
+        ok({
+          appId: wire?.appid ?? "wx0000000000000000",
+          timeStamp: String(Math.floor(clock.now().getTime() / 1000)),
+          nonceStr: next("fake-nonce"),
+          package: `prepay_id=${input.prepayId}`,
+          signType: "RSA",
+          paySign: "explicit-fake-signature",
+        }),
+      ),
+
     createJsapiOrder: (input) =>
       run("createJsapiOrder", input, () => {
         if (!Number.isInteger(input.amountFen) || input.amountFen <= 0) {
@@ -531,6 +549,8 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
         }
         const order: FakeWechatPayOrder = {
           ...input,
+          appid: wire?.appid ?? "wx0000000000000000",
+          mchid: wire?.mchid ?? "1900000109",
           prepayId: next("fake-prepay"),
           tradeState: "NOTPAY",
         };

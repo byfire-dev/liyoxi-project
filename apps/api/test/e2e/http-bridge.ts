@@ -45,6 +45,7 @@ export async function createM1HttpBridge(input: {
   readonly signal?: AbortSignal;
   readonly backgroundWorker?: M1SupportOptions["backgroundWorker"];
   readonly diagnosticWrite?: M1SupportOptions["diagnosticWrite"];
+  readonly beforeOrder?: () => Promise<void>;
 }) {
   const controller = new AbortController();
   const signal = input.signal
@@ -119,6 +120,10 @@ export async function createM1HttpBridge(input: {
           merchantIdentity: identity.merchant,
           reviewerPhone: identity.reviewerPhone,
           uploadConcurrency: 1,
+          beforeOrder: async () => {
+            await input.beforeOrder?.();
+            return [];
+          },
           // The first round really bootstraps; later rounds really authenticate the first account.
           bootstrapAdmin: async () =>
             (captured.admin = options.admin
@@ -179,7 +184,15 @@ export async function createM1HttpBridge(input: {
           access: {
             admin,
             merchantHeaders: state.owner.headers,
-            ids: { ...state.scope, sampleId: state.sampleId },
+            ids: {
+              entityId: state.scope.entityId,
+              storeId: state.scope.storeId,
+              merchantUserId: state.scope.merchantUserId,
+              orderId: state.scope.orderId,
+              orderItemId: state.scope.orderItemId,
+              deliveryTicketId: state.scope.deliveryTicketId,
+              sampleId: state.sampleId,
+            },
           },
         };
       },

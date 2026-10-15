@@ -57,6 +57,7 @@ export const ENV_KEYS: readonly string[] = [
   "SMS_SECRET_KEY_FILE",
   "SMS_SDK_APP_ID",
   "SMS_REGION",
+  "WECHAT_PAY_FILE",
   "WECHAT_APPID",
   "WECHAT_SECRET_FILE",
   "WECHAT_MESSAGE_TOKEN_FILE",
@@ -150,7 +151,45 @@ export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
 export type OcrTencentEnvConfig = z.infer<typeof OcrTencentEnvSchema>;
 export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
 
+export interface WechatPayEnvConfig {
+  readonly mchid: string;
+  readonly merchantSerialNo: string;
+  readonly merchantPrivateKeyPem: string;
+  readonly apiV3Key: string;
+  readonly publicKeyId: string;
+  readonly publicKeyPem: string;
+  readonly appid: string;
+  readonly notifyUrl: string;
+}
+
+const WechatPayEnvSchema = z
+  .object({
+    mchid: z.string().regex(/^\d{6,20}$/),
+    merchantSerialNo: z.string().regex(/^[0-9A-Fa-f]{1,64}$/),
+    merchantPrivateKeyPem: z.string().min(1),
+    apiV3Key: z.string().refine((v) => Buffer.byteLength(v.trim()) === 32),
+    publicKeyId: z.string().regex(/^PUB_KEY_ID_[A-Za-z0-9]+$/),
+    publicKeyPem: z.string().min(1),
+    appid: z.string().regex(/^wx[A-Za-z0-9]{16}$/),
+    notifyUrl: z.url().refine((v) => {
+      const u = new URL(v);
+      return u.protocol === "https:" && !u.username && !u.password && !u.search && !u.hash;
+    }),
+  })
+  .strict();
+
+function readWechatPay(source: EnvSource, issues: EnvIssue[]): WechatPayEnvConfig | undefined {
+  // RSA私钥与公钥合并后可能超过4KiB，复用已有JSON密钥读取；错误仅投影字段名。
+  return readKeyFile(source, "WECHAT_PAY", issues, (json) => {
+    const parsed = WechatPayEnvSchema.safeParse(json);
+    return parsed.success
+      ? parsed.data
+      : `配置字段不完整或不合法：${[...new Set(parsed.error.issues.map((i) => i.path.join(".") || "WECHAT_PAY"))].join("、")}`;
+  });
+}
+
 export interface Env {
+  readonly WECHAT_PAY?: WechatPayEnvConfig;
   /** 独立可选的严格模型配置；本片只解析，不装配或启用驱动。 */
   readonly ASR_TENCENT?: AsrTencentEnvConfig;
   /** 同步证照识别独立配置；只由 API 组合根消费。 */
@@ -429,7 +468,13 @@ function parseAuthKeys(json: unknown): AuthKeysConfig | string {
 /** 按规则 5、6 取出一份密钥文件：只认 *_FILE；明文变量给了即报错 */
 function readKeyFile<T>(
   source: EnvSource,
-  key: "DATA_KEYS" | "BIDX_KEYS" | "AUTH_KEYS" | "CLIENT_ERROR_PROJECTS" | "MEDIA_PRODUCTION",
+  key:
+    | "DATA_KEYS"
+    | "BIDX_KEYS"
+    | "AUTH_KEYS"
+    | "CLIENT_ERROR_PROJECTS"
+    | "MEDIA_PRODUCTION"
+    | "WECHAT_PAY",
   issues: EnvIssue[],
   parse: (json: unknown) => T | string,
 ): T | undefined {
@@ -1261,6 +1306,7 @@ export function loadEnv(
   if (region !== undefined && !/^ap-[a-z]+(?:-[a-z]+)*$/.test(region))
     issues.push({ key: "SMS_REGION", reason: "须为腾讯云地域编码" });
   const wechat = readWechat(source, issues);
+  const wechatPay = readWechatPay(source, issues);
   const minio = readMinio(source, appEnv, issues);
   const cos = readCos(source, issues);
   const backup = readBackup(source, appEnv, cos, issues);
@@ -1323,6 +1369,7 @@ export function loadEnv(
       ? { SMS: { secretId, secretKey, sdkAppId, region } }
       : {}),
     ...(wechat ? { WECHAT: wechat } : {}),
+    ...(wechatPay ? { WECHAT_PAY: wechatPay } : {}),
     ...(clientErrorProjects ? { CLIENT_ERROR_PROJECTS: clientErrorProjects } : {}),
   });
 }

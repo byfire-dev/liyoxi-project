@@ -1,3 +1,4 @@
+import { wechatReceiptMatches } from "./channel-success.js";
 // 唯一入账入口（03 1.3、08 2.1、D2 4.5）；钱先成为已支付事实，再在保存点内履约。
 import { fulfillResultSchema } from "@liyoxi/contract";
 import type { BillingOrder, Prisma } from "@liyoxi/db";
@@ -11,7 +12,7 @@ export function createPayment(deps: PaymentDeps): Payment {
   return {
     async applyPayment(tx, input) {
       const first = await tx.paymentTxn.findUnique({ where: { id: input.paymentTxnId } });
-      // 孤儿交易与微信渠道留给 M4，不把成功资金事实误当成可入账数据。
+      // 孤儿交易不能入账；微信成功事实由可信渠道入口登记后复用同一保存点。
       if (first === null || first.billingOrderId === null) throw new AppError("INTERNAL");
       await lockRows(tx, "billing_order", [first.billingOrderId]);
       await lockRows(tx, "payment_txn", [first.id]);
@@ -25,7 +26,8 @@ export function createPayment(deps: PaymentDeps): Payment {
         receipt.channel !== order.channel
       )
         throw new AppError("INTERNAL");
-      if (receipt.channel !== "bank_transfer") throw new AppError("INTERNAL");
+      if (!["bank_transfer", "wechat_jsapi"].includes(receipt.channel))
+        throw new AppError("INTERNAL");
       if (receipt.appliedAt !== null)
         return {
           result: {
@@ -64,15 +66,21 @@ export function createPayment(deps: PaymentDeps): Payment {
           replayed: false,
         };
       };
-      if (receipt.channelAmountFen !== order.amountFen) {
+      const mismatch =
+        receipt.channelAmountFen !== order.amountFen
+          ? "amount_mismatch"
+          : !wechatReceiptMatches(order, receipt)
+            ? "payer_mismatch"
+            : null;
+      if (mismatch) {
         if (["pending_payment", "pending_confirmation"].includes(order.status))
           await deps.flow.transition(tx, ctx, {
             machine: "billing_order",
             stateField: "status",
             id: order.id,
             event: "billing_order.cancel_mismatch",
-            set: { cancelled_at: now, cancel_reason: "amount_mismatch", transfer_state: null },
-            reasonCode: "amount_mismatch",
+            set: { cancelled_at: now, cancel_reason: mismatch, transfer_state: null },
+            reasonCode: mismatch,
             args: { paymentTxnId: receipt.id },
             entityId: order.entityId,
             storeId: order.storeId,
@@ -80,7 +88,7 @@ export function createPayment(deps: PaymentDeps): Payment {
               stream: "ops",
               category: "payment",
               action: "billing.order.cancel",
-              summary: "实收与应付不符",
+              summary: mismatch === "amount_mismatch" ? "实收与应付不符" : "付款人与下单记录不符",
               target: { type: "billing_order", id: order.id },
             },
             emit: {
@@ -89,16 +97,16 @@ export function createPayment(deps: PaymentDeps): Payment {
                 v: 1,
                 billingOrderId: order.id,
                 entityId: order.entityId,
-                cancelReason: "amount_mismatch",
+                cancelReason: mismatch,
               },
             },
           });
         await deps.timers.cancel(tx, {
           subject: { type: "billing_order", id: order.id },
-          kinds: ["po.transfer_ttl"],
+          kinds: [receipt.channel === "wechat_jsapi" ? "po.expire" : "po.transfer_ttl"],
         });
         return exception(
-          "amount_mismatch",
+          mismatch,
           await tx.billingOrder.findUniqueOrThrow({ where: { id: order.id } }),
         );
       }
@@ -140,7 +148,7 @@ export function createPayment(deps: PaymentDeps): Payment {
             entityId: order.entityId,
             storeId: order.storeId,
             orderType: order.type as "plan_new" | "plan_renew" | "plan_upgrade" | "topup",
-            channel: "bank_transfer",
+            channel: receipt.channel === "wechat_jsapi" ? "wechat_jsapi" : "bank_transfer",
             amountFen: receipt.channelAmountFen,
             paidPaymentTxnId: receipt.id,
             placedByUserId: order.placedByUserId,
@@ -218,7 +226,7 @@ export function createPayment(deps: PaymentDeps): Payment {
       }
       await deps.timers.cancel(tx, {
         subject: { type: "billing_order", id: order.id },
-        kinds: ["po.transfer_ttl"],
+        kinds: [receipt.channel === "wechat_jsapi" ? "po.expire" : "po.transfer_ttl"],
       });
       await deps.onStep?.("timers.cancel");
       return {

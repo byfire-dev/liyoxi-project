@@ -33,6 +33,7 @@ import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-default
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
 import { m1WorkerObserver } from "./m1-observe.js";
+import { M1_LOCAL_WECHAT } from "./m1-wechat.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
 import {
   m1ProductionVideo,
@@ -209,7 +210,12 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     }
     const databaseUrl = testDatabaseUrl(databaseName);
     assertTestDatabaseUrl(databaseUrl);
-    const env = { ...base, ...fakeKeyEnv(), DATABASE_URL: databaseUrl };
+    const env = {
+      ...base,
+      ...fakeKeyEnv(),
+      DATABASE_URL: databaseUrl,
+      ...(attach ? { WECHAT: M1_LOCAL_WECHAT } : {}),
+    };
     const { providers } = createProviderHarness({ clock });
     options.prepareProviders?.(providers);
     providers.storage.capabilities.sts = false;

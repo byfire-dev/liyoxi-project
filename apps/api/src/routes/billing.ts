@@ -1,4 +1,5 @@
 import {
+  mPaymentOrderWechatPrepay,
   mWalletGet,
   mPurchasePolicyGet,
   mPlanList,
@@ -25,6 +26,18 @@ function client(c: Context<ApiEnv>) {
   };
 }
 export const billingHandlers = [
+  defineHandler(mPaymentOrderWechatPrepay, async (c) => {
+    c.header("Cache-Control", "no-store");
+    return ok(
+      c,
+      await c.var.runtime.billing.wechatPrepay(
+        actor(c),
+        client(c),
+        c.req.valid("param").paymentOrderId,
+        { idem: idemOf(c), session: c.var.merchantSession },
+      ),
+    );
+  }),
   defineHandler(mWalletGet, async (c) =>
     ok(c, await c.var.runtime.billing.wallet(actor(c), client(c))),
   ),

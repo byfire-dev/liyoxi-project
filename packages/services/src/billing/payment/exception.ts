@@ -6,6 +6,7 @@ import type { IdentityContext, Tx } from "../../kernel/index.js";
 import type { PaymentDeps, PaymentExceptionKind } from "./types.js";
 
 const CAUSES = {
+  payer_mismatch: "付款人与下单记录不符",
   amount_mismatch: "实收与应付不符",
   duplicate_receipt: "重复收款",
   paid_after_cancel: "取消后收到款",

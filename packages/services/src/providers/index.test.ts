@@ -40,12 +40,12 @@ describe("十二个接口", () => {
     ]);
   });
 
-  it("方法按 01 第 9 节“用途”及必要原语登记，一共 63 个", () => {
+  it("方法按 01 第 9 节“用途”及必要原语登记，一共 64 个", () => {
     expect(
       Object.fromEntries(PROVIDER_NAMES.map((name) => [name, PROVIDER_METHODS[name].length])),
     ).toEqual({
       wechat: 6, // 登录、手机号、订阅消息、小程序码、图片与文本内容安全
-      wechatPay: 6, // 预下单、回调验签、查单、关单、退款、账单
+      wechatPay: 7, // 预下单、回调验签、查单、关单、退款、账单
       sms: 5, // 员工激活码、订阅消息的补发、值班告警
       storage: 18, // 签名、临时密钥、四桶对象/版本操作、有界流与三项备份专用能力
       media: 10, // 体检、转码、打包、审核以及任务查询、按UserData查找、取消
@@ -57,7 +57,7 @@ describe("十二个接口", () => {
       invoice: 1, // 自动开票
       mail: 1, // 电子发票发送
     });
-    expect(ALL_PROVIDER_METHODS).toHaveLength(63);
+    expect(ALL_PROVIDER_METHODS).toHaveLength(64);
     expect(PROVIDER_METHODS.asr).toEqual(["transcribe", "submit", "query"]);
   });
 

@@ -235,7 +235,7 @@ export function m1WorkerObserver(
           )
             throw new Error("M1 后台制作目标不属于本轮交付");
           const facts = await runtime.media.deliveryProductionFacts(tx, fileId);
-          return facts.ready ? true : null;
+          return facts.ready && (scope.category !== "sample_video" || facts.playable) ? true : null;
         });
       });
     },

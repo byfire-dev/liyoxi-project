@@ -82,7 +82,13 @@ const filled = (value: unknown): value is string =>
 
 export function resolveWechatPayConfig(settings: WechatPaySettings): WechatPayConfigState {
   const missingOfGroup = WECHAT_PAY_GROUP.filter((key) => !filled(settings[key]));
-  if (missingOfGroup.length === WECHAT_PAY_GROUP.length) return { state: "unconfigured" };
+  if (
+    missingOfGroup.length === WECHAT_PAY_GROUP.length &&
+    Object.values(settings).every(
+      (value) => value === undefined || (typeof value === "string" && value.trim() === ""),
+    )
+  )
+    return { state: "unconfigured" };
   const missing = [...missingOfGroup, ...ALSO_REQUIRED.filter((key) => !filled(settings[key]))];
   if (missing.length > 0) return { state: "invalid", missing, problems: [] };
 

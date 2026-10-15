@@ -125,7 +125,7 @@ import {
   createCiWebhookSource,
   createAsrWebhookSource,
 } from "../security/index.js";
-import type { WebhookSource } from "../security/index.js";
+import type { WebhookSource, Webhooks } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
 /** worker 主池（D7 第 8.3 节）：10 条连接，语句 30 秒、等锁 3 秒、事务内空闲 60 秒 */
@@ -198,6 +198,7 @@ export interface WorkerServicesOptions {
   readonly logger?: ProviderLogger;
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
+    readonly WECHAT_PAY?: Env["WECHAT_PAY"];
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
@@ -253,6 +254,7 @@ export interface WorkerServices {
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
   readonly closeWebhooks?: () => void;
+  readonly webhooks?: Webhooks;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
@@ -442,7 +444,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembleProviders({
       appEnv: options.appEnv,
       logger,
+      ...(options.keys?.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       settings: {
+        ...(options.keys?.WECHAT_PAY ? { wechatPay: options.keys.WECHAT_PAY } : {}),
         ...(options.keys?.ALERTS?.robotKey
           ? { wecomRobot: { key: options.keys.ALERTS.robotKey } }
           : {}),
@@ -884,6 +888,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembly,
     events,
     timers,
+    webhooks,
     providers,
     selfCheck: async () => {
       await runStartupChecks(startupChecks);

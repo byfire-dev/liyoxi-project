@@ -11,3 +11,5 @@ export type {
   PaymentDeps,
   PaymentExceptionKind,
 } from "./types.js";
+
+export { recordChannelSuccess } from "./channel-success.js";
