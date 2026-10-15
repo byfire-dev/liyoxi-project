@@ -118,6 +118,8 @@ esac
           join(repoRoot, "infra/deploy/orchestrate.mjs"),
           "--tag",
           VERSION,
+          "--compat-result",
+          "passed",
           "--node",
           "deploy@fixture.invalid",
           "--summary",
@@ -165,7 +167,7 @@ esac
   it("固定步骤顺序；同版本重跑；记录真实摘要与三类镜像摘要", () => {
     const mock = channel();
     for (let i = 0; i < 2; i++) {
-      const result = orchestrate({ tag: VERSION }, mock.run);
+      const result = orchestrate({ tag: VERSION, compatibility: "passed" }, mock.run);
       expect(result.exitCode).toBe(0);
       expect(result.onlineTouched).toBe(true);
       expect(result.runtimeTouched).toBe(true);
@@ -192,7 +194,7 @@ esac
     "%s 失败即止，记录停止点与线上是否已触碰",
     (fail) => {
       const mock = channel({ fail });
-      const result = orchestrate({ tag: VERSION }, mock.run);
+      const result = orchestrate({ tag: VERSION, compatibility: "passed" }, mock.run);
       expect(result.exitCode).toBe(1);
       expect(result.failedStep).toBe(fail);
       const stop = mock.calls.findIndex((row) => row.step === fail);
@@ -213,20 +215,20 @@ esac
       { overrideP1: [UUID] },
     ]) {
       const mock = channel();
-      const result = orchestrate({ tag: VERSION, ...options }, mock.run);
+      const result = orchestrate({ tag: VERSION, compatibility: "passed", ...options }, mock.run);
       expect(result.failedStep).toBe("precheck");
       expect(result.onlineTouched).toBe(false);
       expect(mock.calls.map((row) => row.step)).toEqual(["record"]);
     }
     const mock = channel({ fail: "seed", recordFail: true });
-    const result = orchestrate({ tag: VERSION }, mock.run);
+    const result = orchestrate({ tag: VERSION, compatibility: "passed" }, mock.run);
     expect(result.failedStep).toBe("seed");
     expect(result.error).toContain("seed");
     expect(result.recordError).toContain("故障");
   });
   it("P1 默认挡住；只可明确越过所有实际 P1 且带理由；坏返回值拒绝", () => {
     const blocked = channel({ p1: [UUID] });
-    expect(orchestrate({ tag: VERSION }, blocked.run)).toMatchObject({
+    expect(orchestrate({ tag: VERSION, compatibility: "passed" }, blocked.run)).toMatchObject({
       p1: "blocked",
       onlineTouched: false,
       exitCode: 1,
@@ -234,7 +236,7 @@ esac
     expect(blocked.calls.map((row) => row.step)).not.toContain("pull");
     expect(
       orchestrate(
-        { tag: VERSION, overrideP1: [UUID], reason: "修复该告警" },
+        { tag: VERSION, compatibility: "passed", overrideP1: [UUID], reason: "修复该告警" },
         channel({ p1: [UUID] }).run,
       ),
     ).toMatchObject({ p1: "overridden", exitCode: 0 });
@@ -243,7 +245,9 @@ esac
       JSON.stringify({ p1: "unavailable", ids: [UUID] }),
       JSON.stringify({ p1: "checked", ids: [], extra: true }),
     ])
-      expect(orchestrate({ tag: VERSION }, channel({ malformed }).run).exitCode).toBe(1);
+      expect(
+        orchestrate({ tag: VERSION, compatibility: "passed" }, channel({ malformed }).run).exitCode,
+      ).toBe(1);
   });
   it("回滚缺省取上一条成功的不同版本，跳过失败与当前版重跑；先 api/gateway 后 worker", () => {
     const failed: ReleaseRecord = { ...record(VERSION), result: "failure", failedStep: "seed" };

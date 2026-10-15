@@ -1,3 +1,4 @@
+import type { ResourceCipher } from "../types.js";
 // 验签身份表与 APIv3 密钥环（h01 第 2.1 节第 9、10′ 步，第 3.1 节；D7 第 7.5 节“轮换”）。
 //
 // 验签身份：Wechatpay-Serial 以 PUB_KEY_ID_ 开头用微信支付公钥，否则用已配置的平台证书（切换期并存）。
@@ -64,13 +65,7 @@ export function createVerifierTable(entries: readonly VerifierEntry[]): Verifier
 }
 
 /** 回调报文里的 resource，键名保持微信的写法 */
-export interface ResourceCipher {
-  algorithm: string;
-  ciphertext: string;
-  nonce: string;
-  associated_data?: string;
-  original_type?: string;
-}
+export type { ResourceCipher } from "../types.js";
 
 /**
  * 用一把 APIv3 密钥解密。解不开（密钥不对、密文被改、不是规范的 base64）返回 null，不抛错；

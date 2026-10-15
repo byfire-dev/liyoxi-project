@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { PROVIDER_METHODS } from "../types.js";
+import { createProviders } from "../index.js";
+import { createRecordingLogger } from "../../testing/index.js";
 import {
   generateCertificateIdentity,
   generateIdentity,
@@ -62,7 +64,7 @@ describe("五项成组", () => {
   });
 
   it("五项全缺：未配置。configured 为 false，调用即“未配置”，不抛错", async () => {
-    for (const settings of [{}, { mchid: "", apiV3Key: "   " }, { appid: "wx0000000000000000" }]) {
+    for (const settings of [{}, { mchid: "", apiV3Key: "   " }]) {
       expect(resolveWechatPayConfig(settings)).toEqual({ state: "unconfigured" });
     }
     const provider = createWechatPay({}, DEPS);
@@ -85,6 +87,9 @@ describe("五项成组", () => {
   });
 
   it("只配了一项：指出缺的另外四项与驱动另要的三项", () => {
+    expect(resolveWechatPayConfig({ appid: "wx0000000000000000" })).toMatchObject({
+      state: "invalid",
+    });
     expect(resolveWechatPayConfig({ mchid: "1900000109" })).toEqual({
       state: "invalid",
       missing: [
@@ -289,6 +294,14 @@ describe("齐全", () => {
   });
 
   it("createWechatPay 给出真实驱动", () => {
+    expect(
+      createProviders({
+        appEnv: "test",
+        logger: createRecordingLogger(),
+        settings: { wechatPay: full },
+        wechatPay: DEPS,
+      }).wechatPay,
+    ).toMatchObject({ status: "wechatpay-v3", configured: true });
     expect(createWechatPay(full, DEPS)).toMatchObject({
       status: "wechatpay-v3",
       configured: true,

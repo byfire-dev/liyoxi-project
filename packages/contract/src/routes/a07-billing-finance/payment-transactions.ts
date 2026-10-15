@@ -1,8 +1,20 @@
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  PaymentTransactionListQuerySchema,
+  PaymentTransactionSummaryQuerySchema,
+  PaymentTransactionPageSchema,
+  PaymentTransactionSummarySchema,
+} from "./channel-read.schemas.js";
 // 后台：套餐积分与财务 · payment-transactions（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 
-export const adminPaymentTransactionList = adminMeta({
+export const adminPaymentTransactionList = adminRoute({
+  request: { query: PaymentTransactionListQuerySchema },
+  responses: {
+    ...okResponse(PaymentTransactionPageSchema),
+    ...errorResponses(400, 401, 403, 404, 503),
+  },
   method: "get",
   path: "/admin/payment-transactions",
   operationId: "admin.paymentTransaction.list",
@@ -12,7 +24,12 @@ export const adminPaymentTransactionList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminPaymentTransactionSummary = adminMeta({
+export const adminPaymentTransactionSummary = adminRoute({
+  request: { query: PaymentTransactionSummaryQuerySchema },
+  responses: {
+    ...okResponse(PaymentTransactionSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 503),
+  },
   method: "get",
   path: "/admin/payment-transactions/summary",
   operationId: "admin.paymentTransaction.summary",

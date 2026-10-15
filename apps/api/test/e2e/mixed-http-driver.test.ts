@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, it } from "vitest";
+import { allRoutes } from "@liyoxi/contract";
 import {
   assertMixedSource,
   MIXED_MAX_MESSAGE,
@@ -100,7 +101,7 @@ it("私有RPC有界串行、固定身份与错误，截断/未知/重放ID均不
   expect(lines).toHaveLength(1);
 });
 
-it("本版旧OpenAPI全无参GET、六真实query与实际详情全部规划，未知能力不静默省略", async () => {
+it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划，未知能力不静默省略", async () => {
   const documents = await Promise.all(
     ["merchant", "admin", "portal"].map(
       async (surface) =>
@@ -143,8 +144,30 @@ it("本版旧OpenAPI全无参GET、六真实query与实际详情全部规划，�
     observedReads: ["/api/v1/admin/staff/" + id],
   };
   const plan = mixedReadPlan(operations, options);
-  expect(plan.operations).toHaveLength(89);
-  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(6);
+  expect(plan.operations.map((row) => row.operationId).sort()).toEqual(
+    operations
+      .filter((row) => !row.path.includes("{"))
+      .map((row) => row.operationId)
+      .sort(),
+  );
+  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(8);
+  for (const row of plan.operations) {
+    const route = allRoutes.find((one) => one.operationId === row.operationId);
+    expect(route, row.operationId).toBeDefined();
+    const query = route?.request?.query;
+    if (query)
+      expect(
+        query.safeParse(Object.fromEntries(new URL(row.path, "http://api.localhost").searchParams))
+          .success,
+        row.operationId,
+      ).toBe(true);
+  }
+  expect(plan.operations.find((row) => row.operationId === "admin.followUp.list")?.path).toContain(
+    "entityId=" + id,
+  );
+  expect(
+    plan.operations.find((row) => row.operationId === "admin.storeAsset.list")?.path,
+  ).toContain("storeId=" + id);
   expect(
     plan.operations.find((row) => row.operationId === "admin.assetDemand.list")?.path,
   ).toContain("storeId=" + id);

@@ -1,3 +1,4 @@
+import { createWechatPaymentSource, bindPaymentChannel } from "./billing/index.js";
 import {
   createRuntimeMediaAssets,
   createMediaAssetsAssembly,
@@ -38,7 +39,11 @@ import type { AnalyticsReceiver, AnalyticsJobs } from "./analytics/index.js";
 import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
-import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
+import {
+  currentSessionOpenid,
+  findWechatIdentityId,
+  recentWechatOpenid,
+} from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
 import type { Docs } from "./docs/index.js";
@@ -503,6 +508,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
               },
             }
           : {}),
+        ...(env.WECHAT_PAY ? { wechatPay: env.WECHAT_PAY } : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
       ...(ownsAsr
@@ -546,6 +552,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             },
           }
         : {}),
+      ...(env.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       ...(env.WECHAT
         ? {
             wechat: {
@@ -597,6 +604,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sources: options.webhookSources ?? [
       ...wechatSources,
+      createWechatPaymentSource({
+        provider: () => providers.wechatPay,
+        identity: () => env.WECHAT_PAY,
+        channel: () => billing.wechatChannel,
+        alerts: alertsOf(assembly),
+      }),
       createCiWebhookSource({
         key: env.CI?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
@@ -875,6 +888,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   let billingKeys = options.billingKeyring;
   const billing = createBillingPurchase({
+    ...(env.WECHAT_PAY
+      ? {
+          wechatPay: {
+            provider: providers.wechatPay,
+            appid: env.WECHAT_PAY.appid,
+            mchid: env.WECHAT_PAY.mchid,
+            currentOpenid: (t, session) => currentSessionOpenid(t, session, env.WECHAT_PAY!.appid),
+          },
+        }
+      : {}),
     tx,
     clock,
     assembly,
@@ -898,6 +921,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
   });
+  const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
   const order = createOrderService({
     tx,
     clock,
@@ -1084,6 +1108,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           unbindOrderStart,
           unbindOrder,
           unbindBilling,
+          unbindPaymentChannel,
           unbindContent,
           unbindPublish,
           unbindDelivery,

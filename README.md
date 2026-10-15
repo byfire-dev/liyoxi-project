@@ -51,7 +51,7 @@ W3-15 的 ASR、vision、文档抽取、digest 四策略及回调、预算和运
 | [docs/08-development-plan.md](docs/08-development-plan.md) | 开发计划（已确认，执行中；进度见 docs/plan/） |
 | [docs/plan/](docs/plan/README.md) | 开发计划的执行台账：任务书、工作包状态、留桩、计划变更、外部验证、业主清单、三份运维文档 |
 | [W2-27 日志入口边界](docs/plan/changes/W2-27-log-tools-first.md) | a 内先交受限日志查询与统计；轮转、Redis恢复与真实接通仍待交 |
-| [W2-28 阶段边界](docs/plan/changes/W2-28-compat-before-mixed.md) | a 在役契约兼容；b 真实混跑与发布阻断仍待交，整包进行中 |
+| [W2-28 阶段边界](docs/plan/changes/W2-28-compat-before-mixed.md) | 本地四步混跑已通过，工作流与同提交发布阻断已实现；远端 main 工作流未验，整包进行中 |
 | [CLAUDE.md](CLAUDE.md) | 会话开工须知：每个开发会话开工前必读的总纲与出处 |
 | [docs/appendix/](docs/appendix/README.md) | 子系统设计草案、外部事实核实记录、调研记录 |
 

@@ -11,6 +11,7 @@ import { HANDLERS } from "../../src/routes/index.js";
 import { bootstrapM1Admin, loginM1Staff } from "./m1-auth.js";
 import type { M1AuthenticatedStaff } from "./m1-auth.js";
 import { createM1HttpApi } from "./http.js";
+import type { M1PhaseClient } from "./http.js";
 import { createM1Caller } from "./runner-api.js";
 import { runM1Chain } from "./runner.js";
 import type { M1ChainContext } from "./runner.js";
@@ -45,6 +46,8 @@ export async function createM1HttpBridge(input: {
   readonly signal?: AbortSignal;
   readonly backgroundWorker?: M1SupportOptions["backgroundWorker"];
   readonly diagnosticWrite?: M1SupportOptions["diagnosticWrite"];
+  readonly beforeOrder?: () => Promise<void>;
+  readonly phaseClient?: M1PhaseClient;
 }) {
   const controller = new AbortController();
   const signal = input.signal
@@ -82,7 +85,13 @@ export async function createM1HttpBridge(input: {
       keyring: security.loadKeyring(support.runtime.env),
       appid: "wxlyxm1demo000001",
     });
-    const app = createApp({ runtime: support.runtime, handlers: HANDLERS });
+    const app = createApp({
+      runtime: support.runtime,
+      handlers: HANDLERS,
+      ...(input.phaseClient === undefined
+        ? {}
+        : { trustedProxy: { hops: 1, cidrs: ["127.0.0.1/32", "::1/128"] } }),
+    });
     const origin = await new Promise<string>((resolve, reject) => {
       const listening = serve(
         { hostname: "127.0.0.1", port: 0, fetch: app.app.fetch },
@@ -94,7 +103,13 @@ export async function createM1HttpBridge(input: {
       server = listening;
       listening.once("error", reject);
     });
-    const api = await createM1HttpApi({ support, origin, version: input.attach.version, signal });
+    const api = await createM1HttpApi({
+      support,
+      origin,
+      version: input.attach.version,
+      signal,
+      phaseClient: input.phaseClient,
+    });
     if (!support.httpIO) throw new Error("M1 HTTP 真实对象装配缺失");
     const externalIO = support.httpIO;
     const call = createM1Caller(api);
@@ -103,22 +118,47 @@ export async function createM1HttpBridge(input: {
       origin,
       api,
       support,
-      async runChain(options: { readonly admin?: M1HttpAdmin } = {}) {
+      async runChain(
+        options: {
+          readonly admin?: M1HttpAdmin;
+          readonly onStep?: (value: {
+            step: number;
+            completed: boolean;
+            elapsedMs?: number;
+          }) => void;
+        } = {},
+      ) {
         if (closed || ran) throw new Error("M1 HTTP 桥每轮只运行一条主链");
         signal.throwIfAborted();
         ran = true;
+        // A W228 read phase may precede this write chain under a different merchant's scope.
+        if (input.phaseClient !== undefined) api.resetObservedReads();
         const identity = m1HttpIdentity(input.attach.chainId);
         const captured: {
           admin?: M1AuthenticatedStaff;
           state?: M1ChainContext & { readonly scope: M1Scope; readonly sampleId: string };
         } = {};
+        let step = 0;
         const task = runM1Chain({
           api,
           support,
+          say: (message) => {
+            const completed = message.match(/：完成（(\d+)毫秒）$/);
+            if (!completed) step++;
+            options.onStep?.({
+              step,
+              completed: Boolean(completed),
+              ...(completed ? { elapsedMs: Number(completed[1]) } : {}),
+            });
+          },
           externalIO,
           merchantIdentity: identity.merchant,
           reviewerPhone: identity.reviewerPhone,
           uploadConcurrency: 1,
+          beforeOrder: async () => {
+            await input.beforeOrder?.();
+            return [];
+          },
           // The first round really bootstraps; later rounds really authenticate the first account.
           bootstrapAdmin: async () =>
             (captured.admin = options.admin
@@ -179,7 +219,15 @@ export async function createM1HttpBridge(input: {
           access: {
             admin,
             merchantHeaders: state.owner.headers,
-            ids: { ...state.scope, sampleId: state.sampleId },
+            ids: {
+              entityId: state.scope.entityId,
+              storeId: state.scope.storeId,
+              merchantUserId: state.scope.merchantUserId,
+              orderId: state.scope.orderId,
+              orderItemId: state.scope.orderItemId,
+              deliveryTicketId: state.scope.deliveryTicketId,
+              sampleId: state.sampleId,
+            },
           },
         };
       },

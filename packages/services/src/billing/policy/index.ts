@@ -15,6 +15,8 @@ export async function getPurchasePolicy(
   client: PurchaseClient,
   type?: string,
   amountFen?: number,
+  wechatPayConfigured = false,
+  payerPaidTodayFen = 0,
 ): Promise<PurchasePolicy> {
   const finance = await financeConfigAt(tx, at),
     params = await paramsAt(
@@ -29,7 +31,8 @@ export async function getPurchasePolicy(
       entityId,
       ...(type === undefined ? {} : { type }),
       ...(amountFen === undefined ? {} : { amountFen }),
-      providers: { wechatPayConfigured: false },
+      providers: { wechatPayConfigured },
+      payerPaidTodayFen,
       bankAccountConfigured: finance.bank !== null,
       bankMinFen: params["payment.bank_transfer.min_fen"],
       adviseTransferAboveFen: params["payment.wechat.advise_transfer_above_fen"],

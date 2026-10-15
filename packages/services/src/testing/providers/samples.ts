@@ -39,6 +39,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     },
   },
   wechatPay: {
+    signMiniProgramPay: { prepayId: "sample-prepay" },
     createJsapiOrder: {
       outTradeNo: "FK-SAMPLE-0001",
       description: "样例套餐",

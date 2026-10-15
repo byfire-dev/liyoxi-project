@@ -1,3 +1,10 @@
+import {
+  createWechatPaymentSource,
+  createWechatChannel,
+  bindPaymentChannel,
+  createPayment,
+  createFulfillment,
+} from "../billing/index.js";
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createServerErrorReporter, reportWorkerOutcome } from "./server-errors.js";
 import type { ServerErrorReporter } from "./server-errors.js";
@@ -125,7 +132,7 @@ import {
   createCiWebhookSource,
   createAsrWebhookSource,
 } from "../security/index.js";
-import type { WebhookSource } from "../security/index.js";
+import type { WebhookSource, Webhooks } from "../security/index.js";
 import { createStartupChecks, runStartupChecks } from "./startup.js";
 
 /** worker 主池（D7 第 8.3 节）：10 条连接，语句 30 秒、等锁 3 秒、事务内空闲 60 秒 */
@@ -198,6 +205,7 @@ export interface WorkerServicesOptions {
   readonly logger?: ProviderLogger;
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
+    readonly WECHAT_PAY?: Env["WECHAT_PAY"];
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
@@ -253,6 +261,7 @@ export interface WorkerServices {
   readonly pauseMediaJobs?: () => Promise<void>;
   readonly resumeMediaJobs?: () => void;
   readonly closeWebhooks?: () => void;
+  readonly webhooks?: Webhooks;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
   readonly closeOrder?: () => void;
@@ -415,6 +424,12 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     events,
     sources: options.webhookSources ?? [
       ...wechatSources,
+      createWechatPaymentSource({
+        provider: () => providers.wechatPay,
+        identity: () => options.keys?.WECHAT_PAY,
+        channel: () => paymentChannel,
+        alerts: alertsOf(assembly),
+      }),
       createCiWebhookSource({
         key: ci?.callback.key,
         wake: (tx, input) => media.wakeCiJob(tx, input),
@@ -442,7 +457,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembleProviders({
       appEnv: options.appEnv,
       logger,
+      ...(options.keys?.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       settings: {
+        ...(options.keys?.WECHAT_PAY ? { wechatPay: options.keys.WECHAT_PAY } : {}),
         ...(options.keys?.ALERTS?.robotKey
           ? { wecomRobot: { key: options.keys.ALERTS.robotKey } }
           : {}),
@@ -691,6 +708,38 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
+  const paymentChannel = createWechatChannel({
+    tx,
+    clock,
+    tenant,
+    config: createConfig({ db: prisma, clock, redis: null }),
+    keyring: () => keyringFromEnv(options.keys ?? {}),
+    flow,
+    timers,
+    events,
+    bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
+    payment: createPayment({
+      clock,
+      flow,
+      events,
+      timers,
+      bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
+      fulfillment: createFulfillment({ clock, events }),
+    }),
+    ...(options.keys?.WECHAT_PAY
+      ? {
+          wechatPay: {
+            provider: providers.wechatPay,
+            appid: options.keys.WECHAT_PAY.appid,
+            mchid: options.keys.WECHAT_PAY.mchid,
+            currentOpenid: async () => {
+              throw new TypeError("worker不接受付款会话");
+            },
+          },
+        }
+      : {}),
+  });
+  const closePaymentChannel = bindPaymentChannel(paymentChannel);
   profileConsistencyScope.attach(
     createProfileQualificationConsistency({
       assembly,
@@ -715,6 +764,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   // 扫描里出错过的主体（进程内的记忆）：下一轮排到正常的主体后面，不占着名额饿死别人
   const laggards = new Map<string, number>();
   const timing = {
+    beforeRun: paymentChannel.prepareExpire,
     tx,
     assembly,
     registry: timers.registry,
@@ -869,7 +919,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       closeStart();
       closeDerive();
     },
-    closeBillingTimers,
+    closeBillingTimers: () => {
+      closeBillingTimers();
+      closePaymentChannel();
+    },
     closePublish,
     closeDelivery,
     reevaluateDelivery: () => reevaluateSweep(deliveryCore),
@@ -884,6 +937,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembly,
     events,
     timers,
+    webhooks,
     providers,
     selfCheck: async () => {
       await runStartupChecks(startupChecks);

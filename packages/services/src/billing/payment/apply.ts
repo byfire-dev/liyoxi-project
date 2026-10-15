@@ -1,3 +1,4 @@
+import { wechatReceiptMatches } from "./channel-success.js";
 // 唯一入账入口（03 1.3、08 2.1、D2 4.5）；钱先成为已支付事实，再在保存点内履约。
 import { fulfillResultSchema } from "@liyoxi/contract";
 import type { BillingOrder, Prisma } from "@liyoxi/db";
@@ -11,8 +12,29 @@ export function createPayment(deps: PaymentDeps): Payment {
   return {
     async applyPayment(tx, input) {
       const first = await tx.paymentTxn.findUnique({ where: { id: input.paymentTxnId } });
-      // 孤儿交易与微信渠道留给 M4，不把成功资金事实误当成可入账数据。
-      if (first === null || first.billingOrderId === null) throw new AppError("INTERNAL");
+      if (first === null) throw new AppError("NOT_FOUND");
+      // 无关联仅保存差异；重建/人工关联须走W4-11显式入口，不能从普通重放虚构业务单。
+      if (first.billingOrderId === null) {
+        await lockRows(tx, "payment_txn", [first.id]);
+        const receipt = await tx.paymentTxn.findUniqueOrThrow({ where: { id: first.id } });
+        if (receipt.billingOrderId !== null) throw new AppError("ACCOUNT_BUSY");
+        if (
+          receipt.status === "succeeded" &&
+          receipt.refundedFen >= (receipt.channelAmountFen ?? 0)
+        )
+          return { result: { status: "orphan", paymentExceptionId: null }, replayed: false };
+        if (receipt.status !== "succeeded" || !receipt.channelAmountFen)
+          throw new AppError("STATE_NOT_ALLOWED");
+        const ctx =
+          input.ctx ??
+          createIdentityContext({ actor: { type: "system", job: "billing.apply_payment" } });
+        const paymentExceptionId = await openPaymentException(tx, deps, ctx, {
+          kind: receipt.channel === "wechat_jsapi" ? "bill_only" : "bank_unmatched",
+          order: null,
+          receipt,
+        });
+        return { result: { status: "orphan", paymentExceptionId }, replayed: false };
+      }
       await lockRows(tx, "billing_order", [first.billingOrderId]);
       await lockRows(tx, "payment_txn", [first.id]);
       const order = await tx.billingOrder.findUniqueOrThrow({
@@ -25,7 +47,8 @@ export function createPayment(deps: PaymentDeps): Payment {
         receipt.channel !== order.channel
       )
         throw new AppError("INTERNAL");
-      if (receipt.channel !== "bank_transfer") throw new AppError("INTERNAL");
+      if (!["bank_transfer", "wechat_jsapi"].includes(receipt.channel))
+        throw new AppError("INTERNAL");
       if (receipt.appliedAt !== null)
         return {
           result: {
@@ -47,12 +70,47 @@ export function createPayment(deps: PaymentDeps): Payment {
           entityId: order.entityId,
           storeId: order.storeId,
         });
+      const reclassify = async () => {
+        const prior = await tx.paymentException.findMany({
+          where: { paymentTxnId: receipt.id, kind: "bill_only", status: "open" },
+          orderBy: { id: "asc" },
+          select: { id: true },
+        });
+        for (const row of prior)
+          await deps.flow.transition(tx, ctx, {
+            machine: "payment_exception",
+            stateField: "status",
+            id: row.id,
+            event: "payment_exception.reclassify",
+            set: { resolved_at: now },
+            args: { paymentTxnId: receipt.id },
+            entityId: order.entityId,
+            storeId: order.storeId,
+            emit: {
+              type: "payment_exception.auto_healed",
+              payload: { v: 1, paymentExceptionId: row.id },
+              dedupeKey: `payment_exception.auto_healed:${row.id}`,
+            },
+          });
+        if (prior.length)
+          await tx.billingOrder.update({
+            where: { id: order.id },
+            data: {
+              hasOpenException:
+                (await tx.paymentException.count({
+                  where: { billingOrderId: order.id, status: { in: ["open", "resolving"] } },
+                })) > 0,
+              updatedAt: now,
+            },
+          });
+      };
       const exception = async (kind: PaymentExceptionKind, current: BillingOrder = order) => {
         const paymentExceptionId = await openPaymentException(tx, deps, ctx, {
           kind,
           order: current,
           receipt,
         });
+        await reclassify();
         await deps.onStep?.("exception.open");
         return {
           result: {
@@ -64,15 +122,21 @@ export function createPayment(deps: PaymentDeps): Payment {
           replayed: false,
         };
       };
-      if (receipt.channelAmountFen !== order.amountFen) {
+      const mismatch =
+        receipt.channelAmountFen !== order.amountFen
+          ? "amount_mismatch"
+          : !wechatReceiptMatches(order, receipt)
+            ? "payer_mismatch"
+            : null;
+      if (mismatch) {
         if (["pending_payment", "pending_confirmation"].includes(order.status))
           await deps.flow.transition(tx, ctx, {
             machine: "billing_order",
             stateField: "status",
             id: order.id,
             event: "billing_order.cancel_mismatch",
-            set: { cancelled_at: now, cancel_reason: "amount_mismatch", transfer_state: null },
-            reasonCode: "amount_mismatch",
+            set: { cancelled_at: now, cancel_reason: mismatch, transfer_state: null },
+            reasonCode: mismatch,
             args: { paymentTxnId: receipt.id },
             entityId: order.entityId,
             storeId: order.storeId,
@@ -80,7 +144,7 @@ export function createPayment(deps: PaymentDeps): Payment {
               stream: "ops",
               category: "payment",
               action: "billing.order.cancel",
-              summary: "实收与应付不符",
+              summary: mismatch === "amount_mismatch" ? "实收与应付不符" : "付款人与下单记录不符",
               target: { type: "billing_order", id: order.id },
             },
             emit: {
@@ -89,16 +153,16 @@ export function createPayment(deps: PaymentDeps): Payment {
                 v: 1,
                 billingOrderId: order.id,
                 entityId: order.entityId,
-                cancelReason: "amount_mismatch",
+                cancelReason: mismatch,
               },
             },
           });
         await deps.timers.cancel(tx, {
           subject: { type: "billing_order", id: order.id },
-          kinds: ["po.transfer_ttl"],
+          kinds: [receipt.channel === "wechat_jsapi" ? "po.expire" : "po.transfer_ttl"],
         });
         return exception(
-          "amount_mismatch",
+          mismatch,
           await tx.billingOrder.findUniqueOrThrow({ where: { id: order.id } }),
         );
       }
@@ -140,7 +204,7 @@ export function createPayment(deps: PaymentDeps): Payment {
             entityId: order.entityId,
             storeId: order.storeId,
             orderType: order.type as "plan_new" | "plan_renew" | "plan_upgrade" | "topup",
-            channel: "bank_transfer",
+            channel: receipt.channel === "wechat_jsapi" ? "wechat_jsapi" : "bank_transfer",
             amountFen: receipt.channelAmountFen,
             paidPaymentTxnId: receipt.id,
             placedByUserId: order.placedByUserId,
@@ -149,6 +213,7 @@ export function createPayment(deps: PaymentDeps): Payment {
         },
       });
       await deps.onStep?.("order.pay");
+      await reclassify();
       await tx.paymentTxn.update({
         where: { id: receipt.id },
         data: { appliedAt: now, updatedAt: now },
@@ -218,7 +283,7 @@ export function createPayment(deps: PaymentDeps): Payment {
       }
       await deps.timers.cancel(tx, {
         subject: { type: "billing_order", id: order.id },
-        kinds: ["po.transfer_ttl"],
+        kinds: [receipt.channel === "wechat_jsapi" ? "po.expire" : "po.transfer_ttl"],
       });
       await deps.onStep?.("timers.cancel");
       return {

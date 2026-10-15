@@ -162,7 +162,7 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain(
       "if: vars.STG_DEPLOY_ENABLED == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository",
     );
-    expect(body).toContain("run-id: ${{ github.event.workflow_run.id }}");
+    expect(body).toContain("run-id: ${{ steps.release.outputs.images-run-id }}");
     expect(body).toContain("repository: ${{ github.repository }}");
     expect(body).toContain("images-release-${{ github.event.workflow_run.head_sha }}");
     expect(body).toContain("v.source!==process.env.EXPECTED_SHA");

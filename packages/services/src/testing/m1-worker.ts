@@ -16,6 +16,7 @@ import { m1ProductionVideo } from "./m1-production.js";
 import { assertM1SharedScope, createM1HttpStorage, createM1RealClock } from "./m1-shared.js";
 import { readM1WorkerBacklog } from "./m1-observe.js";
 import { createM1BackupIo } from "./m1-backup.js";
+import { createM1WechatCallbackIo, M1_LOCAL_WECHAT } from "./m1-wechat.js";
 
 /** IPC input accepts public local fixture configuration only, never arbitrary provider URLs/keys. */
 export const M1WorkerAttachmentSchema = z.strictObject({
@@ -89,6 +90,8 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
   let channel: ReturnType<typeof createQueueChannel> | undefined;
   let lease: ReturnType<typeof createWorkerLease> | undefined;
   let tools: ReturnType<typeof createDeliveryProductionTools> | undefined;
+  let wechat: ReturnType<typeof createM1WechatCallbackIo> | undefined;
+  const providerClosers: Array<() => Promise<void>> = [];
   let closing: Promise<void> | undefined;
   let closed = false;
   const assertOwned = async () => {
@@ -102,6 +105,8 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     (closing ??= (async () => {
       closed = true;
       const results = await Promise.allSettled([
+        Promise.resolve().then(() => wechat?.close()),
+        ...providerClosers.map((close) => Promise.resolve().then(close)),
         Promise.resolve().then(() => tools?.tools.close()),
         Promise.resolve().then(() => backup.close()),
         Promise.resolve().then(() => storage.close()),
@@ -137,6 +142,12 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     const holder = `mixed:${process.pid}:${randomUUID()}`;
     lease = createWorkerLease({ connectionString: databaseUrl, holder, version: attach.version });
     const { providers } = createProviderHarness({ clock });
+    wechat = createM1WechatCallbackIo({
+      db: database.prisma,
+      clock,
+      provider: providers.wechat,
+      assertOwned,
+    });
     // Owned fixture configuration precedes worker start; the original direct sender still runs.
     const oncallPhone = "13800000000";
     const alertParams = SMS_TEMPLATE_PARAMS.ops_alert;
@@ -155,6 +166,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     tools = createDeliveryProductionTools(providers, input.report, storage.storage);
     const boundProviders = {
       ...providers,
+      wechat: wechat.provider,
       storage: {
         ...storage.storage,
         ...backup.storage,
@@ -169,6 +181,15 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       assembly: assembleServices({ entry: "worker", appEnv: "local" }),
       channel,
       providers: boundProviders,
+      wechat: {
+        config: M1_LOCAL_WECHAT,
+        transport: {
+          redis,
+          prefix: attach.scope.redisPrefix,
+          now: () => clock.now(),
+          registerClose: (close) => providerClosers.push(close),
+        },
+      },
       mediaProductionTools: tools.tools,
       keys: {
         ...fakeKeyEnv(),
@@ -183,6 +204,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       activeChannel = channel,
       activeLease = lease;
     return {
+      pumpWechatCallbacks: wechat.pump,
       options,
       channel: activeChannel,
       lease: activeLease,

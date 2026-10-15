@@ -150,7 +150,7 @@ async function fulfillmentView(tx: Tx, o: BillingOrder) {
 }
 export async function merchantOrderView(
   tx: Tx,
-  deps: BillingPurchaseDeps,
+  deps: Pick<BillingPurchaseDeps, "clock" | "config" | "keyring" | "wechatPay">,
   o: BillingOrder,
   client: PurchaseClient,
 ) {
@@ -166,7 +166,16 @@ export async function merchantOrderView(
       : null,
     bank = finance?.payload as { accountName: string; bankName: string } | undefined,
     now = deps.clock.now(),
-    policy = await getPurchasePolicy(tx, deps.config, o.entityId, now, client, o.type, o.amountFen),
+    policy = await getPurchasePolicy(
+      tx,
+      deps.config,
+      o.entityId,
+      now,
+      client,
+      o.type,
+      o.amountFen,
+      deps.wechatPay?.provider.configured ?? false,
+    ),
     fulfillment = await fulfillmentView(tx, o);
   return PaymentOrderDetailSchema.parse({
     paymentOrderId: o.id,
@@ -183,11 +192,17 @@ export async function merchantOrderView(
     invoiceState: "not_eligible",
     activeInvoiceRequest: null,
     actions:
-      o.channel === "bank_transfer" &&
-      ((o.status === "pending_payment" && now < o.expiresAt) ||
-        (o.status === "pending_confirmation" && o.transferState === "proof_submitted"))
-        ? [...(o.status === "pending_payment" ? ["cancel"] : []), "submit-proof"]
-        : [],
+      o.channel === "wechat_jsapi" && o.status === "pending_payment"
+        ? [
+            "sync",
+            "cancel",
+            ...(now.getTime() < o.expiresAt.getTime() - 60000 ? ["wechat-prepay"] : []),
+          ]
+        : o.channel === "bank_transfer" &&
+            ((o.status === "pending_payment" && now < o.expiresAt) ||
+              (o.status === "pending_confirmation" && o.transferState === "proof_submitted"))
+          ? [...(o.status === "pending_payment" ? ["cancel"] : []), "submit-proof"]
+          : [],
     paidAmountFen: o.paidAmountFen,
     refundedAmountFen: o.refundedAmountFen,
     fulfillmentStatus: o.fulfillmentStatus,

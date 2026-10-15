@@ -11662,6 +11662,163 @@
         ],
         "type": "object"
       },
+      "PaymentOrderCancelResult": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "cancelled",
+              "paid",
+              "cancelling"
+            ],
+            "type": "string"
+          },
+          "paymentOrder": {
+            "$ref": "#/components/schemas/PaymentOrderDetail"
+          }
+        },
+        "required": [
+          "outcome",
+          "paymentOrder"
+        ],
+        "type": "object"
+      },
+      "PaymentOrderCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "activeInvoiceRequest": {
+            "properties": {
+              "invoiceRequestId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "requestNo": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "invoiceRequestId",
+              "requestNo",
+              "status"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "amountFen": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "enum": [
+              "wechat_jsapi",
+              "bank_transfer"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invoiceItemName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoiceState": {
+            "enum": [
+              "eligible",
+              "applying",
+              "invoiced",
+              "expired",
+              "not_eligible"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "paidAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paymentOrderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending_payment",
+              "pending_confirmation",
+              "paid",
+              "cancelled",
+              "refunded"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "transferState": {
+            "enum": [
+              "awaiting_proof",
+              "proof_submitted",
+              "proof_rejected",
+              "confirm_review",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "type": {
+            "enum": [
+              "plan_new",
+              "plan_renew",
+              "plan_upgrade",
+              "topup"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "paymentOrderId",
+          "orderNo",
+          "type",
+          "status",
+          "channel",
+          "transferState",
+          "amountFen",
+          "title",
+          "createdAt",
+          "paidAt",
+          "invoiceItemName",
+          "invoiceState",
+          "activeInvoiceRequest",
+          "actions"
+        ],
+        "type": "object"
+      },
       "PaymentOrderDetail": {
         "properties": {
           "actions": {
@@ -27726,6 +27883,204 @@
       }
     },
     "/api/v1/m/payment-orders": {
+      "get": {
+        "operationId": "m.paymentOrder.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "invoiceState",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:eligible|applying|invoiced|expired|not_eligible)(?:,(?:eligible|applying|invoiced|expired|not_eligible))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:pending_payment|pending_confirmation|paid|cancelled|refunded)(?:,(?:pending_payment|pending_confirmation|paid|cancelled|refunded))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:plan_new|plan_renew|plan_upgrade|topup)(?:,(?:plan_new|plan_renew|plan_upgrade|topup))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/PaymentOrderCard"
+                          },
+                          "type": "array"
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "付款单列表（?invoiceState=eligible,applying 为“可开票”页签，含“已申请，开票中”的单）：类型、单号、金额、标题、时间、支付方式、开票项目、开票状态",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
       "post": {
         "operationId": "m.paymentOrder.create",
         "requestBody": {
@@ -27924,6 +28279,169 @@
         ]
       }
     },
+    "/api/v1/m/payment-orders/summary": {
+      "get": {
+        "operationId": "m.paymentOrder.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "invoiceState",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:eligible|applying|invoiced|expired|not_eligible)(?:,(?:eligible|applying|invoiced|expired|not_eligible))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:pending_payment|pending_confirmation|paid|cancelled|refunded)(?:,(?:pending_payment|pending_confirmation|paid|cancelled|refunded))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "pattern": "^(?:plan_new|plan_renew|plan_upgrade|topup)(?:,(?:plan_new|plan_renew|plan_upgrade|topup))*$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "开票页“可开票 · N”的计数（查询参数同列表，页面传 invoiceState=eligible，不算已申请的单）",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/payment-orders/{paymentOrderId}": {
       "get": {
         "operationId": "m.paymentOrder.get",
@@ -28039,6 +28557,265 @@
         "x-clerk-view": "none",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/payment-orders/{paymentOrderId}/cancel": {
+      "post": {
+        "operationId": "m.paymentOrder.cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentOrderCancelResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "取消付款单：微信支付先查单再关单、以结果为准（查得已支付则入账，返回 outcome = paid）；对公在凭证待财务确认期间不可取消；响应 CancelResult {outcome: cancelled | paid | cancelling, paymentOrder}",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "三段式用例（C51，先调外部）：微信先查单再关单，幂等记录随最后的事务写",
+        "x-redact-on-replay": [
+          "paymentOrder.bankAccount.accountNo"
+        ],
+        "x-three-phase": true
+      }
+    },
+    "/api/v1/m/payment-orders/{paymentOrderId}/sync": {
+      "post": {
+        "operationId": "m.paymentOrder.sync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentOrderDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "让服务端主动查单并尝试入账，返回付款单状态（每单每 3 秒一次）",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "只查询渠道状态，入账由账本操作键 fulfill:/purchase:billing_order:{id} 去重（A50）；三段式用例",
+        "x-three-phase": true
       }
     },
     "/api/v1/m/payment-orders/{paymentOrderId}/transfer-proofs": {
@@ -28178,6 +28955,183 @@
         "x-redact-on-replay": [
           "bankAccount.accountNo"
         ]
+      }
+    },
+    "/api/v1/m/payment-orders/{paymentOrderId}/wechat-prepay": {
+      "post": {
+        "operationId": "m.paymentOrder.wechatPrepay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "payParams": {
+                          "properties": {
+                            "nonceStr": {
+                              "type": "string"
+                            },
+                            "package": {
+                              "type": "string"
+                            },
+                            "paySign": {
+                              "type": "string"
+                            },
+                            "signType": {
+                              "enum": [
+                                "RSA"
+                              ],
+                              "type": "string"
+                            },
+                            "timeStamp": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "timeStamp",
+                            "nonceStr",
+                            "package",
+                            "signType",
+                            "paySign"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "paymentOrder": {
+                          "$ref": "#/components/schemas/PaymentOrderDetail"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "payParams",
+                        "replayed",
+                        "paymentOrder"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "上游超时"
+          }
+        },
+        "summary": "微信预下单，返回 wx.requestPayment 调起参数（三段式用例，幂等于 out_trade_no）",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "三段式用例（C51，多事务）：幂等记录随事务 B 写；结果脱敏（C50、A80）：payParams 重放为 null，响应带 replayed",
+        "x-redact-on-replay": [
+          "payParams"
+        ],
+        "x-three-phase": true
       }
     },
     "/api/v1/m/plans": {

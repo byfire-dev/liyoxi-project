@@ -102,6 +102,7 @@ export {
   createPayment,
   openPaymentException,
   APPLY_STEPS,
+  recordChannelSuccess,
   paymentInvariants,
 } from "./payment/index.js";
 export type {
@@ -133,3 +134,7 @@ export { billingPiiFields } from "./pii-fields.js";
 
 export { createDramaPricing } from "./pricing/revisions.js";
 export type { DramaPricingService, DramaPricingDeps } from "./pricing/revisions.js";
+
+export { createWechatChannel } from "./payment/wechat-channel.js";
+export { createWechatPaymentSource } from "./payment/channel-webhook.js";
+export { bindPaymentChannel } from "./payment/channel-registration.js";

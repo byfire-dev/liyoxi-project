@@ -378,4 +378,10 @@ DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
 
 `packages/contract/released/retired.json` 初始为空数组。每项仅包含 `version`、非空 `reason`、真实 ISO 日期 `date`，例如 `{ "version": "weapp-v1.0.0", "reason": "最低客户端版本已提高", "date": "2026-10-10" }`。版本重复、未知字段、无效日期均失败；只摘除精确标签。该文件新登记为 frozen，以后修改属于放松类，须走现有 gate-change 评审并按 C78 同时登记最低版本计划。
 
-临时 Git 用例与两条 selftest 仅在自有临时仓库 commit/tag，并在 finally 清理；从不操作本仓库的真实标签。W2-28a 仅交这一道 PR 门禁；W2-28b 的真实双版本同库主流程、main 检查和发布预检仍未实现，W2-29 仍等整包。不得将无可比版本或假服务用例充作混跑通过。
+临时 Git 用例与两条 selftest 仅在自有临时仓库 commit/tag，并在 finally 清理；从不操作本仓库的真实标签。W2-28a 只代表契约门禁；b 的实现与实际运行结果分别见下节及 [W2-28 台账](../../docs/plan/status/W2-28.md)，W2-29 仍等整包。不得将无可比版本或假服务用例充作混跑通过。
+
+### 9.1 双版本混跑与发布阻断（W2-28b）
+
+`node infra/ci/mixed-version-smoke.mjs --prev <完整提交SHA> --report <新报告.json>` 在自有隔离库中完成 HEAD 迁移补种、HEAD 主流程、旧版同库读取与第二条主流程、HEAD 复读。两个版本分别从各自提交构建，使用真实 HTTP、独立 worker、PG、Redis 与 MinIO；不拨业务时钟，观察上限30秒、整包上限10分钟。省略 `--prev` 时按最近发布标签或第一父提交选择；没有可比版本仍运行 HEAD 初始化与主链，报告不能记为完整四步通过。参数、替身范围与资源清理见 [运行说明](mixed-version-smoke.README.md)。
+
+`mixed-smoke.yml` 只消费 main push；部署默认关闭，开启后仍在 SSH 与拉镜像前核对同 SHA 最新的 images、mixed-smoke 两项检查均已成功。检查读取串行、各一次，遇403、429或 Retry-After 即失败，不轮询或自动重试。工作流接线、本地测试与远端实际运行分别记录在台账，不能互相替代。

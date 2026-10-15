@@ -13,4 +13,8 @@ GITHUB_REPOSITORY=owner/repository EXPECTED_SHA=<完整40位提交号> \
 
 成功仅输出提交、仓库、两条run ID/attempt及`compatibility: passed`，不透传API响应中的用户、标题、URL或任何额外字段。命令失败不输出输入正文或文件路径。调用者必须在创建SSH文件、节点pull和部署之前执行选择，并使用选中的imagesRunId下载相同运行的摘要，继续原validateRelease/镜像身份核验。
 
-本片尚未改工作流或发布入口：真实双版本四步仍在实现，后继独立gate片会同时消费images和mixed-smoke完成事件，并保留默认关闭、同仓/main/push门控。该纯选择器通过不代表远端CI、真实混跑或部署放行。
+本地四步混跑与工作流接线已经实现；本地执行证据见 [混跑说明](mixed-version-smoke.README.md)。远端 main 工作流尚未验证，选择器的纯测试结果不代表远端 CI 或部署放行。
+
+工作流由 `release-check-fetch.mjs` 调用此选择器：先串行读取两个固定 GitHub API URL，每次十五秒与八 MiB上限，不跳转、不分页、不重试、不轮询；任何非成功或 Retry-After 立即停止后续请求。输出只含已验证的安全事实，凭据与响应体不写日志。deploy-stg 同时接两个 completed 事件，每次均重验同 SHA；发布摘要只从选择后的 images run 下载，随后才创建 SSH 文件及拉镜像。相同版本的重复 completed 事件沿原发布编排的同版本可重跑语义处理。
+
+工作流只在选择器通过后向发布编排传 `--compat-result passed`，无结论不会进入编排。此片只接自动发布；独立 CLI 的默认输入策略另交必要伴随。

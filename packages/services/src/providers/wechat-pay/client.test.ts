@@ -228,6 +228,8 @@ describe("查单 queryByOutTradeNo", () => {
     expect(result).toEqual({
       ok: true,
       value: {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
         outTradeNo: NO,
         tradeState: "SUCCESS",
         transactionId: "4200000000202610040000000001",
@@ -250,11 +252,19 @@ describe("查单 queryByOutTradeNo", () => {
     "各状态 %s：未支付的没有金额、付款人与成功时间",
     async (tradeState) => {
       replies.push(
-        signed(200, { out_trade_no: NO, trade_state: tradeState, trade_state_desc: "…" }),
+        signed(200, {
+          appid: "wx0000000000000000",
+          mchid: "1900000109",
+          out_trade_no: NO,
+          trade_state: tradeState,
+          trade_state_desc: "…",
+        }),
       );
       expect(await driver().queryByOutTradeNo({ outTradeNo: NO })).toEqual({
         ok: true,
         value: {
+          appid: "wx0000000000000000",
+          mchid: "1900000109",
           outTradeNo: NO,
           tradeState,
           transactionId: undefined,
@@ -281,6 +291,9 @@ describe("查单 queryByOutTradeNo", () => {
   });
 
   it.each([
+    ["AppID不是本小程序", { appid: "wx0000000000000001" }],
+    ["商户号不是本商户", { mchid: "1900000110" }],
+    ["币种不是人民币", { amount: { total: 19900, currency: "USD" } }],
     ["金额是小数", { amount: { total: 199.5 } }],
     ["金额是字符串", { amount: { total: "19900" } }],
     ["金额是负数", { amount: { total: -1 } }],
