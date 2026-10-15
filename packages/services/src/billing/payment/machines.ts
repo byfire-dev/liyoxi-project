@@ -1,3 +1,4 @@
+import { wechatReceiptMatches } from "./channel-success.js";
 // W1-11a b：数据守卫由入账层复核；权限、再验证与凭证在 W1-11b。
 import { chainKey, rowKey } from "../../flow/index.js";
 import type { Guard, MachineBinding } from "../../flow/index.js";
@@ -18,12 +19,14 @@ const paid: Guard = async (tx, facts) => {
     receipt.billingOrderId === order.id &&
     receipt.entityId === order.entityId &&
     receipt.channel === order.channel &&
-    receipt.channelAmountFen === order.amountFen
+    receipt.channelAmountFen === order.amountFen &&
+    wechatReceiptMatches(order, receipt)
   );
 };
 const mismatch: Guard = async (tx, facts) => {
   const id = (facts.args as { paymentTxnId?: string } | undefined)?.paymentTxnId;
-  if (id === undefined || facts.reasonCode !== "amount_mismatch") return false;
+  if (id === undefined || !["amount_mismatch", "payer_mismatch"].includes(facts.reasonCode ?? ""))
+    return false;
   const [order, receipt] = await Promise.all([
     tx.billingOrder.findUnique({ where: { id: facts.subjectId } }),
     tx.paymentTxn.findUnique({ where: { id } }),
@@ -38,7 +41,9 @@ const mismatch: Guard = async (tx, facts) => {
     receipt.entityId === order.entityId &&
     receipt.channel === order.channel &&
     receipt.channelAmountFen !== null &&
-    receipt.channelAmountFen !== order.amountFen
+    (facts.reasonCode === "amount_mismatch"
+      ? receipt.channelAmountFen !== order.amountFen
+      : !wechatReceiptMatches(order, receipt))
   );
 };
 export const paymentMachineBindings: readonly { key: string; binding: MachineBinding }[] = [

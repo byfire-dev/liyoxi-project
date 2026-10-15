@@ -4,6 +4,9 @@
 // 构建时不连网、不外呼：什么都没配也能启动。显式驱动须完整配置并交由调用者登记关闭。
 // 领域模块不引本文件，只引 ./types.ts；驱动只在装配处（kernel）经本文件引入（D7 第 2.2 节 D8）。
 
+import { createWechatPay } from "./wechat-pay/driver.js";
+import type { WechatPayDriverDeps } from "./wechat-pay/driver.js";
+import type { WechatPaySettings } from "./wechat-pay/config.js";
 import { createTencentSms } from "./sms/tencent.js";
 import type { TencentSmsOptions } from "./sms/tencent.js";
 import { createConsoleSms } from "./sms/console.js";
@@ -47,6 +50,8 @@ import {
 } from "./unconfigured.js";
 
 export * from "./types.js";
+export { createWechatPay } from "./wechat-pay/driver.js";
+export type { WechatPaySettings } from "./wechat-pay/config.js";
 export { createWecomRobot } from "./wecom/robot.js";
 export type { WecomRobotConfig, WecomRobotOptions } from "./wecom/robot.js";
 // 备份替身复用同一有界协议边界，经正式入口消费，不跨模块引驱动私有叶。
@@ -82,6 +87,7 @@ export {
  * 它们从哪些环境变量来、怎样并进 loadEnv 与 .env.example，本包没有做，原因见 README.md“环境变量”一节。
  */
 export interface ProviderSettings {
+  wechatPay?: WechatPaySettings;
   wecomRobot?: WecomRobotConfig;
   wechat?: { appid: string; secret: string };
   media?: { ci: CiConfig };
@@ -112,6 +118,7 @@ export interface CreateProvidersOptions {
   settings?: ProviderSettings;
   /** 外呼前钩子；缺省空转。W0-20 接上 kernel 的事务标记 */
   beforeCall?: BeforeProviderCall;
+  wechatPay?: WechatPayDriverDeps;
   asr?: TencentAsrOptions & { registerClose: (close: () => Promise<void>) => void };
   ocr?: TencentOcrOptions & { registerClose: (close: () => Promise<void>) => void };
   llm?: DomesticLlmOptions & { registerClose: (close: () => Promise<void>) => void };
@@ -281,6 +288,8 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     throw new ProviderConfigError("wecom", "机器人完整配置与自有生命周期须同时提供");
   if (options.wecomRobot !== undefined && typeof options.wecomRobot.registerClose !== "function")
     throw new ProviderConfigError("wecom", "机器人须提供关闭登记函数");
+  if ((settings.wechatPay === undefined) !== (options.wechatPay === undefined))
+    throw new ProviderConfigError("wechatPay", "完整配置与运行时依赖须同时提供");
   const chosen: Providers = {
     ...unconfiguredProviders,
     // 真实驱动的位置：wechat 在 G2-D；media（数据万象）在 G3-A
@@ -289,10 +298,12 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     storage: selectStorage(appEnv, settings),
     media: local ? createLocalMedia() : unconfiguredProviders.media,
     esign: selectEsign(appEnv, settings, logger),
-    // wechatPay（G4-A）、wecom（G7-A）、mail（G4-B）、invoice（V1.1）：
+    // wecom（除机器人）、mail（G4-B）、invoice（V1.1）：
     // 真实驱动没到之前一律未配置
   };
 
+  if (settings.wechatPay && options.wechatPay)
+    chosen.wechatPay = createWechatPay(settings.wechatPay, options.wechatPay);
   if (settings.wechat && options.wechat) {
     const transport = options.wechat;
     const driver = createWechatDriver(

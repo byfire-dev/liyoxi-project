@@ -1,3 +1,4 @@
+import { createWechatPrepay } from "./wechat-prepay.js";
 import { BillingWalletSchema } from "@liyoxi/contract";
 import type {
   PaymentOrderCreateBody,
@@ -50,8 +51,10 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
       client,
       type,
       amount,
+      deps.wechatPay?.provider.configured ?? false,
     );
   return {
+    wechatPrepay: createWechatPrepay(deps),
     getPurchasePolicy: (actor: PurchaseActor, client: PurchaseClient) =>
       deps.tx.run((tx) => policy(tx, actor, client)),
     listPlans: (actor: PurchaseActor, client: PurchaseClient) =>

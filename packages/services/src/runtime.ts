@@ -38,7 +38,11 @@ import type { AnalyticsReceiver, AnalyticsJobs } from "./analytics/index.js";
 import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
-import { findWechatIdentityId, recentWechatOpenid } from "./identity/index.js";
+import {
+  currentSessionOpenid,
+  findWechatIdentityId,
+  recentWechatOpenid,
+} from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
 import type { Docs } from "./docs/index.js";
@@ -503,6 +507,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
               },
             }
           : {}),
+        ...(env.WECHAT_PAY ? { wechatPay: env.WECHAT_PAY } : {}),
         ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
       },
       ...(ownsAsr
@@ -546,6 +551,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             },
           }
         : {}),
+      ...(env.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       ...(env.WECHAT
         ? {
             wechat: {
@@ -875,6 +881,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   let billingKeys = options.billingKeyring;
   const billing = createBillingPurchase({
+    ...(env.WECHAT_PAY
+      ? {
+          wechatPay: {
+            provider: providers.wechatPay,
+            appid: env.WECHAT_PAY.appid,
+            mchid: env.WECHAT_PAY.mchid,
+            currentOpenid: (t, session) => currentSessionOpenid(t, session, env.WECHAT_PAY!.appid),
+          },
+        }
+      : {}),
     tx,
     clock,
     assembly,

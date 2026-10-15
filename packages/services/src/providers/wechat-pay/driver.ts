@@ -2,7 +2,7 @@
 // （03 第 1.4 节；D2 第 10.2 节；ADR-016）。地址与字段照官方现行文档（pay.weixin.qq.com/doc/v3/merchant）：
 //   下单 4012791897；查单 4012791900；关单 4012791901；退款 4012791903；查询退款 4012791904；
 //   申请交易账单 4012791907；下载账单 4012791909。
-// 本驱动还没有接进 providers/index.ts 的选择分支，也没有任何用例调用它：接入归 G4-A。
+// W4-01 已接进 Provider 选择分支与预下单；退款/回调业务由后续包消费。
 // 比 WechatPayProvider 多出来的方法（调起参数签名、退款查询、账单的申请与下载、带判别结果的回调入口）
 // 先放在 WechatPayDriver 上，由用到的包按“只增”提进接口。
 // 金额一律整数分。发请求的方法在入口调一次外呼前钩子（deps.beforeCall）；本地签名与验签不调。
@@ -11,6 +11,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 import { failed, ok } from "../types.js";
 import type {
+  MiniProgramPayParams,
   BeforeProviderCall,
   ProviderFailure,
   ProviderLogger,
@@ -44,15 +45,7 @@ export interface WechatPayFailure extends ProviderFailure {
   code?: string;
 }
 
-/** wx.requestPayment 的参数 */
-export interface MiniProgramPayParams {
-  appId: string;
-  timeStamp: string;
-  nonceStr: string;
-  package: string;
-  signType: "RSA";
-  paySign: string;
-}
+export type { MiniProgramPayParams } from "../types.js";
 
 export interface TradeBillTicket {
   /** 摘要算法，固定 SHA1 */
@@ -134,7 +127,11 @@ export function createWechatPayDriver(
     if (!out.ok) return toFailure(out);
     const transaction = mapTransaction(out.json ?? {});
     if (!transaction) return failed("unavailable", "微信支付的查单应答不合规");
-    return transaction.outTradeNo === outTradeNo ? ok(transaction) : failed("unavailable", OTHER);
+    return transaction.outTradeNo === outTradeNo &&
+      transaction.appid === appid &&
+      transaction.mchid === mchid
+      ? ok(transaction)
+      : failed("unavailable", OTHER);
   }
 
   /** 退款与退款查询的应答：单号要与请求的是同一个（outTradeNo 只有发起退款时核对） */

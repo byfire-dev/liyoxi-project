@@ -28180,6 +28180,183 @@
         ]
       }
     },
+    "/api/v1/m/payment-orders/{paymentOrderId}/wechat-prepay": {
+      "post": {
+        "operationId": "m.paymentOrder.wechatPrepay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "payParams": {
+                          "properties": {
+                            "nonceStr": {
+                              "type": "string"
+                            },
+                            "package": {
+                              "type": "string"
+                            },
+                            "paySign": {
+                              "type": "string"
+                            },
+                            "signType": {
+                              "enum": [
+                                "RSA"
+                              ],
+                              "type": "string"
+                            },
+                            "timeStamp": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "timeStamp",
+                            "nonceStr",
+                            "package",
+                            "signType",
+                            "paySign"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "paymentOrder": {
+                          "$ref": "#/components/schemas/PaymentOrderDetail"
+                        },
+                        "replayed": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "payParams",
+                        "replayed",
+                        "paymentOrder"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "上游超时"
+          }
+        },
+        "summary": "微信预下单，返回 wx.requestPayment 调起参数（三段式用例，幂等于 out_trade_no）",
+        "x-auth": "member",
+        "x-capability": "plan.purchase",
+        "x-clerk-view": "none",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "三段式用例（C51，多事务）：幂等记录随事务 B 写；结果脱敏（C50、A80）：payParams 重放为 null，响应带 replayed",
+        "x-redact-on-replay": [
+          "payParams"
+        ],
+        "x-three-phase": true
+      }
+    },
     "/api/v1/m/plans": {
       "get": {
         "operationId": "m.plan.list",

@@ -217,6 +217,9 @@ export type WechatPayTradeState =
 export type WechatPayRefundStatus = "SUCCESS" | "CLOSED" | "PROCESSING" | "ABNORMAL";
 
 export interface WechatPayTransaction {
+  /** 验签后的渠道身份；成功事实必须与装配身份一致。 */
+  appid?: string;
+  mchid?: string;
   outTradeNo: string;
   tradeState: WechatPayTradeState;
   transactionId?: string;
@@ -240,7 +243,18 @@ export type WechatPayNotification =
   | { kind: "transaction"; id: string; transaction: WechatPayTransaction }
   | { kind: "refund"; id: string; refund: WechatPayRefund };
 
+export interface MiniProgramPayParams {
+  appId: string;
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: "RSA";
+  paySign: string;
+}
+
 export interface WechatPayProvider extends ProviderBase {
+  /** 本地生成调起参数，仍经 Provider 事务边界守卫。 */
+  signMiniProgramPay(input: { prepayId: string }): Promise<ProviderResult<MiniProgramPayParams>>;
   /** 预下单。幂等于商户单号：同一单号、同样的入参重复调用返回同一个结果 */
   createJsapiOrder(input: {
     outTradeNo: string;
@@ -1057,6 +1071,7 @@ export const PROVIDER_METHODS = {
     "checkImage",
   ],
   wechatPay: [
+    "signMiniProgramPay",
     "createJsapiOrder",
     "verifyAndDecryptNotification",
     "queryByOutTradeNo",

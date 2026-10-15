@@ -61,7 +61,11 @@ export function mapTransaction(r: Json): WechatPayTransaction | null {
   const successAt = instant(r.success_time);
   if (!outTradeNo || !tradeState || successAt === null) return null;
   if (total !== undefined && fen(total) === undefined) return null;
+  if (isObject(r.amount) && r.amount.currency !== undefined && r.amount.currency !== "CNY")
+    return null;
   return {
+    appid: text(r.appid),
+    mchid: text(r.mchid),
     outTradeNo,
     tradeState,
     transactionId: text(r.transaction_id),

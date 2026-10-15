@@ -41,6 +41,8 @@ export interface TimerRef {
 }
 
 export interface TimerRunDeps {
+  /** 业务事务之前的可选准备，queued/inline共用；可能重复，调用方须按真实认领及主体事实守卫。失败沿原退避处理。 */
+  readonly beforeRun?: (ref: TimerRef) => Promise<void>;
   /** 失败短事务提交后的可选旁路，queued/inline共用，不影响原结果。 */
   readonly onFailure?: (outcome: "retry" | "failed") => void | Promise<void>;
   readonly tx: TxRunner;

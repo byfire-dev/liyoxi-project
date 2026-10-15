@@ -144,7 +144,17 @@ export async function createOrder(
       ...(input.months === undefined ? {} : { months: input.months }),
       ...(input.intent === undefined ? {} : { intent: input.intent }),
     },
-    (type, amount) => getPurchasePolicy(tx, deps.config, entity.id, now, client, type, amount),
+    (type, amount) =>
+      getPurchasePolicy(
+        tx,
+        deps.config,
+        entity.id,
+        now,
+        client,
+        type,
+        amount,
+        deps.wechatPay?.provider.configured ?? false,
+      ),
   );
   if (quote.payFen !== input.expectAmountFen)
     throw new AppError("QUOTE_CHANGED", {
@@ -176,11 +186,18 @@ export async function createOrder(
   await consents(tx, deps, actor, { id, orderNo }, input.agreementVersionIds);
   const createdAt = deps.clock.now();
   const finance = await financeConfigAt(tx, createdAt);
-  if (!finance.bank)
+  if (input.channel === "bank_transfer" && !finance.bank)
     throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: quote.policy.channels } });
-  const params = await paramsAt(tx, ["billing.payment.transfer_valid_days"], createdAt),
+  const params = await paramsAt(
+      tx,
+      ["billing.payment.transfer_valid_days", "billing.payment.order_timeout_minutes"],
+      createdAt,
+    ),
     expiresAt = new Date(
-      createdAt.getTime() + params["billing.payment.transfer_valid_days"] * 86_400_000,
+      createdAt.getTime() +
+        (input.channel === "wechat_jsapi"
+          ? params["billing.payment.order_timeout_minutes"] * 60_000
+          : params["billing.payment.transfer_valid_days"] * 86_400_000),
     );
   const order = await tx.billingOrder.create({
     data: {
@@ -190,7 +207,7 @@ export async function createOrder(
       storeId: actor.membership.storeId,
       type: "plan_new",
       status: "pending_payment",
-      channel: "bank_transfer",
+      channel: input.channel,
       source: "weapp",
       contentSnapshot: content,
       formulaCode: quote.formula.code,
@@ -198,8 +215,9 @@ export async function createOrder(
       quoteHash,
       amountFen: quote.payFen,
       expiresAt,
-      transferState: "awaiting_proof",
-      bankAccountFinanceConfigRevisionId: finance.bank.id,
+      transferState: input.channel === "bank_transfer" ? "awaiting_proof" : null,
+      bankAccountFinanceConfigRevisionId:
+        input.channel === "bank_transfer" ? finance.bank!.id : null,
       clientPlatform: client.platform,
       clientVersion: client.appVersion ?? null,
       placedByUserId: actor.ctx.actor.id,
@@ -219,9 +237,9 @@ export async function createOrder(
       stream: "activity",
       category: "payment",
       action: "billing.order.create",
-      summary: "创建对公付款单",
+      summary: input.channel === "bank_transfer" ? "创建对公付款单" : "创建微信付款单",
       target: { type: "billing_order", id },
-      meta: { collectionRevisionId: finance.bank.id },
+      meta: input.channel === "bank_transfer" ? { collectionRevisionId: finance.bank!.id } : {},
     },
     emit: {
       type: "billing_order.created",
@@ -231,13 +249,23 @@ export async function createOrder(
         entityId: entity.id,
         storeId: order.storeId,
         orderType: "plan_new",
-        channel: "bank_transfer",
+        channel: input.channel,
         amountFen: quote.payFen,
       },
       dedupeKey: `billing_order.created:${id}`,
     },
   });
-  await armTransferTtl(tx, deps, order);
+  if (input.channel === "bank_transfer") await armTransferTtl(tx, deps, order);
+  else
+    await deps.timers.arm(tx, {
+      kind: "po.expire",
+      subject: { type: "billing_order", id },
+      fireAt: new Date(expiresAt.getTime() + 60_000),
+      key: `po.expire:billing_order:${id}`,
+      entityId: entity.id,
+      storeId: actor.membership.storeId,
+      payload: { expiresAt: expiresAt.toISOString() },
+    });
   return { ...(await merchantOrderView(tx, deps, order, client)), replayed: false };
 }
 export async function submitProof(
