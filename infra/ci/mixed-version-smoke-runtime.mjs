@@ -203,7 +203,7 @@ export class RpcPeer {
 }
 
 const CONTAINER =
-  '{"id":{{json .Id}},"image":{{json .Image}},"name":{{json .Name}},"running":{{json .State.Running}},"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}},"labels":{{json .Config.Labels}},"networks":{{json .NetworkSettings.Networks}}}';
+  '{"id":{{json .Id}},"image":{{json .Image}},"name":{{json .Name}},"running":{{json .State.Running}},"health":{{with index .State "Health"}}{{json .Status}}{{else}}null{{end}},"labels":{{json .Config.Labels}},"networks":{{json .NetworkSettings.Networks}}}';
 const IMAGE = '{"id":{{json .Id}},"labels":{{json .Config.Labels}}}';
 export function assertDependency(row, service) {
   requireFact(
