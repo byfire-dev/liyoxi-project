@@ -143,7 +143,10 @@ export async function split(component, repo, output, build) {
     files: pairs,
   });
   for (const pair of pairs) {
-    await fs.copyFile(inside(target, pair.path), inside(root, pair.path));
+    const published = inside(root, pair.path),
+      originalMode = (await regular(published)).mode & 0o777;
+    await fs.copyFile(inside(target, pair.path), published);
+    await fs.chmod(published, originalMode);
     await fs.unlink(inside(root, pair.map.path));
   }
   guard(!(await files(root)).some((name) => name.endsWith(".map")));
