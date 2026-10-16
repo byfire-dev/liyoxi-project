@@ -96,7 +96,7 @@ export async function fulfillUpgrade(
     data: {
       planId: revision.planId,
       planRevisionId: revision.id,
-      monthlyEquivFen: revision.monthlyFeeFen,
+      monthlyEquivFen: term.monthlyEquivFen + content.feeDeltaPerMonthFen,
       monthlyPoints: revision.monthlyPoints,
       discountBp: revision.discountBp,
       productionModel: revision.productionModel,

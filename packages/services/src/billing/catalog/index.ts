@@ -3,6 +3,7 @@ import type { BillingOrderContent, PlanQuoteBody, PurchasePolicy } from "@liyoxi
 import { termDates, upgradePosition } from "@liyoxi/shared/period";
 import { calendarDate } from "@liyoxi/shared/time";
 import { quoteUpgrade } from "@liyoxi/shared/pricing";
+import { splitEvenly } from "@liyoxi/shared/alloc";
 import { paramsAt as configParamsAt } from "../../config/index.js";
 import { renewalDates } from "../subscription/terms.js";
 import { fromDateColumn } from "../ledger/context.js";
@@ -120,7 +121,12 @@ export async function quotePlan(
       calendarDate(at),
       params.prorationBaseDays,
     );
-    const feeDeltaPerMonthFen = revision.monthlyFeeFen - current!.monthlyEquivFen,
+    const targetCyclePriceFen = (revision.cyclePrices as Record<string, number>)[
+      String(current!.months)
+    ];
+    if (targetCyclePriceFen === undefined) throw new AppError("PLAN_NOT_AVAILABLE");
+    const feeDeltaPerMonthFen =
+        splitEvenly(targetCyclePriceFen, current!.months)[0]! - current!.monthlyEquivFen,
       pointsDeltaPerMonth = revision.monthlyPoints - current!.monthlyPoints;
     if (feeDeltaPerMonthFen <= 0 || pointsDeltaPerMonth <= 0)
       throw new AppError("UPGRADE_NOT_ALLOWED_TODAY", { details: { suggest: "renew_next_term" } });

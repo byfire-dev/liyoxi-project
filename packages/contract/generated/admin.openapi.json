@@ -65810,6 +65810,1496 @@
         "x-permission": "merchant.manager.transfer"
       }
     },
+    "/api/v1/admin/subscription-terms": {
+      "get": {
+        "operationId": "admin.subscriptionTerm.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": true,
+            "schema": {
+              "enum": [
+                "expiring",
+                "expired",
+                "renewed"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "actions": {
+                                "items": {
+                                  "enum": [
+                                    "remind",
+                                    "create-term-extension-request"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "endDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "entity": {
+                                "properties": {
+                                  "entityId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "managerStaff": {
+                                    "anyOf": [
+                                      {
+                                        "$ref": "#/components/schemas/StaffBrief"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "primaryStoreId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "primaryStoreName": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "storeCount": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "verificationStatus": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "entityId",
+                                  "name",
+                                  "primaryStoreId",
+                                  "primaryStoreName",
+                                  "storeCount",
+                                  "verificationStatus",
+                                  "managerStaff"
+                                ],
+                                "type": "object"
+                              },
+                              "expiredDays": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "intent": {
+                                "enum": [
+                                  "none",
+                                  "considering",
+                                  "confirmed",
+                                  "declined",
+                                  "renewed",
+                                  "extension_pending"
+                                ],
+                                "type": "string"
+                              },
+                              "manager": {
+                                "allOf": [
+                                  {
+                                    "$ref": "#/components/schemas/StaffBrief"
+                                  },
+                                  {
+                                    "type": [
+                                      "object",
+                                      "null"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "months": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "plan": {
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "planId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "planId",
+                                  "name"
+                                ],
+                                "type": "object"
+                              },
+                              "points": {
+                                "properties": {
+                                  "addonAvailablePoints": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "isAddonSuspended": {
+                                    "type": "boolean"
+                                  },
+                                  "lastExpiredPoints": {
+                                    "minimum": 0,
+                                    "type": [
+                                      "integer",
+                                      "null"
+                                    ]
+                                  },
+                                  "planAvailablePoints": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "planAvailablePoints",
+                                  "lastExpiredPoints",
+                                  "addonAvailablePoints",
+                                  "isAddonSuspended"
+                                ],
+                                "type": "object"
+                              },
+                              "remainingDays": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "remindedToday": {
+                                "type": "boolean"
+                              },
+                              "reminders": {
+                                "items": {
+                                  "properties": {
+                                    "channels": {
+                                      "items": {
+                                        "properties": {
+                                          "channel": {
+                                            "type": "string"
+                                          },
+                                          "sentAt": {
+                                            "format": "date-time",
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "status": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "channel",
+                                          "status",
+                                          "sentAt"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "type": "array"
+                                    },
+                                    "dueDate": {
+                                      "format": "date",
+                                      "type": "string"
+                                    },
+                                    "node": {
+                                      "type": "string"
+                                    },
+                                    "state": {
+                                      "enum": [
+                                        "sent",
+                                        "pending",
+                                        "skipped"
+                                      ],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "node",
+                                    "dueDate",
+                                    "state",
+                                    "channels"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "renewal": {
+                                "properties": {
+                                  "amountFen": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "months": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "newEndDate": {
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "newStartDate": {
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "orderNo": {
+                                    "type": "string"
+                                  },
+                                  "paidAt": {
+                                    "format": "date-time",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "paymentOrderId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "planName": {
+                                    "type": "string"
+                                  },
+                                  "renewalTiming": {
+                                    "enum": [
+                                      "early",
+                                      "before_due",
+                                      "after_expiry"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "subscriptionTermId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "subscriptionTermId",
+                                  "paymentOrderId",
+                                  "orderNo",
+                                  "planName",
+                                  "months",
+                                  "amountFen",
+                                  "paidAt",
+                                  "newStartDate",
+                                  "newEndDate",
+                                  "renewalTiming"
+                                ],
+                                "type": [
+                                  "object",
+                                  "null"
+                                ]
+                              },
+                              "startDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "status": {
+                                "enum": [
+                                  "scheduled",
+                                  "active",
+                                  "ended",
+                                  "refunded",
+                                  "cancelled"
+                                ],
+                                "type": "string"
+                              },
+                              "subscriptionTermId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "subscriptionTermId",
+                              "entity",
+                              "plan",
+                              "months",
+                              "startDate",
+                              "endDate",
+                              "status",
+                              "remainingDays",
+                              "expiredDays",
+                              "reminders",
+                              "points",
+                              "renewal",
+                              "intent",
+                              "manager",
+                              "remindedToday",
+                              "actions"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "套餐到期跟进：7 天内到期、已过期未续费（30 天内）、本月已续费；搜索、交付经理、版本筛选",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/subscription-terms/summary": {
+      "get": {
+        "operationId": "admin.subscriptionTerm.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "expired": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "expiring": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "renewalRate": {
+                          "properties": {
+                            "doneCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "dueCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "isProvisional": {
+                              "type": "boolean"
+                            },
+                            "month": {
+                              "type": "string"
+                            },
+                            "rateBp": {
+                              "minimum": 0,
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "month",
+                            "dueCount",
+                            "doneCount",
+                            "rateBp",
+                            "isProvisional"
+                          ],
+                          "type": "object"
+                        },
+                        "renewed": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "renewedAheadCount": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "renewedFen": {
+                          "pattern": "^\\d+$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "expiring",
+                        "expired",
+                        "renewed",
+                        "renewedFen",
+                        "renewedAheadCount",
+                        "renewalRate"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "套餐到期页 KPI：7 天内到期、已过期未续费、本月续费率",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/subscription-terms/{subscriptionTermId}": {
+      "get": {
+        "operationId": "admin.subscriptionTerm.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscriptionTermId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "actions": {
+                          "items": {
+                            "enum": [
+                              "remind",
+                              "create-term-extension-request"
+                            ],
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "benefits": {
+                          "properties": {
+                            "discountBp": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "hasMonthlyReport": {
+                              "type": "boolean"
+                            },
+                            "maxMembers": {
+                              "minimum": 0,
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "maxStores": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "monthlyPoints": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "productionModel": {
+                              "enum": [
+                                "standard",
+                                "advanced",
+                                "top"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            },
+                            "schedulePriority": {
+                              "enum": [
+                                "standard",
+                                "priority",
+                                "rush"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            }
+                          },
+                          "required": [
+                            "monthlyPoints",
+                            "discountBp",
+                            "productionModel",
+                            "schedulePriority",
+                            "maxStores",
+                            "maxMembers",
+                            "hasMonthlyReport"
+                          ],
+                          "type": "object"
+                        },
+                        "endDate": {
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "endsAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "entity": {
+                          "properties": {
+                            "entityId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "managerStaff": {
+                              "anyOf": [
+                                {
+                                  "$ref": "#/components/schemas/StaffBrief"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "primaryStoreId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "primaryStoreName": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "storeCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "verificationStatus": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "entityId",
+                            "name",
+                            "primaryStoreId",
+                            "primaryStoreName",
+                            "storeCount",
+                            "verificationStatus",
+                            "managerStaff"
+                          ],
+                          "type": "object"
+                        },
+                        "expiredDays": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "extensions": {
+                          "items": {
+                            "properties": {
+                              "appliedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "appliedMode": {
+                                "type": "string"
+                              },
+                              "days": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "requestNo": {
+                                "type": "string"
+                              },
+                              "termExtensionRequestId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "termExtensionRequestId",
+                              "requestNo",
+                              "days",
+                              "appliedMode",
+                              "appliedAt"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "intent": {
+                          "enum": [
+                            "none",
+                            "considering",
+                            "confirmed",
+                            "declined",
+                            "renewed",
+                            "extension_pending"
+                          ],
+                          "type": "string"
+                        },
+                        "latestFollowUp": {
+                          "properties": {
+                            "channel": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "content": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "followUpId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "intent": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "owner": {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            }
+                          },
+                          "required": [
+                            "followUpId",
+                            "intent",
+                            "channel",
+                            "content",
+                            "createdAt",
+                            "owner"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "manager": {
+                          "allOf": [
+                            {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            },
+                            {
+                              "type": [
+                                "object",
+                                "null"
+                              ]
+                            }
+                          ]
+                        },
+                        "months": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "nextTerm": {
+                          "properties": {
+                            "amountFen": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "endDate": {
+                              "format": "date",
+                              "type": "string"
+                            },
+                            "months": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "orderNo": {
+                              "type": "string"
+                            },
+                            "paidAt": {
+                              "format": "date-time",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "paymentOrderId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "planName": {
+                              "type": "string"
+                            },
+                            "startDate": {
+                              "format": "date",
+                              "type": "string"
+                            },
+                            "subscriptionTermId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "subscriptionTermId",
+                            "planName",
+                            "months",
+                            "startDate",
+                            "endDate",
+                            "paymentOrderId",
+                            "orderNo",
+                            "amountFen",
+                            "paidAt"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "orderItems": {
+                          "properties": {
+                            "liveCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "nextLaunchDate": {
+                              "format": "date",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "producingCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "toLaunchCount": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "producingCount",
+                            "toLaunchCount",
+                            "liveCount",
+                            "nextLaunchDate"
+                          ],
+                          "type": "object"
+                        },
+                        "pendingExtension": {
+                          "properties": {
+                            "days": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "requestNo": {
+                              "type": "string"
+                            },
+                            "requester": {
+                              "$ref": "#/components/schemas/StaffBrief"
+                            },
+                            "termExtensionRequestId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "termExtensionRequestId",
+                            "requestNo",
+                            "days",
+                            "requester"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "plan": {
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "planId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "planId",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "points": {
+                          "properties": {
+                            "addonAvailablePoints": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "isAddonSuspended": {
+                              "type": "boolean"
+                            },
+                            "lastExpiredPoints": {
+                              "minimum": 0,
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "planAvailablePoints": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "planAvailablePoints",
+                            "lastExpiredPoints",
+                            "addonAvailablePoints",
+                            "isAddonSuspended"
+                          ],
+                          "type": "object"
+                        },
+                        "pointsForecast": {
+                          "properties": {
+                            "addonWillSuspend": {
+                              "type": "boolean"
+                            },
+                            "expiresAt": {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            "planPointsToExpire": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "planPointsToExpire",
+                            "expiresAt",
+                            "addonWillSuspend"
+                          ],
+                          "type": "object"
+                        },
+                        "remainingDays": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "remindedToday": {
+                          "type": "boolean"
+                        },
+                        "reminders": {
+                          "items": {
+                            "properties": {
+                              "channels": {
+                                "items": {
+                                  "properties": {
+                                    "channel": {
+                                      "type": "string"
+                                    },
+                                    "sentAt": {
+                                      "format": "date-time",
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "channel",
+                                    "status",
+                                    "sentAt"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "dueDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "node": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "sent",
+                                  "pending",
+                                  "skipped"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "node",
+                              "dueDate",
+                              "state",
+                              "channels"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "renewal": {
+                          "properties": {
+                            "amountFen": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "months": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "newEndDate": {
+                              "format": "date",
+                              "type": "string"
+                            },
+                            "newStartDate": {
+                              "format": "date",
+                              "type": "string"
+                            },
+                            "orderNo": {
+                              "type": "string"
+                            },
+                            "paidAt": {
+                              "format": "date-time",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "paymentOrderId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "planName": {
+                              "type": "string"
+                            },
+                            "renewalTiming": {
+                              "enum": [
+                                "early",
+                                "before_due",
+                                "after_expiry"
+                              ],
+                              "type": "string"
+                            },
+                            "subscriptionTermId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "subscriptionTermId",
+                            "paymentOrderId",
+                            "orderNo",
+                            "planName",
+                            "months",
+                            "amountFen",
+                            "paidAt",
+                            "newStartDate",
+                            "newEndDate",
+                            "renewalTiming"
+                          ],
+                          "type": [
+                            "object",
+                            "null"
+                          ]
+                        },
+                        "startDate": {
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "status": {
+                          "enum": [
+                            "scheduled",
+                            "active",
+                            "ended",
+                            "refunded",
+                            "cancelled"
+                          ],
+                          "type": "string"
+                        },
+                        "subscriptionTermId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "subscriptionTermId",
+                        "entity",
+                        "plan",
+                        "months",
+                        "startDate",
+                        "endDate",
+                        "status",
+                        "remainingDays",
+                        "expiredDays",
+                        "reminders",
+                        "points",
+                        "renewal",
+                        "intent",
+                        "manager",
+                        "remindedToday",
+                        "actions",
+                        "endsAt",
+                        "benefits",
+                        "pointsForecast",
+                        "orderItems",
+                        "nextTerm",
+                        "extensions",
+                        "pendingExtension",
+                        "latestFollowUp"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "到期详情：本期、积分清零与冻结预告、在播短剧、续费信息、提醒时间线、跟进记录",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/subscription-terms/{subscriptionTermId}/remind": {
+      "post": {
+        "operationId": "admin.subscriptionTerm.remind",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscriptionTermId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "bizDate": {
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "manualReminderLogId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        },
+                        "remindedToday": {
+                          "enum": [
+                            true
+                          ],
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "manualReminderLogId",
+                        "bizDate",
+                        "remindedToday"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "补发续费提醒（订阅消息 + 短信；按“主体 + 日期”每天一次）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.renewal.remind"
+      }
+    },
     "/api/v1/admin/timers": {
       "get": {
         "operationId": "admin.timer.list",

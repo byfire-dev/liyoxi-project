@@ -10,7 +10,7 @@ import {
   openTerm,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
-import { quotePlan } from "../catalog/index.js";
+import { benefitsOf, quotePlan } from "../catalog/index.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "./invariants.js";
 import { paymentInvariants } from "../payment/invariants.js";
@@ -329,6 +329,84 @@ it("升级按付款行为时刻接受跨月确认，补发与后续改写成本�
     }),
   ).rejects.toBe(rollback);
   await invariant(h, id);
+
+  // 独立季度折扣修订：1620001 / 3 向下取整为540000，余1分不进入MRR。
+  // 原无折扣升级及其所有断言保留；这个主体仍走真实报价、付款、履约和重放。
+  h.clock.set(new Date("2026-03-31T04:00:00Z"));
+  const discountedOwner = await h.make.merchant({ verified: true }),
+    discountedId = discountedOwner.entity.id;
+  await payQuote(h, discountedId, await quote(h, discountedId, "basic", { months: 3 }));
+  const pro = await h.prisma.plan.findUniqueOrThrow({ where: { code: "pro" } }),
+    originalRevision = await h.prisma.planRevision.findFirstOrThrow({
+      where: { planId: pro.id },
+      orderBy: { revisionNo: "desc" },
+    });
+  const discountedRevision = await h.prisma.planRevision.create({
+    data: {
+      id: uuidv7(),
+      planId: pro.id,
+      revisionNo: originalRevision.revisionNo + 1,
+      ...benefitsOf(originalRevision),
+      monthlyFeeFen: originalRevision.monthlyFeeFen,
+      cyclePrices: { "1": 600000, "3": 1620001, "12": 6480000 },
+      effectiveAt: h.clock.now(),
+      createdAt: h.clock.now(),
+    },
+  });
+  h.clock.set(new Date("2026-04-20T04:00:00Z"));
+  const discountedQuote = await quote(h, discountedId, "pro");
+  expect(discountedQuote.quote).toMatchObject({
+    planRevisionId: discountedRevision.id,
+    payFen: 552000,
+    upgrade: {
+      remainingDays: 9,
+      remainingFullMonths: 2,
+      feeDeltaPerMonthFen: 240000,
+      proratedFen: 72000,
+      topupPoints: 1080,
+    },
+  });
+  const discountedSubmitted = h.clock.now();
+  h.clock.set(new Date("2026-05-02T04:00:00Z"));
+  const discountedPaid = await payQuote(h, discountedId, discountedQuote, discountedSubmitted);
+  expect(discountedPaid.outcome.result).toMatchObject({
+    status: "applied",
+    fulfillment: { status: "done" },
+  });
+  const discountedTerm = await h.prisma.subscriptionTerm.findFirstOrThrow({
+    where: { entityId: discountedId, status: "active" },
+  });
+  expect(discountedTerm).toMatchObject({
+    planRevisionId: discountedRevision.id,
+    monthlyEquivFen: 540000,
+    monthlyPoints: 6600,
+  });
+  expect(
+    (
+      await h.prisma.pointLot.findMany({
+        where: { sourceType: "grant_upgrade", sourceId: discountedPaid.order.id },
+        orderBy: { sourceNo: "asc" },
+      })
+    ).map((lot) => [lot.sourceNo, lot.originalQty, lot.costBasisFen]),
+  ).toEqual([
+    [0, 1080, 72000],
+    [1, 3600, 240000],
+  ]);
+  expect(
+    await h.prisma.grantSchedule.findUniqueOrThrow({
+      where: { subscriptionTermId_monthNo: { subscriptionTermId: discountedTerm.id, monthNo: 2 } },
+    }),
+  ).toMatchObject({ points: 6600, valueFen: 540000 });
+  const discountedBefore = await snapshotTables(h.prisma, tables);
+  await applyReceipt(h, discountedPaid.receipt);
+  expect(await snapshotTables(h.prisma, tables)).toEqual(discountedBefore);
+  h.clock.set(new Date("2026-05-03T04:00:00Z"));
+  await invariant(h, discountedId);
+  expect(
+    await h.prisma.billingEntityDaily.findUniqueOrThrow({
+      where: { bizDate_entityId: { entityId: discountedId, bizDate: new Date("2026-05-02") } },
+    }),
+  ).toMatchObject({ mrrFen: 540000 });
 }, 30000);
 
 it("R1从真实止日节点与后续周期重核，清零节点查询不写库且预约后立即失效", async () => {

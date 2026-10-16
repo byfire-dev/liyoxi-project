@@ -13,3 +13,5 @@
 shared/valuation纯回放前置已实际合入`cf5e0cce`，daily价值/I11/I13的真实DB投影仍由独立前置交付后装配，不能拍当前可变周期/计划反推历史。ROOT批准内部事件的versioned dailySnapshot同TX捕获与active-only `Ledger.applyExtension`期限原语；后者不实现W4-08审批、revive/unexpire或现金规则。本包保持进行中；合法m>0且topupPoints=0/proratedFen>0的即时升级成本表达另等业主明确，不借本记录改变原规则。
 
 daily前置`c1ce0022`实际合入后，补每期ended的内部expired终态（有预约续接也记录），不变外部expired发送语义；原预约测试仅增这条真实历史。日任务在本域sweep构造独立assembly，runtime/ops-worker只接原ledger与正式projection，无新循环/租约框架。投影旧史缺失在kernel保存点隔离，不能回滚正常advance或报整轮成功；I11/I13只读重算仍须真实公口，不调用写者冒充不变量查询。
+
+最终核心相对W4-04实际main共29生产/契约叶，2088增/83删（不含测试、生成、文档）；超过初估的增量为已批准active期限原语、内部历史与闭日只读不变量装配，无新框架。ROOT唯一独审的周期折扣价P1已定点修正：目标当前周期总价取整数月均、履约使用冻结价差；现有升级聚合增折扣季度/I12/MRR/重放验证通过。极小补差成本规则未决，状态保持进行中，不宣称整包验收或合main。

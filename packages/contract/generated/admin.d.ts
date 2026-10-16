@@ -3459,6 +3459,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/subscription-terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 套餐到期跟进：7 天内到期、已过期未续费（30 天内）、本月已续费；搜索、交付经理、版本筛选 */
+        get: operations["admin.subscriptionTerm.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscription-terms/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 套餐到期页 KPI：7 天内到期、已过期未续费、本月续费率 */
+        get: operations["admin.subscriptionTerm.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscription-terms/{subscriptionTermId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 到期详情：本期、积分清零与冻结预告、在播短剧、续费信息、提醒时间线、跟进记录 */
+        get: operations["admin.subscriptionTerm.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/subscription-terms/{subscriptionTermId}/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 补发续费提醒（订阅消息 + 短信；按“主体 + 日期”每天一次） */
+        post: operations["admin.subscriptionTerm.remind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/timers": {
         parameters: {
             query?: never;
@@ -28577,6 +28645,511 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["ManagerTransferResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.subscriptionTerm.list": {
+        parameters: {
+            query: {
+                q?: string;
+                managerId?: string;
+                planId?: string;
+                page?: number;
+                pageSize?: number;
+                tab: "expiring" | "expired" | "renewed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                actions: ("remind" | "create-term-extension-request")[];
+                                /** Format: date */
+                                endDate: string;
+                                entity: {
+                                    /** Format: uuid */
+                                    entityId: string;
+                                    managerStaff: components["schemas"]["StaffBrief"] | null;
+                                    name: string;
+                                    /** Format: uuid */
+                                    primaryStoreId: string | null;
+                                    primaryStoreName: string | null;
+                                    storeCount: number;
+                                    verificationStatus: string;
+                                };
+                                expiredDays: number | null;
+                                /** @enum {string} */
+                                intent: "none" | "considering" | "confirmed" | "declined" | "renewed" | "extension_pending";
+                                manager: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                months: number;
+                                plan: {
+                                    name: string;
+                                    /** Format: uuid */
+                                    planId: string;
+                                };
+                                points: {
+                                    addonAvailablePoints: number;
+                                    isAddonSuspended: boolean;
+                                    lastExpiredPoints: number | null;
+                                    planAvailablePoints: number;
+                                };
+                                remainingDays: number | null;
+                                remindedToday: boolean;
+                                reminders: {
+                                    channels: {
+                                        channel: string;
+                                        /** Format: date-time */
+                                        sentAt: string | null;
+                                        status: string;
+                                    }[];
+                                    /** Format: date */
+                                    dueDate: string;
+                                    node: string;
+                                    /** @enum {string} */
+                                    state: "sent" | "pending" | "skipped";
+                                }[];
+                                renewal: {
+                                    amountFen: number;
+                                    months: number;
+                                    /** Format: date */
+                                    newEndDate: string;
+                                    /** Format: date */
+                                    newStartDate: string;
+                                    orderNo: string;
+                                    /** Format: date-time */
+                                    paidAt: string | null;
+                                    /** Format: uuid */
+                                    paymentOrderId: string;
+                                    planName: string;
+                                    /** @enum {string} */
+                                    renewalTiming: "early" | "before_due" | "after_expiry";
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                } | null;
+                                /** Format: date */
+                                startDate: string;
+                                /** @enum {string} */
+                                status: "scheduled" | "active" | "ended" | "refunded" | "cancelled";
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.subscriptionTerm.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                managerId?: string;
+                planId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            expired: number;
+                            expiring: number;
+                            renewalRate: {
+                                doneCount: number;
+                                dueCount: number;
+                                isProvisional: boolean;
+                                month: string;
+                                rateBp: number | null;
+                            };
+                            renewed: number;
+                            renewedAheadCount: number;
+                            renewedFen: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.subscriptionTerm.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionTermId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("remind" | "create-term-extension-request")[];
+                            benefits: {
+                                discountBp: number;
+                                hasMonthlyReport: boolean;
+                                maxMembers: number | null;
+                                maxStores: number;
+                                monthlyPoints: number;
+                                /** @enum {string} */
+                                productionModel: "standard" | "advanced" | "top" | (string & {});
+                                /** @enum {string} */
+                                schedulePriority: "standard" | "priority" | "rush" | (string & {});
+                            };
+                            /** Format: date */
+                            endDate: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            expiredDays: number | null;
+                            extensions: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                appliedMode: string;
+                                days: number;
+                                requestNo: string;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            }[];
+                            /** @enum {string} */
+                            intent: "none" | "considering" | "confirmed" | "declined" | "renewed" | "extension_pending";
+                            latestFollowUp: {
+                                channel: string | null;
+                                content: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: uuid */
+                                followUpId: string;
+                                intent: string | null;
+                                owner: components["schemas"]["StaffBrief"];
+                            } | null;
+                            manager: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                            months: number;
+                            nextTerm: {
+                                amountFen: number;
+                                /** Format: date */
+                                endDate: string;
+                                months: number;
+                                orderNo: string;
+                                /** Format: date-time */
+                                paidAt: string | null;
+                                /** Format: uuid */
+                                paymentOrderId: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            } | null;
+                            orderItems: {
+                                liveCount: number;
+                                /** Format: date */
+                                nextLaunchDate: string | null;
+                                producingCount: number;
+                                toLaunchCount: number;
+                            };
+                            pendingExtension: {
+                                days: number;
+                                requestNo: string;
+                                requester: components["schemas"]["StaffBrief"];
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                            plan: {
+                                name: string;
+                                /** Format: uuid */
+                                planId: string;
+                            };
+                            points: {
+                                addonAvailablePoints: number;
+                                isAddonSuspended: boolean;
+                                lastExpiredPoints: number | null;
+                                planAvailablePoints: number;
+                            };
+                            pointsForecast: {
+                                addonWillSuspend: boolean;
+                                /** Format: date-time */
+                                expiresAt: string;
+                                planPointsToExpire: number;
+                            };
+                            remainingDays: number | null;
+                            remindedToday: boolean;
+                            reminders: {
+                                channels: {
+                                    channel: string;
+                                    /** Format: date-time */
+                                    sentAt: string | null;
+                                    status: string;
+                                }[];
+                                /** Format: date */
+                                dueDate: string;
+                                node: string;
+                                /** @enum {string} */
+                                state: "sent" | "pending" | "skipped";
+                            }[];
+                            renewal: {
+                                amountFen: number;
+                                months: number;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                newStartDate: string;
+                                orderNo: string;
+                                /** Format: date-time */
+                                paidAt: string | null;
+                                /** Format: uuid */
+                                paymentOrderId: string;
+                                planName: string;
+                                /** @enum {string} */
+                                renewalTiming: "early" | "before_due" | "after_expiry";
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            } | null;
+                            /** Format: date */
+                            startDate: string;
+                            /** @enum {string} */
+                            status: "scheduled" | "active" | "ended" | "refunded" | "cancelled";
+                            /** Format: uuid */
+                            subscriptionTermId: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.subscriptionTerm.remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionTermId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** Format: date */
+                            bizDate: string;
+                            /** Format: uuid */
+                            manualReminderLogId: string;
+                            /** @enum {boolean} */
+                            remindedToday: true;
+                        };
                         /** @enum {string} */
                         message: "ok";
                     };
