@@ -1,6 +1,11 @@
-# 同步证照识别由 API 拥有；worker 不挂 OCR 凭据。
+# API 同步识别证照；worker 执行异步回单识别，均只挂本 OCR 文件。
 services:
   api:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+  worker:
     environment:
       OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
     secrets:

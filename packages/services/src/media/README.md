@@ -236,3 +236,21 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 本地6组清扫DB、3组精准引用、2组核心回归和1组真实worker装配已分轮通过；唯一独审及候选缓存遗漏点修闭环。
 清单生成与执行均以真实引用/24小时事实补缓存滞后，执行严格限本run原候选，锁内再核全部守卫。
 101文件仅测100批边界，未做生产容量结论。W3-08可消费实际六接口；批准仅代表approved，删除结果须重新读取。
+
+
+## W4-04 异步银行回单技术前置
+
+`enqueueBankReceiptOcr(tx, ctx, {fileId, entityId})`只在调用方事务内核实际stored/pay_receipt文件、
+创建pending结果与原ocr/local任务；未配返回`{ocrResultId:null,status:unavailable}`，不造成功。
+同文件/主体/版本的pending或ok结果复用；返回ok缓存后调用方立即read重算比对，不重发旧事件。
+`readBankReceiptOcr(tx,{ocrResultId,fileId,entityId,mediaJobId?})`复核范围，只返回六字段及payerAccountMask、告警。
+事件消费传mediaJobId时另核真实任务全部绑定、终态安全输出与当前文件版本；伪job/错结果返回null。
+回单storeId固定null；识别字段/原响应只在ocr_result加密保存，原文沿30天清除计划。
+
+原runner槽、租约、三次失败退避与期限保持，六秒有界取消包含签名准备和Provider请求。
+收尾同TX保存结果并发已有`media.ocr.completed`；payload只含v/ocrResultId/fileId/entityId/mediaJobId/docType/status，
+任务最终只留结果ID和状态。media不读写billing表，不自动确认收款；迟到凭证由billing绑定当前指针再裁剪。
+唯一审查56.879秒、15叶首尾hash一致、P1/P2/D=0，后续三点核0阻断；services/API类型通过，
+新增SDK1/DB1与旧执照最小协议1合并3/3G（另1旧例未选），总6.77秒，未重复历史矩阵。
+首轮类型两处接线错误及未验边界记前置变更；真实云准确率/费用未验。
+worker配置接线另由独立伴随合入，不能把本源码装配当预发部署。

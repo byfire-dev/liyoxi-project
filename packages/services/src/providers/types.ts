@@ -16,6 +16,10 @@ import type {
   MediaToolHealth,
   ProbeReport,
 } from "./mediatool/schema.js";
+import type { BankReceiptFields } from "./ocr/receipt.js";
+export { BankReceiptFieldsSchema } from "./ocr/receipt.js";
+export type { BankReceiptFields } from "./ocr/receipt.js";
+
 import type { LlmDigest, LlmDigestInput } from "./llm/digest.js";
 import type { LlmVision, LlmVisionInput } from "./llm/vision.js";
 export { isLlmDigestInput, LlmDigestSchema } from "./llm/digest.js";
@@ -908,6 +912,11 @@ export interface BusinessLicenseFields {
 }
 
 export interface OcrProvider extends ProviderBase {
+  /** 银行回单图片或PDF首页；不可据此确认到账。 */
+  recognizeBankReceipt(input: {
+    fileUrl: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<BankReceiptFields>>;
   /** 营业执照识别 */
   recognizeBusinessLicense(input: {
     imageUrl: string;
@@ -1188,7 +1197,7 @@ export const PROVIDER_METHODS = {
     "auditVideo",
     "describeAudit",
   ],
-  ocr: ["recognizeBusinessLicense", "extractLicenseFields"],
+  ocr: ["recognizeBusinessLicense", "extractLicenseFields", "recognizeBankReceipt"],
   asr: ["transcribe", "submit", "query"],
   llm: ["tagAsset", "extractKeyPoints", "summarizeAsset", "analyzeVision"],
   wecom: [
