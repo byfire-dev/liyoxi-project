@@ -25,6 +25,7 @@ export type { AgreementListQuery } from "./read.js";
 export type {
   SignedAgreementFilter,
   SignedAgreementQuery,
+  SignedAgreementTitleReader,
   SignedAgreementViewer,
 } from "./signed.js";
 export { versionLabel } from "./versions.js";

@@ -34,6 +34,12 @@ export interface SignedAgreementQuery extends SignedAgreementFilter {
   readonly limit: number;
 }
 
+/** 上层装配的只读标题端口；docs 不读取付款单表。 */
+export type SignedAgreementTitleReader = (
+  entityId: string,
+  orderNos: readonly string[],
+) => Promise<readonly { orderNo: string; title: string }[]>;
+
 const CONSENT_COLUMNS = {
   seq: true,
   consentedAt: true,
@@ -90,7 +96,7 @@ async function ownerItems(
       versionLabel: versionLabel(row.agreementVersion),
       bizType: row.bizType as ConsentRecord["bizType"],
       bizNo: row.bizNo,
-      // 留桩：付款单的标题要经 billing 取（docs 在 L1 读不到付款单），随 G4-C 的合同页接上
+      // 仅老板本页的付款记录由注入端口批量补齐；未配置或缺失时保持 null。
       bizTitle: null,
     });
     const consented = latest.agreementVersion;
@@ -132,9 +138,33 @@ export async function listSignedAgreements(
   now: Date,
   viewer: SignedAgreementViewer,
   query: SignedAgreementQuery,
+  describePaymentOrders?: SignedAgreementTitleReader,
 ): Promise<SignedAgreementList> {
   if (viewer.role === "owner") {
     const page = pageOf(await ownerItems(db, now, viewer, query), query.cursor, query.limit);
+    const orderNos = [
+      ...new Set(
+        page.items.flatMap((item) =>
+          [item.firstConsent, item.latestConsent].flatMap((consent) =>
+            consent.bizType === "billing_order" && consent.bizNo ? [consent.bizNo] : [],
+          ),
+        ),
+      ),
+    ];
+    if (describePaymentOrders && orderNos.length > 0) {
+      const titles = new Map(
+        (await describePaymentOrders(viewer.entityId, orderNos)).map((order) => [
+          order.orderNo,
+          order.title,
+        ]),
+      );
+      for (const item of page.items) {
+        for (const consent of [item.firstConsent, item.latestConsent]) {
+          if (consent.bizType === "billing_order" && consent.bizNo)
+            consent.bizTitle = titles.get(consent.bizNo) ?? null;
+        }
+      }
+    }
     return { viewerRole: "owner", ...page };
   }
   // 店员：只看本人的用户级协议（筛选给了 entity 即空）；每条记录去掉三个单据字段

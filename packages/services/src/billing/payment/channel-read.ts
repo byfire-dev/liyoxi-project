@@ -22,6 +22,7 @@ import { byEntity, hasPermission, satisfiesLevel } from "../../authz/index.js";
 import type { StaffContext } from "../../authz/index.js";
 import { AppError } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
+import { paymentOrderTitle } from "./describe.js";
 import { staffBrief } from "./purchase-read.js";
 import type { BillingPurchaseDeps, PurchaseActor } from "./purchase-context.js";
 
@@ -89,7 +90,7 @@ function dateRange(from?: string, to?: string) {
 }
 async function title(tx: Tx, order: BillingOrder) {
   const content = billingOrderContentSchema.parse(order.contentSnapshot);
-  if (content.kind === "topup") return `加购积分 ${content.points.toLocaleString("zh-CN")}`;
+  if (content.kind === "topup") return paymentOrderTitle(order.type, content);
   const plan =
     content.kind === "plan"
       ? await tx.plan.findUniqueOrThrow({ where: { id: content.planId }, select: { name: true } })
@@ -99,8 +100,7 @@ async function title(tx: Tx, order: BillingOrder) {
             select: { plan: { select: { name: true } } },
           })
         ).plan;
-  if (content.kind === "upgrade") return `升级${plan.name}（本期剩余 ${content.remainingDays} 天）`;
-  return `${order.type === "plan_renew" ? "续费" : "开通"}${content.planName ?? plan.name} · ${content.months} 个月`;
+  return paymentOrderTitle(order.type, content, plan.name);
 }
 function invoiceWhere(state: string, cutoff: Date | null): Prisma.BillingOrderWhereInput {
   const noActive = { invoiceRequests: { none: { status: { in: activeInvoice } } } };

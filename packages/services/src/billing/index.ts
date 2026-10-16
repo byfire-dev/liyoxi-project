@@ -115,6 +115,8 @@ export type {
   PaymentExceptionKind,
 } from "./payment/index.js";
 export { createBillingPurchase } from "./payment/purchase.js";
+export { describePaymentOrders } from "./payment/describe.js";
+export type { PaymentOrderDescription } from "./payment/describe.js";
 export { createPointPacks } from "./catalog/point-packs.js";
 export type { PointPackActor } from "./catalog/point-packs.js";
 export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./payment/purchase.js";
