@@ -73,7 +73,12 @@ async function payQuote(
     },
   });
   const uploader = await h.make.staff(),
-    file = await h.make.fileObject({ category: "pay_receipt", bucket: "secure", entityId });
+    file = await h.make.fileObject({
+      category: "pay_receipt",
+      bucket: "secure",
+      scopeType: "entity",
+      entityId,
+    });
   const proof = await h.prisma.transferProof.create({
     data: {
       id: uuidv7(),
@@ -436,7 +441,21 @@ it("升级写到权益变更后业务故障仍由保存点回滚补发与计划�
       where: { billingOrderId: paid.order.id, status: "open" },
     }),
   ).toBe(1);
+  await invariant(h, id);
   h.clock.set(new Date(term.endsAt.getTime() - 3600000));
   await expect(quote(h, id, "pro")).rejects.toMatchObject({ error: "UPGRADE_NOT_ALLOWED_TODAY" });
-  await invariant(h, id);
+  expect(
+    await h.tx.run((tx) =>
+      paymentInvariants.find((rule) => rule.code === "payment.I4")!.run!(
+        tx,
+        { entityIds: [id] },
+        { now: h.clock.now() },
+      ),
+    ),
+  ).toMatchObject([
+    {
+      subject: { type: "billing_order", id: paid.order.id },
+      detail: { problem: "blocked_overdue" },
+    },
+  ]);
 }, 30000);
