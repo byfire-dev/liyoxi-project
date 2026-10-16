@@ -339,6 +339,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     ((entry === "api" && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC)) || !!env.OCR_TENCENT);
   const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
   const ownsOcr = options.providers === undefined && !!env.OCR_TENCENT;
+  const ownsMail = entry === "worker" && options.providers === undefined && !!env.MAIL_TENCENT;
   const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
   const modelDrivers = ownsModels ? options.modelDrivers : undefined;
   if (
@@ -469,6 +470,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       settings: {
         ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
         ...(ownsOcr ? { ocr: env.OCR_TENCENT } : {}),
+        ...(ownsMail ? { mail: env.MAIL_TENCENT } : {}),
         ...(ownsModels && entry === "api" && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
         ...(env.SMS
           ? {
@@ -532,6 +534,14 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         ? {
             ocr: {
               registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsMail
+        ? {
+            mail: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
             },
           }
         : {}),
