@@ -112,3 +112,11 @@ M1时只接受 `bank_transfer`；W4-01已回补关联付款单的可信微信成
 当前仅源码轻检查，尚未独审/类型/DB/HTTP验收。回单 OCR 的 media/Provider 独立前置尚未 actual，本包四项辅助比对函数已保存但未接完成事件；不声称 OCR、两桩或 W4-04 完成。真实回单与外部识别/资金验证仍未验。
 
 后续源码候选已同步 OCR actual `ec16f048`：新凭证同事务登记真实回单任务/指针并保存四项辅助结论，缓存 ok 直接读；完成订阅经 media 公口核 job/file/entity 后只更新当前 pending 凭证。查询只读脱敏六字段与实际结论，不把金额/户名/账号原值写进 check_result，也不自动到账。当前完整源码待唯一独审与小量风险目标，未验边界保留。
+
+#### W4-04 本地代码验收完成
+
+上述c658/候选段为历史检查点。最终新6服务聚合+2真实HTTP聚合分轮全部通过，services/API类型、官方生成/对账、生产权限矩阵与挂载、层级检查通过；未重复旧全量。唯一源码审查的WebP兼容问题已闭环：WebP凭证继续可上传，当前回单OCR不支持该格式时指针为null/状态unavailable/四项unknown，其他文件安全错误不吞掉。
+
+同proof退回重提暴露的approval.I1历史反指问题由独立前置`24427c89`修复，actual `d1a281fc` 后仅复验原红组G；当前轮、旧pending/approved及其它kind守卫仍保持。四API是入口只读授权预检加唯一幂等业务TX，重放仍查当前权限与scope，没有C51外呼阶段。金融/审批不变量在风险组内保持；不自动采信OCR到账。
+
+复验命令为`pnpm --filter @liyoxi/services exec vitest run src/billing/payment/transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`与`pnpm --filter @liyoxi/api exec vitest run test/billing-transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`；实际执行时后续只选原失败标题，绿色组不重复。官方矩阵补本包4行及已落主干10行漏项，旧角色格不变；testing夹具仅通过正式billing出口引用原纯wechatOrderAttach。真实腾讯云回单、银行收款与业主配置仍未验，本机全部使用虚构输入及替身外部IO。
