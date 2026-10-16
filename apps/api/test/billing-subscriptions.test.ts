@@ -1,14 +1,18 @@
 import { beforeAll, expect, it } from "vitest";
 import {
   createIdentityContext,
-  createLedger,
   createNotices,
   runSeed,
   security,
   seedPlaceholderFinanceConfig,
   uuidv7,
 } from "@liyoxi/services";
-import { createFactories, signInAsStaff, snapshotTables } from "@liyoxi/services/testing";
+import {
+  createFactories,
+  createLedgerHarness,
+  signInAsStaff,
+  snapshotTables,
+} from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
 import {
   PaymentOrderDetailSchema,
@@ -338,7 +342,7 @@ it("实际期限原语与HTTP提前续费并发后链无空档重叠，已发放
       ctx: identity(admin.staff.id),
     };
   // 调用真实期限域原语，不制造已批准审批。审批/revive/unexpire由W408消费本口。
-  const ledger = createLedger({ clock: api.clock, events: api.runtime.events });
+  const { ledger } = createLedgerHarness(db, { clock: api.clock });
   const [extension] = await Promise.all([
     api.runtime.tx.run((tx) => ledger.applyExtension(tx, input)),
     pay(b, another),

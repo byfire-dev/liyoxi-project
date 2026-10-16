@@ -9,7 +9,7 @@
 | `fulfill.ts` | `createFulfillment({ clock, events })`：履约的骨架（锁、操作键、保存点、事件） |
 | `terms.ts` | 建周期与发放计划，周期不重叠的服务层校验 |
 | `blocked.ts` | 保存点里的错怎么归成受阻的原因码；哪些错不算受阻、原样抛出 |
-| `invariants.ts` | `billing.I9`、`I10`、`I12`、`I15` |
+| `invariants.ts` | `billing.I9`–`I13`、`I15` |
 | `upgrade.ts` | 按已付款冻结算式升级，跨月补发与未发计划同保存点执行 |
 | `read.ts`、`reminders.ts` | 四后台周期资源与R1到期事实；查询不推进账本 |
 | `../ports.ts` | 两个端口的实现：tenant 的计费账户端口、商家读侧事实端口的 `billing` 键（登记在 `../register.ts`） |
@@ -98,3 +98,7 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 一事务一账户，先advance，kernel保存点内投影。只有typed旧历史缺失可回滚投影并提交正常
 推进；其他主体继续，最终整轮仍失败。取消、内核违规和不可恢复连接错误不伪装旧史。
 API/worker各自绑定本域assembly，关闭后不可继续调用。真实资金、线上通知送达和旧历史迁移未验。
+
+I11/I13只读比较正式源表重算与实际派生数据，以昨日及更早闭合业务日为界（每日00:00产出）。
+不以最后已产出的日期缩窄范围，历史漏行和错值都报违规；今日合法新流水不要求提前生成估值。
+I13另逐日、按套餐来源/加购分组核负债流转恒等式。检查不advance、不回写投影、不自愈。

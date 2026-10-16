@@ -3,7 +3,13 @@
 // I10 是“周期不重叠”的第二道防线（第一道是建周期时的服务层校验），库里的排他约束在不在都成立。
 // I12核套餐与正式升级资金、发放/未发放权益成本；已退款的收回规则由退款域接续。
 // 受阻的付款单有没有未决差异单、受阻多久，归付款一侧的 payment.I4。
-import type { InvariantRegistration } from "../../kernel/index.js";
+import { invariantNow } from "../../kernel/index.js";
+import type { InvariantRegistration, InvariantViolation, Tx } from "../../kernel/index.js";
+import { addDays, calendarDate } from "@liyoxi/shared/time";
+import { computeEntityValuation } from "../reporting/valuation.js";
+import { computeEntityDaily, BillingDailyHistoryMissingError } from "../reporting/daily.js";
+import { isNotBlockage } from "./blocked.js";
+import { fromDateColumn, toDateColumn } from "../ledger/context.js";
 import { check } from "../invariants.js";
 
 /** “到点了还没做”的宽限，同 I6、I8：扫描每分钟一轮，过 10 分钟仍没推进才算 */
@@ -128,7 +134,208 @@ const i12 = check(
       AND (l.lots <> 1 OR l.cost_fen <> o.paid_amount_fen)`,
 );
 
-/** 订阅一侧的三条，按编号 */
+const valuationFields = [
+  "pointLedgerEntryId",
+  "valuationPolicyVersionNo",
+  "pointLedgerEntrySeq",
+  "pointLotId",
+  "entityId",
+  "bizDate",
+  "effect",
+  "valueFen",
+  "remainingValueFen",
+] as const;
+const dailyFields = [
+  "bizDate",
+  "entityId",
+  "subStatus",
+  "planId",
+  "planRevisionId",
+  "subscriptionTermId",
+  "termMonths",
+  "mrrFen",
+  "planAvailablePoints",
+  "addonAvailablePoints",
+  "heldPoints",
+  "liabilityPoints",
+  "liabilityValueFen",
+  "deferredPlanFeeFen",
+] as const;
+function equalFields<T>(a: T, b: T, keys: readonly (keyof T)[]) {
+  const equal = (left: unknown, right: unknown) =>
+    left instanceof Date && right instanceof Date
+      ? left.getTime() === right.getTime()
+      : left === right;
+  return keys.every((key) => equal(a[key], b[key]));
+}
+const LIMIT = 500;
+function reportingInvariant(
+  code: "billing.I11" | "billing.I13",
+  checkEntity: (tx: Tx, entityId: string, at: Date) => Promise<InvariantViolation[]>,
+): InvariantRegistration {
+  return {
+    code,
+    severity: "P1",
+    modes: ["full"],
+    heal: "none",
+    run: async (tx, scope, ctx) => {
+      const at = invariantNow(ctx),
+        found: InvariantViolation[] = [];
+      let cursor: string | undefined;
+      for (;;) {
+        const accounts = await tx.billingAccount.findMany({
+          where: {
+            ...(scope.entityIds?.length
+              ? { entityId: { in: [...scope.entityIds], ...(cursor ? { gt: cursor } : {}) } }
+              : cursor
+                ? { entityId: { gt: cursor } }
+                : {}),
+          },
+          select: { entityId: true },
+          orderBy: { entityId: "asc" },
+          take: 200,
+        });
+        for (const { entityId } of accounts) {
+          try {
+            found.push(...(await checkEntity(tx, entityId, at)));
+          } catch (error) {
+            if (isNotBlockage(error)) throw error;
+            found.push({
+              entityId,
+              subject:
+                code === "billing.I13"
+                  ? {
+                      type: "billing_entity_daily",
+                      key: `${addDays(calendarDate(at), -1)}:${entityId}`,
+                    }
+                  : { type: "billing_account", id: entityId },
+              detail: {
+                problem:
+                  error instanceof BillingDailyHistoryMissingError
+                    ? "history_snapshot_missing"
+                    : "source_replay_failed",
+              },
+            });
+          }
+          if (found.length >= LIMIT) return found.slice(0, LIMIT);
+          cursor = entityId;
+        }
+        if (accounts.length < 200) return found;
+      }
+    },
+  };
+}
+
+/** 与每日产出同一已闭业务日边界；今日新流水不要求提前生成估值，历史缺行仍报告。 */
+const i11 = reportingInvariant("billing.I11", async (tx, entityId, at) => {
+  const through = toDateColumn(addDays(calendarDate(at), -1));
+  const expected = (await computeEntityValuation(tx, entityId, at)).filter(
+    (row) => row.bizDate <= through,
+  );
+  const stored = await tx.pointEntryValuation.findMany({
+    where: { entityId, valuationPolicyVersionNo: 1, bizDate: { lte: through } },
+  });
+  const wanted = new Map(expected.map((row) => [row.pointLedgerEntryId, row])),
+    actual = new Map(stored.map((row) => [row.pointLedgerEntryId, row]));
+  const found: InvariantViolation[] = [];
+  for (const id of new Set([...wanted.keys(), ...actual.keys()])) {
+    const a = wanted.get(id),
+      b = actual.get(id);
+    if (!a || !b || !equalFields(a, b, valuationFields))
+      found.push({
+        entityId,
+        subject: { type: "point_lot", id: (a ?? b)!.pointLotId },
+        detail: {
+          problem: !a ? "valuation_unexpected" : !b ? "valuation_missing" : "valuation_mismatch",
+          pointLedgerEntryId: id,
+        },
+      });
+  }
+  return found;
+});
+
+/** 日快照业务字段与正式只读回放逐日相等；不能用已有投影作为期望，亦不能自愈。 */
+const i13 = reportingInvariant("billing.I13", async (tx, entityId, at) => {
+  const through = addDays(calendarDate(at), -1),
+    { days } = await computeEntityDaily(tx, entityId, through, at),
+    stored = await tx.billingEntityDaily.findMany({
+      where: { entityId, bizDate: { lte: toDateColumn(through) } },
+    }),
+    wanted = new Map(days.map((row) => [fromDateColumn(row.bizDate), row])),
+    actual = new Map(stored.map((row) => [fromDateColumn(row.bizDate), row]));
+  const found: InvariantViolation[] = [];
+  for (const date of new Set([...wanted.keys(), ...actual.keys()])) {
+    const a = wanted.get(date),
+      b = actual.get(date);
+    if (!a || !b || !equalFields(a, b, dailyFields))
+      found.push({
+        entityId,
+        subject: { type: "billing_entity_daily", key: `${date}:${entityId}` },
+        detail: { problem: !a ? "daily_unexpected" : !b ? "daily_missing" : "daily_mismatch" },
+      });
+  }
+  const entries = await tx.pointLedgerEntry.findMany({
+    where: { entityId, bizDate: { lte: toDateColumn(through) } },
+    orderBy: [{ bizDate: "asc" }, { seq: "asc" }],
+  });
+  const balances = new Map<string, number>(),
+    flows = new Map<string, { opening: number; closing: number; delta: number }>();
+  for (const entry of entries) {
+    const group = entry.lotKind === "addon" ? "addon" : entry.planId,
+      key = `${fromDateColumn(entry.bizDate)}:${group}`,
+      before = balances.get(group ?? "") ?? 0,
+      liabilities = (bucket: string) => bucket === "available" || bucket === "held",
+      after =
+        before +
+        (Number(liabilities(entry.toBucket)) - Number(liabilities(entry.fromBucket))) * entry.qty;
+    const pair = `${entry.fromBucket}:${entry.toBucket}`;
+    const change = ["external:available", "consumed:available", "expired:available"].includes(pair)
+      ? entry.qty
+      : [
+            "held:consumed",
+            "available:expired",
+            "held:expired",
+            "held:converted_out",
+            "available:adjusted_out",
+            "available:revoked",
+          ].includes(pair)
+        ? -entry.qty
+        : [
+              "available:held",
+              "held:available",
+              "consumed:converted_out",
+              "consumed:expired",
+              "expired:revoked",
+            ].includes(pair)
+          ? 0
+          : undefined;
+    if (change === undefined || group === null || after < 0)
+      found.push({
+        entityId,
+        subject: { key },
+        detail: {
+          problem: "report_flow_invalid",
+          bizDate: fromDateColumn(entry.bizDate),
+          source: group,
+        },
+      });
+    const flow = flows.get(key) ?? { opening: before, closing: before, delta: 0 };
+    flow.closing = after;
+    flow.delta += change ?? 0;
+    flows.set(key, flow);
+    balances.set(group ?? "", after);
+  }
+  for (const [key, flow] of flows)
+    if (flow.opening + flow.delta !== flow.closing)
+      found.push({
+        entityId,
+        subject: { key },
+        detail: { problem: "report_identity", ...flow },
+      });
+  return found;
+});
+
+/** 订阅及报表检查，按编号 */
 const i15 = check(
   "billing.I15",
   "P2",
@@ -145,4 +352,11 @@ const i15 = check(
     WHERE n > 1`,
 );
 
-export const subscriptionInvariants: readonly InvariantRegistration[] = [i9, i10, i12, i15];
+export const subscriptionInvariants: readonly InvariantRegistration[] = [
+  i9,
+  i10,
+  i11,
+  i12,
+  i13,
+  i15,
+];

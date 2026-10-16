@@ -18,6 +18,7 @@ import { AppError, uuidv7 } from "../../kernel/index.js";
 import { listTermsDueForReminder, renewalApplicable } from "./reminders.js";
 import { createBillingDailyProjection } from "../reporting/daily.js";
 import { sweepSubscriptionDaily } from "../sweep.js";
+import { addDays, calendarDate } from "@liyoxi/shared/time";
 
 const db = useSeededDatabase("services", { max: 1 });
 beforeEach(() => db.reset(), 60000);
@@ -71,7 +72,22 @@ async function payQuote(
       amountFen: quoted.content.payFen,
     },
   });
-  const proof = await h.make.transferProof({ entityId, billingOrderId: order.id, uploadedAt });
+  const uploader = await h.make.staff(),
+    file = await h.make.fileObject({ category: "pay_receipt", bucket: "secure", entityId });
+  const proof = await h.prisma.transferProof.create({
+    data: {
+      id: uuidv7(),
+      entityId,
+      billingOrderId: order.id,
+      uploadNo: 1,
+      fileId: file.id,
+      uploadedByStaffId: uploader.id,
+      uploadedAt,
+      reviewStatus: "pending",
+      createdAt: uploadedAt,
+      updatedAt: uploadedAt,
+    },
+  });
   const receipt = await transferReceipt(h, order);
   await h.prisma.paymentTxn.update({
     where: { id: receipt.id },
@@ -80,6 +96,13 @@ async function payQuote(
   return { order, receipt, outcome: await applyReceipt(h, receipt) };
 }
 async function invariant(h: PaymentHarness, id: string) {
+  await h.tx.run((tx) =>
+    createBillingDailyProjection({ ledger: h.ledger }).snapshot(
+      tx,
+      id,
+      addDays(calendarDate(h.clock.now()), -1),
+    ),
+  );
   for (const rule of [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants])
     expect(
       await h.tx.run((tx) => rule.run!(tx, { entityIds: [id] }, { now: h.clock.now() })),
@@ -177,12 +200,55 @@ it("十三个月真实周期开通、降级续费和下期升级按锚点接续�
     subStatus: "expired",
   });
   const daily = await snapshotTables(h.prisma, ["billing_entity_daily", "point_entry_valuation"]);
+  const value = await h.prisma.pointEntryValuation.findFirstOrThrow({
+    where: { entityId },
+    orderBy: { pointLedgerEntrySeq: "asc" },
+  });
+  await h.prisma.pointEntryValuation.updateMany({
+    where: { entityId, pointLedgerEntryId: value.pointLedgerEntryId },
+    data: { valueFen: { increment: 1 } },
+  });
+  await h.prisma.billingEntityDaily.updateMany({
+    where: { entityId, bizDate: new Date("2026-01-31T00:00:00Z") },
+    data: { mrrFen: { increment: 1 } },
+  });
+  const corrupted = await snapshotTables(h.prisma, [
+    "billing_entity_daily",
+    "point_entry_valuation",
+  ]);
+  const run = (code: string) =>
+    h.tx.run((tx) =>
+      subscriptionInvariants.find((rule) => rule.code === code)!.run!(
+        tx,
+        { entityIds: [entityId] },
+        { now: h.clock.now() },
+      ),
+    );
+  expect(await run("billing.I11")).toContainEqual(
+    expect.objectContaining({ detail: expect.objectContaining({ problem: "valuation_mismatch" }) }),
+  );
+  expect(await run("billing.I13")).toContainEqual(
+    expect.objectContaining({ detail: { problem: "daily_mismatch" } }),
+  );
+  expect(await snapshotTables(h.prisma, ["billing_entity_daily", "point_entry_valuation"])).toEqual(
+    corrupted,
+  );
+  await h.prisma.pointEntryValuation.deleteMany({
+    where: { entityId, pointLedgerEntryId: value.pointLedgerEntryId },
+  });
+  expect(await run("billing.I11")).toContainEqual(
+    expect.objectContaining({ detail: expect.objectContaining({ problem: "valuation_missing" }) }),
+  );
   await h.tx.run((tx) =>
     createBillingDailyProjection({ ledger: h.ledger }).snapshot(tx, entityId, through),
   );
   expect(await snapshotTables(h.prisma, ["billing_entity_daily", "point_entry_valuation"])).toEqual(
     daily,
   );
+  // 今日正式新开通尚未到每日派生时刻，不误报今日估值缺失；昨日历史仍完整比较。
+  await payQuote(h, entityId, await quote(h, entityId, "basic", { months: 1 }));
+  expect(await run("billing.I11")).toEqual([]);
+  expect(await run("billing.I13")).toEqual([]);
   await invariant(h, entityId);
 }, 30000);
 
@@ -244,7 +310,6 @@ it("升级按付款行为时刻接受跨月确认，补发与后续改写成本�
           occurredAt: h.clock.now(),
           bizDate: term.startDate,
           actorType: "system",
-          actorClient: "worker",
           createdAt: h.clock.now(),
         },
       });
