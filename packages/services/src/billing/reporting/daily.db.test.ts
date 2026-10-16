@@ -18,6 +18,8 @@ import { savepoint, uuidv7 } from "../../kernel/index.js";
 import {
   BillingDailyHistoryMissingError,
   captureSubscriptionDailySnapshot,
+  computeEntityDaily,
+  computeEntityValuation,
   createBillingDailyProjection,
   rebuildEntityValuation,
 } from "../index.js";
@@ -78,7 +80,39 @@ it("真实流水与周期快照重建历史日：预约隔离、发放/冻结/�
   h.clock.set(at("2040-01-04T12:00:00"));
   await refundHold(h, { pointHoldId: spent.pointHoldId, qty: spent.points });
   h.clock.set(at("2040-02-02T12:00:00"));
+  const sourceAndDerived = [
+    "billing_account",
+    "subscription_term",
+    "subscription_event",
+    "grant_schedule",
+    "point_lot",
+    "point_hold",
+    "ledger_operation",
+    "point_ledger_entry",
+    "outbox_event",
+    "billing_entity_daily",
+    "point_entry_valuation",
+  ];
+  const beforeCompute = await snapshotTables(h.prisma, sourceAndDerived);
+  const earlier = await computeEntityDaily(h.prisma, entityId, "2040-01-31", h.clock.now());
+  expect(earlier.days.at(-1)).toMatchObject({
+    planAvailablePoints: 6510,
+    heldPoints: 90,
+    liabilityValueFen: 601_000,
+    deferredPlanFeeFen: 1_500_000,
+  });
+  // 真clock已过发放日，但只读口不能替调用方推进或偷偷修复派生表。
+  await expect(computeEntityDaily(h.prisma, entityId, "2040-02-01", h.clock.now())).rejects.toThrow(
+    "BILLING_DAILY_ADVANCE_INCOMPLETE",
+  );
+  assertSnapshotsEqual(beforeCompute, await snapshotTables(h.prisma, sourceAndDerived));
   await h.tx.run((tx) => h.ledger.advance(tx, entityId));
+  const beforeReadyCompute = await snapshotTables(h.prisma, sourceAndDerived);
+  const calculated = await computeEntityDaily(h.prisma, entityId, "2040-02-01", h.clock.now());
+  expect(calculated.valuations).toEqual(
+    await computeEntityValuation(h.prisma, entityId, h.clock.now()),
+  );
+  assertSnapshotsEqual(beforeReadyCompute, await snapshotTables(h.prisma, sourceAndDerived));
   const projection = createBillingDailyProjection({ ledger: h.ledger });
   const run = () => h.tx.run((tx) => projection.snapshot(tx, entityId, "2040-02-01"));
   await run();
@@ -86,6 +120,13 @@ it("真实流水与周期快照重建历史日：预约隔离、发放/冻结/�
     where: { entityId },
     orderBy: { bizDate: "asc" },
   });
+  expect(daily).toEqual(calculated.days);
+  expect(
+    await h.prisma.pointEntryValuation.findMany({
+      where: { entityId },
+      orderBy: { pointLedgerEntrySeq: "asc" },
+    }),
+  ).toEqual(calculated.valuations);
   expect(daily).toHaveLength(32);
   const day = (date: string) => daily.find((row) => fromDateColumn(row.bizDate) === date)!;
   expect(day("2040-01-01")).toMatchObject({

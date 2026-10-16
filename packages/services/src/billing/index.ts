@@ -143,8 +143,11 @@ export { bindPaymentChannel } from "./payment/channel-registration.js";
 export { wechatOrderAttach } from "./payment/channel-success.js";
 export { createTransferReviewAssembly } from "./payment/transfer-review.js";
 export { captureSubscriptionDailySnapshot } from "./reporting/snapshot.js";
-export { rebuildEntityValuation } from "./reporting/valuation.js";
+export { computeEntityValuation, rebuildEntityValuation } from "./reporting/valuation.js";
+export type { BillingValuationReader } from "./reporting/valuation.js";
 export {
   BillingDailyHistoryMissingError,
+  computeEntityDaily,
   createBillingDailyProjection,
 } from "./reporting/daily.js";
+export type { BillingDailyReader, EntityDailyComputation } from "./reporting/daily.js";

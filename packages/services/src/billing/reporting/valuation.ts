@@ -11,21 +11,26 @@ const policyRule = z.strictObject({
   rounding: z.literal("floor"),
   remainder: z.literal("last_take"),
 });
-/** 只写可重算派生表；正式账户锁/账本时钟，同TX一个主体，口径固定1。 */
-export async function rebuildEntityValuation(
-  tx: Tx,
-  deps: { ledger: Pick<Ledger, "lockAccount"> },
+export interface BillingValuationReader {
+  readonly valuationPolicy: Pick<Tx["valuationPolicy"], "findUnique">;
+  readonly pointLot: Pick<Tx["pointLot"], "findMany">;
+  readonly pointLedgerEntry: Pick<Tx["pointLedgerEntry"], "findMany">;
+}
+/** 仅读源表，按口径1重算；不推进/加锁，也不读写派生表。at由调用方注入。 */
+export async function computeEntityValuation(
+  db: BillingValuationReader,
   entityId: string,
+  at: Date,
 ): Promise<PointEntryValuation[]> {
-  const clock = await deps.ledger.lockAccount(tx, entityId);
-  const policy = await tx.valuationPolicy.findUnique({ where: { versionNo: 1 } });
+  if (!Number.isFinite(at.getTime())) throw new Error("BILLING_REPORTING_TIME_INVALID");
+  const policy = await db.valuationPolicy.findUnique({ where: { versionNo: 1 } });
   if (!policy || !policyRule.safeParse(policy.rule).success)
     throw new Error("BILLING_VALUATION_POLICY_UNAVAILABLE");
-  const lots = await tx.pointLot.findMany({
+  const lots = await db.pointLot.findMany({
     where: { entityId },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const entries = await tx.pointLedgerEntry.findMany({
+  const entries = await db.pointLedgerEntry.findMany({
     where: { entityId },
     orderBy: { seq: "asc" },
   });
@@ -119,15 +124,25 @@ export async function rebuildEntityValuation(
         effect: value.effect,
         valueFen: value.valueFen,
         remainingValueFen: value.remainingValueFen,
-        computedAt: clock.now,
+        computedAt: at,
       });
     visiting.delete(id);
     completed.add(id);
   }
   for (const lot of lots) visit(lot.id);
-  const values = [...derived.values()].sort((a, b) =>
+  return [...derived.values()].sort((a, b) =>
     a.pointLedgerEntrySeq < b.pointLedgerEntrySeq ? -1 : 1,
   );
+}
+
+/** 原写者仍经正式账户锁/账本时钟，委托同一只读计算后整主体覆盖。 */
+export async function rebuildEntityValuation(
+  tx: Tx,
+  deps: { ledger: Pick<Ledger, "lockAccount"> },
+  entityId: string,
+): Promise<PointEntryValuation[]> {
+  const clock = await deps.ledger.lockAccount(tx, entityId);
+  const values = await computeEntityValuation(tx, entityId, clock.now);
   // 全部归属/依赖/回放先通过，再整主体覆盖；不修改只增流水或批次。
   await tx.pointEntryValuation.deleteMany({ where: { entityId, valuationPolicyVersionNo: 1 } });
   if (values.length) await tx.pointEntryValuation.createMany({ data: values });
