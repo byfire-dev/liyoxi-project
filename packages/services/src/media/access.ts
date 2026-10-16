@@ -98,6 +98,21 @@ export async function registerScope(
   }
   const staff = actor.staff;
   if (!staff || !definition.admin) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  const financeFile = input.category === "pay_receipt" || input.category === "invoice";
+  if (financeFile) {
+    if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== staff.staff.id)
+      throw new AppError("PERMISSION_DENIED");
+    assertPermission(
+      staff,
+      input.category === "pay_receipt"
+        ? "finance.receipt.confirm"
+        : staff.permissions.has("finance.invoice.issue")
+          ? "finance.invoice.issue"
+          : "finance.invoice.red",
+      deps.clock.now(),
+    );
+    if (input.onBehalfStore === true) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  }
   if (["banner", "trailer_src", "drama_license_doc"].includes(input.category)) {
     if (
       actor.identity.actor.type !== "staff" ||
@@ -144,6 +159,32 @@ export async function registerScope(
   if (input.category === "poster" && !satisfiesLevel(staff.moduleLevels.drama, "edit"))
     throw new AppError("PERMISSION_DENIED");
   await guard?.assert(tx, actor, input);
+  if (financeFile) {
+    const store = input.storeId
+      ? await tx.store.findFirst({
+          where: { id: input.storeId, ...byStore(staff.scope).store },
+          select: { entityId: true },
+        })
+      : null;
+    if (input.storeId && !store) throw notFound();
+    if (input.entityId && store && input.entityId !== store.entityId) throw notFound();
+    const entityId = input.entityId ?? store?.entityId;
+    if (!entityId)
+      throw new AppError("VALIDATION_FAILED", {
+        details: { fieldErrors: [{ path: "entityId", message: "请选择归属主体" }] },
+      });
+    const entity = await tx.entity.findFirst({
+      where: { id: entityId, ...byEntity(staff.scope).entity },
+      select: { id: true },
+    });
+    if (!entity) throw notFound();
+    return {
+      scopeType: "entity" as const,
+      entityId: entity.id,
+      storeId: null,
+      onBehalfStoreId: null,
+    };
+  }
   // 无主体的账号换绑也需要证明：仅该分类、全范围员工允许平台归属。
   if (input.category === "account_proof") {
     if (!guard) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
@@ -206,6 +247,8 @@ export function canReadCategory(
       );
     case "pay_receipt":
       return level("finance");
+    case "invoice":
+      return level("finance") || level("service");
     case "profile_image":
     case "profile_video":
     case "profile_promo":
