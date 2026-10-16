@@ -13,7 +13,7 @@ import { quotePlan } from "../catalog/index.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "./invariants.js";
 import { paymentInvariants } from "../payment/invariants.js";
-import { AppError } from "../../kernel/index.js";
+import { AppError, uuidv7 } from "../../kernel/index.js";
 import { listTermsDueForReminder, renewalApplicable } from "./reminders.js";
 
 const db = useSeededDatabase("services", { max: 1 });
@@ -189,6 +189,35 @@ it("升级按付款行为时刻接受跨月确认，补发与后续改写成本�
       where: { billingOrderId: paid.order.id, type: "upgraded" },
     }),
   ).toBe(1);
+  await invariant(h, id);
+  // 追加一个重复升级事件作为反例，再回滚该测试事务：钱仍只计一次，I12必须指出事件不唯一。
+  const rollback = new Error("本轮反例回滚");
+  await expect(
+    h.tx.run(async (tx) => {
+      await tx.subscriptionEvent.create({
+        data: {
+          id: uuidv7(),
+          entityId: id,
+          subscriptionTermId: term.id,
+          billingOrderId: paid.order.id,
+          type: "upgraded",
+          occurredAt: h.clock.now(),
+          bizDate: term.startDate,
+          actorType: "system",
+          actorClient: "worker",
+          createdAt: h.clock.now(),
+        },
+      });
+      const i12 = subscriptionInvariants.find((rule) => rule.code === "billing.I12")!;
+      expect(await i12.run!(tx, { entityIds: [id] }, { now: h.clock.now() })).toMatchObject([
+        {
+          subject: { type: "billing_order", id: paid.order.id },
+          detail: { problem: "upgrade_event_count", events: 2 },
+        },
+      ]);
+      throw rollback;
+    }),
+  ).rejects.toBe(rollback);
   await invariant(h, id);
 }, 30000);
 

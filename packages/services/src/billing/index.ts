@@ -23,6 +23,8 @@ export {
 } from "./ledger/index.js";
 export type {
   AcquireOptions,
+  ApplyExtensionInput,
+  ApplyExtensionResult,
   AdvanceSummary,
   Db as BillingDb,
   GrantInput,

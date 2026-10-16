@@ -493,7 +493,7 @@ describe("fulfill：只履约一次，受阻不留残留", () => {
   );
 
   it(
-    "受阻：实收与应付不符、升级仍未实现、快照指的修订不属于那个套餐、快照不合结构——都不留残留",
+    "受阻：实收与应付不符、升级周期不存在、快照指的修订不属于那个套餐、快照不合结构——都不留残留",
     async () => {
       h.clock.set(at("2026-03-10T10:00:00"));
       const { entity } = await h.make.merchant({ verified: true });
@@ -554,8 +554,8 @@ describe("fulfill：只履约一次，受阻不留残留", () => {
       });
       expect(await blocked(orders.upgrade)).toEqual({
         status: "blocked",
-        reasonCode: "UNEXPECTED",
-        detail: { problem: "content_kind_not_supported", kind: "upgrade" },
+        reasonCode: "UPGRADE_TERM_CHANGED",
+        detail: {},
       });
       expect(await blocked(orders.revision)).toMatchObject({
         status: "blocked",

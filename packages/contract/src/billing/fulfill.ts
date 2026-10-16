@@ -151,6 +151,14 @@ export const SUBSCRIPTION_EVENT_PAYLOADS = {
     payFen: FenSchema.positive(),
     topupPoints: PointsSchema.nonnegative(),
   }),
+  extended: z.strictObject({
+    requestNo: z.string().min(1).max(64),
+    days: z.int().min(1).max(90),
+    appliedSubscriptionTermId: IdSchema,
+    appliedMode: z.literal("extend"),
+    prevEndDate: DateSchema,
+    newEndDate: DateSchema,
+  }),
 } as const satisfies Record<string, z.ZodType>;
 export type SubscriptionEventPayloadType = keyof typeof SUBSCRIPTION_EVENT_PAYLOADS;
 export type SubscriptionEventPayload<

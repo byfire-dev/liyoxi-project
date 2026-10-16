@@ -48,7 +48,7 @@ const runAll = async (entityId?: string): Promise<Record<string, number>> => {
   }
   return counts;
 };
-const CLEAN = { "billing.I9": 0, "billing.I10": 0, "billing.I12": 0 };
+const CLEAN = { "billing.I9": 0, "billing.I10": 0, "billing.I12": 0, "billing.I15": 0 };
 
 /** 履约一张套餐付款单，并像入账函数那样把付款单写成履约完成 */
 async function subscribe(entityId: string, input: { months?: number; renew?: boolean } = {}) {
