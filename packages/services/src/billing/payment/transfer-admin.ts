@@ -284,13 +284,15 @@ export async function submitTransferProof(
     _max: { uploadNo: true },
   });
   const id = uuidv7();
-  const ocr = deps.media.enqueueBankReceiptOcr
-    ? await deps.media.enqueueBankReceiptOcr(
-        tx,
-        { ...ctx, entityId: order.entityId, storeId: order.storeId },
-        { fileId: file.id, entityId: order.entityId },
-      )
-    : { ocrResultId: null, status: "unavailable" as const };
+  // 旧凭证接受WebP；回单识别当前仅支持PNG/JPEG/PDF，不把辅助能力缺失变成上传失败。
+  const ocr =
+    (file.mime ?? file.declaredMime) !== "image/webp" && deps.media.enqueueBankReceiptOcr
+      ? await deps.media.enqueueBankReceiptOcr(
+          tx,
+          { ...ctx, entityId: order.entityId, storeId: order.storeId },
+          { fileId: file.id, entityId: order.entityId },
+        )
+      : { ocrResultId: null, status: "unavailable" as const };
   const proof = await tx.transferProof.create({
     data: {
       id,

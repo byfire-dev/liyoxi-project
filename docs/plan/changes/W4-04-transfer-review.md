@@ -14,3 +14,5 @@
 调度批准 a07 正式轮次勘误：两复核动作均携 `approvalId`，锁内绑定凭证当前指针与审批 kind/subject/round，approve 保审批 lockVersion。退回重提后新审批版本同为 0，原只传凭证 ID/版本无法识别旧面板；不改变审批框架或 DDL。
 
 已同步回单OCR actual `ec16f048`：只从media正式公口消费enqueue/脱敏read及严格完成载荷，job归属检查留所属media，billing不私查media_job/OCR原值；当前pending指针与file/entity再核，缓存ok立即重算，新/重复事件相同结论零更新。此前c658阶段未接OCR事实保留，当前源码待独审与小量验收，仍不宣称完成。
+
+小量验收现已5DB+2HTTP聚合通过；唯一源码审查发现的WebP兼容P2已窄修并有配置/未配实测。第6DB保留真实approval.I1历史轮反指RED，待独立前置，不通过改产品重提流程或删除不变量换绿。类型/夹具首R与后续定点复验分别见本包状态；未提前回补两桩或标整包完成。
