@@ -16,6 +16,7 @@ import { selfCheck } from "./self-check.js";
 import { LedgerError } from "./types.js";
 import type { LedgerDeps } from "./types.js";
 import type { Entered } from "./hold.js";
+import { captureSubscriptionDailySnapshot } from "../reporting/snapshot.js";
 
 type UpgradeContent = Extract<BillingOrderContent, { kind: "upgrade" }>;
 
@@ -247,7 +248,10 @@ export async function applyExtension(
         type: "extended",
         occurredAt: clock.now,
         bizDate: toDateColumn(clock.today),
-        payload,
+        payload: {
+          ...payload,
+          dailySnapshot: await captureSubscriptionDailySnapshot(tx, input.entityId, id),
+        },
         ...actorColumns(input.ctx.actor),
         createdAt: clock.now,
       },

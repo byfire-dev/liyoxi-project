@@ -56,6 +56,7 @@ import { billingAccountPort } from "../tenant/index.js";
 import { billingInvariants } from "./invariants.js";
 import { billingAccountOpener, billingMerchantFacts } from "./ports.js";
 import { subscriptionInvariants } from "./subscription/invariants.js";
+import { unboundSubscriptionDaily } from "./sweep.js";
 
 import { DramaPricePort } from "../content/index.js";
 import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
@@ -158,6 +159,17 @@ export const registration = defineRegistration("billing", {
     },
   ],
   recurringJobs: [
+    {
+      kind: "billing.sweep.daily",
+      schedule: { every: "day", at: "00:00" },
+      mode: "job",
+      leaseSec: 300,
+      maxAttempts: 3,
+      deadlineMin: 60,
+      missSeverity: "P1",
+      catchUp: true,
+      run: unboundSubscriptionDaily,
+    },
     {
       kind: "tx.unapplied_scan",
       run: scanUnapplied,

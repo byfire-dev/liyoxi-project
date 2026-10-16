@@ -48,7 +48,12 @@ export type {
   TermBenefits,
   WalletView,
 } from "./read/index.js";
-export { ADVANCE_SWEEP_LIMIT, advanceDueAccounts } from "./sweep.js";
+export {
+  ADVANCE_SWEEP_LIMIT,
+  advanceDueAccounts,
+  createBillingDailyAssembly,
+  sweepSubscriptionDaily,
+} from "./sweep.js";
 export type { AdvanceSweepDeps, AdvanceSweepOptions, AdvanceSweepResult } from "./sweep.js";
 export { billingInvariants } from "./invariants.js";
 export { registration } from "./register.js";

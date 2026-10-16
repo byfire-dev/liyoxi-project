@@ -7,6 +7,7 @@ import {
   transferReceipt,
   applyReceipt,
   snapshotTables,
+  openTerm,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
 import { quotePlan } from "../catalog/index.js";
@@ -15,6 +16,8 @@ import { subscriptionInvariants } from "./invariants.js";
 import { paymentInvariants } from "../payment/invariants.js";
 import { AppError, uuidv7 } from "../../kernel/index.js";
 import { listTermsDueForReminder, renewalApplicable } from "./reminders.js";
+import { createBillingDailyProjection } from "../reporting/daily.js";
+import { sweepSubscriptionDaily } from "../sweep.js";
 
 const db = useSeededDatabase("services", { max: 1 });
 beforeEach(() => db.reset(), 60000);
@@ -143,6 +146,43 @@ it("十三个月真实周期开通、降级续费和下期升级按锚点接续�
     subStatus: "expired",
     planAvailableQty: 0,
   });
+  const through = terms.at(-1)!.endDate.toISOString().slice(0, 10);
+  await h.tx.run((tx) =>
+    createBillingDailyProjection({ ledger: h.ledger }).snapshot(tx, entityId, through),
+  );
+  expect(
+    await h.prisma.billingEntityDaily.findUniqueOrThrow({
+      where: {
+        bizDate_entityId: { entityId, bizDate: new Date("2026-01-31T00:00:00Z") },
+      },
+    }),
+  ).toMatchObject({
+    planAvailablePoints: 6600,
+    liabilityValueFen: 600000,
+    deferredPlanFeeFen: 7800000,
+    mrrFen: 600000,
+    subStatus: "active",
+  });
+  expect(
+    await h.prisma.billingEntityDaily.findUniqueOrThrow({
+      where: {
+        bizDate_entityId: { entityId, bizDate: terms.at(-1)!.endDate },
+      },
+    }),
+  ).toMatchObject({
+    planAvailablePoints: 0,
+    liabilityValueFen: 0,
+    deferredPlanFeeFen: 0,
+    mrrFen: 0,
+    subStatus: "expired",
+  });
+  const daily = await snapshotTables(h.prisma, ["billing_entity_daily", "point_entry_valuation"]);
+  await h.tx.run((tx) =>
+    createBillingDailyProjection({ ledger: h.ledger }).snapshot(tx, entityId, through),
+  );
+  expect(await snapshotTables(h.prisma, ["billing_entity_daily", "point_entry_valuation"])).toEqual(
+    daily,
+  );
   await invariant(h, entityId);
 }, 30000);
 
@@ -241,6 +281,37 @@ it("R1从真实止日节点与后续周期重核，清零节点查询不写库�
   expect(
     await h.tx.run((tx) => listTermsDueForReminder(tx, { now: h.clock.now() })),
   ).not.toContainEqual(expect.objectContaining({ termId: term.id }));
+  const legacyOwner = await h.make.merchant({ verified: true });
+  // 既有fixture明确模拟旧版缺subscription_event历史的主体；不修改/删除append-only事件。
+  await openTerm(h, { entityId: legacyOwner.entity.id, months: 3 });
+  h.clock.set(new Date("2026-03-21T04:00:00Z"));
+  const projection = createBillingDailyProjection({ ledger: h.ledger });
+  await expect(
+    sweepSubscriptionDaily(
+      { ledger: h.ledger, snapshot: projection.snapshot },
+      {
+        scheduledFor: h.clock.now(),
+        signal: new AbortController().signal,
+        runTx: (run) => h.tx.run(run),
+      },
+    ),
+  ).rejects.toThrow("账务日任务部分主体未完成");
+  expect(
+    await h.prisma.grantSchedule.count({
+      where: {
+        entityId: legacyOwner.entity.id,
+        monthNo: 1,
+        status: "granted",
+      },
+    }),
+  ).toBe(1);
+  expect(
+    await h.prisma.subscriptionTerm.findUniqueOrThrow({ where: { id: term.id } }),
+  ).toMatchObject({ status: "ended" });
+  expect(await h.prisma.billingEntityDaily.count({ where: { entityId: id } })).toBeGreaterThan(0);
+  expect(
+    await h.prisma.billingEntityDaily.count({ where: { entityId: legacyOwner.entity.id } }),
+  ).toBe(0);
   await invariant(h, id);
 }, 30000);
 

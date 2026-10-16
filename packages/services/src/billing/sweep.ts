@@ -6,10 +6,13 @@
 // 所以每轮先取上一轮没出错的，名额有剩才轮到出错过的（它们照样每轮重试，只是不挡别人）。
 // “谁出错过”是进程内的记忆（库里没有这一列）：重启即忘，多实例各记各的，最坏是多挡一轮。
 import type { Alerts, Clock, TxRunner } from "../kernel/index.js";
+import { savepoint } from "../kernel/index.js";
 import type { Db, Ledger } from "./ledger/index.js";
-import type { RecurringRunContext, Tx } from "../kernel/index.js";
+import type { Assembly, RecurringRunContext, Tx } from "../kernel/index.js";
 import type { LocalDate } from "@liyoxi/shared/time";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
+import { BillingDailyHistoryMissingError } from "./reporting/daily.js";
+import { isNotBlockage } from "./subscription/blocked.js";
 
 /** 一轮至多处理多少个主体（D1 第 6.2 节） */
 export const ADVANCE_SWEEP_LIMIT = 200;
@@ -105,10 +108,7 @@ export async function advanceDueAccounts(
 
 /** 日任务运输：每页有界、每主体独立事务；日快照/估值由本域正式回放写者注入。 */
 export async function sweepSubscriptionDaily(
-  deps: {
-    ledger: Pick<Ledger, "advance">;
-    snapshot: (tx: Tx, entityId: string, through: LocalDate) => Promise<void>;
-  },
+  deps: SubscriptionDailyDeps,
   context: RecurringRunContext,
 ) {
   if (!context.runTx || !context.signal) throw new TypeError("账务日任务要求受租约保护的运输");
@@ -130,15 +130,25 @@ export async function sweepSubscriptionDaily(
     for (const row of rows) {
       context.signal.throwIfAborted();
       try {
-        await context.runTx(async (tx) => {
+        const complete = await context.runTx(async (tx) => {
           context.signal!.throwIfAborted();
           await deps.ledger.advance(tx, row.entityId);
-          await deps.snapshot(tx, row.entityId, through);
+          try {
+            await savepoint(tx, () => deps.snapshot(tx, row.entityId, through));
+          } catch (error) {
+            // 旧历史不足不能阻断正常推进；损坏事实与基础设施错误不能假作旧史处理。
+            context.signal!.throwIfAborted();
+            if (!(error instanceof BillingDailyHistoryMissingError)) throw error;
+            return false;
+          }
           context.signal!.throwIfAborted();
+          return true;
         });
-        processed++;
-      } catch {
+        if (complete) processed++;
+        else failed++;
+      } catch (error) {
         context.signal.throwIfAborted();
+        if (isNotBlockage(error)) throw error;
         failed++;
       }
       cursor = row.entityId;
@@ -147,4 +157,40 @@ export async function sweepSubscriptionDaily(
   }
   if (failed) throw new Error("账务日任务部分主体未完成");
   return { processed, through };
+}
+
+interface SubscriptionDailyDeps {
+  ledger: Pick<Ledger, "advance">;
+  snapshot: (tx: Tx, entityId: string, through: LocalDate) => Promise<void>;
+}
+export async function unboundSubscriptionDaily(): Promise<never> {
+  throw new TypeError("账务日投影运行时尚未绑定");
+}
+
+/** 每个API/worker装配持有自己的绑定；默认登记元数据和其余任务身份均不变。 */
+export function createBillingDailyAssembly(base: Assembly) {
+  let deps: SubscriptionDailyDeps | undefined;
+  let closed = false;
+  const recurringJobs = base.recurringJobs.map((job) =>
+    job.kind === "billing.sweep.daily"
+      ? {
+          ...job,
+          run: (ctx: RecurringRunContext) => {
+            if (closed || !deps) return unboundSubscriptionDaily();
+            return sweepSubscriptionDaily(deps, ctx);
+          },
+        }
+      : job,
+  );
+  const byKind = new Map(recurringJobs.map((job) => [job.kind, job]));
+  return {
+    assembly: { ...base, recurringJobs, recurringJob: (kind: string) => byKind.get(kind) },
+    attach(service: SubscriptionDailyDeps) {
+      if (closed || deps) throw new TypeError("账务日投影运行时只能绑定一次");
+      deps = service;
+    },
+    close() {
+      closed = true;
+    },
+  };
 }

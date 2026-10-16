@@ -38,6 +38,7 @@ import { buildTerm } from "./terms.js";
 import type { FulfillDeps } from "./types.js";
 import { fulfillTopup, previousTopup } from "./topup.js";
 import { fulfillUpgrade, previousUpgrade } from "./upgrade.js";
+import { captureSubscriptionDailySnapshot } from "../reporting/snapshot.js";
 
 export interface FulfillInput {
   /** 已支付的付款单 */
@@ -166,6 +167,7 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
         toPlanId: term.planId,
         toPlanRevisionId: term.planRevisionId,
         billingOrderId: order.id,
+        payload: { dailySnapshot: await captureSubscriptionDailySnapshot(tx, entityId, term.id) },
         occurredAt: clock.now,
         bizDate: toDateColumn(clock.today),
         ...actorColumns(ctx.actor),

@@ -94,6 +94,8 @@ import {
   createPayment,
   createFulfillment,
   getNotifyPurchaseMode,
+  createBillingDailyAssembly,
+  createBillingDailyProjection,
 } from "./billing/index.js";
 import type { BillingPurchase } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
@@ -442,7 +444,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const billingDailyScope = createBillingDailyAssembly(notifyScope.assembly);
+  const mediaScope = createMediaAssembly(billingDailyScope.assembly);
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const profileConsistencyScope = createProfileConsistencyAssembly(staffScope.assembly);
@@ -864,6 +867,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
+  billingDailyScope.attach({ ledger, ...createBillingDailyProjection({ ledger }) });
   const unbindOrder = bindOrder({
     assembly,
     clock,
@@ -1087,6 +1091,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
           () => media.jobs.shutdown(),
           () => analyticsScope.close(),
           () => notifyScope.close(),
+          () => billingDailyScope.close(),
         ]);
         await settle([() => modelDrivers?.close()]);
         await settle([() => modelBudget?.close()]);

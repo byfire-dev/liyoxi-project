@@ -9,6 +9,7 @@ import { isRefundPending } from "../ledger/operation.js";
 import { grantUpgradeMonth } from "../ledger/subscription-operations.js";
 import { FulfillBlockedError } from "./blocked.js";
 import type { FulfillDeps } from "./types.js";
+import { captureSubscriptionDailySnapshot } from "../reporting/snapshot.js";
 
 type UpgradeContent = Extract<BillingOrderContent, { kind: "upgrade" }>;
 export async function fulfillUpgrade(
@@ -117,6 +118,7 @@ export async function fulfillUpgrade(
     proratedFen: content.proratedFen,
     payFen: content.payFen,
     topupPoints: content.topupPoints,
+    dailySnapshot: await captureSubscriptionDailySnapshot(tx, order.entityId, term.id),
   };
   await tx.subscriptionEvent.create({
     data: {
