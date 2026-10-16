@@ -27,6 +27,11 @@ W4-05前置公口：`captureSubscriptionDailySnapshot(tx, entityId, termId)`只�
 从主体创建日起按流水bizDate和每term历史快照重建，写可重算daily与policy1估值；不拍当前余额。
 `rebuildEntityValuation(tx,{ledger},entityId)`也可独立重建估值，conversion取真实origin转出价值。
 
+只读巡检用`computeEntityValuation(db,entityId,at)`与`computeEntityDaily(db,entityId,through,at)`，
+后者返回`{days,valuations}`；两者只查真实源表，不读写派生表、不锁账户或advance，
+at由调用方注入并提供一致读视图，业务字段比较忽略计算时间等元数据。
+原写者在原账户锁下委托同一计算结果；未推进的真实到期事实明确拒绝，不在巡检中自愈。
+
 任一相关旧事件缺快照即`BillingDailyHistoryMissingError`，整主体投影失败，旧史不猜填；
 调用方advance后用`kernel.savepoint`隔离投影，保推进提交/逐主体继续，不能把缺史写成0或吞其它错误。
 本前置未接实际事件写者、sweep与13个月验收；后继开通/预约/rollover/expired/upgrade及extend/refund/resume

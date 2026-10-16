@@ -65,10 +65,32 @@ export async function findI1Violations(
     };
     tables.set(`${table}.${column}`, { ...shared, kinds: [...shared.kinds, kind] });
 
+    // 回单复核的外键按08分组只保存最近一轮。旧rejected轮仍须绑定同一真实
+    // 凭证和更新的最新审批；pending/approved不能借历史轮跳过唯一反指检查。
+    const transferHistory =
+      kind === "transfer_confirm" &&
+      domain.table === "transfer_proof" &&
+      domain.column === "review_approval_request_id";
+    const relation = transferHistory
+      ? `d.id = a.subject_id AND a.subject_type = 'transfer_proof'
+         AND d.entity_id IS NOT DISTINCT FROM a.entity_id
+         AND (SELECT count(*) FROM ${table} r WHERE r.${column} = a.id)
+             = CASE WHEN d.${column} = a.id THEN 1 ELSE 0 END
+         AND EXISTS (
+           SELECT 1 FROM approval_request c
+            WHERE c.id = d.${column} AND c.kind = a.kind
+              AND c.subject_type = a.subject_type AND c.subject_id = a.subject_id
+              AND c.entity_id IS NOT DISTINCT FROM a.entity_id
+              AND c.store_id IS NOT DISTINCT FROM a.store_id
+              AND c.round_no = (SELECT max(l.round_no) FROM approval_request l
+                WHERE l.kind = a.kind AND l.subject_type = a.subject_type
+                  AND l.subject_id = a.subject_id)
+              AND (c.id = a.id OR (a.status = 'rejected' AND a.round_no < c.round_no)))`
+      : `d.${column} = a.id`;
     const counted = await db.$queryRawUnsafe<Found[]>(
       `SELECT a.id::text AS id, a.entity_id::text AS "entityId", n.rows::int AS "domainRows"
          FROM approval_request a
-         CROSS JOIN LATERAL (SELECT count(*) AS rows FROM ${table} d WHERE d.${column} = a.id) n
+         CROSS JOIN LATERAL (SELECT count(*) AS rows FROM ${table} d WHERE ${relation}) n
         WHERE a.kind = $1 AND n.rows <> 1
         ORDER BY a.id LIMIT ${APPROVAL_INVARIANT_LIMIT}`,
       kind,
