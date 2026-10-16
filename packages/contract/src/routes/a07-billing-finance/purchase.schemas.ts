@@ -251,7 +251,26 @@ export const PaymentOrderAdminDetailSchema = z
         createdAt: InstantSchema,
       }),
     ),
-    invoice: z.object({ state: z.literal("not_eligible"), latest: z.null() }),
+    invoice: z.object({
+      state: openEnum([
+        "not_eligible",
+        "not_requested",
+        "requested",
+        "issued",
+        "red_pending",
+        "red_issued",
+        "rejected",
+      ]),
+      latest: z
+        .object({
+          invoiceRequestId: IdSchema,
+          requestNo: z.string(),
+          status: openEnum(["pending", "issued", "rejected", "red_pending", "red_issued"]),
+          invoiceType: z.enum(["normal", "special"]),
+          medium: z.enum(["electronic", "paper"]),
+        })
+        .nullable(),
+    }),
     openExceptions: z.array(
       z.object({
         paymentExceptionId: IdSchema,

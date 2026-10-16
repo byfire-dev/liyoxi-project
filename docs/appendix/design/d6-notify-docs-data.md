@@ -948,10 +948,10 @@ notify.sendDirect({ purpose, templateKey, phone, params, directKey?, operator? }
 ### 2.12 邮件（电子发票）
 
 - 触发：`invoice.issued` 且介质为电子、申请单填了接收邮箱【原型 merchant/Invoices；admin/Invoices】。发票单据、开具与“重发邮件”操作归 D2；邮件**只经通知中心的 `mail` 通道发出**。D2 §11.2 的现行文本是 D2 自己调用 `mail` Provider，两处各发一封的风险仍在，须 D2 改为只发事件（§1.6 第 12 项）。投递到达终态时通知中心发出站事件 `notify.mail_delivered` / `notify.mail_failed`，D2 据此更新发票的 `email_state`。
-- 内容：主题“【狸有戏】电子发票已开具（付款单 FK…）”；正文含抬头、金额、发票号码；**附件为发票文件本体**（PDF / OFD / XML，合计 ≤10MB），不放签名下载链接（链接是短时的，邮件会被转给财务，几天后才打开）。
-- 通道：`MailProvider`，默认驱动 `smtp`（nodemailer 10.x，对接腾讯云邮件推送或企业邮箱的 SMTP）；发信域名须配置 SPF / DKIM。腾讯云邮件推送的 API 方式是否强制使用审核过的模板，本次未核实，所以默认走 SMTP，换驱动不影响业务。
-- 失败与重发：确定未受理的错误重试 2 次；仍失败记 `failed` 并在后台发票详情显示“邮件未送达”。财务点“重新发送”时，D2 的 `resend-email` 接口调用 `notify.resend(tx, { bizType: 'invoice', bizId, channel: 'mail', operator })`：在**同一条通知**上新建一条 `seq+1`、`origin='manual'` 的邮件投递——不新建通知，商家不会多收到一条“发票已开具”站内消息【评审 m12】。未配置邮件驱动时 `skipped(unconfigured)`，小程序内下载不受影响。
-- 邮箱地址加密存储于发票申请单，投递表只存 HMAC 与脱敏值。
+- 内容：主题“【狸有戏】电子发票已开具（付款单 FK…）”；正文含抬头、金额、发票号码；**附件为发票文件本体**（PDF / OFD / XML；Tencent SES 附件原始字节合计 ≤4MiB、完整请求 ≤8MiB），不放签名下载链接（链接是短时的，邮件会被转给财务，几天后才打开）。
+- 通道：按 02 技术选择与 W4-13 采用 `MailProvider` 的 Tencent SES HTTP 薄适配，不引入 nodemailer。国内默认账号须已审核 Template，固定单文本变量 `text`；`Simple` 已废弃，仅旧特批账号可用，本项目不采用。专用 `MAIL_TENCENT_FILE` 只挂 worker/check-env，地域只 ap-guangzhou/ap-hongkong；发信域名 SPF/DKIM 与实际模板由 E20 外验。OFD 保存/下载保真，官方附件支持清单未明确列 OFD，其邮件兼容不冒称已验。依据：[SendEmail](https://cloud.tencent.com/document/api/1288/51034)、[附件限制](https://cloud.tencent.com/document/product/1288/51951)。
+- 失败与重发：确定未受理的错误重试 2 次；仍失败记 `failed` 并在后台发票详情显示“邮件发送失败”。财务点“重新发送”时，D2 的 `resend-email` 接口调用 `notify.resend(tx, { bizType: 'invoice_doc', bizId, channel: 'mail', operator })`：在**同一条通知**上新建一条 `seq+1`、`origin='manual'` 的邮件投递——不新建通知，商家不会多收到一条“发票已开具”站内消息【评审 m12】。未配置邮件驱动时 `skipped(unconfigured)`，小程序内下载不受影响。
+- 邮箱地址加密存储于发票申请单，投递表只存 HMAC 与脱敏值。`queued` 是任务待处理；API 不用自身未配置状态推断 worker，worker 真实未配置后才回写 `skipped`。SES `MessageId` 仅代表受理，兼容事件 `notify.mail_delivered`/状态 `sent`/emailSentAt 均记录 Provider 明确受理，不证明收件箱到达；不伪造邮箱回执。
 
 ### 2.13 模板与开关管理、测试发送、发送日志与重发
 

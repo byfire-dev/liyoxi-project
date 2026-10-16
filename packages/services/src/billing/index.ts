@@ -151,3 +151,15 @@ export {
   createBillingDailyProjection,
 } from "./reporting/daily.js";
 export type { BillingDailyReader, EntityDailyComputation } from "./reporting/daily.js";
+
+export { createInvoices } from "./invoices/service.js";
+export { createInvoiceAssembly } from "./invoices/assembly.js";
+export { readInvoiceMail } from "./invoices/mail.js";
+export type { InvoiceDeps, InvoiceRuntimeDeps } from "./invoices/context.js";
+export { createFinanceConfigService } from "./finance-config/service.js";
+export {
+  readInvoiceRefundGuard,
+  markInvoiceRedPending,
+  cancelInvoiceRed,
+  rejectInvoiceAfterRefund,
+} from "./invoices/refund.js";

@@ -131,6 +131,7 @@ export async function proposeFinanceConfig(
   ctx: IdentityContext,
   input: FinanceProposal,
   staff: StaffContext,
+  options: { idempotencyKey?: string | null } = {},
 ) {
   if (ctx.actor.type !== "staff" || ctx.actor.id !== staff.staff.id)
     throw new AppError("PERMISSION_DENIED");
@@ -141,6 +142,7 @@ export async function proposeFinanceConfig(
     kind: "finance_config_change",
     subjectType: "finance_config_revision",
     subjectId: id,
+    idempotencyKey: options.idempotencyKey ?? null,
     input,
     ...(ctx.actor.client === "cli"
       ? {

@@ -551,6 +551,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/invoice-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 开票记录：类型、介质、项目、状态（开票中/已开具/已驳回/红冲中/已红冲）、金额、申请单号、付款单号、申请与开具时间、发票号码、进度说明 */
+        get: operations["m.invoiceRequest.list"];
+        put?: never;
+        /** 按付款单申请开票：{paymentOrderId, invoiceType, medium, 专票地址电话与开户行账号, 接收邮箱, 邮寄信息（收件电话用 phoneSource）}；抬头与税号取认证主体，不接收 */
+        post: operations["m.invoiceRequest.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/invoice-requests/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 开票页“开票记录 · N”计数、各状态计数，以及开票页上下文（抬头卡、申请弹层默认值） */
+        get: operations["m.invoiceRequest.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/invoice-requests/{invoiceRequestId}/download-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发发票文件的 5 分钟读地址（请求体指明哪一张：蓝字或红字），每次写访问审计 */
+        post: operations["m.invoiceRequest.downloadUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/launch-tasks": {
         parameters: {
             query?: never;
@@ -3393,6 +3445,59 @@ export interface components {
             /** @enum {string} */
             status: "pending" | "accepted" | "revoked" | "expired";
             storeName: string | null;
+        };
+        InvoiceDocView: {
+            amountFen: number;
+            /** @enum {string} */
+            docKind: "blue" | "red";
+            /** @enum {string} */
+            emailState: "none" | "queued" | "sent" | "failed" | "skipped" | (string & {});
+            expressCompany: components["schemas"]["DictRef"] | null;
+            /** @enum {string|null} */
+            fileFormat: "pdf" | "ofd" | "xml" | null;
+            hasFile: boolean;
+            invoiceCode: string | null;
+            invoiceNo: string;
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            shippedAt: string | null;
+            trackingNo: string | null;
+        };
+        InvoiceRequestCard: {
+            actions: string[];
+            amountFen: number;
+            /** Format: date-time */
+            appliedAt: string;
+            docs: components["schemas"]["InvoiceDocView"][];
+            /** Format: uuid */
+            invoiceRequestId: string;
+            /** @enum {string} */
+            invoiceType: "normal" | "special";
+            isHeldByRefund: boolean;
+            itemName: string;
+            mailToMask: string | null;
+            /** @enum {string} */
+            medium: "electronic" | "paper";
+            /** Format: uuid */
+            paymentOrderId: string;
+            paymentOrderNo: string;
+            paymentOrderTitle: string;
+            progressNote: string;
+            recvEmailMask: string | null;
+            reject: {
+                /** @enum {string} */
+                kind: "manual" | "order_refunded";
+                note: string | null;
+                reason: components["schemas"]["DictRef"] | null;
+                /** Format: date-time */
+                rejectedAt: string;
+            } | null;
+            requestNo: string;
+            /** @enum {string} */
+            status: "pending" | "issued" | "rejected" | "red_pending" | "red_issued" | (string & {});
+            taxNoMask: string;
+            title: string;
         };
         LaunchSubmissionView: {
             /** Format: date */
@@ -8044,6 +8149,405 @@ export interface operations {
             };
         };
     };
+    "m.invoiceRequest.list": {
+        parameters: {
+            query?: {
+                status?: string;
+                paymentOrderId?: string;
+                no?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: components["schemas"]["InvoiceRequestCard"][];
+                            nextCursor: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.invoiceRequest.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    addrTel?: string;
+                    bankAccount?: string;
+                    /** @enum {string} */
+                    invoiceType: "normal" | "special";
+                    mailTo?: {
+                        address: string;
+                        phone?: string;
+                        /** @enum {string} */
+                        phoneSource: "login" | "store_contact" | "input";
+                        recipientName: string;
+                    };
+                    /** @enum {string} */
+                    medium: "electronic" | "paper";
+                    /** Format: uuid */
+                    paymentOrderId: string;
+                    /** Format: email */
+                    recvEmail?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["InvoiceRequestCard"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.invoiceRequest.summary": {
+        parameters: {
+            query?: {
+                status?: string;
+                paymentOrderId?: string;
+                no?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            byStatus: {
+                                issued: number;
+                                pending: number;
+                                red_issued: number;
+                                red_pending: number;
+                                rejected: number;
+                            };
+                            context: {
+                                applyDefaults: {
+                                    addrTel: string | null;
+                                    address: string | null;
+                                    contactPhoneMask: string | null;
+                                    loginPhoneMask: string | null;
+                                    recipientName: string | null;
+                                };
+                                invoiceTitle: {
+                                    entityName: string | null;
+                                    isVerified: boolean;
+                                    taxNoMask: string | null;
+                                };
+                            };
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.invoiceRequest.downloadUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoiceRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @default blue
+                     * @enum {string}
+                     */
+                    docKind?: "blue" | "red";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** Format: date-time */
+                            expiresAt: string;
+                            /** @enum {string} */
+                            fileFormat: "pdf" | "ofd" | "xml";
+                            fileName: string;
+                            /** Format: uri */
+                            url: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.launchTask.list": {
         parameters: {
             query?: {
@@ -9609,6 +10113,13 @@ export interface operations {
                                     };
                                     /** @enum {string} */
                                     route: "store.members";
+                                } | {
+                                    params: {
+                                        /** Format: uuid */
+                                        invoiceRequestId: string;
+                                    };
+                                    /** @enum {string} */
+                                    route: "invoice.detail";
                                 } | {
                                     params: {
                                         /** Format: uuid */

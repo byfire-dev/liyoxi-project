@@ -2723,7 +2723,7 @@
 | `FILE_NOT_USABLE` | 400 | （m03） |
 | `CONFIRM_MISMATCH` | 409 | |
 
-**副作用**（一个事务）：插入 `invoice_doc`（`doc_kind = blue`、`amount_fen` = 开票金额、`issued_by_staff_id` = 本人、`issued_at` = 现在；纸质另写 `shipped_at`）；`invoice_request.status`：`pending → issued`（08-billing-payment.md:1111-1112）；电子且有接收邮箱：`invoice_doc.email_state`：`none → queued`（未配置邮件驱动为 `skipped`）；取消 `sla.breach` 定时器（如有）；出站事件 `invoice.issued`（通知商家，电子发票经通知中心发邮件，R14）；审计（`category = invoice`）。
+**副作用**（一个事务）：插入 `invoice_doc`（`doc_kind = blue`、`amount_fen` = 开票金额、`issued_by_staff_id` = 本人、`issued_at` = 现在；纸质另写 `shipped_at`）；`invoice_request.status`：`pending → issued`（08-billing-payment.md:1111-1112）；电子且有接收邮箱：`invoice_doc.email_state`：`none → queued`（通知场景已关闭则 `skipped`；API 不持邮件密钥，真实 worker 未配置后由通知结果回写 `skipped`）；取消 `sla.breach` 定时器（如有）；出站事件 `invoice.issued`（通知商家，电子发票经通知中心发邮件，R14）；审计（`category = invoice`）。
 
 ### 3.71 admin.invoiceRequest.reject　驳回开票申请
 `POST /admin/invoice-requests/{invoiceRequestId}/reject`

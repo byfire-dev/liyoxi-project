@@ -90,7 +90,14 @@ export const PARAM_KEYS_BY_GROUP = {
     "refund.points.auto_approve_before_production",
     "refund.require_distinct_executor",
   ],
-  invoice: ["invoice.apply_within_days", "invoice.no_rules"],
+  invoice: [
+    "invoice.apply_within_days",
+    "invoice.no_rules",
+    "invoice.item_name.plan_new",
+    "invoice.item_name.plan_renew",
+    "invoice.item_name.plan_upgrade",
+    "invoice.item_name.topup",
+  ],
   recon: ["recon.first_run_time", "recon.alarm_time"],
   export: [
     "export.max_rows",

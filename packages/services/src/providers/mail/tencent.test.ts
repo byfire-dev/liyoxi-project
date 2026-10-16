@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { EnvError, loadEnv } from "../../kernel/env.js";
+import { EnvError, loadEnv } from "../../kernel/index.js";
 import { createProviders, ProviderConfigError } from "../index.js";
 import { MAIL_HOST, signMail } from "./sign.js";
 import { createTencentMail } from "./tencent.js";

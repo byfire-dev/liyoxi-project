@@ -1,9 +1,12 @@
+import type { BillingPurchaseDeps } from "../billing/index.js";
 import {
   createWechatPaymentSource,
   createWechatChannel,
   bindPaymentChannel,
   createPayment,
   createFulfillment,
+  createTransferReviewAssembly,
+  createInvoiceAssembly,
 } from "../billing/index.js";
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createServerErrorReporter, reportWorkerOutcome } from "./server-errors.js";
@@ -206,6 +209,8 @@ export interface WorkerServicesOptions {
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
     readonly WECHAT_PAY?: Env["WECHAT_PAY"];
+    readonly MAIL_TENCENT?: Env["MAIL_TENCENT"];
+    readonly OCR_TENCENT?: Env["OCR_TENCENT"];
     readonly DATA_KEYS?: DataKeysConfig;
     readonly BIDX_KEYS?: BidxKeysConfig;
     readonly MINIO?: Env["MINIO"];
@@ -334,7 +339,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   let storageClosing: Promise<void> | undefined;
   const closeStorageDrivers = (): Promise<void> =>
     (storageClosing ??= Promise.all(storageClosers.map((close) => close())).then(() => undefined));
-  const robotClosers: Array<() => Promise<void>> = [];
+  const notificationClosers: Array<() => Promise<void>> = [];
   const logger = options.logger ?? silent;
   const profileCommits = createProfileConsistencyTransactions(
     createTxRunner({ prisma, appEnv: options.appEnv, report: options.report }),
@@ -369,7 +374,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const mediaScope = createMediaAssembly(notifyScope.assembly);
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
-  const approvalSlaScope = createApprovalSlaAssembly(staffScope.assembly);
+  const transferReviewScope = createTransferReviewAssembly(staffScope.assembly);
+  const approvalSlaScope = createApprovalSlaAssembly(transferReviewScope.assembly);
   const profileLifecycleScope = createProfileLifecycleAssembly(approvalSlaScope.assembly);
   const profileConsistencyScope = createProfileConsistencyAssembly(profileLifecycleScope.assembly);
   const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
@@ -378,7 +384,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const invitationScope = createInvitationAssembly(docsScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
-  const assembly = entitlementScope.assembly;
+  const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
+  const assembly = invoiceScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -402,6 +409,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       })
     : null;
   const flow = createFlow({ assembly, clock, events });
+  invoiceScope.attach({ clock, events, flow, timers, sla: createSla({ clock, assembly }) });
   invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
   const wechatSources = options.wechat
     ? [
@@ -459,6 +467,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       logger,
       ...(options.keys?.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
       settings: {
+        ...(options.keys?.MAIL_TENCENT ? { mail: options.keys.MAIL_TENCENT } : {}),
+        ...(options.keys?.OCR_TENCENT ? { ocr: options.keys.OCR_TENCENT } : {}),
         ...(options.keys?.WECHAT_PAY ? { wechatPay: options.keys.WECHAT_PAY } : {}),
         ...(options.keys?.ALERTS?.robotKey
           ? { wecomRobot: { key: options.keys.ALERTS.robotKey } }
@@ -518,7 +528,24 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       },
       ...(options.keys?.ALERTS?.robotKey
         ? {
-            wecomRobot: { registerClose: (close: () => Promise<void>) => robotClosers.push(close) },
+            wecomRobot: {
+              registerClose: (close: () => Promise<void>) => notificationClosers.push(close),
+            },
+          }
+        : {}),
+      ...(options.keys?.OCR_TENCENT
+        ? {
+            ocr: {
+              registerClose: (close: () => Promise<void>) => mediaClosers.push(close),
+            },
+          }
+        : {}),
+      ...(options.keys?.MAIL_TENCENT
+        ? {
+            mail: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => notificationClosers.push(close),
+            },
           }
         : {}),
       ...(ci?.worker
@@ -589,6 +616,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    ...(options.sessionMutex
+      ? {
+          ocr: {
+            provider: providers.ocr,
+            sessionMutex: options.sessionMutex,
+            keyring: () => keyringFromEnv(options.keys ?? {}),
+          },
+        }
+      : {}),
     ...(options.sessionMutex
       ? {
           retention: {
@@ -708,7 +744,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
-  const paymentChannel = createWechatChannel({
+  const workerPurchaseDeps: BillingPurchaseDeps = {
+    assembly,
+    media,
+    ledger,
+    docs: docsServices.docs,
+    approval,
+    sla: deliveryCore.sla,
     tx,
     clock,
     tenant,
@@ -738,7 +780,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
           },
         }
       : {}),
-  });
+  };
+  transferReviewScope.attach(workerPurchaseDeps);
+  const paymentChannel = createWechatChannel(workerPurchaseDeps);
   const closePaymentChannel = bindPaymentChannel(paymentChannel);
   profileConsistencyScope.attach(
     createProfileQualificationConsistency({
@@ -774,6 +818,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     onFailure: (outcome: "retry" | "failed") => reportWorkerOutcome(serverErrors, "timer", outcome),
   };
   const notify = createRuntimeNotify({
+    events,
     tx,
     clock,
     assembly,
@@ -842,7 +887,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       try {
         await alertDispatcher?.close();
       } finally {
-        await Promise.all(robotClosers.map((close) => close()));
+        await Promise.all(notificationClosers.map((close) => close()));
       }
     })());
 
@@ -900,7 +945,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       contentPricingScope.close();
       await staffScope.close();
     },
-    closeApproval: () => approvalSlaScope.close(),
+    closeApproval: () => {
+      invoiceScope.close();
+      transferReviewScope.close();
+      approvalSlaScope.close();
+    },
     closeProfile: async () => {
       profileLifecycleScope.close();
       await profileConsistencyScope.close();

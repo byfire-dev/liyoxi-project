@@ -91,6 +91,9 @@ import {
   bindBillingTimers,
   createBillingPurchase,
   createTransferReviewAssembly,
+  createInvoiceAssembly,
+  createInvoices,
+  createFinanceConfigService,
   createLedger,
   createPayment,
   createFulfillment,
@@ -271,7 +274,10 @@ export interface Runtime {
   readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
-  readonly billing: BillingPurchase;
+  readonly billing: BillingPurchase & {
+    invoices: ReturnType<typeof createInvoices>;
+    financeConfig: ReturnType<typeof createFinanceConfigService>;
+  };
   readonly billingPlansAdmin: ReturnType<typeof createPlanAdmin>;
   readonly billingParameters: ReturnType<typeof createParameterChanges>;
   readonly notifyMessages: NotifyMessages;
@@ -455,7 +461,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const invitationScope = createInvitationAssembly(docsScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
-  const assembly = transferReviewScope.assembly;
+  const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
+  const assembly = invoiceScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -787,6 +794,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     kinds: approval.kinds,
   });
   const notify = createRuntimeNotify({
+    events,
     tx,
     clock,
     assembly,
@@ -933,7 +941,18 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
   };
-  const billing = createBillingPurchase(purchaseDeps);
+  const invoiceDeps = {
+    ...purchaseDeps,
+    invoiceMedia: media,
+    invoiceMailEnabled: notify.invoiceMailEnabled,
+    resendMail: notify.resendInvoiceMail,
+  };
+  const billing = {
+    ...createBillingPurchase(purchaseDeps),
+    invoices: createInvoices(invoiceDeps),
+    financeConfig: createFinanceConfigService(purchaseDeps),
+  };
+  invoiceScope.attach(invoiceDeps);
   transferReviewScope.attach(purchaseDeps);
   const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
   const order = createOrderService({
@@ -1106,6 +1125,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([() => modelDrivers?.close()]);
         await settle([() => modelBudget?.close()]);
         await settle([
+          () => invoiceScope.close(),
           () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),
           () => profileConsistencyScope.close(),

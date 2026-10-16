@@ -1,3 +1,5 @@
+import { orderInvoiceFacts } from "../invoices/projection.js";
+import { invoiceItemName } from "../invoices/parameters.js";
 import {
   PaymentOrderDetailSchema,
   PaymentOrderAdminDetailSchema,
@@ -48,7 +50,7 @@ export async function staffBrief(tx: Tx, id: string | null) {
       }
     : null;
 }
-async function entityRef(tx: Tx, entityId: string) {
+export async function entityRef(tx: Tx, entityId: string) {
   const e = await tx.entity.findUniqueOrThrow({
       where: { id: entityId },
       select: { name: true, verificationStatus: true },
@@ -191,6 +193,7 @@ export async function merchantOrderView(
       deps.wechatPay?.provider.configured ?? false,
     ),
     fulfillment = await fulfillmentView(tx, o);
+  const invoice = await orderInvoiceFacts(tx, o, now);
   return PaymentOrderDetailSchema.parse({
     paymentOrderId: o.id,
     orderNo: o.orderNo,
@@ -202,11 +205,11 @@ export async function merchantOrderView(
     title: `开通${content.planName ?? "套餐"} · ${content.months ?? 1} 个月`,
     createdAt: iso(o.createdAt),
     paidAt: iso(o.paidAt),
-    invoiceItemName: null,
-    invoiceState: "not_eligible",
-    activeInvoiceRequest: null,
-    actions:
-      o.channel === "wechat_jsapi" && o.status === "pending_payment"
+    invoiceItemName: await invoiceItemName(tx, o.type, now, false),
+    invoiceState: invoice.invoiceState,
+    activeInvoiceRequest: invoice.activeInvoiceRequest,
+    actions: [
+      ...(o.channel === "wechat_jsapi" && o.status === "pending_payment"
         ? [
             "sync",
             "cancel",
@@ -216,7 +219,12 @@ export async function merchantOrderView(
             ((o.status === "pending_payment" && now < o.expiresAt) ||
               (o.status === "pending_confirmation" && o.transferState === "proof_submitted"))
           ? [...(o.status === "pending_payment" ? ["cancel"] : []), "submit-proof"]
-          : [],
+          : []),
+      ...(invoice.invoiceState === "eligible" &&
+      (await tx.entity.findUnique({ where: { id: o.entityId } }))?.verificationStatus === "verified"
+        ? ["submit-invoice"]
+        : []),
+    ],
     paidAmountFen: o.paidAmountFen,
     refundedAmountFen: o.refundedAmountFen,
     fulfillmentStatus: o.fulfillmentStatus,
@@ -573,7 +581,7 @@ export async function adminOrderView(
       })),
     ),
     refundRequests: [],
-    invoice: { state: "not_eligible", latest: null },
+    invoice: (await orderInvoiceFacts(tx, o, deps.clock.now())).invoice,
     openExceptions: exceptions.map((r) => ({
       paymentExceptionId: r.id,
       exceptionNo: r.exceptionNo,

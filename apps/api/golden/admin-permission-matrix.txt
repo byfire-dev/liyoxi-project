@@ -105,6 +105,11 @@ admin.file.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.file.refreshCredentials | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.file.restore | - | files.restore | 11 00 00 00 00 00 00 00
+admin.financeConfigRevision.approve | - | finance.config.approve | 11 00 00 00 00 00 00 11
+admin.financeConfigRevision.create | - | finance.config.propose | 11 00 00 00 00 00 00 11
+admin.financeConfigRevision.list | finance:view | - | 11 00 00 00 00 00 00 11
+admin.financeConfigRevision.reject | - | finance.config.approve | 11 00 00 00 00 00 00 11
+admin.financeConfigRevision.withdraw | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.followUp.complete | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.followUp.create | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.followUp.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
@@ -114,6 +119,13 @@ admin.homeBanner.create | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.list | ops:view | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.summary | ops:view | - | 11 00 00 00 00 11 00 00
 admin.homeBanner.update | ops:edit | - | 11 00 00 00 00 11 00 00
+admin.invoiceRequest.get | finance:view | - | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.issue | - | finance.invoice.issue | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.issueRed | - | finance.invoice.red | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.list | finance:view | - | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.reject | - | finance.invoice.issue | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.resend | - | finance.invoice.issue | 11 00 00 00 00 00 00 11
+admin.invoiceRequest.summary | finance:view | - | 11 00 00 00 00 00 00 11
 admin.launchSubmission.approve | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
 admin.launchSubmission.get | publish:view | - | 11 11 11 00 11 11 00 00
 admin.launchSubmission.reject | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
