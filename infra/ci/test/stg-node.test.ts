@@ -533,6 +533,12 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
         secrets: [{ file: "ocr-tencent.json", env: "OCR_TENCENT_FILE", services: allRoles }],
       },
       {
+        id: "mail",
+        secrets: [
+          { file: "mail-tencent.json", env: "MAIL_TENCENT_FILE", services: "worker check-env" },
+        ],
+      },
+      {
         id: "llm",
         secrets: [{ file: "llm-domestic.json", env: "LLM_DOMESTIC_FILE", services: allRoles }],
       },
@@ -804,6 +810,31 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
       expect(callback.lines.at(-1)).toContain(
         `-f ${join(source, "infra/compose/providers/asr-callback.yml")} -f ${join(source, "infra/compose/providers/asr.yml")} run --rm --no-deps -T seed`,
       );
+    });
+
+    it("mail 选择仅要求 worker 密钥且离线检查复用固定 overlay", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({
+        LYX_SECRETS_DIR: dir,
+        LYX_SECRETS_SKIP_OWNER: "1",
+        LYX_NODE_PROVIDERS: "mail",
+      });
+      const check = (role: string) => sh(CHECK, ["--skip-owner", "--service", role], { env });
+      expect(check("api").status).toBe(0);
+      const missing = check("worker");
+      expect(missing.status).toBe(1);
+      expect(missing.output).toContain("mail-tencent.json：没有这个文件");
+      optionalFile(dir, "mail-tencent.json");
+      expect(check("worker").status).toBe(0);
+      const checked = sh(STEP, ["check-env", "t-mail"], { env, fakes: ["docker", "systemctl"] });
+      expect(checked.status, checked.output).toBe(0);
+      expect(checked.calls).toEqual([
+        {
+          tag: "t-mail",
+          line: `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} -f ${join(repoRoot, "infra/compose/node.yml")} -f ${join(repoRoot, "infra/compose/providers/mail.yml")} run --rm --no-deps -T check-env`,
+        },
+      ]);
+      expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
     });
 
     it("check-env 先拒缺选中文件，再用同一 overlay 单次运行离线格式检查", () => {
