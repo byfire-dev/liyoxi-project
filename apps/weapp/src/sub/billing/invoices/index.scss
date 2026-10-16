@@ -1,0 +1,28 @@
+.billing-invoices {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__amount {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  &__hint {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  &__choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  &__doc {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid $lyx-color-border;
+  }
+}

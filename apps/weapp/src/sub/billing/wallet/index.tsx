@@ -11,9 +11,11 @@ import { InfoTag } from "@/components/InfoTag";
 import { LoadError } from "@/components/LoadError";
 import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
+import { TextButton } from "@/components/TextButton";
+import { accountPageImplemented } from "@/lib/account-entries";
 import { Skeleton } from "@/components/Skeleton";
 import { StatusTag, merchantStatusByEnum } from "@/components/StatusTag";
-import { account } from "@/lib/account-runtime";
+import { account, useAccount } from "@/lib/account-runtime";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
@@ -88,6 +90,11 @@ function WalletContent() {
     };
   }, [refresh]);
   usePullDownRefresh(() => setRefresh((value) => value + 1));
+  const storeId = useContextStore((value) => value.currentStoreId);
+  const me = useAccount().me;
+  const owner = me?.memberships.some(
+    (member) => member.role === "owner" && member.stores.some((store) => store.storeId === storeId),
+  );
   const wallet = data?.wallet;
   const status =
     wallet && merchantStatusByEnum("billing_account.sub_status", wallet.subscription.status);
@@ -103,6 +110,28 @@ function WalletContent() {
           <Skeleton cards={3} />
         ) : (
           <>
+            {owner ? (
+              <Card title="票据与协议">
+                {accountPageImplemented("sub/billing/invoices/index") ? (
+                  <TextButton
+                    onClick={() => {
+                      void Taro.navigateTo({ url: "/sub/billing/invoices/index" });
+                    }}
+                  >
+                    发票
+                  </TextButton>
+                ) : null}
+                {accountPageImplemented("sub/billing/contracts/index") ? (
+                  <TextButton
+                    onClick={() => {
+                      void Taro.navigateTo({ url: "/sub/billing/contracts/index" });
+                    }}
+                  >
+                    合同与协议
+                  </TextButton>
+                ) : null}
+              </Card>
+            ) : null}
             <Card
               variant="dark"
               eyebrow={`当前${noun}`}

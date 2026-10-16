@@ -172,8 +172,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   }),
   page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "G4-C"),
   page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "G4-C"),
-  page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "G4-C"),
-  page("sub/billing/contracts/index", "sub/billing", "合同", "Contracts", "M34", "M4", "G4-C"),
+  page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "W4-16", {
+    implemented: true,
+  }),
+  page("sub/billing/contracts/index", "sub/billing", "合同", "Contracts", "M34", "M4", "W4-16", {
+    implemented: true,
+  }),
   // sub/profile（9 页）
   page("sub/profile/profile/index", "sub/profile", "建档首页", "Profile", "M12", "M1", "W1-09", {
     implemented: true,
