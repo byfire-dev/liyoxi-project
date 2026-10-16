@@ -233,6 +233,11 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
       "pending",
     ]),
   ],
+  "transfer.sla_breached": [
+    staffSpec("s.finance_overdue", "transferForNotify", "transferProofId", "order.receipts", [
+      "pending",
+    ]),
+  ],
   "transfer.rejected": [
     spec("m.transfer_rejected", "billingOrderForNotify", "billingOrderId", "plan_points", (v) => ({
       route: "payment.detail",

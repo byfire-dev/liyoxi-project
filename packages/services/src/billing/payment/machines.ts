@@ -61,7 +61,49 @@ export const paymentMachineBindings: readonly { key: string; binding: MachineBin
       ],
       guards: {
         [rowKey("08:164", "billing_order.apply_payment")]: paid,
-        [rowKey("08:171", "billing_order.confirm_transfer")]: paid,
+        [rowKey("08:171", "billing_order.confirm_transfer")]: async (tx, facts) => {
+          const order = await tx.billingOrder.findUnique({ where: { id: facts.subjectId } });
+          return order?.transferState === "proof_submitted" && (await paid(tx, facts));
+        },
+        [rowKey("08:173", "billing_order.approve_review")]: async (tx, facts) => {
+          if (!(await paid(tx, facts))) return false;
+          const txnId = (facts.args as { paymentTxnId?: string })?.paymentTxnId;
+          const receipt = txnId ? await tx.paymentTxn.findUnique({ where: { id: txnId } }) : null;
+          const proof = receipt?.transferProofId
+            ? await tx.transferProof.findUnique({ where: { id: receipt.transferProofId } })
+            : null;
+          const approval = proof?.reviewApprovalRequestId
+            ? await tx.approvalRequest.findUnique({ where: { id: proof.reviewApprovalRequestId } })
+            : null;
+          const order = await tx.billingOrder.findUnique({ where: { id: facts.subjectId } });
+          return (
+            !!order &&
+            !!receipt &&
+            !!proof &&
+            !!approval &&
+            order.transferState === "confirm_review" &&
+            proof.billingOrderId === order.id &&
+            proof.entityId === order.entityId &&
+            proof.reviewStatus === "accepted" &&
+            proof.firstConfirm === null &&
+            approval.kind === "transfer_confirm" &&
+            approval.subjectType === "transfer_proof" &&
+            approval.subjectId === proof.id &&
+            approval.entityId === order.entityId &&
+            approval.status === "approved" &&
+            approval.decidedAt !== null &&
+            receipt.confirmedByStaffId !== null &&
+            receipt.reviewedByStaffId !== null &&
+            receipt.confirmedByStaffId === approval.requesterStaffId &&
+            receipt.reviewedByStaffId === approval.decidedByStaffId &&
+            receipt.confirmedByStaffId !== receipt.reviewedByStaffId &&
+            order.createdByStaffId !== receipt.confirmedByStaffId &&
+            order.createdByStaffId !== receipt.reviewedByStaffId &&
+            proof.reviewedByStaffId === receipt.reviewedByStaffId &&
+            facts.ctx.actor.type === "staff" &&
+            facts.ctx.actor.id === receipt.reviewedByStaffId
+          );
+        },
         [rowKey("08:165", "billing_order.cancel_mismatch")]: mismatch,
       },
     },

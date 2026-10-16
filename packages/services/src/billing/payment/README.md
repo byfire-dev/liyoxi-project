@@ -100,3 +100,23 @@ M1时只接受 `bank_transfer`；W4-01已回补关联付款单的可信微信成
 `Runtime.billing.pointPacks`提供七接口公口：后台目录自身串行锁、版本编辑与上下架，商家仅老板能力及当前门店范围可读。列表按正式契约为有界items集合，价格/入口沿当前购买策略；汇总分别取已付/已退付款事实与purchase批次的真实流入，不把未付单计作收入。
 
 `createOrder`的pointPackId分支在账户锁后重新读取上架档位、现价、有效套餐、主体级退款与渠道政策，写topup冻结快照及积分规则同意。QUOTE_CHANGED带真实pointPack详情；既有同内容同渠道单按原语义复用，历史改价/下架不回写，C50仍对重放账号置空。验证结果见W4-06状态；无真实资金操作。
+
+### W4-04 在途：线下开单与两人复核（c658源码检查点）
+
+后台四条正式写口复用现有报价、付款与审批：管理员开单显式核受控开关/合同号/主体范围与回显，不伪装商家或落协议同意。凭证上传、替换与处理经共用写段重设/取消其 SLA；`billing.onCalendarImported` 按上传时刻和原参数快照重算。`sla.breach` 只对 `transfer_proof` 分流，既有审批和其他主体保持。
+
+启用阈值后首确认只暂存 `first_confirm` 并提交 `transfer_confirm`，没有成功交易、入账或履约；第二人通过才走同一个 `applyPayment`，状态历史用正式 `billing_order.approve_review`。两复核动作必须携本面板的 `review.approvalId`，防止退回重提后旧版本 0 误处理新轮；approve 仍校验审批版本与真实回显。退回保留历史审批指针，清第一确认，凭证继续待处理。
+
+新四口在唯一幂等业务事务前只读预检当前权限/主体范围，重放同样执行；首次写再锁后复核，没有事务外外呼，不是 C51 三段式。财务超时沿正式 `s.finance_overdue` 和现有在职 finance 受众，派发时重查凭证/付款单与当前截止，日历延后后的旧事件不会误提醒。
+
+当前仅源码轻检查，尚未独审/类型/DB/HTTP验收。回单 OCR 的 media/Provider 独立前置尚未 actual，本包四项辅助比对函数已保存但未接完成事件；不声称 OCR、两桩或 W4-04 完成。真实回单与外部识别/资金验证仍未验。
+
+后续源码候选已同步 OCR actual `ec16f048`：新凭证同事务登记真实回单任务/指针并保存四项辅助结论，缓存 ok 直接读；完成订阅经 media 公口核 job/file/entity 后只更新当前 pending 凭证。查询只读脱敏六字段与实际结论，不把金额/户名/账号原值写进 check_result，也不自动到账。当前完整源码待唯一独审与小量风险目标，未验边界保留。
+
+#### W4-04 本地代码验收完成
+
+上述c658/候选段为历史检查点。最终新6服务聚合+2真实HTTP聚合分轮全部通过，services/API类型、官方生成/对账、生产权限矩阵与挂载、层级检查通过；未重复旧全量。唯一源码审查的WebP兼容问题已闭环：WebP凭证继续可上传，当前回单OCR不支持该格式时指针为null/状态unavailable/四项unknown，其他文件安全错误不吞掉。
+
+同proof退回重提暴露的approval.I1历史反指问题由独立前置`24427c89`修复，actual `d1a281fc` 后仅复验原红组G；当前轮、旧pending/approved及其它kind守卫仍保持。四API是入口只读授权预检加唯一幂等业务TX，重放仍查当前权限与scope，没有C51外呼阶段。金融/审批不变量在风险组内保持；不自动采信OCR到账。
+
+复验命令为`pnpm --filter @liyoxi/services exec vitest run src/billing/payment/transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`与`pnpm --filter @liyoxi/api exec vitest run test/billing-transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`；实际执行时后续只选原失败标题，绿色组不重复。官方矩阵补本包4行及已落主干10行漏项，旧角色格不变；testing夹具仅通过正式billing出口引用原纯wechatOrderAttach。真实腾讯云回单、银行收款与业主配置仍未验，本机全部使用虚构输入及替身外部IO。

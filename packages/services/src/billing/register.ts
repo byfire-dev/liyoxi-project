@@ -48,6 +48,7 @@ import {
   purchaseInvariants,
   handleTransferTtl,
 } from "./payment/purchase-registration.js";
+import { unboundTransferConfirm } from "./payment/transfer-review.js";
 import { approvalKindPort } from "../approval/index.js";
 import { fileRefTypePort } from "../media/index.js";
 import { financeConfigApproval, financeConfigAt } from "./finance-config/index.js";
@@ -122,6 +123,7 @@ export const registration = defineRegistration("billing", {
     }),
     ...billingPiiFields,
     implementKeyed(approvalKindPort, "finance_config_change", financeConfigApproval),
+    implementKeyed(approvalKindPort, "transfer_confirm", unboundTransferConfirm),
     implementKeyed(fileRefTypePort, "transfer_proof", {
       // 法定付款证明沿既有永久保留规则，不以交易终结为释放依据。
       inUse: async (tx, fileId) =>
@@ -145,6 +147,20 @@ export const registration = defineRegistration("billing", {
     ...purchaseMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
   ],
   subscribers: [
+    {
+      name: "billing.onOcrCompleted",
+      events: ["media.ocr.completed"],
+      handle: async () => {
+        throw new TypeError("回单OCR消费运行时尚未绑定");
+      },
+    },
+    {
+      name: "billing.onCalendarImported",
+      events: ["calendar.imported"],
+      handle: async () => {
+        throw new TypeError("对公凭证日历运行时尚未绑定");
+      },
+    },
     {
       name: "billing.applyPaymentFallback",
       events: ["payment_txn.succeeded"],

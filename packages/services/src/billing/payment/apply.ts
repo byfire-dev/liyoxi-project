@@ -177,7 +177,9 @@ export function createPayment(deps: PaymentDeps): Payment {
         id: order.id,
         event:
           order.status === "pending_confirmation"
-            ? "billing_order.confirm_transfer"
+            ? order.transferState === "confirm_review" && receipt.reviewedByStaffId !== null
+              ? "billing_order.approve_review"
+              : "billing_order.confirm_transfer"
             : "billing_order.apply_payment",
         set: {
           paid_amount_fen: receipt.channelAmountFen,

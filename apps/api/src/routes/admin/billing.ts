@@ -9,7 +9,9 @@ import {
 import { ok } from "../../http/errors.js";
 import { idemOf } from "../../http/idempotency.js";
 import { defineAdminHandler } from "../../routing/admin.js";
+import { adminBillingTransferReviewHandlers } from "./billing-transfer-review.js";
 export const adminBillingHandlers = [
+  ...adminBillingTransferReviewHandlers,
   defineAdminHandler(adminPaymentOrderGet, { module: "order", need: "view" }, async (c, s) =>
     ok(c, await c.var.runtime.billing.getAdminOrder(s.ctx, c.req.valid("param").paymentOrderId)),
   ),

@@ -1,8 +1,7 @@
 // W1-11a b：真实履约、状态链与事件之上的付款夹具；银行信息均是现造的假值。
 import { createPrismaClient } from "@liyoxi/db";
 import type { BillingOrder, PaymentTxn, PrismaClient } from "@liyoxi/db";
-import { createPayment } from "../billing/index.js";
-import { wechatOrderAttach } from "../billing/payment/channel-success.js";
+import { createPayment, wechatOrderAttach } from "../billing/index.js";
 import type { Payment, PaymentDeps } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
 import { createBizNoIssuer, uuidv7 } from "../kernel/index.js";

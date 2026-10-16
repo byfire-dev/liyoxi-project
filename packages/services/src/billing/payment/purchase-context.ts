@@ -17,6 +17,7 @@ import type { StoreMembership, Tenant } from "../../tenant/index.js";
 import type { Timers } from "../../timers/index.js";
 import type { Ledger } from "../ledger/index.js";
 import type { WechatPayProvider } from "../../providers/types.js";
+import type { Approval } from "../../approval/index.js";
 import type { Payment } from "./types.js";
 export interface WechatPayerSession {
   readonly sessionId: string;
@@ -39,12 +40,14 @@ export interface BillingPurchaseDeps {
   events: Events;
   timers: Timers;
   bizNo: BizNoIssuer;
-  media: Pick<Media, "link">;
+  media: Pick<Media, "link"> & Partial<Pick<Media, "enqueueBankReceiptOcr" | "readBankReceiptOcr">>;
   docs: Docs;
   tenant: Tenant;
   keyring: () => Keyring;
   ledger: Ledger;
   payment: Payment;
+  /** 实际组合根注入；旧单域构造可省略，但不能处理二人复核。 */
+  approval?: Approval;
   sla: Sla;
 }
 export interface PurchaseActor {

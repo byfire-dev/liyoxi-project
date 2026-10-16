@@ -5,6 +5,10 @@ import { createBillingSubscriptions } from "../subscription/read.js";
 import { createWechatPrepay } from "./wechat-prepay.js";
 import { BillingWalletSchema } from "@liyoxi/contract";
 import type {
+  AdminPaymentOrderCreateBody,
+  AdminTransferProofCreateBody,
+  TransferProofApproveReviewBody,
+  TransferProofRejectReviewBody,
   PaymentOrderCreateBody,
   PlanQuoteBody,
   TransferProofConfirmBody,
@@ -38,6 +42,13 @@ import {
   assertProofView,
   dictRef,
 } from "./purchase-read.js";
+import { byEntity } from "../../authz/index.js";
+import {
+  createAdminOrder,
+  createAdminTransferProof,
+  assertTransferStaff,
+} from "./transfer-admin.js";
+import { decideTransferReview } from "./transfer-review.js";
 import type { BillingPurchaseDeps, PurchaseActor } from "./purchase-context.js";
 export function createBillingPurchase(deps: BillingPurchaseDeps) {
   const policy = (
@@ -148,6 +159,84 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
       fileId: string,
       options: { idem?: IdempotencyContext } = {},
     ) => deps.tx.run((tx) => submitProof(tx, deps, actor, client, id, fileId), options),
+    createAdminOrder: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      input: AdminPaymentOrderCreateBody,
+      options: { idem?: IdempotencyContext } = {},
+    ) => {
+      await deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "order.payment.create_offline");
+        if (
+          !(await tx.entity.findFirst({
+            where: { id: input.entityId, ...byEntity(staff.scope).entity },
+          }))
+        )
+          throw new AppError("NOT_FOUND");
+      });
+      return deps.tx.run((tx) => createAdminOrder(tx, deps, ctx, staff, input), options);
+    },
+    createAdminTransferProof: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      input: AdminTransferProofCreateBody,
+      options: { idem?: IdempotencyContext } = {},
+    ) => {
+      await deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm");
+        await orderInScope(tx, staff.scope, id);
+      });
+      return deps.tx.run(
+        (tx) => createAdminTransferProof(tx, deps, ctx, staff, id, input),
+        options,
+      );
+    },
+    approveTransferReview: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      input: TransferProofApproveReviewBody,
+      options: { idem?: IdempotencyContext } = {},
+    ) => {
+      if (!deps.approval) throw new AppError("INTERNAL");
+      await deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm");
+        await proofInScope(tx, staff.scope, id);
+      });
+      return deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm");
+        const result = await decideTransferReview(
+          tx,
+          deps,
+          deps.approval!,
+          ctx,
+          staff,
+          id,
+          input,
+          true,
+        );
+        return { ...result, outcome: "paid" as const };
+      }, options);
+    },
+    rejectTransferReview: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      input: TransferProofRejectReviewBody,
+      options: { idem?: IdempotencyContext } = {},
+    ) => {
+      if (!deps.approval) throw new AppError("INTERNAL");
+      // 驳回仍查权限和scope；只有路由已声明的再验证豁免。
+      await deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm", true);
+        await proofInScope(tx, staff.scope, id);
+      });
+      return deps.tx.run(async (tx) => {
+        await assertTransferStaff(tx, deps, ctx, staff, "finance.receipt.confirm", true);
+        return decideTransferReview(tx, deps, deps.approval!, ctx, staff, id, input, false);
+      }, options);
+    },
     getAdminOrder: (staff: StaffContext, id: string) =>
       deps.tx.run(async (tx) =>
         adminOrderView(tx, deps, await orderInScope(tx, staff.scope, id), staff),
