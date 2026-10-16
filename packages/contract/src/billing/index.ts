@@ -36,3 +36,5 @@ export type {
   SubscriptionEventPayload,
   SubscriptionEventPayloadType,
 } from "./fulfill.js";
+export { SubscriptionDailySnapshotSchema } from "./subscription-snapshot.js";
+export type { SubscriptionDailySnapshot } from "./subscription-snapshot.js";

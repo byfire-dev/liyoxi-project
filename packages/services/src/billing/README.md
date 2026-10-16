@@ -19,6 +19,18 @@
 | `seed.ts`、`seed-data.ts` | 套餐、价目、参数的种子（W0-21） |
 | `subscription/`、`ports.ts` | 付清后的履约（建周期与发放计划、发首月）、`billing.I9`、`I10`、`I12`、两个端口的实现（W1-11a），见 [subscription/README.md](subscription/README.md) |
 | `payment/` | 唯一对公入账入口、四类差异开单、两条状态链与 `payment.I1`、`I2`、`I4`，见 [付款 README](payment/README.md) |
+| `reporting/` | 周期内部v1历史快照捕获、policy1流水估值与主体历史日投影；接线及legacy边界见下 |
+
+W4-05前置公口：`captureSubscriptionDailySnapshot(tx, entityId, termId)`只读捕获调用方已持账户锁、
+已变更完成的真实term/pending schedules；相关事件写者同TX放入内部`payload.dailySnapshot`，不改outbox载荷。
+`createBillingDailyProjection({ledger}).snapshot(tx, entityId, through)`只接已闭合业务日，
+从主体创建日起按流水bizDate和每term历史快照重建，写可重算daily与policy1估值；不拍当前余额。
+`rebuildEntityValuation(tx,{ledger},entityId)`也可独立重建估值，conversion取真实origin转出价值。
+
+任一相关旧事件缺快照即`BillingDailyHistoryMissingError`，整主体投影失败，旧史不猜填；
+调用方advance后用`kernel.savepoint`隔离投影，保推进提交/逐主体继续，不能把缺史写成0或吞其它错误。
+本前置未接实际事件写者、sweep与13个月验收；后继开通/预约/rollover/expired/upgrade及extend/refund/resume
+写者均须真实同TX捕获。单目标：`pnpm --filter @liyoxi/services exec vitest run src/billing/reporting/daily.db.test.ts`。
 
 ## 2. 用账本
 
