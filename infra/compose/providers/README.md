@@ -28,7 +28,7 @@ LYX_NODE_PROVIDERS=asr ocr
 | `ci` | `ci-worker-keys.json` → `CI_WORKER_KEYS_FILE` | worker |
 | `asr` | `asr-tencent.json` → `ASR_TENCENT_FILE` | API、worker |
 | `asr-callback` | `asr-callback-key` → `ASR_CALLBACK_KEY_FILE` | API、worker |
-| `ocr` | `ocr-tencent.json` → `OCR_TENCENT_FILE` | API |
+| `ocr` | `ocr-tencent.json` → `OCR_TENCENT_FILE` | API、worker |
 | `llm` | `llm-domestic.json` → `LLM_DOMESTIC_FILE` | API、worker |
 | `media-production` | `media-production.json` → `MEDIA_PRODUCTION_FILE` | API、worker |
 | `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
@@ -36,6 +36,8 @@ LYX_NODE_PROVIDERS=asr ocr
 | `server-errors` | `server-errors.json` → `SERVER_ERRORS_FILE` | API、worker |
 
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
+
+OCR 的 API 角色用于同步证照识别，worker 角色用于 W4-04 的异步银行回单识别；只有明确选中 `ocr` 才挂载同一份可选配置。该接线依赖回单 OCR 运行时前置，不代表云端权限、识别准确率或预发部署已经验证。
 
 非敏感标量也在节点 `node.env` 配置；选中对应组后缺少任何必填项会由 Compose 拒绝：
 

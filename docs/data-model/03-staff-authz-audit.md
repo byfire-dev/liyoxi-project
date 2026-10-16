@@ -827,6 +827,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 **不变量**（每日校验；编码按 15 分组的登记规则，P2）
 
 - `approval.I1` 有领域表的类型，每张审批单恰有一行领域行指向它（`approval_request_id` 唯一外键在领域表上）；领域行不指向别的 `kind`；有执行步的四类，领域行状态与审批单对应（审批单 `pending` ⇔ 领域行 `pending_approval`；`rejected`、`withdrawn` ⇒ 领域行 `not_executed`；`approved` ⇒ 领域行 `pending_execution`、`executing`、`done`，或 `not_executed` + `voided`）。
+- `transfer_confirm` 的 I1 历史轮按 08 分组的“仅保存最近一次”核对：当前轮仍有唯一凭证反指并且是同对象最大轮号；旧轮只有 `rejected`、同对象/主体/门店且存在更高的真实当前轮时，通过原 `subject_id` 关联该凭证。旧 `pending`/`approved`、缺凭证、错归属、指针退回和重复反指仍报错；其他审批类型不变。
 - `approval.I2` 审批人 ≠ 发起人（CHECK 已保证，d4:1996 的 I12）；同一对象至多一张在途的同类申请（去重索引与领域表索引，I13）。
 - `approval.I3` 定时器（`timer.subject_type = 'approval_request'`）有两种用途：决定时限——`pending` 且 `due_at` 非空的行恰有一条未触发、未取消的决定时限定时器；执行时限——有执行步的四类，领域行处于 `pending_execution`、还没有执行过（没建过退款交易）且执行时限未过时，恰有一条未触发、未取消的执行时限定时器；执行时（进入 `executing` 或直接 `done`）、作废时、退款回调晚到直接 `done` 时同事务取消。已到点触发的、执行失败回到 `pending_execution` 的（不重新计时，08-billing-payment.md 2.4“退款交易到达失败终态”一行）、`executing` 及之后的行都没有执行时限定时器（与 08-billing-payment.md 2.4 `refund_request` 状态机的“执行”行一致：建退款交易时取消执行时限的定时器；x01 4.1 按 08）。其余行没有未触发、未取消的定时器。两种定时器的 `dedupe_key` 须带用途后缀区分（如 `…:decision`、`…:execution`），否则会被 `timer` 的在用唯一键挡住。
 - `approval.I4` `reason_codes` 里的编码都存在于字典 `reject_reason`；`checklist_code`、`checklist_version_no` 指向存在的清单模板版本。
