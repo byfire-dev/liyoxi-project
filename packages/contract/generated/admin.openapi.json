@@ -3203,6 +3203,84 @@
         ],
         "type": "object"
       },
+      "AdminPaymentOrderCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "amountFen": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "entityName": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityName",
+              "amountFen"
+            ],
+            "type": "object"
+          },
+          "contractNo": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "expectAmountFen": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "intent": {
+            "enum": [
+              "upgrade_now",
+              "renew_next_term"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "plan",
+              "topup"
+            ],
+            "type": "string"
+          },
+          "months": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "pointPackId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityId",
+          "kind",
+          "expectAmountFen",
+          "contractNo",
+          "confirm"
+        ],
+        "type": "object"
+      },
       "AdminPlanContentView": {
         "additionalProperties": false,
         "properties": {
@@ -5542,6 +5620,24 @@
           "effectiveDocs",
           "openRound",
           "rounds"
+        ],
+        "type": "object"
+      },
+      "AdminTransferProofCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileId"
         ],
         "type": "object"
       },
@@ -27714,6 +27810,54 @@
           "null"
         ]
       },
+      "TransferProofApproveReviewBody": {
+        "additionalProperties": false,
+        "properties": {
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "confirm": {
+            "additionalProperties": false,
+            "properties": {
+              "orderNo": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "receivedAmountFen": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "orderNo",
+              "receivedAmountFen"
+            ],
+            "type": "object"
+          },
+          "confirmChecks": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "approvalId",
+          "lockVersion",
+          "confirm",
+          "confirmChecks"
+        ],
+        "type": "object"
+      },
       "TransferProofDetail": {
         "properties": {
           "actions": {
@@ -27845,7 +27989,50 @@
             "type": "string"
           },
           "firstConfirm": {
-            "type": "null"
+            "properties": {
+              "bankSerialRaw": {
+                "type": "string"
+              },
+              "confirmedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "confirmedBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "payerBank": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DictRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "receivedAmountFen": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "bankSerialRaw",
+              "payerBank",
+              "receivedAmountFen",
+              "confirmedBy",
+              "confirmedAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "hints": {
             "items": {
@@ -27873,13 +28060,68 @@
           "ocr": {
             "properties": {
               "recognized": {
-                "type": "null"
+                "properties": {
+                  "amountFen": {
+                    "exclusiveMinimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "payeeName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "payerAccountMask": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "payerName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "remark": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "tradedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "payerName",
+                  "payerAccountMask",
+                  "payeeName",
+                  "amountFen",
+                  "remark",
+                  "tradedAt"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
               },
               "status": {
                 "enum": [
-                  "unavailable"
+                  "pending",
+                  "ok",
+                  "unavailable",
+                  "unreadable"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-open-enum": true
               },
               "warnings": {
                 "items": {
@@ -28033,7 +28275,46 @@
             ]
           },
           "review": {
-            "type": "null"
+            "anyOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ApprovalDecisionView"
+                  },
+                  {
+                    "properties": {
+                      "confirmChecks": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "requestNo": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "requesterRoleName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "requestNo",
+                      "requesterRoleName",
+                      "confirmChecks"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reviewStatus": {
             "enum": [
@@ -28136,6 +28417,26 @@
           "secondReviewThresholdFen",
           "lockVersion",
           "actions"
+        ],
+        "type": "object"
+      },
+      "TransferProofRejectReviewBody": {
+        "additionalProperties": false,
+        "properties": {
+          "approvalId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalId",
+          "note"
         ],
         "type": "object"
       },
@@ -50315,6 +50616,117 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "post": {
+        "operationId": "admin.paymentOrder.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPaymentOrderCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentOrderAdminDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "线下开单（对公转账；须合同号，受控开关 controls.admin_create_order 开启）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.payment.create_offline"
       }
     },
     "/api/v1/admin/payment-orders/summary": {
@@ -50675,6 +51087,131 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/payment-orders/{paymentOrderId}/transfer-proofs": {
+      "post": {
+        "operationId": "admin.paymentOrder.transferProof.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentOrderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminTransferProofCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TransferProofDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "后台代传对公转账凭证（触发识别与比对）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.receipt.confirm"
       }
     },
     "/api/v1/admin/payment-transactions": {
@@ -66305,6 +66842,151 @@
         "x-permission": "assert-in-handler"
       }
     },
+    "/api/v1/admin/transfer-proofs/{transferProofId}/approve-review": {
+      "post": {
+        "operationId": "admin.transferProof.approveReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferProofId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferProofApproveReviewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/TransferProofDetail"
+                        },
+                        {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "paid",
+                                "review_pending"
+                              ],
+                              "type": "string",
+                              "x-open-enum": true
+                            }
+                          },
+                          "required": [
+                            "outcome"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "对公大额二人复核通过：凭证置已接受、付款单已支付并入账履约",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.receipt.confirm"
+      }
+    },
     "/api/v1/admin/transfer-proofs/{transferProofId}/confirm": {
       "post": {
         "operationId": "admin.transferProof.confirm",
@@ -66645,6 +67327,132 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "finance.receipt.reject"
+      }
+    },
+    "/api/v1/admin/transfer-proofs/{transferProofId}/reject-review": {
+      "post": {
+        "operationId": "admin.transferProof.rejectReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferProofId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferProofRejectReviewBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TransferProofDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "对公大额二人复核退回（说明必填）：清空第一确认内容，付款单回到待财务确认",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.receipt.confirm",
+        "x-step-up": "skip"
       }
     },
     "/api/v1/admin/upload-batch-items/{uploadBatchItemId}": {

@@ -2133,7 +2133,8 @@ export interface paths {
         /** 付款单列表：单号 / 商家 / 主体、时间、类型、支付方式、状态（5 种） */
         get: operations["admin.paymentOrder.list"];
         put?: never;
-        post?: never;
+        /** 线下开单（对公转账；须合同号，受控开关 controls.admin_create_order 开启） */
+        post: operations["admin.paymentOrder.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2168,6 +2169,23 @@ export interface paths {
         get: operations["admin.paymentOrder.get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payment-orders/{paymentOrderId}/transfer-proofs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 后台代传对公转账凭证（触发识别与比对） */
+        post: operations["admin.paymentOrder.transferProof.create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3543,6 +3561,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/transfer-proofs/{transferProofId}/approve-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 对公大额二人复核通过：凭证置已接受、付款单已支付并入账履约 */
+        post: operations["admin.transferProof.approveReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/transfer-proofs/{transferProofId}/confirm": {
         parameters: {
             query?: never;
@@ -3571,6 +3606,23 @@ export interface paths {
         put?: never;
         /** 驳回凭证（原因 + 说明）：付款单回到待支付（凭证被驳回），对公有效期顺延，商家可重传 */
         post: operations["admin.transferProof.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/transfer-proofs/{transferProofId}/reject-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 对公大额二人复核退回（说明必填）：清空第一确认内容，付款单回到待财务确认 */
+        post: operations["admin.transferProof.rejectReview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4332,6 +4384,27 @@ export interface components {
             pageSize: number;
             total: number;
         };
+        AdminPaymentOrderCreateBody: {
+            confirm: {
+                amountFen: number;
+                entityName: string;
+            };
+            contractNo: string;
+            /** Format: uuid */
+            entityId: string;
+            expectAmountFen: number;
+            /** @enum {string} */
+            intent?: "upgrade_now" | "renew_next_term";
+            /** @enum {string} */
+            kind: "plan" | "topup";
+            months?: number;
+            /** Format: uuid */
+            planId?: string;
+            /** Format: uuid */
+            pointPackId?: string;
+            /** Format: uuid */
+            storeId?: string;
+        };
         AdminPlanContentView: {
             focus: components["schemas"]["DictRef"][];
             items: components["schemas"]["PlanItemContentView"][];
@@ -4740,6 +4813,11 @@ export interface components {
             rounds: components["schemas"]["QualificationRoundRecord"][];
             /** Format: uuid */
             storeId: string;
+        };
+        AdminTransferProofCreateBody: {
+            /** Format: uuid */
+            fileId: string;
+            note?: string;
         };
         AgreementConsentDetail: components["schemas"]["AgreementConsentItem"] & {
             appid: string | null;
@@ -8941,6 +9019,16 @@ export interface components {
             targetPlayableId: string;
             width: number | null;
         } | null;
+        TransferProofApproveReviewBody: {
+            /** Format: uuid */
+            approvalId: string;
+            confirm: {
+                orderNo: string;
+                receivedAmountFen: number;
+            };
+            confirmChecks: string[];
+            lockVersion: number;
+        };
         TransferProofDetail: {
             actions: string[];
             amountFen: number;
@@ -8970,14 +9058,29 @@ export interface components {
             /** Format: uuid */
             fileId: string;
             fileMime: string;
-            firstConfirm: null;
+            firstConfirm: {
+                bankSerialRaw: string;
+                /** Format: date-time */
+                confirmedAt: string;
+                confirmedBy: components["schemas"]["StaffBrief"] | null;
+                payerBank: components["schemas"]["DictRef"] | null;
+                receivedAmountFen: number;
+            } | null;
             hints: ("uploaded_today" | "uploaded_earlier" | "remark_missing_order_no" | "payer_name_mismatch" | "amount_mismatch" | "upgrade_quote_expiring" | "in_review" | (string & {}))[];
             isOverdue: boolean;
             lockVersion: number;
             ocr: {
-                recognized: null;
+                recognized: {
+                    amountFen: number | null;
+                    payeeName: string | null;
+                    payerAccountMask: string | null;
+                    payerName: string | null;
+                    remark: string | null;
+                    /** Format: date-time */
+                    tradedAt: string | null;
+                } | null;
                 /** @enum {string} */
-                status: "unavailable";
+                status: "pending" | "ok" | "unavailable" | "unreadable" | (string & {});
                 warnings: string[];
             };
             order: {
@@ -9009,7 +9112,11 @@ export interface components {
             paymentOrderId: string;
             rejectNote: string | null;
             rejectReason: components["schemas"]["DictRef"] | null;
-            review: null;
+            review: (components["schemas"]["ApprovalDecisionView"] & {
+                confirmChecks: string[];
+                requestNo: string | null;
+                requesterRoleName: string | null;
+            }) | null;
             /** @enum {string} */
             reviewStatus: "pending" | "accepted" | "rejected" | "superseded" | (string & {});
             /** Format: date-time */
@@ -9026,6 +9133,11 @@ export interface components {
                 /** @enum {string} */
                 type: "merchant" | "staff" | (string & {});
             };
+        };
+        TransferProofRejectReviewBody: {
+            /** Format: uuid */
+            approvalId: string;
+            note: string;
         };
         UploadBatchCommitResult: {
             batch: components["schemas"]["UploadBatchDetail"];
@@ -20947,6 +21059,90 @@ export interface operations {
             };
         };
     };
+    "admin.paymentOrder.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPaymentOrderCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PaymentOrderAdminDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.paymentOrder.summary": {
         parameters: {
             query?: {
@@ -21058,6 +21254,92 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["PaymentOrderAdminDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paymentOrder.transferProof.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTransferProofCreateBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TransferProofDetail"];
                         /** @enum {string} */
                         message: "ok";
                     };
@@ -28886,6 +29168,95 @@ export interface operations {
             };
         };
     };
+    "admin.transferProof.approveReview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transferProofId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferProofApproveReviewBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TransferProofDetail"] & {
+                            /** @enum {string} */
+                            outcome: "paid" | "review_pending" | (string & {});
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.transferProof.confirm": {
         parameters: {
             query?: never;
@@ -29001,6 +29372,92 @@ export interface operations {
                     note: string;
                     reasonCode: string;
                 };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TransferProofDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.transferProof.rejectReview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transferProofId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferProofRejectReviewBody"];
             };
         };
         responses: {
