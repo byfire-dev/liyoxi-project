@@ -10,7 +10,7 @@
 LYX_NODE_PROVIDERS=asr ocr
 ```
 
-可选名字为 `cos ci asr asr-callback ocr llm media-production client-errors alerts server-errors`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
+可选名字为 `cos ci asr asr-callback ocr mail llm media-production client-errors alerts server-errors`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
 
 选择顺序是进程环境、节点 `node.env`、仓库 `stg.env`。进程环境显式为空会关闭本次调用的所有可选能力；永久启用必须写在节点 `node.env`，确保 systemd 重启时仍使用同一配置。删除某一名字后，后续重建容器不再挂载该组；修改配置本身不会重建已经运行的容器，需按现有发布步骤生效。
 
@@ -29,6 +29,7 @@ LYX_NODE_PROVIDERS=asr ocr
 | `asr` | `asr-tencent.json` → `ASR_TENCENT_FILE` | API、worker |
 | `asr-callback` | `asr-callback-key` → `ASR_CALLBACK_KEY_FILE` | API、worker |
 | `ocr` | `ocr-tencent.json` → `OCR_TENCENT_FILE` | API、worker |
+| `mail` | `mail-tencent.json` → `MAIL_TENCENT_FILE` | worker |
 | `llm` | `llm-domestic.json` → `LLM_DOMESTIC_FILE` | API、worker |
 | `media-production` | `media-production.json` → `MEDIA_PRODUCTION_FILE` | API、worker |
 | `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
@@ -38,6 +39,11 @@ LYX_NODE_PROVIDERS=asr ocr
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
 
 OCR 的 API 角色用于同步证照识别，worker 角色用于 W4-04 的异步银行回单识别；只有明确选中 `ocr` 才挂载同一份可选配置。该接线依赖回单 OCR 运行时前置，不代表云端权限、识别准确率或预发部署已经验证。
+
+邮件只有显式选择 `mail` 才给 worker 与 check-env 挂载独立 `mail-tencent.json`，API 无发信密钥。
+文件严格包含 `secretId`、`secretKey`、`region`、`fromAddress`、`templateId`；region 为 `ap-guangzhou` 或 `ap-hongkong`，独立于 COS 地域。
+发信地址和 `{{text}}` 模板须通过真实平台审核，格式及限制见[邮件驱动](../../../packages/services/src/providers/mail/README.md)。
+文件校验通过不代表域名/模板审核、邮件受理或邮箱送达，未执行真实节点部署或发信。
 
 非敏感标量也在节点 `node.env` 配置；选中对应组后缺少任何必填项会由 Compose 拒绝：
 
