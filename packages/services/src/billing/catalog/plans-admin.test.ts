@@ -127,12 +127,18 @@ async function pair(h: PaymentHarness) {
         updatedAt: h.clock.now(),
       },
     });
-  const revision = (planId: string, monthlyFeeFen: number, monthlyPoints: number) =>
+  const revision = (
+    planId: string,
+    monthlyFeeFen: number,
+    monthlyPoints: number,
+    revisionNo = 1,
+    effectiveAt = new Date(h.clock.now().getTime() - 1000),
+  ) =>
     h.prisma.planRevision.create({
       data: {
         id: uuidv7(),
         planId,
-        revisionNo: 1,
+        revisionNo,
         monthlyFeeFen,
         monthlyPoints,
         discountBp: 10000,
@@ -142,27 +148,19 @@ async function pair(h: PaymentHarness) {
         schedulePriority: "standard",
         hasMonthlyReport: false,
         cyclePrices: { "1": monthlyFeeFen, "3": monthlyFeeFen * 3 - 3000 },
-        effectiveAt: new Date(h.clock.now().getTime() - 1000),
+        effectiveAt,
         createdAt: h.clock.now(),
       },
     });
   await revision(source.id, 10000, 100);
-  const current = await revision(target.id, 16000, 101);
-  return { source, target, current };
+  await revision(target.id, 16000, 101);
+  return { source, target, revision };
 }
 
 it("通用报价只读当前修订和真实周期价；零积分当月免收，完整月仍按实际差额", async () => {
   const h = await world(),
-    { source, target, current } = await pair(h);
-  await h.prisma.planRevision.create({
-    data: {
-      ...current,
-      id: uuidv7(),
-      revisionNo: 2,
-      monthlyFeeFen: 99999,
-      effectiveAt: new Date(h.clock.now().getTime() + 86400000),
-    },
-  });
+    { source, target, revision } = await pair(h);
+  await revision(target.id, 99999, 101, 2, new Date(h.clock.now().getTime() + 86400000));
   const before = await snapshotTables(h.prisma, tables),
     body = { kind: "upgrade", planId: target.id, fromPlanId: source.id, remainingDays: 1 };
   expect(await h.plans.quote(h.staff, body)).toEqual({
@@ -199,7 +197,7 @@ it("通用报价只读当前修订和真实周期价；零积分当月免收，�
 
 it("通用报价拒绝反向rank、非法折算基数/周期及未生效/下架目标，失败也零写", async () => {
   const h = await world(),
-    { source, target } = await pair(h),
+    { source, target, revision } = await pair(h),
     upgrade = { kind: "upgrade", planId: target.id, fromPlanId: source.id, remainingDays: 2 };
   await param(h, "prorationBaseDays", 1);
   const before = await snapshotTables(h.prisma, tables);
@@ -227,15 +225,7 @@ it("通用报价拒绝反向rank、非法折算基数/周期及未生效/下架�
       rank: 52,
     },
   });
-  const revision = await h.prisma.planRevision.findFirstOrThrow({ where: { planId: target.id } });
-  await h.prisma.planRevision.create({
-    data: {
-      ...revision,
-      id: uuidv7(),
-      planId: future.id,
-      effectiveAt: new Date(h.clock.now().getTime() + 86400000),
-    },
-  });
+  await revision(future.id, 16000, 101, 1, new Date(h.clock.now().getTime() + 86400000));
   const pending = await snapshotTables(h.prisma, tables);
   await expect(
     h.plans.quote(h.staff, { kind: "renewal", planId: future.id, months: 1 }),
