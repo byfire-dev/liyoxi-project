@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, realpath, readdir, rm, symlink, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFakeStorage } from "../../testing/providers/storage.js";
+import { createFakeStorage } from "./__fixtures__/storage.js";
 import { ok } from "../types.js";
 import { createMediaWorkspace } from "./work-io.js";
 import type { MediaWorkspace } from "./work-io.js";

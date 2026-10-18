@@ -26,6 +26,8 @@ pnpm mediatool:bench    # 同样的流程，另造一条约 200MB 的片子，�
 pnpm exec vitest run --config packages/services/src/providers/mediatool/vitest.config.ts   # 调用端的用例，不起容器或数据库
 ```
 
+取消与工作区测试使用同 Provider 模块内的 `mediatool/__fixtures__/storage.ts`：仅实现用到的内存对象流、hash/etag 与调用记录，其余能力明确失败，不加载数据库造数入口。
+
 - 本机要有 Docker。两条命令跑完都会把容器与卷删掉，不留测试片。
 - 报告写在系统临时目录下的 `lyx-mediatool-out/`（`verify-report.json`、`bench-report.json`、容器日志）；`LYX_MEDIATOOL_OUT` 可以改位置。不写进仓库。
 - 同一台机器上两份检出同时跑：各设一个 `LYX_MEDIATOOL_PROJECT`（Compose 的项目名），免得互相拆台。
