@@ -40,7 +40,8 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(table.getByRole("columnheader")).toHaveCount(8);
   await expect(table.getByRole("columnheader", { name: /手机号.*已脱敏/ })).toBeVisible();
   await expect(table).toContainText("****");
-  await expect(table.getByRole("row")).toHaveCount(14);
+  // 初始14名员工：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；再加表头。
+  await expect(table.getByRole("row")).toHaveCount(15);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
   await expect(table.getByText("已禁用", { exact: true })).toBeVisible();
@@ -50,8 +51,9 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
 
   await select(page, "全部角色", "交付经理");
   await expect(page).toHaveURL(/roleKey=delivery_manager/);
-  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("row")).toHaveCount(3);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
+  await expect(table.getByText("W215原交付经理", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "重置筛选", exact: true }).click();
   await select(page, "全部状态", "已禁用");
   await expect(page).toHaveURL(/status=disabled/);
@@ -68,10 +70,10 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page).toHaveURL(/pageSize=10/);
   await page.getByRole("button", { name: "下一页", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(4);
+  await expect(table.getByRole("row")).toHaveCount(5);
   await page.reload();
   await expect(page.getByLabel("第 2 页", { exact: true })).toBeVisible();
-  await expect(table.getByRole("row")).toHaveCount(4);
+  await expect(table.getByRole("row")).toHaveCount(5);
   await page.getByRole("button", { name: "上一页", exact: true }).click();
   await noHorizontalScroll(page, "员工分页");
 
