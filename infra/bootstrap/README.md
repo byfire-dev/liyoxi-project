@@ -1,5 +1,7 @@
 # 预发节点：首次起环境
 
+2026-10-18 当前源码仓库已迁回 [byfire-dev/liyoxi-project](https://github.com/byfire-dev/liyoxi-project)，实际主干 `9ffd93b3125c73e6743a5e33328909dcb690218e` 的 required 已通过，原主干保护已恢复。当前开发入口及保留事项见[迁回状态页](../../docs/plan/repository-return.md)。本次只完成代码迁回，目标仓的 Packages、vars、节点前缀及发布权限尚待核对；mixed-smoke 版本预检失败仍阻断同提交部署。本手册中的旧仓 PR/run、候选 namespace 与配置回执按原日期留档，不代表当前目标仓已配，不因此开始服务器操作。
+
 把业主那台阿里云服务器变成预发的步骤。形态依据 [ADR-041](../../docs/adr/0041-预发先行-单机预发-共用AppID.md)“决定”第 4 节；任务书 `docs/plan/tasks/W2-25.md`。W2-25 已交付脚本、Compose、本机演练、桶核对工具、四镜像与默认关闭的构建发布流程；真实节点配置和外部发布另按下文逐步验收。
 
 ## 0. 先看这几句
@@ -243,11 +245,11 @@ a 已经 PR #94 实际合入；b 已交桶声明/比较工具、独立上传器�
 
 只有业主明确设置 `LYX_COS_APPLY_ENABLED=true` 并给 `--apply` 才允许窄 PUT；写前完整读四桶，未知策略/ACL/生命周期/加密、缺桶或不认识的输出均停止，不能删除外部规则。pub 的 Enabled/Suspended 不能被改成“从未开启”。可管理差异依次写私有 ACL、版本/SSE 与完整生命周期，再逐项 GET 读回；失败不报告成功，不删除对象或桶。COSCLI 未证实生命周期命令，AWS 逐操作兼容也无腾讯保证，因此使用官方 SDK 的原生方法，未编造 CLI。
 
-2026-10-14 业主定用本项目 GHCR，取代此前阿里云镜像仓库建议。源码仓库为 `https://github.com/sanqianyuejia/liyoxi-project`；候选四镜像为 `ghcr.io/sanqianyuejia/liyoxi/{server,gateway,mediatool,weapp-uploader}`，节点前缀候选 `ghcr.io/sanqianyuejia/`。尚未首次发布，公开源码仓库不代表 GHCR 包公开，CI 推送/节点拉取权限与连通性另验。
+2026-10-14 业主定用本项目 GHCR，取代此前阿里云镜像仓库建议。当时源码仓库为 `https://github.com/sanqianyuejia/liyoxi-project`；当时候选四镜像为 `ghcr.io/sanqianyuejia/liyoxi/{server,gateway,mediatool,weapp-uploader}`，节点前缀候选 `ghcr.io/sanqianyuejia/`。尚未首次发布，公开源码仓库不代表 GHCR 包公开，CI 推送/节点拉取权限与连通性另验。
 
-GHCR 三叶已完成唯一独审修正，镜像/摘要定点 24 项与工作流检查 82 项通过，本地 main 已合 `af73fdc2`、`091da64d`。远端仅移植这三叶到旧 main 并开 [PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1)（head `a5dc447d`），Actions 已实际运行；四镜像构建已通过；原 CI 拉取 `ghcr.io/byfire-dev/minio:latest` 被 denied，另有旧 infra 三项断言失败及历史密钥扫描 23 项测试夹具误报（已只读核对，规则未修），`required` 未通过。新仓库缺少的 `gate-touch` 标签已补，单 job 重跑已通过；旧 MinIO 公开恢复或迁移本机镜像的处理待用户答复。该 PR 不是本地完整 main 的远端同步；首次四镜像发布未发生，不能以本地检查通过代替远端 required 或实际发布。 [四镜像构建运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571462602)成功；[CI 运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571463088)的 verify、web、gate-classify 通过，旧基线失败仍保留。infra 三项分别为留桩状态、CHECK 约束计数和分区快照断言，均不在本 PR 三文件中；不跳过这些检查合并发布。 历史扫描 23 项均属 `generic-api-key`，只读核对为 ASR 配置/回调/发送测试和 W216 临时员工登录夹具四组，未发现真实云或生产凭据迹象；修正须精确限定夹具，不能豁免整个历史提交或关闭扫描。
+2026-10-14 旧仓执行记录（留档）：GHCR 三叶已完成唯一独审修正，镜像/摘要定点 24 项与工作流检查 82 项通过，本地 main 已合 `af73fdc2`、`091da64d`。远端仅移植这三叶到旧 main 并开 [PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1)（head `a5dc447d`），Actions 已实际运行；四镜像构建已通过；原 CI 拉取 `ghcr.io/byfire-dev/minio:latest` 被 denied，另有旧 infra 三项断言失败及历史密钥扫描 23 项测试夹具误报（已只读核对，规则未修），`required` 未通过。新仓库缺少的 `gate-touch` 标签已补，单 job 重跑已通过；旧 MinIO 公开恢复或迁移本机镜像的处理待用户答复。该 PR 不是本地完整 main 的远端同步；首次四镜像发布未发生，不能以本地检查通过代替远端 required 或实际发布。 [四镜像构建运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571462602)成功；[CI 运行](https://github.com/sanqianyuejia/liyoxi-project/actions/runs/38571463088)的 verify、web、gate-classify 通过，旧基线失败仍保留。infra 三项分别为留桩状态、CHECK 约束计数和分区快照断言，均不在本 PR 三文件中；不跳过这些检查合并发布。 历史扫描 23 项均属 `generic-api-key`，只读核对为 ASR 配置/回调/发送测试和 W216 临时员工登录夹具四组，未发现真实云或生产凭据迹象；修正须精确限定夹具，不能豁免整个历史提交或关闭扫描。
 
-四项公开 vars 已设置：`STG_REGISTRY=ghcr.io`、`STG_REGISTRY_NAMESPACE=sanqianyuejia/liyoxi`、`STG_WEAPP_APPID=wx66a51228082e82d4`、`STG_WEAPP_API_BASE_URL=https://api.stg.liyoxi.timavia.com`；`STG_IMAGES_PUBLISH_ENABLED` 尚未开启。其余公开 vars 与 encrypted secrets 仍按下表逐项配置。缺省镜像发布、制品写入、部署与体验版上传四个外部开关都关闭，未配置而开启则失败，不以跳过步骤冒充发布成功：
+2026-10-14 旧仓公开 vars 历史登记：`STG_REGISTRY=ghcr.io`、`STG_REGISTRY_NAMESPACE=sanqianyuejia/liyoxi`、`STG_WEAPP_APPID=wx66a51228082e82d4`、`STG_WEAPP_API_BASE_URL=https://api.stg.liyoxi.timavia.com`；`STG_IMAGES_PUBLISH_ENABLED` 尚未开启。这些旧仓登记不证明当前目标仓或节点已配；目标仓公开 vars 与 encrypted secrets 仍按下表逐项核对，不填入未经确认的新 namespace。缺省镜像发布、制品写入、部署与体验版上传四个外部开关都关闭，未配置而开启则失败，不以跳过步骤冒充发布成功：
 
 | 类别 | 配置 |
 | --- | --- |
