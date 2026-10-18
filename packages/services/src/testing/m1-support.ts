@@ -12,7 +12,7 @@ import { Redis } from "ioredis";
 import { createNotices } from "../config/index.js";
 import { runDemoSeed } from "../demo-seed.js";
 import { createLogger } from "../logger.js";
-import { MEDIA_LOCAL_CONCURRENCY } from "../media/jobs/policy.js";
+import { MEDIA_LOCAL_CONCURRENCY } from "../media/index.js";
 import { createLocalWechat } from "../providers/index.js";
 import {
   assertM1SharedScope,
