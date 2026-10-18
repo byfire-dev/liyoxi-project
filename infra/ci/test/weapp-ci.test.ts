@@ -60,8 +60,31 @@ describe("CI：小程序的步骤在必过任务 web 里", () => {
     expect(weapp.build).toBe("node scripts/build.mjs weapp");
     expect(weapp.test).toBe("vitest run");
     const build = read("apps/weapp/scripts/build.mjs");
-    expect(build).toContain("infra/ci/check-mp-size.mjs");
-    expect(build).toMatch(/if \(type === "weapp" && !watch\) \{\n\s+run\(process\.execPath/);
+    const check = (source: string) => {
+      const parts = source.split('if (type === "weapp" && !watch) {\n');
+      expect(parts).toHaveLength(2);
+      const body = parts[1] ?? "";
+      const end = body.search(/^}/m);
+      expect(end).toBeGreaterThanOrEqual(0);
+      const gate = body.slice(0, end);
+      expect(gate).toMatch(
+        /const result = spawnSync\(\s*process\.execPath,\s*\[path\.resolve\(appRoot, "\.\.\/\.\.\/infra\/ci\/check-mp-size\.mjs"\), "dist"\],\s*\{ cwd: appRoot, stdio: "inherit", env: process\.env \},\s*\);/,
+      );
+      expect(gate).toContain("process.exitCode = result.error ? 2 : (result.status ?? 1);");
+    };
+    check(build);
+    for (const [before, after] of [
+      ['type === "weapp" && !watch', 'type === "weapp"'],
+      ['"../../infra/ci/check-mp-size.mjs"', '"../../infra/ci/other.mjs"'],
+      ["process.exitCode = result.error ? 2 : (result.status ?? 1);", "process.exitCode = 0;"],
+    ]) {
+      expect(build).toContain(before);
+      expect(() => check(build.replace(before!, after!))).toThrow();
+    }
+    const outsideGate = build
+      .replace('if (type === "weapp" && !watch) {\n', 'if (type === "weapp" && !watch) {\n}\n')
+      .replace(/\n}\s*$/, "\n");
+    expect(() => check(outsideGate)).toThrow();
   });
 
   it("截图三步只看“要不要跑”那一步的结论；截图在出图失败时也上传，没有文件即失败", () => {
