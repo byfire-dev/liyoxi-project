@@ -273,7 +273,7 @@ describe("账户启动与登录", () => {
     expect(accountError(failure(error))).not.toBe("暂时无法加载，请重试");
     expect(accountError(failure(error))).not.toContain("微信");
   });
-  it("原非标签页保留查询编码；未知/登录页回我的；未落地菜单隐藏", () => {
+  it("已交付非标签页保留查询编码；未知/登录/未落地页回我的；菜单按角色裁剪", () => {
     expect(
       returnTarget({
         route: "pages/agreement/index",
@@ -285,20 +285,28 @@ describe("账户启动与登录", () => {
       url: "/pages/home/index",
     });
     expect(returnTarget({ route: "sub/service/settings/index" })).toEqual({
-      tab: true,
-      url: "/pages/mine/index",
+      tab: false,
+      url: "/sub/service/settings/index",
     });
+    for (const route of ["unknown/page/index", "pages/login/index", "sub/service/service/index"]) {
+      expect(returnTarget({ route }), route).toEqual({ tab: true, url: "/pages/mine/index" });
+    }
     expect(accountEntries("owner")).toEqual([
       { route: "sub/profile/profile/index", title: "门店档案", owner: true },
       { route: "sub/order/orders/index", title: "订单", owner: true },
       { route: "sub/publish/tasks/index", title: "发布任务", owner: true },
       { route: "sub/publish/accounts/index", title: "发布账号", owner: true },
       { route: "sub/asset/lib/index", title: "素材库", owner: false },
+      { route: "sub/profile/staff-profile/index", title: "我的资料", owner: false },
+      { route: "sub/member/members/index", title: "成员", owner: true },
       { route: "sub/service/messages/index", title: "消息", owner: false },
+      { route: "sub/service/settings/index", title: "设置", owner: false },
     ]);
     expect(accountEntries("clerk")).toEqual([
       { route: "sub/asset/lib/index", title: "素材库", owner: false },
+      { route: "sub/profile/staff-profile/index", title: "我的资料", owner: false },
       { route: "sub/service/messages/index", title: "消息", owner: false },
+      { route: "sub/service/settings/index", title: "设置", owner: false },
     ]);
   });
 });
