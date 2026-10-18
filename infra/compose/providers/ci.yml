@@ -1,0 +1,39 @@
+# API 仅接收回调；CI 提交凭据只交 worker 和离线格式自检。
+services:
+  api:
+    environment:
+      CI_CALLBACK_ORIGIN: ${CI_CALLBACK_ORIGIN:?}
+      CI_CALLBACK_KEY_FILE: /run/secrets/ci-callback-key
+    secrets:
+      - ci-callback-key
+  worker:
+    environment:
+      CI_REGION: ${CI_REGION:?}
+      CI_BUCKET_SECURE: ${CI_BUCKET_SECURE:?}
+      CI_BUCKET_ASSET: ${CI_BUCKET_ASSET:?}
+      CI_BUCKET_MEDIA: ${CI_BUCKET_MEDIA:?}
+      CI_BUCKET_PUB: ${CI_BUCKET_PUB:?}
+      CI_CALLBACK_ORIGIN: ${CI_CALLBACK_ORIGIN:?}
+      CI_CALLBACK_KEY_FILE: /run/secrets/ci-callback-key
+      CI_WORKER_KEYS_FILE: /run/secrets/ci-worker-keys.json
+    secrets:
+      - ci-callback-key
+      - ci-worker-keys.json
+  check-env:
+    environment:
+      CI_REGION: ${CI_REGION:?}
+      CI_BUCKET_SECURE: ${CI_BUCKET_SECURE:?}
+      CI_BUCKET_ASSET: ${CI_BUCKET_ASSET:?}
+      CI_BUCKET_MEDIA: ${CI_BUCKET_MEDIA:?}
+      CI_BUCKET_PUB: ${CI_BUCKET_PUB:?}
+      CI_CALLBACK_ORIGIN: ${CI_CALLBACK_ORIGIN:?}
+      CI_CALLBACK_KEY_FILE: /run/secrets/ci-callback-key
+      CI_WORKER_KEYS_FILE: /run/secrets/ci-worker-keys.json
+    secrets:
+      - ci-callback-key
+      - ci-worker-keys.json
+secrets:
+  ci-callback-key:
+    file: ${LYX_SECRETS_DIR:?}/ci-callback-key
+  ci-worker-keys.json:
+    file: ${LYX_SECRETS_DIR:?}/ci-worker-keys.json

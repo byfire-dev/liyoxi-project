@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("M1 全部二十五页已实现，V1.1不实现", () => {
+  it("已交付四十页包含 M1 全部二十五页，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
@@ -42,6 +42,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -55,12 +56,26 @@ describe("页面清单", () => {
       "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
+      "sub/billing/invoices/index",
+      "sub/billing/contracts/index",
       "sub/profile/profile/index",
       "sub/profile/basic/index",
       "sub/profile/store/index",
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/profile/stores/index",
+      "sub/profile/store-add/index",
+      "sub/profile/staff-profile/index",
+      "sub/asset/lib/index",
+      "sub/asset/upload/index",
+      "sub/asset/detail/index",
+      "sub/asset/uploader/index",
+      "sub/service/messages/index",
+      "sub/service/settings/index",
+      "sub/member/members/index",
+      "sub/member/invite/index",
+      "sub/member/join/index",
     ]);
     expect(built.filter((page) => page.implemented).map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -69,6 +84,7 @@ describe("页面清单", () => {
       "pages/mine/index",
       "pages/login/index",
       "pages/agreement/index",
+      "sub/catalog/search/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -82,12 +98,26 @@ describe("页面清单", () => {
       "sub/publish/accounts/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
+      "sub/billing/invoices/index",
+      "sub/billing/contracts/index",
       "sub/profile/profile/index",
       "sub/profile/basic/index",
       "sub/profile/store/index",
       "sub/profile/service/index",
       "sub/profile/cert/index",
       "sub/profile/review/index",
+      "sub/profile/stores/index",
+      "sub/profile/store-add/index",
+      "sub/profile/staff-profile/index",
+      "sub/asset/lib/index",
+      "sub/asset/upload/index",
+      "sub/asset/detail/index",
+      "sub/asset/uploader/index",
+      "sub/service/messages/index",
+      "sub/service/settings/index",
+      "sub/member/members/index",
+      "sub/member/invite/index",
+      "sub/member/join/index",
     ]);
     expect(
       built.filter((page) => page.placeholder).every((page) => page.tab && !page.implemented),
@@ -103,7 +133,7 @@ describe("页面清单", () => {
 });
 
 describe("由清单拼出全局配置", () => {
-  it("现在：主包六页、付款三页与建档分包六页，预下载只指向已交付分包", () => {
+  it("现在：主包六页、八个已交付分包，预下载只指向已交付分包", () => {
     expect(buildRoutes()).toEqual({
       pages: [
         "pages/home/index",
@@ -114,7 +144,7 @@ describe("由清单拼出全局配置", () => {
         "pages/agreement/index",
       ],
       subPackages: [
-        { root: "sub/catalog", pages: ["detail/index"] },
+        { root: "sub/catalog", pages: ["search/index", "detail/index"] },
         {
           root: "sub/order",
           pages: [
@@ -128,7 +158,10 @@ describe("由清单拼出全局配置", () => {
           ],
         },
         { root: "sub/publish", pages: ["tasks/index", "downloads/index", "accounts/index"] },
-        { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
+        {
+          root: "sub/billing",
+          pages: ["wallet/index", "plan-pick/index", "invoices/index", "contracts/index"],
+        },
         {
           root: "sub/profile",
           pages: [
@@ -138,8 +171,17 @@ describe("由清单拼出全局配置", () => {
             "service/index",
             "cert/index",
             "review/index",
+            "stores/index",
+            "store-add/index",
+            "staff-profile/index",
           ],
         },
+        {
+          root: "sub/asset",
+          pages: ["lib/index", "upload/index", "detail/index", "uploader/index"],
+        },
+        { root: "sub/service", pages: ["messages/index", "settings/index"] },
+        { root: "sub/member", pages: ["members/index", "invite/index", "join/index"] },
       ],
       preloadRule: {
         "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },
@@ -164,7 +206,7 @@ describe("由清单拼出全局配置", () => {
     );
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
-      { root: "sub/catalog", pages: ["detail/index"] },
+      { root: "sub/catalog", pages: ["search/index", "detail/index"] },
       {
         root: "sub/order",
         pages: [
@@ -177,7 +219,10 @@ describe("由清单拼出全局配置", () => {
         ],
       },
       { root: "sub/publish", pages: ["tasks/index", "downloads/index"] },
-      { root: "sub/billing", pages: ["wallet/index", "plan-pick/index"] },
+      {
+        root: "sub/billing",
+        pages: ["wallet/index", "plan-pick/index", "invoices/index", "contracts/index"],
+      },
       {
         root: "sub/profile",
         pages: [
@@ -187,14 +232,28 @@ describe("由清单拼出全局配置", () => {
           "service/index",
           "cert/index",
           "review/index",
+          "stores/index",
+          "store-add/index",
+          "staff-profile/index",
         ],
       },
+      { root: "sub/asset", pages: ["lib/index", "upload/index", "detail/index", "uploader/index"] },
+      { root: "sub/service", pages: ["messages/index", "settings/index"] },
+      { root: "sub/member", pages: ["members/index", "invite/index", "join/index"] },
     ]);
     expect(routes.preloadRule).toEqual({
       "pages/home/index": { network: "all", packages: ["sub/catalog", "sub/order"] },
       "pages/mall/index": { network: "all", packages: ["sub/catalog"] },
       "pages/mine/index": { network: "all", packages: ["sub/billing", "sub/profile"] },
       "pages/cart/index": { network: "all", packages: ["sub/order"] },
+    });
+    const withoutBilling = buildRoutes(
+      pages.map((page) => (page.pkg === "sub/billing" ? { ...page, implemented: false } : page)),
+    );
+    expect(withoutBilling.subPackages.some((item) => item.root === "sub/billing")).toBe(false);
+    expect(withoutBilling.preloadRule["pages/mine/index"]).toEqual({
+      network: "all",
+      packages: ["sub/profile"],
     });
   });
 

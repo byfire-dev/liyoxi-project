@@ -20,7 +20,7 @@ import type { ProviderCall, ProviderName, Providers } from "./index.js";
 
 // 接口清单、三者一致、外呼前钩子的用例（W0-19 任务书 第 7 节第 10 条，第 10 节第 6 步，第 11 节第 3 项）。
 
-const NOT_METHODS = ["status", "configured", "capabilities"];
+const NOT_METHODS = ["status", "configured", "capabilities", "notificationCrypto"];
 
 describe("十二个接口", () => {
   it("名字与顺序照 ADR-039", () => {
@@ -40,24 +40,25 @@ describe("十二个接口", () => {
     ]);
   });
 
-  it("方法按 01 第 9 节“用途”列一项一个，一共 37 个", () => {
+  it("方法按 01 第 9 节“用途”及必要原语登记，一共 65 个", () => {
     expect(
       Object.fromEntries(PROVIDER_NAMES.map((name) => [name, PROVIDER_METHODS[name].length])),
     ).toEqual({
       wechat: 6, // 登录、手机号、订阅消息、小程序码、图片与文本内容安全
-      wechatPay: 6, // 预下单、回调验签、查单、关单、退款、账单
-      sms: 3, // 员工激活码、订阅消息的补发、值班告警
-      storage: 8, // 签名（写、读）、临时密钥、复制入库，加对象头与删除两个原语
-      media: 4, // 体检、转码、打包、视频审核
-      ocr: 2, // 营业执照识别、行业许可证字段抽取
-      asr: 1, // 录音转写
-      llm: 2, // 素材识别打标、要点提炼
-      wecom: 5, // 员工通知、“联系我”二维码、加好友回调、微信客服、后台扫码
+      wechatPay: 7, // 预下单、回调验签、查单、关单、退款、账单
+      sms: 5, // 员工激活码、订阅消息的补发、值班告警
+      storage: 18, // 签名、临时密钥、四桶对象/版本操作、有界流与三项备份专用能力
+      media: 10, // 体检、转码、打包、审核以及任务查询、按UserData查找、取消
+      ocr: 3, // 营业执照识别、行业许可证字段抽取、转账凭证识别
+      asr: 3, // 保旧录音转写，只增异步提交和查询
+      llm: 4, // 素材识别打标、要点提炼、完整结构化摘要建议
+      wecom: 6, // 员工通知、“联系我”二维码、加好友回调、微信客服、后台扫码、告警机器人
       esign: 1, // 授权书数字签名
       invoice: 1, // 自动开票
       mail: 1, // 电子发票发送
     });
-    expect(ALL_PROVIDER_METHODS).toHaveLength(40);
+    expect(ALL_PROVIDER_METHODS).toHaveLength(65);
+    expect(PROVIDER_METHODS.asr).toEqual(["transcribe", "submit", "query"]);
   });
 
   it("环境的取值与 kernel 的 APP_ENV 相同", () => {

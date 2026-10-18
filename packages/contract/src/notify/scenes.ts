@@ -43,6 +43,7 @@ export const NOTIFY_SCENES = [
   scene("m.launch_remind", "上线提醒"),
   scene("m.verify_result", "核验结果"),
   scene("m.plan_expiring", "套餐到期提醒"),
+  scene("m.quota_exceeded", "名额超限提醒"),
   scene("m.offline_remind", "下架提醒"),
   scene("m.ticket_reply", "工单回复"),
   scene("m.invoice_issued", "发票已开具"),
@@ -98,6 +99,8 @@ export const NOTIFY_SCENES = [
   scene("s.delivery_progress", "交付进度"),
   scene("s.publish_progress", "发布待办"),
   scene("s.merchant_changed", "商家变动"),
+  scene("s.followup_due", "跟进到期提醒"),
+  scene("s.wecom_invite", "企业微信绑定邀请"),
 ] as const;
 
 /** 已登记的场景键 */

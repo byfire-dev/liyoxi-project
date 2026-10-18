@@ -11,7 +11,8 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 | `pnpm --filter @liyoxi/admin dev` | 本地开发，端口 5183。带样例页与夹具；样例接口由开发服务器自己应答，不用起 api。设了 `LYX_API_ORIGIN` 时把 `/api` 转给它 |
 | `pnpm --filter @liyoxi/admin test` | 单测（Vitest，Node 环境）。配置就在 `vite.config.ts` 里，与构建共用一份 |
 | `pnpm admin:build` | 生产构建到 `apps/admin/dist/app`，随后跑 `scripts/check-build.mjs`：文件名带内容哈希、写入了构建号、不含夹具 |
-| `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例，随后运行独立封面上传场景。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm --filter @liyoxi/admin e2e:cover` | 只验封面替换与重试、非法文件、上架校验阻断三场景；独立 Vite 夹具端口 5184，截图和失败 trace 在 `dist/e2e-results/cover-upload`，使用替身上传与保存接口 |
 | `pnpm admin:e2e:live` | 真实 API + 生产后台：独立测试库与假密钥，激活、绑定、恢复码登录与登录态复用，员工筛选分页、新增及一次性激活码；截图在 `dist/e2e-shots`，失败 trace 在 `dist/e2e-live-results` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由菜单登记表重新生成 `docs/plan/pages.md` 的后台部分 |
 
@@ -127,7 +128,7 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 - 路由树是手写装配的（`src/routes/tree.ts`），没有用 `@tanstack/router-plugin` 的文件路由生成：装上它会把锁文件里已有依赖的解析版本带着变，属“放松”类门禁改动，要走单独的依赖 PR。目录约定已照文件路由来，换过去时只动装配（[状态文件](../../docs/plan/status/W0-28.md)“偏差”）。
 - 单测不装 DOM 测试库：结构用 `react-dom/server` 渲染后断言，交互留给 Playwright（任务书 第 11 节第 2 项）。
-- W1-02① 已接登录、激活、动态口令、绑定、再验证、用户菜单、403/404。并发请求共用一个再验证弹层，成功后沿用原幂等键重放；M1 用户菜单仅退出登录。员工页已接真实员工/角色查询与新增，manual 激活码只留当前弹层内存，关闭即清；行内操作及页头汇总等待 M2，修改密码与动态口令设置等待 M2。
+- W1-02① 已接登录、激活、动态口令、绑定、再验证、用户菜单、403/404。并发请求共用一个再验证弹层，成功后沿用原幂等键重放；M1 用户菜单仅退出登录。员工页已接真实员工/角色查询与新增，manual 激活码只留当前弹层内存，关闭即清；行内操作、页头汇总和本人安全菜单由 W2-06 增量实现，当前验证进度见本包状态。
 - 全局搜索与通知入口不显示（规范 第 14 节第 12 项）；V1.1 的 13 个菜单只登记、默认不显示。
 - 表格行高的两档靠 CSS 的 `:has()` 选择器判断一行里有没有双行单元格（Chrome 105、Safari 15.4、Firefox 121 起支持）；更老的浏览器里双行的行会落到 44 那一档，不到 56。复选框、单选框、分段控件的键盘聚焦环同样靠 `:has()`。
 - 衬线字体（页面标题、品牌字）没有带字体文件，按字体栈回落到系统的宋体；antd 控件内部自带的图标（下拉箭头、清除键、排序箭头、关闭“×”等）还是它自己的。两件都在状态文件“偏差”里，等业主定。
@@ -154,6 +155,10 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 显式提供本地 Compose 的公开测试连接参数（APP_ENV=test、DATABASE_URL、REDIS_URL），执行 `pnpm admin:e2e:live`；不读取 .env。正常 Node24，nightly 沿用仓库 Node26 兼容作业。CI 先安装 Chromium；本机可 `LYX_E2E_CHANNEL=chrome`。脚本为本轮生成严格配对的测试库与 Redis 前缀，seed 与 staff:bootstrap 后启动真实 API 构建产物和生产后台静态文件；/api 转发保留 Host/Origin 及端口。结束或中断后停止本轮子进程、精确清理数据库/Redis 与私有临时文件；失败时保留截图、trace 和 API 脱敏日志（dist/e2e-live-logs）。
 
+W3-02 后完整入口还需要 Docker 和本机 MinIO。缺省先从固定 mediatool Dockerfile 构建镜像（可复用缓存），在 CPU1、1GiB、无网络且根只读的本轮容器内生成两份合法20秒视频及真实 probe 报告，再运行完整 live 集合。标准片用于20集批次，真实大于20MiB的另一片用于跨刷新续传；认证、样片、两集原质检和新批次用例全部保留，不减少集数、内部并发、原断言或超时。自动准备的容器和卷在确认终止后回收；成功后删除临时输入，失败保留首次观察，不自动补片或重造。
+
+已有合法输入时可复用：`pnpm admin:e2e:live --video <标准片.mp4> --resume-video <大于20MiB的片.mp4> --probe-facts </tmp/lyx-w302-本轮目录/manifest.json> --mediatool-image <sha256:完整镜像ID>`。三个输入参数须一起提供；格式、字节核对和 Provider 边界见[批次验收说明](src/features/delivery/ticket-detail/batch-upload.README.md)。默认完整收集；受影响定点可用`--test-file 'test/e2e/live-media-ops.spec.ts,test/e2e/live-flow-ops.spec.ts'`，仅接受至多8个真实已有live文件的精确路径，不能用于声称完整验收。
+
 后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `liveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
 
 员工真实用例 `live-staff.spec.ts` 使用 `staff.fixture.ts`：10 位假员工加 bootstrap 管理员覆盖角色、主管、待激活、待启用、禁用及10条分页；返回的 fixtures 经 `liveContext().fixtures` 读取服务端桥 JSON。三张截图为 `staff-01-list.png`、`staff-02-create.png`、`staff-03-activation.png`。同一事件循环触发两次表单提交，断言只发一个创建请求、真实查询只有一行；关闭后不再显示码，重新打开表单为空。
@@ -162,10 +167,28 @@ W1-19 PR1 的真实用例只追加本域登记：`z-order-ticket.fixture.ts` 在
 
 W1-19 PR2 的 `zz-delivery-flow.fixture.ts` 用独立“制作演练-本轮 runId”门店、两集工单和真实批准的发布账号；商家会话只交给 Node 私有 helper。上传人复用原管理员，质检与推送复用原“演练交付”经理的第二个原始恢复码，不重新激活、改角色或增加员工。详情按工单号定位；方案、样片、逐集与成片包表单均按实际 `actions` 和 `Can` 显示，写成功重新 GET，冲突保留输入。
 
-`live-delivery-flow.spec.ts` 经生产 `UploadField` 与本域直传 adapter 完成真实 MinIO POST/complete，再由 Node 私有 helper 调 `packages/services/scripts/admin-live-delivery-media.ts`。窄桥只接受本检出、本轮 `APP_ENV=test`、严格配对的 `lyx_test_admin_live_<runId>` 库/前缀与 loopback 公开测试配置；复核 file/category/item/uploader/clientToken/ETag/createdAt 全部归属后，对已有 job 调实际 `runtime.media.promote`，真实 copy/head 成功且 stored 后才写固定 known MP4 事实。文件是 17947 字节、真实 1 秒、160×90 的 H.264；未知 metadata 样片仍以 `PRODUCTION_NOT_READY` 拒绝 QC，零业务写。Chrome 不保证保留 Request stream 的 postData，因此 Node 从实际注册响应取 fileId/clientToken，再经真实文件 GET 核文件名与主体，制作上下文继续由窄桥锁内核验。测试不改生产请求、公共 harness、探测/QC 或 stored 状态；对象、库与前缀按本轮归属清理。
+`live-delivery-flow.spec.ts` 经生产 `UploadField` 与本域直传 adapter 完成真实 MinIO POST/complete，再由 Node 私有 helper 调 `packages/services/scripts/admin-live-delivery-media.ts`。样片窄桥只接受本检出、本轮 `APP_ENV=test`、严格配对的 `lyx_test_admin_live_<runId>` 库/前缀与 loopback 公开测试配置；复核 file/category/item/uploader/clientToken/ETag/createdAt 全部归属后，对已有 job 调实际 `runtime.media.promote`，真实 copy/head 成功且 stored 后才写固定 known MP4 事实。文件是 17947 字节、真实 1 秒、160×90 的 H.264；未知 metadata 样片仍以 `PRODUCTION_NOT_READY` 拒绝 QC，零业务写。Chrome 不保证保留 Request stream 的 postData，因此 Node 从实际注册响应取 fileId/clientToken，再经真实文件 GET 核文件名与主体，制作上下文继续由窄桥锁内核验。测试不改生产请求、公共 harness、探测/QC 或 stored 状态；对象、库与前缀按本轮归属清理。
 
-该流程走方案推送/商家确认、不同员工样片质检/推送、商家实际 900 秒附件下载留证/确认、两集上传登记、默认与单集例外质检、成片包质检至 delivering；成片包推送由 W1-20 接续。八张 `delivery-01-detail` 至 `delivery-08-delivering` 截图为 1440×900，另核 1366×768 无横向滚动。服务端窄桥目标可直接在 CI 用 Node FormData 运行；早期本机 CORS 探针显式加 `LYX_W119_BROWSER_POST=1`、`LYX_E2E_CHANNEL=chrome`，最终完整 live 总是实际浏览器上传，不以 Node 上传代替。
+W3-02后两集成片改用合法20秒输入、实际批次及真实工具体检；上述1秒窄桥仅保留样片。该流程走方案推送/商家确认、不同员工样片质检/推送、商家实际 900 秒附件下载留证/确认、两集上传登记、默认与单集例外质检、成片包质检至 delivering；成片包推送由 W1-20 接续。八张 `delivery-01-detail` 至 `delivery-08-delivering` 截图为 1440×900，另核 1366×768 无横向滚动。服务端窄桥目标可直接在 CI 用 Node FormData 运行；早期本机 CORS 探针显式加 `LYX_W119_BROWSER_POST=1`、`LYX_E2E_CHANNEL=chrome`，最终完整 live 总是实际浏览器上传，不以 Node 上传代替。
 
+
+## W2-07 系统配置四页
+
+`/sys/dict` 消费类型的 `canCreate/maxDepth/disablePolicy/isSystem` 与真实引用计数，以 `MasterDetailPage` 展示层级和详情。编码、类型、上级不可修改；系统枚举仅编辑名称/说明。引用为 `null` 表示来源未注册，不能当零；实际 `DICT_ITEM_IN_USE` 的 `details.refCount` 留在确认框。合法创建、改名与启停后重读，停用记录保留名称。
+
+`/sys/params` 用 `ConfigPage` 与服务端类型、单位、范围构造字段，明确当前值、来源、当前 rev、`latestRev` 和预约列表。整批一个幂等键，CAS 使用每键 `latestRev`。立即保存与撤销预约是独立操作；预约显式提交北京时间日期/时刻换算的 `effectiveAt`。真实 409 保留旧草稿并刷新，只有点击“我已核对最新版本，保留草稿继续”才采用新版本并再次确认。无效 JSON 阻止保存；放弃草稿会重置 JSON 输入。分组与年份在 URL 中校验，草稿可跨组保留。
+
+年度日历在参数页内读取，默认业务北京时间年、合法边界 2024–2100；导入只提交 `{year}`，服务端选择内置安排。展示未导入状态、批次、时间、`changedDays` 与重复导入无变化。当前只内置 2026；其他年份的实际 `VALIDATION_FAILED.fieldErrors` 保留路径及原因，包括缺内置安排返回的 `days`，不提供自定义日期或在线抓取。
+
+`/sys/flags` 与 `/sys/checklists` 复用 `QueryTablePage`，登记保留 `inMenu=false,parent=system.params`；参数页按实际权限显示链接。开关路由和读取都要求超级管理员，编辑现有默认值与完整有序规则，显示规则维度和缺省分支；不伪造命中预览或告警已到达。清单仅使用契约登记的 9 个编码，普通查看者读取 active（`allVersions=false`），管理者读取草稿与退役历史并按服务端 actions 操作。启用会使旧 active 退役，放弃草稿为 retired；更改草稿先确认放弃旧版本再建新版本，两个真实提交分别成功，创建失败不会把旧草稿恢复为 active。已有业务快照不被升级。
+
+四页私有模型直接取生成的 `operations` DTO，写表单使用正式 schema。私有 `configResult` 接收 openapi-fetch 已解析的真实 error，再交已有公共错误适配，避免 consumed body 丢失领域符号/字段路径；没有修改公共请求层。`UnsavedGuard` 消费已安装 Router 的导航保护与 beforeunload，弹窗取消另确认未保存草稿。接口列表不提供分页参数的开关/清单页在实际读取结果上筛选与分页，筛选/选中记录受 URL 校验。
+
+模型验收：`pnpm --filter @liyoxi/admin exec vitest run src/features/system/config/`。真实验收仍执行原 `pnpm admin:e2e:live`，仅新增 `w207.fixture.ts` 与 `live-system-config.spec.ts`。造数复用既有“演练财务配置提议”员工走真实激活/口令链，只将本轮 finance 角色增加 system 查看等级，不追加员工、不增加编辑权限；两浏览器上下文共用原管理员会话，真实竞争 CAS。查看者凭据仅由 Node fetch 送入真实认证，临时登录态权限 0600 且精确清理，不进入浏览器请求 trace 或截图。
+
+用例逐项核对真实字典引用 409、参数版本 409、缺内置年份 400 的 endpoint/status/error/refCount/fieldErrors；Chrome 对这三个刻意拒绝请求的资源诊断逐字逐数量断言，任何额外控制台错误或 pageerror 都失败，其他两项仍要求零错误。原 `recordErrors`、旧用例、runner 与 Playwright 配置均不变。
+
+七态截图为 `dist/e2e-shots/w207-dict-01-master-detail.png`、`w207-dict-02-in-use.png`、`w207-params-01-current-pending.png`、`w207-params-02-conflict.png`、`w207-calendar-01-imported.png`、`w207-flags-01-rules.png`、`w207-checklists-01-activate-confirm.png`。截图用 1440×900，另在 1366×768 核整页/内容无横滚。确认框用真实 Tab 到取消、Tab 到确认、Enter 提交；预约日期核 Esc 关闭、Tab 到时间、Shift+Tab 返回。具体无头/有头运行结论分别记录在 W2-07 状态，不混称。
 
 ## W2-08 操作日志与访问留痕
 
@@ -178,3 +201,85 @@ W1-19 PR2 的 `zz-delivery-flow.fixture.ts` 用独立“制作演练-本轮 runI
 真实截图在 `dist/e2e-shots/`：`audit-01-filtered-ops.png`（多条件）、`audit-02-masked-detail.png` / `audit-02-masked-diff.png`（脱敏详情与差异）、`audit-03-access-pii.png` / `audit-03-access-purpose.png`（访问留痕与用途）、`audit-04-empty.png`、`audit-05-permission-denied.png`。截图尺寸 1440×900，另在 1366×768 核对整页/内容区无横滚；图中均为虚构数据。日期空值 Tab/Shift+Tab 进出、Enter打开、Esc关闭与手输当天两端包含由真实 Chrome 验收；无头全量与有头 W208 定向结论分别写在本包状态。保留原 runner/config 与失败 trace 策略。
 
 后续 `W2-31` 所拆 G7-A 接 `admin.exportJob.create` / `audit_logs.list` 及导出记录，不在本页放占位导出按钮；关联页落地后再按正式 link 与权限接准确对象入口。
+
+## 错误上报装配（W2-18 PR1）
+
+createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting，sender经既有中央api与生成AdminPaths发送原文信封；用户只取当前access缓存的内部staff UUID。App的React effect安装error/unhandledrejection监听并在卸载解绑。空DSN关闭采集与请求；没有增加SDK、事件正文日志或自动重发。公开DSN不得含秘密，上游项目与服务端FILE白名单由W2-27配置，真实平台收件尚未验证。去敏、分钟/会话/在途限制见[叶说明](src/app/client-reporting.README.md)；services.reporting.test真实经过生产AppServices与中央sender，原权限刷新仍沿原实现。
+
+## 流程运维页（W2-23）
+
+`/sys/flow-ops` 复用既有筛选表格、日期范围和普通确认构件，分别查询定时器、出站投递和回调收件箱。前两项使用正式 `AdminPage` 页码分页；回调使用 `AdminCursorPage`，筛选范围内的前驱游标最多保留 1,000 项。日期、对象、状态和分页参数进 URL，由正式公开查询 schema 校验；请求取生成 DTO，经中央客户端发送。
+
+直接访问需 `system≥v` 或 `flow.ops.view`，侧栏仍遵循既有 system 模块等级过滤。操作按钮同时要求 `flow.ops.manage` 和服务端 `actions`。取消定时器须填 5–200 字原因；其他恢复操作接受至多 200 字备注。确认仅针对单个目标，写请求使用当前确认的幂等键。确认回显到期时刻使用带年份的北京时间，重新排期不提交新的 `fireAt`；成功或状态冲突均刷新实际列表，409 会撤下陈旧确认并提示重新核对。
+
+本页只展示服务端已脱敏的失败摘要和固定安全字段，不展示原始载荷。三种传输状态保持中文普通文本。W3-08在同页增加媒体任务页签，只有system查看权限才查询，原flow查看入口及三资源动作保持；人工重试同时要求media.job.retry、failed与服务端actions，不以error.isRetryable替代实际业务守卫。成功重读queued/deadline，父对象由任务进程推进。
+
+`w223.fixture.ts` 通过原真实造数登记口添加本轮隔离库的失败/死信事实，不增加初始员工或改已有角色、旧夹具。`live-flow-ops.spec.ts` 覆盖三查询、两种分页、日期键盘、四个真实恢复动作与状态冲突刷新。只读用例在原员工用例末尾注册独立 `w223-flow-ops-readonly.ts` helper，原员工数量验收结束后才通过真实创建、激活、设密码和 TOTP 接口创建自己的财务员工；不依赖文件排序，不改变旧断言或执行配置。使用原 `pnpm admin:e2e:live` 起栈和清理。截图落在原 `dist/e2e-shots/flow-ops-*.png`，失败 trace 在原 `dist/e2e-live-results`；只读登录的假手机号、口令、激活码和 TOTP 通过 typed 中央客户端与原生 Node fetch 使用，不写入 Playwright 请求步骤或截图。
+
+浏览器请求使用中央客户端已有的 `Request.clone()`；Chrome 对流正文可能只提供实际长度而不提供 CDP `postData`。四动作验收仅观察本夹具五次精确 POST 的只读副本，原请求立即原样发往真实 API，以精确正文和幂等键断言。刻意状态冲突只允许该请求地址对应的一条固定 409 资源错误，其他 console 或 pageerror 仍失败；旧用例监听保持原样。
+
+
+## 文件清除放行与媒体任务（W3-08，本地验收完成）
+
+`/sys/file-purges`是唯一新增页，默认显示proposed/held运行，点行按purgeRunId读取真实候选，另一页签查询已清除文件。数量和字节确认保留服务端原字符串，批准只进入approved等待执行；熔断展示heldReason，不伪造阈值快照。恢复截止/actions/已彻删均来自DTO，原因、危险确认、中央stepup和当前required键沿已有构件。FILE_IN_USE最多20真实摘要，仅已实现且有权限的短剧引用给固定入口，未来页显示关联受限。
+
+媒体任务位于原`/sys/flow-ops?tab=media`，只system查看权限才取数，不收紧原三资源权限。失败重试按真实actions，结果重读queued与deadline，输入/输出、对象键和原始异常不渲染。版本恢复成功UI用明确受控响应覆盖；真实live MinIO恢复不支持时保持503，彻删按真实枚举/精确删除/HEAD404能力处理本轮未入桶虚构对象，核终态与一次审计，不能当作真实历史版本演练。Chrome可能不提供中央克隆POST的postData，沿既有W223方式只读fetch副本精确核正文/key，原请求原样立即外发。模型与真实live定点结论见W3-08状态，类型/build/截图由ROOT串行验收。
+
+本地6模型/运输与shared23目标分轮通过，状态字典30组/108条/0差异，admin/services类型、依赖边界、API/admin生产构建检查通过。新两组真实live与旧flow两组业务分批全绿，最终仅新两组加认证准备3G（12.4秒），已绿旧组未重复；自有库由runner清理。仅新增file_purges一页，原flow_ops仍归W2-23不重计。最后官方登记/挂载与截图归档由ROOT收口；真实历史版本/生产操作、远端CI与业主看样未验。
+
+## 员工、角色与我的审批（W2-06，本地验收完成）
+
+仅新增 `/sys/roles`、`/approvals` 两页；员工页和用户菜单保留 M1 归属。任务原 system/approval/auth 范围 18 文件 89 用例（包含本包 22 项）、生产构建、原完整样例 16 项及原完整真实 live 31 项通过；全工程串行类型、depcheck 与必要门禁通过。本地验收及唯一独立审查的作者定点闭环完成，交接时待实际 main 合流，未宣称远端 CI/发布完成；分段与首次失败记录见 `docs/plan/status/W2-06.md`。
+
+员工页同筛选读取真实摘要。详情操作同时检查服务端 actions 与当前权限；启停、移交、安全重置和会话吊销使用实际确认信息。禁用先读在办摘要和同角色候选，工号及在办数由后端再次核验。分配池整体替换带当前版本，城市来自真实市级字典；浏览推荐和游标不写入。409 关闭陈旧确认、刷新实际记录，要求重新核对。激活码默认手动交付，仅当前弹层持有；重放为空明确提示，不声称短信到达。
+
+角色页使用实际角色与13模块配置。超级管理员锁定，无写权限时只读；“仅主管”只对正式登记的主管类权限开放。“恢复默认”仅 GET 填入草稿，保存才整批 PUT 当前版本；冲突刷新后需重新编辑，不能自动覆盖。
+
+用户菜单复用中央请求与再验证，提供改密、本人 TOTP 重绑和手填企业微信。一次性密钥、恢复码和密码仅当前弹层内存持有；关闭、退出或当前员工/角色范围改变即卸载清除。新恢复码需勾选保存后关闭，重放不再展示。扫码未开放，外部短信与企业微信送达不在页面验收中冒充通过。
+
+我的审批只列后端真实已注册类型，摘要与列表采用相同业务筛选，日期使用北京时间。处理链接只从固定已实现页面和准确的领域 GET 符号得到；财务配置类型当前没有可执行 handler，保持只读详情。M4/M5 后继在同页追加其实际类型与授权入口，不新增同名页或通用 approve。
+
+真实验收使用原 `pnpm admin:e2e:live` 完整集合，不改 runner/config/时限。必要私有测试 harness 两行透传真实 Node bindings，实际唯一自有库一次查询确认三个新增上下文的 RFC5737 合成来源，未修改生产 trust 或配额。`w206.fixture.ts` 复用既有员工，只加一条合法跟进；独立恢复码由 w207 原夹具只增第二个码供本包使用，不占原测试码。新员工激活用例追加在旧 staff 用例之后，复用旧用例已创建的员工。截图命名 `w206-*.png`，一次性激活码/TOTP/二维码/恢复码遮挡；原无头 Chrome 结果和有头/真机未验证边界分别记录，不以 channel 名称替代有头事实。
+
+本包首次冻结的 12 张截图来自同轮 live7，均为 1440×900，截图前逐项验证 1366×768 无横滚；原无头 Chrome 日期 Tab 进出/Esc 与有头/真机未验边界分开。真实浏览器源为 `9d6852f9`，后普通同步 `5e29e969` 只带入上游告警事实，未重跑并冒称新的整 main 浏览器结果；随后审批页说明保留 M4、M5 各补一段领域入口。截图清单和 SHA 随本包交接，旧失败轮次原产物保留。
+
+唯一正式审查实际 534.498 秒，原 0 P1 / 2 P2 / 0 D 报告保留。员工操作现固定打开时快照，背景刷新后旧草稿仍使用旧 CAS；新增真实 mounted GET/旧版本 PATCH/409/重开核对回归与原 31 项同轮 32/32 通过。headless 可使用限定 visibility 依赖探针，成功 reporter 未持久化具体模式附件，不称物理切窗验证。Modal 截图等待真实稳定绘制，移交、会话和两激活完整弹窗及仅敏感值遮挡已窄验收；新的同轮 12 图和旧坏图均保留。closure 浏览器源后普通同步 `aff1ab61` 仅两份上游文档，测试叶与保护 SHA 不变；完整证据、资源清理和未验证项见状态及独立 closure 交接，不重复正式审查。
+
+## W2-16 协议管理
+
+`/ops/agreements` 为六协议、版本编辑/安排/撤回和脱敏同意证据的唯一主从页，实际消费 W2-12 八接口。legal_doc 上传入库后才提交双文件引用，法务确认默认关闭；当前 phase/actions、公告不足与撤回原因均取服务器返回。新 draft ID/null 与同键失败恢复、签名 PDF 每次现签、权限与旧响应丢弃见 [私有说明](src/features/ops/agreements/README.md)。样例与真实服务分别由 `agreements-m2.spec.ts`、`live-agreements-m2.spec.ts` 验证；虚构正文不代表 E8 法律审核或真实云验证已完成。实际通过范围记 W2-16 状态。
+
+## W3-12 短剧、积分价与站点五页
+
+五页只消费已接受的W3-09/10/11契约：`/dramas`、`/dramas/$id`、`/billing/pricing`、`/ops/home`、`/ops/mall`。列表筛选、分页、页签和返回状态进URL，summary/actions由服务端给出；基础、版权、许可、价格与站点各资源用自己的确认版本和幂等键，409保留草稿并要求核对。原片批次在编辑页复用W3-02客户端与正式batch context、匹配、人工逐集、恢复/取消/commit，不增加页面、接口或通用上传旁路。
+
+版权已上架后只能走独立修订，当前锁与旧授权止日必须确认；新证明真实上传后才提交，current完整版权证明集合与本次revision依据分别展示。上架前读取同份十四检查及missingEpisodes/在途批次，确认调用真实接口再验证。预告片明确target/current状态和目标源预览，源预览沿正式admin.file.downloadUrls/公共Player。源异步检查仅对TRAILER_SOURCE_CHECKING且retryable=true按原body/key有界重试，支持调用者取消和清理；其他失败按原语义显示。
+
+价格只展示服务器当前P和待生效价，修改/撤销按权限与actions；固定模板价只读。首页及商城保存草稿与发布各有独立键，第二步失败可重试实际草稿，历史复制为新草稿/新发布版。invalidRefs/fieldErrors.path真实显示，Banner排序包含未结束停用行，服务端maxActive/集合冲突重新核对。
+
+`live-content.spec.ts`和`live-content-site.spec.ts`使用原完整bare live入口，不缩集合；R6作者HEAD f4b71258实际47/47通过（old32+C10+B5）。财务身份复用原隔离员工的专用恢复码，通过正式role PUT临时v/e与独立权限关闭、两真实403并finally恢复完整角色，不增加员工或放松配额。仅精确假COS host转发同轮validated loopback receiver，保URL/path/query/method/body/header/签名及真实receiver验证，不mock业务/API响应。
+
+私有预告片演练严格绑定本轮注册的source/job/asset/drama/template/quality/dst，真实下载核字节/SHA，以原串行CPU1/1GiB固定镜像native转码后发布真实产物并经正式双rendition/install。默认样片分支及其guard保持，不把隔离演练当厂商/真实云认证。`w312-*.png`在本轮immutable产物记录三视口；1366/1440核横滚，1280低于正式shell最小宽有真实overflow annotation。有头/设备、真实合法运营内容及法务审核未验证。完整分轮/首次失败和最终尾检见W3-12状态与交接。
+
+
+## 商家列表、详情与渠道码（W2-15）
+
+`/merchants` 消费正式筛选、分页和同范围 summary；列表进入真实 `/merchants/$storeId` 六个页签，渠道码位于静态 `/merchants/referral-codes`。档案、资质轮次、负责人/跟进、主体成员、账号申请与活动均取实际 DTO；掩码、空值、服务端 actions、版本及确认信息保持，原资质审核仍按 submissionId 导航。
+
+写入统一使用中央 required 幂等意图和再验证，409 刷新事实再核对；敏感签读每次现取，离页/换店/换人后中止并忽略迟到结果。已有员工查看权限者从当前范围选择在职交付经理，其余沿授权候选池；销售码归属同样只取真实可见在职员工。通用跟进不造 store 类型新建旁路，时间按北京时间控件转正式 ISO；M7 商家导出尚无 producer，入口保持隐藏。
+
+定点验收为三个 model.test.ts 八聚合与 `live-merchant-m2.spec.ts` 两真实浏览器聚合，另复用旧 `live-review.spec.ts` 一组；失败与修复事实及最终结果见 [W2-15 状态](../../docs/plan/status/W2-15.md)。fixture 只在隔离库准备合法前置，后继状态由正式 HTTP 写口产生，不操作真实账号、通知或云对象。私有结构与操作边界见 [商家详情 README](src/features/merchant/detail/README.md)。
+
+## 商家素材复核、代传与需求（W3-18）
+
+既有 `/merchants/$storeId?tab=assets` 消费正式列表、同范围 summary 与详情，不新增页面、HTTP、x01 或依赖。全部/待整理/已采用、类型、可用性、肖像材料、关键词、两种正式排序及分页保留在 URL；只有当前门店当前页可见行才能读取详情。人工整理与机器全文/步骤/技术规格/建议分区，机器结果不代替用途、时效或肖像授权。
+
+人工复核、重识别、原因软删除和授权确认同时依当前权限与服务端 actions；复核与授权使用打开时版本，保留原人工可用性，409 关闭旧意图、回读后重填。标签来自正式三维字典。失败重试保留正文与幂等键，写入成功但刷新失败只重试读取，不重复 POST；切换门店/范围/筛选或离开后中止旧操作，迟到结果不打开敏感材料。
+
+后台代传使用 store_asset、肖像材料使用 portrait_auth，带当前门店与 onBehalfStore。复用共享 multipart 直传、complete 和 stored 轮询后才提交业务引用；正文素材与文件素材按正式结构分离。肖像补交只追加材料，仍须明确人工确认。需求状态/分页进 URL，响应关系、已收到数量及完成/撤销均取服务器；已完成或撤销需求仍按真实后端能力允许响应，不额外限制。
+
+本地验证由 ROOT 串行完成：新增四模型、上传泵三纯组、唯一 live 文件四业务组加认证 5/5，以及 admin/services/API 类型、API/admin 生产构建、依赖/颜色/文案/页面登记检查。实际小 PNG 经真实 MinIO 上传与公开 promote 入库并关联；肖像补交后授权时间仍为空，人工确认后才更新。首轮控件选择器限定 dialog 后修复，未弱化业务断言。独审分工、分轮结果和首次失败保留在 [W3-18 状态](../../docs/plan/status/W3-18.md)。
+
+本轮 live/build 生产源为 b0d9c103；142434f5 只收口中文提示，经单叶轻检查和 ROOT 点核，没有声明文案后重跑全套。四张实际 manual-review/demand-results/portrait-awaiting-confirmation/portrait-confirmed 截图已人工查看，绝对路径记在状态中。首片只读签名/范围回归本轮继续通过；只读前置的外部字节替身与本轮真实 MinIO 写链分别记录。
+
+代码与本地验收已完成；真实客户肖像材料的法律有效性、E17/E22、真实识别准确率、生产云、消息送达、真机/有头及远端 CI 尚未验证，不以虚构 PNG 流程替代。

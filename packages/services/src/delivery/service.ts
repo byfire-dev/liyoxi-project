@@ -159,7 +159,7 @@ export function createDelivery(deps: DeliveryDeps) {
       const data = await deps.tx.run(async (tx) => {
         const sampleId = await createSample(tx, deps, ctx, staff, id, body),
           { s, t } = await sampleOf(tx, sampleId, staff);
-        return adminSampleView(tx, t, s, staff);
+        return adminSampleView(tx, deps, t, s, staff);
       }, options);
       return {
         ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
@@ -177,7 +177,7 @@ export function createDelivery(deps: DeliveryDeps) {
       const data = await deps.tx.run(async (tx) => {
         await inspectSample(tx, deps, ctx, staff, id, body);
         const { s, t } = await sampleOf(tx, id, staff);
-        return adminSampleView(tx, t, s, staff);
+        return adminSampleView(tx, deps, t, s, staff);
       }, options);
       return {
         ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
@@ -195,7 +195,7 @@ export function createDelivery(deps: DeliveryDeps) {
       const data = await deps.tx.run(async (tx) => {
         await pushSample(tx, deps, ctx, staff, id, body);
         const { s, t } = await sampleOf(tx, id, staff);
-        return adminSampleView(tx, t, s, staff);
+        return adminSampleView(tx, deps, t, s, staff);
       }, options);
       return {
         ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
@@ -397,7 +397,7 @@ export function createDelivery(deps: DeliveryDeps) {
     get: async (staff: StaffContext, id: string) => {
       view(staff);
       const data = await deps.tx.run(async (tx) =>
-        ticketDetail(tx, await ticketOf(tx, id, staff), staff, deps.clock.now()),
+        ticketDetail(tx, deps, await ticketOf(tx, id, staff), staff, deps.clock.now()),
       );
       return {
         ...data,
@@ -415,7 +415,7 @@ export function createDelivery(deps: DeliveryDeps) {
       return deps.tx
         .run(async (tx) => {
           await assignManager(tx, deps, ctx, staff, id, input);
-          return ticketDetail(tx, await ticketOf(tx, id, staff), staff, deps.clock.now());
+          return ticketDetail(tx, deps, await ticketOf(tx, id, staff), staff, deps.clock.now());
         }, options)
         .then((data) => ({ ...data, replayed: options.idem?.replayed ?? false }));
     },

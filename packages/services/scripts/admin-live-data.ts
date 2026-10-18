@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { createPrismaClient } from "@liyoxi/db";
 import { assertTestDatabaseName, dropTestDatabase } from "@liyoxi/db/testing/standalone";
 import { Redis } from "ioredis";
+import { ZodError } from "zod";
 import { createRuntime } from "../src/runtime.js";
 import { createLogger } from "../src/logger.js";
 import { loadEnv } from "../src/kernel/env.js";
@@ -16,6 +17,33 @@ import { createFakeProviders } from "../src/testing/providers/index.js";
 import type { AdminLiveFixture } from "../src/testing/admin-live/context.js";
 
 const fixturesDir = fileURLToPath(new URL("../src/testing/admin-live/", import.meta.url));
+let stage = "arguments";
+let fixture: string | null = null;
+
+function errorCategory(error: unknown) {
+  if (error instanceof ZodError) return "validation";
+  if (!(error instanceof Error)) return "unknown";
+  switch (error.name) {
+    case "EnvError":
+      return "configuration";
+    case "AppError":
+      return "application";
+    case "KernelViolation":
+      return "kernel";
+    case "PrismaClientKnownRequestError":
+    case "PrismaClientUnknownRequestError":
+    case "PrismaClientInitializationError":
+    case "PrismaClientValidationError":
+    case "PrismaClientRustPanicError":
+      return "database";
+    case "TypeError":
+      return "type";
+    case "RangeError":
+      return "range";
+    default:
+      return "error";
+  }
+}
 
 async function main() {
   const { values } = parseArgs({
@@ -37,8 +65,10 @@ async function main() {
   const runId = prefix.slice("lyx:test:admin_live_".length, -1);
   if (name !== `lyx_test_admin_live_${runId}`)
     throw new Error("测试库与 Redis 前缀必须使用同一本轮标识");
+  stage = "configuration";
   const env = loadEnv();
   if (values.cleanup) {
+    stage = "resource_cleanup";
     // 不用 runtime.keyPrefix，SCAN 得到原始全名；绝不 FLUSHDB 或按环境统一前缀清理。
     const results = await Promise.allSettled([
       (async () => {
@@ -65,8 +95,10 @@ async function main() {
     process.stdout.write(`${JSON.stringify({ cleaned: name })}\n`);
     return;
   }
+  stage = "database_scope";
   if (decodeURIComponent(new URL(env.DATABASE_URL).pathname.slice(1)) !== name)
     throw new Error("DATABASE_URL 必须指向 --name 指定的测试库");
+  stage = "runtime_assembly";
   const version = "admin-live-fixtures";
   const logger = createLogger({
     svc: "api",
@@ -83,23 +115,49 @@ async function main() {
     logger,
     providers: createFakeProviders(),
   });
+  stage = "database_client";
   const prisma = createPrismaClient({ connectionString: env.DATABASE_URL, max: 2 });
   try {
+    stage = "fixture_factories";
     const make = createFactories({
       db: prisma,
       clock: runtime.clock,
       seal: sealerOf(loadKeyring(env)),
     });
     const data: Record<string, unknown> = {};
+    stage = "fixture_discovery";
     for (const file of (await readdir(fixturesDir))
       .filter((file) => file.endsWith(".fixture.ts"))
       .sort()) {
+      fixture = /^[a-z0-9][a-z0-9-]{0,80}\.fixture\.ts$/.test(file)
+        ? file
+        : "unrecognized.fixture.ts";
+      stage = "fixture_import";
       const module = (await import(pathToFileURL(resolve(fixturesDir, file)).href)) as {
         default?: AdminLiveFixture;
       };
+      stage = "fixture_registration";
       if (typeof module.default !== "function") throw new Error("造数登记文件须导出 default 函数");
-      data[file.slice(0, -".fixture.ts".length)] = await module.default({ runtime, make });
+      try {
+        stage = "fixture_execute";
+        data[file.slice(0, -".fixture.ts".length)] = await module.default({ runtime, make });
+      } catch (error) {
+        if (error instanceof ZodError)
+          process.stderr.write(
+            `${JSON.stringify({
+              evt: "admin.live.fixture.invalid",
+              fixture: file,
+              issues: error.issues.slice(0, 12).map((issue) => ({
+                code: issue.code,
+                path: issue.path.slice(0, 8),
+              })),
+            })}\n`,
+          );
+        throw error;
+      }
     }
+    fixture = null;
+    stage = "fixture_output";
     process.stdout.write(`${JSON.stringify({ fixtures: data })}\n`);
   } finally {
     const results = await Promise.allSettled([prisma.$disconnect(), runtime.close()]);
@@ -112,7 +170,7 @@ async function main() {
 main().catch((error: unknown) => {
   // 不把配置值、连接串或密钥材料带到前端命令输出。
   process.stderr.write(
-    `admin:live:data 失败（${error instanceof Error ? error.name : "unknown"}）\n`,
+    `${JSON.stringify({ evt: "admin.live.data.failed", stage, fixture, errorCategory: errorCategory(error) })}\n`,
   );
   process.exitCode = 1;
 });

@@ -2,11 +2,23 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
-import { MeViewSchema } from "./account.schemas.js";
+import {
+  MeUpdateBodySchema,
+  MeChangePhoneBodySchema,
+  DeletionBodySchema,
+  DeletionResultSchema,
+  MeUserSchema,
+  MeViewSchema,
+  UserNoticeAcknowledgeParamsSchema,
+  UserNoticeAckResultSchema,
+  WechatIdentityListQuerySchema,
+  WechatIdentityListSchema,
+  WechatIdentityRemoveParamsSchema,
+  WechatIdentityRemoveResultSchema,
+} from "./account.schemas.js";
 
-// m.me.get 已带结构（W1-04）；其余 7 条随 M2
+// 当前账号与本人安全接口已带结构；换绑手机号与注销随 M2 后续切片。
 export const mMeGet = merchantRoute({
   method: "get",
   path: "/m/me",
@@ -19,7 +31,7 @@ export const mMeGet = merchantRoute({
   responses: { ...okResponse(MeViewSchema), ...errorResponses(401, 426, 429) },
 });
 
-export const mMeUpdate = merchantMeta({
+export const mMeUpdate = merchantRoute({
   method: "patch",
   path: "/m/me",
   operationId: "m.me.update",
@@ -28,9 +40,16 @@ export const mMeUpdate = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: {
+    body: { required: true, content: { "application/json": { schema: MeUpdateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(MeUserSchema),
+    ...errorResponses(400, 401, 403, 409, 426, 428, 429, 503),
+  },
 });
 
-export const mMeChangePhone = merchantMeta({
+export const mMeChangePhone = merchantRoute({
   method: "post",
   path: "/m/me/change-phone",
   operationId: "m.me.changePhone",
@@ -40,9 +59,17 @@ export const mMeChangePhone = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: {
+    body: { required: true, content: { "application/json": { schema: MeChangePhoneBodySchema } } },
+  },
+  responses: {
+    ...okResponse(MeUserSchema),
+    ...errorResponses(400, 401, 403, 409, 426, 428, 429, 503),
+  },
 });
 
-export const mMeDeletionCreate = merchantMeta({
+export const mMeDeletionCreate = merchantRoute({
   method: "post",
   path: "/m/me/deletion",
   operationId: "m.me.deletion.create",
@@ -52,9 +79,13 @@ export const mMeDeletionCreate = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: {
+    body: { required: true, content: { "application/json": { schema: DeletionBodySchema } } },
+  },
+  responses: { ...okResponse(DeletionResultSchema), ...errorResponses(400, 401, 403, 409, 429) },
 });
 
-export const mMeUserNoticeAcknowledge = merchantMeta({
+export const mMeUserNoticeAcknowledge = merchantRoute({
   method: "post",
   path: "/m/me/user-notices/{userNoticeId}/acknowledge",
   operationId: "m.me.userNotice.acknowledge",
@@ -63,9 +94,14 @@ export const mMeUserNoticeAcknowledge = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: { params: UserNoticeAcknowledgeParamsSchema },
+  responses: {
+    ...okResponse(UserNoticeAckResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 426, 428, 429),
+  },
 });
 
-export const mMeWechatIdentityList = merchantMeta({
+export const mMeWechatIdentityList = merchantRoute({
   method: "get",
   path: "/m/me/wechat-identities",
   operationId: "m.me.wechatIdentity.list",
@@ -74,9 +110,14 @@ export const mMeWechatIdentityList = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: WechatIdentityListQuerySchema },
+  responses: {
+    ...okResponse(WechatIdentityListSchema),
+    ...errorResponses(400, 401, 403, 426, 428, 429),
+  },
 });
 
-export const mMeWechatIdentityDelete = merchantMeta({
+export const mMeWechatIdentityDelete = merchantRoute({
   method: "delete",
   path: "/m/me/wechat-identities/{wechatIdentityId}",
   operationId: "m.me.wechatIdentity.delete",
@@ -85,4 +126,9 @@ export const mMeWechatIdentityDelete = merchantMeta({
   "x-capability": "me.*",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  request: { params: WechatIdentityRemoveParamsSchema },
+  responses: {
+    ...okResponse(WechatIdentityRemoveResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 426, 428, 429),
+  },
 });

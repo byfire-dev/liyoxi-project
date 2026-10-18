@@ -104,6 +104,8 @@ jobs:
       # 现生成的逐字节比对，它在 test 任务里跑，那边的检出没有被这一步重新写过
       - name: contract:check
         run: pnpm contract:check
+      - name: 在役契约兼容（C77/C78）
+        run: pnpm contract:compat
       # x01 名称登记（W0-09a）：先由登记数据重新生成归属表 docs/plan/x01-map.md 并 git diff --exit-code，再拿登记数据
       # 与 x01 正文、working/frag 对账（名称集合、数量、归属里程碑、写法）。不连库
       - name: 登记表对账
@@ -156,7 +158,7 @@ jobs:
   test:
     name: test
     runs-on: *runner
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -254,8 +256,9 @@ jobs:
       - name: 枚举与库 CHECK 一致
         run: pnpm enums:check
       # 本地存储驱动的用例要连 MinIO（W0-19）。镜像、端口、账号都取 infra/compose/local.yml，只起 minio 一个服务
+      # 迁移期先按固定摘要拉取，再供旧 Compose 名称使用；never 避免 latest 回查旧源。
       - name: 起 MinIO
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       # 带 LYX_TEST_MINIO=required：MinIO 连不上即失败。后面“测试”一步里它连不上只会跳过
       - name: MinIO 驱动的用例
         env:
@@ -268,6 +271,8 @@ jobs:
         run: pnpm test --project '!infra' --shard=1/3
       - name: M1 接口主路径
         run: pnpm e2e
+      - name: M3 接口主路径
+        run: pnpm e2e:m3
       # 路由元数据接管（W0-10）：以下四步检查都只读，合计几秒（第一步“路由元数据对账”不连库，在 verify 任务）。
       # 前两步读前面“空库跑全部迁移”一步建的 lyx_migrate_check。后两步不连库，放在这里是因为“待落地数只减不增”
       # 要排在“测试”之后（已挂载处理器的清单由 apps/api 的测试装配导出，W0-22 接上），它出的清单又与下一步的同一步上传。
@@ -288,6 +293,8 @@ jobs:
         run: node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md
       - name: M0 与 M1 接口清零
         run: node infra/ci/landed.mjs --check --require M0,M1
+      - name: M0、M1 与 M3 接口清零
+        run: node infra/ci/landed.mjs --check --require M0,M1,M3
       # 计划 第 8.2 节的表由路由清单生成：V1.0 的接口都有里程碑，表与清单无差异，行与列的合计相符。
       # 顺带出业主评审用的归属汇总（文档 × 里程碑 × operationId），下面上传
       - name: 里程碑归属与计划 第 8.2 节的表
@@ -302,12 +309,17 @@ jobs:
             packages/contract/dist/pending-routes.md
           if-no-files-found: error
           retention-days: 30
-      # 下面两步（W0-23）跑的是任务进程的构建产物。“构建”一步在 web 任务，产物过不来：这里只构建任务进程这一个包
+      # 下面步骤（W0-23）跑的是任务进程的构建产物。“构建”一步在 web 任务，产物过不来：这里只构建任务进程这一个包
       #（esbuild 把工作区的源码包连同生成的数据库客户端打进去，本任务开头已生成）
       - name: 构建任务进程（产物自检用）
         run: pnpm --filter @liyoxi/worker build
+      # 自检需要正式通知场景等种子；在迁移等价性检查之后补齐，不放宽启动校验。
+      - name: worker 自检数据库播种
+        env:
+          DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
+        run: node apps/worker/dist/seed.js
       # 任务进程的产物能启动（W0-23）：--check 只做装配与自检——登记与契约对得上、契约登记的聚合类型都是库里存在的表，
-      # 不连 Redis、不抢租约。产物是前面“构建”一步出的；读的是“空库跑全部迁移”一步建的 lyx_migrate_check，只读
+      # 不连 Redis、不抢租约。产物是前面“构建”一步出的；只读已迁移并播种的自检库 lyx_migrate_check
       - name: worker 产物自检
         env:
           DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/lyx_migrate_check
@@ -325,12 +337,15 @@ jobs:
         run: node infra/ci/four-counts.mjs --require M0
       - name: M0 与 M1 四个计数
         run: node infra/ci/four-counts.mjs --require M0,M1
+      - name: M0、M1 与 M3 四个计数
+        run: node infra/ci/four-counts.mjs --require M0,M1,M3
 
   # “测试”的第二片（分法见 test 任务的“测试”一步）。各片各用各的库：数据库客户端、迁移库、MinIO 都自己备
   test-2:
     name: test-2
     runs-on: *runner
-    timeout-minutes: 10
+    # 与其他两片统一任务预算；完整用例、单例超时和执行并发保持原值。
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -380,7 +395,7 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试第二片用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: 测试（第二片）
         run: pnpm test --project '!infra' --shard=2/3
 
@@ -388,7 +403,8 @@ jobs:
   test-3:
     name: test-3
     runs-on: *runner
-    timeout-minutes: 10
+    # 云端全量增长已触发 10 分钟超时；只延长执行上限，测试范围与并发不变。
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -438,7 +454,7 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试第三片用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: 测试（第三片）
         run: pnpm test --project '!infra' --shard=3/3
 
@@ -491,6 +507,8 @@ jobs:
         run: docker compose -f infra/compose/local.yml up -d --wait redis
       - name: 生成本作业真实接口挂载清单
         run: rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts && test -s apps/api/dist/mounted-operations.json
+      - name: 预拉密钥扫描夹具使用的固定镜像
+        run: docker pull ghcr.io/gitleaks/gitleaks:v8.30.1
       - name: 测试（infra 项目）
         run: pnpm test --project infra
 
@@ -505,7 +523,8 @@ jobs:
   test-isolation:
     name: test-isolation
     runs-on: *runner
-    timeout-minutes: 10
+    # 云端全量增长已触发 10 分钟超时；只延长执行上限，测试范围与并发不变。
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -555,15 +574,16 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：两个会话里本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试隔离用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: test:isolation
         run: node infra/ci/isolation-shard.mjs --shard 1/4
 
   # 测试隔离的第二片（分法见 test-isolation 任务上方的说明）：两个会话同时跑这一片里的用例，核对照旧
+  # 第二、三片也已触发云端 10 分钟上限；仅延长执行时限，不缩测试范围。
   test-isolation-2:
     name: test-isolation-2
     runs-on: *runner
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -613,7 +633,7 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：两个会话里本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试隔离第二片用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: test:isolation（第二片）
         run: node infra/ci/isolation-shard.mjs --shard 2/4
 
@@ -621,7 +641,7 @@ jobs:
   test-isolation-3:
     name: test-isolation-3
     runs-on: *runner
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -671,7 +691,7 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：两个会话里本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试隔离第三片用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: test:isolation（第三片）
         run: node infra/ci/isolation-shard.mjs --shard 3/4
 
@@ -679,7 +699,8 @@ jobs:
   test-isolation-4:
     name: test-isolation-4
     runs-on: *runner
-    timeout-minutes: 10
+    # 云端全量增长已触发 10 分钟超时；只延长执行上限，测试范围与并发不变。
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie
@@ -729,7 +750,7 @@ jobs:
         run: psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy
       # 与 test 任务一样起着 MinIO：两个会话里本地存储驱动的用例照跑，不因为连不上而跳过
       - name: 起 MinIO（测试隔离第四片用）
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: test:isolation（第四片）
         run: node infra/ci/isolation-shard.mjs --shard 4/4
 
@@ -737,7 +758,9 @@ jobs:
   web:
     name: web
     runs-on: *runner
-    timeout-minutes: 10
+    # 健康轮后台55项live结束时job已耗15m41；慢轮共同用例中位约1.47倍，后续还有674项单测与208个截图目标。
+    # 30分钟仅为完整CI链路留余量，不代表性能达标；单例超时、重试、测试数量与并发保持原值。
+    timeout-minutes: 30
     steps:
       - name: 检出（带完整历史：冒烟的受影响范围要与基线比）
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -806,7 +829,7 @@ jobs:
       # 原图签发走实际 API 的本地存储驱动，首次调用会核对/建桶，因此与 PostgreSQL、Redis 一样需要就绪。
       - name: 后台真实接口验收的 MinIO
         if: steps.admin-e2e.outputs.run == 'true'
-        run: docker compose -f infra/compose/local.yml up -d --wait minio
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
       - name: 后台登录真实接口验收
         if: steps.admin-e2e.outputs.run == 'true'
         run: pnpm admin:e2e:live
@@ -820,6 +843,7 @@ jobs:
           path: |
             apps/admin/dist/e2e-shots/
             apps/admin/dist/e2e-results/
+            apps/admin/dist/e2e-live-results/
           if-no-files-found: error
           retention-days: 30
       # W0-27a：小程序。根上的 pnpm test 不含三个前端：请求层与四个端上封装的用例在这里跑（Node 环境，不起小程序运行时）

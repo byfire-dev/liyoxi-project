@@ -360,6 +360,14 @@ describe("冒烟脚本的约束核对（docker inspect 桩掉）", () => {
 });
 
 describe("整套环境的 Compose 与镜像定义", () => {
+  it("浏览器 CSP 与 API/worker 的 MinIO 公网地址使用相同配置和默认值", () => {
+    const text = read("infra/compose/stack.yml");
+    const endpoints = [...text.matchAll(/MINIO_PUBLIC_ENDPOINT: (.+)/g)].map((v) => v[1]);
+    const csp = /MEDIA_ORIGINS: (.+)/.exec(text)?.[1];
+    expect(endpoints).toHaveLength(2);
+    expect(csp).toBe("${MINIO_PUBLIC_ENDPOINT:-http://127.0.0.1:9100}");
+    expect(endpoints.every((value) => value === csp)).toBe(true);
+  });
   const stack = read("infra/compose/stack.yml");
   const local = read("infra/compose/local.yml");
   const serviceBlock = (text: string, name: string) =>
@@ -431,22 +439,61 @@ describe("整套环境的 Compose 与镜像定义", () => {
   ];
 
   it("基础镜像都固定到摘要；三处的 node 是同一个摘要", () => {
-    const nodeDigests = new Set<string>();
-    for (const file of DOCKERFILES) {
-      const text = read(file);
-      const stages = new Set(
-        [...text.matchAll(/^FROM \S+ AS (\S+)$/gm)].map((match) => match[1] ?? ""),
-      );
-      const bases = [...text.matchAll(/^FROM (\S+)/gm)]
-        .map((match) => match[1] ?? "")
-        .filter((base) => !stages.has(base));
-      expect(bases.length).toBeGreaterThan(0);
-      for (const base of bases) {
-        expect(base).toMatch(/^(node:24-slim|nginx:stable-alpine)@sha256:[0-9a-f]{64}$/);
-        if (base.startsWith("node:")) nodeDigests.add(base);
+    const check = (sources: Record<string, string>) => {
+      const nodeDigests = new Set<string>();
+      for (const file of DOCKERFILES) {
+        const blocks = sources[file]!.split(/(?=^FROM )/m);
+        const exporters = blocks.filter((block) =>
+          block.startsWith("FROM scratch AS source-maps\n"),
+        );
+        const exportsMaps = file !== "infra/docker/mediatool/Dockerfile";
+        expect(exporters, file).toHaveLength(exportsMaps ? 1 : 0);
+        for (const exporter of exporters) {
+          expect(
+            exporter
+              .split("\n")
+              .map((line) => line.trim())
+              .filter((line) => line && !line.startsWith("#")),
+          ).toEqual(["FROM scratch AS source-maps", "COPY --from=build /private-source-maps/ /"]);
+          expect(blocks.indexOf(exporter)).toBeLessThan(blocks.length - 1);
+        }
+        const text = blocks.filter((block) => !exporters.includes(block)).join("");
+        expect(text).not.toContain("--from=source-maps");
+        const stages = new Set(
+          [...text.matchAll(/^FROM \S+ AS (\S+)$/gm)].map((match) => match[1] ?? ""),
+        );
+        const bases = [...text.matchAll(/^FROM (\S+)/gm)]
+          .map((match) => match[1] ?? "")
+          .filter((base) => !stages.has(base));
+        expect(bases.length).toBeGreaterThan(0);
+        for (const base of bases) {
+          expect(base).toMatch(/^(node:24-slim|nginx:stable-alpine)@sha256:[0-9a-f]{64}$/);
+          if (base.startsWith("node:")) nodeDigests.add(base);
+        }
       }
+      expect(nodeDigests.size).toBe(1);
+    };
+    const sources = Object.fromEntries(DOCKERFILES.map((file) => [file, read(file)]));
+    check(sources);
+    for (const [file, before, after] of [
+      ["server", "FROM scratch AS source-maps", "FROM scratch AS runtime"],
+      ["gateway", "COPY --from=build /private-source-maps/ /", "COPY --from=build /repo/ /"],
+      ["server", "FROM sys AS server", "FROM scratch AS server"],
+      ["server", "FROM sys AS server", "FROM source-maps AS server"],
+    ]) {
+      const path = `infra/docker/${file}/Dockerfile`;
+      expect(sources[path]).toContain(before);
+      expect(() =>
+        check({ ...sources, [path]: sources[path]!.replace(before!, after!) }),
+      ).toThrow();
     }
-    expect(nodeDigests.size).toBe(1);
+    const server = "infra/docker/server/Dockerfile";
+    expect(() =>
+      check({
+        ...sources,
+        [server]: sources[server]!.replace(/node:24-slim@sha256:[0-9a-f]{64}/, "node:24-slim"),
+      }),
+    ).toThrow();
   });
 
   it.each(["infra/docker/server/Dockerfile", "infra/docker/gateway/Dockerfile"])(

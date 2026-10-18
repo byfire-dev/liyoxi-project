@@ -46,6 +46,8 @@ export interface ClaimResult {
 }
 
 export interface DispatchDeps {
+  /** 已提交失败事实后的旁路；不得改变事务结果，旧装配可不提供。 */
+  readonly onFailure?: (outcome: "retry" | "dead") => void | Promise<void>;
   readonly tx: TxRunner;
   readonly subscribers: SubscriberTable;
   readonly channel: Pick<QueueChannel, "enqueue" | "downForMs">;
@@ -177,7 +179,7 @@ async function recordFailure(
  * 订阅者抛错不往外抛：记一次失败后返回 retry 或 dead。只有数据库本身出问题才抛（那时由租约到期兜底）。
  */
 export async function consumeDelivery(
-  deps: Pick<DispatchDeps, "tx" | "subscribers" | "alerts">,
+  deps: Pick<DispatchDeps, "tx" | "subscribers" | "alerts" | "onFailure">,
   ref: DeliveryRef,
 ): Promise<ConsumeOutcome> {
   try {
@@ -218,7 +220,15 @@ export async function consumeDelivery(
       return "done";
     });
   } catch (error) {
-    return recordFailure(deps, ref, error);
+    const outcome = await recordFailure(deps, ref, error);
+    if (outcome === "retry" || outcome === "dead") {
+      try {
+        void Promise.resolve(deps.onFailure?.(outcome)).catch(() => undefined);
+      } catch {
+        /* 不污染持久结果。 */
+      }
+    }
+    return outcome;
   }
 }
 

@@ -1,0 +1,19 @@
+services:
+  api:
+    environment:
+      ASR_TENCENT_FILE: /run/secrets/asr-tencent.json
+    secrets:
+      - asr-tencent.json
+  worker:
+    environment:
+      ASR_TENCENT_FILE: /run/secrets/asr-tencent.json
+    secrets:
+      - asr-tencent.json
+  check-env:
+    environment:
+      ASR_TENCENT_FILE: /run/secrets/asr-tencent.json
+    secrets:
+      - asr-tencent.json
+secrets:
+  asr-tencent.json:
+    file: ${LYX_SECRETS_DIR:?}/asr-tencent.json

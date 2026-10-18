@@ -1,5 +1,7 @@
 # order：订剧、选剧单与订单读侧
 
+广告取消财务代撤（A15）：活跃发起人的广告已确认/取消且指针按库约束清空时，真实财务可在完整目标图预锁及再验证后撤回；owner 在关闭回调再次核终局事实。只从 order 公口建立真实事务上下文；直接泛 approval、缺预锁或关联错配严格拒绝，外来指针不清理。本人、停用发起人代撤及实际 system 失效路径不变，无新 HTTP 或 M5 producer。
+
 W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 交选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
 
 阅读顺序：`checks.ts` / `accounts.ts` → `quote.ts` → `submit.ts` → `read.ts` → `register.ts` / `invariants.ts`。契约在 contract 的 m04 `order.schemas.ts`，完整 `OrderDetail` 与 C50 首响应/重放从 a 起共用。
@@ -61,3 +63,41 @@ b 目标验收：`cart.test.ts`（两独立真连接49→50/51、P/S、自然重
 组合根绑定 `OrderStartBinding` 的真实公开依赖，关闭时解除本作用域；未绑定明确 INTERNAL。通知取数仍调 `orderForNotify` 空端口；正式 x01 的 `order.started` 下游为 docs/notify，授权书 M5、通知 M2；未登记的直记埋点不自造，M7 接收方再按正式事件目录接线。
 
 `start.concurrency.test.ts` 用 3 条 max=1 的独立连接、实际 backend PID 和事务栅栏重复 20 轮：真实 skipped → 补偿同键复活后，重复定时器执行与资质订阅者并发，整单每项仅扣减/建工单/迁移一次。`start.fault.test.ts` 由子进程真实 capture 后停在断点，父进程发 SIGKILL；父连接在断点上看不到未提交写，连接死后整笔回滚，同条消息重试只扣减一次。既有 a 的状态推导与读侧验收不重复改写。
+# 取消只读前置（W210 所属准备）
+
+`quoteOrderCancel` / `quoteAdCancel` 接受员工数据范围、原始输入与注入时刻；
+`previewFinalReject` 接受已由 profile 鉴权的 entity/store，且是无 fallback 的
+`QualificationImpactPort.previewFinalReject` 真实实现。三者不拿业务行/账户锁，
+不 advance、不写账本、timer、审计、快照或缓存。数量使用原计价快照和统一 HALF_UP，
+去向全部调用 billing.previewReturn；超次广告修改不纳入取消目标。
+
+`revalidateCancel` 只返回 `{ at, ok, diffs }`，不写 recheck_log、不代审批。
+写调用者必须在同一 Tx 预锁全部申请和全部拥有者目标的 union：approval30 →
+cancel_request50 → line60 → 资格轮次65（涉及时）→ entity100 → store130 →
+profile135（需要时）→ drama140 → ad150 → 所有order160 → 所有item170 →
+所有ticket180 → account190（涉及时）→ plan200及真实后继子对象 → file410 →
+唯一主体 billing_account420 最后；每表主键升序。先读取候选图、再预锁、再重读；
+候选/指针/hold关系/精确暂停cause/plan/cover新增或变化整笔拒绝重试，不能高锁后补低锁。
+live 使用申请固定终止日，允许服务中进入到期下架，不比较今天；步骤1–9必须持本审批
+active cancel_review，其他申请或 plan_amendment 不算。返回失败后，正式入口自行在
+独立小事务持正确锁写最近一次复核日志，原审批/执行事务不迁移。
+
+未来关闭复用 delivery 的精确暂停释放（最后暂停恢复真实阶段 SLA、原求值和订单回调）、
+ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 ticket terminate、
+发布/下架/下载授权/文件等完整拥有者出口，账户锁后不能首次获取低序对象或 timer 主体锁。
+本片没有 cancel kind、提交/审批/执行/终局 producer、免审批路径、HTTP 或新配置，
+不代表 W210 整包关闭收尾已完成。
+
+## 广告取消内部写链（W210 所属准备）
+
+`createAdCancel` 注入真实 approval/flow/ledger/events/timers/sla 与 TxRunner；提交、批准、驳回、撤回、作废、执行只处理 `ad_cancel`。六回调与执行时限读取由 order 静态注册；回调只接受本 Tx 的真实用例绑定，不缓存另一运行时。Tx-first 同名函数供同事务调用，`executeCancel` 是唯一执行入口。facade 在事务确实回滚后另开小事务保存复核失败日志；直接 Tx 调用者须在其外层回滚后履行同一日志责任。
+
+提交先认真实启用员工和权限，审批引擎在自己的 validate 中进入真实整图锁和账户 Tf 核算，再建审批/header/line/自有指针。批准保留审批引擎 pending/self/version 原守卫，校验回显并复核；待执行保存原工作日 SLA 与真实 approval_request execution timer。自动路径只由真实提交中开关与全额原批次释放条件触发，系统 approve 后直接 auto_execute，不伪造 pending_execution。
+
+`readAdCancelTargetGraph` / `prelockAdCancelTargets` 供未来关闭调用方整体预锁：staff20→approval30→request50→line60→entity100→store130→ad150→活跃绑定 order160/item170；每表 ID 升序，候选图重读不一致即整笔拒绝。所有相关既存 timer 在账户420前整体预锁；调用方必须合并其他 owner 目标后再锁，不得先持主体或高序锁再补本图。正常执行与 auto 都先迁移广告，再调用真实账本、写实际三去向及请求累计，最后完成 header 与 approval.executed；任一失败整笔回滚。广告不拥有 delivery_ticket，不创建假暂停。
+
+内部 body 不接受 serviceTicketId；完整 HTTP 的 support 引用写口与 active requester 对象失效财务代撤另属前置。现仅本人撤回、既有 disabled requester 合法代撤、真实失效后的 system 撤回/作废。未实现其他取消 kind、广告创建/指派/版本 producer、主体关闭或 W210 整包。实际验证待独占窗口，源码阶段不标通过。
+
+`tenant.entityAdCancelClose` 是本域登记的二阶段关闭伴随口，按 tenant README 的低序 union 与全部 tenant 行预锁协议调用。仅在调用方已真实关闭主体后，精确系统撤回该主体的 pending ad_cancel；沿现有六回调关闭 header/审批/自有指针/审批 timer，零账本变动，不造 delivery 暂停。API 复用其唯一 Approval 实例，worker 以原 registry 与真实依赖创建 Approval；既有 `bindOrder`/close 维护本实例作用域，无取消依赖则拒绝。本片不构成完整 tenant 关闭或其他 kind 实现。
+
+广告取消提交新增可选成对 `AdCancelSubmissionCompanion`：`beforeAccount` 在真实目标170之后、首次 `ledger.lockAccount`420之前调用，`afterCreated` 在真实审批/header/line/指针/提交事件建立后、自动审批执行前调用。两个阶段收到同一个冻结目标对象及实际分配审批ID；应用可组合 support 专用引用 writer，order 不导入同层 support。未提供 companion 的原提交语义不变，单侧回调拒绝。HTTP 仍待后片，不接受后静默丢弃 `serviceTicketId`。

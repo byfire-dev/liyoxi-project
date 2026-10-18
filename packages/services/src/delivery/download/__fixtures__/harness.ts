@@ -2,7 +2,7 @@ import { ChecklistItemsSchema } from "@liyoxi/contract";
 import { uuidv7 } from "../../../kernel/index.js";
 import { createDelivery } from "../../service.js";
 import { draft } from "../../__fixtures__/harness.js";
-import type { Harness } from "../../__fixtures__/harness.js";
+import type { ProductionHarness as Harness } from "../../__fixtures__/production-tools.js";
 import { createDeliveryDownloads } from "../index.js";
 export const meta = {
   requestId: uuidv7(),
@@ -30,6 +30,7 @@ async function knownFile(
   category: "sample_video" | "final_episode",
   episodeNo: number,
 ) {
+  await h.master(o.items[0]!.dramaId, episodeNo, editor.row.id);
   const bytes = new Uint8Array(1234),
     actor = { identity: editor.ctx, staff: editor.staff };
   bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
@@ -57,21 +58,7 @@ async function knownFile(
     where: { dedupeKey: `promote:${entry.fileId}` },
   });
   await h.media.promote({ jobId: job.id });
-  // 明确已知媒体事实替身：不宣称M3自动体检或水印生成已实现。
-  await h.prisma.mediaInfo.create({
-    data: {
-      fileId: entry.fileId,
-      kind: "video",
-      durationMs: 60000,
-      width: 1080,
-      height: 1920,
-      probeVersion: 1,
-      raw: { fixture: "known fictional 60s video metadata; M3 subscriber boundary" },
-      probedAt: h.clock.now(),
-      createdAt: h.clock.now(),
-      updatedAt: h.clock.now(),
-    },
-  });
+  await h.finish(entry.fileId, category === "sample_video");
   return h.prisma.fileObject.findUniqueOrThrow({ where: { id: entry.fileId } });
 }
 export async function sampleReady(h: Harness, samplePlayback = async () => false) {

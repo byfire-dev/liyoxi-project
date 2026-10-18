@@ -19,6 +19,23 @@
 | `seed.ts`、`seed-data.ts` | 套餐、价目、参数的种子（W0-21） |
 | `subscription/`、`ports.ts` | 付清后的履约（建周期与发放计划、发首月）、`billing.I9`、`I10`、`I12`、两个端口的实现（W1-11a），见 [subscription/README.md](subscription/README.md) |
 | `payment/` | 唯一对公入账入口、四类差异开单、两条状态链与 `payment.I1`、`I2`、`I4`，见 [付款 README](payment/README.md) |
+| `reporting/` | 周期内部v1历史快照捕获、policy1流水估值与主体历史日投影；接线及legacy边界见下 |
+
+W4-05前置公口：`captureSubscriptionDailySnapshot(tx, entityId, termId)`只读捕获调用方已持账户锁、
+已变更完成的真实term/pending schedules；相关事件写者同TX放入内部`payload.dailySnapshot`，不改outbox载荷。
+`createBillingDailyProjection({ledger}).snapshot(tx, entityId, through)`只接已闭合业务日，
+从主体创建日起按流水bizDate和每term历史快照重建，写可重算daily与policy1估值；不拍当前余额。
+`rebuildEntityValuation(tx,{ledger},entityId)`也可独立重建估值，conversion取真实origin转出价值。
+
+只读巡检用`computeEntityValuation(db,entityId,at)`与`computeEntityDaily(db,entityId,through,at)`，
+后者返回`{days,valuations}`；两者只查真实源表，不读写派生表、不锁账户或advance，
+at由调用方注入并提供一致读视图，业务字段比较忽略计算时间等元数据。
+原写者在原账户锁下委托同一计算结果；未推进的真实到期事实明确拒绝，不在巡检中自愈。
+
+任一相关旧事件缺快照即`BillingDailyHistoryMissingError`，整主体投影失败，旧史不猜填；
+调用方advance后用`kernel.savepoint`隔离投影，保推进提交/逐主体继续，不能把缺史写成0或吞其它错误。
+本前置未接实际事件写者、sweep与13个月验收；后继开通/预约/rollover/expired/upgrade及extend/refund/resume
+写者均须真实同TX捕获。单目标：`pnpm --filter @liyoxi/services exec vitest run src/billing/reporting/daily.db.test.ts`。
 
 ## 2. 用账本
 
@@ -78,6 +95,7 @@ await tx.run(async (handle) => {
 | `getEntitlements(db, entityId, at)` | 订阅状态（按周期起止现算，不读 `sub_status`）、是否退款处理中、生效周期与权益快照 |
 | `getWalletView(db, entityId, at)` | m07 第 2.7 节 `Wallet` 的 `subscription`、`points` 两段。积分从批次现算：到点还没推进时，该清零的不显示成可用 |
 | `listOperationsByHold(db, pointHoldId)` | 一张冻结单的账本操作，按写入先后 |
+| `previewReturn(tx, { holdId, qty, reasonClass }, at)` | 取消的真实退回去向；复用释放/退回分摊算法，按此刻周期与原快照计算，不推进或写账本。冻结只能全额，扣减后可预览零数量的仅终止；调用方负责对象范围和写侧锁 |
 | `paramsAt(db, at)` | 时刻 `at` 生效的十二个计费参数（值的结构在契约 `BILLING_PARAM_VALUES`） |
 | `priceAt(db, dramaIds, at)` | 剧目积分价：单剧修订优先，否则取该剧热度等级的模板价；取不到时给原因（`no_tier`、`no_template`、`not_found`） |
 
@@ -131,8 +149,58 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 ## 7. 已知的限度
 
+W2-10 关闭前置的 `deletionGuard(tx, entityId)` 按 m07 第1节返回四项真实计数：
+`subscription_active` 为 active/scheduled 周期；`payment_open` 为待支付/待确认或有在途异常的付款单（同单只计一次）；
+`refund_open` 为 closedAt 为空的申请；`invoice_open` 为 pending/red_pending 申请。
+四项都按主体隔离，只读调用方事务，不使用展示权益缓存或按时间推进状态。
+该出口不代表主体关闭、退款/发票执行器或 tenant 跨层守卫装配已完成。
+
 - `billing.points.expired` 的去重键照 x01 写成按周期的：周期被延长复活后再次到期（M4）会被当成已发过。做延长的包（G4-A）要把它改成带止日的。
 - 清零数为 0 时仍写清零操作（幂等登记、账户上记“最近一次清零 0”），但不发 `billing.points.expired`。
 - 读函数给的是“到点之后的样子”，不是推进之后的结果：到点还没推进的那一分钟里，新一期的首月发放还看不到。
 - `advance` 一次至多做 500 件事（防数据异常时空转）；超过即抛错，这个主体的账本操作都会失败，要人工看。
 - 预约周期没有接在上一期的止点上（`term_chain`）时不接续、直接抛错：宁可拒绝服务，也不带着对不上的周期继续记账。
+
+## W4-07 既有套餐运营 SOURCE
+
+`Runtime.billingPlansAdmin` 接正式列表、改名与上下架四接口。列表返回实际当前/待生效价目、
+公告、员工引用及本域按北京月/主体去重的订阅计数；不填零或从展示状态推断统计。
+名称只改plan.name，带lockVersion；上下架只在本套餐行锁内检查当前值并递增版本，
+上架须当前有效价目包含全部正式enabledCycles价格。原tx.run幂等与审计共事务。
+下架影响现商家列表/新报价，已有周期权益与已创建付款单名称/价格快照不改。
+首片六组HTTP/DB、类型/依赖边界与唯一独审由ROOT验收通过，已合本地main。
+
+## W4-07 套餐价目公告链 SOURCE
+
+`billingPlansAdmin` 续接新建套餐、价目修订创建/记录/撤回及真实KPI五接口。新套餐只建
+未上架public目录；首条修订免公告，可立即生效。后续修订先经`config.notices`建公告，
+再插不可变价目，同事务发原登记`billing.plan_revision_scheduled`及写一条业务审计。
+撤回只填`cancelledAt`并同事务撤公告；当前/待生效/历史由业务时钟计算，不加切换job。
+周期价格覆盖当前和待生效enabledCycles；省略时按月费生成。相邻等级价格及积分比较
+覆盖本次生效和已有排期切换点；撤回同样不能破坏其他已排期价目的等级顺序。固定
+`billing.plan_catalog`事务咨询锁复用现有原语，先于单plan行锁，避免跨套餐并发写偏斜；
+不新增kernel锁序、DDL或权限。公告期按07§2.2完整保存时刻加noticeDays，日期生效向上
+取北京零点（非午夜保存时比a07“今天+天数”多一天）；最早合法日期由错误details给出。
+旧订阅/付款快照保持，商家列表和报价按原读口在生效时刻消费新价目；优惠仍用原
+previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局月内指标另按主体去重，
+不把不同版本计数相加，MRR用整数求和。
+
+价目公告链七组真实HTTP/DB风险及类型/依赖/审计/权限/挂载定点已ROOT验收通过，已合本地main。
+
+## W4-07 参数与模板变更集
+
+`Runtime.billingParameters`接12键参数列表、变更集保存/记录与未来单键撤回四正式接口。
+逐键校验只消费contract canonical，当前值仍取`paramsAt`；完整公告期、变化键/档、待生效
+冲突与当前/未来周期价格覆盖沿同catalog咨询锁，公告/修订/原scheduled事件/审计共TX。
+上架先取同锁并核周期价格交叉区间，防下架套餐绕过参数检查后缺价上架。content只读公口
+提供候选ID/等级，billing经`priceAt`仅对真实template价差发原tier_template事件；custom与
+历史冻结/订阅/付款快照不改。撤回只填cancelledAt，共享公告最后一键撤回才同TX撤公告。
+实现细节见[定价README](pricing/README.md)；新增六组DB与两组正式HTTP、类型/依赖与
+官方契约/登记/审计/权限/挂载定点已ROOT验收通过，唯一生产独审无P1/P2。
+
+后台试算暂未挂载：现有`quotePlanPurchase`只支持首次开通，active/scheduled周期明确
+拒绝，真实续费/升级待W4-05/06公口，不以通用试算冒称完整。W4-07整包继续进行中，
+不代表M4、远端CI或真实支付验证完成。
+
+
+W4-13 当前实现发票与受控财务配置（验收中）：发票申请保存已认证抬头/重加密税号与全额快照，四个 item_name 参数未配时拒绝申请；开具/红票/退款所属公口按 order290→invoice330 串行，文件走 stored/link。财务配置仍用 finance_config_change，不同人决定、bank+24h、其它即时。电子邮件经原 notify 任务、真实附件与最新 delivery 结果回写；queued/受理 sent/未配 skipped 分开，E20 真实到达/OFD兼容未验。退款接口尚待 W4-10，既有 refundRequests 桩不整体关闭。

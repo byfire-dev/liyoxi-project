@@ -10,9 +10,14 @@ import type {
   AgreementConsentReceipt,
   MeOverview,
   MeView,
+  MeUser,
+  UserNoticeAckResult,
+  WechatIdentityList,
+  WechatIdentityRemoveResult,
   PendingConsent,
   PhoneLoginResult,
   SilentLoginResult,
+  MerchantUserStatusView,
 } from "@liyoxi/contract";
 import { maskName } from "@liyoxi/shared/mask";
 
@@ -36,15 +41,58 @@ import type { SessionCheck } from "./sessions.js";
 import type { RequestMeta, SessionPrincipal } from "./types.js";
 import { reconsent } from "./reconsent.js";
 import type { ReconsentBody } from "./reconsent.js";
+import type { WechatProvider } from "../providers/types.js";
+import {
+  acknowledgeUserNotice,
+  listWechatIdentities,
+  removeWechatIdentity,
+  updateMe,
+} from "./personal-account.js";
+import { createSmsCode, changePhone } from "./phone-change.js";
+import type { PhoneChangeDeps } from "./phone-change.js";
+import { deleteAccount } from "./account-deletion.js";
+import { adminUserAction } from "./admin-user-actions.js";
+import { createAccountChanges } from "./account-changes.js";
+import { createReferralCodes } from "./referral-codes.js";
+import type { ReferralCodes } from "./referral-codes.js";
+import type { AccountChanges } from "./account-changes.js";
+import type { AccountChangeDeps } from "./account-change-context.js";
+import type {
+  AdminUserAction,
+  AdminUserActionInput,
+  AdminUserActionOptions,
+} from "./admin-user-actions.js";
+import type { StaffContext } from "../authz/index.js";
+import type { IdentityContext } from "../kernel/index.js";
 
-export interface IdentityDeps extends Omit<LoginDeps, "me" | "config"> {
+export interface IdentityDeps extends Omit<LoginDeps, "me" | "config" | "wechat"> {
+  readonly wechat:
+    (NonNullable<LoginDeps["wechat"]> & Partial<Pick<WechatProvider, "checkText">>) | null;
   /** 配置读侧：参数 auth.dormant_days、开关 client.min_version */
   readonly config: Pick<Config, "params" | "flags" | "dicts" | "siteConfig">;
   /** 短信通道配没配（决定 MeUser.actions 里有没有换绑手机号）；不给即没配 */
   readonly smsConfigured?: () => boolean;
+  readonly notify?: PhoneChangeDeps["notify"];
+  readonly approval?: AccountChangeDeps["approval"];
+  readonly media?: AccountChangeDeps["media"];
 }
 
 export interface Identity {
+  readonly referralCodes: ReferralCodes;
+  readonly accountChanges: AccountChanges;
+  adminUserAction(
+    ctx: IdentityContext,
+    staff: StaffContext,
+    op: AdminUserAction,
+    input: AdminUserActionInput,
+    options: AdminUserActionOptions,
+  ): Promise<MerchantUserStatusView>;
+  deleteAccount(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { hasConfirmed: true },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<{ deletedAt: string }>;
   // ---------- 用例函数：自己开事务 ----------
   /** m.session.create：不能静默登录时返回 needPhone，不区分原因、不写库 */
   silentLogin(meta: RequestMeta, input: SilentLoginInput): Promise<SilentLoginResult>;
@@ -65,6 +113,45 @@ export interface Identity {
   ): Promise<AgreementConsentReceipt>;
   /** m.me.get：只读、现算 */
   me(merchantUserId: string): Promise<MeView>;
+  updateMe(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { displayName: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<MeUser>;
+  acknowledgeUserNotice(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { userNoticeId: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<UserNoticeAckResult>;
+  listWechatIdentities(
+    principal: SessionPrincipal,
+    input?: { cursor?: string | undefined; limit?: number | undefined },
+  ): Promise<WechatIdentityList>;
+  removeWechatIdentity(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { wechatIdentityId: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<WechatIdentityRemoveResult>;
+  createSmsCode(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { purpose: "phone_change" },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<{
+    purpose: "phone_change";
+    targetPhoneMask: string;
+    expiresAt: string;
+    resendAfterSec: number;
+  }>;
+  changePhone(
+    principal: SessionPrincipal,
+    meta: RequestMeta,
+    input: { oldSmsCode: string; newPhoneCode: string },
+    options?: { idem?: IdempotencyContext },
+  ): Promise<MeUser>;
 
   bootstrap(input: BootstrapInput): Promise<Bootstrap>;
   overview(input: { merchantUserId: string; membership: StoreMembership }): Promise<MeOverview>;
@@ -97,12 +184,28 @@ export function createIdentity(deps: IdentityDeps): Identity {
   const gate = createConsentGate({ tx: deps.tx, clock: deps.clock, docs: deps.docs });
 
   const identity: Identity = {
+    deleteAccount: (principal, meta, input, options) =>
+      deleteAccount(deps, principal, meta, input, options),
     silentLogin: (meta, input) => silentLogin(login, meta, input),
     phoneLogin: (meta, input, options) => phoneLogin(login, meta, input, options),
     logout: (principal, meta) => deps.tx.run((tx) => logoutIn(tx, now(), principal, meta)),
     reconsent: (principal, meta, input, options) =>
       reconsent({ ...deps, signerOf: identity.consentSignerOf }, principal, meta, input, options),
     me: (merchantUserId) => deps.tx.run((tx) => buildMeView(tx, meDeps, merchantUserId)),
+    accountChanges: createAccountChanges(deps),
+    referralCodes: createReferralCodes(deps),
+    adminUserAction: (ctx, staff, op, input, options) =>
+      adminUserAction(deps, ctx, staff, op, input, options),
+    updateMe: (principal, meta, input, options) => updateMe(deps, principal, meta, input, options),
+    acknowledgeUserNotice: (principal, meta, input, options) =>
+      acknowledgeUserNotice(deps, principal, meta, input, options),
+    listWechatIdentities: (principal, input) => listWechatIdentities(deps, principal, input),
+    removeWechatIdentity: (principal, meta, input, options) =>
+      removeWechatIdentity(deps, principal, meta, input, options),
+    createSmsCode: (principal, meta, input, options) =>
+      createSmsCode(deps, principal, meta, input, options),
+    changePhone: (principal, meta, input, options) =>
+      changePhone(deps, principal, meta, input, options),
 
     bootstrap: (input) => bootstrap(deps, input),
     overview: (input) => overview(deps, input),

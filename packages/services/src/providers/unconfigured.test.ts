@@ -188,6 +188,16 @@ const ROWS: Row[] = [
           value: { jobId: "local-pack-sample-job:2", state: "done", processed: false },
         },
         audit: { ok: true, value: { verdict: "pass", processed: false } },
+        auditText: { ok: true, value: { verdict: "pass", processed: false } },
+        auditVideo: { ok: false, reason: "unsupported", message: "本地媒体未执行视频审核" },
+        describeAudit: {
+          ok: false,
+          reason: "unsupported",
+          message: "本地媒体没有审核任务查询能力",
+        },
+        describe: { ok: false, reason: "unsupported", message: "本地媒体没有外部任务查询能力" },
+        find: { ok: false, reason: "unsupported", message: "本地媒体没有外部任务查找能力" },
+        cancel: { ok: false, reason: "unsupported", message: "本地媒体没有外部任务取消能力" },
       });
     },
     remote: (providers) => expectAllUnconfigured(providers, "media", ["媒体处理未配置"]),

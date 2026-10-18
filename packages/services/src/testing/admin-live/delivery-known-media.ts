@@ -1,10 +1,11 @@
-// W1-19 PR2 本域测试窄桥：只后置本轮真实已上传文件的已知事实，不替代业务 QC 或媒体探测。
+// 本轮上传归属与实际字节证明；不创建媒体体检、播放资产或业务状态。
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { Runtime } from "../../runtime.js";
 import type { Env, Tx } from "../../kernel/index.js";
 import { lockRows } from "../../kernel/index.js";
+import { contextHash, ProbeOutputSchema, DerivationOutputSchema } from "../../media/index.js";
 
 const uuid = z.string().uuid();
 export const DeliveryLiveScopeSchema = z.strictObject({
@@ -90,9 +91,23 @@ export interface KnownMediaInput {
   fileId: string;
   clientToken: string;
   artifact: DeliveryArtifact;
+  video?: { size: number; md5: string; sha256: string };
 }
 async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, cleanup = false) {
   const { scope, fileId, clientToken, artifact } = input;
+  const video = input.video ?? {
+    size: KNOWN_VIDEO.bytes,
+    md5: KNOWN_VIDEO.md5,
+    sha256: KNOWN_VIDEO.sha256,
+  };
+  if (
+    !Number.isSafeInteger(video.size) ||
+    video.size < 1 ||
+    video.size > 200 * 1024 * 1024 ||
+    !/^[a-f0-9]{32}$/.test(video.md5) ||
+    !/^[a-f0-9]{64}$/.test(video.sha256)
+  )
+    fail();
   assertDeliveryScope(runtime.env, scope);
   if (!uuid.safeParse(fileId).success || !/^[A-Za-z0-9_-]{1,64}$/.test(clientToken)) fail();
   await lockRows(tx, "staff", [scope.uploaderId, scope.managerId].sort());
@@ -163,7 +178,7 @@ async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, clean
     file.originalName !== `${scope.runId}-${artifact}.mp4` ||
     file.ext !== "mp4" ||
     file.declaredMime !== "video/mp4" ||
-    file.declaredSize !== BigInt(KNOWN_VIDEO.bytes) ||
+    file.declaredSize !== BigInt(video.size) ||
     file.createdAt < new Date(scope.startedAt) ||
     file.createdAt > runtime.clock.now() ||
     file.moderationState !== "none" ||
@@ -197,74 +212,141 @@ async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, clean
     if (
       !["promoting", "stored"].includes(file.status) ||
       !job ||
-      file.incomingEtag?.replaceAll('"', "") !== KNOWN_VIDEO.md5 ||
+      file.incomingEtag?.replaceAll('"', "") !== video.md5 ||
       (file.status === "stored" &&
         (job.state !== "succeeded" ||
-          file.sizeBytes !== BigInt(KNOWN_VIDEO.bytes) ||
-          file.etag?.replaceAll('"', "") !== KNOWN_VIDEO.md5))
+          file.sizeBytes !== BigInt(video.size) ||
+          file.etag?.replaceAll('"', "") !== video.md5))
     )
       fail();
   }
   return { file, job, incomingKey: `incoming/${fileId}/${objectToken}` };
 }
 export async function prepareDeliveryKnownMedia(runtime: Runtime, input: KnownMediaInput) {
-  await knownVideoBytes();
+  if (!input.video) await knownVideoBytes();
   const before = await runtime.tx.run((tx) => ownedFile(tx, runtime, input));
   if (before.file.status === "promoting") {
     if (before.job?.state !== "queued") fail();
     await runtime.media.promote({ jobId: before.job.id });
   }
-  return runtime.tx.run(async (tx) => {
+  const file = await runtime.tx.run(async (tx) => {
     const { file } = await ownedFile(tx, runtime, input);
     if (file.status !== "stored") fail();
-    const existing = await tx.mediaInfo.findUnique({ where: { fileId: file.id } });
-    if (input.artifact === "unknown_sample") {
-      if (existing) fail();
-      return { fileId: file.id, status: "stored", known: false };
-    }
-    const raw = {
-      fixture: "W119B",
-      runId: input.scope.runId,
-      artifact: input.artifact,
-      sha256: KNOWN_VIDEO.sha256,
-    };
-    const facts = {
-      kind: "video",
-      container: "mp4",
-      durationMs: KNOWN_VIDEO.durationMs,
-      width: KNOWN_VIDEO.width,
-      height: KNOWN_VIDEO.height,
-      rotation: 0,
-      displayWidth: KNOWN_VIDEO.width,
-      displayHeight: KNOWN_VIDEO.height,
-      fpsNum: 25,
-      fpsDen: 1,
-      vcodec: "h264",
-      vprofile: "Constrained Baseline",
-      pixFmt: "yuv420p",
-      isFaststart: true,
-      audioStreamCount: 0,
-      probeVersion: 1,
-    };
-    if (existing) {
-      const oldRaw = existing.raw as Record<string, unknown>;
-      if (
-        Object.entries(facts).some(
-          ([key, value]) => existing[key as keyof typeof existing] !== value,
-        ) ||
-        !oldRaw ||
-        Object.keys(oldRaw).length !== 4 ||
-        Object.entries(raw).some(([key, value]) => oldRaw[key] !== value)
-      )
-        fail();
-    } else {
-      const now = runtime.clock.now();
-      await tx.mediaInfo.create({
-        data: { fileId: file.id, ...facts, raw, probedAt: now, createdAt: now, updatedAt: now },
-      });
-    }
-    return { fileId: file.id, status: "stored", known: true };
+    if (
+      input.artifact === "unknown_sample" &&
+      (await tx.mediaInfo.findUnique({ where: { fileId: file.id } }))
+    )
+      fail();
+    return file;
   });
+  const proof = input.video ?? { size: KNOWN_VIDEO.bytes, sha256: KNOWN_VIDEO.sha256 };
+  if (!file.etag) fail();
+  const verification = new AbortController();
+  const timeout = setTimeout(() => verification.abort(), 10_000);
+  try {
+    const actual = await runtime.providers.storage.readTo({
+      bucket: "media",
+      key: file.objectKey,
+      expectedSize: proof.size,
+      maxBytes: 200 * 1024 * 1024,
+      ifMatchEtag: file.etag,
+      signal: verification.signal,
+      sink: async () => {},
+    });
+    if (!actual.ok || actual.value.size !== proof.size || actual.value.sha256 !== proof.sha256)
+      fail();
+  } finally {
+    clearTimeout(timeout);
+  }
+  return { fileId: file.id, status: "stored", known: input.artifact !== "unknown_sample" };
+}
+/** An observation barrier only: QC/download keep the configured API Runtime's full guard. */
+export async function waitForDeliveryProduction(runtime: Runtime, input: KnownMediaInput) {
+  if (input.artifact === "unknown_sample") return;
+  if (!input.video) fail();
+  const video = input.video;
+  await runtime.tx.run((tx) => ownedFile(tx, runtime, input));
+  // 样片比原片额外包含受理后的回查与派生验证，仅增加观察预算，不改变任务期限和守卫。
+  const deadline = performance.now() + (input.artifact === "sample" ? 120_000 : 60_000);
+  do {
+    const ready = await runtime.tx.run(async (tx) => {
+      const file = await tx.fileObject.findUnique({
+        where: { id: input.fileId },
+        select: {
+          sha256: true,
+          sizeBytes: true,
+          status: true,
+          productionRecord: true,
+          mediaInfo: { select: { durationMs: true } },
+        },
+      });
+      const record = file?.productionRecord;
+      if (
+        !file ||
+        !record ||
+        file.status !== "stored" ||
+        record.pipelineState !== "ready" ||
+        file.sha256 !== video.sha256 ||
+        file.sizeBytes !== BigInt(video.size) ||
+        !file.mediaInfo?.durationMs
+      )
+        return false;
+      const check = await tx.mediaCheck.findUnique({
+        where: { fileId: input.fileId },
+        select: { gate: true, ruleVersion: true },
+      });
+      if (check?.gate !== "pass") return false;
+      const job = await tx.mediaJob.findUnique({
+        where: { dedupeKey: `probe:${input.fileId}:v${check.ruleVersion}:${contextHash(record)}` },
+        select: { state: true, output: true },
+      });
+      const output = ProbeOutputSchema.safeParse(job?.output);
+      if (job?.state !== "succeeded" || !output.success || output.data.sourceSha256 !== file.sha256)
+        return false;
+      if (input.artifact !== "sample") return true;
+      const asset = await tx.playableAsset.findFirst({
+        where: {
+          sourceFileId: input.fileId,
+          kind: "sample",
+          ownerType: "order_item",
+          ownerId: input.scope.itemId,
+          state: "ready",
+        },
+        select: { id: true, specVersion: true },
+      });
+      if (!asset) return false;
+      const task = await tx.mediaJob.findUnique({
+        where: { dedupeKey: `watermark_sample:${asset.id}:v${asset.specVersion}` },
+        select: { state: true, output: true },
+      });
+      const result = DerivationOutputSchema.extend({ quality: z.literal("source") }).safeParse(
+        task?.output,
+      );
+      if (task?.state !== "succeeded" || !result.success) return false;
+      const target = await tx.fileObject.findUnique({
+        where: { id: result.data.fileId },
+        select: {
+          status: true,
+          category: true,
+          entityId: true,
+          storeId: true,
+          sha256: true,
+          sizeBytes: true,
+        },
+      });
+      return (
+        target?.status === "stored" &&
+        target.category === "sample_wm" &&
+        target.entityId === input.scope.entityId &&
+        target.storeId === input.scope.storeId &&
+        target.sha256 === result.data.sha256 &&
+        target.sizeBytes === BigInt(result.data.size)
+      );
+    });
+    if (ready) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  } while (performance.now() < deadline);
+  throw new Error("本轮真实生产体检或样片水印尚未完成");
 }
 export async function cleanupDeliveryFile(runtime: Runtime, input: KnownMediaInput) {
   const owned = await runtime.tx.run((tx) => ownedFile(tx, runtime, input, true));

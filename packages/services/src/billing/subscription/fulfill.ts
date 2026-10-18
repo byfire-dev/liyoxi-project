@@ -36,6 +36,7 @@ import { LedgerError } from "../ledger/types.js";
 import { blockedResult, FulfillBlockedError, isNotBlockage } from "./blocked.js";
 import { buildTerm } from "./terms.js";
 import type { FulfillDeps } from "./types.js";
+import { fulfillTopup, previousTopup } from "./topup.js";
 
 export interface FulfillInput {
   /** 已支付的付款单 */
@@ -217,6 +218,7 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
     order: BillingOrder,
     content: BillingOrderContent,
   ): Promise<FulfillDone> {
+    if (content.kind === "topup") return previousTopup(tx, order, content);
     const term = await tx.subscriptionTerm.findUnique({
       where: { sourceBillingOrderId: order.id },
     });
@@ -287,17 +289,22 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
               payFen: content.payFen,
             });
           }
-          // 升级、加购两种内容的履约随 M4（docs/plan/stubs/m4-billing-fulfill-upgrade-topup.md）
-          if (content.kind !== "plan") {
+          // 升级仍由W4-05回补；加购只消费付款单冻结快照与原账本purchase。
+          if (content.kind === "upgrade") {
             throw new FulfillBlockedError("UNEXPECTED", {
               problem: "content_kind_not_supported",
               kind: content.kind,
             });
           }
-          const done = await fulfillPlan(tx, clock, account, order, content, ctx);
+          const done =
+            content.kind === "topup"
+              ? await fulfillTopup(tx, deps, clock, order, content, ctx)
+              : await fulfillPlan(tx, clock, account, order, content, ctx);
+          const writtenAccount =
+            content.kind === "topup" ? await loadAccount(tx, order.entityId) : account;
 
           // 只做幂等登记：不动积分；操作后的余额照写，自检连同它一起比
-          const written = await writeOperation(tx, deps, clock, account, {
+          const written = await writeOperation(tx, deps, clock, writtenAccount, {
             opKey,
             opType: "fulfill",
             ref: { type: "billing_order", id: order.id },
@@ -306,7 +313,7 @@ export function createFulfillment(deps: FulfillDeps): Fulfillment {
             title: null,
             ctx,
             gateOpen:
-              account.subStatus === "active" && !(await isRefundPending(tx, order.entityId)),
+              writtenAccount.subStatus === "active" && !(await isRefundPending(tx, order.entityId)),
           });
           await selfCheck(tx, clock, written);
           await deps.events.emit(tx, ctx, {

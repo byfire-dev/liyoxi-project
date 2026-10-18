@@ -516,7 +516,7 @@
 
 **说明**：
 
-- 文本检测（微信 `msgSecCheck`）用当前会话所用身份的 openid（d4-identity.md:1883），在事务前同步调用，不是三段式用例。
+- 文本检测（微信 `msgSecCheck`）用当前会话所用身份的 openid（d4-identity.md:1883），在事务外同步调用；复用既有三段式幂等执行器先占用、外检、再落结果。同键成功重放仍复核当前会话，返回原响应且不再外检，检测服务随后不可用不影响成功收据。
 - 检测服务不可用时一律拒收（A137）：返回 503 `PROVIDER_UNAVAILABLE`、不写库，用户稍后重试。草案“先接受、排队补检”的做法（d4-identity.md:1883；d5-media.md 第 11 节）V1.0 不做。
 - 只改账号称呼。成员称呼 `entity_member.display_name` 在加入时自填、老板可改为备注名（m02-tenant），不随本接口变。
 
@@ -683,7 +683,7 @@
 **副作用**（同一事务）：
 
 - 吊销该身份的全部未吊销会话（`revoke_reason = 'identity_removed'`）。
-- 物理删除该 `wechat_identity` 行（M63）；13 分组的 `wx_subscribe_quota` 随之级联删除，指向它的待发订阅投递按 `skipped`（`no_target`）处理。
+- 物理删除该 `wechat_identity` 行（M63）；13 分组的 `wx_subscribe_quota` 随之级联删除。
 - 写审计（`stream = ops`，`category = account_security`，“移除微信”）；写 `auth_event`（`identity_removed`，`detail.identityId`）。
 
 无状态迁移、无出站事件。
@@ -693,6 +693,7 @@
 - 规则（d4-identity.md:399）：刚混进来的微信不能反过来踢掉账号主人的微信。账号主人的微信都不在了（换了微信号）时，走后台强制下线后重新用手机号登录。
 - 移除当前身份等同退出登录：当前会话一并吊销，`isCurrentSessionRevoked = true`，端上清令牌回登录页。同键重放时会话已失效，鉴权就返回 401，端上按已完成处理。
 - 被移除的设备下一请求 401；静默登录找不到身份，得到 `needPhone`。
+- 指向已移除身份的待发订阅投递，由既有投递任务随后解析目标；查不到时按 `skipped`（`no_target`）及既有回退规则处理（13 分组 2.8），不把外部投递结论算入身份删除事务。
 
 ### 3.10 m.me.userNotice.acknowledge　关闭一次性提示
 

@@ -12,6 +12,7 @@
 //   rejected     入参不合规、文件解不开、输出没通过上面的校验：重试也不会成
 
 import { constants } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
 import { lstat, open, realpath } from "node:fs/promises";
 import http from "node:http";
 import { join } from "node:path";
@@ -19,7 +20,7 @@ import { join } from "node:path";
 import type { z } from "zod";
 
 import { failed, ok } from "../types.js";
-import type { ProviderFailure, ProviderResult } from "../types.js";
+import type { MediaToolClient, ProviderFailure, ProviderResult } from "../types.js";
 import {
   AigcLabelSchema,
   HealthResponseSchema,
@@ -28,8 +29,10 @@ import {
   PosterResponseSchema,
   ProbeResponseSchema,
   StampResponseSchema,
+  WatermarkPngResponseSchema,
+  DocTextResponseSchema,
 } from "./schema.js";
-import type { MediaToolDemuxer, MediaToolHealth, ProbeReport } from "./schema.js";
+import { validWatermarkPng } from "./png.js";
 
 /** 共享目录在调用端容器里的挂载点，与套接字的位置（D5 第 6.6 节） */
 export const MEDIATOOL_WORK_DIR = "/work";
@@ -41,8 +44,11 @@ const HARD_TIMEOUT_MS = {
   poster: 30_000,
   stampAigc: 90_000,
   health: 5_000,
+  watermarkPng: 30_000,
+  docText: 10_000,
 } as const;
 const QUEUE_ALLOWANCE_MS = 30_000;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** 容器报的这几种失败可以重试，其余的重试也不会成 */
 const RETRYABLE_CODES = new Set(["busy", "timeout", "killed", "internal"]);
@@ -57,51 +63,11 @@ export interface MediaToolClientOptions {
   workDir?: string;
   /** 等一次应答的上限（毫秒）。缺省按操作取：容器的硬超时加 30 秒 */
   responseTimeoutMs?: number;
+  /** Factory-only directory cleanup barrier; never exposed to a media domain. */
+  observeCleanup?: (directory: string, completion: Promise<boolean>) => void;
 }
 
-export interface PosterResult {
-  /** 校验过的封面字节。上传用这一份，不要回头再按路径读文件 */
-  bytes: Uint8Array;
-  sizeBytes: number;
-  width: number;
-  height: number;
-  /** 实际抽的时间点：片子比要求的时间点短时退回 0 */
-  atMs: number;
-}
-
-export interface StampResult {
-  /** 回读加标产物得到的体检报告，report.aigc 已核对与写入的相同 */
-  report: ProbeReport;
-  /** 调用端自己量的大小 */
-  inputSizeBytes: number;
-  outputSizeBytes: number;
-}
-
-export interface MediaToolClient {
-  /** 体检：媒体信息、顶层 box 顺序、AIGC 标签。demuxers 依次尝试 */
-  probe(input: {
-    path: string;
-    demuxers: readonly MediaToolDemuxer[];
-    timeoutMs?: number;
-  }): Promise<ProviderResult<ProbeReport>>;
-  /** 抽 atMs 处的一帧存成 JPEG，写到 outPath（与输入同一个任务目录） */
-  poster(input: {
-    path: string;
-    demuxer: MediaToolDemuxer;
-    atMs: number;
-    outPath: string;
-    timeoutMs?: number;
-  }): Promise<ProviderResult<PosterResult>>;
-  /** 流拷贝重封装并写入 AIGC，再回读。aigcJson 用 aigcMetadataJson 生成。输入里已有标识会被覆盖：先体检再决定要不要调 */
-  stampAigc(input: {
-    path: string;
-    outPath: string;
-    aigcJson: string;
-    timeoutMs?: number;
-  }): Promise<ProviderResult<StampResult>>;
-  /** 容器在不在、里面的 ffmpeg 是哪个版本 */
-  health(): Promise<ProviderResult<MediaToolHealth>>;
-}
+export type { MediaToolClient, PosterResult, StampResult } from "../types.js";
 
 function isRelativeWorkPath(path: unknown): path is string {
   if (typeof path !== "string" || path.length === 0 || path.length > 512) return false;
@@ -137,65 +103,171 @@ function exchange(
   path: string,
   payload: unknown,
   timeoutMs: number,
+  signal?: AbortSignal,
+  observe?: (completion: Promise<boolean>) => void,
 ): Promise<Exchange> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(failed("unavailable", "mediatool调用已取消"));
+      return;
+    }
     const data = payload === undefined ? "" : JSON.stringify(payload);
-    let settled = false;
-    let responding = false;
-    const settle = (result: Exchange) => {
+    const requestId = randomUUID();
+    let confirm!: (value: boolean) => void;
+    observe?.(
+      new Promise<boolean>((done) => {
+        confirm = done;
+      }),
+    );
+    let settled = false,
+      responding = false,
+      cancelling = false;
+    let instance: string | undefined;
+    let cancelRequest: http.ClientRequest | undefined;
+    const settle = (result: Exchange, confirmed: boolean) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(result);
+      signal?.removeEventListener("abort", abort);
+      confirm?.(confirmed);
       request.destroy();
+      cancelRequest?.destroy();
+      resolve(result);
+    };
+    const cancelled = () => failed("unavailable", "mediatool调用已取消");
+    const cancel = () => {
+      if (!cancelling || !instance || cancelRequest || settled) return;
+      const expectedInstance = instance;
+      const body = JSON.stringify({ requestId, instanceId: expectedInstance });
+      cancelRequest = http.request(
+        {
+          socketPath,
+          method: "POST",
+          path: "/cancel",
+          agent: false,
+          headers: {
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          let bytes = 0;
+          res.on("data", (chunk: Buffer) => {
+            bytes += chunk.length;
+            if (bytes > 1024) cancelRequest?.destroy();
+            else chunks.push(chunk);
+          });
+          res.on("error", () => undefined);
+          res.on("end", () => {
+            try {
+              const ack: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+              if (
+                res.statusCode === 200 &&
+                ack !== null &&
+                typeof ack === "object" &&
+                "done" in ack &&
+                ack.done === true &&
+                "requestId" in ack &&
+                ack.requestId === requestId &&
+                "instanceId" in ack &&
+                ack.instanceId === expectedInstance
+              )
+                settle(cancelled(), true);
+            } catch {
+              /* The original response still has the same remaining absolute budget. */
+            }
+          });
+        },
+      );
+      cancelRequest.on("error", () => undefined);
+      cancelRequest.end(body);
     };
     const request = http.request(
       {
         socketPath,
         method,
         path,
-        // 每次调用一条新连接，不放进连接池
         agent: false,
-        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(data) },
+        headers: {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(data),
+          "x-lyx-call-id": requestId,
+        },
       },
       (response) => {
         responding = true;
         const chunks: Buffer[] = [];
         let bytes = 0;
+        const confirmed =
+          response.headers["x-lyx-call-id"] === requestId &&
+          response.headers["x-lyx-complete"] === "1" &&
+          typeof response.headers["x-lyx-instance"] === "string" &&
+          UUID.test(response.headers["x-lyx-instance"]) &&
+          (!instance || response.headers["x-lyx-instance"] === instance);
         response.on("data", (chunk: Buffer) => {
           bytes += chunk.length;
           if (bytes > MEDIATOOL_LIMITS.maxResponseBytes) {
-            settle(failed("rejected", "mediatool 的应答超过 4MB"));
+            settle(failed("rejected", "mediatool 的应答超过 4MB"), confirmed);
             return;
           }
           chunks.push(chunk);
         });
         response.on("end", () => {
+          if (cancelling) {
+            if (confirmed) settle(cancelled(), true);
+            return;
+          }
           try {
             const body: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-            settle(ok({ status: response.statusCode ?? 0, body }));
+            settle(ok({ status: response.statusCode ?? 0, body }), confirmed);
           } catch {
-            settle(failed("rejected", "mediatool 的应答不是 JSON"));
+            settle(failed("rejected", "mediatool 的应答不是 JSON"), confirmed);
           }
         });
-        response.on("error", () => settle(failed("unavailable", "mediatool 的应答中途断开")));
-        response.on("close", () => settle(failed("unavailable", "mediatool 的应答中途断开")));
+        response.on("error", () => {
+          if (!cancelling || !instance)
+            settle(failed("unavailable", "mediatool 的应答中途断开"), false);
+        });
+        response.on("close", () => {
+          if (!settled && (!cancelling || !instance))
+            settle(failed("unavailable", "mediatool 的应答中途断开"), false);
+        });
       },
     );
+    request.on("information", (info) => {
+      if (
+        info.statusCode === 102 &&
+        info.headers["x-lyx-call-id"] === requestId &&
+        typeof info.headers["x-lyx-instance"] === "string" &&
+        UUID.test(info.headers["x-lyx-instance"])
+      ) {
+        instance = info.headers["x-lyx-instance"];
+        cancel();
+      }
+    });
     const timer = setTimeout(
-      () => settle(failed("unavailable", `mediatool 在 ${timeoutMs}ms 内没有应答`)),
+      () => settle(failed("unavailable", `mediatool 在 ${timeoutMs}ms 内没有应答`), false),
       timeoutMs,
     );
-    request.on("error", (err: NodeJS.ErrnoException) =>
-      settle(
-        failed(
-          "unavailable",
-          responding
-            ? "mediatool 的应答中途断开"
-            : `mediatool 连不上（${err.code ?? err.message}）`,
-        ),
-      ),
-    );
+    const abort = () => {
+      cancelling = true;
+      cancel();
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+    request.on("error", (err: NodeJS.ErrnoException) => {
+      if (!cancelling || !instance)
+        settle(
+          failed(
+            "unavailable",
+            responding
+              ? "mediatool 的应答中途断开"
+              : `mediatool 连不上（${err.code ?? err.message}）`,
+          ),
+          false,
+        );
+    });
+    if (signal?.aborted) abort();
     request.end(data);
   });
 }
@@ -259,12 +331,69 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
   const workDir = options.workDir ?? MEDIATOOL_WORK_DIR;
   const waitFor = (op: keyof typeof HARD_TIMEOUT_MS) =>
     options.responseTimeoutMs ?? HARD_TIMEOUT_MS[op] + QUEUE_ALLOWANCE_MS;
+  const call = (
+    method: "GET" | "POST",
+    path: string,
+    payload: unknown,
+    timeout: number,
+    signal?: AbortSignal,
+  ) =>
+    exchange(
+      socketPath,
+      method,
+      path,
+      payload,
+      timeout,
+      signal,
+      options.observeCleanup && payload !== null && typeof payload === "object"
+        ? (completion) => {
+            const value = payload as { path?: string; outPath?: string };
+            const file = value.path ?? value.outPath;
+            if (file) options.observeCleanup?.(file.split("/")[0]!, completion);
+          }
+        : undefined,
+    );
   const badPath = (name: string) =>
     failed("rejected", `${name} 要是共享目录下的相对路径（任务目录/文件名），不带 .. 与绝对路径`);
   const knownDemuxer = (value: unknown) =>
     (MEDIATOOL_DEMUXERS as readonly unknown[]).includes(value);
 
   return {
+    async docText(input) {
+      if (!isRelativeWorkPath(input.path)) return badPath("path");
+      if (
+        !["pdf", "docx", "txt"].includes(input.ext) ||
+        !Number.isInteger(input.maxChars) ||
+        input.maxChars < 1 ||
+        input.maxChars > 250_000 ||
+        (input.timeoutMs !== undefined &&
+          (!Number.isSafeInteger(input.timeoutMs) || input.timeoutMs < 1000))
+      )
+        return failed("rejected", "文档参数不合规");
+      const result = interpret(
+        DocTextResponseSchema,
+        await call(
+          "POST",
+          "/docText",
+          {
+            path: input.path,
+            ext: input.ext,
+            maxChars: input.maxChars,
+            timeoutMs: Math.min(input.timeoutMs ?? 10_000, 10_000),
+          },
+          waitFor("docText"),
+          input.signal,
+        ),
+      );
+      if (!result.ok) return result;
+      const { ok: _, ...facts } = result.value;
+      if (
+        Array.from(facts.text).length !== Math.min(input.maxChars, facts.charCount) ||
+        (input.ext === "pdf" ? facts.pageCount === undefined : facts.pageCount !== undefined)
+      )
+        return failed("rejected", "文档截断或页数事实不一致");
+      return ok(facts);
+    },
     async probe(input) {
       if (!isRelativeWorkPath(input.path)) return badPath("path");
       if (
@@ -277,7 +406,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       const body = { path: input.path, demuxers: input.demuxers, timeoutMs: input.timeoutMs };
       const result = interpret(
         ProbeResponseSchema,
-        await exchange(socketPath, "POST", "/probe", body, waitFor("probe")),
+        await call("POST", "/probe", body, waitFor("probe"), input.signal),
       );
       return result.ok ? ok(result.value.report) : result;
     },
@@ -295,7 +424,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       };
       const result = interpret(
         PosterResponseSchema,
-        await exchange(socketPath, "POST", "/poster", body, waitFor("poster")),
+        await call("POST", "/poster", body, waitFor("poster"), input.signal),
       );
       if (!result.ok) return result;
       const file = await regularFile(workDir, input.outPath);
@@ -336,7 +465,7 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       };
       const result = interpret(
         StampResponseSchema,
-        await exchange(socketPath, "POST", "/stampAigc", body, waitFor("stampAigc")),
+        await call("POST", "/stampAigc", body, waitFor("stampAigc"), input.signal),
       );
       if (!result.ok) return result;
       const { report } = result.value;
@@ -357,10 +486,46 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
       return ok({ report, inputSizeBytes: source.sizeBytes, outputSizeBytes: product.sizeBytes });
     },
 
-    async health() {
+    async watermarkPng(input) {
+      if (
+        !isRelativeWorkPath(input.outPath) ||
+        !input.outPath.endsWith("/watermark.png") ||
+        typeof input.text !== "string" ||
+        Buffer.byteLength(input.text) > 256 ||
+        /[\p{Cc}\p{Cf}]/u.test(input.text)
+      )
+        return badPath("watermark");
+      const result = interpret(
+        WatermarkPngResponseSchema,
+        await call(
+          "POST",
+          "/watermarkPng",
+          { outPath: input.outPath, text: input.text },
+          waitFor("watermarkPng"),
+          input.signal,
+        ),
+      );
+      if (!result.ok) return result;
+      const file = await regularFile(workDir, input.outPath);
+      if ("ok" in file) return file;
+      try {
+        const bytes = await readCapped(file.abs, 1024 ** 2);
+        if (bytes.length !== result.value.sizeBytes || !validWatermarkPng(bytes))
+          return failed("rejected", "水印PNG结构或实际像素不合法");
+        return ok({
+          sizeBytes: bytes.length,
+          width: 720,
+          height: 96,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+      } catch {
+        return failed("rejected", "水印PNG读取失败");
+      }
+    },
+    async health(signal) {
       const result = interpret(
         HealthResponseSchema,
-        await exchange(socketPath, "GET", "/healthz", undefined, waitFor("health")),
+        await call("GET", "/healthz", undefined, waitFor("health"), signal),
       );
       return result.ok
         ? ok({ ffmpeg: result.value.ffmpeg, ffprobe: result.value.ffprobe })

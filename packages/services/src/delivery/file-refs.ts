@@ -3,7 +3,8 @@ import { assertAccess } from "../authz/index.js";
 import { AppError, implementKeyed, fileRefTypePort } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { declareManualProduction, fileCategoryGuardPort } from "../media/index.js";
-import type { FileCategoryGuard } from "../media/index.js";
+import type { ClockBoundFileRefType, FileCategoryGuard } from "../media/index.js";
+import { manualProductionContext } from "./production-context.js";
 import { boundDelivery } from "./binding.js";
 import { ticketOf } from "./repo.js";
 import { invalid, unpaused, dramaUsesAi } from "./quality.js";
@@ -64,28 +65,85 @@ function guard(kind: "sample" | "final"): FileCategoryGuard {
         storeId: t.storeId,
         productionTier: t.orderItem.productionModel,
         uploadedByStaffId: staff.staff.id,
-        dramaEpisodeMasterId: p.dramaEpisodeMasterId,
+        ...(await manualProductionContext(
+          tx,
+          t,
+          staff.staff.id,
+          p.episodeNo!,
+          p.dramaEpisodeMasterId,
+        )),
         aiUsage: p.aiUsage,
         forcedByDrama: await dramaUsesAi(tx, t.orderItem.dramaId),
       });
     },
   };
 }
+const sampleRef: ClockBoundFileRefType = {
+  async inUse() {
+    throw new TypeError("样片意见证据在用事实须绑定 media 业务时钟");
+  },
+  withClock(clock) {
+    return {
+      ...this,
+      async inUse(tx, fileId) {
+        const cutoff = new Date(clock.now().getTime()),
+          month = cutoff.getUTCMonth();
+        cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 3);
+        if (cutoff.getUTCMonth() !== month) cutoff.setUTCDate(0);
+        return (
+          await tx.sample.findMany({
+            where: { OR: [{ fileId }, { feedbackFileIds: { has: fileId } }] },
+            select: {
+              id: true,
+              fileId: true,
+              status: true,
+              feedbackFileIds: true,
+              deliveryTicket: { select: { archivedAt: true, terminatedAt: true } },
+            },
+          })
+        ).flatMap((row) => {
+          const endedAt = row.deliveryTicket.archivedAt ?? row.deliveryTicket.terminatedAt;
+          return [
+            ...(row.fileId === fileId &&
+            endedAt === null &&
+            !["superseded", "qc_rejected", "check_rejected"].includes(row.status)
+              ? [{ fileId, refId: row.id, role: "main" }]
+              : []),
+            // 修改意见是独立证据，不随样片被取代而释放；关联工单关闭后保留三年。
+            ...(row.feedbackFileIds.includes(fileId) && (endedAt === null || endedAt > cutoff)
+              ? [{ fileId, refId: row.id, role: "feedback" }]
+              : []),
+          ];
+        });
+      },
+    };
+  },
+  roles: {
+    main: { categories: ["sample_video"], retentionDays: 30 },
+    feedback: { categories: ["ticket_attachment"], retentionDays: 30 },
+  },
+  readColumns: async (tx) =>
+    (await tx.sample.findMany()).flatMap((s) => [
+      { fileId: s.fileId, refId: s.id, role: "main" },
+      ...s.feedbackFileIds.map((fileId) => ({ fileId, refId: s.id, role: "feedback" })),
+    ]),
+};
 export const deliveryFileRefs = [
   implementKeyed(fileCategoryGuardPort, "sample_video", guard("sample")),
   implementKeyed(fileCategoryGuardPort, "final_episode", guard("final")),
-  implementKeyed(fileRefTypePort, "sample", {
-    roles: {
-      main: { categories: ["sample_video"], retentionDays: 30 },
-      feedback: { categories: ["ticket_attachment"], retentionDays: 30 },
-    },
-    readColumns: async (tx) =>
-      (await tx.sample.findMany()).flatMap((s) => [
-        { fileId: s.fileId, refId: s.id, role: "main" },
-        ...s.feedbackFileIds.map((fileId) => ({ fileId, refId: s.id, role: "feedback" })),
-      ]),
-  }),
+  implementKeyed(fileRefTypePort, "sample", sampleRef),
   implementKeyed(fileRefTypePort, "episode_output", {
+    inUse: async (tx, fileId) =>
+      (
+        await tx.episodeOutput.findMany({
+          where: {
+            fileId,
+            status: { notIn: ["replaced", "qc_rejected", "check_rejected"] },
+            deliveryTicket: { step: { notIn: ["archived", "terminated"] } },
+          },
+          select: { id: true },
+        })
+      ).map((row) => ({ fileId, refId: row.id, role: "main" })),
     roles: { main: { categories: ["final_episode", "sample_video"], retentionDays: 30 } },
     readColumns: async (tx) =>
       (await tx.episodeOutput.findMany()).map((e) => ({
@@ -95,6 +153,18 @@ export const deliveryFileRefs = [
       })),
   }),
   implementKeyed(fileRefTypePort, "delivery_release", {
+    inUse: async (tx, fileId) =>
+      (
+        await tx.deliveryRelease.findMany({
+          where: {
+            state: "pushed",
+            closedAt: null,
+            supersededAt: null,
+            manifestSnapshot: { array_contains: [{ fileId }] },
+          },
+          select: { id: true },
+        })
+      ).map((row) => ({ fileId, refId: row.id, role: "ep" })),
     roles: { ep: { categories: ["final_episode", "sample_video"], retentionDays: 30 } },
     readColumns: async (tx) =>
       (await tx.deliveryRelease.findMany()).flatMap((r) =>
@@ -106,6 +176,16 @@ export const deliveryFileRefs = [
       ),
   }),
   implementKeyed(fileRefTypePort, "publish_list", {
+    inUse: async (tx, fileId) =>
+      (
+        await tx.publishList.findMany({
+          where: {
+            coverFileId: fileId,
+            deliveryTicket: { step: { notIn: ["archived", "terminated"] } },
+          },
+          select: { id: true },
+        })
+      ).map((row) => ({ fileId, refId: row.id, role: "cover" })),
     roles: { cover: { categories: ["poster"], retentionDays: 30 } },
     readColumns: async (tx) =>
       (await tx.publishList.findMany({ where: { coverFileId: { not: null } } })).map((p) => ({

@@ -2411,11 +2411,13 @@
 | `mime` | string | 否 | | 只作参考，规范类型由扩展名推出（→ `file_object.declared_mime`） |
 | `clientToken` | string | 是 | 1–64 字符，`[A-Za-z0-9_-]`（与 m08 同一规则） | 端上生成的续传标识（算法同 d5-media.md:1137）→ `file_object.client_token` |
 | `storeId` | string(uuid) | 门店级分类必填 | | 归属门店（如代传门店素材、证照、样片所属订购项的门店） |
-| `entityId` | string(uuid) | 主体级分类必填 | 有 `storeId` 时由门店推出，不必传 | 归属主体 |
+| `entityId` | string(uuid) | 主体级分类必填（`account_proof` 无主体例外见下） | 有 `storeId` 时由门店推出，不必传 | 归属主体 |
 | `onBehalfStore` | boolean | 否 | 默认 `false` | 员工代商家上传（A35：超过小程序上限的大文件由服务经理在后台代传）；为真时写 `file_object.on_behalf_store_id = storeId` |
 | `production` | object | 分类为 `sample_video`、`final_episode`、`ad_video` 时必填 | | 制作上下文（d5-media.md:1022-1025）：`{ kind: 'sample' \| 'final' \| 'ad', orderItemId?, adId?, episodeNo?, dramaEpisodeMasterId?, aiUsage: { used: boolean, tools: [{ name, version, usedFor }] } }` |
 
 **响应**：`FileRegistration`（2.17）。同一 `clientToken`、同一分类、同一归属、声明大小相同的未确认登记直接复用（同一个写入区 key，分块续传才成立）。
+
+`account_proof` 的窄例外（W2-09）：a03 3.18 允许没有有效成员的账号申请换绑，但仍要求证明材料；仅当前 staff 身份一致、具备 `merchant.account_change.request`、数据范围为 `all`，且未传 `entityId`/`storeId`、`onBehalfStore` 不为 true 时，可登记 secure/platform 证明。有主体则按真实主体或门店校验，允许仅传 `entityId`。该平台材料只可关联无主体账号变更申请，关联前只有原上传员工可签发，关联后仍须 request/approve 权限及真实申请范围；不适用平台文件的一般免范围规则。其它分类与商家能力不变。
 
 **错误**：
 
@@ -2601,7 +2603,7 @@
 | `PROVIDER_UNAVAILABLE` | 503 | 对象存储不可用；没有落库，可用同一个键重试 |
 | `IDEMPOTENCY_IN_PROGRESS` | 409 | 三段式用例处理中 |
 
-**副作用**：先取按 `fileId` 的互斥（见说明），开短事务锁文件行，检查 `status = deleted` 且 `erased_at` 为空；再在事务外移除对象存储的删除标记；再开事务锁文件行、复核守卫（`status = deleted`、`erased_at` 为空、在保留期内），`file_object.status: deleted → stored`，`deleted_at`、`purge_after` 置空（06-media.md:202）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.restore`，`reason_text`）。无出站事件。补偿：事务里复核不通过（其间被彻底删除等）时，把删除标记加回去再返回错误；占用过期后同一个键可以接手续做（再移除一次标记是空操作）。
+**副作用**：先取按 `fileId` 的互斥（见说明），开短事务锁文件行，检查 `status = deleted` 且 `erased_at` 为空；再在事务外移除对象存储的删除标记；再开事务锁文件行、复核守卫（`status = deleted`、`erased_at` 为空、在保留期内），`file_object.status: deleted → stored`，`deleted_at`、`purge_after` 置空（06-media.md:202）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.file.restore`，`reason_text`）。无出站事件。补偿：事务里复核不通过（其间被彻底删除等）时，把删除标记加回去再返回错误；占用过期后同一个键可以接手续做（再移除一次标记是空操作）。
 
 **说明**：恢复与彻底删除（3.64）对同一文件必须串行，否则恢复可能在彻底删除的两段事务之间提交（已是 `deleted` 的文件，彻底删除的事务一不改状态），得到一个 `stored` 却已没有对象版本的文件。做法：两条接口在整个用例期间（事务一之前到事务二提交或失败返回）持有同一把按 `fileId` 的互斥锁（PostgreSQL 会话级 advisory lock，`pg_try_advisory_lock`，键取 `fileId` 的哈希；连接断开自动释放），拿不到返回 `STATE_NOT_ALLOWED`；拿到后在事务一里锁文件行并检查 `status`、`erased_at`。同一幂等键的重放仍由幂等占用（C49）处理。
 
@@ -2638,7 +2640,7 @@
 - 事务一之前取按 `fileId` 的互斥（与 3.63 共用，见 3.63 说明），用例结束释放。
 - 事务一（锁文件行）：复核守卫（状态、`erased_at` 为空、在用引用、回显）；`stored` 的置 `file_object.status: stored → deleting`（此后 `files.link()` 与签发都不再接受它，避免删对象期间又被引用）；`deleted` 的不改状态。
 - 事务外：删除该对象在正式区的全部历史版本（含删除标记），失败则停在 `deleting`，同一个键重试或占用过期后接手续做；不回退。
-- 事务二：`deleting` 的条件更新（`WHERE status = 'deleting'`）置 `file_object.status: deleting → deleted`，同一时刻写 `deleted_at` 与 `erased_at`；`original_name` 置空（行保留，`06-media.md:1877` 待确认 4）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.erase`，`reason_text`）（`06-media.md:200`）。原已是 `deleted` 的文件条件更新 `WHERE status = 'deleted' AND erased_at IS NULL`，只写 `erased_at`、`original_name` 置空与审计，`deleted_at` 不变（`06-media.md:201`）；因为有了 `erased_at`，`restorableUntil` 为 `null`、不再出现 `restore`。
+- 事务二：`deleting` 的条件更新（`WHERE status = 'deleting'`）置 `file_object.status: deleting → deleted`，同一时刻写 `deleted_at` 与 `erased_at`；`original_name` 置空（行保留，`06-media.md:1877` 待确认 4）；写一条 `ops` 审计（类别 `system_ops`，动作 `files.file.erase`，`reason_text`）（`06-media.md:200`）。原已是 `deleted` 的文件条件更新 `WHERE status = 'deleted' AND erased_at IS NULL`，只写 `erased_at`、`original_name` 置空与审计，`deleted_at` 不变（`06-media.md:201`）；因为有了 `erased_at`，`restorableUntil` 为 `null`、不再出现 `restore`。
 - 事务二提交后另起事务执行该分类的清除后钩子（同清除任务：`package_zip`、`publish_list` 改 `zip_bundle`，任意文件释放以它为源的 `derivative` 引用，如派生封面；先锁钩子要改的行，不在持有文件行锁时去锁 `zip_bundle`）；没执行成的由 `media.I8` 每小时修复（`06-media.md:198`、`200`）。
 - 对外答复“已删除”以执行时刻为准（d5-media.md:402）。
 
@@ -3276,7 +3278,7 @@
 | `ApprovalAction` | `approve` / `reject` / `withdraw` / `approve-review` / `reject-review` | 本文定义（C16），执行在领域资源上 |
 | `ApprovalBadge` | `check_mismatch` / `final_rejected` / `overdue` | 本文定义（`x-open-enum`）：从领域表派生的角标 |
 | `auditStream` | `ops` / `activity` / `access` | 同数据模型 `audit_log.stream` |
-| `auditCategory` | 数据模型 03 分组第 3 节的 17 个登记值，加 A107 补登的 8 个（`system_ops`、`report`、`merchant_quota`、`merchant_lifecycle`、`referral_code`、`ops_config`、`agreement`、`notify_config`），再加 A155 补登的 10 个（`payment`、`invoice`、`recon`、`finance_config`、`docs`、`delivery`、`service_ticket`、`approval`、`review`、`flow`），共 35 个，逐个见下表；与 a02 第 2.7 节对照表一致 | `audit_log.category`（代码登记，`x-open-enum`） |
+| `auditCategory` | 数据模型 03 分组第 3 节的 17 个登记值，加 A107 补登的 8 个（`system_ops`、`report`、`merchant_quota`、`merchant_lifecycle`、`referral_code`、`ops_config`、`agreement`、`notify_config`），再加 A155 补登的 10 个（`payment`、`invoice`、`recon`、`finance_config`、`docs`、`delivery`、`service_ticket`、`approval`、`review`、`flow`），另加W2-11运营跟进 `follow_up`，共 36 个，逐个见下表；与 a02 第 2.7 节对照表一致 | `audit_log.category`（代码登记，`x-open-enum`） |
 | `actorType` | `merchant` / `staff` / `system` / `partner` | 同数据模型 `audit_log.actor_type`（`partner` V1.0 只声明） |
 | `PiiPurpose`（3.41） | `contact_merchant` / `verify_identity` / `finance_ops` / `other` | 本文定义：查看明文的用途 |
 | `dictStructure` | `flat` / `tree` | 同数据模型 `dict_type.structure` |
@@ -3344,6 +3346,7 @@
 | `approval` | 审批决定（按 `approval_request.kind` 的查看模块；A155） |
 | `review` | 审核决定（按 `approval_request.kind` 的查看模块；A155） |
 | `flow` | 流程人工纠偏（a08 3.10；A155） |
+| `follow_up` | 运营跟进记录、改期与完成（a03 3.42–3.44；W2-11） |
 
 内部取值（不出接口，写库时用）：`auth_event.event` 本文写 `login_success`、`login_fail`、`locked`、`step_up`、`logout`，`auth_event.method` 写 `password`、`password+totp`、`password+recovery`、`totp`；`audit_log.auth_method` 写 `password+totp`、`password+recovery`。本文写的审计动作（`audit_log.action`）：`sys.staff.*`（`create`、`update`、`enable`、`disable`、`handover`、`reset_password`、`reset_mfa`、`reissue_activation_code`、`unlock`、`wecom_invite`、`wecom_bind`、`pool_memberships`、`duty`、`password_set`、`password_change`、`totp_enrolled`、`totp_rebound`）、`sys.session.revoke`、`sys.role.edit`、`sys.dict.*`、`sys.param.*`、`sys.calendar.import`、`sys.flag.update`、`flow.checklist.*`、`files.*`、`media.job.retry`、`ops.alert.*`、`ops.invariant.*`、`flow.timer.*`、`flow.outbox.retry`、`ops.webhook.retry`、`pii.<field>.reveal`。
 

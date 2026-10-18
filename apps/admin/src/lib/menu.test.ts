@@ -268,14 +268,38 @@ describe("菜单、守卫与面包屑", () => {
     expect(visibleMenu(null)).toEqual([]);
   });
 
-  it("默认显示的菜单项就是 V1.0 里进菜单的画板页，无画板页实现前不进菜单", () => {
+  it("默认菜单保留38个V1.0画板和三项已落地的无画板入口", () => {
     const shown = visibleMenu(superAdmin()).flatMap((group) => group.items.map((item) => item.key));
     const expected = boards
       .filter((page) => page.milestone !== "V1.1" && page.inMenu)
       .map((page) => page.key);
-    expect(shown.sort()).toEqual(expected.sort());
-    expect(shown).toHaveLength(38);
-    expect(noBoards.filter((page) => page.inMenu)).toEqual([]);
+    const noBoardMenuKeys = ["approval.mine", "system.flow_ops", "system.file_purges"];
+    expect(expected).toHaveLength(38);
+    expect(shown.filter((key) => !noBoardMenuKeys.includes(key)).sort()).toEqual(expected.sort());
+    expect(shown.sort()).toEqual([...expected, ...noBoardMenuKeys].sort());
+    expect(shown).toHaveLength(41);
+    expect(noBoards.filter((page) => page.inMenu).map((page) => page.key)).toEqual(noBoardMenuKeys);
+  });
+
+  it("流程运维独立菜单与面包屑，权限点不扩张共享system菜单过滤", () => {
+    const page = findPage("system.flow_ops")!;
+    expect(page.implemented).toBe(true);
+    expect(page.parent).toBeUndefined();
+    expect(selectedMenuKey(page)).toBe("system.flow_ops");
+    expect(breadcrumbOf(page).map((crumb) => crumb.title)).toEqual(["系统", "流程运维"]);
+    const permissionOnly = {
+      ...superAdmin(),
+      moduleLevels: { system: "n" as const },
+      actions: ["flow.ops.view"],
+    };
+    expect(
+      visibleMenu(permissionOnly).flatMap((group) => group.items.map((item) => item.key)),
+    ).not.toContain("system.flow_ops");
+    expect(
+      visibleMenu({ ...permissionOnly, moduleLevels: { system: "v" } }).flatMap((group) =>
+        group.items.map((item) => item.key),
+      ),
+    ).toContain("system.flow_ops");
   });
 
   it("守卫：模块等级不够或开关没开都进不去；基础页不受模块等级限制", () => {

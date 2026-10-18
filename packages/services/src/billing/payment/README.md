@@ -1,6 +1,6 @@
 # payment：唯一付款入账入口
 
-W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上。第 1–5 节为 W1-11a 入账入口，第 6 节为 W1-11b 创建与财务确认主链；微信仍归 M4。
+W1-11a 第二段。依据：03 第 1.3 节；08 分组第 2.1、2.2、2.6 节；h01 第 2.6 节；ADR-0046。接在已合并的账本与履约实现上。第 1–5 节为 W1-11a 入账入口，第 6 节为 W1-11b 创建与财务确认主链；W4-01 回补微信预下单及可信成功入账，见第7节；W4-02 查询、回调与补偿见第8节。
 
 ## 1. 入口与依赖
 
@@ -47,11 +47,13 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 
 ## 5. 留桩
 
-只接受 `bank_transfer`；微信与孤儿交易抛 `INTERNAL`，补单选项尚未实现，登记 [M4 留桩](../../../../../docs/plan/stubs/m4-billing-payment-channels.md)。升级与加购仍由第一段的内容留桩返回受阻。四类差异只开不处理，M4 接重试履约、退款与恢复流程。本包没有路由、实际银行操作、微信 Provider 或新迁移。
+M1时只接受 `bank_transfer`；W4-01已回补关联付款单的可信微信成功入账，W4-02补齐回调/查询/关单与兜底，孤儿成功收款只开差异并返回 `orphan`，不虚造付款单。显式补单与差异处理仍登记 [M4 留桩](../../../../../docs/plan/stubs/m4-billing-payment-channels.md)，由W4-11承接；W4-06接通加购，升级、退款沿各自后继包。本机验证不包含真实银行或支付操作，无新迁移。
 
 ## 6. 购买与对公凭证主链（W1-11b）
 
 `Runtime.billing` 由 `createBillingPurchase` 构造，显式注入事务、时钟、账本、原入账、协议、主体、media、SLA、配置与密钥读取器。`getPurchasePolicy`、`listPlans`、`quotePlanPurchase` 与 `wallet` 只读；策略由 shared 的有序首匹配纯函数给出，参数与财务版本按同一注入时刻读。钱包复用账本读侧及 tenant 额度。
+
+新建付款单的报价与购买策略仍取账户锁后的账本时刻；协议同意保留 docs 实际采样时间，完成同意后再取真实创建时刻。收款银行版本、对公有效期参数和截止时间均按该创建时刻读取或计算，避免同意晚于新单、跨银行版本生效时选到旧账户。复用未完成单保持既有行为：同版本同意由唯一约束保留原记录，协议换版时仍可能追加新版本同意，本次时序修复不改变该语义。
 
 `createOrder` 在实体、已有付款单锁后拿账户，重算报价、对比金额、写两份协议同意与 FK 单号，捕获生效收款账户版本、登记 TTL。新内容快照可带创建时 `planName`；旧快照缺项才回查当前名称，不参与履约计价。商家 DTO 只在本次响应解密账号并禁止缓存；幂等最终 JSON 快照按契约脱敏，重放 `bankAccount.accountNo=null`。
 
@@ -66,3 +68,55 @@ LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run sr
 新增每日 full/P1、不自愈项：`payment.I12` 保留配置审批与生效时刻检查，并核对对公单捕获的版本是该单创建时已经批准、生效的最新 bank_account（与 financeConfigAt 同按 effective_at、id 倒序），历史正确版本不因后来配置生效而违规。配置错误仍报 finance_config_revision，订单错误报 billing_order 和归属 entityId。`I14` 核对待确认单与恰一张 pending 凭证双向一致，`I15` 核对 accepted 与恰一笔 succeeded 收款双向一致。账本原不变量测试完整保留，新项在 `payment/purchase-invariants.test.ts`。
 
 目标用例：`apps/api/test/billing.test.ts`、`apps/worker/test/transfer-ttl.test.ts`、`billing/demo-seed.test.ts`、`payment/purchase-invariants.test.ts`、`shared/purchase-policy/policy.test.ts`。八项既定留桩见 W1-11b 状态文件；本包不改表结构、既有入账函数签名或层白名单。
+
+## 7. W4-01 微信预下单
+
+`Runtime.billing.wechatPrepay` 消费当前真实会话与老板成员关系，按主体100→付款单290→交易300取得或创建尝试；服务器策略、金额、资格、退款与北京时间日限额都在事务内复核。A提交后才调微信JSAPI，B重读并保存prepay；有效同payer尝试只重签，换payer先查关旧尝试后建下一尝试。调起参数仅B成功后出本次响应，持久幂等结果始终为null，同键重放不重复签名或调用渠道。
+
+可信已付查单先经`recordChannelSuccess`独立提交资金事实，再调原`applyPayment`与保存点履约。金额不符、付款人或正式attach编码不符取消并开原差异；业务履约受阻保已付，账户忙/基础设施失败只回滚入账，保已成功未入账与唯一事件。微信按原时限参数创建单并登记`po.expire`；其处理器、回调、sync/cancel与兜底仍由W4-02完成。
+
+本地新6DB+2HTTP聚合首轮8/8通过（11.07秒）；覆盖A已提交/未知应答、C50、占用/B拒绝、换payer、真实履约一次、不符/退款闸门、保存点与账户忙恢复。Provider精确24项通过（4.25秒），原受影响全退款/孤儿/不完整微信事实单例1项通过（6.14秒），services/API类型通过。外部IO使用typed替身与既有官方签名向量，不代表E2真实商户、密钥、资金或微信消息验收。
+
+## 8. W4-02 渠道查询、回调与补偿
+
+`syncOrder/cancelOrder`先复核当前老板及主体范围，事务外对真实尝试查单/关单，再独立保存可信资金事实并复用`applyPayment`。只有全部尝试已关闭才取消；未知结果保持待支付并提前`po.expire`，不能把到期等同渠道关闭。对公凭证待确认仍禁止取消。查询首次补到成功并真正完成入账后追加自愈留痕，不因普通重放关闭历史差异。
+
+回调使用原收件框架T1/T1′。`notificationCrypto`仅本地验签、按持久kid重解密，不是网络方法，不放宽顶层Provider事务守卫。收件只保存摘要与resourceCipher；openid仅进资金事实业务列。提交后独立短事务内联入账，失败不改变已接收应答，由`billing.applyPaymentFallback`与每5分钟有界`tx.unapplied_scan`继续。扫描每交易独立TX，只操作一个主体账户，租约abort后停止后续事务。
+
+`po.expire`通过真实timer运输的beforeRun查关单，处理器仍在原TX锁后复核并迁移；关键类降级走同一路径。孤儿成功收款只确保bill_only/bank_unmatched差异存在，关联后的bill_only只在实际首次入账/重新归类时自愈；人工restore、rebuild_order与差异解决仍由W4-11承接。
+
+本地六DB及四HTTP聚合分轮全部通过，原apply与资金探针各一精确目标通过；services/API类型、Provider四精确目标及层级检查通过。扫描先排除已有open/resolving差异再取有界100笔，每笔独立事务；`payment_exception.auto_healed`按原正式事件载荷校验。官方生成覆盖本包9路，真实挂载由四HTTP覆盖。外部IO使用typed替身与正式签名向量，不代表E2真实商户、支付、云或退款验收；详细命令与首轮夹具修正见W4-02状态。
+
+## 9. W4-03 统一入账的渠道竞争验证
+
+`pendingPlanOrder`追加可选`channel`（默认银行不变）；`pendingWechatReceipt`只建`created`尝试，成功事实仍经正式`recordChannelSuccess`提交。`channel.property.test.ts`复用公共harness，两业务连接池各max1，在`txn.apply`处保留首事务并用`pg_blocking_pids`确认真实第二连接等待。固定seed42低3轮，覆盖同交易重放、另一成功款、金额差异及不同主体在锁保留期间仍可完成；按独立整数模型核月分摊和一份履约事实。
+
+渠道提交前、入账位、履约后及提交前中断均逐表比较；已提交资金事实不随后续入账回滚丢失。保存点三个真实写点业务拒绝只留paid/blocked与差异，普通入账重放保持冻结结果；显式fulfill可恢复账本且不再收款，差异处理及受阻字段收口仍属W4-11。
+
+`apps/api/test/billing-channel-concurrency.test.ts`一聚合低3轮，用正式建单/预下单与真实RSA/GCM通知原文，确认回调、sync、cancel三条实际DB事务同时等待本轮付款单行锁后才释放；GET和全入口重放核唯一入账、周期、流水、历史和事件。本轮不改旧银行/200轮性质判据，不使用真实商户、资金或平台账号。新增service3+旧bank1定点4/4G，HTTP三轮1/1G（总16.03s），services/API类型通过；HTTP重放保留原Redis每单3秒限流，自然等窗口到期，不清键或改额度。三次测试夹具RED与精确清理事实见W4-03状态文件，未重复旧完整矩阵。
+
+## 10. W4-06 积分包购买
+
+`Runtime.billing.pointPacks`提供七接口公口：后台目录自身串行锁、版本编辑与上下架，商家仅老板能力及当前门店范围可读。列表按正式契约为有界items集合，价格/入口沿当前购买策略；汇总分别取已付/已退付款事实与purchase批次的真实流入，不把未付单计作收入。
+
+`createOrder`的pointPackId分支在账户锁后重新读取上架档位、现价、有效套餐、主体级退款与渠道政策，写topup冻结快照及积分规则同意。QUOTE_CHANGED带真实pointPack详情；既有同内容同渠道单按原语义复用，历史改价/下架不回写，C50仍对重放账号置空。验证结果见W4-06状态；无真实资金操作。
+
+### W4-04 在途：线下开单与两人复核（c658源码检查点）
+
+后台四条正式写口复用现有报价、付款与审批：管理员开单显式核受控开关/合同号/主体范围与回显，不伪装商家或落协议同意。凭证上传、替换与处理经共用写段重设/取消其 SLA；`billing.onCalendarImported` 按上传时刻和原参数快照重算。`sla.breach` 只对 `transfer_proof` 分流，既有审批和其他主体保持。
+
+启用阈值后首确认只暂存 `first_confirm` 并提交 `transfer_confirm`，没有成功交易、入账或履约；第二人通过才走同一个 `applyPayment`，状态历史用正式 `billing_order.approve_review`。两复核动作必须携本面板的 `review.approvalId`，防止退回重提后旧版本 0 误处理新轮；approve 仍校验审批版本与真实回显。退回保留历史审批指针，清第一确认，凭证继续待处理。
+
+新四口在唯一幂等业务事务前只读预检当前权限/主体范围，重放同样执行；首次写再锁后复核，没有事务外外呼，不是 C51 三段式。财务超时沿正式 `s.finance_overdue` 和现有在职 finance 受众，派发时重查凭证/付款单与当前截止，日历延后后的旧事件不会误提醒。
+
+当前仅源码轻检查，尚未独审/类型/DB/HTTP验收。回单 OCR 的 media/Provider 独立前置尚未 actual，本包四项辅助比对函数已保存但未接完成事件；不声称 OCR、两桩或 W4-04 完成。真实回单与外部识别/资金验证仍未验。
+
+后续源码候选已同步 OCR actual `ec16f048`：新凭证同事务登记真实回单任务/指针并保存四项辅助结论，缓存 ok 直接读；完成订阅经 media 公口核 job/file/entity 后只更新当前 pending 凭证。查询只读脱敏六字段与实际结论，不把金额/户名/账号原值写进 check_result，也不自动到账。当前完整源码待唯一独审与小量风险目标，未验边界保留。
+
+#### W4-04 本地代码验收完成
+
+上述c658/候选段为历史检查点。最终新6服务聚合+2真实HTTP聚合分轮全部通过，services/API类型、官方生成/对账、生产权限矩阵与挂载、层级检查通过；未重复旧全量。唯一源码审查的WebP兼容问题已闭环：WebP凭证继续可上传，当前回单OCR不支持该格式时指针为null/状态unavailable/四项unknown，其他文件安全错误不吞掉。
+
+同proof退回重提暴露的approval.I1历史反指问题由独立前置`24427c89`修复，actual `d1a281fc` 后仅复验原红组G；当前轮、旧pending/approved及其它kind守卫仍保持。四API是入口只读授权预检加唯一幂等业务TX，重放仍查当前权限与scope，没有C51外呼阶段。金融/审批不变量在风险组内保持；不自动采信OCR到账。
+
+复验命令为`pnpm --filter @liyoxi/services exec vitest run src/billing/payment/transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`与`pnpm --filter @liyoxi/api exec vitest run test/billing-transfer-review.test.ts --maxWorkers=1 --no-file-parallelism`；实际执行时后续只选原失败标题，绿色组不重复。官方矩阵补本包4行及已落主干10行漏项，旧角色格不变；testing夹具仅通过正式billing出口引用原纯wechatOrderAttach。真实腾讯云回单、银行收款与业主配置仍未验，本机全部使用虚构输入及替身外部IO。

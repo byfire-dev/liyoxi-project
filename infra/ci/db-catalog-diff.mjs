@@ -1,26 +1,26 @@
 #!/usr/bin/env node
-// 系统目录比对（W0-05 任务书 第 7 节第 2、4、5 条）：证明“首版迁移建出来的库”与“由底稿建的参照库”结构相同。
-//
+// 系统目录比对：保留首版冻结等价证明，另核对现行全部迁移。
 // 用法：node infra/ci/db-catalog-diff.mjs [--ref <库>] [--target <库>] [--report <文件>]
-//   根脚本是 pnpm db:catalog-diff。连库的办法见 db-lib.mjs 开头（psql；PG* 环境变量，或 DATABASE_URL）
-//   --ref     参照库，默认 lyx_schema_check：python3 tools/schema-check/check.py --keep 建的
-//   --target  迁移库，默认 lyx_migrate_check：空库上跑过 pnpm db:deploy 的
-//   --report  报告写到哪，默认 packages/db/dist/catalog-diff/report.md（CI 把它作为产物上传）
-// 四段，任何一段不过即退出码 1：
-//   0. 两个库都在 PostgreSQL 17 上。
-//   1. 两份 schema.prisma（底稿与 packages/db 里迁入的那份）去掉文件头注释与 generator 块后逐字节相同。
-//   2. 两个库的系统目录逐项相同：表、列、约束定义、索引定义、触发器、函数体六类，外加序列、扩展、策略、注释等其余对象。
-//      _prisma_migrations 不计。口径写在 db-lib.mjs 的查询前面，比什么、不比什么都列在那里。
-//   3. 两个库的数量都等于 06 第 1 节的两组口径（只数逻辑表 / 含分区子表）。
-// 两个库只读不写。分区子表的名字随建库时的月份变（按库的时钟、北京时间）：两个库要在同一个月里建，
-// 跨月建的两个库会多报差异，不会漏报。差异多于 40 处时只列前 40 处，各类各有几处看表里的“差异”一列。
-// 退出码：0 通过；1 有差异或数量不对；2 用法或环境错误（连不上、库不存在）。本脚本不引依赖。
+// --ref 默认 lyx_schema_check（check.py --keep 跑全部迁移）；--target 默认 lyx_migrate_check。
+// --report 默认 packages/db/dist/catalog-diff/report.md，原 required 步骤与失败时上传不变。
+// 0. 两个输入库都是 PostgreSQL 17；输入库只读。
+// 1. 独立从冻结草稿+00–15 建临时库，与仅执行 init 的临时库按七类+固定首版数量比。
+//    临时库带本进程号，在 finally 删除；不再把现行模型强行约束成冻结首版。
+// 2. 原参照/目标库按表、列、约束、索引、触发器、函数及 others 七类逐项比（_prisma_migrations 不计）。
+// 3. 两个现行库的数量等于入库快照的完整七项，不再要求固定166。
+// 4. 目标库的六类结构逐项等于现行快照；ADR-045 库→现行schema只读diff不得有未登记DDL。
+//    仅精确的单条 DROP INDEX "ix_store_asset_search" 是首版已确认假动作，手写对象靠快照核。
+// 分区子表随北京时间月份变：参照和目标要在同一月建。每节最多列40差异，总数不截断。
+// 退出码0通过、1差异/数量/模型不符、2用法/环境或首版证明无法执行；连接方式见db-lib.mjs。
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CATEGORIES, countReport, diffRows, digestOf, readCatalog } from "./db-lib.mjs";
+
+import { currentSchemaProblems, frozenInitProof } from "./db-post-init-lib.mjs";
+import { diffStructure, readSnapshot, structureOf } from "./db-structure-lib.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const MAX_SHOWN = 40;
@@ -48,35 +48,15 @@ function parseArgs(argv) {
   return options;
 }
 
-/** 去掉文件头注释（generator 之前的 // 行）与 generator 块，剩下的就是模型 */
-function modelsOf(path) {
-  const text = readFileSync(join(repoRoot, path), "utf8");
-  const head = text.match(/^(?:\/\/.*\n)*generator \w+ \{\n(?:.*\n)*?\}\n/);
-  if (!head) usage(`${path} 的开头不是“文件头注释 + generator 块”`);
-  return text.slice(head[0].length).split("\n");
-}
-
-function schemaProblems() {
-  const draft = modelsOf("docs/data-model/schema.prisma");
-  const moved = modelsOf("packages/db/prisma/schema.prisma");
-  const length = Math.max(draft.length, moved.length);
-  for (let index = 0; index < length; index += 1) {
-    if (draft[index] === moved[index]) continue;
-    const show = (line) => (line === undefined ? "（没有这一行）" : JSON.stringify(line));
-    return [
-      `模型部分第 ${index + 1} 行起不同：底稿 ${show(draft[index])}；迁入的 ${show(moved[index])}`,
-    ];
-  }
-  return [];
-}
-
 const options = parseArgs(process.argv.slice(2));
-let ref, target;
+let ref, target, snapshot, proof;
 try {
   ref = readCatalog(options.ref);
   target = readCatalog(options.target);
+  snapshot = readSnapshot();
+  proof = frozenInitProof();
 } catch (error) {
-  usage(`读不到系统目录。${error.message}`);
+  usage(`读不到系统目录或冻结证明未执行成功。${error.message}`);
 }
 
 const body = [];
@@ -101,13 +81,14 @@ section(
     : ["两个库都要在 PostgreSQL 17 上"],
 );
 
-const schema = schemaProblems();
 section(
-  "1. schema 迁入不改模型",
+  "1. 首版冻结等价证明",
   [
-    `两份 schema.prisma 去掉文件头注释与 generator 块后：${schema.length === 0 ? "逐字节相同" : "不同"}`,
+    "冻结草稿独立出 DDL + 00–15，与仅执行 init 的库按七类逐项核对；首版数量不随当前结构变化。",
+    "",
+    ...proof.lines,
   ],
-  schema,
+  proof.problems,
 );
 
 const rows = [
@@ -134,10 +115,13 @@ section(
   differences,
 );
 
-const counts = countReport([
-  ["参照库", ref],
-  ["迁移库", target],
-]);
+const counts = countReport(
+  [
+    ["参照库", ref],
+    ["迁移库", target],
+  ],
+  snapshot.counts,
+);
 const partitions = target.tables.filter((row) => row.part).map((row) => row.key);
 section(
   "3. 数量两组口径",
@@ -149,9 +133,26 @@ section(
   counts.problems,
 );
 
+let schemaProblems;
+try {
+  schemaProblems = currentSchemaProblems(options.target);
+} catch (error) {
+  schemaProblems = [error.message];
+}
+section(
+  "4. 现行快照与 schema",
+  [
+    "当前迁移库六类结构逐条等于现行快照；Prisma 库 → 当前 schema 只读 diff 仅允许 ADR-045 已确认的单条素材索引假动作。",
+  ],
+  [
+    ...diffStructure(snapshot.sections, structureOf(target).sections, ["现行快照", "迁移库"]),
+    ...schemaProblems,
+  ],
+);
+
 const verdict =
   failures.length === 0
-    ? "通过：schema 未改，系统目录 0 差异，数量对得上"
+    ? "通过：首版冻结等价，现行系统目录 0 差异、快照与 schema 一致，数量对得上"
     : `不通过。${failures.join("；")}`;
 const report = ["# 系统目录比对报告", "", `结论：${verdict}`, "", ...body].join("\n");
 const reportPath = resolve(repoRoot, options.report);

@@ -31,6 +31,7 @@ import {
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 
+import { createWechatPayNotificationCrypto } from "../../providers/index.js";
 import { failed, ok } from "../../providers/types.js";
 import type {
   ProviderFailure,
@@ -49,6 +50,8 @@ import type { FakeClock, FakeControl } from "./base.js";
 type Method = ProviderMethodName<WechatPayProvider>;
 
 export interface FakeWechatPayOrder {
+  appid: string;
+  mchid: string;
   outTradeNo: string;
   prepayId: string;
   description: string;
@@ -199,12 +202,15 @@ function fromWire(
     return { kind: "refund", id, refund: refund as WechatPayRefund };
   }
   const transaction = {
+    appid: r.appid,
+    mchid: r.mchid,
     outTradeNo: r.out_trade_no,
     tradeState: r.trade_state,
     transactionId: r.transaction_id,
     amountFen: amount.total,
     payerOpenid: (r.payer as { openid?: string } | undefined)?.openid,
     attach: r.attach,
+    bankType: typeof r.bank_type === "string" && r.bank_type !== "" ? r.bank_type : undefined,
     successAt: typeof r.success_time === "string" ? new Date(r.success_time) : undefined,
   };
   return { kind: "transaction", id, transaction: transaction as WechatPayTransaction };
@@ -225,12 +231,15 @@ function beijingDate(at: Date): string {
 
 function transactionOf(order: FakeWechatPayOrder): WechatPayTransaction {
   return {
+    appid: order.appid,
+    mchid: order.mchid,
     outTradeNo: order.outTradeNo,
     tradeState: order.tradeState,
     transactionId: order.transactionId,
     amountFen: order.amountFen,
     payerOpenid: order.payerOpenid,
     attach: order.attach,
+    bankType: "OTHERS",
     successAt: order.successAt,
   };
 }
@@ -511,6 +520,30 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       return due.length;
     },
 
+    get notificationCrypto() {
+      return wire
+        ? createWechatPayNotificationCrypto(
+            {
+              verifiers: [{ serial: wire.serial, pem: wire.publicKeyPem }],
+              apiV3Keys: { current: { kid: "fake-v1", key: wire.apiV3Key } },
+            },
+            () => clock.now(),
+          )
+        : undefined;
+    },
+
+    signMiniProgramPay: (input) =>
+      run("signMiniProgramPay", input, () =>
+        ok({
+          appId: wire?.appid ?? "wx0000000000000000",
+          timeStamp: String(Math.floor(clock.now().getTime() / 1000)),
+          nonceStr: next("fake-nonce"),
+          package: `prepay_id=${input.prepayId}`,
+          signType: "RSA",
+          paySign: "explicit-fake-signature",
+        }),
+      ),
+
     createJsapiOrder: (input) =>
       run("createJsapiOrder", input, () => {
         if (!Number.isInteger(input.amountFen) || input.amountFen <= 0) {
@@ -531,6 +564,8 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
         }
         const order: FakeWechatPayOrder = {
           ...input,
+          appid: wire?.appid ?? "wx0000000000000000",
+          mchid: wire?.mchid ?? "1900000109",
           prepayId: next("fake-prepay"),
           tradeState: "NOTPAY",
         };

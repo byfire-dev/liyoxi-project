@@ -1,8 +1,13 @@
 # 运行手册
 
+M3 本机接口重放使用 [演示手册](demo/m3.md) 的 `pnpm demo:m3` / `pnpm e2e:m3`。
+仅连接本机测试 PG/Redis，每轮新隔离库/前缀并自然收尾；失败先保留终端报告的运行标识，
+只核验与清理本轮资源，不重置共享开发库或容器。模型、文件与清除安全边界和外部未验项
+见 [M3 回顾](retro/m3.md)。正式十连跑入口保持 90 秒每轮、失败无重试。
+
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 空表（W0-04 交付章节与表头）。从 G2-D 起随告警规则累积，G8 定稿（[开发计划](../08-development-plan.md) 第 13 节、第 6.11 节） |
+| 状态 | 按模块累积中；W2-24逻辑备份与告警派发已本地验收，真实演练未办。G8定稿（[开发计划](../08-development-plan.md) 第13节、第6.11节） |
 | 内容 | 告警处置、对账处理、密钥轮换步骤、恢复步骤、演练记录 |
 | 依据 | 开发计划 第 5.1、6.5、6.11、13 节；[D7](../appendix/design/d7-platform.md) 第 7.5、7.8、9.4 节 |
 | 旧名 | D7 原写作 `docs/09-deployment.md`，已勘误（D7 文末勘误表） |
@@ -33,6 +38,52 @@
 
 E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪些规则即时通知见 D7 第 9.3 节。
 
+W2-27已提供可选节点配置入口，真实接通未验。获准运维在node.env选择`client-errors alerts server-errors`（可分别启闭）；client-errors只向API挂client-error-projects.json/CLIENT_ERROR_PROJECTS_FILE，alerts只向worker挂alerts.json/ALERTS_FILE，server-errors向API/worker挂server-errors.json/SERVER_ERRORS_FILE且各进程仅消费本组件DSN；check-env聚合做格式检查，默认空保持未配。先按既有check-secrets核文件属性，再跑`infra/deploy/node-step.sh check-env <已核镜像标签>`；通过不等于群/SMS/SaaS已受理或送达。配置形状与重建生效/关闭方式见[观测FILE](../../infra/compose/providers/README.md#两组观测-filew2-27b1)。机器人仅原始key，生产host/path固定；DSN仅HTTPS，不能为本机假收件放宽。值班人与接收群仍须E18确认，当前不填虚构接收人。
+
+### 2.1.1 按请求编号查日志与 gateway 统计
+
+以下只读命令由业主在已部署节点执行，或在业主逐步授权后经既有受限 SSH 调用；本地验证不会连接真实节点。
+
+- `infra/deploy/node-step.sh logs api <UUID>`：服务只接受 `postgres redis mediatool api worker gateway`，查最近60分钟顶层 `reqId` 或 `request_id` 精确匹配的原脱敏JSON行。最多扫描5000行、返回200行；无匹配输出为空，不推断请求从未发生。
+- `infra/deploy/node-step.sh log-stats 5`：gateway 的完整最近5分钟窗，范围1–1440整数分钟。输出 UTC 起止、样本数、5xx数与比率、nearest-rank P95秒数、坏行/探活/窗外计数；零样本的比率和P95均为null。
+
+统计排除明确 `/health`、`/healthz`、`/readyz`；不排除它们的业务子路径。有效行须含合法时区时间、100–599整数状态、有限非负 `request_time` 和路径。坏行只计数、不回显。时间窗包含两端。
+
+完整输入总量32MiB、单行16KiB，统计最多100000行；Docker多取一行以识别超限，超限/读取错误明确失败，绝不把截断数据当完整统计。应减小分钟窗重查，不能据失败输出估计P95。helper绑定当前server镜像ID，只读、无网络、非root、无密钥或环境文件挂载，不要求宿主安装Node；当前版本或镜像不可用即失败。
+
+本块未做日志轮转调整、Redis清空/自愈演练、真实预发接通或六容器恢复验收，仍按W2-27后继执行。
+
+### 2.1.2 告警通道配置与结果核查
+
+本节记录W2-24发送分支的配置与处置口径；六个新风险组通过，唯一独审两项P2已修复
+并定向验证。验收范围与保留失败事实见[W2-24状态](status/W2-24.md)。
+备份存储与完整任务已分别合入 `be16b414`、`9806a2b7`，不据此证明告警真实到达。
+
+worker只从可选 `ALERTS_FILE` 读取≤4KiB普通UTF8严格JSON，拒绝符号链接与明文
+ALERTS变量。字段为可选 `robotKey`、`oncallPhones` 数组及可选 `p2Immediate` 规则
+白名单；不在手册、命令行或日志里写实际值。机器人只接受原始key，由Provider固定
+企业微信官方host/path，不接受任意webhook URL。API不消费该配置赋予发送能力。
+`p2Immediate` 缺省采用正式首月资金规则，显式空数组表示P2外部通知全部进入每日汇总；
+配置只允许现有已登记规则，调整前按D7第9.3节复核降噪范围。
+
+P1群机器人与值班短信各自记录结果，铃铛独立写给场景启用时真实active超级管理员；
+已存在的同代铃铛属于已接受，零新增不等于发送失败。P2失败升级、已认领的重复间隔、
+级别升级、自动恢复通知与P3汇总/正式即时例外均按D7第9.3–9.4节处理。每日汇总为空
+仍应有心跳，缺汇总时先查派发事实、worker主租约与通道配置，不直接补写成功标记。
+失败心跳不由六小时静默恢复关闭；机器人确认受理且铃铛受理或停用后才完成当日心跳。
+告警升级、自动恢复、人工关闭或派发代次变化后，旧认领在发送前失效。
+
+先核 `alert_event` 的rule/severity/status、通知总览及通道独立结果；不能把一个通道
+成功推成其他通道成功。短信再按该代次的 `notification_delivery` 核对status/reason、
+provider_msg_id及receipt字段；同步受理不等于真实到达，没有回执不作到达证明。
+号码只在受控配置/发送调用中使用，去重依赖目标HMAC，不复制到告警详情或诊断日志。
+机器人能力单独配置，不能仅凭整个wecom的configured状态判断群机器人是否可用。
+
+未配置、拒绝、取消和结果未知均不能当成功，也不删除或恢复原告警事实。结果未知先
+核对该发送代次及服务商记录，勿改派发代次盲目重发；人工认领/关闭沿现有受限告警CLI，
+不直接改alert_event或notification_delivery。外部发送只在E18接收群、ops_alert模板、
+值班名单与逐步部署授权落实后演练；当前没有配置真key、发短信或接通外部群。
+
 ### 2.2 处置表
 
 规则编号与名称照 D7 第 9.4 节的 26 条。“第一处置”在 D7 里已有一句，这里写到可以照着做的程度。
@@ -44,24 +95,24 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 | 3 | 已付未履约 | 待填 | 待填 | 待填 | 是 | 待填 |
 | 4 | 付款单超期未关 | 待填 | 待填 | 待填 | | 待填 |
 | 5 | 退款卡住 | 待填 | 待填 | 待填 | | 待填 |
-| 6 | 出站表积压 | 待填 | 待填（D7 写 `outbox:retry`） | 待填 | 是（清空预发 Redis 触发） | 待填 |
-| 7 | 定时器滞后 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 8 | 队列积压 | 待填 | 待填 | 待填 | 是 | 待填 |
+| 6 | 出站表积压 | 见规则6，事件/投递、主租约、Redis | `node-step.sh status`；死信重投用流程运维页，无`outbox:retry` CLI | 研发/节点运维；E18待定 | 是（清空预发 Redis 触发） | 已填处置；真实预发未演练 |
+| 7 | 定时器滞后 | 见规则7，timer期限/租约/失败摘要 | `node-step.sh status`；失败timer用流程运维页重新排期 | 研发/节点运维；E18待定 | 是 | 已填处置；真实预发未演练 |
+| 8 | 队列积压 | 见规则8，实际装配队列的观测事实 | `node-step.sh status`；无全局队列恢复CLI | 研发/节点运维；E18待定 | 是 | 已填处置；真实预发未演练 |
 | 9 | 对账差异 | 见第 3 节 | 待填 | 待填 | 是 | 待填 |
 | 10 | 不变量校验失败 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 11 | worker 失联 | 待填 | 待填 | 待填 | 是 | 待填 |
-| 12 | 周期任务漏跑 | 待填 | 待填 | 待填 | 是（清空预发 Redis 触发） | 待填 |
+| 11 | worker 失联 | 见规则11，worker容器与数据库租约心跳 | `node-step.sh status` | 研发/节点运维；E18待定 | 是 | 已填处置；外部拨测未配 |
+| 12 | 周期任务漏跑 | 见规则12，登记周期/期限与对应timer | `node-step.sh status`；仅failed行可经流程运维页恢复 | 研发及该任务owner；E18待定 | 是（清空预发 Redis 触发） | 已填处置；真实预发未演练 |
 | 13 | 接口错误率与延迟 | 待填 | 待填 | 待填 | | 待填 |
 | 14 | 滥用 | 待填 | 待填 | 待填 | | 待填 |
 | 15 | 通知失败 | 待填 | 待填 | 待填 | | 待填 |
 | 16 | 外部额度 | 待填 | 待填 | 待填 | | 待填 |
 | 17 | 数据库 | 待填 | 待填 | 待填 | | 待填 |
-| 18 | Redis 内存 | 待填 | 待填 | 待填 | | 待填 |
-| 19 | 证书到期 | 待填 | 待填 | 待填 | | 待填 |
-| 20 | 备份 | 待填 | 待填 | 待填 | | 待填 |
+| 18 | Redis 内存 | 见规则18，使用率/配置上限与队列保留 | `node-step.sh status`；仓库无内存采样/清键CLI | 节点运维/研发；E18待定 | | 已填处置；云监控未配 |
+| 19 | 证书到期 | 见规则19，显式域名及真实TLS检查摘要 | `node-step.sh status`；续签依已批准证书方案 | 域名/证书运维；E18待定 | | 已填处置；真实DNS/证书未验 |
+| 20 | 备份 | 见第2.4节，实际timer成功摘要/脱敏失败与目标HEAD | failed行经流程运维页恢复；现有告警CLI不补跑 | 研发/存储运维；E18待定 | 真实恢复另验 | 已填七栏处置；真实恢复未演练 |
 | 21 | 工作日历缺失 | 待填 | 待填 | 待填 | | 待填 |
 | 22 | 端上异常 | 待填 | 待填 | 待填 | | 待填 |
-| 23 | 对外不可用 | 待填 | 待填 | 待填 | | 待填 |
+| 23 | 对外不可用 | 见规则23，外部拨测、DNS/TLS与分层探活 | `node-step.sh status`、`node-step.sh log-stats 5` | 节点/网络运维与研发；E18待定 | | 已填处置；外部拨测未配 |
 | 24 | 开关与购买策略变更 | 待填（非故障，知会） | — | 待填 | | 待填 |
 | 25 | 对象清除超限 | 待填；恢复步骤见第 5.1 节 | 待填 | 待填 | | 待填 |
 | 26 | 编码纪律被绕过 | 待填 | 待填 | 待填 | | 待填 |
@@ -81,6 +132,139 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 | 不要做 | 会把事情弄糟的动作 |
 | 升级 | 多久没恢复找谁 |
 | 事后 | 要不要补不变量校验、补对账、记一条演练或事故记录 |
+
+以下九条是W2-27验收8的本地文书交付，不表示真实节点、云监控、SaaS或E18已接通。节点命令仅由获准运维在已部署的本项目执行；`status`不收标签，`check-env`必须收已核镜像标签，`logs`只收六服务名和真实请求UUID，`log-stats`只收1–1440分钟。没有请求UUID的worker循环，不虚构一个UUID去查空日志；使用运维获准的脱敏容器日志与数据库只读事实，不能把整个日志、载荷或密钥复制到工单。
+
+当前正式人工运输恢复入口是后台“流程运维”页`/sys/flow-ops`：单事件+必填subscriber的`admin.outboxEvent.retry`仅将该对dead→retry；`admin.timer.reschedule`仅将指定failed→scheduled，不接受新fireAt。均按真实权限、确认/幂等和审计执行。`pending/retry/leased`投递、`scheduled/dispatched`timer由原扫描/租约恢复；不存在通用`outbox:retry`、补任意历史期次或全局队列resume CLI，不用临时SQL/BullMQ控制台替代未实现入口。受限`alerts-ack.js ack/close`只认领/关闭单告警，`reset-webhook`只复位死回调，不重投出站事件或补跑timer；精确参数及权限见[worker手册](../../apps/worker/README.md)。认领不等于恢复，人工关闭不发送“已恢复”；探针按连续三个不同正常期次恢复，发送结果另按第2.1.2节核查。
+
+#### 规则6 出站表积压
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `outbox.unpublished`最老未发布事件>60秒为P2、>300秒为P1；`outbox.delivery_lag`到点投递>300秒为P2、>900秒为P1；`outbox.dead`存在即P1。Redis排空不等于数据库事件已消费。 |
+| 先看 | `node-step.sh status`的worker/Redis；流程运维页的事件ID、subscriber、status、attempts、nextAttemptAt与脱敏lastError；只读核`outbox_event.published_at`和该对`outbox_delivery`，关联worker循环错误。 |
+| 判断 | 未发布看relay与数据库；已发布但投递滞后看dispatch、队列/Redis和处理器；dead已耗尽，原扫描不会自动恢复。一次队列超时可能已入队，不能据超时判断丢失。 |
+| 处置 | 先恢复真实worker租约、Redis或处理器故障，观察原扫描及退避推进；仅dead对由有`flow.ops.manage`的人员在流程运维页选定事件和subscriber重投，保同一幂等意图，复核该对实际done及业务结果。 |
+| 不要做 | 不重发业务事件、不改payload或业务状态、不直接重置attempts/dispatchNo，不清共享Redis或全部重投；不使用尚未实现的`outbox:retry`命令。 |
+| 升级 | P1/死信立即交研发及节点运维；P2修复后下一轮仍增长或升为P1立即升级。E18接收人未定时明确通知业主落实负责人，不假称机器人/SMS已到达。 |
+| 事后 | 记录事件/订阅者、故障窗口、恢复操作与审计、实际消费结果及必要的对应领域不变量；按第6.2节另记真实演练，本机8.875秒证据不能替代预发验收。 |
+
+#### 规则7 定时器滞后
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `timer.lag`按scheduled且`COALESCE(retry_at,fire_at)`到点的最老滞后判定，>120秒P2、>600秒P1；存在failed或已入队且长期过租约的dispatched行另报P2。 |
+| 先看 | `node-step.sh status`，流程运维页按timer ID/kind/对象筛选；核fireAt、retryAt、status、attempts、leaseUntil、isEnqueued和lastError，不仅看队列长度。 |
+| 判断 | 原因区分扫描循环未跑、worker/Redis故障、处理器失败和运行中的长任务；尚未到retryAt是合法退避，未过租约不等于失联。 |
+| 处置 | 修复依赖后让scheduled到点/过期dispatched由原扫描认领；只有failed行可在流程运维页重新排期，保原fireAt及业务期限，观察正式处理结果。业务已不需要的失败timer须由owner判断后按现有取消入口留原因。 |
+| 不要做 | 不调早业务期限、不把运行中的长任务改scheduled、不改租约或直接写fired；不以关闭告警代替执行，不构造补跑CLI。 |
+| 升级 | P1、关键业务影响或反复failed立即交任务owner/研发；普通P2在恢复依赖后的下一计划扫描仍未推进即升级节点运维。E18名单仍待业主确认。 |
+| 事后 | 保存原到期/重试/完成时刻、原失败摘要、恢复审计及实际业务结果；涉及积分/金额由owner核对应不变量，不因提醒补到就推定账务正确。 |
+
+#### 规则8 队列积压
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `queue.backlog:<队列>`为P2：实际装配outbox_delivery/notify等待数>500、timer_run>200、media_job/promote>100，或最老等待>300秒、全局暂停已知持续>600秒。近10分钟失败数仅详情，无独立告警阈值。 |
+| 先看 | `node-step.sh status`及告警lastValue的waiting/active/failed10Min、oldestWaitingComplete、paused、pausedForSec、pauseTimeSource；核真实消费者及外部服务错误。当前未装配docs/export/maintenance不冒报健康零。 |
+| 判断 | 区分等待过多、耗时处理、依赖失败和全局暂停；worker发布关停用的是本地pause，不等于Redis全局暂停。时间窗口缺失只能用保守首次观测下界，观测失败/不完整不能记健康。 |
+| 处置 | 外部依赖故障先恢复或按任务原退避等待；修复实际worker/消费者后观察等待下降、最老等待推进与数据库任务完成。异常全局暂停交研发核来源并制定受审恢复操作，仓库当前没有可执行的全局resume CLI。 |
+| 不要做 | 不清队列、删Redis键、重建数据库终态或盲目加并发，不将failed10Min自行改成新阈值；不直接对BullMQ执行任意重试/恢复来绕过正式运输状态。 |
+| 升级 | 最老继续增长、影响核心链或伴随P1时立即交对应任务owner；其余P2在依赖恢复后仍无进展交研发/节点运维。E18与真实外部通知未验。 |
+| 事后 | 按同队列保存前后观测及暂停来源、依赖故障窗口和实际完成数；确认未重复业务副作用，告警恢复与外部受理分别记证据。 |
+
+#### 规则11 worker失联
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `/health`中worker为down，数据库`worker_lease.heartbeat_at`距数据库当前时间>60秒；D7要求外部拨测发P1。worker自己停机后不能靠自身probe继续报活。 |
+| 先看 | `node-step.sh status`的本节点六容器/版本及worker项；获准只读核holder、holderVersion、acquiredAt、heartbeatAt和容器PID/RestartCount，关联数据库连接与worker退出日志。 |
+| 判断 | 区分容器退出/OOM、数据库或专用续租连接故障、部署切换与备用实例接管；失联告警不凭操作员本机时钟推断，也不把容器running等同持有租约。单机预发没有第二台worker可自动承诺接管。 |
+| 处置 | 先修数据库/资源/配置根因；确需恢复进程时按已批准发布或回滚流程处理，不执行不存在的worker-start节点步骤。随后核正式续租与心跳推进，再核出站/定时器实际处理。 |
+| 不要做 | 不手改/删除worker_lease、不伪造heartbeat、不同时强启两个主实例；Redis恢复演练要求原worker不重启，不能通过重启掩盖该验收失败。 |
+| 升级 | P1立即交节点运维和研发；数据库同时down交数据库负责人。外部拨测/E18未配时先由业主落实人工值守，不声称已具备无人值守电话告警。 |
+| 事后 | 记录失联与恢复时刻、原/新holder及容器身份、是否发布/接管、实际积压恢复与事故原因；将真实预发演练另记第6.2节。 |
+
+#### 规则12 周期任务漏跑
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `recurring.missed:<kind>`按本环境真实登记的missSeverity报警；检查最近已超过完成期限的计划期次未fired，或同kind存在failed行。完成期限可长于调度间隔，不能只看最新一行。 |
+| 先看 | 正式timers登记的schedule/deadlineMin/catchUp/missSeverity及对应dedupeKey、scheduledFor；流程运维页/获准只读timer的status、attempts、lastError、result，另核worker和数据库。 |
+| 判断 | 区分未登记期次、仍在合法期限内、处理器失败和历史failed未处置；新一期fired不自动证明旧失败已解决。原补登记对catchUp任务只补最近一格，不补所有历史期次。 |
+| 处置 | 恢复worker/依赖后观察原周期登记和扫描；已存在failed行可在流程运维页按单ID重新排期并核业务键幂等。缺失历史行或已完成行无通用补跑入口，交任务owner评估正式业务补偿，不直接造timer。 |
+| 不要做 | 不删除旧失败、批量重置状态、修改计划期次/业务日期或把重复调用当补账；告警CLI不补跑。备份另按规则20，资金扫描另由财务owner核账。 |
+| 升级 | 按登记P1立即交任务owner及研发，涉及资金同时通知财务；P2/P3在后续合法期次仍漏跑或失败持续时升级。E18未定不虚构响应名单。 |
+| 事后 | 记录应跑/实际完成期次、deadline、恢复审计与合法result；保留历史failed处置结论，并由任务owner核对应业务结果或不变量。 |
+
+#### 规则18 Redis内存
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | D7阈值为使用率>75% P2、>90% P1；node.yml当前Redis为64mb/noeviction，写满会失败。当前生产probe只做真实ping/队列观测，没有Redis内存采样规则，不能从ping成功推定容量健康。 |
+| 先看 | 获准的云/节点监控中的used_memory与有效maxmemory、OOM/写失败和队列保留；`node-step.sh status`只验证运行/探活，不提供使用率。当前云监控未配置，不能填已收件。 |
+| 判断 | 区分持续积压、完成/失败任务未按保留策略清理、异常大键与上限配置不合负载；node.yml上限不是宿主机总内存，不能用宿主空闲量替代Redis使用率。 |
+| 处置 | 先定位所属队列及异常增长，核现有完成/失败保留1小时是否实际生效；只在审批后调整容量/保留配置并按发布流程生效。需要大键诊断时由运维在受限只读工具中限量执行，仓库无清键CLI。 |
+| 不要做 | 不输出Redis认证、不用KEYS全扫或批量删键、不改为淘汰业务键的策略，不把受限redis-flush演练命令当生产容量处置。 |
+| 升级 | >90%、写入失败或连带主链故障立即交节点运维/研发；P2持续增长且配置修复未落实时升级容量负责人。E18和真实云阈值仍待落实。 |
+| 事后 | 记录指标来源、有效上限、增长类别和获准配置变更；核队列/数据库积压与业务副作用，后续在云监控回填实际阈值及通知收据。 |
+
+#### 规则19 证书到期
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `ops.cert_check`每日北京时间09:00检查显式CERT_DOMAINS：剩余<21天P2、<7天P1，不可信/未生效P1、不可达P2；未配为cert.unconfigured，不是健康。 |
+| 先看 | 对应timer的真实result及domain/status/remainingDays，确认实际服务证书的SAN、信任链和有效期；先分清DNS未解析、网络失败与即将到期，不打印私钥。 |
+| 判断 | 区分续签失败、已签未安装/未reload、域名不匹配、链不全及DNS/网络不可达；CERT_DOMAINS只接受显式域名，不自动猜测尚未接通的读域名。 |
+| 处置 | 获准证书维护窗口按既有证书方案续签、安装并校验nginx配置后reload，再从实际访问路径核新证书；保公司官网既有站点。仓库没有证书续签或任意证书检查CLI，不直接改timer/告警结果。 |
+| 不要做 | 不提交私钥、关闭TLS/主机名验证、使用覆盖不到子域的通配符，不为清告警移除实际在用域名；不以已签文件替代线上证书核验。 |
+| 升级 | P1/已影响访问立即交证书/域名运维和研发；P2续签流程未能在剩余有效期内落实即升级业主。DNS及真实证书/E18当前未验。 |
+| 事后 | 记录签发/安装/实测有效期及域名，不留证书秘密；正式每日期次连续三次正常才自动恢复，原通知受理/到达另核，不伪造三次采样。 |
+
+#### 规则23 对外不可用
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | D7要求外部每分钟拨测`/health`，除HTTP成功还须断言`worker === "ok"`且`probeAgeSec`为非负有限数值并<180；null、缺失、未知或类型不符均失败。连续两次失败发P1，云监控直接电话/SMS；当前外部拨测与接收人未配，不能把本机status成功当公网可用证明。 |
+| 先看 | 外部失败时刻/HTTP或DNS/TLS错误；在获准节点执行`node-step.sh status`核六容器、经gateway的healthz/readyz及worker项，`node-step.sh log-stats 5`核真实5xx样本；有请求UUID才用logs查。 |
+| 判断 | 区分DNS/TLS/网络入口故障、gateway/API故障、数据库/Redis不可用和worker失联。status只读的节点探活及worker正常不证明外部链路或`/health`整体正常，统计零样本也不是零错误证明。 |
+| 处置 | 按失败层交网络/证书/节点/研发负责人修复；确属发布回归才走已授权回滚步骤，不迁库或清数据。恢复后从外部实际域名复核HTTP、TLS及health内容，并观察正常拨测。 |
+| 不要做 | 不关闭鉴权/限流/TLS来让拨测转绿，不把未知/degraded强改健康，不覆盖同机公司官网，不盲目重启库或清Redis。 |
+| 升级 | 连续两次失败立即按P1交节点/网络运维及研发，数据库故障同时升级数据库负责人；外部拨测/E18尚缺时由业主指定人工联络，不能声称自动电话已可用。 |
+| 事后 | 记录公网与节点两侧证据、故障窗口、原因和恢复/回滚收据，按第6.2节登记真实演练；云监控/外部拨测核对项只在真实验证后改为已验。 |
+
+### 2.4 规则20：逻辑备份失败或过期
+
+| 栏 | 处置 |
+| --- | --- |
+| 现象 | `backup.stale`无成功记录或最近成功完成距今>26小时为P1；backup.failed为失败事实，未配不能fired成功，摘要损坏/未来时刻走未知探针失败。 |
+| 先看 | timer的kind/status/attempts/lastError、最近真实firedAt与合法四字段result，核BACKUP_FILE挂载及目标对象HEAD；使用下文只读角色、工具与存储检查，不输出配置内容。 |
+| 判断 | 区分未配/权限/工具版本/进程管道失败、超时或取消、密文大小异常及月首COPY失败；目标可能已有版本，未知结果不能据固定key猜成功。 |
+| 处置 | 修复已证实根因，让原合法重试继续；只有failed行才经流程运维页单ID重新排期。无历史成功/缺失期次交owner处理原catchUp与正式补偿，无通用备份补跑CLI；运行后必须取得合法摘要与真实HEAD。 |
+| 不要做 | 不把明文dump落盘、不将密码进argv，不把告警ack/close当补跑，不直接改timer成功、删对象版本或清共享库/Redis；未核身份/权限不重复上传。 |
+| 升级 | 无可验证备份或>26小时立即交研发/存储运维及业主，涉及数据丢失按恢复流程处理；E18与真实桶/发送授权仍待落实。 |
+| 事后 | 保存脱敏key/bytes/seconds/pgDumpVersion、HEAD/版本及恢复操作审计；真实可恢复性仍须第5.3节/第6.1节独立演练，不以上传成功关闭恢复验收。 |
+
+`backup.pgdump` 每日北京时间03:10，经原job模式以30分钟租约续租，最多3次尝试，
+完成期限3小时。每次失败记录静态 `backup.failed` 事实；缺配同样失败，不能记成成功。
+`backup.stale` 根据真实fired期次的合法四字段摘要及完成时间判定；超过26小时为P1，
+没有成功记录为P1，损坏或未来完成时间作为未知经既有探针失败机制处理。
+
+先查 `timer` 的kind/status/attempts/last_error及最近 `result`：合法摘要仅含
+`key/bytes/seconds/pgDumpVersion`。核对worker是否已挂独立 `BACKUP_FILE`，不要输出
+文件内容、连接串或密钥。JSON必须完整提供只读databaseUrl、age公钥recipient和
+显式target；maxBytes可缩小，最大2GiB。生产使用独立异地桶及独立备份key，预发按
+ADR-041使用secure专用非空前缀。API不消费该配置赋予备份存储能力。
+
+依次检查只读登录账号是否为 `lyx_readonly` 的成员、容器PG17+/age工具、目标的分块
+上传/HEAD/条件COPY/取消分块权限、存储上限和网络。密码仅进专属子进程环境，不进
+argv；stderr不持久化。输入pg_dump不落盘，经age公钥流加密后上传。完成后HEAD必须
+达到最近成功备份的一半；月首COPY失败也不能成功。取消会等待所属子进程及流收尾。
+结果未知可能已存在对象版本，先人工核验该key与版本；不要直接改timer为成功或删除
+对象、清除共享数据库/Redis。重试由现有认领/租约机制控制，告警确认沿现有CLI。
+
+真实凭据挂载、桶版本保留、权限和发送到达仍待逐步部署授权。当前只完成本地隔离
+验证；本机host的PG14不能作为PG17备份客户端，使用已有server镜像中的固定工具。
 
 ## 3. 对账处理
 
@@ -133,11 +317,25 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 | --- | --- | --- | --- | --- | --- |
 | 5.1 | 对象被误删：从桶的历史版本恢复（`asset`、`media` 30 天内，`secure` 90 天内） | 待填 | 待填 | 待填 | 待填 |
 | 5.2 | 数据库按时间点恢复：克隆新实例、核对、切换 | 待填 | 待填（实测值记 platform-config.md 第 2.5 节） | 全量不变量校验（D7 第 9.6 节） | 待填 |
-| 5.3 | 从异地逻辑备份恢复：取离线私钥、解密、导入空实例 | 待填 | 待填 | `prisma migrate status` 与不变量校验 | 待填 |
+| 5.3 | 从异地逻辑备份恢复：取离线私钥、解密、导入空实例 | 见第5.3.1节 | 待真实演练量取 | `prisma migrate status` 与全量不变量校验 | 已填步骤；未演练 |
 | 5.4 | 按时间点恢复后的单号流水处理 | 待填（D2 第 9.5 节的手册） | 待填 | 待填 | 待填 |
-| 5.5 | Redis 清空后的自愈 | 预发：认准容器名 `lyx-redis`（同机留着参考工程已停的 Redis 容器，不要碰）。清空用容器里的 `redis-cli`，口令在只挂给它的 `/run/secrets/redis-auth.conf`；清空后不用重启，队列、限流、缓存由 worker 与 api 按 PostgreSQL 重建（D7 第 7.3 节）。连数据卷一起重来：`systemctl stop lyx-redis` → `docker rm lyx-redis` → `docker volume rm lyx-node-redisdata` → `systemctl start lyx-redis` | 待填（演练时量） | `node-step.sh status` 通过；自愈的判据见外部验证 `d6-09-redis-flush-self-heal.md` | 已填（预发的操作；自愈本身未演练） |
+| 5.5 | Redis 清空后的自愈 | 仅在获准演练窗口，将本节点非敏感配置中的 `LYX_REDIS_FLUSH_ENABLED=true`、`STG_FREEZE=false` 明确写好，执行 `node-step.sh redis-flush <本节点Compose项目>`；默认项目是 `liyoxi-node`，须与实际配置相符。脚本核项目、node.yml配置标签与容器ID后仅清DB0，不按同名 `lyx-redis` 盲清，不删卷、不重启worker。结束立即恢复开关false。共享开发Redis禁止使用此入口 | 本机自有六容器8.875秒；真实预发待量 | 同PID和同主租约心跳前进，指定已提交事件的非空实际投递全部完成，指定到点timer真实fired；详见外部验证 `d6-09-redis-flush-self-heal.md` | 本机已演练（2026-10-15）；真实预发未演练 |
 | 5.6 | 发布回滚 | 经任务书第 8 节授权后：`node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --rollback --summary rollback.json`；目标缺省上一成功版，可指定 `--tag`。先 api/gateway 后 worker，不迁移、不补种、不重新预置资源；目标镜像须已在本地。跨过任一“回滚不安全”记录即拒绝，只有 `--force --reason <说明>` 越过并记录。也可在 main 手动触发默认关闭的 .github/workflows/rollback-stg.yml，须 STG_DEPLOY_ENABLED=true 且 execute=true；与发布共用deploy-stg串行锁，保存回滚/持续探测摘要，仍须任务书第8节逐步授权 | 待实跑量 | JSON 摘要 exitCode=0、节点 releases.log 有成功记录、smoke 的真实版本与目标一致；b1用成对 --probe-config / --probe-summary 保存持续探测，全资源与DB核对失败非0 | 已填执行方法；预发未演练 |
 | 5.7 | 节点与桶重建 | 独占机器的节点重建：照 `infra/bootstrap/README.md` 从第 1 步重走，脚本都可以重复执行；当前预发节点还挂着公司官网，按 ADR-041 不重建节点；数据卷 `lyx-node-pgdata` 还在则库不丢，密钥目录还在则不用重新生成。桶：待填（W2-25 的第二步交桶配置脚本）。D7 第 10.6 节第 18 项 | 待填 | 重建后的预发通过冒烟；桶配置无差异 | 待填 |
+
+### 5.3.1 逻辑备份离线恢复
+
+1. 经授权从备份目标下载明确key/版本的加密对象，核对成功摘要的大小；保留原对象。
+2. 在离线操作端取解密私钥，服务器和worker不接收该私钥。新建独立空实例，显式
+   指向恢复目标，口令用临时PGPASSFILE，不写在命令参数或日志中。
+3. 以 `age --decrypt --identity <离线身份文件> <加密备份文件>` 的stdout直接接
+   `pg_restore --no-owner --host=<新实例> --username=<恢复账号> --dbname=<空库名>`。
+   保持管道错误非零即停，不把未加密dump写入磁盘；工具版本须兼容摘要中的PG版本。
+4. 核对迁移状态、全量不变量、业务行数/余额及单号流水恢复规则；未核对不切换应用。
+5. 经授权切换连接后复查，将耗时/结果写第6.1节，离线私钥归还保管处。
+
+预发只做ADR-041规定的逻辑恢复与对象历史恢复。当前本地只验证现造测试身份在内存
+管道解密得到PGDMP，不代表预发全量恢复、不变量、切流或生产恢复时效已经验收。
 
 ## 6. 演练记录
 
@@ -156,6 +354,10 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 ### 6.2 告警演练
 
 上线前把规则 1、3、6、7、8、9、10、11、12 人为触发一遍；第 6、12 条用“清空预发 Redis”触发（D7 第 9.4 节）。
+
+本机协议检查另用 `LYX_STACK_TAG=<已核源码的本地标签> pnpm stg:rehearse -- --errors --alerts --without-image-smoke`，不混入上表真实预发演练。默认未配先验合法信封202/未配日志及告警落库但外部受理计数为0，再仅本轮私网启用假HTTPS收件端；公开假CA只在自有API/worker受信，不关闭TLS或主机名校验。两条实际HTTP转发须核收件event_id、固定上游/鉴权、字节length与去敏；告警用受控采样、正式租约与生产writer/dispatcher完成告警/三次健康恢复并核超管铃铛。worker只停本轮随机项目，finally恢复默认或清理自有容器/网络/卷。旧无源码标签的local镜像不能视为当前代码验证；此命令不自动构建或拉取。
+
+该本机片只证明传输协议及生产公口闭环，不证明真实E18群/短信/SaaS到达、真实探针容量或五端SDK/堆栈符号化。源码映射私有产物已有独立交付；上传、debug ID/端上结构对齐与符号化继续后继，不能据合法手造信封关闭外验。
 
 | 演练日 | 规则 # | 怎么触发 | 是否收到 | 从触发到收到的耗时 | 处置说明是否够用 | 遇到的问题 | 后续动作 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -181,9 +383,9 @@ E18 没到位时告警只落库（开发计划 第 4.1 节）。上线首月哪�
 
 G8 做（开发计划 第 6.11、7.5 节）。M8 的演示含一次回滚演练。
 
-预发的 W2-26a 已交编排入口与假命令目标验收：发布用 `node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --tag sha-<12位提交号> --summary release.json`，回滚照第 5.6 行。固定顺序为预检、拉镜像、自检、只增资产预置、新旧完整资产预核、迁移、补种、worker/mediatool、停起 api/gateway、状态、库核对、版本冒烟、新旧全资源HTTP摘要核对、限定清理；JSON 区分线上是否已触碰与运行进程是否已换，节点 records 只追加。缺省 P1 检查为 unavailable（告警包未接），混跑结果为 unavailable（W2-28 未交）；将来明确启用节点 LYX_P1_CHECK 后，查询或结果异常会拒绝。STG_FREEZE=true 停在预检。同版本可重跑；清理保护当前版与最近三版内的成功版本，未知镜像保留，静态资源至少保留 60 天且保护回滚清单。
+预发的 W2-26a 已交编排入口与假命令目标验收：发布用 `node infra/deploy/orchestrate.mjs --node <发布用户>@<节点> --tag sha-<12位提交号> --compat-result passed --summary release.json`，回滚照第 5.6 行。固定顺序为预检、拉镜像、自检、只增资产预置、新旧完整资产预核、迁移、补种、worker/mediatool、停起 api/gateway、状态、库核对、版本冒烟、新旧全资源HTTP摘要核对、限定清理；JSON 区分线上是否已触碰与运行进程是否已换，节点 records 只追加。缺省 P1 检查为 unavailable（告警包未接），普通发布的混跑结果必须 passed，缺失/unavailable/failed 均在节点读取与拉取前拒绝；手动发布须先核同完整 SHA 的真实 mixed-smoke 成功，再显式传入该结论（不能把参数当验证）；将来明确启用节点 LYX_P1_CHECK 后，查询或结果异常会拒绝。STG_FREEZE=true 停在预检。同版本可重跑；清理保护当前版与最近三版内的成功版本，未知镜像保留，静态资源至少保留 60 天且保护回滚清单。
 
-本包 b1 的本机方法为 pnpm stg:rehearse -- --release：另造两个真实构建号的 server/gateway，在随机project/网段/回环端口与假密钥目录内，初始版幂等发布登记、发布新版、缺省回滚，检查 /health 新→旧以及新旧全部资源。每次编排给 --probe-config <目标JSON> / --probe-summary <报告JSON>，每秒探测 API 两条真健康、匿名商城配置和两个前端入口；编排传真实启动者 PID，使 READY 前失父也退出并保存最终 JSON。全资源按实际镜像清单逐个比sha256。库核对复用原 grants、constraints、partitions；缺一个部分索引必须变红，恢复后再次通过。迁移前持久化 db-release.env 的目标，回滚不改该记录；核库工具与快照使用该迁移版本，应用版本仍是回滚目标，CI 的 dbVerification 分别列出。prune 保留三版运行镜像之外，也保护这份数据库 server 工具镜像。证据保存在单独自有临时目录，清场只删本次project/卷/容器/镜像标签。b2a 已从 W2-25b 实际主干交付私有固定上传器消费者。b2b 独立 gate-change 已接 .github/workflows/deploy-stg.yml：它只取同仓 main 成功 images push run 的同 source，编排完成（含 verify-db）后才串行调用 weapp-upload。CI 的 STG_WEAPP_UPLOAD_ENABLED 与节点 LYX_WEAPP_UPLOAD_ENABLED 均默认关闭；未配桶时跳过并保留摘要。节点只接受完整 source 与 images.json 的 SHA256，私有 COS reader 验同源摘要及归档，上传器再核当前成功部署、公开构建配置与真实镜像摘要；机器人固定 1，不打标签。手动 .github/workflows/rollback-stg.yml 同样只在 main 且显式开关/execute 确认时执行，与部署共用 deploy-stg 串行锁，STG_FREEZE 和原安全拒绝仍生效。探测目标由 STG_PROBE_CONFIG 提供已登记的 JSON，持续探测与发布/回滚摘要均保存。固定工具、公开配置与凭据文件的未来配置见 infra/bootstrap/cos-adapter/README.md；本机桩 SDK/HTTP 结果不填成预发实跑记录。预发执行仍须按任务书第 8 节由业主执行或在场逐步授权；本地目标测试不等于预发实跑。
+本包 b1 的本机方法为 pnpm stg:rehearse -- --release：编排显式注入passed仅是本轮隔离fake预检，不作为真实混跑成功证据；另造两个真实构建号的 server/gateway，在随机project/网段/回环端口与假密钥目录内，初始版幂等发布登记、发布新版、缺省回滚，检查 /health 新→旧以及新旧全部资源。每次编排给 --probe-config <目标JSON> / --probe-summary <报告JSON>，每秒探测 API 两条真健康、匿名商城配置和两个前端入口；编排传真实启动者 PID，使 READY 前失父也退出并保存最终 JSON。全资源按实际镜像清单逐个比sha256。库核对复用原 grants、constraints、partitions；缺一个部分索引必须变红，恢复后再次通过。迁移前持久化 db-release.env 的目标，回滚不改该记录；核库工具与快照使用该迁移版本，应用版本仍是回滚目标，CI 的 dbVerification 分别列出。prune 保留三版运行镜像之外，也保护这份数据库 server 工具镜像。证据保存在单独自有临时目录，清场只删本次project/卷/容器/镜像标签。b2a 已从 W2-25b 实际主干交付私有固定上传器消费者。b2b 独立 gate-change 已接 .github/workflows/deploy-stg.yml：它只取同仓 main 成功 images push run 的同 source，编排完成（含 verify-db）后才串行调用 weapp-upload。CI 的 STG_WEAPP_UPLOAD_ENABLED 与节点 LYX_WEAPP_UPLOAD_ENABLED 均默认关闭；未配桶时跳过并保留摘要。节点只接受完整 source 与 images.json 的 SHA256，私有 COS reader 验同源摘要及归档，上传器再核当前成功部署、公开构建配置与真实镜像摘要；机器人固定 1，不打标签。手动 .github/workflows/rollback-stg.yml 同样只在 main 且显式开关/execute 确认时执行，与部署共用 deploy-stg 串行锁，STG_FREEZE 和原安全拒绝仍生效。探测目标由 STG_PROBE_CONFIG 提供已登记的 JSON，持续探测与发布/回滚摘要均保存。固定工具、公开配置与凭据文件的未来配置见 infra/bootstrap/cos-adapter/README.md；本机桩 SDK/HTTP 结果不填成预发实跑记录。预发执行仍须按任务书第 8 节由业主执行或在场逐步授权；本地目标测试不等于预发实跑。
 
 | 演练日 | 执行人 | 环境 | 发布的版本 | 回滚到的版本 | 失败请求数 | 耗时 | 遇到的问题 | 后续动作 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -196,3 +398,69 @@ G8 做（D7 第 10.6 节第 18 项；开发计划 第 8.6 节）。
 | 演练日 | 执行人 | 重建对象 | 冒烟结果 | 桶配置差异 | 耗时 | 遇到的问题 | 后续动作 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | — | 待填 | | | | | | |
+
+### 6.6 模型预算账本只读诊断
+
+`pnpm --filter @liyoxi/services model-budget:inspect --check` 只核命令模式，
+不读环境、不连接Redis。明确诊断使用同命令加 `--inspect`，经现有loadEnv读取
+APP_ENV和REDIS_URL；仍须满足DATABASE_URL等原环境校验，但不会连接PG。
+工具固定读取 `lyx:${APP_ENV}:model_budget:v1`，拒绝任意URL/key/prefix/day或写入参数。
+stg/prod仍只认原*_FILE配置；真实执行须运维明确授权、准确环境及只读ACL。
+命令flag不是执行授权，本片开发没有进行真实环境诊断。
+
+输出是当次只读事实：missing/wrong_type、元字段或样本异常、两个独立时钟水位、
+closedBefore期限拒绝水位和当前global字段；closedBefore不是总开关。
+最多检查128个索引槽，洞同样消耗扫描预算；hasMore为真时尾部未读，
+即使完整覆盖索引范围，也不证明其他字段、PG来源、模型调用、费用或业务权限。
+token只表示原期限扣留历史；不打印job/file/store标识、正文/hash/URL或异常原值。
+
+退出0表示诊断返回（其中可能包含异常事实），1表示诊断不可用，2表示模式不合法。
+连接与返回等待均有界，无离线排队、重发或自动重连，退出始终清理自有连接。
+missing/格式非法/时钟回退应保留证据并人工排查；没有init、restore、refund、
+HDEL、UNLINK、reset、自动开通或维护模式，不以新namespace绕过损坏状态。
+当前SOURCE尚未完成独占类型/完整测试验证，不证明容量、恢复演练或E22完成。
+
+
+### W3-15 显式保守预算建账
+
+`pnpm --filter @liyoxi/services model-budget:initialize --check` 只检查模式，零环境读取与IO。
+明确建账使用 `--initialize`：读取正式loadEnv，固定 `lyx:${APP_ENV}:model_budget:v1`，
+先执行原只读事实预检，写时原子再检查 missing。已有/错型拒改，不接受URL/key/prefix、
+时间、额度、任意脚本或删除参数；只读 `model-budget:inspect` 命令保持原义。
+真实环境执行须运维明确授权、核准环境和必要Redis写ACL；本片没有执行真实环境命令。
+
+新建当天按10000槽保守占满，closed 为下一个北京零点加原三模型最大任务期限及5秒；
+下一个北京日才可能按原正式配置使用，deadline未越水位的任务继续拒绝。
+默认200/0及已有128槽维护、双钟/跨日规则保持，不自动初始化或启用付费。
+退出0仅表示建账事实返回；1为拒绝或不可用，2为参数模式非法。超时/失败可能已写，
+先只读诊断，重跑也不覆写已有 key。本口不提供损坏账本、旧快照或真实历史费用恢复。
+本地测试仅受控替身与隔离Redis，不证明真实运维恢复演练、平台/账单或E22验收。
+
+### W2-24 证书每日检查
+
+`CERT_DOMAINS` 默认为空，按逗号分隔显式DNS域名；最多16个，每个200字符，
+启动时规范化去重并拒绝URL、IP、通配符、端口或空项。只连接这些域名的443端口，
+每个最多2秒；每日北京时间09:00由原job调度执行，停机补最近一期。
+空配置摘要为unconfigured并写 `cert.unconfigured`，不猜测域名或当作健康。
+TLS链信任、主机名和生效时间均核实；剩余<21天P2、<7天P1，不可信P1、不可达P2。
+
+证书告警是probe事实：严重程度只升不降，续签后连续三个不同计划期次的正常检查
+才resolved（每日任务通常对应三天），同一期重放和旧期次不会凑正常次数。
+关闭/租约取消停止探测和后续写入，已有认领/通知历史保留；此片只记录恢复事实，
+发送通道与未配置事件的静默恢复仍待后续probe。当前SOURCE仅轻静态验证，真实
+部署域名/证书、DNS连通和通知到达尚未外验，不能以本机替身结果宣称生产可用。
+
+### W2-24 P95 隔离工具
+
+已有本地测试 PostgreSQL/Redis 连接参数时，从仓库根运行
+`APP_ENV=test node infra/ci/p95.mjs --profile local --concurrency 1 --scale 0.04 --seed 42 --samples 20`。
+它自行创建/清理本轮测试库与 Redis 前缀，先跑全部实际 full 不变量，完整测 12 路真实
+HTTP，再检查写后不变量。默认报告 `apps/api/dist/p95/report.json`，可用 `--out` 指定
+脱敏报告路径；不接受目标 URL 或阈值参数。准备报价也顺序执行。
+
+local 退出 0 只表示完整功能样本与不变量通过，`passed=null`、
+`capacityVerdict=not_validated`；观测 P95 及 `observedWithin500ms` 不取得容量结论。
+原正式命令 `APP_ENV=test node infra/ci/p95.mjs --profile formal --concurrency 20 --scale 10 --seed 42 --samples 100`
+保留 500ms 判据，安排预发或专用环境，不在开发机反复 FULL。历史 RED 与 D7-16 未验
+保持；独立 nightly 已随 `8e6689e0` 恢复，远端运行结果仍须实际核验。阶段、缺样本失败与持久化违规口径见
+[`p95-report.README.md`](../../packages/services/src/testing/p95-report.README.md)。

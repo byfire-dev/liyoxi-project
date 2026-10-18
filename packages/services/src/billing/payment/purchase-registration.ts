@@ -3,6 +3,7 @@ import type { Clock, FiredTimer, InvariantRegistration, Tx } from "../../kernel/
 import { rowKey, chainKey } from "../../flow/index.js";
 import type { Flow, MachineBinding } from "../../flow/index.js";
 import type { Timers } from "../../timers/index.js";
+import { financeConfigAt } from "../finance-config/index.js";
 import { paymentMachineBindings } from "./machines.js";
 
 interface TimerBinding {
@@ -87,11 +88,43 @@ const extras: MachineBinding = {
         o.placedByUserId === f.ctx.actor.id &&
         o.entityId === f.ctx.entityId &&
         ["verified", "pending"].includes(o.entity.verificationStatus) &&
-        o.type === "plan_new" &&
-        o.channel === "bank_transfer" &&
-        o.transferState === "awaiting_proof" &&
-        o.bankAccountFinanceConfigRevisionId !== null &&
-        (await tx.agreementConsent.count({ where: { bizType: "billing_order", bizId: o.id } })) >= 2
+        ["plan_new", "topup"].includes(o.type) &&
+        ((o.channel === "bank_transfer" &&
+          o.transferState === "awaiting_proof" &&
+          o.bankAccountFinanceConfigRevisionId !== null) ||
+          (o.channel === "wechat_jsapi" &&
+            o.transferState === null &&
+            o.bankAccountFinanceConfigRevisionId === null)) &&
+        (await tx.agreementConsent.count({
+          where: {
+            bizType: "billing_order",
+            bizId: o.id,
+            ...(o.type === "topup" ? { scene: "topup", agreementKey: "points" } : {}),
+          },
+        })) >= (o.type === "topup" ? 1 : 2)
+      );
+    },
+    [rowKey("08:163", "billing_order.create")]: async (tx, f) => {
+      const o = await tx.billingOrder.findUnique({
+        where: { id: f.subjectId },
+        include: { entity: { select: { verificationStatus: true } } },
+      });
+      if (
+        !o ||
+        f.ctx.actor.type !== "staff" ||
+        o.source !== "admin" ||
+        o.createdByStaffId !== f.ctx.actor.id ||
+        !o.contractNo ||
+        o.placedByUserId !== null ||
+        o.channel !== "bank_transfer" ||
+        o.transferState !== "awaiting_proof" ||
+        !["verified", "pending"].includes(o.entity.verificationStatus)
+      )
+        return false;
+      const finance = await financeConfigAt(tx, o.createdAt);
+      return (
+        finance.controls.adminCreateOrder &&
+        finance.bank?.id === o.bankAccountFinanceConfigRevisionId
       );
     },
     [rowKey("08:167", "billing_order.submit_proof")]: async (tx, f) => {
@@ -104,13 +137,26 @@ const extras: MachineBinding = {
         p = id ? await tx.transferProof.findUnique({ where: { id } }) : null;
       return p !== null && p.billingOrderId === f.subjectId && p.reviewStatus === "rejected";
     },
+    [rowKey("08:166", "billing_order.cancel")]: async (tx, f) => {
+      const o = await tx.billingOrder.findUnique({ where: { id: f.subjectId } });
+      return (
+        o !== null &&
+        o.channel === "wechat_jsapi" &&
+        ["user", "timeout"].includes(f.reasonCode ?? "") &&
+        (await tx.paymentTxn.count({
+          where: { billingOrderId: o.id, status: { not: "closed" } },
+        })) === 0
+      );
+    },
     [rowKey("08:175", "billing_order.cancel")]: async (tx, f) => {
       const o = await tx.billingOrder.findUnique({ where: { id: f.subjectId } });
       return (
         o !== null &&
         o.channel === "bank_transfer" &&
-        o.expiresAt <= f.now &&
-        f.reasonCode === "transfer_ttl" &&
+        ((o.expiresAt <= f.now && f.reasonCode === "transfer_ttl") ||
+          (f.reasonCode === "user" &&
+            f.ctx.actor.type === "merchant" &&
+            f.ctx.actor.role === "owner")) &&
         (await tx.transferProof.count({
           where: { billingOrderId: o.id, reviewStatus: "pending" },
         })) === 0

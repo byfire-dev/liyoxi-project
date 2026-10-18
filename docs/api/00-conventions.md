@@ -515,6 +515,8 @@ A44 补登的词（同样是“同一语义只用一个词”）：
 **C47 幂等声明（三值）。** 每条路由声明 `x-idempotent`（路线图字段名 `xIdempotent`，取代布尔的 `idempotent`），**一条路由只有一种幂等方式，不按请求体切换**（A17）：
 - **`required`（缺省）**：必须带 `Idempotency-Key`，不带返回 400 `IDEMPOTENCY_KEY_REQUIRED`（`d7-platform.md:408`）；同键重放返回上次成功的结果。**状态迁移一律 `required`**——重放返回上次成功结果，不能依赖状态守卫报 409 代替；带 `lockVersion` 的 `PATCH` / `PUT` 也是 `required`。路线图里“覆盖写、天然幂等”这一类取消；“natural（状态守卫）”“natural（版本号守卫）”的写法（如 `m05.sample.confirm`、`m06.ad.confirm`、`m07.payment-order.cancel`、`m02.portal-ticket.approve`）一律改为 `required`。有出站通知、发短信或审计副作用的写（如 `m.member.update`、`m.smsCode.create`）同样是 `required`。结果里带激活码、令牌、签名地址、支付调起参数或明文个人信息的 `required` 路由，幂等记录只存脱敏后的结果（C50“结果脱敏”）。
 - **`natural`**：不要求带键，靠数据模型里的唯一约束去重；必须同时写出 `x-idempotent-by`（路线图字段名 `idempotentBy`）= 承担去重的约束名，**取值是字符串数组**，可写多个约束名（A49；如上传登记的三条部分唯一索引写成一个三元素数组），CI 逐个核对约束存在（`d7-platform.md:246`、`464`）。可用的约束（取数据模型实际约束名）：上传登记按 `clientToken` 去重的 `uq_file_object_client_token_store`、`uq_file_object_client_token_batch`、`uq_file_object_client_token_noscope`（三条部分唯一索引合起来生效，`06-media.md:173-175`）；协议同意 `uq_agreement_consent_no_biz`、`uq_agreement_consent_biz`（`13-notify-docs.md:852-853`）；创建邀请 `uq_invitation_inviter_member_id_client_request_id`（`02-identity-tenant.md:767`）；回调 `uq_webhook_event_provider_event_id`（`15-integration-ops.md:79`）。旧稿写的 `(user_id, agreement_key, version)` 不是实际约束，删除。某条路由用不用 natural 由接口文档逐条定，定了就不再要求键。
+创建邀请的 natural 另登记 `uq_invitation_request_inviter_client`：原唯一键保留创建请求，映射唯一键覆盖所有成功创建/复用请求（m02 §3.12；02 §2.16）。二者都是真实数据库约束；不改变 C49 的 natural 不读写幂等记录表规则。
+
 - **`none`**：必须写理由（`x-idempotent-reason`），只用于（A18，并 A43、A50、A51、A139 补充）：
   - 登录、换会话与退出：`m.session.create`、`m.session.phoneLogin`、`admin.auth.login`、`admin.auth.verifyMfa`、`portal.portalTicket.exchange`；后台登录前的激活与首次绑定（`activate`、`set-password`、`enroll-totp`、`confirm-totp`，此时没有会话，幂等记录没有 `actor_key`）与再验证 `admin.auth.stepUp` 本稿归入这一类；**三端退出登录** `m.session.current.delete`、`admin.session.current.delete`、`portal.session.current.delete`（A43；重复退出无副作用，端上把 401 当作已退出）；
   - 签发短时地址与凭证：`…/download-urls`、`…/playback-urls`（C60），以及上传的 `…/refresh-credentials`（本稿归类）——结果不进幂等记录，避免回放已过期的地址。签发类接口附带的技术状态变化（打包 ZIP、续签凭证）不改变其 `none`（A51）；
@@ -587,7 +589,10 @@ V1.0 登记的（A50、A84、A139；按 operationId；路由标 `x-three-phase`�
 | `admin.file.complete` | 多事务 | 与 `m.file.complete` 同法（a01，A139） |
 | `admin.file.restore` | 先外调 | 事务外移除对象存储的删除标记，事务内复核守卫并落库（a01，A139） |
 | `admin.file.erase` | 多事务 | 事务一占位 → 事务外删除对象的全部历史版本 → 事务二落结果（a01，A139） |
-| `m.storeProfile.basic.update`、`m.storeProfile.service.update`、`m.storeProfile.contact.update` | 先外调 | 只读预检与占用 → 事务外文本内容检测 → 事务内重读守卫并保存；完成的同键重放不再检测，检测不可用不写业务数据（W1-08） |
+| `m.storeProfile.basic.update`、`m.storeProfile.service.update`、`m.storeProfile.contact.update`、`admin.store.profile.update` | 先外调 | 只读预检与占用 → 事务外文本内容检测 → 事务内重读守卫并保存；完成的同键重放不再检测，检测不可用不写业务数据；后台代改还重核员工权限、门店范围与老板微信身份（W1-08、W2-11） |
+| `m.invitation.create` | 先外调 | natural：只读 claim → 事务外备注内容检测 → settle 永久请求映射；不占用或写入幂等记录，同键库 pending 返回原卡且零写，库终态拒绝（W2-10） |
+| `m.invitation.accept` | 先外调 | required：只读 claim → 当前会话 Openid 称呼检测 → 完整锁图 settle 与私有收据；成功重放仍投影当前有效成员，已移除不得复活（W2-10） |
+| `m.store.create` | 先外调 | required：只读 claim → 真实档案基础校验与内容检测 → 完整锁图 settle、四项复制与 StoreCard；重放前仍校验当前会话及老板上下文（W2-10） |
 
 幂等为 `none` 的三段式用例（`m.paymentOrder.sync`）只沿用“事务外调外部、事务内落结果”的写法，不读写幂等记录。
 

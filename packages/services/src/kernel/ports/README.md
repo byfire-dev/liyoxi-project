@@ -34,3 +34,6 @@ await trackOf(assembly).record(tx, { name: "store_add_submit", props });
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/kernel/ports/
 ```
+# W3-11 CatalogRefPort
+
+catalog.refs 由 config 调用、content 注册真实实现。read(tx,at,ids?) 提供 id/title/genreCodes/isListed/isOrderable；areListed(tx,ids,at) 对不存在的 ID 给 false，对存在的 ID 以当前 shared/catalog 可见/可订条件判定。无 noop fallback，正式 runtime 缺实现不能假成功。

@@ -10,6 +10,9 @@ W1-04 的第一个 PR 交会话与鉴权链要的服务：令牌与会话、静�
 | `token.ts` | 令牌 `lyxm_<sid>.<随机数>`：签发、解析、定长比较 |
 | `sessions.ts` | 开会话与上限、每请求校验与续写、按微信身份吊销 |
 | `login.ts` | 静默登录、手机号登录（含休眠检查、改绑、首触来源、同意与指纹） |
+| `personal-account.ts` | 本人称呼、提示关闭、微信身份列表与移除；真实会话、required 重放与身份年龄守卫 |
+| `admin-user-actions.ts` | 后台禁用/启用/强制下线；当前员工身份、权限、范围、回显和同事务会话清理 |
+| `wechat-bound-notice.ts` | `identity.onWechatBound`：持久化来源核对、原事件时间、按事件 ID 去重的一次性提示 |
 | `phone.ts` | 换回来的手机号认不认：只认中国大陆的手机号，区号看原串 |
 | `logout.ts` | 退出登录 |
 | `portal-grants.ts` | 调用方同事务精准吊销下载页授权，tenant 的强制端口实现 |
@@ -39,13 +42,20 @@ await identity.isClientOutdated(clientVersion, flagContext);     // 版本门槛
 
 - **令牌**：库里只存随机部分的 sha256。只认规范写法，改任何一位都无效。
 - **会话**：有效 = 摘要对得上、未吊销、未过空闲（30 天滑动）与绝对（90 天）过期、账号 `active`。`last_seen_at` 与空闲过期同一天（北京时间）只写一次，连带账号的 `last_active_at`；微信身份的 `last_active_at` 距上次写入超过 30 分钟才再写。无效的原因只进日志，端上一律 401。
+- **同事务复核**：`assertCurrentSession(tx, principal, freshNow, expectedAppid)` 单条只读 JOIN 核当前归属、AppID、吊销、双期限与账号状态，返回当前四字段 principal（含当前 consentStamp）。调用方在最后业务锁等待后取 freshNow；不读令牌、不续期、不加锁、不补同意。只保证语句快照，不取消所有在途 logout/rebind 请求。
 - **上限**：同一微信身份未吊销的会话至多 5 条，多了挤掉最旧的（`evicted`）。登录事务先锁账号行（80）再锁微信身份行（90），并发登录在这两把锁上排队。
 - **静默登录**：没有身份、关了静默登录、账号不是 `active`，一律 `needPhone = true`，不区分原因、不写库。
 - **手机号登录**：`code2Session`、`getPhoneNumber` 在事务之外先做完；`onOpenid` 在两者之间调一次（接口层在这里按 openid 限流），给的是 openid 的 HMAC。事务里：取号或建号（`ON CONFLICT (phone_bidx) DO NOTHING`）→ 休眠检查 → 微信身份（新建、恢复静默登录、改绑）→ 新绑定的审计与 `merchant_user.wechat_bound` → 同意记录与指纹 → 新账号的注册迁移与 `merchant_user.registered` → 会话与 `auth_event`。`consents` 没覆盖用户级协议的当前版本回 428，整个事务回滚（账号也不建）。
 - **协议同意的门**：账号上的指纹等于当前指纹即放行，不查同意记录；不等时现算复核，没有待同意的才回写指纹。当前指纹在进程内至多缓存 60 秒，且不跨过下一个版本的生效时刻。
 - **版本门槛**：没带或写法不对的 `X-Client-Version` 按 `0.0.0` 算；最低版本是 `0.0.0`（开关的默认值）时都放行。
 
+微信手机号返回的 `countryCode` / `purePhoneNumber` 若存在，必须分别为 `86` / 归一化大陆号码；事实不一致在登录事务前拒绝，旧的只含 `phone` 替身仍可用。API 身份装配优先显式 AppID，其次运行时完整微信配置，未配本地沿用占位；`currentSessionOpenid(tx, principal, expectedAppid?)` 可校验当前会话身份的 AppID，内容检测不能跨小程序使用 openid。新增真实数据库区号与命名空间回归通过，外部真机登录仍待 E2 验收。
+
 ## 3. 跑用例
+
+W2-09 四个人接口复用当前会话事实：称呼更新沿既有三段式执行器在事务外检测当前 openid，成功重放不再外检；提示关闭保留首次时间；身份列表只投影本人六字段并优先当前身份；移除当前/最后身份不受年龄限制，其他身份依当前身份绑定时间判定。移除只写审计/auth_event，不发新事件；待发订阅随后由原投递任务按 no_target 与原短信回退处理。该片仅所属静态准备，正式类型/数据库/API与官方派生由 ROOT 定点验证。
+
+后台三动作复用 `adminUserAction(ctx, staff, op, input, { idem, meta })`。缓存入口前重新校验真实员工会话、当前角色配置与目标范围；业务事务按员工20→账号80→身份90→主体100→成员120锁定，再核有效成员集合、范围、状态与phoneMask。集合漂移返回BUSY，不补低序锁。禁用/强制退出只吊销未吊销会话与本人授权portal，强制退出另关闭全部身份静默登录；启用不恢复旧会话。禁用/启用守卫要求私有sameTx授权，不能用args布尔值绕过。
 
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/identity/
@@ -56,11 +66,11 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 ## 4. 已知的限度
 
-- 休眠检查：五条放行条件做全；“已休眠”的新绑定一律回 `REVERIFY_REQUIRED`。“移出休眠店员”“空草稿让位”两支随 M2（留桩；只会多拦，不会错放）。
-- 新微信绑定只写审计、发事件；写一次性提示的订阅者 `identity.onWechatBound` 随 M2。企业微信联系人的回填随 M7。
+- 休眠检查：五条放行条件保持；新绑定在主体锁后重读当前成员。已休眠店员经 Tenant callerTx 清理，空草稿老板经同事务让位后继续绑定；后续通知/同意角色使用处置后的关系。只有锁后四事实不满足的 `DraftNotEmptyError` 转独立人工重验，依赖/flow 失败原样回滚。此 W2-09 切片待 ROOT 定点验收；其余账号生命周期仍待交付。
+- 新微信绑定发出的真实事件由 `identity.onWechatBound` 写提示，与投递完成同事务；原事件 ID 去重，关闭后重投保持首次关闭时间。消费取得账号80锁后重读状态，停用仍保留提醒供启用后查看，已注销账号不重建提示。排除新微信的通知仍由 notify 负责，企业微信联系人的回填随 M7。
 - openid 的 HMAC 快照借 `uscc` 那把盲索引密钥、输入加 `OPENID:` 前缀分域：密钥环里没有 openid 专用的用途。它只是同意记录里的证据快照与限流键，不用于查找。
 - `MeUser.actions` 里的“换绑手机号”要装配处给 `smsConfigured`，现在不给（短信驱动随 G2-D）。
-- 会话的过期清理（吊销或过期满 30 天的行）没有登记，随清理框架（W0-24）合并后由 M2 的包接。
+- `identity.user_session`、`identity.portal_session`、`identity.sms_verification` 已登记到既有 `ops.retention` 每日项：会话空闲/绝对过期或吊销超过30天、验证码过期超过7天才删；边界时刻保留，验证码使用时间不提前触发清理。使用注入时钟、限量删除及 `SKIP LOCKED`，沿框架最多5批续清和事务回滚，不另建调度。
 - `auth_event` 的写函数在 `audit/auth-event.ts`，是 W1-01a 交的那一份（本包开工时先建的最小实现签名相同，接到 main 时让位）。
 - 区号只能从 `getPhoneNumber` 交回的原串里看（`phone.ts`）：Provider 的接口只交 `phone`，没有区号一项。带 `+区号`、`00区号` 而不是 86 的回 `PHONE_REGION_UNSUPPORTED`；真实驱动（G2-D）要把区号交出来，不能把区号不带加号地拼在号码前面（`+1` 的号码去掉符号与大陆号同形）。
 
@@ -81,3 +91,33 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 此口不注销商家账号或改 user_session/portal_ticket，也没有成员生命周期调用方和 M6 登录、票据、下载入口。新真库测试直接准备授权表 fixture，只证明吊销能力；旧 sessions/logout 与 tenant 成员范围用例继续保留。
 
 定点命令见 [tenant 第 6 节](../tenant/README.md)，其中两条独立连接重复 12 轮，覆盖主体和 owner 两种范围，计数总和与真实撤销行数一致。
+
+## 7. 微信身份只读事实（W2-21）
+
+`findWechatIdentityId(tx, { appid, openid })` 只按唯一自然键返回身份 id，不叠加账号状态或静默登录开关。`recentWechatOpenid(tx, { merchantUserId, appid, now })` 在同一参数化 SELECT 中确认账号当前 active、AppID 一致、lastActiveAt 不早于注入 now 的两小时前；等号有效，按 lastActiveAt 降序、id 升序取一行。不按 lastLoginAt、silentLoginEnabled 或额外未来上界筛选。
+
+两个函数只使用调用方的真实事务，不加锁、不写表、不缓存、不外呼。返回的 openid 仅供内部 Provider 装配，禁止进入 HTTP DTO、日志或审计。本叶没有装配 WechatOpenIdPort、通知派发或微信 HTTP 接口；测试只使用虚构身份和真实隔离数据库。
+### 手机号自助换绑（W2-09）
+
+`createSmsCode(principal, meta, {purpose:"phone_change"}, {idem})` 向当前号码发六位码，五分钟有效；仅哈希落库，发送失败补偿删除。`changePhone(principal, meta, {oldSmsCode,newPhoneCode}, {idem})` 通过微信公口在事务外取新号码，最终事务核销最新原号验证码并换绑。错码短事务累加，成功保留当前会话与portal、吊销其他登录会话，重放不重取微信code或重复旧号通知。
+
+账号80之前预锁空占用账号的审批30/申请40全集，两账号按ID升序；锁后新增申请或占用方变化返回BUSY。空账号必须active且从无任何成员行，清理所有个人依附与申请敏感暂存，经flow.purge_empty发deleted事件。账号变更关闭清敏感处理与人工申请共用真实登记。`notify`/`approval`由API运行时注入，缺SMS通道返回SMS_UNAVAILABLE；旧号安全通知失败不影响已提交结果。
+### 本人账号注销（W2-09）
+
+`deleteAccount(principal, meta, {hasConfirmed:true}, {idem})` 在真实session与账号锁下完成注销。老板调用tenant原六类必需事实与同Tx关闭，店员调用account_deleted移除；全部本人历史成员称呼由tenant窄公口清空，成员120全集已在门店130之前升序锁定。无成员也执行同一清理约束，不读取上层内部表，不用未配零值。
+
+个人会话/身份/FK额度/验证码/提示/企微关系、在审账号变更敏感暂存与账号PII都在原事务清除；同意、交易和审计不删。真实迁移末端的私有sameTx witness守卫防止用args跳过清理，后续失败整笔回滚。成功后同键在鉴权返回401；原merchant_user.deleted消费者异步清站内消息/投递目标。I24巡检检查已注销账号的个人残留，不把法定证据算作残留。
+
+### 人工账号变更（W2-09）
+
+`identity.accountChanges` 提供六个正式后台入口，三种申请共用 approval 的真实提交、决定、审计与事件。账号80/身份90→主体100/成员120前取得审批30/申请40全集；锁后重算前提，漂移不补低序锁。通过即同Tx换绑、老板更换或72小时复核旁路；驳回/撤回清密文、保留证明。回放前仍核当前staff会话、权限与申请scope，查询不写库。
+
+老板更换调用 tenant 的 `transferOwnerIn`：真实已通过申请与私有sameTx见证约束先移旧老板、再晋升本主体clerk或建owner，并吊销旧老板portal授权；新建账号只有真实审批可免首次同意，普通初登守卫保持。换绑共用空账号清理与提交后旧号通知；审批联动迁移并入一条审批审计。
+
+证明只接当前员工合法文件与真实目标scope；无主体窄例外见a01 3.57。引用释放绑定media实例时钟，注销/关闭任一满日历三年后可释放，再保留分类既有7天。定点DB文件 `account-changes.db.test.ts` 共12组，HTTP文件 `apps/api/test/admin-account-change-requests.test.ts` 共6组，重型验收由ROOT串行执行。
+
+### 渠道码管理（W2-09）
+
+`identity.referralCodes.list/create/disable/enable` 核当前员工会话、角色配置与既有manage权限；同键重放也鉴权。数据是global资源，列表不套门店scope。表写与投影交tenant公开同Tx函数；sales归属员工在共享staff锁后必须active，码统一大写、sales/campaign共用命名空间，状态动作CAS且只写ops审计，不写flow历史/事件。
+
+首次登录仍只消费tenant既有findActiveReferralCode：邀请码优先、仅active命中、老号不回溯。停用/启用不改旧归因，注册/主体统计现算。定点为referral-codes.db.test.ts的6组与API admin-referral-codes.test.ts的4组；正式外部驱动验证与本地代码完成分开记录。

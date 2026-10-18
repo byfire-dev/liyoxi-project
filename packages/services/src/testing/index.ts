@@ -54,6 +54,24 @@ export * from "./order.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。
 export { createM1Support } from "./m1-support.js";
+export { M1OwnerNetworkSchema } from "./m1-owner-network.js";
+export { createM1WorkerResources, M1WorkerAttachmentSchema } from "./m1-worker.js";
+export type { M1LoopWorkerSnapshot } from "./m1-worker.js";
+export { prepareM1WorkerExercise } from "./m1-worker.fixture.js";
+export { waitM1Worker, assertM1WorkerKnown, m1WorkerObserver } from "./m1-observe.js";
+export type { M1WorkerBacklog } from "./m1-observe.js";
+export {
+  assertM1SharedScope,
+  createM1HttpStorage,
+  createM1RealClock,
+  waitM1Due,
+} from "./m1-shared.js";
+export { createM2Support } from "./m2-chain.js";
+export type { M2Support, M2FactScope } from "./m2-chain.js";
+export { createP95Fixture } from "./p95-fixture.js";
+export type { P95Dataset } from "./p95-fixture.js";
+export { createM3Support } from "./m3-support.js";
+export type { M3Support, M3SupportOptions, M3MediaScope, M3DrainOptions } from "./m3-support.js";
 export type {
   M1Support,
   M1SupportOptions,
@@ -61,6 +79,80 @@ export type {
   M1Scope,
   M1MediaScope,
   M1StateIds,
+  M1SharedScope,
+  M1Attachment,
+  M1HttpObjectIO,
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
+export { createTestWorkerServices, runTestInvariants } from "./ops-runtime.js";
+
+// W2-12：两个应用的真实转换产物共享虚构文件；仅测试入口可用。
+export {
+  docx as fictionalDocumentDocx,
+  pdf as fictionalDocumentPdf,
+  docxParts as fictionalDocumentParts,
+  zip as fictionalDocumentZip,
+  boundaryDocx as fictionalDocumentBoundaryDocx,
+} from "./document-fixtures.js";
+export {
+  createNotifyMessageFixture,
+  changeNotifyMessageAccessFixture,
+  createNotifySessionFixture,
+  createNotifyQuotaFixture,
+  updateNotifySlotFixture,
+} from "./notify-messages.js";
+export { createFlowOpsCliSupport } from "./flow-ops-cli.js";
+
+export { installSitePurchasePolicy } from "./site.js";
+export { createAnalyticsCliSupport } from "./analytics-cli.js";
+export { notificationFixture } from "./notify-dispatch.js";
+export {
+  createOutputBatchLiveFixture,
+  prepareOutputBatchLiveMasters,
+  findOutputBatchLiveJobIds,
+  consumeOutputBatchLiveChecked,
+  OutputBatchLiveInputSchema,
+} from "./admin-live/w302.fixture.js";
+export type { OutputBatchLiveInput } from "./admin-live/w302.fixture.js";
+export { createBatchMediaForTest } from "./media-batches.js";
+export { createOutputBatchToolsForTest, outputBatchInputFromProbe } from "./output-batch-tools.js";
+
+export { fullStaffWorld } from "./staff-full.js";
+export type { FullStaffWorld } from "./staff-full.js";
+
+export {
+  createDeliveryProductionTools,
+  finishDeliveryProductionForTest,
+  prepareDeliveryMasterForTest,
+} from "./delivery-production-tools.js";
+export type { DeliveryProductionTools } from "./delivery-production-tools.js";
+export { createCodecDemoMasterPreparer } from "./demo-masters.js";
+export { createDocsAdminFixture } from "./docs-admin.js";
+export { findAgreementLiveUploadJobIds } from "./admin-live/agreements-m2-upload.js";
+export { createMerchantAssetLiveUploadPump } from "./admin-live/merchant-assets-upload.js";
+export { seedBillingDeletionFacts } from "./billing-deletion.js";
+
+// W3-12: exact owned content scope for the existing private live server.
+export {
+  ContentAdminLiveScopeSchema,
+  parseOutputBatchLiveManifest,
+  assertContentAdminLiveScope,
+  assertContentAdminLiveTargets,
+  findContentAdminLiveJobIds,
+} from "./admin-live/w312.fixture.js";
+export type { ContentAdminLiveScope } from "./admin-live/w312.fixture.js";
+export { finishW120LiveFixture } from "./admin-live/w120.fixture.js";
+
+export { createMediaProductionHarness } from "./media-production-harness.js";
+export type { MediaProductionHarness } from "./media-production-harness.js";
+export { createMediaAssetsHarness } from "./media-assets.js";
+export {
+  createMediaToolClient as createMediaToolClientForTest,
+  createMediaWorkspace as createMediaWorkspaceForTest,
+} from "../providers/index.js";
+export {
+  createIdentity as createIdentityForTest,
+  assertCurrentSession as assertCurrentSessionForTest,
+  currentSessionOpenid as currentSessionOpenidForTest,
+} from "../identity/index.js";

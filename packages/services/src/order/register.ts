@@ -1,3 +1,16 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { orderCloseFactsPort, entityAdCancelClosePort } from "../tenant/index.js";
+import { entityAdCancelCloser } from "./entity-ad-cancel-close.js";
+import { countOpenOrdersByEntity, countBlockingStoreOrders } from "./counts.js";
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { orderStaffWork } from "./staff-work.js";
+import { DramaUsagePort } from "../content/index.js";
+import { dramaUsage } from "./drama-usage.js";
+import {
+  implementKeyed as notifyReaderImplementation,
+  notifyReadPort as currentNotifyReadPort,
+} from "../kernel/index.js";
+import { orderForNotify, orderConsentFacts } from "./notify-facts.js";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import {
   defineRegistration,
@@ -7,6 +20,14 @@ import {
   lockRows,
 } from "../kernel/index.js";
 import { orderManagerPort } from "../profile/index.js";
+import { implementAdminProfileFacts, adminStoreListOrderPort } from "../profile/index.js";
+import { readProfileStoreLastOrders } from "./profile-list.js";
+import { readProfileAdminOrderFacts } from "./profile-admin.js";
+import { QualificationImpactPort } from "../profile/index.js";
+import { previewFinalReject } from "./cancel-quote.js";
+import { readCancelReviewCause } from "./cancel-review-facts.js";
+import { approvalKindPort } from "../approval/index.js";
+import { adCancelKind, cancelRequestBinding, cancelRequestChain } from "./ad-cancel-kind.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
 import { boundOrder } from "./binding.js";
@@ -73,12 +94,41 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementAdminProfileFacts("order", readProfileAdminOrderFacts),
+    implement(adminStoreListOrderPort, readProfileStoreLastOrders),
+    implement(entityAdCancelClosePort, entityAdCancelCloser),
+    implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
+    implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),
+    implementTenantCloseFacts(orderCloseFactsPort, {
+      countOpenOrdersByEntity,
+      countBlockingStoreOrders,
+    }),
+    implement(DramaUsagePort, dramaUsage),
+    implementKeyed(staffFollowUpPort, "order_item", async (tx, id) => {
+      const row = await tx.orderItem.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "order", orderStaffWork),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualSubjectExists.order_item",
+      async (tx, id: string) =>
+        (await tx.orderItem.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "orderConsentFacts", orderConsentFacts),
+    notifyReaderImplementation(currentNotifyReadPort, "orderForNotify", orderForNotify),
+
     implement(orderSidePort, {
+      readCancelReviewCause,
       applyConfirmedPlan: (tx, input) => applyConfirmedPlan(tx, boundOrder(), input),
       rederive: (tx, input) => rederive(tx, boundOrder(), input),
     }),
     implementMerchantFacts("order", orderMerchantFacts),
     implement(orderManagerPort, syncOrderManager),
+    implement(QualificationImpactPort, { previewFinalReject }),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
       companions: ["sub_status", "status_changed_at", "closed_at", "started_at"],
       guards: {

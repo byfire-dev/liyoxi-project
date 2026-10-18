@@ -1,0 +1,57 @@
+# 五组件私有源码映射（W2-27b2a）
+
+已交付api、worker、admin、portal、weapp真实构建map的私有产物机制；images工作流接线与既有门禁适配已另随独立gate-change de6d5a80合入本地主线。上传未配置且未实现；没有上传CLI、令牌、debug ID注入或SDK修改，不代表错误堆栈已能还原，也不代表远端已构建发布此版；未声明远端CI或真实符号化已验。
+
+API/worker用external map，admin/portal生产用hidden map，小程序正式构建开启map。分离助手在Docker编译层完成后、最终runtime COPY之前执行；小程序在Taro编译后、原体积检查之前执行。私有副本保留实际发布JS与对应map，发布目录不保留map与终端sourceMappingURL；移除引用时保留行列位置。不会从已发布镜像中临时删除文件，也不上传空目录冒充完成。
+
+## 同一次构建与私有目录
+
+在仓库根目录执行，源码须已冻结；仅使用本轮自有tag与目录，按server、gateway、小程序顺序，不重建mediatool/uploader。示例不触发发布、拉取或外部请求：
+
+```sh
+SOURCE="$(git rev-parse HEAD)"
+TAG="sha-$(git rev-parse --short=12 HEAD)"
+REPOSITORY_URL="$(git config --get remote.origin.url)"
+LYX_SOURCE_MAPS_DIR="$(node infra/deploy/source-maps.mjs init "${TMPDIR:-/tmp}")"
+MAPS_DIR="$LYX_SOURCE_MAPS_DIR"
+export SOURCE TAG REPOSITORY_URL LYX_SOURCE_MAPS_DIR MAPS_DIR
+trap 'node infra/deploy/source-maps.mjs cleanup "$LYX_SOURCE_MAPS_DIR"' EXIT
+docker buildx bake --allow="fs.write=$LYX_SOURCE_MAPS_DIR" -f infra/docker/source-maps.hcl --progress plain server-bundle
+docker buildx bake --allow="fs.write=$LYX_SOURCE_MAPS_DIR" -f infra/docker/source-maps.hcl --progress plain gateway-bundle
+WEAPP_VERSION="$TAG" pnpm weapp:build
+docker image inspect "liyoxi/server:$TAG" "liyoxi/gateway:$TAG" > "$LYX_SOURCE_MAPS_DIR/images.json"
+node infra/deploy/source-maps.mjs finalize "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
+node infra/deploy/source-maps.mjs verify "$LYX_SOURCE_MAPS_DIR" "$SOURCE" "$TAG"
+```
+
+小程序仍需既有正式构建的非敏感AppID/API配置；不要从秘密文件读取凭据。本机执行前先核构建工具、空间和本地固定基础镜像，不自动拉取或清理共享缓存。上例只清本轮带所有权收据的临时目录，不删除镜像或其他目录。私有map在该目录删除后不留副本；后继真正上传步骤必须在最终清理之前消费同份产物，不能重构建后冒充同源。
+
+每个bake组同时请求runtime与source-maps两个target，两者继承相同Dockerfile/context/build参数，BuildKit共享编译DAG。`--print`只证明配置可解析；实际验收必须核plain日志中该Dockerfile的共同编译RUN只执行一次，不能把分开构建两个target当作证据。runtime镜像tag不包含私有target，后者只导出到本轮目录。
+
+## 校验与失败边界
+
+固定组件、入口与路径由助手限定，不接受任意源目录或component。拒绝符号链接、路径穿越、缺map、非v3 map、非配对/内联引用、空文件及超限；单文件64MiB、每组件512MiB、最多4096文件。Taro会删除未使用的SDK custom-wrapper.js却遗留其map，小程序post generateBundle只在该JS不存在时删除同名孤立map；其他未配对仍拒绝。编译产物需位于私有输出目录之外；公开目录只在全部配对通过后开始替换/去除map，分离失败则构建失败，不继续发布。buildx只授予init创建且核对所有权的本轮绝对目录写权限，不使用通配或关闭全局检查。
+
+manifest绑定完整40位source、`sha-`加前12位tag、实际server/gateway本地image ID及OCI revision，记录五组件每对JS/map的大小与SHA256。`verify`重读调用方本次docker inspect保存的images.json收据并核全部文件，不只相信manifest；它不自行调用Docker重新查询镜像。目录0700、私有文件0600，输出仅固定摘要，失败仅固定错误。备份/上传归档不进入原公开images-out artifact。
+
+第三方依赖包自带map不纳入本片五组件第一方发布目录的清理承诺。
+
+## 事件与私有产物的匹配口径
+
+后台与小程序沿用轻量信封和真实构建号作为release，dist分别固定admin/weapp。安全结构化帧的filename保留manifest中的完整pair.path，abs_path固定为`app:///admin/<pair.path>`或`app:///weapp/<pair.path>`，不能只取basename。例如后台assets/index-Ab12_cd3.js与小程序sub/profile/review/index.js分别对应各自组件的同名私有JS/map。
+
+后台只认当前应用同origin且没有凭据、查询或片段的实际资产URL；小程序只认明确的本地app/page/分包bundle形态。两客户端先解析原stack，再以各自原scrub检查filename和abs_path；发生去敏变化就丢整帧，不先清掉URL凭据/查询后再冒认路径。V8/JSC/Taro帧使用正行列、按最早调用在前；外部、native、模糊路径与无可靠坐标的帧不补造映射，原去敏stack仍供诊断。转发端只保规范组件/路径/坐标，不转发源码上下文、vars、function或debug_meta；旧无dist信封可保安全相对文件名，不能据此声称具备映射资格。
+
+后继上传必须消费同次构建的私有JS/map，release等于该产物tag、dist等于组件，上传name严格等于上述abs_path。发布JS已移除sourceMappingURL，后继可按官方release/dist方式显式提供SourceMap header关联私有map；本片没有实现上传、CLI锁版/inject或真实SaaS符号化。API/worker自身直报出口另交，portal仍按M6范围处理，不以微型Node SourceMap位置核对冒充真实上游还原。
+
+服务端出口伴随使用相同命名口径：dist固定api/worker，release沿镜像的VERSION（Docker构建已将两入口版本设为同一tag），上传name对应`app:///api/<pair.path>`或`app:///worker/<pair.path>`。只把装配注入的自有dist目录内固定第一方JS/已知API chunk转换为相对文件和正坐标，绝不上传绝对服务器路径或原始stack；没有可靠帧时仅固定摘要，不伪造源码还原。客户端HTTP信封仍拒绝服务端映射帧，独立SERVER_ERRORS_FILE不会扩大客户端公口。实现、独审与验证状态以W2-27台账为准。
+
+## 可选上传助手（默认未配置）
+
+`source-map-upload.mjs <私有根目录> <40位source> <sha-12位标签>`仅在`SENTRY_AUTH_TOKEN`存在时执行；缺令牌返回`unconfigured`且不读取私有目录、不下载CLI、不联网。非敏感`LYX_SENTRY_UPLOAD_CONFIG`是JSON，形态为`{"organization":"组织slug","projects":{"api":"项目slug","worker":"项目slug","admin":"项目slug","portal":"项目slug","weapp":"项目slug"}}`，允许组件共用项目，但五个映射须明确。勿把令牌写进命令、配置文件或仓库。
+
+本片只面向默认Sentry SaaS固定`https://sentry.io/`与Linux x64。官方CLI3.8.0下载从固定CDN、20秒/64MiB上限且禁止重定向，按锁内SHA256验证后才执行。运行时单独HOME/最近`.sentryclirc`，TLS验证开启、自动重试0、自动更新关闭、`.env`读取关闭，不继承代理或`SENTRY_ALLOW_FAILURE`。下载与每个命令有界；上传阶段每组件最多90秒、预算总300秒（文件核验/清理另计）。不在本机配置或使用真实令牌。
+
+先verify原manifest/镜像/source/tag与全部hash，再仅把manifest逐项批准的JS/map复制到本轮0700目录，文件0600。CLI逐个组件运行`sourcemaps upload --release <tag> --dist <component> --url-prefix app:///<component> --no-rewrite --strict --wait-for 60`，显式只扫该组件副本的js/map；采用CLI自动Sourcemap引用，不传会覆盖它的HTTP请求header，不注入debug ID。逐个检查CLI未修改副本，末尾重验原产物。失败即停后续组件，不循环重试；已到上游的部分文件不假装撤回，后续由同release/dist再执行恢复。所有退出路径清本轮副本与CLI，原私有根仍交既有外层finally清理。
+
+原产物manifest的`upload: unimplemented`是b2a留下的生产者标记，为兼容原私有格式保留，不作为本助手上传结果；本助手独立返回`unconfigured`或五组件命令全部成功后的`uploaded`收据，不含token/组织/项目。真实SaaS是否按事件还原源码仍须外部验收，不能把命令成功、纯适配器测试或Node SourceMap微型测试写成已符号化。工作流接线另走独立gate，PR构建不能接触密文，map不能放公开GitHub artifact。

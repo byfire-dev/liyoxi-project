@@ -25,17 +25,30 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import {
   deliveryRegression,
   deliveryNavigationRegression,
 } from "../shots/delivery-regressions.mjs";
 import { orderRegression, publishRegression } from "../shots/order-regressions.mjs";
+import { searchEntryRegression, searchRegression } from "../shots/search-regressions.mjs";
+import { assetRegression } from "../shots/asset-regressions.mjs";
+import { homeAssetsRegression } from "../shots/asset-home-regressions.mjs";
+import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
+import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
+import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
+import { runInvoiceRegression } from "../shots/invoice-regressions.mjs";
+import { runContractsRegression } from "../shots/contracts-regressions.mjs";
+import { tenantRegression } from "../shots/tenant-regressions.mjs";
+import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
   profileContextRegression,
   profileEditRegression,
+  profilePageReady,
+  profileMissingRegression,
+  profileCertificateSheetRegression,
 } from "../shots/profile-regressions.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -70,9 +83,16 @@ const { ACCOUNT_SCENES } = await import(
 const { PROFILE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/profile-scenes.ts")).href
 );
-const { BILLING_SCENES } = await import(
+const { BILLING_SCENES: LEGACY_BILLING_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
 );
+const { INVOICE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/invoice-scenes.ts")).href
+);
+const { CONTRACT_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/contracts-scenes.ts")).href
+);
+const BILLING_SCENES = [...LEGACY_BILLING_SCENES, ...INVOICE_SCENES, ...CONTRACT_SCENES];
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
@@ -84,6 +104,33 @@ const { PUBLISH_SCENES } = await import(
 );
 const { DELIVERY_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/delivery-scenes.ts")).href
+);
+const { MESSAGE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/message-scenes.ts")).href
+);
+const { SETTINGS_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/settings-scenes.ts")).href
+);
+const { SEARCH_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
+);
+const { ASSET_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-scenes.ts")).href
+);
+const { ASSET_HOME_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-home-scenes.ts")).href
+);
+const { ASSET_UPLOAD_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-upload-scenes.ts")).href
+);
+const { ASSET_ACTION_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/asset-action-scenes.ts")).href
+);
+const { ORDER_REFERENCE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/order-reference-scenes.ts")).href
+);
+const { TENANT_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/tenant-scenes.ts")).href
 );
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
@@ -106,11 +153,20 @@ for (let index = 0; index < args.length; index += 1) {
       ![
         ...ACCOUNT_SCENES,
         ...PROFILE_SCENES,
+        ...TENANT_SCENES,
         ...BILLING_SCENES,
         ...CATALOG_SCENES,
         ...ORDER_SCENES,
         ...PUBLISH_SCENES,
         ...DELIVERY_SCENES,
+        ...MESSAGE_SCENES,
+        ...SETTINGS_SCENES,
+        ...SEARCH_SCENES,
+        ...ASSET_SCENES,
+        ...ASSET_HOME_SCENES,
+        ...ASSET_UPLOAD_SCENES,
+        ...ASSET_ACTION_SCENES,
+        ...ORDER_REFERENCE_SCENES,
       ].some((item) => item.name === name)
     )
       fail(`未知固定场景 ${name}`);
@@ -148,6 +204,41 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
+  ...(all
+    ? ASSET_HOME_SCENES
+    : ASSET_HOME_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: item.name,
+    scene: item.name,
+    kind: "asset-home",
+    fullPage: false,
+  })),
+  ...(all
+    ? TENANT_SCENES
+    : TENANT_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `tenant__${item.name}`,
+    scene: item.name,
+    kind: "tenant",
+    fullPage: false,
+  })),
+  ...(all
+    ? ORDER_REFERENCE_SCENES
+    : ORDER_REFERENCE_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}&lyxShot=${item.name}`,
+    file: item.name,
+    scene: item.name,
+    kind: "order-reference",
+    fullPage: false,
+  })),
   ...(all ? ACCOUNT_SCENES : ACCOUNT_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
     (item) => ({
       label: item.name,
@@ -209,6 +300,17 @@ const targets = [
     }),
   ),
   ...(all
+    ? ASSET_ACTION_SCENES
+    : ASSET_ACTION_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}&lyxShot=${item.name}`,
+    file: `asset__${item.name}`,
+    scene: item.name,
+    kind: "asset-action",
+    fullPage: false,
+  })),
+  ...(all
     ? DELIVERY_SCENES
     : DELIVERY_SCENES.filter((item) => wantedScenes.includes(item.name))
   ).map((item) => ({
@@ -217,6 +319,66 @@ const targets = [
     file: `delivery__${item.name}`,
     scene: item.name,
     kind: "delivery",
+    fullPage: false,
+  })),
+  ...(all ? MESSAGE_SCENES : MESSAGE_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
+    (item) => ({
+      label: item.name,
+      url: `${item.route}?lyxShot=${item.name}`,
+      file: `message__${item.name}`,
+      scene: item.name,
+      kind: "message",
+      fullPage: false,
+    }),
+  ),
+  ...(all
+    ? SETTINGS_SCENES
+    : SETTINGS_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `settings__${item.name}`,
+    scene: item.name,
+    kind: "settings",
+    fullPage: false,
+  })),
+  ...(all
+    ? SEARCH_SCENES
+    : SEARCH_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `search__${item.name}`,
+    scene: item.name,
+    kind: "search",
+    fullPage: false,
+  })),
+  ...(all
+    ? ASSET_SCENES
+    : ASSET_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `asset__${item.name}`,
+    scene: item.name,
+    kind: "asset",
+    fullPage: false,
+  })),
+  ...(all
+    ? ASSET_UPLOAD_SCENES
+    : ASSET_UPLOAD_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `asset__${item.name}`,
+    scene: item.name,
+    kind: "asset-upload",
     fullPage: false,
   })),
   ...(all
@@ -228,9 +390,21 @@ const targets = [
           !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !PUBLISH_SCENES.some((item) => item.route === route) &&
-          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route),
+          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !MESSAGE_SCENES.some((item) => item.route === route) &&
+          !SETTINGS_SCENES.some((item) => item.route === route) &&
+          !SEARCH_SCENES.some((item) => item.route === route) &&
+          !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
+          !TENANT_SCENES.some((item) => item.route.split("?")[0] === route),
       )
-    : wanted
+    : wanted.filter(
+        (route) =>
+          !SEARCH_SCENES.some((item) => item.route === route) &&
+          !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
+          !TENANT_SCENES.some((item) => item.route.split("?")[0] === route),
+      )
   ).map((route) => ({
     label: route,
     url: route,
@@ -238,7 +412,11 @@ const targets = [
     fullPage: route === GALLERY_INDEX_ROUTE,
     ...(PROFILE_SCENES.some((item) => item.route === route)
       ? { scene: PROFILE_SCENES.find((item) => item.route === route)?.name, kind: "profile" }
-      : {}),
+      : route === "sub/service/messages/index"
+        ? { scene: "messages-owner", kind: "message" }
+        : route === "sub/service/settings/index"
+          ? { scene: "settings-owner", kind: "settings" }
+          : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -305,6 +483,7 @@ async function shoot(target) {
       })
     : null;
   const page = await (isolated ?? context).newPage();
+  if (target.scene === "cert-sheet") await page.setViewportSize({ width: 320, height: 568 });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   try {
@@ -327,12 +506,86 @@ async function shoot(target) {
                 ? "mine-guest"
                 : "mine-owner";
             globalThis.__LYX_CATALOG_SHOT__ = scene;
+            if (scene === "home-clerk" || scene === "home-owner")
+              globalThis.__LYX_ASSET_HOME_SHOT__ = `asset-${scene}`;
+            if (scene.startsWith("home-") || scene.startsWith("mall-"))
+              globalThis.__LYX_SEARCH_SHOT__ = scene.endsWith("clerk")
+                ? "search-clerk"
+                : scene.endsWith("guest")
+                  ? "search-guest"
+                  : "search-owner";
+          }
+          if (kind === "asset-home") {
+            const clerk = scene === "asset-home-clerk";
+            globalThis.__LYX_ACCOUNT_SHOT__ = clerk ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_CATALOG_SHOT__ = clerk ? "home-clerk" : "home-owner";
+            globalThis.__LYX_SEARCH_SHOT__ = clerk ? "search-clerk" : "search-owner";
+            globalThis.__LYX_ASSET_HOME_SHOT__ = scene;
+            globalThis.__LYX_ASSET_SHOT__ = clerk ? "asset-lib-clerk" : "asset-lib-owner";
+            globalThis.__LYX_ASSET_UPLOAD_SHOT__ = "asset-upload-image";
+          }
+          if (kind === "tenant") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "tenant-staff-profile" || scene === "tenant-stores-clerk"
+                ? "mine-clerk"
+                : scene.startsWith("tenant-join-")
+                  ? "mine-guest"
+                  : "mine-owner";
+            globalThis.__LYX_TENANT_SHOT__ = scene;
+          }
+          if (kind === "settings") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("guest")
+              ? "mine-guest"
+              : scene.endsWith("clerk")
+                ? "mine-clerk"
+                : "mine-owner";
+            globalThis.__LYX_SETTINGS_SHOT__ = scene;
+          }
+          if (kind === "search") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
+              ? "mine-clerk"
+              : scene.endsWith("guest")
+                ? "mine-guest"
+                : "mine-owner";
+            globalThis.__LYX_SEARCH_SHOT__ = scene;
+            globalThis.__LYX_CATALOG_SHOT__ = scene;
+          }
+          if (kind === "asset") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_ASSET_SHOT__ = scene;
+          }
+          if (kind === "asset-action") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk") ? "mine-clerk" : "mine-owner";
+            globalThis.__LYX_ASSET_ACTION_SHOT__ = scene;
+          }
+          if (kind === "order-reference") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
+            globalThis.__LYX_ORDER_REFERENCE_SHOT__ = scene;
+          }
+          if (kind === "asset-upload") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk-gated")
+              ? "mine-clerk"
+              : "mine-owner";
+            globalThis.__LYX_ASSET_UPLOAD_SHOT__ = scene;
           }
           if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
-          if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+          if (kind === "billing") {
+            globalThis.__LYX_BILLING_SHOT__ = scene;
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "contracts-clerk" ? "mine-clerk" : "mine-owner";
+          }
+          if (kind === "message") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "messages-no-store"
+                ? scene
+                : scene === "messages-clerk"
+                  ? "mine-clerk"
+                  : "mine-owner";
+            globalThis.__LYX_MESSAGE_SHOT__ = scene;
+          }
         },
         { scene: target.scene, kind: target.kind },
       );
@@ -351,24 +604,171 @@ async function shoot(target) {
     if (target.scene) {
       await page
         .locator(
-          target.kind === "profile"
-            ? "#profile-ready"
-            : target.kind === "billing"
-              ? "#billing-ready"
-              : target.kind === "publish"
-                ? "#publish-ready"
-                : target.kind === "order"
-                  ? "#order-ready"
-                  : target.kind === "catalog"
-                    ? "#catalog-ready"
-                    : target.kind === "delivery"
-                      ? "#delivery-ready"
-                      : "#account-ready",
+          target.kind === "settings"
+            ? "#settings-ready"
+            : target.kind === "profile" || target.kind === "tenant"
+              ? "#profile-ready"
+              : target.kind === "billing"
+                ? target.scene.startsWith("invoice-")
+                  ? "#invoices-ready"
+                  : target.scene.startsWith("contracts-")
+                    ? "#contracts-ready"
+                    : "#billing-ready"
+                : target.kind === "publish"
+                  ? "#publish-ready"
+                  : target.kind === "order" || target.kind === "order-reference"
+                    ? "#order-ready"
+                    : target.kind === "asset-home"
+                      ? "#asset-home-ready"
+                      : target.kind === "catalog"
+                        ? "#catalog-ready"
+                        : target.kind === "search"
+                          ? "#search-ready"
+                          : target.kind === "asset-upload"
+                            ? target.scene.startsWith("asset-uploader-")
+                              ? ".asset-uploader#asset-uploader-ready"
+                              : target.scene.endsWith("loading")
+                                ? ".asset-upload .lyx-skeleton"
+                                : ".asset-upload#asset-upload-ready"
+                            : target.kind === "asset" || target.kind === "asset-action"
+                              ? target.scene === "asset-lib-loading"
+                                ? ".asset-lib .lyx-skeleton"
+                                : "#asset-ready"
+                              : target.kind === "message"
+                                ? target.scene === "messages-loading"
+                                  ? ".messages-page .lyx-skeleton"
+                                  : "#messages-ready"
+                                : target.kind === "delivery"
+                                  ? "#delivery-ready"
+                                  : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "billing" && target.scene.startsWith("invoice-"))
+        await runInvoiceRegression(page, target.scene);
+      if (target.kind === "billing" && target.scene.startsWith("contracts-"))
+        await runContractsRegression(page, target.scene);
+      if (target.kind === "search") await searchRegression(page, target.scene);
+      if (target.kind === "settings") await settingsRegression(page, target.scene);
+      if (target.kind === "tenant") await tenantRegression(page, target.scene);
+      if (target.kind === "asset") await assetRegression(page, target.scene, origin);
+      if (target.kind === "asset-home") await homeAssetsRegression(page, target.scene);
+      if (target.kind === "asset-upload") await assetUploadRegression(page, target.scene);
+      if (target.kind === "asset-action") await assetActionRegression(page, target.scene);
+      if (target.kind === "order-reference")
+        await orderReferenceRegression(page, target.scene, origin);
       if (target.kind === "publish" && target.scene === "accounts-bind") {
         await page.locator(".accounts-page .lyx-button").filter({ hasText: "绑定新账号" }).click();
         await page.locator(".accounts-page__form").waitFor({ state: "visible" });
+      }
+      if (target.kind === "message") {
+        if (target.scene === "messages-loading") {
+          await expect(page.locator(".messages-page .lyx-skeleton")).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-error") {
+          await expect(page.getByText("网络异常，请检查网络后重试", { exact: true })).toBeVisible();
+          await expect(page.getByText("重新加载", { exact: true })).toBeVisible();
+          await expect(page.getByText("暂无消息", { exact: true })).toHaveCount(0);
+        }
+        if (target.scene === "messages-category") {
+          await page.locator(".lyx-filter-chips__item").filter({ hasText: "审核" }).click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(1);
+          await expect(page.locator(".messages-page__row")).toContainText("门店审核通过");
+        }
+        if (target.scene === "messages-more") {
+          const activePage = page.locator(".taro_page_stationed:not(.taro_page_shade)");
+          const more = page
+            .locator(".messages-page .lyx-button")
+            .filter({ hasText: "继续查看消息" });
+          const cursorCalls = () =>
+            page.evaluate(() =>
+              (globalThis.__LYX_MESSAGE_CALLS__ ?? []).filter((call) => {
+                const url = new URL(call.path, "http://local");
+                return url.pathname === "/m/messages" && url.searchParams.has("cursor");
+              }),
+            );
+          const assertCursor = async () => {
+            const calls = await cursorCalls();
+            expect(calls).toHaveLength(1);
+            expect(calls[0].method).toBe("GET");
+            expect([...new URL(calls[0].path, origin).searchParams]).toEqual([
+              ["tab", "all"],
+              ["limit", "20"],
+              ["cursor", "opaque+/=page2"],
+            ]);
+          };
+          const scrollPage = async (bottom) => {
+            await activePage.evaluate((node, toBottom) => {
+              node.removeAttribute("data-shot-scroll");
+              node.addEventListener("scroll", () => node.setAttribute("data-shot-scroll", "done"), {
+                once: true,
+              });
+              node.scrollTo(0, toBottom ? node.scrollHeight : 0);
+            }, bottom);
+            await expect(activePage).toHaveAttribute("data-shot-scroll", "done");
+          };
+          await expect(page.locator(".messages-page__row")).toHaveCount(20);
+          const height = await activePage.evaluate((node) => Math.ceil(node.scrollHeight));
+          await page.setViewportSize({ width: VIEWPORT.width, height: height + VIEWPORT.height });
+          await expect(more).toBeInViewport({ ratio: 1 });
+          expect(await activePage.evaluate((node) => node.scrollTop)).toBe(0);
+          expect(await cursorCalls()).toHaveLength(0);
+          await page
+            .locator(".messages-page .lyx-button")
+            .filter({ hasText: "继续查看消息" })
+            .click();
+          await expect(page.locator(".messages-page__row")).toHaveCount(24);
+          await assertCursor();
+          await page.setViewportSize(VIEWPORT);
+          await page.reload({ waitUntil: "networkidle" });
+          await page.locator("#messages-ready").waitFor({ state: "visible", timeout: 15_000 });
+          await expect(page.locator(".messages-page__row")).toHaveCount(20);
+          expect(await cursorCalls()).toHaveLength(0);
+          await scrollPage(true);
+          await expect(page.locator(".messages-page__row")).toHaveCount(24);
+          await assertCursor();
+          await scrollPage(false);
+          await scrollPage(true);
+          await assertCursor();
+          expect(page.viewportSize()).toEqual(VIEWPORT);
+        }
+        if (target.scene === "messages-all-read") {
+          await page.locator(".messages-page__action").filter({ hasText: "全部已读" }).click();
+          await expect(page.locator(".messages-page__toolbar")).toContainText("未读 0 条");
+          const writes = await page.evaluate(() =>
+            globalThis.__LYX_MESSAGE_CALLS__.filter((call) => call.path === "/m/messages/read"),
+          );
+          if (
+            writes.length !== 2 ||
+            writes[0].key !== writes[1].key ||
+            writes[0].data.upToMessageId !== writes[1].data.upToMessageId
+          )
+            throw new Error("全读网络重试未保持同一边界/幂等键");
+        }
+        if (target.scene === "messages-empty")
+          await expect(page.getByText("暂无消息", { exact: true })).toBeVisible();
+        if (
+          target.scene === "messages-clerk" &&
+          (await page.locator(".messages-page__row").allTextContents()).some((text) =>
+            text.includes("积分变动"),
+          )
+        )
+          throw new Error("店员消息出现老板财务文案");
+        if (target.scene === "messages-no-store") {
+          const headers = await page.evaluate(() => globalThis.__LYX_MESSAGE_HEADERS__);
+          if (!headers.length || headers.some((item) => item.storeId !== undefined))
+            throw new Error("无店场景仍发送门店头");
+          await expect(page.getByText("账号安全提醒", { exact: true })).toBeVisible();
+        }
+        if (target.scene === "messages-unavailable") {
+          await page.locator(".messages-page__row").first().click();
+          await expect(
+            page.getByText("该内容暂不可访问，消息仍会保留", { exact: true }),
+          ).toBeVisible();
+          await page.locator(".messages-page__action").filter({ hasText: "订阅通知设置" }).click();
+          await expect(page.getByText("暂不可用", { exact: true })).toBeVisible();
+          await expect(page.locator(".lyx-sheet-popup")).toBeInViewport({ ratio: 1 });
+        }
       }
       if (target.kind === "delivery") {
         if (target.scene === "plan-change") {
@@ -478,7 +878,6 @@ async function shoot(target) {
         await page.waitForTimeout(500);
       }
       if (target.scene.startsWith("login")) {
-        await page.locator("input").fill("13800138000");
         if (target.scene === "login-checked")
           await page.getByText("我已阅读并同意", { exact: true }).click();
         else await page.locator(".lyx-button").filter({ hasText: "手机号快捷登录" }).click();
@@ -492,7 +891,7 @@ async function shoot(target) {
       if (target.kind === "profile") {
         if (target.scene === "basic-normal") {
           await page.locator("input").first().fill("邻里咖啡新店");
-          await page.locator(".lyx-button").filter({ hasText: "保存基础信息" }).click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             () =>
@@ -516,10 +915,7 @@ async function shoot(target) {
         }
         if (target.scene === "store-normal" || target.scene === "service-normal") {
           const media = target.scene === "store-normal";
-          await page
-            .locator(".lyx-button")
-            .filter({ hasText: media ? "保存门店环境" : "保存服务与价格" })
-            .click();
+          await page.locator(".lyx-button").filter({ hasText: "保存草稿" }).click();
           await page.locator(".lyx-button--loading").waitFor({ state: "hidden" });
           const body = await page.evaluate(
             (path) =>
@@ -543,15 +939,24 @@ async function shoot(target) {
         }
         if (target.scene === "cert-missing") {
           await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
+          await expect(
+            page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }),
+          ).toHaveClass(/lyx-checkbox--checked/);
           await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
           const missing = page.getByText("请补充门店必填资料", { exact: true });
           await missing.waitFor({ state: "visible" });
+          await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
           await missing.scrollIntoViewIfNeeded();
         }
         if (target.scene === "review-rejected")
-          await page.getByText("证照不清晰", { exact: true }).waitFor({ state: "visible" });
+          await page
+            .locator(".taro_page_stationed:not(.taro_page_shade) .lyx-card")
+            .filter({ has: page.locator(".lyx-card__title", { hasText: /^审核进度$/ }) })
+            .getByText("证照不清晰", { exact: true })
+            .waitFor({ state: "visible" });
       }
     }
+    if (target.kind === "catalog") await searchEntryRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     if (target.fullPage) {
       // 页面上开着弹层时，等它的进场动画走完
@@ -657,21 +1062,35 @@ async function shoot(target) {
     if (target.scene === "cert-normal") {
       await profileContactRegression(page);
       await profileAuthorizationRegression(page);
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await page.locator(".lyx-button").filter({ hasText: "提交资质审核" }).click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" }).click();
       await page
         .getByText("信息确认已更新，请刷新后重新阅读并确认", { exact: true })
         .waitFor({ state: "visible" });
       await page.locator(".lyx-text-button").filter({ hasText: "刷新并核对" }).click();
       await page.getByText("确认版本：2", { exact: true }).waitFor({ state: "visible" });
-      const submit = page.locator(".lyx-button").filter({ hasText: "提交资质审核" });
+      const submit = page.locator(".lyx-button:visible").filter({ hasText: "提交资质审核" });
       if (!(await submit.getAttribute("class"))?.includes("lyx-button--disabled"))
         throw new Error("声明更新后须重新勾选");
-      await page.locator(".lyx-checkbox").filter({ hasText: "我确认所填信息" }).click();
-      await submit.click();
+      await page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }).click();
+      await expect(
+        page.locator(".lyx-checkbox:visible").filter({ hasText: "我确认所填信息" }),
+      ).toHaveClass(/lyx-checkbox--checked/);
+      await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CONTROL__.authorization.failNextRedirect(),
+      );
+      await submit.dblclick();
       await page
-        .getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true })
+        .getByText("资料已保存，页面跳转失败，请点击下方重试", { exact: true })
         .waitFor({ state: "visible" });
+      await expect(page).toHaveURL(/sub\/profile\/cert\/index/);
+      await page.locator(".lyx-text-button").filter({ hasText: "重新进入审核进度" }).click();
+      await expect(page).toHaveURL(/sub\/profile\/review\/index/);
+      await profilePageReady(page, "review");
+      await page.getByText("平台审核中", { exact: true }).waitFor({ state: "visible" });
       const submitted = await page.evaluate(() =>
         globalThis.__LYX_PROFILE_CALLS__
           .filter((call) => call.path === "/m/store-profile/qualification/submit")
@@ -679,10 +1098,26 @@ async function shoot(target) {
       );
       if (JSON.stringify(submitted) !== JSON.stringify(["1", "2"]))
         throw new Error("提交没有携带本次声明版本");
+      await page.evaluate(() => globalThis.__LYX_PROFILE_CONTROL__.authorization.enter());
+      await profilePageReady(page, "cert");
       await profileContextRegression(page, "cert");
     }
+    if (target.scene === "cert-sheet")
+      await profileCertificateSheetRegression(
+        page,
+        path.join(outDir, "profile__cert-sheet-bottom.png"),
+      );
     if (["basic-normal", "store-normal", "service-normal"].includes(target.scene))
       await profileEditRegression(page, target.scene);
+    if (
+      [
+        "profile-missing-items",
+        "service-no-points",
+        "service-disabled-points",
+        "cert-declaration",
+      ].includes(target.scene)
+    )
+      await profileMissingRegression(page, target.scene);
     if (errors.length > 0) throw new Error(`页面报错：${errors[0]}`);
     console.log(`已出图 ${path.relative(appRoot, file)}`);
   } catch (error) {

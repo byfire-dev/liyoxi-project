@@ -6,12 +6,29 @@ export type { Delivery } from "./service.js";
 export type { DeliveryCoreDeps, DeliveryDeps, DeliveryViewer } from "./context.js";
 export { bindDelivery } from "./binding.js";
 export { orderSidePort } from "./ports.js";
-export type { OrderSide } from "./ports.js";
+export type { OrderSide, CancelReviewCause } from "./ports.js";
 export { createTickets, prepareTicketAssignees } from "./create.js";
 export { reevaluate, reevaluateSweep } from "./reevaluate.js";
+export { authorizeBatchUpload, readBatchUploadFacts } from "./upload-batch-facts.js";
+export { readAdDurationFacts, readAdProductionKind } from "./media-facts.js";
 export {
   getTicketBriefByOrderItem,
   getTicketBriefsByOrder,
   getTicketTimeline,
   getPlanBriefByOrder,
 } from "./reads.js";
+
+export { assignPublisher } from "./publisher-assignment.js";
+
+export { createProductionChecked } from "./production-checked.js";
+export type { ProductionCheckedDeps } from "./production-checked.js";
+export { countBlockingStoreTickets, countOnlineReleaseTicketsByEntity } from "./close-facts.js";
+
+export { productionReady } from "./quality.js";
+export { readEpisodeAssetOrder, hasAssetEditingTicket } from "./asset-facts.js";
+export { readCancelReviewPauseTargets, releaseCancelReviewPauses } from "./cancel-review-pauses.js";
+export type { CancelReviewPauseTargets } from "./cancel-review-pauses.js";
+export { handleDeliveryStageSlaBreach } from "./stage-sla.js";
+export type { DeliveryStageSlaDeps } from "./stage-sla.js";
+export { readCancelReviewHoldTargets, holdCancelReviewPauses } from "./cancel-review-hold.js";
+export type { CancelReviewHoldTargets } from "./cancel-review-hold.js";

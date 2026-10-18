@@ -1,14 +1,41 @@
 import type { PrismaClient } from "@liyoxi/db";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTxRunner, defineRegistration, invariantsOf, uuidv7 } from "../../kernel/index.js";
+import {
+  createTxRunner,
+  createBizNoIssuer,
+  defineRegistration,
+  invariantsOf,
+  uuidv7,
+  staffWorkSourcesOf,
+} from "../../kernel/index.js";
 import type { InvariantScope, InvariantViolation, TxRunner } from "../../kernel/index.js";
 import {
   assembleForTest,
   createClock,
   createFactories,
   useSeededDatabase,
+  createFakeProviders,
+  createRecordingLogger,
+  TEST_KEYRING,
 } from "../../testing/index.js";
+import { createConfig } from "../../config/index.js";
+import { createEvents } from "../../events/index.js";
+import { createFlow } from "../../flow/index.js";
+import { createTimers } from "../../timers/index.js";
+import { createSla } from "../../sla/index.js";
+import { createMedia } from "../../media/index.js";
+import { createMediaAssembly } from "../media-runtime.js";
+import { createStaffAssembly } from "../../staff/index.js";
+import { createInvitationExpiry, createTenant } from "../../tenant/index.js";
+import { createApproval } from "../../approval/index.js";
+import {
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+  createProfileQualificationConsistency,
+} from "../../profile/index.js";
+import { createInvitationAssembly } from "../invitation-runtime.js";
+import { createNotifyAssembly, createRuntimeNotify } from "../index.js";
 import { bindOps } from "../binding.js";
 import { runInvariants } from "./run.js";
 import { selectChecks } from "./select.js";
@@ -84,8 +111,87 @@ const runRow = async (id: string): Promise<RunRow> => {
 };
 
 describe("真实装配：空库加种子（验收 1、2）", () => {
-  const assembly = assembleForTest({ entry: "worker" });
-  const deps = () => ({ tx, assembly, clock });
+  const notifyScope = createNotifyAssembly(assembleForTest({ entry: "worker" }));
+  const staffScope = createStaffAssembly(notifyScope.assembly);
+  const invitationScope = createInvitationAssembly(staffScope.assembly);
+  const profileScope = createProfileConsistencyAssembly(invitationScope.assembly);
+  let profileCommits: ReturnType<typeof createProfileConsistencyTransactions>;
+  const mediaScope = createMediaAssembly(profileScope.assembly);
+  const assembly = mediaScope.assembly;
+  beforeAll(async () => {
+    const config = createConfig({ db: prisma, clock, redis: null });
+    const events = createEvents({ tx, clock, assembly });
+    const flow = createFlow({ assembly, clock, events });
+    const media = createMedia({
+      tx,
+      clock,
+      assembly,
+      events,
+      storage: createFakeProviders({ clock }).storage,
+    });
+    mediaScope.attach(media.jobs, media.retention);
+    profileCommits = createProfileConsistencyTransactions(tx, () => {});
+    profileScope.attach(
+      createProfileQualificationConsistency({
+        clock,
+        assembly,
+        events,
+        commits: profileCommits,
+        tenant: createTenant({ tx, clock, flow, assembly }),
+        approval: createApproval({
+          assembly,
+          clock,
+          flow,
+          events,
+          bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
+        }),
+      }),
+    );
+    invitationScope.attach(
+      createInvitationExpiry({
+        clock,
+        flow: createFlow({ assembly, clock, events }),
+        timers: createTimers({ assembly }),
+      }),
+    );
+    notifyScope.attach(
+      createRuntimeNotify({
+        tx,
+        clock,
+        assembly,
+        appEnv: "test",
+        providers: createFakeProviders({ clock }),
+        logger: createRecordingLogger(),
+        params: config.params,
+      }),
+    );
+    staffScope.attach({
+      tx,
+      clock,
+      config,
+      events,
+      flow: createFlow({ assembly, clock, events }),
+      timers: createTimers({ assembly }),
+      sla: createSla({ assembly, clock }),
+      keyring: () => TEST_KEYRING,
+      workSources: staffWorkSourcesOf(assembly),
+    });
+    const group = await prisma.staffGroup.findFirstOrThrow({
+      where: { staffRoleKey: "super_admin", isDefault: true },
+    });
+    await createFactories({ db: prisma, clock }).staff({
+      staffRoleKey: "super_admin",
+      staffGroupId: group.id,
+      isLead: true,
+    });
+  });
+  afterAll(async () => {
+    mediaScope.close();
+    await profileScope.close();
+    invitationScope.close();
+    return Promise.all([staffScope.close(), notifyScope.close()]);
+  });
+  const deps = () => ({ tx: profileCommits.tx, assembly, clock });
 
   it(
     "full 跑完 0 违规；执行的检查项里有 config 的六条与已登记的其余各条",

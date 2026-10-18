@@ -72,6 +72,7 @@ export function createSubscribe(deps: SubscribeDeps) {
     point: SubscribePoint,
     slots: { slotKey: string; tmplId: string }[],
     answer: Record<string, unknown>,
+    onReportCommitted?: () => Promise<void> | void,
   ): void {
     const results = slots.flatMap((slot) => {
       const result = answer[slot.tmplId];
@@ -88,20 +89,27 @@ export function createSubscribe(deps: SubscribeDeps) {
     const report = deps.report?.();
     if (!report || results.length === 0) return;
     const reportId = deps.uuid();
-    report(
+    void report(
       { reportId, point, results: results.map(({ tmplId, result }) => ({ tmplId, result })) },
       `subscribeReport:${reportId}`,
-    ).then(
-      () => deps.afterReport?.(),
-      () => undefined, // 上报失败不影响这次操作，也不重试：下一次授权时再报
-    );
+    )
+      .then(async () => {
+        deps.afterReport?.();
+        await onReportCommitted?.();
+      })
+      .catch(() => undefined); // 报告或当前页回调失败均不影响原操作，也不重试
   }
 
   /**
    * 包一层点击处理函数：返回值直接挂到按钮的点击事件上。
    * 支付成功这个点位在 wx.requestPayment 的成功回调里调返回的函数（平台允许支付回调触发）。
+   * 当前页可在报告成功后回读设置；此回调不延迟原处理函数，也不代替 afterReport。
    */
-  function withSubscribe(point: SubscribePoint, handler: () => Promise<void> | void): () => void {
+  function withSubscribe(
+    point: SubscribePoint,
+    handler: () => Promise<void> | void,
+    onReportCommitted?: () => Promise<void> | void,
+  ): () => void {
     return () => {
       const slots = slotsToAsk(point);
       if (slots.length === 0) {
@@ -118,7 +126,7 @@ export function createSubscribe(deps: SubscribeDeps) {
       }
       asking.then(
         (answer) => {
-          settle(point, slots, answer ?? {});
+          settle(point, slots, answer ?? {}, onReportCommitted);
           run(handler);
         },
         () => run(handler),

@@ -1,0 +1,307 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  buildWorkerServices,
+  createMedia,
+  createQueueChannel,
+  createIdentityContext,
+  connectWorkerDatabase,
+  uuidv7,
+} from "@liyoxi/services";
+import type { Env, QueueChannel } from "@liyoxi/services";
+import {
+  assembleForTest,
+  createClock,
+  createFactories,
+  createFakeProviders,
+  createSampleEvents,
+  useSeededDatabase,
+  useTestRedis,
+} from "@liyoxi/services/testing";
+import { createWorkerRuntime, QUEUE_CONCURRENCY } from "../src/runtime.js";
+import { DOMAIN_LOOPS } from "../src/domain-loops.js";
+import { silentLogger } from "../src/log.js";
+const handle = useSeededDatabase("worker"),
+  redis = useTestRedis(),
+  clock = createClock();
+let prisma: Awaited<ReturnType<typeof handle.prisma>>,
+  channel: ReturnType<typeof createQueueChannel>;
+const owned: ReturnType<typeof buildWorkerServices>[] = [];
+const runtimes: ReturnType<typeof createWorkerRuntime>[] = [];
+const ci: NonNullable<Env["CI"]> = {
+  callback: {
+    key: "public-fake-ci-callback-key-with-32-bytes",
+    origin: "https://callback.example.invalid",
+  },
+  worker: {
+    region: "ap-beijing",
+    buckets: {
+      secure: "test-secure-1250000000",
+      asset: "test-asset-1250000000",
+      media: "test-media-1250000000",
+      pub: "test-pub-1250000000",
+    },
+    secretId: "public-fake-worker-id",
+    secretKey: "public-fake-worker-key",
+  },
+};
+beforeAll(async () => {
+  prisma = await handle.prisma();
+  await redis.flush();
+  channel = createQueueChannel({ redisUrl: process.env.REDIS_URL!, prefix: `${redis.prefix}bull` });
+  await channel.ping();
+});
+async function close(one: ReturnType<typeof buildWorkerServices>) {
+  await one.shutdownMediaJobs?.();
+  await one.closeNotify?.();
+  one.closeMediaJobs?.();
+  one.closeOrder?.();
+  one.closeBillingTimers?.();
+  one.closePublish?.();
+  one.closeDelivery?.();
+  one.closeWebhooks?.();
+  await one.closeAnalytics?.();
+  await Promise.all([one.closeMediaDrivers?.(), one.closeStorageDrivers?.()]);
+}
+afterEach(async () => {
+  for (const runtime of runtimes.splice(0)) await runtime.stop();
+  for (const one of owned.splice(0)) await close(one);
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+afterAll(async () => {
+  await channel.close();
+});
+function build(options: Partial<Parameters<typeof buildWorkerServices>[0]> = {}) {
+  const one = buildWorkerServices({
+    appEnv: "test",
+    prisma,
+    assembly: assembleForTest({ entry: "worker", omitReal: ["recurringJobs"] }),
+    channel,
+    clock,
+    ...options,
+  });
+  owned.push(one);
+  return one;
+}
+describe("W303真实worker媒体装配与恢复", () => {
+  it("构造无外呼且真实factory选择CI；关闭仅自己驱动不关闭借用DB/队列", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    vi.stubGlobal("fetch", fetch);
+    const services = build({ keys: { CI: ci } });
+    expect(services.providers.media.status).toBe("ci");
+    expect(fetch).not.toHaveBeenCalled();
+    await Promise.all([services.closeMediaDrivers!(), services.closeMediaDrivers!()]);
+    expect(
+      await services.providers.media.describe!({ jobId: "jfixture", family: "media" }),
+    ).toMatchObject({ ok: false, reason: "unavailable" });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await prisma.$queryRaw`SELECT 1 AS alive`).toEqual([{ alive: 1 }]);
+    expect(await channel.ping()).toBe(true);
+  });
+  it("缺CI worker角色在绑定/factory前拒绝；未配保留正式unconfigured降级", () => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    vi.stubGlobal("fetch", fetch);
+    expect(() => build({ keys: { CI: { callback: ci.callback } } })).toThrow(/CI.*worker/);
+    expect(build({ appEnv: "stg" }).providers.media.status).toBe("unconfigured");
+    expect(build().providers.media.status).toBe("local");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("actual worker own-close取消在途请求并等listener清理，不触兄弟存储", async () => {
+    let entered!: () => void,
+      listeners = 0;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const signal = init!.signal!;
+      let abort!: () => void;
+      try {
+        return await new Promise<Response>((_resolve, reject) => {
+          abort = () => reject(new Error("public fake abort"));
+          listeners++;
+          signal.addEventListener("abort", abort, { once: true });
+          entered();
+        });
+      } finally {
+        signal.removeEventListener("abort", abort);
+        listeners--;
+      }
+    };
+    vi.stubGlobal("fetch", fetch);
+    const services = build({ keys: { CI: ci } });
+    const sibling = services.providers.storage,
+      siblingStatus = sibling.status;
+    const pending = services.providers.media.describe!({ jobId: "jfixture", family: "media" });
+    await waiting;
+    await services.closeMediaDrivers!();
+    expect(await pending).toMatchObject({ ok: false, reason: "unavailable" });
+    expect(listeners).toBe(0);
+    expect(services.providers.storage).toBe(sibling);
+    expect(sibling.status).toBe(siblingStatus);
+    expect(await prisma.$queryRaw`SELECT 1 AS alive`).toEqual([{ alive: 1 }]);
+    expect(await channel.ping()).toBe(true);
+  });
+  it("已登记15秒/20行恢复循环与media_job队列；Redis丢醒后扫描持有IO且关停等真实完成", async () => {
+    const fake = createFakeProviders({ clock }),
+      sample = createSampleEvents(prisma, { registrations: [] });
+    const services = build({ providers: fake });
+    const runtime = createWorkerRuntime({ services, channel, logger: silentLogger });
+    runtimes.push(runtime);
+    expect(DOMAIN_LOOPS.filter((one) => one.name === "media_job_run")).toHaveLength(1);
+    expect(runtime.domainLoops["media_job_run"]?.intervalMs).toBe(15_000);
+    expect(QUEUE_CONCURRENCY.media_job).toBe(10);
+    expect(runtime.consumers).toHaveProperty("promote");
+    const make = createFactories({ db: prisma, clock }),
+      user = await make.merchantUser(),
+      entity = await make.entity({ createdByUserId: user.id }),
+      store = await make.store({ entityId: entity.id });
+    const media = createMedia({
+      tx: sample.tx,
+      clock,
+      assembly: services.assembly,
+      events: services.events,
+      storage: fake.storage,
+      channel,
+      pollMs: 0,
+    });
+    const actor = {
+      identity: createIdentityContext({
+        actor: { type: "merchant", id: user.id, client: "weapp", role: "owner" },
+        entityId: entity.id,
+        storeId: store.id,
+      }),
+      merchant: { standing: "owner" as const, entityId: entity.id, storeId: store.id },
+    };
+    const file = (
+      await media.register(actor, {
+        category: "profile_image",
+        files: [{ fileName: "fixture.png", sizeBytes: "8", clientToken: uuidv7() }],
+      })
+    ).items[0]!;
+    fake.storage.put(
+      { bucket: "asset", key: file.key },
+      new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+      "image/png",
+    );
+    await media.complete(actor, file.fileId);
+    await redis.flush();
+    fake.storage.delayNext("copy", 1000);
+    let stopped = false;
+    try {
+      await runtime.domainLoops["media_job_run"]!.tick();
+      await vi.waitFor(() => expect(fake.storage.pendingCalls()).toBe(1));
+      expect(
+        (await prisma.fileObject.findUniqueOrThrow({ where: { id: file.fileId } })).status,
+      ).toBe("promoting");
+      const stop = runtime.stop().then(() => {
+        stopped = true;
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(stopped).toBe(false);
+      clock.advance(1000);
+      fake.storage.tick();
+      await stop;
+      expect(
+        (await prisma.fileObject.findUniqueOrThrow({ where: { id: file.fileId } })).status,
+      ).toBe("stored");
+      expect(
+        await prisma.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${file.fileId}` } }),
+      ).toMatchObject({ state: "succeeded", attemptNo: 1 });
+      expect(
+        await prisma.outboxEvent.count({
+          where: { eventType: "file.stored", aggregateId: file.fileId },
+        }),
+      ).toBe(1);
+      expect(fake.storage.pendingCalls()).toBe(0);
+      await runtime.stop();
+      expect(await channel.ping()).toBe(true);
+    } finally {
+      clock.advance(1000);
+      fake.storage.tick();
+      await runtime.stop();
+      await media.jobs.shutdown();
+    }
+  });
+  it("遗留promote仅转入canonical队列；坏载荷与转发失败不吞错且关闭所有消费者", async () => {
+    const services = build();
+    const handlers = new Map<string, (raw: unknown) => Promise<unknown>>();
+    const close = vi.fn(async () => {});
+    const enqueue = vi.fn(async () => {});
+    const compatibility: QueueChannel = {
+      enqueue,
+      downForMs: () => 0,
+      ping: async () => true,
+      close: async () => {},
+      consume: (name, _concurrency, handler) => {
+        handlers.set(name, handler as (raw: unknown) => Promise<unknown>);
+        return { start() {}, pause: async () => {}, close };
+      },
+    };
+    const runtime = createWorkerRuntime({ services, channel: compatibility, logger: silentLogger });
+    runtimes.push(runtime);
+    const legacy = handlers.get("promote")!;
+    const jobId = uuidv7();
+    await expect(legacy({ jobId, extra: "private-fixture" })).rejects.toThrow(
+      "历史媒体队列参数不合法",
+    );
+    expect(enqueue).not.toHaveBeenCalled();
+    enqueue.mockRejectedValueOnce(new Error("canonical enqueue unavailable"));
+    await expect(legacy({ jobId })).rejects.toThrow("canonical enqueue unavailable");
+    await legacy({ jobId });
+    expect(enqueue).toHaveBeenLastCalledWith("media_job", `media-${jobId}`, { jobId });
+    await runtime.stop();
+    expect(close).toHaveBeenCalledTimes(5);
+    expect(await channel.ping()).toBe(true);
+  });
+});
+
+it("W306真实worker绑定10分钟清扫：过期、每日一次、取消零写与关闭隔离", async () => {
+  // 本例会把时钟从默认一月拨到十月，不能把前例的无引用文件变成本例清除候选。
+  await handle.reset();
+  prisma = await handle.prisma();
+  clock.set(new Date("2026-10-14T20:10:00.000Z"));
+  const fake = createFakeProviders({ clock });
+  const ownedDatabase = connectWorkerDatabase(await handle.url());
+  const services = build({
+    assembly: assembleForTest({ entry: "worker" }),
+    providers: fake,
+    sessionMutex: ownedDatabase.sessionMutex,
+    prisma: ownedDatabase.prisma,
+  });
+  const make = createFactories({ db: prisma, clock });
+  const file = await make.fileObject({
+    status: "pending",
+    storedAt: null,
+    uploadExpiresAt: new Date(clock.now().getTime() - 1),
+  });
+  const run = services.assembly.recurringJob("media.sweep")!;
+  expect(run).toMatchObject({ schedule: { every: "minutes", minutes: 10 }, mode: "job" });
+  const { tx } = createSampleEvents(ownedDatabase.prisma, { registrations: [] });
+  const controller = new AbortController();
+  const context = {
+    scheduledFor: clock.now(),
+    signal: controller.signal,
+    runTx: tx.run.bind(tx),
+  };
+  try {
+    expect(await run.run(context)).toMatchObject({ uploads: 1, failed: [] });
+    expect(await prisma.fileObject.findUniqueOrThrow({ where: { id: file.id } })).toMatchObject({
+      status: "expired",
+      incomingKey: null,
+      incomingBucket: null,
+    });
+    const first = await prisma.filePurgeRun.findMany();
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ mode: "list_only", state: "proposed", candidateCount: 0 });
+    expect(await run.run(context)).toMatchObject({ uploads: 0, failed: [] });
+    expect(await prisma.filePurgeRun.findMany()).toEqual(first);
+    controller.abort(new Error("测试真实job取消信号"));
+    await expect(run.run(context)).rejects.toThrow("测试真实job取消信号");
+    expect(await prisma.filePurgeRun.findMany()).toEqual(first);
+    services.closeMediaJobs!();
+    expect(() => run.run({ ...context, signal: new AbortController().signal })).toThrow(/关闭/);
+    expect(await prisma.$queryRaw`SELECT 1 AS alive`).toEqual([{ alive: 1 }]);
+  } finally {
+    await ownedDatabase.close();
+  }
+}, 60_000);

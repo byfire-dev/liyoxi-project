@@ -46,10 +46,64 @@ export const A03_MERCHANT = defineRouteDoc("a03-merchant", [
 export * from "./error-details.js";
 
 export * from "./stores.schemas.js";
+export * from "./store-activity.schemas.js";
+export * from "./store-profile.schemas.js";
+export * from "./store-qualification.schemas.js";
+export * from "./assignment-contact.schemas.js";
+export * from "./follow-ups.schemas.js";
+export {
+  adminFollowUpList,
+  adminFollowUpCreate,
+  adminFollowUpUpdate,
+  adminFollowUpComplete,
+} from "./follow-ups.js";
+export * from "./assignment-histories.js";
 export * from "./qualification.schemas.js";
-export { adminStoreList, adminStoreGet, adminStoreAssignDeliveryManager } from "./stores.js";
+export { adminQualificationDocUpdate } from "./qualification-docs.js";
+export {
+  adminStoreList,
+  adminStoreSummary,
+  adminStoreGet,
+  adminStoreActivityList,
+  adminStoreProfileGet,
+  adminStoreProfileUpdate,
+  adminStoreQualificationGet,
+  adminStoreAssignDeliveryManager,
+  adminStoreReassignDeliveryManager,
+} from "./stores.js";
 export {
   adminQualificationSubmissionGet,
   adminQualificationSubmissionApprove,
   adminQualificationSubmissionReject,
+  adminQualificationSubmissionRejectQuote,
 } from "./qualification-submissions.js";
+
+export * from "./store-assets.schemas.js";
+
+export * from "./store-assets.js";
+
+export * from "./asset-demands.js";
+export * from "./entities.schemas.js";
+export * from "./entity-quota.schemas.js";
+export * from "./entity-close.schemas.js";
+export * from "./merchant-users.schemas.js";
+export {
+  adminMerchantUserDisable,
+  adminMerchantUserEnable,
+  adminMerchantUserForceLogout,
+} from "./merchant-users.js";
+export {
+  adminEntityGet,
+  adminEntityMemberList,
+  adminEntityQuotaUpdate,
+  adminEntityClose,
+} from "./entities.js";
+export * from "./account-change.schemas.js";
+export * from "./referral-codes.schemas.js";
+export {
+  adminReferralCodeList,
+  adminReferralCodeCreate,
+  adminReferralCodeDisable,
+  adminReferralCodeEnable,
+} from "./referral-codes.js";
+export * from "./account-change-requests.js";

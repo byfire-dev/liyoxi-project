@@ -17,6 +17,20 @@ export interface BillingAccountOpener {
 
 export const billingAccountPort = definePort<BillingAccountOpener>("tenant.billingAccount");
 
+/** 全部计费历史；不存在历史不代表主体存在或有权放弃草稿。 */
+export interface BillingHistoryFacts {
+  readonly hasSubscriptionTerm: boolean;
+  readonly hasBillingOrder: boolean;
+}
+
+export interface BillingHistoryReader {
+  /** 调用方事务内的同一语句快照；不按状态、时间、金额或账户缓存过滤。 */
+  read(tx: Tx, entityId: string): Promise<BillingHistoryFacts>;
+}
+
+// 缺 billing 真实实现即装配失败，不把缺来源当作没有历史。
+export const billingHistoryPort = definePort<BillingHistoryReader>("tenant.billing_history");
+
 /** 下载页授权只按主体或该主体内的授权老板撤销；时间由调用方注入。 */
 export type PortalGrantRevocation =
   | { readonly scope: "entity"; readonly entityId: string; readonly now: Date }
@@ -38,4 +52,27 @@ export interface MembershipAuthorizations {
 // 02 分组第 5 节：tenant 不能反调 identity，由 identity 登记强制实现。
 export const membershipAuthorizationsPort = definePort<MembershipAuthorizations>(
   "tenant.membership_authorizations",
+);
+
+/** 仅广告取消：同事务先 prepare，再关闭主体，最后 withdraw；不是完整主体关闭用例。 */
+export interface EntityAdCancelClosePlan {
+  readonly entityId: string;
+  readonly requestIds: readonly string[];
+  readonly invitationIds: readonly string[];
+  readonly memberIds: readonly string[];
+  readonly storeIds: readonly string[];
+}
+export interface EntityAdCancelCloser {
+  /** 在任何 tenant 锁之前调用；调用方员工也纳入 staff20 union，再锁至全部门店130。每 Tx 只准备一个主体。 */
+  prepare(
+    tx: Tx,
+    entityId: string,
+    actorStaffIds?: readonly string[],
+  ): Promise<EntityAdCancelClosePlan>;
+  /** 主体必须已真实 closed；复核同事务计划和完整图，再整体锁高序目标/timer，系统撤回 pending ad_cancel。 */
+  withdraw(tx: Tx, ctx: IdentityContext, plan: EntityAdCancelClosePlan): Promise<readonly string[]>;
+}
+// 无默认实现：缺真实 order owner 时装配失败。
+export const entityAdCancelClosePort = definePort<EntityAdCancelCloser>(
+  "tenant.entityAdCancelClose",
 );

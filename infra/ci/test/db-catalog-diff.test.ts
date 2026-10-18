@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -31,6 +31,19 @@ interface DbLib {
 }
 const lib = (await import(pathToFileURL(join(repoRoot, "infra/ci/db-lib.mjs")).href)) as DbLib;
 
+const structureLib = (await import(
+  pathToFileURL(join(repoRoot, "infra/ci/db-structure-lib.mjs")).href
+)) as {
+  applyMigrations(db: string): void;
+  readStructure(db: string): { sections: unknown; counts: Record<string, [number, number]> };
+  renderSnapshot(structure: unknown): string;
+  parseSnapshot(text: string): { counts: Record<string, [number, number]> };
+};
+const currentCheckCounts = structureLib.parseSnapshot(
+  readFileSync(join(repoRoot, "packages/db/snapshot/structure.txt"), "utf8"),
+).counts["CHECK 约束"];
+if (!currentCheckCounts) throw new Error("现行结构快照缺少 CHECK 约束计数");
+const CURRENT = `lyx_test_infra_catcurrent_${process.pid}`;
 const SCRIPT = "infra/ci/db-catalog-diff.mjs";
 const MIGRATION = "packages/db/prisma/migrations/20261005000000_init/migration.sql";
 const BASE = `lyx_test_infra_catdiff_${process.pid}`;
@@ -43,11 +56,14 @@ beforeAll(() => {
   // 整个迁移放进一个事务：与 migrate deploy 一次发出去的效果相同，也比逐句提交快
   lib.sqlOrThrow(BASE, `begin;\n${readFileSync(join(repoRoot, MIGRATION), "utf8")}\ncommit;`);
   base = lib.readCatalog(BASE);
+  lib.recreateDb(CURRENT);
+  structureLib.applyMigrations(CURRENT);
 }, 120_000);
 
 afterAll(() => {
   lib.dropDb(COPY);
   lib.dropDb(BASE);
+  lib.dropDb(CURRENT);
   temp.cleanup();
 });
 
@@ -385,61 +401,89 @@ describe("命令行", () => {
   const diff = (...args: string[]) => run("node", [SCRIPT, ...args, "--report", report], repoRoot);
 
   it("两个库相同（迁移库多一张 _prisma_migrations）：退出码 0，报告写出来，七类都是 0 差异", () => {
-    lib.recreateDb(COPY, { template: BASE });
+    lib.recreateDb(COPY, { template: CURRENT });
     lib.sqlOrThrow(COPY, "CREATE TABLE _prisma_migrations (id varchar(36) PRIMARY KEY)");
-    const result = diff("--ref", BASE, "--target", COPY);
+    const result = diff("--ref", CURRENT, "--target", COPY);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
     const text = readFileSync(report, "utf8");
     expect(result.stdout).toContain(text);
-    expect(text).toContain("结论：通过：schema 未改，系统目录 0 差异，数量对得上");
+    expect(text).toContain(
+      "结论：通过：首版冻结等价，现行系统目录 0 差异、快照与 schema 一致，数量对得上",
+    );
+    expect(text).toContain("首版冻结等价证明");
+    expect(text).toContain("现行快照与 schema");
     expect(
       text.match(/^\| .+ \| \d+ \| \d+ \| 0 \| `[0-9a-f]{16}` \| `[0-9a-f]{16}` \|$/gm),
     ).toHaveLength(7);
-    expect(text).toContain("| CHECK 约束 | 1234 / 1284 | 1234 / 1284 | 1234 / 1284 |");
+    // 首版证明继续使用冻结数量；本节 CURRENT 跑了全部迁移，必须对照现行官方快照。
+    const [logical, all] = currentCheckCounts;
+    const currentSection = text.split("## 3. 数量两组口径\n")[1]?.split("## 4. ")[0];
+    expect(currentSection).toContain(
+      `| CHECK 约束 | ${logical} / ${all} | ${logical} / ${all} | ${logical} / ${all} |`,
+    );
   });
 
   it("迁移库上删一条 CHECK：退出码 1，指出是哪一条，数量也对不上", () => {
-    lib.recreateDb(COPY, { template: BASE });
+    lib.recreateDb(COPY, { template: CURRENT });
     lib.sqlOrThrow(
       COPY,
       "ALTER TABLE idempotency_record DROP CONSTRAINT ck_idempotency_record_state",
     );
-    const result = diff("--ref", BASE, "--target", COPY);
+    const result = diff("--ref", CURRENT, "--target", COPY);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       "系统目录比对未通过。2. 系统目录逐项比对（`_prisma_migrations` 不计）：1 处；3. 数量两组口径：1 处",
     );
     const text = readFileSync(report, "utf8");
     expect(text).toContain(`- 【约束定义】idempotency_record.ck_idempotency_record_state${GONE}`);
-    expect(text).toContain("- 迁移库的CHECK 约束是 1233 / 1283，应为 1234 / 1284");
+    const [logical, all] = currentCheckCounts;
+    expect(text).toContain(
+      `- 迁移库的CHECK 约束是 ${logical - 1} / ${all - 1}，应为 ${logical} / ${all}`,
+    );
   });
 
   it("库名不是 lyx_ 开头、库不存在、参数写错：退出码 2，不写报告", () => {
     const missing = join(temp.dir, "missing.md");
     const at = (...args: string[]) => run("node", [SCRIPT, ...args, "--report", missing], repoRoot);
-    const wrongName = at("--ref", BASE, "--target", "liyoxi");
+    const wrongName = at("--ref", CURRENT, "--target", "liyoxi");
     expect(wrongName.status).toBe(2);
     expect(wrongName.stderr).toContain("liyoxi 不是 lyx_ 开头的校验库");
-    const noSuchDb = at("--ref", BASE, "--target", `${BASE}_none`);
+    const noSuchDb = at("--ref", CURRENT, "--target", `${BASE}_none`);
     expect(noSuchDb.status).toBe(2);
     expect(noSuchDb.stderr).toContain("读不到系统目录");
     expect(run("node", [SCRIPT, "--verbose", "1"], repoRoot).status).toBe(2);
     expect(existsSync(missing)).toBe(false);
   });
 
-  it("迁入的 schema 改了模型的一行：第 1 段不过；只改文件头注释与 generator 块：照过", () => {
+  it("现行 schema 改了模型一行：实际库→schema拒绝；文件头与 generator 修改不造成DDL", () => {
     // 脚本按自己的位置找两份 schema：拷一份最小的目录树出去改，不动仓库里的文件
     const tree = join(temp.dir, "tree");
     const moved = join(tree, "packages/db/prisma/schema.prisma");
-    for (const path of ["infra/ci/db-lib.mjs", SCRIPT, "docs/data-model/schema.prisma"]) {
-      cpSync(join(repoRoot, path), join(tree, path));
+    for (const path of [
+      "infra/ci/db-lib.mjs",
+      "infra/ci/db-structure-lib.mjs",
+      "infra/ci/db-post-init-lib.mjs",
+      SCRIPT,
+      "docs/data-model/schema.prisma",
+      "docs/data-model/constraints",
+      "packages/db/prisma.config.ts",
+      "packages/db/prisma/migrations/20261005000000_init/migration.sql",
+      "packages/db/snapshot/structure.txt",
+    ]) {
+      mkdirSync(join(tree, path, ".."), { recursive: true });
+      cpSync(join(repoRoot, path), join(tree, path), { recursive: true });
     }
+    symlinkSync(
+      join(repoRoot, "packages/db/node_modules"),
+      join(tree, "packages/db/node_modules"),
+      "dir",
+    );
     const original = readFileSync(join(repoRoot, "packages/db/prisma/schema.prisma"), "utf8");
     const check = (text: string) => {
       cpSync(join(repoRoot, "docs/data-model/schema.prisma"), moved);
       writeFileSync(moved, text);
-      return run("node", [SCRIPT, "--ref", BASE, "--target", BASE, "--report", report], tree);
+      return run("node", [SCRIPT, "--ref", CURRENT, "--target", CURRENT, "--report", report], tree);
     };
 
     const headOnly = original
@@ -452,9 +496,8 @@ describe("命令行", () => {
     expect(edited).not.toBe(original);
     const result = check(edited);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("系统目录比对未通过。1. schema 迁入不改模型：1 处");
-    expect(result.stdout).toMatch(
-      /模型部分第 \d+ 行起不同：底稿 ".*nextVal {3}Int .*"；迁入的 ".*nextVal {3}BigInt /,
-    );
+    expect(result.stderr).toContain("4. 现行快照与 schema");
+    expect(result.stdout).toContain('ALTER TABLE "biz_sequence" ALTER COLUMN "next_val"');
+    expect(result.stdout).toContain("BIGINT");
   });
 });

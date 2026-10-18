@@ -31,6 +31,34 @@ export const merchantUserWechatBoundPayload = z.strictObject({
 });
 
 export const payloads = {
+  "merchant_user.disabled": z.strictObject({
+    v: z.literal(1),
+    merchantUserId: IdSchema,
+    fromState: z.literal("active"),
+    toState: z.literal("disabled"),
+    transition: z.literal("merchant_user.disable"),
+  }),
+  "merchant_user.enabled": z.strictObject({
+    v: z.literal(1),
+    merchantUserId: IdSchema,
+    fromState: z.literal("disabled"),
+    toState: z.literal("active"),
+    transition: z.literal("merchant_user.enable"),
+  }),
   "merchant_user.registered": merchantUserRegisteredPayload,
   "merchant_user.wechat_bound": merchantUserWechatBoundPayload,
+  "merchant_user.phone_changed": z.strictObject({
+    v: z.literal(1),
+    merchantUserId: IdSchema,
+    via: z.enum(["self_service", "approval"]),
+    accountChangeRequestId: IdSchema.optional(),
+  }),
+  "merchant_user.deleted": z.strictObject({
+    v: z.literal(1),
+    merchantUserId: IdSchema,
+    reason: z.enum(["self_deleted", "purge_empty"]),
+    fromState: z.literal("active"),
+    toState: z.literal("deleted"),
+    transition: z.enum(["merchant_user.delete", "merchant_user.purge_empty"]),
+  }),
 } as const;

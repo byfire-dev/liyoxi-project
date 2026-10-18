@@ -124,7 +124,7 @@ const base: AdminBasePages = {
       kind: "shell",
       skeleton: "overlay",
       inMenu: false,
-      note: "属外壳；M1 仅退出登录，修改密码与动态口令设置待 G2-A（M2）",
+      note: "属外壳，M1 归属保留；W2-06 增加修改密码、动态口令与本人企业微信绑定",
     },
     {
       key: "export.records",

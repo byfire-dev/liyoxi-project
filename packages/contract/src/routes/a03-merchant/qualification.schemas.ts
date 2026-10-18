@@ -11,6 +11,7 @@ import { z } from "../../zod.js";
 import { DictRefSchema, IdSchema, InstantSchema, orNull, openEnum } from "../../common/index.js";
 import { ApprovalDecisionViewSchema } from "../a01-system/approvals.schemas.js";
 import { QualificationDocSchema } from "../m03-profile-asset/qualification.schemas.js";
+import { PendingChangeSchema } from "../m03-profile-asset/profile.schemas.js";
 import { StoreRegionSchema } from "./stores.schemas.js";
 export const AdminQualificationDocSchema = QualificationDocSchema.omit({ hasSubmittedFields: true })
   .extend({
@@ -56,7 +57,7 @@ export const QualificationSubmissionDetailSchema = z
       verifiedAt: orNull(InstantSchema),
       verifiedStores: z.array(z.object({ storeId: IdSchema, name: orNull(z.string()) })),
     }),
-    proposed: z.null(),
+    proposed: orNull(PendingChangeSchema),
     changedFields: z.array(z.string()),
     contact: orNull(
       z.object({
@@ -126,8 +127,22 @@ export const QualificationRejectBodySchema = z.object({
     .refine((v) => new Set(v).size === v.length)
     .optional(),
   isFinal: z.boolean().default(false),
-  confirm,
+  // 两种决定的回显均留给领域守卫核对，避免缺字段抢先遮蔽scope/待审守卫。
+  confirm: z
+    .object({
+      roundNo: z.int().optional(),
+      pendingStartOrderCount: z.int().min(0).optional(),
+      pendingAssignAdCount: z.int().min(0).optional(),
+      heldPoints: z.int().min(0).optional(),
+    })
+    .optional(),
 });
 export type QualificationApproveBody = z.infer<typeof QualificationApproveBodySchema>;
 export type QualificationRejectBody = z.infer<typeof QualificationRejectBodySchema>;
 export type QualificationSubmissionDetail = z.infer<typeof QualificationSubmissionDetailSchema>;
+export const QualificationDocReviewBodySchema = z.strictObject({
+  lockVersion: z.int().min(0),
+  fields: z.record(z.string(), z.string()).refine((v) => Object.keys(v).length > 0),
+  note: z.string().max(200).optional(),
+});
+export type QualificationDocReviewBody = z.infer<typeof QualificationDocReviewBodySchema>;

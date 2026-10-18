@@ -1,17 +1,27 @@
 import type { Prisma } from "@liyoxi/db";
-import { z } from "@liyoxi/contract";
+import {
+  z,
+  EVENT_PAYLOAD_SCHEMAS,
+  DramaPermitCreateBodySchema,
+  DramaPermitUpdateBodySchema,
+  DramaPermitRetireBodySchema,
+  DramaEpisodeUpdateBodySchema,
+  DramaDelistBodySchema,
+} from "@liyoxi/contract";
+import type { DramaPermitCreateBody, DramaPermitUpdateBody } from "@liyoxi/contract";
+import { dramaMediaReadiness } from "../media/index.js";
 import { calendarDate, addDays, dayRange } from "@liyoxi/shared/time";
 import { visible, orderable, stopDate, selectPermits } from "@liyoxi/shared/catalog";
 import { AppError, uuidv7, lockRows, bumpLockVersion } from "../kernel/index.js";
 import type { Tx, Clock, Assembly } from "../kernel/index.js";
 import type { Flow } from "../flow/index.js";
-import type { EmitContext } from "../events/index.js";
+import type { Events, EmitContext } from "../events/index.js";
 import type { Media } from "../media/index.js";
 import { record } from "../audit/index.js";
 import { paramsAt } from "../config/index.js";
 import { DramaPricePort } from "./ports.js";
 import { assertListing, dateOf, dramaFacts, listingChecks, permitsOf } from "./checks.js";
-import { basicInput, commercialInput, copyrightInput, permitInput, rolesInput } from "./inputs.js";
+import { basicInput, commercialInput, copyrightInput, rolesInput } from "./inputs.js";
 import type {
   BasicInput,
   CommercialInput,
@@ -21,9 +31,12 @@ import type {
 } from "./inputs.js";
 
 export interface ContentDeps {
+  readonly events?: Pick<Events, "emit">;
+  readonly license?: { rearm(tx: Tx, id: string): Promise<void> };
   readonly clock: Clock;
   readonly flow: Flow;
-  readonly media: Pick<Media, "link" | "release">;
+  readonly media: Pick<Media, "link" | "release"> &
+    Partial<Pick<Media, "retireDramaMedia" | "enqueueTrailer">>;
   readonly assembly: Pick<Assembly, "port">;
 }
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -90,8 +103,6 @@ async function editable(tx: Tx, id: string) {
   const row = await tx.drama.findUnique({ where: { id } });
   if (!row) throw new AppError("NOT_FOUND");
   if (row.archivedAt) throw new AppError("DRAMA_ARCHIVED");
-  // M1 写侧只用于从未上架的草稿；已上架保存校验随 M3 a04 一起接入。
-  if (row.status !== "draft") throw new AppError("STATE_NOT_ALLOWED");
   return row;
 }
 async function dicts(
@@ -115,6 +126,47 @@ async function dicts(
 export function createContent(deps: ContentDeps) {
   const prices = deps.assembly.port(DramaPricePort);
   const checks = (tx: Tx, id: string, at = deps.clock.now()) => listingChecks(tx, id, at, prices);
+  const assertSaved = async (tx: Tx, id: string, status: string) => {
+    if (status !== "listed") return;
+    const result = await checks(tx, id);
+    const failed = result.items.filter(
+      (v) => v.severity === "block" && !v.isOk && v.code !== "L12",
+    );
+    if (failed.length)
+      throw new AppError("LISTING_CHECK_FAILED", {
+        details: { failed: failed.map(({ code, note }) => ({ code, note })) },
+      });
+  };
+  const readiness = async (tx: Tx, id: string, at = deps.clock.now()) => {
+    const facts = await dramaFacts(tx, id);
+    return dramaMediaReadiness(
+      tx,
+      {
+        dramaId: id,
+        totalEpisodes: facts.drama.totalEpisodes,
+        posterFileId: facts.drama.posterFileId,
+        episodeNos: facts.episodes.map((v) => v.episodeNo),
+      },
+      at,
+    );
+  };
+  const permitEvent = async (
+    tx: Tx,
+    ctx: EmitContext,
+    permit: { id: string; dramaId: string; platform: string },
+  ) => {
+    if (!deps.events) throw new AppError("PROVIDER_UNAVAILABLE");
+    await deps.events.emit(tx, ctx, {
+      type: "drama.permit_changed",
+      aggregate: { type: "drama", id: permit.dramaId },
+      payload: {
+        v: 1,
+        dramaId: permit.dramaId,
+        dramaPermitId: permit.id,
+        platform: parse(DramaPermitCreateBodySchema.shape.platform, permit.platform),
+      },
+    });
+  };
   const link = async (
     tx: Tx,
     ids: readonly string[],
@@ -128,6 +180,7 @@ export function createContent(deps: ContentDeps) {
   };
   return {
     listingChecks: checks,
+    mediaReadiness: readiness,
     async createDraft(tx: Tx, ctx: EmitContext, input: { title: string }) {
       const title = parse(
         z
@@ -169,6 +222,18 @@ export function createContent(deps: ContentDeps) {
         before = await editable(tx, id),
         actor = staff(ctx),
         now = deps.clock.now();
+      if (input.totalEpisodes !== undefined && input.totalEpisodes !== before.totalEpisodes) {
+        if (before.status === "listed")
+          throw new AppError("TOTAL_EPISODES_LOCKED", {
+            details: { currentTotalEpisodes: before.totalEpisodes },
+          });
+        const media = await readiness(tx, id, now);
+        const removed = media.allCurrentMasterEpisodeNos.filter(
+          (no) => no > (input.totalEpisodes ?? 0),
+        );
+        if (removed.length)
+          throw new AppError("EPISODE_HAS_MASTER", { details: { episodeNos: removed } });
+      }
       await dicts(tx, "genre", input.genreCodes, before.genreCodes);
       await dicts(tx, "selling_tag", input.sellingTagCodes, before.sellingTagCodes);
       if (
@@ -217,6 +282,7 @@ export function createContent(deps: ContentDeps) {
         after,
         Object.keys(data),
       );
+      await assertSaved(tx, id, before.status);
       return after;
     },
     async saveCommercial(tx: Tx, ctx: EmitContext, id: string, raw: CommercialInput) {
@@ -252,6 +318,30 @@ export function createContent(deps: ContentDeps) {
         after,
         Object.keys(data),
       );
+      if (before.heatTier !== after.heatTier) {
+        if (!deps.events) throw new AppError("PROVIDER_UNAVAILABLE");
+        await audit(
+          tx,
+          ctx,
+          id,
+          "drama.heat_tier.change",
+          "修改热度等级",
+          { heatTier: before.heatTier },
+          { heatTier: after.heatTier },
+          ["heatTier"],
+        );
+        await deps.events.emit(tx, ctx, {
+          type: "drama.tier_changed",
+          aggregate: { type: "drama", id },
+          payload: EVENT_PAYLOAD_SCHEMAS["drama.tier_changed"].parse({
+            v: 1,
+            dramaId: id,
+            fromTier: before.heatTier,
+            toTier: after.heatTier,
+          }),
+        });
+      }
+      await assertSaved(tx, id, before.status);
       return after;
     },
     async saveRoles(tx: Tx, ctx: EmitContext, id: string, raw: RolesInput) {
@@ -321,14 +411,46 @@ export function createContent(deps: ContentDeps) {
       );
       return after;
     },
-    async createPermit(tx: Tx, ctx: EmitContext, id: string, raw: PermitInput) {
-      const input = parse(permitInput, raw),
+    async createPermit(
+      tx: Tx,
+      ctx: EmitContext,
+      id: string,
+      raw: PermitInput | DramaPermitCreateBody,
+    ) {
+      const input = parse(DramaPermitCreateBodySchema, raw),
         before = await editable(tx, id),
         now = deps.clock.now();
-      await tx.drama.update({
-        where: { id },
-        data: { lockVersion: { increment: 1 }, updatedByStaffId: staff(ctx), updatedAt: now },
-      });
+      let retired = null;
+      if (input.replacesDramaPermitId) {
+        const previous = await tx.dramaPermit.findUnique({
+          where: { id: input.replacesDramaPermitId },
+        });
+        if (!previous || previous.dramaId !== id) throw new AppError("NOT_FOUND");
+        if (previous.status !== "active") throw new AppError("STATE_NOT_ALLOWED");
+        retired = await tx.dramaPermit.update({
+          where: { id: previous.id },
+          data: {
+            status: "retired",
+            retiredAt: now,
+            retireReason: input.retireReason!,
+            updatedAt: now,
+          },
+        });
+        await permitEvent(tx, ctx, retired);
+      }
+      if (
+        await tx.dramaPermit.findFirst({
+          where: {
+            dramaId: id,
+            platform: input.platform,
+            permitKind: input.permitKind,
+            status: "active",
+          },
+        })
+      )
+        throw new AppError("PERMIT_ACTIVE_EXISTS", {
+          details: { platform: input.platform, permitKind: input.permitKind },
+        });
       const permit = await tx.dramaPermit.create({
         data: {
           id: uuidv7(),
@@ -344,7 +466,25 @@ export function createContent(deps: ContentDeps) {
           updatedAt: now,
         },
       });
+      const released = retired && !before.firstListedAt ? retired.scanFileIds : [];
+      await lockRows(tx, "file_object", [...input.scanFileIds, ...released]);
       await link(tx, input.scanFileIds, "drama_permit", permit.id, "scan");
+      if (retired)
+        for (const fileId of released)
+          await deps.media.release(tx, {
+            fileId,
+            refType: "drama_permit",
+            refId: retired.id,
+            role: "scan",
+            entityId: null,
+            storeId: null,
+            keepUntil: dayRange(addDays(calendarDate(now), 30)).start,
+          });
+      await tx.drama.update({
+        where: { id },
+        data: { lockVersion: { increment: 1 }, updatedByStaffId: staff(ctx), updatedAt: now },
+      });
+      await assertSaved(tx, id, before.status);
       await audit(
         tx,
         ctx,
@@ -355,30 +495,238 @@ export function createContent(deps: ContentDeps) {
         { ...before, permit },
         ["permit"],
       );
+      await permitEvent(tx, ctx, permit);
       return permit;
+    },
+    async updatePermit(tx: Tx, ctx: EmitContext, id: string, raw: DramaPermitUpdateBody) {
+      const input = parse(DramaPermitUpdateBodySchema, raw);
+      const found = await tx.dramaPermit.findUnique({ where: { id }, select: { dramaId: true } });
+      if (!found) throw new AppError("NOT_FOUND");
+      const drama = await editable(tx, found.dramaId);
+      const before = await tx.dramaPermit.findUniqueOrThrow({ where: { id } });
+      if (before.status !== "active") throw new AppError("STATE_NOT_ALLOWED");
+      if (
+        drama.firstListedAt &&
+        ((input.platform !== undefined && input.platform !== before.platform) ||
+          (input.permitKind !== undefined && input.permitKind !== before.permitKind) ||
+          (input.permitNo !== undefined && input.permitNo !== before.permitNo))
+      )
+        throw new AppError("PERMIT_FROZEN");
+      const { dramaLockVersion, ...data } = input;
+      if (
+        await tx.dramaPermit.findFirst({
+          where: {
+            dramaId: drama.id,
+            id: { not: id },
+            status: "active",
+            platform: data.platform ?? before.platform,
+            permitKind: data.permitKind ?? before.permitKind,
+          },
+        })
+      )
+        throw new AppError("PERMIT_ACTIVE_EXISTS", {
+          details: {
+            platform: data.platform ?? before.platform,
+            permitKind: data.permitKind ?? before.permitKind,
+          },
+        });
+      await bumpLockVersion(tx, { table: "drama", id: drama.id, expected: dramaLockVersion });
+      const now = deps.clock.now();
+      const after = await tx.dramaPermit.update({
+        where: { id },
+        data: { ...data, updatedAt: now },
+      });
+      const added = after.scanFileIds.filter((v) => !before.scanFileIds.includes(v));
+      const removed = drama.firstListedAt
+        ? []
+        : before.scanFileIds.filter((v) => !after.scanFileIds.includes(v));
+      await lockRows(tx, "file_object", [...added, ...removed]);
+      await link(tx, added, "drama_permit", id, "scan");
+      for (const fileId of removed)
+        await deps.media.release(tx, {
+          fileId,
+          refType: "drama_permit",
+          refId: id,
+          role: "scan",
+          entityId: null,
+          storeId: null,
+          keepUntil: dayRange(addDays(calendarDate(now), 30)).start,
+        });
+      await tx.drama.update({
+        where: { id: drama.id },
+        data: { updatedByStaffId: staff(ctx), updatedAt: now },
+      });
+      await assertSaved(tx, drama.id, drama.status);
+      await audit(
+        tx,
+        ctx,
+        drama.id,
+        "content.drama.permit_update",
+        "更新短剧许可信息",
+        before,
+        after,
+        Object.keys(data),
+      );
+      return after;
+    },
+    async retirePermit(tx: Tx, ctx: EmitContext, id: string, raw: unknown) {
+      const input = parse(DramaPermitRetireBodySchema, raw),
+        found = await tx.dramaPermit.findUnique({ where: { id }, select: { dramaId: true } });
+      if (!found) throw new AppError("NOT_FOUND");
+      const drama = await editable(tx, found.dramaId);
+      const before = await tx.dramaPermit.findUniqueOrThrow({ where: { id } });
+      if (before.status !== "active") throw new AppError("STATE_NOT_ALLOWED");
+      const now = deps.clock.now(),
+        after = await tx.dramaPermit.update({
+          where: { id },
+          data: {
+            status: "retired",
+            retiredAt: now,
+            retireReason: input.retireReason,
+            updatedAt: now,
+          },
+        });
+      if (!drama.firstListedAt) {
+        await lockRows(tx, "file_object", before.scanFileIds);
+        for (const fileId of before.scanFileIds)
+          await deps.media.release(tx, {
+            fileId,
+            refType: "drama_permit",
+            refId: id,
+            role: "scan",
+            entityId: null,
+            storeId: null,
+            keepUntil: dayRange(addDays(calendarDate(now), 30)).start,
+          });
+      }
+      await tx.drama.update({
+        where: { id: drama.id },
+        data: { lockVersion: { increment: 1 }, updatedByStaffId: staff(ctx), updatedAt: now },
+      });
+      await assertSaved(tx, drama.id, drama.status);
+      await audit(
+        tx,
+        ctx,
+        drama.id,
+        "content.drama.permit_retire",
+        "停用短剧许可信息",
+        before,
+        after,
+        ["status", "retiredAt", "retireReason"],
+      );
+      await permitEvent(tx, ctx, after);
+      return after;
+    },
+    async updateEpisode(tx: Tx, ctx: EmitContext, id: string, raw: unknown) {
+      const input = parse(DramaEpisodeUpdateBodySchema, raw),
+        found = await tx.dramaEpisode.findUnique({ where: { id }, select: { dramaId: true } });
+      if (!found) throw new AppError("NOT_FOUND");
+      const drama = await editable(tx, found.dramaId),
+        before = await tx.dramaEpisode.findUniqueOrThrow({ where: { id } });
+      await bumpLockVersion(tx, { table: "drama", id: drama.id, expected: input.dramaLockVersion });
+      const now = deps.clock.now(),
+        after = await tx.dramaEpisode.update({
+          where: { id },
+          data: { title: input.title, updatedAt: now },
+        });
+      await tx.drama.update({
+        where: { id: drama.id },
+        data: { updatedByStaffId: staff(ctx), updatedAt: now },
+      });
+      await audit(
+        tx,
+        ctx,
+        drama.id,
+        "content.drama.episode_update",
+        "更新剧集标题",
+        before,
+        after,
+        ["title"],
+      );
+      return after;
     },
     async list(tx: Tx, ctx: EmitContext, id: string) {
       const before = await editable(tx, id),
         now = deps.clock.now();
       staff(ctx);
+      if (before.status === "listed") throw new AppError("STATE_NOT_ALLOWED");
+      const isRelist = before.status === "delisted";
       const result = await checks(tx, id, now);
       assertListing(result);
       await deps.flow.transition(tx, ctx, {
         machine: "drama",
         stateField: "status",
         id,
-        event: "drama.list",
+        event: isRelist ? "drama.relist" : "drama.list",
         meta: metaOf(ctx),
-        set: { first_listed_at: now, listed_at: now, updated_by_staff_id: staff(ctx) },
+        set: {
+          ...(isRelist ? {} : { first_listed_at: now }),
+          listed_at: now,
+          updated_by_staff_id: staff(ctx),
+        },
         payload: {
           passed: result.isShelvable,
           total: result.total,
           items: result.items.map(({ code, severity, isOk }) => ({ code, severity, ok: isOk })),
         },
         args: { prices, media: deps.media },
-        emit: { type: "drama.listed", payload: { v: 1, dramaId: id, isRelist: false } },
+        emit: { type: "drama.listed", payload: { v: 1, dramaId: id, isRelist } },
       });
+      await deps.license?.rearm(tx, id);
       return tx.drama.findUniqueOrThrow({ where: { id: before.id } });
+    },
+    async delist(tx: Tx, ctx: EmitContext, id: string, raw: unknown) {
+      const input = parse(DramaDelistBodySchema, raw),
+        before = await editable(tx, id),
+        now = deps.clock.now();
+      if (before.status !== "listed") throw new AppError("STATE_NOT_ALLOWED");
+      await deps.flow.transition(tx, ctx, {
+        machine: "drama",
+        stateField: "status",
+        id,
+        event: "drama.delist",
+        meta: metaOf(ctx),
+        set: {
+          delisted_at: now,
+          delist_reason_code: input.reasonCode,
+          delist_note: input.note ?? null,
+          updated_by_staff_id: staff(ctx),
+        },
+        reasonCode: input.reasonCode,
+        note: input.note ?? null,
+        emit: {
+          type: "drama.delisted",
+          payload: { v: 1, dramaId: id, reasonCode: input.reasonCode },
+        },
+      });
+      if (!deps.license) throw new AppError("PROVIDER_UNAVAILABLE");
+      await deps.license.rearm(tx, id);
+      if (input.reasonCode === "rights_issue") {
+        if (!deps.media.retireDramaMedia) throw new AppError("PROVIDER_UNAVAILABLE");
+        await deps.media.retireDramaMedia(tx, id, { scope: "trailer", immediate: true });
+      }
+      return tx.drama.findUniqueOrThrow({ where: { id } });
+    },
+    async replaceTrailer(tx: Tx, ctx: EmitContext, id: string, fileId: string) {
+      await editable(tx, id);
+      if (!deps.media.enqueueTrailer) throw new AppError("PROVIDER_UNAVAILABLE");
+      await deps.media.enqueueTrailer(tx, { dramaId: id, fileId, staffId: staff(ctx) });
+      const now = deps.clock.now();
+      await tx.drama.update({
+        where: { id },
+        data: { lockVersion: { increment: 1 }, updatedByStaffId: staff(ctx), updatedAt: now },
+      });
+      await audit(
+        tx,
+        ctx,
+        id,
+        "content.drama.trailer_replace",
+        "设置短剧预告片",
+        {},
+        { sourceFileId: fileId },
+        ["sourceFileId"],
+      );
+      return readiness(tx, id, now);
     },
     async getDramaCards(tx: Tx, ids: readonly string[], at = deps.clock.now()) {
       const rows = await tx.drama.findMany({
@@ -391,6 +739,10 @@ export function createContent(deps: ContentDeps) {
         listPricePoints:
           typeof priceMap.get(row.id) === "object"
             ? (priceMap.get(row.id) as { points: number }).points
+            : null,
+        priceVersion:
+          typeof priceMap.get(row.id) === "object"
+            ? (priceMap.get(row.id) as { source: object }).source
             : null,
         licenseEndDate: dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null),
         usableUntilDate: dateOf(row.dramaCopyrights[0]?.licenseEndDate ?? null),

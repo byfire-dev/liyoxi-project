@@ -133,6 +133,10 @@ export async function recordAdoptedStoreAssets(
       (a) =>
         a.entityId !== input.entityId ||
         a.storeId !== input.storeId ||
+        a.deletedAt !== null ||
+        a.moderationState === "block" ||
+        a.processingState !== "processed" ||
+        a.reviewState !== "reviewed" ||
         !["ready", "reference_only"].includes(a.usability ?? ""),
     )
   )

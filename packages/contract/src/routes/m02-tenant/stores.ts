@@ -2,9 +2,17 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { errorResponses, okResponse } from "../../common/index.js";
 import { merchantRoute } from "../builders.js";
-import { merchantMeta } from "../meta-only.js";
 
-import { StoreListSchema } from "./tenant.schemas.js";
+import {
+  StoreListSchema,
+  StoreArchiveParamsSchema,
+  StoreArchiveResultSchema,
+  StoreRestoreParamsSchema,
+  StoreCardSchema,
+  StoreCreateBodySchema,
+  StoreDeleteParamsSchema,
+  StoreDeleteResultSchema,
+} from "./tenant.schemas.js";
 
 export const mStoreList = merchantRoute({
   method: "get",
@@ -18,7 +26,7 @@ export const mStoreList = merchantRoute({
   responses: { ...okResponse(StoreListSchema), ...errorResponses(401) },
 });
 
-export const mStoreCreate = merchantMeta({
+export const mStoreCreate = merchantRoute({
   method: "post",
   path: "/m/stores",
   operationId: "m.store.create",
@@ -27,9 +35,12 @@ export const mStoreCreate = merchantMeta({
   "x-capability": "store.create",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  request: { body: { content: { "application/json": { schema: StoreCreateBodySchema } } } },
+  responses: { ...okResponse(StoreCardSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
-export const mStoreArchive = merchantMeta({
+export const mStoreArchive = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/archive",
   operationId: "m.store.archive",
@@ -38,9 +49,14 @@ export const mStoreArchive = merchantMeta({
   "x-capability": "store.archive",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreArchiveParamsSchema },
+  responses: {
+    ...okResponse(StoreArchiveResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
-export const mStoreDelete = merchantMeta({
+export const mStoreDelete = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/delete",
   operationId: "m.store.delete",
@@ -48,9 +64,11 @@ export const mStoreDelete = merchantMeta({
   "x-capability": "store.archive",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreDeleteParamsSchema },
+  responses: { ...okResponse(StoreDeleteResultSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });
 
-export const mStoreRestore = merchantMeta({
+export const mStoreRestore = merchantRoute({
   method: "post",
   path: "/m/stores/{storeId}/restore",
   operationId: "m.store.restore",
@@ -58,4 +76,6 @@ export const mStoreRestore = merchantMeta({
   "x-capability": "store.restore",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: StoreRestoreParamsSchema },
+  responses: { ...okResponse(StoreCardSchema), ...errorResponses(400, 401, 403, 404, 409) },
 });

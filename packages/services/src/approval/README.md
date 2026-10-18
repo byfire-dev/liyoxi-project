@@ -110,7 +110,7 @@ await tx.run((handle) => approval.withdraw(handle, ctx, { approvalId, staff, not
 | 6 | `revalidate`（只在通过时） | 处理器抛什么是什么，通常 409 `PRECONDITION_CHANGED` |
 
 - 再验证、`confirm` 回显、路由级的模块等级不在这里：由路由侧与各领域接口做（authz 的 `authorize`、`assertConfirm`）。
-- 撤回：提交人本人；发起人已不是启用状态时由能决定这一张的员工代撤；对象失效时归属模块以系统身份调。其余 403 `APPROVAL_WITHDRAW_FORBIDDEN`。
+- 撤回：提交人本人；发起人已不是启用状态时由能决定这一张的员工代撤；发起人仍启用时须满足原决定权限/范围，并由真实 kind 的 `isSubjectInvalidForWithdrawal` 在所属事务、完整预锁及新鲜再验证后确认对象失效，缺判据严格拒绝。对象失效的原系统路径不变；其他情形 403 `APPROVAL_WITHDRAW_FORBIDDEN`。
 - 系统决定（免审批、同信用代码自动驳回、系统代撤）：`ctx.actor.type` 是 `system` 即是，不查第 2、3 步，`decided_by_staff_id` 为空、`is_decided_by_system = true`。
 - 同对象已有在途单：`submit` 抛 409 `APPROVAL_ALREADY_PENDING`，`details` 指向在审的那一张。并发的两个提交，后到的等前一个提交后同样得到它。
 - 加锁次序：员工行（20，共享锁）→ 审批单（30）→ 领域行（处理器自己锁）。员工操作要锁员工行，所以调 `approve`、`reject`、`withdraw` 之前不要锁次序更大的行（门店、订购单、领域行），锁序断言会拦；员工提交时的 `submit` 同理。系统动作与商家撤回不锁员工行：归属模块可以先 `lockRows(tx, "approval_request", [id])`、再锁自己的行，最后才调进来。本事务里刚 `submit` 的那一张不再加锁，提交后同一事务里的免审批通过不受这条限制。
@@ -185,4 +185,10 @@ LYX_FC_RUNS=2000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - 执行类领域 producer 尚未接入；I3 只校验有真实 `executionSla` 登记的来源，其他 timer 主体由后续所属模块接入统一派发。
 - 通知：事件照发，`s.approval_pending`、`s.approval_decided` 的场景解析没有登记（M2）。
 - 驳回原因只核对“是字典 `reject_reason` 的启用项”，不核对它属于这个类型的场景。
-- `approval.I1` 靠 `createApproval` 把登记绑到本模块：一个进程一份，没建 approval 的进程里它查不到任何类型。
+- 直接使用原始登记时，`approval.I1/I3` 仍依赖 `createApproval` 的类型绑定。正式 worker 经 ops 的固定实例包装，直接取实际装配的 `approval.kind`，不借用 API 进程绑定。
+
+### 独立 worker 的 SLA 依赖
+
+`buildWorkerServices` 用本实例的 clock、events、flow、sla、timers 绑定现有公开审批时限函数。`calendar.imported` 的审批订阅者、`sla.breach` 的 `approval_request` 分支与 `approval.I1/I3` 都使用该实例；staff 与 delivery 的既有分支继续委派，订阅者名、kind 与登记元数据不变。
+
+`closeApproval()` 幂等释放该实例，释放后审批分支和两项校验明确拒绝调用，不寻找其他实例。正式 worker 正常 stop 等循环和消费者退出后释放；自检失败和 `--check` 结束也释放。此独立前置不新增审批类型或修改决定、执行和日历算法。

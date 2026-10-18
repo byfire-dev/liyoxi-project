@@ -28,8 +28,9 @@ export function harness(api: TestApi, prisma: Awaited<ReturnType<TestApiHandle["
   });
   async function owner() {
     const user = await make.merchantUser(),
-      entity = await make.entity({ createdByUserId: user.id }),
-      store = await make.store({ entityId: entity.id, isPrimary: true }),
+      entity = await make.entity({ createdByUserId: user.id });
+    await make.billingAccount({ entityId: entity.id });
+    const store = await make.store({ entityId: entity.id, isPrimary: true }),
       member = await make.entityMember({
         entityId: entity.id,
         merchantUserId: user.id,

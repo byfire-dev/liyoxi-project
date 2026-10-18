@@ -6,8 +6,12 @@
 //   4. 快照的 computedAt 取注入的时钟；calendarVersion 是计算时全表最大的批次号。
 import { addDays, calendarDate } from "@liyoxi/shared/time";
 import type { LocalDate } from "@liyoxi/shared/time";
-import { dueAt as dueAtPure, workingMinutesBetween } from "@liyoxi/shared/workcal";
-import type { FallbackInfo, SlaPolicy, WorkCalendar } from "@liyoxi/shared/workcal";
+import {
+  dueAt as dueAtPure,
+  nthWorkdayAfter as nthWorkdayAfterPure,
+  workingMinutesBetween,
+} from "@liyoxi/shared/workcal";
+import type { FallbackInfo, SlaPolicy, WorkCalendar, WorkcalDate } from "@liyoxi/shared/workcal";
 
 import { alertsOf } from "../kernel/index.js";
 import type { Assembly, Clock, Tx } from "../kernel/index.js";
@@ -57,6 +61,14 @@ export interface WorkMinutesInput {
   readonly workHours: WorkHours;
 }
 
+export interface WorkdayDateInput {
+  readonly policy: string;
+  /** 日期之后（不含）的第 amount 个工作日；不先对齐起算日 */
+  readonly from: LocalDate;
+  readonly amount: number;
+  readonly workHours: WorkHours;
+}
+
 export interface SlaDeps {
   readonly assembly: Assembly;
   readonly clock: Clock;
@@ -65,6 +77,8 @@ export interface SlaDeps {
 export interface Sla {
   /** 按策略算截止时刻，并给出要存进单据的时限快照 */
   dueAt(tx: Tx, input: DueInput): Promise<DueResult>;
+  /** 日期边界，例如“订购日后第 7 个工作日”；与 work_days 时长的非工作日起算口径不同 */
+  nthWorkdayAfter(tx: Tx, input: WorkdayDateInput): Promise<WorkcalDate>;
   /** from 到 to 之间落在工作时段内的分钟数；日历缺行时告警。flow 的“工作分钟”端口另有实现，见 work-minutes.ts */
   workMinutesBetween(tx: Tx, input: WorkMinutesInput): Promise<number>;
 }
@@ -114,6 +128,16 @@ export function createSla(deps: SlaDeps): Sla {
   };
 
   return {
+    async nthWorkdayAfter(tx, { policy, from, amount, workHours }) {
+      await lockCalendarImport(tx);
+      if (typeof policy !== "string" || policy === "") throw new TypeError("sla：policy 不得为空");
+      const { value, gaps } = await withCalendar(tx, from, workHours, amount * 2, (calendar) =>
+        nthWorkdayAfterPure(calendar, from, amount),
+      );
+      await alertOnGaps(gaps, policy);
+      return value;
+    },
+
     async dueAt(tx, input) {
       await lockCalendarImport(tx);
       const { policy, amount, unit, from, workHours } = input;

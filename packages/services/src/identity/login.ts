@@ -7,8 +7,8 @@
 // 加锁：账号行（80）→ 微信身份行（90），同一账号、同一微信身份的并发登录在这两把锁上排队。
 // 建号用 INSERT … ON CONFLICT (phone_bidx) DO NOTHING：同一手机号的两个首次登录只建出一个账号。
 //
-// M1 的范围（任务书的口径表）：休眠检查的五条放行条件做全；“已休眠”的新绑定一律走最保守的一支（回滚，
-// 另起事务写 reverify_required，回 REVERIFY_REQUIRED），“移出休眠店员”“空草稿让位”两支随 M2（只会多拦，不会错放）；
+// M2 休眠处置：五条放行条件保持；已休眠的店员移除、空草稿老板让位后继续绑定，复用 tenant 同事务出口。
+// 非空草稿老板回滚，另起事务写 reverify_required；内部/依赖失败原样传播。
 // 企业微信联系人的回填随 M7；新微信绑定的一次性提示由订阅者 identity.onWechatBound 写，随 M2。
 import type {
   Attribution,
@@ -32,6 +32,7 @@ import type { Assembly, Clock, IdentityContext, Tx, TxRunner } from "../kernel/i
 import type { ProviderResult, WechatProvider, WechatSession } from "../providers/types.js";
 import { blindIndex, sealPhone } from "../security/index.js";
 import type { Keyring } from "../security/index.js";
+import { DraftNotEmptyError } from "../tenant/index.js";
 import type { Tenant } from "../tenant/index.js";
 import type { RegisterArgs } from "./machines.js";
 import { buildMeView } from "./me.js";
@@ -321,7 +322,7 @@ async function findOrCreateAccount(
 
 /**
  * 第 2 步：休眠检查（D4 第 3.6 节）。此前没绑定到本账号的 openid 要绑上来时才查。
- * 五条放行条件命中即放行；都不满足即“已休眠”，M1 一律转人工核实（任务书的口径表）。
+ * 五条放行条件命中即放行；都不满足才进入同事务成员/草稿处置。
  */
 function passesDormantGuard(input: {
   isNew: boolean;
@@ -353,9 +354,13 @@ export async function phoneLogin(
   );
   const openidSnapshot = openidHmac(deps.keyring(), deps.appid, session.openid);
   await options.onOpenid?.(openidSnapshot.toString("hex"));
-  const { phone: rawPhone } = await exchange(deps.wechat.getPhoneNumber({ code: input.phoneCode }));
+  const {
+    phone: rawPhone,
+    countryCode,
+    purePhoneNumber,
+  } = await exchange(deps.wechat.getPhoneNumber({ code: input.phoneCode }));
   // 区号看原串：带别的国际前缀的不能归一化之后再按长相判（phone.ts）
-  const phone = mainlandMobileOf(rawPhone);
+  const phone = mainlandMobileOf(rawPhone, countryCode, purePhoneNumber);
   if (phone === null) throw new AppError("PHONE_REGION_UNSUPPORTED");
   const dormantDays = await deps.config.params.get("auth.dormant_days");
   const scene = input.consentScene ?? "login";
@@ -373,7 +378,7 @@ export async function phoneLogin(
         input.attribution,
       );
       const ctx = merchantCtx(account.id, meta);
-      const membership = await deps.tenant.activeMembership(tx, account.id);
+      let membership = await deps.tenant.activeMembership(tx, account.id);
 
       // 2. 休眠检查：只在新绑定时
       const bound = await tx.wechatIdentity.findUnique({
@@ -386,6 +391,14 @@ export async function phoneLogin(
         if (locked === undefined) throw new AppError("BUSY");
       }
       const newBinding = bound === null || bound.merchantUserId !== account.id;
+      if (newBinding && membership !== null) {
+        // staff 生命周期只需主体锁；等锁后关系可能已被移除，须重新应用“无有效成员”放行条件。
+        await lockRows(tx, "entity", [membership.entityId]);
+        const current = await deps.tenant.activeMembership(tx, account.id);
+        if (current !== null && current.entityId !== membership.entityId)
+          throw new AppError("BUSY");
+        membership = current;
+      }
       if (
         newBinding &&
         !passesDormantGuard({
@@ -396,7 +409,18 @@ export async function phoneLogin(
           now,
         })
       ) {
-        throw new ReverifyNeeded(account.id);
+        if (membership?.role === "clerk") {
+          await deps.tenant.removeMemberIn(tx, ctx, { kind: "dormant" });
+        } else {
+          try {
+            await deps.tenant.abandonDraftIn(tx, ctx);
+          } catch (error) {
+            if (error instanceof DraftNotEmptyError) throw new ReverifyNeeded(account.id);
+            throw error;
+          }
+        }
+        // 后续新绑定通知与同意签名只能消费处置后的当前关系。
+        membership = await deps.tenant.activeMembership(tx, account.id);
       }
 
       // 3. 微信身份

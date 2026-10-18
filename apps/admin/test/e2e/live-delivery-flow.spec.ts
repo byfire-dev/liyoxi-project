@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { expect, test, type Locator } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 import { orderShot } from "./live-order-fixture";
@@ -5,6 +7,7 @@ import {
   apiData,
   attachKnownMedia,
   deliveryFixture,
+  deliveryVideo,
   knownFile,
   managerLogin,
 } from "./live-delivery-fixture";
@@ -127,7 +130,9 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
         page.request,
         `/api/v1/admin/delivery-tickets/${f.scope.ticketId}`,
       );
-      expect(ticket.currentSample.durationMs).toBe(artifact === "sample" ? 1000 : null);
+      expect(ticket.currentSample.durationMs).toBe(
+        artifact === "sample" ? deliveryVideo().manifest.probe.durationMs : null,
+      );
       if (artifact === "unknown_sample") {
         const templates = await apiData(
             managerPage.request,
@@ -196,7 +201,11 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
     expect(new URL(download.url).searchParams.get("X-Amz-Expires")).toBe("900");
     const actual = await fetch(download.url);
     expect(actual.status).toBe(200);
-    expect((await actual.arrayBuffer()).byteLength).toBe(17947);
+    const sampleBytes = Buffer.from(await actual.arrayBuffer());
+    expect(sampleBytes.byteLength).toBe(Number(download.sizeBytes));
+    expect(createHash("sha256").update(sampleBytes).digest("hex")).not.toBe(
+      deliveryVideo().manifest.sha256,
+    );
     await apiData(
       page.request,
       `/api/v1/m/samples/${sample.sampleId}/confirm`,
@@ -210,29 +219,84 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
     );
     await page.getByRole("button", { name: "登记成片", exact: true }).click();
     const episodes = page.getByRole("dialog", { name: "登记成片", exact: true });
-    await episodes
-      .getByLabel("选择成片文件", { exact: true })
-      .setInputFiles([knownFile("final_1"), knownFile("final_2")]);
+    const batchContext = liveContext().fixtures as {
+      w302BridgeOrigin: string;
+      fixtures: {
+        w302: {
+          video: { path: string; sha256: string; size: number; probe: { durationMs: number } };
+        };
+      };
+    };
+    const bridgeOrigin = new URL(batchContext.w302BridgeOrigin);
+    expect(bridgeOrigin.protocol).toBe("http:");
+    expect(bridgeOrigin.hostname).toBe("127.0.0.1");
+    const rawVideo = readFileSync(batchContext.fixtures.w302.video.path);
+    expect(batchContext.fixtures.w302.video.probe.durationMs).toBeGreaterThanOrEqual(20_000);
+    expect(batchContext.fixtures.w302.video.probe.durationMs).toBeLessThan(1_200_000);
+    expect(rawVideo.length).toBe(batchContext.fixtures.w302.video.size);
+    expect(createHash("sha256").update(rawVideo).digest("hex")).toBe(
+      batchContext.fixtures.w302.video.sha256,
+    );
+    for (const targetPage of [page, managerPage])
+      for (const hostname of [
+        "test-media-1250000000.cos.ap-test-1.myqcloud.com",
+        "fake-storage.invalid",
+      ])
+        await targetPage.route(`https://${hostname}/**`, async (route) => {
+          const original = new URL(route.request().url());
+          const target = new URL(batchContext.w302BridgeOrigin);
+          target.pathname =
+            hostname === "fake-storage.invalid"
+              ? `/fake-read${original.pathname}`
+              : original.pathname;
+          target.search = original.search;
+          await route.fulfill({ response: await route.fetch({ url: target.toString() }) });
+        });
+    await episodes.getByLabel("选择成片文件", { exact: true }).setInputFiles(
+      ["final_1", "final_2"].map((artifact) => ({
+        ...knownFile(artifact as "final_1" | "final_2"),
+        buffer: rawVideo,
+      })),
+    );
+    const created = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/api/v1/admin/upload-batches",
+    );
+    await episodes.getByRole("button", { name: "创建批次并核对", exact: true }).click();
+    const createdResponse = await created;
+    expect(createdResponse.status()).toBe(200);
+    const batch = (await createdResponse.json()).data;
+    expect(batch.expectedCount).toBe(2);
+    expect(batch.items).toHaveLength(2);
     for (const [index, artifact] of ["final_1", "final_2"].entries()) {
       const filename = knownFile(artifact as "final_1" | "final_2").name;
-      await episodes.getByLabel(`文件 ${filename} 集号`, { exact: true }).fill(String(index + 1));
+      const input = episodes.getByLabel(`文件 ${filename} 集号`, { exact: true });
+      const number = String(index + 1);
+      if ((await input.inputValue()) !== number) {
+        await input.fill(number);
+        await episodes
+          .locator("[data-batch-item]")
+          .filter({ hasText: filename })
+          .getByRole("button", { name: "修改集号", exact: true })
+          .click();
+      }
     }
-    for (const artifact of ["final_1", "final_2"] as const) {
-      const row = episodes
-        .locator("section.lyx-production-card")
-        .filter({ hasText: knownFile(artifact).name });
-      const completed = page.waitForResponse(
-        (response) =>
-          response.request().method() === "POST" &&
-          response.status() === 200 &&
-          /\/api\/v1\/admin\/files\/[^/]+\/complete$/.test(new URL(response.url()).pathname),
-      );
-      await row.getByRole("button", { name: "上传文件", exact: true }).click();
-      await completed;
-      await files.settled();
-      await expect(row.getByText(/已入库/)).toBeVisible({ timeout: 30_000 });
-    }
-    await files.settled();
+    if (batch.coverage.needsSequenceConfirm)
+      await episodes
+        .getByRole("checkbox", { name: "我已逐集核对，确认采用服务器给出的顺序建议" })
+        .check();
+    await episodes.getByRole("button", { name: "确认匹配并开始上传", exact: true }).click();
+    await expect(episodes.getByRole("heading", { name: "可登记", exact: true })).toBeVisible({
+      timeout: 60_000,
+    });
+    const checked = await apiData(
+      page.request,
+      `/api/v1/admin/upload-batches/${batch.uploadBatchId}`,
+    );
+    expect(checked.state).toBe("ready");
+    expect(checked.counts.checked).toBe(2);
+    expect(checked.coverage.missingEpisodeNos).toEqual([]);
     await orderShot(page, "delivery-05-episode-register");
     await episodes.getByRole("button", { name: "登记成片文件", exact: true }).click();
     await expect(episodes).toHaveCount(0);
@@ -274,8 +338,8 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
         ],
       ),
     ).toEqual([
-      [1000, manager.id],
-      [1000, manager.id],
+      [batchContext.fixtures.w302.video.probe.durationMs, manager.id],
+      [batchContext.fixtures.w302.video.probe.durationMs, manager.id],
     ]);
     await expect(managerPage.getByRole("button", { name: "推送成片包", exact: true })).toHaveCount(
       0,

@@ -23,7 +23,7 @@
 | `m.member.update` | `PATCH /m/members/{memberId}` | 调整店员所属门店 | `member`；`member.manage` | required |
 | `m.member.remove` | `POST /m/members/{memberId}/remove` | 移除店员 | `member`；`member.manage` | required |
 | `m.me.membership.leave` | `POST /m/me/membership/leave` | 店员退出主体 | `member`；`me.*` | required |
-| `m.invitation.create` | `POST /m/invitations` | 预创建邀请卡片（未分享的复用） | `member`；`member.manage` | natural（`uq_invitation_inviter_member_id_client_request_id`） |
+| `m.invitation.create` | `POST /m/invitations` | 预创建邀请卡片（未分享的复用） | `member`；`member.manage` | natural（原创建键及请求映射键，见3.12） |
 | `m.invitation.markShared` | `POST /m/invitations/{invitationId}/mark-shared` | 上报已分享 | `member`；`member.manage` | required |
 | `m.invitation.revoke` | `POST /m/invitations/{invitationId}/revoke` | 撤回待接受的邀请 | `member`；`member.manage` | required |
 | `m.invitation.lookup` | `GET /m/invitations/lookup?token=` | 邀请落地页信息 | `public` | none（查询） |
@@ -424,7 +424,7 @@
 | 鉴权 | `member`；能力点 `store.archive`（仅老板）；路径门店须与 `X-Store-Id` 同属一个主体 |
 | 店员视图 | `none` |
 | 幂等 | `required`（路线图原写的“natural（状态守卫）”按 A17 不采用） |
-| 乐观锁 | 不带（`02-identity-tenant.md:608` 的守卫没有列锁版本，C53）。加锁按第 1 节的次序：主体行 → 该门店 `pending` 的邀请（按 id 升序）→ 受影响的成员关系（只属于该门店的店员、`last_store_id` 指向该门店的成员）→ 门店行 |
+| 乐观锁 | 不带（`02-identity-tenant.md:608` 的守卫没有列锁版本，C53）。原幂等事务内按账号80 → 主体100 → 本店全部数据库 `pending` 邀请110 → 主体成员120 → 主体门店130 加锁，各层按 id 升序；最终等待后重读完整候选图、权限、最后门店与阻断事实，不补低序锁 |
 | 限流 | `m.global` |
 | 开关 | 无 |
 | 对应画板 | M:Stores（原型没有停用入口，挂在门店卡上；二次确认由端上弹层完成） |
@@ -455,6 +455,16 @@
 - 清空其他成员指向该门店的 `entity_member.last_store_id`。
 - 出站事件 `store.archived`（载荷带 `archiveReason = by_owner`）：profile 经订阅者 `profile.onTenantLifecycle`（x01 第 3 节）丢弃草稿轮次、释放档案引用（`04-profile.md:678`）；notify 通知交付经理（d4:790 ⑤）。各迁移写 `status_transition` 与审计。
 - 以上联动由第 1 节的“门店停用联动”函数完成，3.5 与主体关闭共用。
+
+本片只开放老板停用入口：系统撤回与移除必须持有该实例、同 Tx/ctx/主体/门店的私有见证，
+不复用主体关闭或空草稿让位的权限。数据库仍为 pending 的邀请即使时钟已过期也撤回并取消原 timer。
+只清目标门店的最后选择，其他启用门店选择、登录会话及老板下载授权保留。
+严格阻断项只返回正整数命中项，真实拥有者缺装配或失败不得当作零；候选变化整笔重试。
+
+`store_archived` 级联被移除的本人收到最小账号级成员状态告知：entity/store/copyMode 均 NULL、
+非 ownerOnly、深链 `messages.list`，正文及 vars 无旧门店/主体或个人敏感字段。
+老板仅收到当前仍可进入门店的 `store.members` 链接；真实 active 交付经理收到 `merchant.detail`。
+派发和发送均重验持久化源事件、迁移历史及当前收件人，不放宽原消息读取范围或其他移除原因。
 
 **说明**：停用不要求先下架上线中的成片（d4:794）。停用后老板仍可在该门店上下文里看订单与交付记录、下载授权期内的成片、确认到期下架、授权电脑；不能新订购、提交广告需求、绑定渠道账号、上传素材、邀请店员、修改档案。停用的门店不计入门店额度。
 
@@ -685,7 +695,7 @@
 | operationId | `m.invitation.create`（路线图 `m02.invitation.create`） |
 | 鉴权 | `member`；能力点 `member.manage`（仅老板；已停用门店上下文里没有） |
 | 店员视图 | `none` |
-| 幂等 | `natural`，`idempotentBy = [uq_invitation_inviter_member_id_client_request_id]`：请求体带 `clientRequestId`，不要 `Idempotency-Key`（C47） |
+| 幂等 | `natural`，`idempotentBy = [uq_invitation_inviter_member_id_client_request_id, uq_invitation_request_inviter_client]`：请求体带 `clientRequestId`，不要 `Idempotency-Key`（C47） |
 | 乐观锁 | 无；事务先锁主体行，复用时再锁那张邀请行（第 1 节的次序） |
 | 限流 | `m.global` |
 | 开关 | 无 |
@@ -695,7 +705,7 @@
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| `clientRequestId` | string(uuid) | 是 | 端上每次调用新生成（进入邀请页一次，之后每次改备注名或手机号各一次）；网络重试沿用同一个 | → `invitation.client_request_id`（新建时） |
+| `clientRequestId` | string(uuid) | 是 | 端上每次调用新生成（进入邀请页一次，之后每次改备注名或手机号各一次）；网络重试沿用同一个 | 所有成功请求 → `invitation_request.client_request_id`；原创建键仍存 `invitation.client_request_id` |
 | `remarkName` | string \| null | 否 | ≤10 字；过文本内容安全检测 | 老板填的备注名 → `invitation.remark_name`。键缺省 = 不改（复用时保持原值）；显式 `null` = 清空 |
 | `targetPhone` | string \| null | 否 | 11 位手机号；参数 `invitation.require_phone` 为真时必填 | 定向手机号；只存盲索引 → `invitation.target_phone_bidx`，不回显。键缺省 = 不改；显式 `null` = 取消定向 |
 
@@ -718,7 +728,10 @@
 
 - 新建：`invitation.status`：— → `pending`（`invitation.create`，`02-identity-tenant.md:786`）；`expires_at` = 创建 + 参数 `invitation.ttl_hours`（默认 24 小时）；登记定时器 `timer.kind = invitation.expire`，`dedupe_key = invitation.expire:invitation:{invitationId}`，`fire_at = expires_at`（`02-identity-tenant.md:794`）；写 `status_transition` 与审计（`activity` 流）；出站事件 `invitation.created`（x01 3.2）。
 - 复用：同一邀请人、同一门店已有 `pending`、未过期、`shared_at` 为空的邀请时不新建，返回同一行（`isReused = true`），把 `invitation.expires_at` 重置为 now + 24 小时，并按同一 `dedupe_key` 把定时器 `fire_at` 改到新时刻；不计入每日上限、不再占名额（d4:711）。请求体带了 `remarkName` / `targetPhone` 键的，原地改写 `invitation.remark_name` / `invitation.target_phone_bidx`（两列都允许修改，`trg_invitation_immutable` 不含它们），改写时写审计；令牌不变。这样“先预创建、后填备注名与手机号”只有一张卡片。本稿相对 d4:711 的改动：复用条件去掉“定向手机号相同”，否则改手机号会新建第二张卡、多占名额与每日上限。
-- 同一 `clientRequestId` 重放：返回已建的那一行（仍是 `pending` 时带同一令牌），不改写字段。
+- 所有成功新建/复用请求都在同一业务事务写入 `invitation_request`，绑定同一邀请及其真实邀请人/主体/门店；原邀请创建键不可改。失败整笔回滚，不占请求号。
+- 同一 `clientRequestId` 重放：先查同 inviter 的不可变请求绑定，返回已建的那一行（仍是 `pending` 时带同一令牌），不重新选卡、续期、改正文或重复审计/历史/事件。返回当前视图，不缓存首次完整响应或额度。
+- A 创建卡片、B 复用后，即使原卡已上报分享，B 重试仍读取该卡；终态按 STATE_NOT_ALLOWED 返回，不删除映射或改绑。pending 已到期的同键重放也不续期、不另建卡。
+- 已绑定邀请不属于当前 `X-Store-Id` 时沿原 NOT_FOUND 隐藏资源；原鉴权及成员失权边界先执行，不豁免重放。结构前置只回填旧创建键，不伪造历史未保存的 B；完整生产入口须在结构实际合入后独立验收。
 - 未分享的卡片若其实已发出（`mark-shared` 上报丢失），改写定向手机号会让先收到卡片的人接受时得到 `INVITATION_NOT_FOR_YOU`；这与 d4:712 已接受的“上报丢失”后果同类，老板再生成一张即可。
 
 **说明**：
@@ -840,7 +853,7 @@
 
 请求体不带协议同意。加入场景的同意只由 `m.session.phoneLogin(consentScene = member_join)` 写（m01）；理由见说明。
 
-**响应**：`MembershipResult`（2.7），`role = clerk`。
+**响应**：`MembershipResult`（2.7）。首次接受 `role = clerk`；已接受本人重放投影当前有效成员角色（可为 `owner`），不改变角色或重建成员。
 
 **错误**：
 
@@ -860,14 +873,14 @@
 
 - 归属判定（本人当前的有效成员关系）：
   - 没有：新建 `entity_member`，`entity_member.status`：— → `active`（`entity_member.join`，`role = clerk`，`02-identity-tenant.md:691`），写 `invitation_id`、`invited_by_member_id`、`display_name`、`last_store_id` = 邀请的门店；插入 `store_member`（`added_by_member_id` = 邀请人）；出站事件 `entity_member.joined`（x01 3.2；notify 场景 `m.member_changed` 通知老板，带称呼与脱敏手机号，d4:741；d6:247）。
-  - 同主体的店员：`store_member` 追加该门店（已在则不动），不新增名额；没有状态迁移，所以不发 `entity_member.joined`，改发 `entity_member.stores_changed`（`addedStoreIds` = [邀请的门店]，`removedStoreIds` = []；已在该门店时不发）。载荷另带 `invitationId`，notify 据此通知老板“某某已加入本店”，而不是像 `m.member.update` 那样通知店员本人（x01 待补登本接口为发出方与这条订阅规则）。
+  - 同主体的店员：`store_member` 追加该门店（已在则不动），不新增名额；没有状态迁移，所以不发 `entity_member.joined`，改发 `entity_member.stores_changed`（`addedStoreIds` = [邀请的门店]，`removedStoreIds` = []；已在该门店时不发）。载荷另带 `invitationId`，notify 据此通知老板“某某已加入本店”，而不是像 `m.member.update` 那样通知店员本人（x01 3.2）。
   - 名下是空草稿主体（`02-identity-tenant.md:524` 的四个条件）：先让位——`entity.lifecycle`：`active` → `abandoned`（`entity.abandon`），老板成员关系 `active` → `removed`（`entity_member.cascade_remove`，原因 `draft_abandoned`），名下门店 `active` → `archived`（`store.archive_by_entity`，原因 `entity_abandoned`，`02-identity-tenant.md:611`）；同事务吊销该老板在被放弃主体下未吊销的下载页会话（`portal_session.revoked_at = now`，`revoke_reason = membership_changed`；`02-identity-tenant.md:697`，保证 `identity.I20`）；发 `entity.abandoned`、`entity_member.removed`（`removeReason = draft_abandoned`）与各门店的 `store.archived`；再按“没有”处理。空草稿的定义已排除待接受的邀请，没有邀请要撤回。
 - `invitation.status`：`pending` → `accepted`（`invitation.accept`，`02-identity-tenant.md:787`），写 `accepted_at`、`accepted_by_user_id`、`accepted_member_id`，清空 `token_enc`；取消 `invitation.expire` 定时器；出站事件 `invitation.accepted`（三个分支都发）。
 - 账号没有称呼时写 `merchant_user.display_name`；各迁移写 `status_transition` 与审计（PRD 6.16.2 第 3 条）。不写 `agreement_consent`。
 
 **说明**：
 
-- 同一令牌已由本人接受：返回 200 与当前成员关系（不论幂等键是否相同，d4:742）。卡片被转发、多人并发点击时，行锁保证只有第一个成功，其余得到 `INVITATION_USED`。
+- 同一令牌已由本人接受：返回 200 与当前成员关系（不论幂等键是否相同，d4:742）；已移除或门店已停用沿用 `NOT_A_MEMBER` / `STORE_ARCHIVED`，不复活缓存身份。required 三段式只存私有接受收据，成功返回前重新投影当前成员。最终锁等待后以新时间检查真实会话、邀请和归属；会话校验是只读语句快照，不承诺取消所有已在途的退出登录请求。卡片被转发、多人并发点击时，行锁保证只有第一个成功，其余得到 `INVITATION_USED`。
 - 同一用户并发接受两个主体的邀请，撞 `uq_entity_member_one_entity` 时映射为 `PHONE_IN_OTHER_ENTITY`（d4:737）。
 - 协议同意：未登录的受邀人在加入页勾选协议后走 `m.session.phoneLogin(consentScene = member_join)`，同意在登录时以 `member_join` 记一次（m01 3.2；d7:685）；已登录的不再弹手机号组件，也不再勾选协议。本接口不在 C73 白名单内：已登录者若缺现行版本的同意，会先在中间件得到 428 `CONSENT_REQUIRED`，端上走 `m.agreementConsent.create`（`reconsent`）后用同一幂等键重放。这样能走到处理器的账号一定已有同版本的同意行，本接口再写会撞 `uq_agreement_consent_no_biz`（同一账号同一版本、无单据只有一行，与 `scene` 无关，`13-notify-docs.md:853`），所以不写、也不收 `consents`。
 - 成功后端上重拉 `GET /m/me`，进入店员首页。
@@ -1087,3 +1100,17 @@ V1.1，细节待设计。用途：老板授权管理员代为确认方案、样�
 | 2026-10-03 | 第三轮。① `EntityBrief` 在 2.2 补成字段表，写明本文为唯一定义（m01 引用，m03 同名结构改名）。② 文本内容安全检测不可用一律 503 `PROVIDER_UNAVAILABLE`、不写库：`m.store.create`、`m.invitation.create`、`m.invitation.accept` 补错误行，删去邀请备注名“先接受、排队复检”；`CONTENT_REJECTED` 写明 `details.fields`。③ `PORTAL_TICKET_INVALID` 三条接口补 `details.reason = approved`，与 p01 第 5 节取值表一致。④ 第 1 节补对外函数 `tenant.previewQuota`。⑤ 2.12 列出 `StoreCloseGuard` 各类别的登记方与口径（m03 1.2、m04 2.9、m05 1.2、m06 第 1 节）；`liveCount`、`deliveringCount`、`todoCount` 写明取 m04 的计数函数。⑥ M:StoreAdd 品牌故事计数改为 `m.storeAsset.summary?tag=brand_story` 取 `tabs.all`。⑦ 依据更新到 A150、C87。第 6 节无可删项 | A131、A132、A137、A145、A150；C27、C87；m01、m03、m04、m05、m07、p01 的第二轮请求；`d4-identity.md:682`、`794`；p01-portal.md 第 5 节 |
 | 2026-10-03 | 第四轮（收尾）。3.3 `m.store.create` 改引 m03 1.2 `profile.validateStoreBasics`：行业品类已停用改返回 409 `DICT_ITEM_DISABLED`、未开放改返回 409 `INDUSTRY_NOT_OPEN`（第 5 节补引用来源），503 `PROVIDER_UNAVAILABLE` 注明同出 1.2；清单与路线图切片同步 | A137；m03-profile-asset 1.2、3.3；m03 第三轮请求 |
 | 2026-10-03 | 第四轮补：`StoreCard`、`StoreCardForClerk` 与当前门店卡的 `cityName`、`categoryName` 改为 `city`、`category`（`DictRef` \| null，A151、C85；m08 `OverviewStore` 同形） | m08 的请求 |
+
+## 8. W2-10 门店恢复实现边界
+
+3.6 复用原 required 幂等。账号80→主体100→当前老板成员120→排序上下文及目标门店130，等待结束后重新读权限、门店状态、正式额度事实和业务时钟；目标店自身可作 by_owner 收尾上下文。仅五个归档随迁列清空，同事务写原 store.restore 历史、活动审计和 store.restored，返回真实 StoreCard。
+
+恢复不重建旧店员范围、撤回邀请/token、lastStoreId 或下载授权；主体关闭和草稿删除不经此入口恢复。当前归档通知以最新真实状态历史及归档源识别发生次，旧源不能借再次归档发出；原安全投影和实际外发前重验保持。此处只回写实现边界，不改变3.6正式条件或宣布整包验收完成。
+
+### 草稿删除接管实施边界（SOURCE）
+
+3.5 原 POST/path/capability/required 幂等保持，返回严格 storeId/deletedAt。
+六个所属域历史读口与原在办阻断同事务读取；终态历史仍计，复制及已删除素材不计。
+STORE_NOT_DRAFT 原两类原因按资质、业务去重排序，缺装配或未知计数保守拒绝。
+草稿删除只复用归档①–④；经理不因 draft_deleted 接收 s.merchant_changed。本人安全告知与当前有效老板成员页保持。
+两个 store 事件同事务提交，原 profile 订阅异步丢弃草稿/释放引用；不开放失权重放豁免，不宣称整包验收。

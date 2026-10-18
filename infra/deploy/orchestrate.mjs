@@ -163,7 +163,11 @@ export function orchestrate(
   try {
     validateRecord(record);
     if (options.freeze === true) throw new Error("STG_FREEZE=true，停在预检");
-    if (record.compatibility === "failed") throw new Error("混跑兼容检查失败，停在预检");
+    if (
+      record.compatibility === "failed" ||
+      (!options.rollback && record.compatibility !== "passed")
+    )
+      throw new Error("混跑兼容检查未通过，停在预检");
     if (!options.rollback && !TAG.test(options.tag ?? "")) throw new Error("发布须给合法 --tag");
     if (!record.reason.trim() && (options.force || record.overrideP1.length))
       throw new Error("越过拒绝条件须给非空 --reason");

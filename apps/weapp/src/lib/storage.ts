@@ -18,5 +18,11 @@ export const StorageKey = {
   localLoginCode: "lyx.localLoginCode",
   /** 被会话恢复打断的页面与查询参数 */
   loginReturn: "lyx.loginReturn",
+  /** 本机公共搜索关键词，最多十条；不上传 */
+  searchHistory: "lyx.searchHistory",
+  /** 分块上传恢复记录；不含凭证、令牌或本机文件路径 */
+  uploadResume: "lyx.upload.resume",
+  /** 素材上传意图；完整owner隔离，不含凭证、令牌或临时路径 */
+  assetUploadIntents: "lyx.asset.upload.intents",
 } as const;
 export type StorageKey = (typeof StorageKey)[keyof typeof StorageKey];

@@ -1,0 +1,36 @@
+.home-assets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  &__demand {
+    padding: 12px 0;
+    & + & {
+      border-top: 1px solid $lyx-color-border;
+    }
+  }
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  &__note {
+    margin: 6px 0;
+    font-size: 14px;
+  }
+  &__meta {
+    margin: 6px 0;
+    font-size: 12px;
+    color: $lyx-color-text-secondary;
+  }
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  &__summary {
+    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}

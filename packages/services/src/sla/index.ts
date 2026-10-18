@@ -10,6 +10,7 @@ export type {
   SlaSnapshot,
   SlaUnit,
   WorkMinutesInput,
+  WorkdayDateInput,
 } from "./due.js";
 export { findCalendarGaps, registration } from "./register.js";
 // W0-30a：flow 的“工作分钟”端口的实现，与按句柄读工作时段

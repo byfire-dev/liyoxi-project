@@ -346,7 +346,7 @@ describe("真实的迁移表与分组文档：0 差异（验收 1–3）", () =>
 
   it("表外行只有写在说明里的那些：那一行写着事件码", () => {
     const outside = [...result.reports.values()].flatMap((report) => report.outsideRows);
-    expect(outside).toEqual(["10:196 ticket.created"]);
+    expect(outside).toEqual(["08:1133 sla.recalculated", "10:196 ticket.created"]);
   });
 });
 

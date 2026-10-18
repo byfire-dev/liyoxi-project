@@ -55,6 +55,7 @@ describe("类别编码", () => {
 
 describe("对象类型", () => {
   it("不重复，都过库里的格式 CHECK（小写蛇形）", () => {
+    expect(AUDIT_TARGET_TYPES.filter((name) => name === "sms_template")).toEqual(["sms_template"]);
     expect(new Set(AUDIT_TARGET_TYPES).size).toBe(AUDIT_TARGET_TYPES.length);
     for (const type of AUDIT_TARGET_TYPES) expect(type).toMatch(/^[a-z][a-z0-9_]*$/);
     expect(isAuditTargetType("approval_request")).toBe(true);
@@ -62,6 +63,27 @@ describe("对象类型", () => {
       "work_calendar_day",
     ]);
     expect(isAuditTargetType("work_calendar_day")).toBe(true);
+    expect(isAuditTargetType("timer")).toBe(true);
+    expect(isAuditTargetType("outbox_delivery")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.slice(-13, -11)).toEqual(["timer", "outbox_delivery"]);
+    expect(isAuditTargetType("analytics_event")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-11)).toBe("analytics_event");
+    expect(isAuditTargetType("media_job")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-10)).toBe("media_job");
+    expect(AUDIT_TARGET_TYPES.at(-9)).toBe("drama_price_revision");
+    expect(AUDIT_TARGET_TYPES.at(-8)).toBe("agreement_version");
+    expect(isAuditTargetType("agreement_version")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-5)).toBe("plan");
+    expect(isAuditTargetType("plan")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-4)).toBe("plan_revision");
+    expect(isAuditTargetType("plan_revision")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-3)).toBe("price_tier_revision");
+    expect(isAuditTargetType("price_tier_revision")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-2)).toBe("file_purge_run");
+    expect(isAuditTargetType("file_purge_run")).toBe(true);
+    expect(AUDIT_TARGET_TYPES.at(-1)).toBe("point_pack");
+    expect(isAuditTargetType("point_pack")).toBe(true);
+    expect(isAuditTargetType("outbox_event")).toBe(false);
     expect(isAuditTargetType("ApprovalRequest")).toBe(false);
   });
 
@@ -144,4 +166,19 @@ describe("纯常量", () => {
     expect(scan.packages).toEqual([]);
     expect(scan.unresolved).toEqual([]);
   });
+});
+
+it("W310 单剧调价审计正式目标已登记", () => {
+  expect(isAuditTargetType("drama_price_revision")).toBe(true);
+});
+
+it("W3-14 素材与需求两个审计对象仍按原顺序登记", () => {
+  const assetIndex = AUDIT_TARGET_TYPES.indexOf("store_asset");
+  expect(assetIndex).toBeGreaterThanOrEqual(0);
+  expect(AUDIT_TARGET_TYPES.slice(assetIndex, assetIndex + 2)).toEqual([
+    "store_asset",
+    "store_asset_demand",
+  ]);
+  expect(isAuditTargetType("store_asset")).toBe(true);
+  expect(isAuditTargetType("store_asset_demand")).toBe(true);
 });

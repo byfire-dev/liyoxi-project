@@ -95,6 +95,8 @@ export interface ApprovalExecutionSlaFacts {
 }
 
 export interface ApprovalKindRegistration<I = unknown> {
+  /** 对象失效代撤的所属只读判定；必须在所属完整预锁与事务上下文内复核，缺实现不放行。 */
+  readonly isSubjectInvalidForWithdrawal?: (tx: Tx, row: ApprovalRow) => Promise<boolean>;
   /** 有执行步的领域所属模块提供真实执行事实；尚无 producer 的类型不得伪造。 */
   readonly executionSla?: (tx: Tx, row: ApprovalRow) => Promise<ApprovalExecutionSlaFacts | null>;
   /** review：商家提交的审核，审计写 activity 流；approval：员工发起的审批，写 ops 流 */

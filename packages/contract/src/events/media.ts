@@ -1,7 +1,57 @@
+import { FILE_OBJECT_CATEGORY } from "../enums/index.js";
 import { IdSchema } from "../common/index.js";
 import { z } from "../zod.js";
 const fileFact = z.object({ v: z.literal(1), fileId: IdSchema }).strict();
 export const payloads = {
+  "media.ocr.completed": z.strictObject({
+    v: z.literal(1),
+    ocrResultId: IdSchema,
+    fileId: IdSchema,
+    entityId: IdSchema,
+    mediaJobId: IdSchema,
+    docType: z.literal("bank_receipt"),
+    status: z.enum(["ok", "unavailable", "unreadable"]),
+  }),
+  "asset.processed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    entityId: IdSchema,
+  }),
+  "asset.review_needed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    dueAt: z.iso.datetime().optional(),
+  }),
+  "asset.reviewed": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    usability: z.enum(["ready", "reference_only", "need_reshoot", "need_portrait_auth"]),
+    uploadActorType: z.enum(["merchant", "staff"]),
+    uploaderUserId: IdSchema.optional(),
+  }),
+  "asset.demand_created": z.strictObject({
+    v: z.literal(1),
+    storeAssetDemandId: IdSchema,
+    storeId: IdSchema,
+    notifyScope: z.enum(["owner_and_clerks", "owner_only"]),
+    dueDate: z.iso.date().optional(),
+  }),
+  "asset.feedback_submitted": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    entityId: IdSchema,
+    actorRole: z.enum(["owner", "clerk"]),
+  }),
+  "asset.sla_breached": z.strictObject({
+    v: z.literal(1),
+    storeAssetId: IdSchema,
+    storeId: IdSchema,
+    dueAt: z.iso.datetime(),
+  }),
   "asset.adopted": z.strictObject({
     v: z.literal(1),
     storeAssetId: IdSchema,
@@ -13,4 +63,44 @@ export const payloads = {
   "file.uploaded": fileFact,
   "file.stored": fileFact,
   "file.rejected": fileFact,
+  "file.moderated": z.strictObject({
+    v: z.literal(1),
+    fileId: IdSchema,
+    category: z.enum(FILE_OBJECT_CATEGORY.values),
+    moderationState: z.enum(["pass", "review", "block"]),
+    storeId: IdSchema.nullable(),
+  }),
+  "media.production.checked": z.strictObject({
+    v: z.literal(1),
+    fileId: IdSchema,
+    kind: z.enum(["sample", "final", "ad"]),
+    orderItemId: IdSchema.optional(),
+    gate: z.enum(["pass", "reject"]),
+    durationMs: z.number().int().nonnegative().optional(),
+  }),
+  "media.production.derived": z.strictObject({
+    v: z.literal(1),
+    fileId: IdSchema,
+    sourceFileId: IdSchema,
+    derivation: z.enum(["normalize", "restamp"]),
+  }),
+  "media.playable.ready": z.strictObject({
+    v: z.literal(1),
+    playableAssetId: IdSchema,
+    ownerType: z.string().min(1).max(64),
+    ownerId: IdSchema,
+    kind: z.enum(["trailer", "sample", "ad"]),
+  }),
+  "media.playable.failed": z.strictObject({
+    v: z.literal(1),
+    playableAssetId: IdSchema,
+    ownerType: z.string().min(1).max(64),
+    ownerId: IdSchema,
+    kind: z.enum(["trailer", "sample", "ad"]),
+  }),
+  "drama.trailer_ready": z.strictObject({
+    v: z.literal(1),
+    dramaId: IdSchema,
+    playableAssetId: IdSchema,
+  }),
 } as const;

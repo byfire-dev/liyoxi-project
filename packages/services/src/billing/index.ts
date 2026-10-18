@@ -1,5 +1,8 @@
 // W0-21 种子：套餐与首版价目、积分包、等级模板价、计费参数、估值口径
 export { seed } from "./seed.js";
+export { createPlanAdmin, planActivityCounts } from "./catalog/plans-admin.js";
+export type { PlanAdminActor } from "./catalog/plans-admin.js";
+export { createParameterChanges } from "./pricing/parameter-changes.js";
 export {
   BILLING_PARAM_SEEDS,
   cyclePricesOf,
@@ -67,6 +70,10 @@ export type {
   ReturnResult,
 } from "./ledger/index.js";
 export { quoteHold } from "./pricing/quote.js";
+export { previewReturn } from "./ledger/index.js";
+export { readCancelHoldFacts } from "./ledger/index.js";
+export type { CancelHoldFacts } from "./ledger/index.js";
+export type { ReturnPreview } from "./ledger/index.js";
 export type { HoldPricing, QuoteTerm } from "./pricing/quote.js";
 // W1-11a（账本侧）：付清后的履约 createFulfillment（建周期与发放计划、发首月）；两个端口的实现；订阅一侧的三条不变量
 export {
@@ -86,10 +93,16 @@ export type {
   FulfillStep,
 } from "./subscription/index.js";
 export { billingAccountOpener, billingMerchantFacts, openAccountForEntity } from "./ports.js";
+export { deletionGuard } from "./read/deletion-guard.js";
+export { readBillingHistoryFacts } from "./read/history-facts.js";
+export { readTenantAdminBillingFacts } from "./read/tenant-admin.js";
+export type { TenantAdminBillingFacts } from "./read/tenant-admin.js";
+export type { BillingDeletionGuardCounts } from "./read/deletion-guard.js";
 export {
   createPayment,
   openPaymentException,
   APPLY_STEPS,
+  recordChannelSuccess,
   paymentInvariants,
 } from "./payment/index.js";
 export type {
@@ -102,6 +115,10 @@ export type {
   PaymentExceptionKind,
 } from "./payment/index.js";
 export { createBillingPurchase } from "./payment/purchase.js";
+export { describePaymentOrders } from "./payment/describe.js";
+export type { PaymentOrderDescription } from "./payment/describe.js";
+export { createPointPacks } from "./catalog/point-packs.js";
+export type { PointPackActor } from "./catalog/point-packs.js";
 export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./payment/purchase.js";
 export {
   bindBillingTimers,
@@ -115,5 +132,36 @@ export {
 } from "./finance-config/index.js";
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./demo-seed.js";
 export type { BillingSeedDeps } from "./demo-seed.js";
+export { getNotifyPurchaseMode, getPurchasePolicy } from "./policy/index.js";
 
 export { billingPiiFields } from "./pii-fields.js";
+
+export { createDramaPricing } from "./pricing/revisions.js";
+export type { DramaPricingService, DramaPricingDeps } from "./pricing/revisions.js";
+
+export { createWechatChannel } from "./payment/wechat-channel.js";
+export { createWechatPaymentSource } from "./payment/channel-webhook.js";
+export { bindPaymentChannel } from "./payment/channel-registration.js";
+export { wechatOrderAttach } from "./payment/channel-success.js";
+export { createTransferReviewAssembly } from "./payment/transfer-review.js";
+export { captureSubscriptionDailySnapshot } from "./reporting/snapshot.js";
+export { computeEntityValuation, rebuildEntityValuation } from "./reporting/valuation.js";
+export type { BillingValuationReader } from "./reporting/valuation.js";
+export {
+  BillingDailyHistoryMissingError,
+  computeEntityDaily,
+  createBillingDailyProjection,
+} from "./reporting/daily.js";
+export type { BillingDailyReader, EntityDailyComputation } from "./reporting/daily.js";
+
+export { createInvoices } from "./invoices/service.js";
+export { createInvoiceAssembly } from "./invoices/assembly.js";
+export { readInvoiceMail } from "./invoices/mail.js";
+export type { InvoiceDeps, InvoiceRuntimeDeps } from "./invoices/context.js";
+export { createFinanceConfigService } from "./finance-config/service.js";
+export {
+  readInvoiceRefundGuard,
+  markInvoiceRedPending,
+  cancelInvoiceRed,
+  rejectInvoiceAfterRefund,
+} from "./invoices/refund.js";

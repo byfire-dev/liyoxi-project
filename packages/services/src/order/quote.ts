@@ -9,7 +9,13 @@ import { getWalletView, paramsAt, getEntitlements } from "../billing/index.js";
 import { paramsAt as configParamsAt } from "../config/index.js";
 import { assertProfileComplete } from "../profile/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
-import { qualification, openIndustry, earliestLaunch, currentLicense } from "./checks.js";
+import {
+  qualification,
+  openIndustry,
+  earliestLaunch,
+  currentLicense,
+  storeQuota,
+} from "./checks.js";
 import { orderAccounts } from "./accounts.js";
 export async function dictRefs(tx: Tx, type: string, codes: readonly string[]) {
   const rows = await tx.dictItem.findMany({
@@ -81,6 +87,7 @@ export async function quote(
   await collect(() => assertProfileComplete(tx, storeId));
   await collect(() => qualification(tx, storeId));
   await collect(() => openIndustry(tx, storeId));
+  await collect(() => storeQuota(tx, deps, entityId, at));
   // 没有生效周期不能计算折扣；按 m04 的明确错误直接拒绝。
   const entitlement = await getEntitlements(tx, entityId, at);
   if (!entitlement.term) throw new AppError("SUBSCRIPTION_INACTIVE");
@@ -229,7 +236,7 @@ export async function quote(
       })),
     ),
     ads: [],
-    earliestLaunchDate: await earliestLaunch(tx, at),
+    earliestLaunchDate: await earliestLaunch(tx, deps, at),
     agreement: {
       agreementKey: "custom_license",
       name: (await tx.agreement.findUniqueOrThrow({ where: { key: "custom_license" } })).name,

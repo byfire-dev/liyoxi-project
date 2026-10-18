@@ -10,9 +10,14 @@ import {
   mStoreProfileQualificationGet,
   mStoreProfileQualificationUpdate,
   mStoreProfileContactUpdate,
+  mStoreProfileContactSmsCodeCreate,
   mStoreProfileQualificationSubmit,
   mQualificationDocCreate,
   mQualificationDocUpdate,
+  mQualificationSubmissionList,
+  mQualificationDocDownloadUrls,
+  mQualificationDocRemove,
+  mStoreProfileQualificationDiscard,
   StoreProfileOverviewOwnerSchema,
   StoreProfileOverviewClerkSchema,
   StoreProfileBasicOwnerSchema,
@@ -25,6 +30,7 @@ import {
   QualificationViewClerkSchema,
   QualificationDocRecognizedSchema,
   QualificationDocUpdateResultSchema,
+  QualificationDocRemoveResultSchema,
   ContactViewSchema,
 } from "@liyoxi/contract";
 import { AppError } from "@liyoxi/services";
@@ -57,6 +63,33 @@ const qualificationSaved =
 const qualificationSubmitted =
   mStoreProfileQualificationSubmit.responses[200].content["application/json"].schema.shape.data;
 export const profileHandlers = [
+  defineHandler(mStoreProfileContactSmsCodeCreate, async (c) =>
+    ok(
+      c,
+      await profileOf(c).createContactCode(viewerOf(c), c.req.valid("json").phone, {
+        idem: idemOf(c),
+      }),
+    ),
+  ),
+  defineHandler(mStoreProfileQualificationDiscard, async (c) =>
+    respondByRole<z.infer<typeof QualificationViewOwnerSchema>>(
+      c,
+      { owner: QualificationViewOwnerSchema },
+      await profileOf(c).discardQualification(viewerOf(c), c.req.valid("json"), {
+        idem: idemOf(c),
+      }),
+    ),
+  ),
+  defineHandler(mQualificationDocRemove, async (c) =>
+    ok(
+      c,
+      QualificationDocRemoveResultSchema.parse(
+        await profileOf(c).removeDocument(viewerOf(c), c.req.valid("param").qualificationDocId, {
+          idem: idemOf(c),
+        }),
+      ),
+    ),
+  ),
   defineHandler(mStoreProfileGet, async (c) => {
     noStore(c);
     return respondByRole<
@@ -173,4 +206,26 @@ export const profileHandlers = [
       ),
     ),
   ),
+  defineHandler(mQualificationSubmissionList, async (c) => {
+    noStore(c);
+    return ok(
+      c,
+      mQualificationSubmissionList.responses[200].content[
+        "application/json"
+      ].schema.shape.data.parse(
+        await profileOf(c).qualificationHistory(viewerOf(c), c.req.valid("query")),
+      ),
+    );
+  }),
+  defineHandler(mQualificationDocDownloadUrls, async (c) => {
+    noStore(c);
+    return ok(
+      c,
+      mQualificationDocDownloadUrls.responses[200].content[
+        "application/json"
+      ].schema.shape.data.parse(
+        await profileOf(c).documentUrl(viewerOf(c), c.req.valid("param").qualificationDocId),
+      ),
+    );
+  }),
 ];

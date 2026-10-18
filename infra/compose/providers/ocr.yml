@@ -1,0 +1,20 @@
+# API 同步识别证照；worker 执行异步回单识别，均只挂本 OCR 文件。
+services:
+  api:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+  worker:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+  check-env:
+    environment:
+      OCR_TENCENT_FILE: /run/secrets/ocr-tencent.json
+    secrets:
+      - ocr-tencent.json
+secrets:
+  ocr-tencent.json:
+    file: ${LYX_SECRETS_DIR:?}/ocr-tencent.json

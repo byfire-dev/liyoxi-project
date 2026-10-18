@@ -16,9 +16,11 @@
 #   verify-assets <标签> 完整镜像资源与共享目录核对；verify-assets-live <标签> [旧标签] 实际网关全资源核对
 #   smoke <标签>      API 探活、两个前端入口、实际版本与 worker；完整资源由 verify-assets-live 核对
 #   prune             只清本项目记录过的旧版本，留当前与最近三版；资源至少保留 60 天
+#   logs <六服务> <UUID> 只读最近60分钟的匹配日志（最多200行）；log-stats <1–1440分钟> 统计gateway
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
+#   redis-flush <项目>  显式演练开关开启且未冻结时，只清本 node.yml 项目 Redis 的 DB 0
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
 #   stop <服务>        停一个服务（按 Compose 里的 stop_grace_period 等它收尾）
@@ -46,9 +48,10 @@ DB_RELEASE_ENV="$LYX_NODE_HOME/db-release.env"
 COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
-PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload"
-USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签]"
+PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats redis-flush"
+USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签] | logs <六服务> <UUID> | log-stats <1–1440分钟>"
 
+USAGE="$USAGE | redis-flush <本节点项目>"
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
   via_ssh=1
@@ -69,6 +72,17 @@ need_services() {
   for one in "$@"; do in_list "$one" "$SERVICES" || usage_die "不认识的服务 ${one}。服务有：$SERVICES"; done
 }
 case "$step" in
+  redis-flush)
+    [ $# -eq 1 ] && [[ "$1" =~ ^[a-z0-9][a-z0-9_-]{0,62}$ ]] || usage_die "redis-flush 必须明确给出本节点 Compose 项目名"
+    ;;
+  logs)
+    [ $# -eq 2 ] || usage_die "logs 只接受服务名与 UUID 请求编号"
+    need_services "$1"
+    [[ "$2" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]] || usage_die "请求编号必须是 UUID"
+    ;;
+  log-stats)
+    [ $# -eq 1 ] && [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 分钟必须是 1–1440 的整数"
+    ;;
   weapp-upload)
     [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
     ;;
@@ -96,6 +110,7 @@ if [ "$via_ssh" = 1 ]; then
 fi
 case "$SUPERVISOR" in systemd | compose) ;; *) usage_die "LYX_NODE_SUPERVISOR 只能是 systemd 或 compose" ;; esac
 [ -r "$STG_ENV" ] || usage_die "读不了 infra/compose/env/stg.env"
+NODE_PROVIDERS="$(node_providers)" || exit $?
 
 # 取一项非敏感配置：环境变量优先，其次节点上的 node.env，再次 stg.env
 setting() {
@@ -127,9 +142,13 @@ container() { printf '%s-%s' "$LYX_NODE_PREFIX" "$1"; }
 # docker compose 的公共参数，放进 COMPOSE_ARGS：变量替换的来源是 stg.env、节点上的 node.env（有才带）与当前环境
 COMPOSE_ARGS=()
 compose_args() {
+  local provider
   COMPOSE_ARGS=(compose -p "$LYX_NODE_PROJECT" --env-file "$STG_ENV")
   if [ -f "$NODE_ENV" ]; then COMPOSE_ARGS+=(--env-file "$NODE_ENV"); fi
   COMPOSE_ARGS+=(-f "$COMPOSE_FILE")
+  for provider in $NODE_PROVIDERS; do
+    COMPOSE_ARGS+=(-f "$LYX_SRC/infra/compose/providers/$provider.yml")
+  done
 }
 # compose <标签> <参数…>
 compose() {
@@ -304,11 +323,55 @@ step_run() {
   LYX_TAG="$tag" exec docker "${COMPOSE_ARGS[@]}" up --no-deps "$1"
 }
 
+# 无宿主 Node 假设：当前 server 镜像只读执行本节点 helper，不挂环境文件或密钥。
+step_log_read() (
+  set -o pipefail
+  local mode="$1" service="$2" value="$3" minutes="$4" tail="$5" tag image output
+  tag="$(current_tag)"
+  [ -n "$tag" ] || die "还没有当前版本：日志 runner 不可用"
+  need_tag "$tag"
+  image="$(docker image inspect -f '{{.Id}}' "$(image_name server "$tag")")" || die "当前 server 镜像不可用"
+  [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || die "日志 runner 镜像摘要不合法"
+  [ -f "$LYX_SRC/infra/deploy/log-stats.mjs" ] && [ ! -L "$LYX_SRC/infra/deploy/log-stats.mjs" ] || die "日志 helper 不可用"
+  # 多取一行用来检测超限；pipefail 同时保留 docker logs 和 helper 的失败。
+  output="$(docker logs --since "${minutes}m" --tail "$tail" "$(container "$service")" 2>&1 |
+    docker run --rm -i --pull never --network none --read-only --user 65534:65534 \
+      --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --cpus 0.5 --pids-limit 32 --log-driver none \
+      --mount "type=bind,source=$LYX_SRC/infra/deploy/log-stats.mjs,target=/helper/log-stats.mjs,readonly" \
+      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value")" || die "日志读取失败或超过上限，未输出不完整结果"
+  [ -z "$output" ] || printf '%s\n' "$output"
+)
+
+# 这是显式破坏性演练入口，不属于发布流程。先核 Compose 身份，再按不可复用的容器 ID 执行。
+step_redis_flush() {
+  local project="$1" tag id identity files provider output
+  [ "$(setting LYX_REDIS_FLUSH_ENABLED)" = true ] || die "Redis 清空演练未显式开启"
+  [ "$(setting STG_FREEZE)" = false ] || die "节点冻结或冻结配置未知，拒绝 Redis 清空"
+  [ "$project" = "$LYX_NODE_PROJECT" ] || die "Compose 项目确认不匹配"
+  tag="$(current_tag)"
+  [ -n "$tag" ] || die "没有本节点当前版本，拒绝 Redis 清空"
+  need_tag "$tag"
+  id="$(compose "$tag" ps -a -q redis)" || die "读不到本项目 Redis"
+  [[ "$id" =~ ^[a-f0-9]{64}$ ]] || die "本项目必须恰有一个 Redis 容器"
+  files="$COMPOSE_FILE"
+  for provider in $NODE_PROVIDERS; do files="$files,$LYX_SRC/infra/compose/providers/$provider.yml"; done
+  identity="$(docker inspect -f '{{.Id}}|{{.Name}}|{{.State.Running}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}|{{index .Config.Labels "com.docker.compose.project.config_files"}}|{{index .Config.Labels "com.docker.compose.oneoff"}}|{{len .HostConfig.PortBindings}}' "$id")" || die "核对 Redis 身份失败"
+  [ "$identity" = "$id|/$(container redis)|true|$project|redis|$files|False|0" ] || die "Redis 容器不属于本 node.yml 项目，拒绝清空"
+  [ "$(setting STG_FREEZE)" = false ] || die "节点已冻结，拒绝 Redis 清空"
+  # 口令只在目标容器中从既有只读 secret 读入环境，既不进宿主 argv，也不输出。
+  output="$(docker exec "$id" timeout 10 sh -c 'REDISCLI_AUTH="$(sed -n "s/^requirepass //p" /run/secrets/redis-auth.conf)"; [ -n "$REDISCLI_AUTH" ] || exit 1; export REDISCLI_AUTH; exec redis-cli --no-auth-warning -n 0 FLUSHDB SYNC')" || die "Redis 清空执行失败"
+  [ "$output" = OK ] || die "Redis 未明确确认清空，演练失败"
+  say "本项目 Redis DB 0 已清空；未重启任何容器"
+}
+
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
 . "$LYX_SRC/infra/deploy/node-weapp.sh"
 
 case "$step" in
+  redis-flush) step_redis_flush "$1" ;;
+  logs) step_log_read logs "$1" "$2" 60 5001 ;;
+  log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
   deps) step_deps ;;
   pull) step_pull "$1" ;;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 拼首版迁移（W0-05 任务书 第 10 节第 3 步）。迁移文件是拼出来的，不手改。来源两处：
-//   ① prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script 的输出（离线，不连库）
+//   ① 从冻结的 docs/data-model/schema.prisma 出首版 DDL（离线，不连库）
 //   ② docs/data-model/constraints/ 下的 00–15，按文件名顺序原样接在后面
 // 语义一字不改，只加注释：文件头、每个来源前的分隔行、四类语句前各一行 “-- lyx:allow <理由>”
 //（D7 第 8.3 节第 5 条：DROP、RENAME、ALTER … TYPE、不带默认值的 SET NOT NULL）。
@@ -29,7 +29,14 @@ function fail(message) {
 function prismaDdl() {
   const result = spawnSync(
     join(pkg, "node_modules/.bin/prisma"),
-    ["migrate", "diff", "--from-empty", "--to-schema", "prisma/schema.prisma", "--script"],
+    [
+      "migrate",
+      "diff",
+      "--from-empty",
+      "--to-schema",
+      join(pkg, "../../docs/data-model/schema.prisma"),
+      "--script",
+    ],
     {
       cwd: pkg,
       encoding: "utf8",

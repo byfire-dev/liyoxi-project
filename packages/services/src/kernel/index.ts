@@ -27,6 +27,8 @@ export {
   TX_TIMEOUT_MS,
 } from "./tx.js";
 export type { KernelViolationKind, Tx, TxRunner, TxRunnerOptions, TxRunOptions } from "./tx.js";
+export { createSessionMutex, SessionMutexError } from "./session-mutex.js";
+export type { SessionMutex, SessionMutexScope, SessionMutexFailure } from "./session-mutex.js";
 
 // W0-07 时钟与主键
 export { systemClock } from "./clock.js";
@@ -127,7 +129,20 @@ export * from "./queue/index.js";
 export { dbErrorCause } from "./tx.js";
 export type { DbErrorCause } from "./tx.js";
 // KF-1 十二个外部能力的装配：进程装配经它拿 Providers，外呼前钩子在里面接上
-export { assembleProviders } from "./assembly/providers.js";
+export { assembleProviders, assembleProductionMediaTools } from "./assembly/providers.js";
 export type { AssembleProvidersOptions } from "./assembly/providers.js";
 // W1-01a 后台登录的密钥文件的内容类型（loadEnv 读出来的形状；加载与自检在 security 的 auth-keys）
 export type { AuthKeysConfig } from "./env.js";
+
+// W2-12 PR1: local bounded document computation; not an external Provider category.
+export {
+  createDocumentConverter,
+  runDocumentConversionWorker,
+} from "./document-conversion/index.js";
+export type {
+  DocumentConversionRequest,
+  DocumentConversionResult,
+  DocumentConverter,
+  DocumentInput,
+} from "./document-conversion/index.js";
+export type { ClientErrorProjectsConfig } from "./env.js";

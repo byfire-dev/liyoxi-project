@@ -1,6 +1,7 @@
 import { useUploadBusy } from "@/lib/upload/taro";
 import { useState } from "react";
 import { View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { FooterBar } from "@/components/FooterBar";
@@ -10,7 +11,7 @@ import { FileGrid, type MediaFile } from "../private/uploads";
 import { Frame, Feedback, STEP_NAMES, useAction, useResource } from "../private/ui";
 import { useDraft } from "../private/draft";
 import type { Media } from "../private/api";
-import { profileRuntime } from "../private/runtime";
+import { profileContext, profileRuntime } from "../private/runtime";
 export default function Store() {
   const uploading = useUploadBusy();
   const resource = useResource((api) => api.media());
@@ -36,6 +37,30 @@ export default function Store() {
   );
   const [video, setVideo] = useState(false);
   const readonly = data?.viewerRole !== "owner";
+  const save = async (draft: boolean) => {
+    if (!data || data.viewerRole !== "owner") return;
+    const context = profileContext();
+    const body = {
+      draft,
+      lockVersion: data.lockVersion,
+      groups: {
+        door: groups.door.map((file) => ({ fileId: file.fileId })),
+        interior: groups.interior.map((file) => ({ fileId: file.fileId })),
+        product: groups.product.map((file) => ({ fileId: file.fileId })),
+        promo: groups.promo.map((file) => ({ fileId: file.fileId })),
+      },
+    };
+    const value = await action.run(body, async (key) =>
+      (await profileRuntime()).api.saveMedia(body, key),
+    );
+    if (value && action.isCurrent(context)) {
+      acceptGroups(value);
+      resource.setData(value);
+      if (draft)
+        void Taro.showToast({ title: "草稿已保存", icon: "success" }).catch(() => undefined);
+      else await action.continueTo("service", context);
+    }
+  };
   return (
     <Frame
       loading={resource.loading}
@@ -90,35 +115,23 @@ export default function Store() {
       {!readonly ? (
         <FooterBar>
           <Button
-            block
+            variant="secondary"
             loading={action.busy}
             disabled={uploading}
             onClick={() => {
-              if (!data || data.viewerRole !== "owner") return;
-              const body = {
-                draft: true,
-                lockVersion: data.lockVersion,
-                groups: {
-                  door: groups.door.map((file) => ({ fileId: file.fileId })),
-                  interior: groups.interior.map((file) => ({ fileId: file.fileId })),
-                  product: groups.product.map((file) => ({ fileId: file.fileId })),
-                  promo: groups.promo.map((file) => ({ fileId: file.fileId })),
-                },
-              };
-              void action
-                .run(body, async (key) => {
-                  const value = await (await profileRuntime()).api.saveMedia(body, key);
-                  return value;
-                })
-                .then((value) => {
-                  if (value) {
-                    acceptGroups(value);
-                    resource.setData(value);
-                  }
-                });
+              void save(true);
             }}
           >
-            保存门店环境
+            保存草稿
+          </Button>
+          <Button
+            loading={action.busy}
+            disabled={uploading}
+            onClick={() => {
+              void save(false);
+            }}
+          >
+            保存并下一步
           </Button>
         </FooterBar>
       ) : null}

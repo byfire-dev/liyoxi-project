@@ -1,7 +1,7 @@
 // W1-11a b：真实履约、状态链与事件之上的付款夹具；银行信息均是现造的假值。
 import { createPrismaClient } from "@liyoxi/db";
 import type { BillingOrder, PaymentTxn, PrismaClient } from "@liyoxi/db";
-import { createPayment } from "../billing/index.js";
+import { createPayment, wechatOrderAttach } from "../billing/index.js";
 import type { Payment, PaymentDeps } from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
 import { createBizNoIssuer, uuidv7 } from "../kernel/index.js";
@@ -95,6 +95,8 @@ export async function pendingPlanOrder(
     entityId: string;
     amountFen?: number;
     months?: number;
+    /** 微信夹具只建立pending事实；成功必须另经recordChannelSuccess。 */
+    channel?: "bank_transfer" | "wechat_jsapi";
     status?: "pending_payment" | "pending_confirmation";
   },
 ): Promise<BillingOrder> {
@@ -105,13 +107,22 @@ export async function pendingPlanOrder(
   });
   const months = input.months ?? 1;
   const amountFen = input.amountFen ?? revision.monthlyFeeFen * months;
-  const status = input.status ?? "pending_confirmation";
+  const channel = input.channel ?? "bank_transfer";
+  const status =
+    input.status ?? (channel === "wechat_jsapi" ? "pending_payment" : "pending_confirmation");
+  if (channel === "wechat_jsapi" && status !== "pending_payment")
+    throw new TypeError("微信夹具只能建立待支付单");
   return h.make.billingOrder({
     entityId: input.entityId,
     status,
-    channel: "bank_transfer",
-    transferState: status === "pending_payment" ? "awaiting_proof" : "proof_submitted",
-    bankAccountFinanceConfigRevisionId: await bankRevision(h),
+    channel,
+    transferState:
+      channel === "wechat_jsapi"
+        ? null
+        : status === "pending_payment"
+          ? "awaiting_proof"
+          : "proof_submitted",
+    bankAccountFinanceConfigRevisionId: channel === "wechat_jsapi" ? null : await bankRevision(h),
     amountFen,
     contentSnapshot: {
       v: 1,
@@ -150,3 +161,25 @@ export async function transferReceipt(
 }
 export const applyReceipt = (h: PaymentHarness, receipt: Pick<PaymentTxn, "id">) =>
   h.tx.run((tx) => h.payment.applyPayment(tx, { paymentTxnId: receipt.id }));
+
+/** 只建未收款尝试，不提供paid/succeeded写捷径。事实由正式recordChannelSuccess提交。 */
+export async function pendingWechatReceipt(
+  h: PaymentHarness,
+  order: BillingOrder,
+  attemptNo = 1,
+): Promise<PaymentTxn> {
+  const attach = wechatOrderAttach(order);
+  if (order.channel !== "wechat_jsapi" || order.status !== "pending_payment" || !attach)
+    throw new TypeError("微信尝试需要合法待支付套餐单");
+  return h.make.paymentTxn({
+    entityId: order.entityId,
+    billingOrderId: order.id,
+    channel: "wechat_jsapi",
+    status: "created",
+    attemptNo,
+    amountFen: order.amountFen,
+    outTradeNo: `${order.orderNo}-${String(attemptNo).padStart(2, "0")}-${uuidv7().slice(-6).toUpperCase()}`,
+    payerOpenid: `o_test_${order.entityId}_${attemptNo}`,
+    attach,
+  });
+}

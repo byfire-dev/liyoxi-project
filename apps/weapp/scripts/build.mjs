@@ -16,6 +16,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { cleanup, init, split } from "../../../infra/deploy/source-maps.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [type, ...flags] = process.argv.slice(2);
@@ -56,5 +58,25 @@ run(
   { NODE_ENV: watch ? "development" : "production", TARO_ENV: type },
 );
 if (type === "weapp" && !watch) {
-  run(process.execPath, [path.resolve(appRoot, "../../infra/ci/check-mp-size.mjs"), "dist"]);
+  const owned = !process.env.LYX_SOURCE_MAPS_DIR;
+  const privateRoot = process.env.LYX_SOURCE_MAPS_DIR || (await init(tmpdir()));
+  try {
+    await split(
+      "weapp",
+      path.resolve(appRoot, "../.."),
+      path.join(privateRoot, "weapp-build"),
+      process.env.WEAPP_VERSION || "local",
+    );
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve(appRoot, "../../infra/ci/check-mp-size.mjs"), "dist"],
+      { cwd: appRoot, stdio: "inherit", env: process.env },
+    );
+    process.exitCode = result.error ? 2 : (result.status ?? 1);
+  } catch {
+    console.error("小程序构建：私有源码映射分离失败");
+    process.exitCode = 1;
+  } finally {
+    if (owned) await cleanup(privateRoot);
+  }
 }

@@ -2,8 +2,8 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 模块 | notify（9 张）、docs（5 张），都在 L1 |
-| 表 | 14 张：`notify_scene`、`wx_template_slot`、`sms_template`、`notification`、`notification_delivery`、`merchant_message`、`staff_message`、`wx_subscribe_quota`、`manual_reminder_log`、`agreement`、`agreement_version`、`agreement_consent`、`license_letter`、`license_letter_revision` |
+| 模块 | notify（10 张）、docs（5 张），都在 L1 |
+| 表 | 15 张：`notify_scene`、`wx_template_slot`、`sms_template`、`notification`、`notification_delivery`、`notification_fanout`、`merchant_message`、`staff_message`、`wx_subscribe_quota`、`manual_reminder_log`、`agreement`、`agreement_version`、`agreement_consent`、`license_letter`、`license_letter_revision` |
 | 依据 | rulings M2、M9、M13、M17、M19、M26、M29、M33、M34、M41、M45，第二轮按 M46–M53、M57、M58、M63、M65、M80、M92 修订，第三轮按 M93、M94、M105、M109、M110 与其他分组的请求修订；catalogue 的约定与本分组 14 张表的条目；decisions 第 1 节 #9、#22、#28、#36，第 6 节（`license_letter` 的 lock_rank = 240），第 8 节；03-key-designs 第 8 节与 R6、R13、R14；草案 d6-notify-docs-data 第 1.4、2、3、7 节，d3-flow 第 12.6 节（`reminder_log`），d4-identity 第 3.1 节（`user_consent`） |
 | Prisma 片段 | 工作目录 `dm/prisma/frag/13-notify-docs.prisma`（合并后进 `packages/db`） |
 | 手写约束 | 工作目录 `dm/sql/13-notify-docs.sql`（合并后进迁移） |
@@ -148,7 +148,6 @@ erDiagram
 | `m.asset_feedback` | 订阅 06 分组的三个出站事件（前两个只在 `store_asset.upload_actor_type = merchant` 时发，员工代传的素材没有商家接收人）：`asset.adopted`（素材被采用）发给上传人；`asset.reviewed` 只在复核结论 `usability` 为 `need_reshoot`（需重拍）或 `need_portrait_auth`（需补肖像授权）时提醒上传人，其余结论不发；`asset.demand_created`（素材需求发起）按 `store_asset_demand.notify_scope` 取 `owner_and_clerks`（老板与门店店员）或 `owner_only` | d6:248；06 分组的请求 |
 
 `m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。
-
 其他分组已提出、要随注册表补的场景（不改表结构）：
 
 - 证照到期提醒与 `store.qualification_change.*`、`store.profile.changed` 的接入（d9:703-704、725；catalogue notes）。
@@ -157,11 +156,12 @@ erDiagram
   - 新微信登录（d4:386-389；订阅 02 分组的出站事件 `merchant_user.wechat_bound`，A95 改名，x01 3.17）：短信用 `account_notice` 模板、策略 `always`；订阅消息要排除刚绑定的那个微信身份，事件载荷带 `wechatIdentityId`，场景的 `vars` 带 `excludeWechatIdentityId`，额度预留跳过它（见 2.8）。
   - 换绑手机号：订阅 02 分组的出站事件 `merchant_user.phone_changed` 生成站内消息，载荷不带手机号，场景不发短信。给原号码的账号安全短信不经场景：identity 在换绑事务提交后调 `notify.sendDirect`（`purpose = account_notice`，见 2.5“直发”；02 分组 2.8）。
 
-**补登播种**（接口阶段，a09-ops.md 2.9 标“补登”的 31 个键，随注册表同批播种；只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
+**补登播种**（接口阶段，a09-ops.md 2.9 标“补登”的原31个键及W2-10追加场景，随注册表同批播种；只加行、不改表）：默认 `ext_enabled = true`、`scene_enabled = true`、`sms_policy = never`、`send_window = immediate`，槽位与短信模板为空（只发站内；员工场景的企业微信由注册表声明）。触发事件、接收人与深链以 a09 2.9 为准，下表只列键与显示名。
 
 | `scene_key` | `audience` | `name` | 例外与说明 |
 | --- | --- | --- | --- |
 | `m.rule_change_withdrawn` | merchant | 调整已取消 | `site_notice.withdrawn` |
+| `m.quota_exceeded` | merchant | 名额超限提醒 | W2-10 权益变动；既有默认绑定，只发立即站内 |
 | `m.plan_activated` | merchant | 套餐已开通 | — |
 | `m.plan_renewed` | merchant | 续费成功 | — |
 | `m.plan_upgraded` | merchant | 套餐已升级 | — |
@@ -192,6 +192,8 @@ erDiagram
 | `s.delivery_progress` | staff | 交付进度 | — |
 | `s.publish_progress` | staff | 发布待办 | — |
 | `s.merchant_changed` | staff | 商家变动 | — |
+| `s.wecom_invite` | staff | 企业微信绑定邀请 | W2-03 必要补登；active+invited 当前员工，站内-only，真实邀请审计 ID 去重 |
+| `s.followup_due` | staff | 跟进到期提醒 | W2-17 按既有跟进提醒请求补登；到期日 09:00、当前负责人、仍待跟进 |
 
 **不变量**：注册表里的每个键在本表有行（启动自检，d6:314）；`wx_template_slot_key` 所指槽位的字段名与场景 `wx()` 的返回一致（启动自检，同上）。
 
@@ -1057,6 +1059,28 @@ erDiagram
 | 快照补 `orderNo` | 事实端口已返回 `orderNo`（d6:1264）；商家端授权书列表显示“订单 LYX…”（merchant/Contracts），docs 在 L1 读不到订购单 |
 | “重新生成”把 `render_attempt_no` 置 0 | d6:1360 只在租约过期且到 4 次时置 `failed`；不清零的话人工重投后只剩一次机会 |
 
+### 2.15 `notification_fanout` 公告通知分页任务
+
+归属 notify L1，全局技术任务；不是只增表，不是业务状态机，无业务锁序。D6:514 的超限收件人分页由此持久化，独立迁移 `20261008162000_notification_fanout` 接管，冻结首版底稿不回改。
+
+| 列 | 类型 | 空 | 默认 | 说明 | 出处 |
+| --- | --- | --- | --- | --- | --- |
+| id | uuid | 否 | — | 应用生成 UUID v7 主键 | 06·主键 |
+| source_outbox_event_id | uuid | 否 | — | 原公告事件，只存 id，不绑定 outbox 保留期 | M65；本能力包 |
+| notify_scene_key | text | 否 | — | 商家场景外键及 m. 名称约束；本版消费端只接受 m.rule_change_notice / m.rule_change_withdrawn | D6:514 |
+| site_notice_id | uuid | 否 | — | 实际公告外键；和场景组成去重唯一键 | D6:514 |
+| cursor_merchant_user_id | uuid | 可 | — | 上页最后一个用户，与主体一起为空或非空；无外键 | 本能力包 |
+| cursor_entity_id | uuid | 可 | — | 上页最后一个主体，与用户构成有序二元游标；无外键 | 本能力包 |
+| status | text | 否 | pending | 复用 NOTIFICATION_DELIVERY_STATUS；条件 UPDATE 推进技术进度 | 06·技术状态 |
+| due_at | timestamptz | 否 | — | 到期时刻，注入业务时钟 | 06·时间 |
+| attempt_no | integer | 否 | 0 | 本页租约认领次数，0–3；推进成功重置 | 本能力包 |
+| lease_until | timestamptz | 可 | — | sending 时必有，其他状态必为空 | 本能力包 |
+| finished_at | timestamptz | 可 | — | sent/failed/skipped/cancelled 终态必有，其他为空 | 本能力包 |
+| created_at | timestamptz | 否 | — | 注入时钟创建时刻 | 06·时间 |
+| updated_at | timestamptz | 否 | — | 注入时钟更新时间 | 06·时间 |
+
+主键 pk_notification_fanout、唯一键 uq_notification_fanout_scene_notice、普通公告 FK 索引 ix_notification_fanout_site_notice_id，以及 pending(due_at,id) / sending(lease_until,id) 两个部分索引。手写 CHECK 为场景、状态、二元游标、0–3 次数、租约等价与终态等价，共 6 条。应用只给 INSERT/SELECT/UPDATE，readonly 继承默认 SELECT；不留 raw phone/openid/正文。TX1 短 CAS 认领；TX2 先取得实际商家/主体等合法事实和业务锁，再页内写通知与站内消息，最终用 status/attempt/lease CAS 写游标，失败须回滚整页，不能先持任务行锁后倒置业务锁。队列、扫描与页内幂等由 W2-17 PR3 实际实现另验。
+
 ## 3. 枚举汇总
 
 本分组没有不是表名的多态取值（M45 要登记的例外）：`notification.biz_type`、`manual_reminder_log.subject_type`、`agreement_consent.biz_type` 都取最终表名。按 M52，跨模块的 `notification.biz_type` 只约束写法（小写蛇形），取值清单在 `packages/contract` 的登记表；`manual_reminder_log.subject_type`、`agreement_consent.biz_type` 取值少、由本模块写入，逐值 CHECK。
@@ -1309,3 +1333,22 @@ erDiagram
 未改动的：01 分组的两条请求第二轮已按 M65、M52 改写（5.1 的 `source_outbox_event_id`、5.2 的 `aggregate_type`）；“`sla_snapshot.calendarVersion`”一条不适用（本分组没有该列）。stale 扫描的 9 处是事件名（`merchant_user.deleted`、`merchant_user.phone_changed`、`license_letter.revision_queued`、`license_letter.issued`、`store.profile.changed`、`store.qualification_change.*`）、权限点（`agreement.short_notice`）、参数键（`agreement.announce_min_days`）与改动记录里已删除的 `notification.is_test`，不改。M110 核对：文档引用的其他分组的列都是第二轮之后的现名。
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A3、A15、A32、A37、A41、A46、A95、A105）改了本文少量说明；表结构未变。按 A145（A100）：授权书快照 `letter_snapshot.verifyUrl` 的格式写为 `https://portal.<域名>/v?code=<验真码>&rev=<版次>`，`verify_code` 的说明同步（2.13、第 4 节）；表结构与约束未变。 第二批（接口第三轮之后）：2.1 补“补登播种”表（a09 2.9 标“补登”的 31 个场景键，只加行；`m.account_security` 例外为短信 `account_notice` / `always`），`patrol_fix` 映射写明 `m.patrol_abnormal`；新微信登录事件名 `account.new_wechat_bound` 改为 `merchant_user.wechat_bound`（2.1、第 7 节，A95）；2.11 编辑草稿一行与 5.1 文件引用登记补协议草稿被替换或清空的 Word、PDF 解除引用、7 天释放（a09 的请求）。表结构与 CHECK 未变。
+
+## 8. W2-10 门店归档成员的账号级告知
+
+- 另有 W2-10 最窄成员状态告知：仅真实 `store_archived` 级联的被移除本人，`biz_type = merchant_user`，entity/store/copyMode 均 NULL、非 ownerOnly、`messages.list`。正文及 vars 不含旧主体/门店与个人敏感字段；派发及发送都以实际源 outbox、归档和移除历史及当前账号重验，不泛化其他移除原因或消息读取权限。
+
+## 9. 恢复后的当前归档发生次
+
+门店再次归档后，读取当前五个归档列、最后一条 store.lifecycle 历史和最新真实 store.archived 源。历史与 outbox 的 seq 只在各自表内排序，不跨表比较；经理源必须是当前源 id，本人级联源须在该归档源之后且当前 removedAt 对应同次归档。请求号可重复或为空，三次 Clock 采样不要求相等；同发生次回拨使时间下界失效时保守拒发。
+
+仅 reader 识别当前发生次，原账号级安全告知、当前有效老板/经理筛选、持久来源识别与实际发送前重验保持。恢复不删除历史消息或放宽 messages.list 的业务权限，也不扩张普通 by_owner 移除通知。
+
+### 草稿删除的成员安全告知实施边界（SOURCE）
+
+draft_deleted/store.draft_delete 仅作为同一真实 store_archived 系统级联的发生次配对。
+本人仍为 NULL entity/store/copyMode、非 ownerOnly、messages.list；老板只进入当前有效门店。
+经理 s.merchant_changed 仍只认 by_owner/store.archive，draft_deleted 全消息及外发链不新增通知。
+原历史/来源与发送前重验、消息权限 SQL、acceptedInvitation 和其他成员原因保持；无新通知场景。
+
+W2-10 权益变动伴随：在上述31个补登键之外追加商家场景 `m.quota_exceeded`（名额超限提醒），沿既有 seed 的默认立即站内绑定补行，不改表结构。`notification.biz_type = entity`、`biz_id = entityId`，`vars = { sourceId, sourceType, entityId, merchantUserId, storesOver, seatsOver }`，持久化来源、当前主体/老板与唯一 quota 同 caller Tx 复查；去重键为 `m.quota_exceeded:{outboxEventId}:{currentOwnerUserId}`。只建 `merchant_message` 与已发送 `inbox` 投递；CTA“查看套餐”指向既有 `wallet.home`，无 WX/SMS/provider。

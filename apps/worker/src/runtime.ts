@@ -7,6 +7,7 @@
 //   关停     → 停续约与看门狗 → 停循环（等在途的一轮）→ 关消费者（等在途任务，至多 30 秒）→ 让出租约
 // 循环都按“可多实例并行”写（认领用 SKIP LOCKED），单活只是省资源：不给租约时本实例直接干活（双实例的用例这么跑）。
 import type { LoopId, QueueId } from "@liyoxi/contract/registry";
+import { z } from "@liyoxi/contract";
 import type {
   DeliveryRef,
   QueueChannel,
@@ -14,6 +15,7 @@ import type {
   TimerRef,
   WorkerLease,
   WorkerServices,
+  NotifyQueueRef,
 } from "@liyoxi/services";
 
 import { DOMAIN_LOOPS } from "./domain-loops.js";
@@ -36,9 +38,12 @@ export type WorkerLoop = keyof typeof LOOP_INTERVALS_MS;
 export const QUEUE_CONCURRENCY = {
   outbox_delivery: 4,
   timer_run: 4,
+  media_job: 10,
   promote: 2,
+  notify: 4,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
+const legacyPromoteRef = z.object({ jobId: z.uuid() }).strict();
 
 /** 关停时等在途任务的上限 */
 export const SHUTDOWN_WAIT_MS = 30_000;
@@ -73,8 +78,25 @@ export interface WorkerRuntime {
 
 export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntime {
   const { services, channel, lease, logger, monotonic } = options;
-  const onError = (name: string, error: unknown): void =>
+  const onError = (name: string, error: unknown): void => {
     logger.error({ loop: name, err: error }, "循环的这一轮出错，下一轮照常");
+    services.serverErrors?.capture(error, "worker.loop", name);
+  };
+  const queued =
+    <T>(name: WorkerQueue, handle: (data: T) => Promise<unknown>) =>
+    async (data: T): Promise<void> => {
+      try {
+        await handle(data);
+      } catch (error) {
+        try {
+          logger.error({ queue: name, err: error }, "队列处理器出错，原失败语义保持");
+        } catch {
+          /* 保留原处理器错误。 */
+        }
+        services.serverErrors?.capture(error, "worker.queue", name);
+        throw error;
+      }
+    };
   const loop = (name: WorkerLoop, run: (beat: () => void) => Promise<unknown>): Loop =>
     createLoop({
       name,
@@ -90,18 +112,34 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
     ensure_recurring: loop("ensure_recurring", () => services.ensureRecurring()),
   };
   const consumers: Record<WorkerQueue, QueueConsumer> = {
+    notify: channel.consume<NotifyQueueRef>(
+      "notify",
+      QUEUE_CONCURRENCY.notify,
+      queued<NotifyQueueRef>("notify", (ref) => services.notifyDeliver(ref)),
+    ),
     outbox_delivery: channel.consume<DeliveryRef>(
       "outbox_delivery",
       QUEUE_CONCURRENCY.outbox_delivery,
-      async (ref) => void (await services.consume(ref)),
+      queued<DeliveryRef>("outbox_delivery", (ref) => services.consume(ref)),
     ),
-    promote: channel.consume<{ jobId: string }>("promote", QUEUE_CONCURRENCY.promote, (ref) =>
-      services.promoteFile(ref),
+    media_job: channel.consume<{ jobId: string }>(
+      "media_job",
+      QUEUE_CONCURRENCY.media_job,
+      queued<{ jobId: string }>("media_job", (ref) => services.promoteFile(ref)),
+    ),
+    promote: channel.consume<unknown>(
+      "promote",
+      QUEUE_CONCURRENCY.promote,
+      queued<unknown>("promote", async (raw) => {
+        const ref = legacyPromoteRef.safeParse(raw);
+        if (!ref.success) throw new Error("历史媒体队列参数不合法");
+        return channel.enqueue("media_job", `media-${ref.data.jobId}`, ref.data);
+      }),
     ),
     timer_run: channel.consume<TimerRef>(
       "timer_run",
       QUEUE_CONCURRENCY.timer_run,
-      async (ref) => void (await services.runTimer(ref)),
+      queued<TimerRef>("timer_run", (ref) => services.runTimer(ref)),
     ),
   };
   const domainLoops: Record<string, Loop> = Object.fromEntries(
@@ -116,25 +154,20 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       }),
     ]),
   );
-  const promoteRecovery = createLoop({
-    name: "promote.recovery",
-    intervalMs: options.domainIntervals?.["promote.recovery"] ?? 30_000,
-    run: () => services.scanPromote(),
-    onError,
-    monotonic,
-  });
-  const all = [...Object.values(loops), ...Object.values(domainLoops), promoteRecovery];
+  const all = [...Object.values(loops), ...Object.values(domainLoops)];
   const queues = Object.values(consumers);
 
   let active = false;
   let stopping: Promise<void> | undefined;
   const promote = (): void => {
     active = true;
+    services.resumeMediaJobs?.();
     for (const one of all) one.start();
     for (const one of queues) one.start();
   };
   const demote = (): void => {
     active = false;
+    void services.pauseMediaJobs?.().catch((error) => onError("media_job_run.pause", error));
     for (const one of all) void one.stop();
     for (const one of queues) void one.pause().catch(() => undefined);
   };
@@ -168,13 +201,28 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
       return (stopping ??= (async () => {
         keeper?.stop();
         active = false;
+        let failure: unknown;
+        let failed = false;
         try {
+          services.disableModelBudget?.();
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
-          const loopResults = await Promise.allSettled(all.map((one) => one.stop()));
+          const mediaShutdown = Promise.resolve().then(() => services.shutdownMediaJobs?.());
+          const alertResults = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeAlertDispatcher?.()),
+          ]);
+          const loopResults = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeProbes?.()),
+            Promise.resolve().then(() => services.closeCertificates?.()),
+            Promise.resolve().then(() => services.closeBackups?.()),
+            Promise.resolve().then(() => services.closeNotify()),
+            Promise.resolve().then(() => services.closeAnalytics?.()),
+            ...all.map((one) => Promise.resolve().then(() => one.stop())),
+            mediaShutdown,
+          ]);
           const queueResults = await Promise.allSettled(
-            queues.map((one) => one.close(SHUTDOWN_WAIT_MS)),
+            queues.map((one) => Promise.resolve().then(() => one.close(SHUTDOWN_WAIT_MS))),
           );
-          const failed = [...loopResults, ...queueResults].find(
+          const failed = [...alertResults, ...loopResults, ...queueResults].find(
             (result) => result.status === "rejected",
           );
           if (failed?.status === "rejected") throw failed.reason;
@@ -182,13 +230,57 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
           await lease
             ?.release()
             .catch((error: unknown) => logger.warn({ err: error }, "让出租约失败"));
+        } catch (error) {
+          failed = true;
+          failure = error;
         } finally {
-          services.closeBillingTimers?.();
-          services.closeOrder?.();
-          services.closePublish?.();
-          services.closeDelivery?.();
-          services.closeWebhooks?.();
+          const docsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeDocs()),
+          ]);
+          const converterClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.documentConverter?.close()),
+          ]);
+          const domainsClosed = await Promise.allSettled(
+            [
+              () => services.closeBillingTimers?.(),
+              () => services.closeOrder?.(),
+              () => services.closePublish?.(),
+              () => services.closeDelivery?.(),
+              () => services.closeProfile?.(),
+              () => services.closeInvitations?.(),
+              () => services.closeApproval?.(),
+              () => services.closeWebhooks?.(),
+              () => services.closeMediaJobs?.(),
+              () => services.closeStaff?.(),
+              () => services.closeSmsHealth?.(),
+              () => services.closeMediaDrivers?.(),
+              () => services.closeStorageDrivers?.(),
+            ].map((close) => Promise.resolve().then(close)),
+          );
+          // 准入先禁用，业务drain后才关闭预算；其它close失败也不能跳过告警drain。
+          const modelsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeModelDrivers?.()),
+          ]);
+          const budgetClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeModelBudget?.()),
+          ]);
+          const alertsClosed = await Promise.allSettled([
+            Promise.resolve().then(() => services.closeAlertFacts?.()),
+          ]);
+          const closeFailure = [
+            ...docsClosed,
+            ...converterClosed,
+            ...domainsClosed,
+            ...modelsClosed,
+            ...budgetClosed,
+            ...alertsClosed,
+          ].find((result) => result.status === "rejected");
+          if (!failed && closeFailure?.status === "rejected") {
+            failed = true;
+            failure = closeFailure.reason;
+          }
         }
+        if (failed) throw failure;
       })());
     },
   };

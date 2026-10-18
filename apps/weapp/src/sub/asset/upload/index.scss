@@ -1,0 +1,23 @@
+.asset-upload {
+  &__chips,
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  &__file {
+    padding: 12px 0;
+    border-bottom: 1px solid $lyx-color-border;
+    overflow-wrap: anywhere;
+  }
+  &__muted {
+    margin: 8px 0;
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  &__task {
+    margin-top: 12px;
+  }
+}

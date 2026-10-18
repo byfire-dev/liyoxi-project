@@ -18,6 +18,7 @@
 !infra/ci/db-constraints.mjs
 !infra/ci/db-partition-assert.mjs
 !infra/ci/db-structure-lib.mjs
+!infra/deploy/source-maps.mjs
 !docs/06-data-model.md
 
 # 放行的目录里仍然不要的

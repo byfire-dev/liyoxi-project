@@ -20,7 +20,8 @@
 | `me.ts` | 已登录的员工 → 判权用的上下文 `staffContextOf`、当前员工 `buildStaffMe`、员工摘要 `staffBriefOf` |
 | `demo-seed.ts` | 7 位演示员工（只进本地、测试与预发） |
 | `management.ts` | W1-01b 员工增查与角色只读；显式挑展示列，完整查询按 DataScope |
-| `assignment.ts` | `pickNext` 的 M1 分配最小实现与按 id 批量取展示摘要的 `staffBriefs` |
+| `assignment.ts` | 城市、当班与UUID游标轮询，预准备员工锁与只读推荐；按id批量取展示摘要的staffBriefs |
+| `assignment-contact.ts` | W2-11 门店接收人或同组主管标记已联系；当前范围复核、联系事实、SLA timer取消及活动审计同事务 |
 
 ## 2. 装配与用法
 
@@ -78,7 +79,7 @@ await staff.bootstrap({ name, phone }); // 命令行引导：建第一位超级�
 
 ## 5. 登记
 
-- 状态机 `staff.status`：随迁列 `disabled_at`、`disabled_reason`、`disabled_by_staff_id`、`handover_to_staff_id`；守卫登记了“命令行引导”“新增”三行。启用、禁用三行的守卫随 G2-A，在那之前迁移这三行即抛 `FlowError`。
+- 状态机 `staff.status`：随迁列 `disabled_at`、`disabled_reason`、`disabled_by_staff_id`、`handover_to_staff_id`；启停复用本事务全量预检查的品牌凭据，禁用先原子移交全部已落地在办。引导与新增原守卫保持。
 - 清理项：`staff.staff_session`、`staff.staff_activation`（过期、吊销、已用满 30 天，每日）；`staff.totp_pending`（生成满 1 小时未确认即清空，每小时）；`audit.auth_event`（早于 12 个月，每日，在 `audit`）。调度在 `ops.retention`。
 
 ## 6. 测试
@@ -110,7 +111,7 @@ totpNow(secret, t.clock); // 按时钟算当下的动态口令
 - 再验证失败不计入登录失败桶，也没有自己的计数：穷举靠 `admin.login` 档的限流（W0-22b）。
 - 登录失败不论账号存不存在都写一行 `auth_event`：量由按 IP 的限流封顶。
 - 耗时只对齐了 scrypt 这一大头；几条失败路之后写库的语句数不同，差在毫秒以内。
-- 激活码短信不发（M2）：引导命令只在终端输出，其余下发入口随 G2-A。
+- 激活码短信通过装配回调在事务提交后调用当前 notify.sendDirect，purpose=staff_activation；8位字母数字、24小时保持。真实腾讯验证码模板只接受不超过6数字，受控失败返回手动码，不称已发送或到达。引导与过期恢复命令只在终端输出一次。
 - 角色行里写坏的键（规整时丢弃或退回默认值的，`RoleConfig.issues`）现在没有打日志。
 
 ## 8. 接进进程、命令行与演示员工（第三个 PR）
@@ -133,7 +134,7 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 # 服务器上（server 镜像里）：node apps/worker/dist/staff-bootstrap.js --name … --phone …
 ```
 
-- 只在库里没有启用的超级管理员时可执行：第二次执行被拒绝。建出来是“待激活”（启用、没有口令），激活码只在终端输出这一次，24 小时内有效；到后台的激活页用手机号加激活码设密码、绑动态口令。激活码 24 小时内没用就过期，而这位管理员已经算“启用”，引导命令不会再执行：M1 还没有重新生成激活码的入口（接口随 G2-A），所以引导之后要在一天内完成激活。
+- 只在库里没有启用的超级管理员时可执行：第二次执行被拒绝。建出来是“待激活”（启用、没有口令），激活码只在终端输出这一次，24小时内有效；到后台的激活页设密码、绑动态口令。激活码过期但仍未激活时，引导命令不会再次创建账号；受限staff:reissue-activation恢复命令见第9节。
 - 退出码：0 建好了；1 被拒绝（已有启用的超级管理员、手机号被占用、姓名或手机号不合规、参数不对）；2 环境变量或密钥不对、连不上库。连接串、口令、密钥不打印。
 - 入口 `apps/worker/src/cli/staff-bootstrap.ts`（本体在同目录的 `staff-bootstrap-command.ts`），随 worker 的构建产物。
 
@@ -159,11 +160,21 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 
 ## 9. 员工最小集（W1-01b）
 
-`createStaffManagement({ tx, clock, flow, config, keyring: () => keyring })` 提供 `create(ctx, identity, body, { idem })`、`list(ctx, query)`、`get(ctx, staffId)`、`roles(ctx)`。新增由调用方传入当前员工上下文与身份，内核事务同时写员工、状态历史、脱敏审计、`staff.created` 和激活码。M1 无论请求的下发方式都返回 `manual` 激活码一次；路由以 `activation.activationCode` 脱敏保存幂等结果，重放嵌套与外层的 `replayed` 一致。未开放渠道角色仅可暂不启用。
+`createStaffManagement({ tx, clock, flow, config, keyring: () => keyring })` 提供 `create(ctx, identity, body, { idem })`、`list(ctx, query)`、`get(ctx, staffId)`、`roles(ctx)`。新增由调用方传入当前员工上下文与身份，内核事务同时写员工、状态历史、脱敏审计、`staff.created` 和激活码。M1 交付时无论请求的下发方式都返回 `manual` 激活码一次；W2-03 已在提交后消费实际通知端口，驱动不支持时明确手动回退；路由以 `activation.activationCode` 脱敏保存幂等结果，重放嵌套与外层的 `replayed` 一致。未开放渠道角色仅可暂不启用。
 
-完整列表、详情和角色成员按当前 DataScope 过滤；`system < v` 的选人列表按每个所带池的读权查启用成员，展示安全列且 `phoneMask=null`，以便跨角色指派。`actions=[]`，`withLoad=true` 的在办量为 0 与空来源数组，二维码链接为 `null`。
+完整列表、详情、分类计数和角色成员按当前 DataScope 过滤；跨角色选人按所带池的真实读权展示安全列，phoneMask=null。动作按当前权限、本人/最后超级管理员/在办/角色状态计算。withLoad消费实例化的 StaffWorkSources；缺少要求的真实来源拒绝，不能伪造零值。
 
-上层在自己的事务里调用 `staff.pickNext(tx, pool, scopeKey)`，必须在锁任何业务行之前调用。M1 只选该池工号最小的启用成员，取员工共享锁后再次核对启用状态；城市、当班与游标留到 G2-A。没有候选返回 `null`。`staff.staffBriefs(tx, ids)` 批量返回六个展示列，重复与不存在的 id 不多返行。两项留桩见 `docs/plan/stubs/m2-staff-assignment-pool.md` 与 `m2-staff-activation-sms.md`；既有 `staff.I8` 登记保持一份。
+`prepareAssignmentPools(tx, requests, extraStaffIds)` 先按自然key取得 assignment_cursor10，再UUID排序锁staff20；`pickNext(tx,pool,scopeKey)` 在同事务预准备后重入，按UUID升序在上次员工之后选择并回绕。交付经理城市无候选才回退不限城市；客服只取当班。GET推荐不锁、不写游标。订单开工在store130/order160/item170/account420前准备完整池和当前员工集合。
+
+完整在办来源：profile门店、order未结订购单、delivery在办工单与未完下架、publish同一发布负责人的处理事实、staff未结跟进（含已过期）；真实改派、assignment_history/outbox/SLA与禁用同事务。billing公开只读验证subscription_term跟进所属主体。M5广告、M7客服尚未落地来源分别交W4-20/W2-31，不注册恒零。公开assignPublisher使用相同员工前置锁与当前处理状态，未新增HTTP。
+
+`createStaffAssembly(base)` 只覆写该scope的staff订阅、不变量依赖入口和sla.breach中assignment_history分支；其他主体调用原handler，旧staff.I8保持原源与单份登记。scope关闭等待自己的邀请扫描，不影响其他装配。
+
+企业微信邀请先提交active+invited及审计，再经L4回调调用notify公开sendStaffWecomInvite，真实notification/staff_message/inbox delivery同事务且唯一去重。既有notify.remind_scan先执行原handler再有界扫描100人，cursor逐批推进/末尾回绕；扫描和显式请求共用最新ops审计ID或初始createdAt作为稳定邀请key，失败保留invited由后续扫描恢复。站内link auth.bindWecom只有现有资源符号，个人绑定设置页面尚未实现，不能宣称可导航或企微消息到达。
+
+受限恢复命令 `pnpm staff:reissue-activation --staff-id UUID --confirm-staff-no 工号` 只接受唯一启用、仍未激活的引导超级管理员与已过期未用码；生产另需 `--allow-production`，真实生产执行由业主授权。原码撤销，新8位码只输出一次，仍24小时有效。它独立登记为staff_reissue_activation（M2），没有改原staff_bootstrap。
+
+新用例位于management-full.db、work-assignment.db、invariants-full.db、sla-runtime.db、testing/staff-publisher.db、API staff-full与worker CLI文件。完整测试世界通过testing公共fullStaffWorld构建，避免staff测试同层调用notify或向上导入delivery；production私有management-deps/shared仅搬原类型、锁、审计及timer key，不更改公口或业务。最新同轮services五文件29项与根装配18项通过，API8/CLI3及原认证39、域18已有独立通过证据；新40项总体为多轮真实闭环，非同次全40。两项功能桩已回补，API/worker构建、原登记与差异门禁已通过；唯一正式独审与本地main合流待完成。真实云短信/企微到达未验，旧staff.I8不重复实现。
 
 ## 10. 角色配置与本人安全（W2-04）
 
@@ -174,3 +185,27 @@ APP_ENV=local DATABASE_URL=… REDIS_URL=… DATA_KEYS_FILE=… BIDX_KEYS_FILE=�
 企业微信开关默认关闭，手填 userid 的审计标为 manual，不能代表平台核验；开关开启只接 code。扫码用 `WecomProvider.exchangeWebLoginCode({ code })` 在事务外换取 `{ userid }`，随后短事务按 UUID 顺序锁员工、重读当前会话和 userid 归属。启用占用返回真实员工 details，停用/待激活占用可移交并记录来源；未配置、超时或失败不落绑定事实。此 PR 只补 Provider 公共能力及本地替身，真实企业微信驱动仍由 W2-31 拆出的 G7-A 接入和外部验证。
 
 验证：`pnpm exec vitest run --project services packages/services/src/staff/`；真实 HTTP 链在 `apps/api/test/system-security.test.ts`，旧后台鉴权和权限矩阵同时回归。
+
+## W2-11 人工跟进四口
+
+createStaffFollowUps({tx,clock,assembly})由runtime按实例装配，归属只消费已有六类staffFollowUpPort，
+不读上层业务表。人工create在V1拒store、system方式与非续费intent，owner/actor固定当前真实员工。
+按对象切换模块并重新读取角色/组与范围；改期/完成限本人、同组主管或all，旧幂等回执也先检查当前授权。
+员工20→实体100→必要门店130→无rank跟进行，短TX在同主体串行；create只关闭同subjectType+subjectId
+的此前open（含逾期），不关闭其他对象；改期/完成用版本CAS，员工移交仍由原work-source递增版本。
+每个新动作恰好一条activity/follow_up审计，关闭旧待办与新增/审计原子；不产生新事件或timer。
+到期日09:00提醒仍走notify既有followUpsDueForNotify/followUpForNotify与s.followup_due，完成/改期自然退出扫描。
+4DB+2HTTP聚合风险已由ROOT单worker串行验收；summary/V1.1入口不属于本片。
+
+定点风险源码：src/staff/follow-ups.db.test.ts（4组，独立PG max2，真实移交/notify，
+故障注入只在调用方TX结果之后抛错）；apps/api/test/follow-ups.test.ts（2组，正式四路由）。
+生产f4e0be25由ROOT唯一独审无P1/P2，services/API类型、依赖/契约登记及权限矩阵与挂载通过。
+失败只修夹具和正式认证错误期望，未弱化业务断言；真实短信/企微送达与远端CI未验。
+
+## W2-11 门店经理转移
+
+`staffManagement.reassignStoreDeliveryManager`读取当前主管权限、组与门店范围，锁内复核原经理确认值。
+局部工作来源复用既有移交，真实本店在办订单与工单、指派历史、联系SLA及批次事件在同事务完成。
+其他经理、别店及终态事项保持；空负责人订单由order公开口补齐，不捏造原负责人历史或移交数量。
+同键重放仍检查当前权限。客服来源待所属M5登记，当前返回实际零计数。
+3组DB和1组HTTP已通过，覆盖非零移交、并发、撤权与末事件故障整笔回滚；唯一生产审查无P1/P2。

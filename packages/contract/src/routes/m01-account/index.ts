@@ -28,3 +28,4 @@ export * from "./error-details.js";
 export * from "./account.schemas.js";
 export * from "./me.js";
 export * from "./sessions.js";
+export * from "./sms-codes.js";

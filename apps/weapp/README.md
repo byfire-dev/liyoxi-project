@@ -63,6 +63,8 @@ import { captureError, newIdempotencyKey, request, track, withPrivacy, withSubsc
 
 新加页面：建 `src/pages/<页>/` 或 `src/sub/<分包>/<页>/` 下的 `index.tsx`、`index.config.ts`，把 `src/pages.ts` 里那一行的 `implemented` 改成 `true`（占位页同时去掉 `placeholder`），再跑 `node infra/ci/pages/generate.mjs`。
 
+`RequestOptions.store: false` 仅省略当前门店的 `X-Store-Id`；默认请求行为不变，也不改变本地选店或鉴权。W2-14 的用户级接受邀请按 [m02 第 3.16 节](../../docs/api/m02-tenant.md) 使用此选项，公开邀请预览另带 `auth: false`；网络重试、401 与 428 恢复仍沿用同一选项和原意图。构件已提供，六页消费者与用户级加入链见 [W2-14 说明](src/sub/member/README.md)。
+
 ## 通用组件
 
 依据：[规范](../../design/design-spec.md) 第 4、12 节。第一批由 W0-27b 交付；看样（W0-29）确认后冻结，页面包不改组件，要改、要加走单独的构件 PR。
@@ -110,13 +112,15 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## 账户与服务端接线
 
-请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。订阅结果、埋点与错误上报的接收调用仍未接，封装照调并登记留桩。
+请求层与四个封装都写成不依赖小程序运行时的模块（接口在 `src/lib/platform.ts`，真实实现在 `platform.taro.ts`），服务端调用经 `src/lib/server.ts` 的 `connectServer({ … })` 接入。`account-runtime.ts` 接上引导、静默登录、重拉账号、协议同意与版本提示五个调用；11条账户接口都经生成契约类型与中央 `runtime.request` 调用。W2-18 PR1的`client-reporting.ts`补订阅结果、埋点与错误上报三调用，均用生成operation类型与同一个中央request。
 
 | 调用 | 接口 | 由谁接 |
 | --- | --- | --- |
 | `fetchBootstrap`、`silentLogin`、`reloadMe`、`askConsent`、`showUpdatePrompt` | `m.bootstrap.get`、`m.session.create`、`m.me.get`、协议同意 | W1-05②已接（后端 W1-04 / W1-04b） |
-| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | G2-C |
-| `sendClientError` | `m.clientError.create` | 该接口落地的包 |
+| `reportSubscribeResult`、`sendAnalytics` | `m.subscribeResult.create`、`m.analyticsEvent.batchCreate` | W2-18 PR1实际接线 |
+| `sendClientError` | `m.clientError.create` | W2-18 PR1实际接线 |
+
+订阅保留真实accept/reject/ban/filter与原精确幂等键；埋点网络/5xx交回原队列重试，4xx/未配丢弃，不增加adapter重试。信封以原文与`application/x-sentry-envelope`传输，不JSON重编码。未配`API_BASE_URL`不装配埋点/错误发送器，保留本地开发降级；公开DSN构建变量为`WEAPP_SENTRY_DSN`，空值沿原封装关闭采集。DSN仅含公开项目key；真实项目与服务端FILE白名单按W2-27移交，尚未验证真实平台收件或微信授权。`pnpm --filter @liyoxi/weapp test`中的client-reporting用例真实经过中央request，覆盖原文字节/头、四结果、网络/5xx与4xx分支。
 
 ## 账户流程（W1-05②）
 
@@ -124,7 +128,7 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层；同意回执确认没有 pending 即释放等待，由服务端重放时再次校验，后续 me 只刷新概要，刷新失败不挂起原请求。仍有未签协议时保持可见且可操作的阻断层；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。协议生效日复用 shared/format/datetime 的北京时间显示，不截UTC日期。
 
-我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录暂放我的末行，设置页落地后迁移。
+我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录已随W2-13迁入账号设置页。
 
 登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，替身表单不调用隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
@@ -141,6 +145,23 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 `pnpm weapp:shots` 截的是 Taro 的 H5 构建，是近似，不是小程序的渲染层：原生导航栏在 H5 下不出现（没有标题栏与胶囊），标签栏是 Taro 的 H5 仿制件，高度与字体都与微信不同；自绘导航取不到胶囊位置，用的是兜底值；H5 下页面底色没有铺满，内容区是白的。真机上的样子以微信开发者工具与手机为准。
 
 组件预览的图同样是 H5 近似：原生的输入框、多行输入、开关、弹层在微信里的样子，以及点击区、按下态、弹层正文的内部滚动，以真机为准（W0-29 看样时看）。
+
+## 消息页与未读角标（W2-19）
+
+W2-13 设置页已补本人账号操作源码，入口与通知复用关系、幂等/未决换绑和外部验证边界见
+[`sub/service/settings/README.md`](src/sub/service/settings/README.md)。只登记设置一页，
+我的页沿原八态菜单开放设置并移出退出；登录 PhoneForm 仅替换为真实号码授权凭证。
+本域8组风险单测及8个H5场景交ROOT选择性验收，不替代真机结论。
+
+`sub/service/messages/index` 使用原生导航，固定八类页签，默认 all/20；游标不解码，续页按 messageId 去重，下拉刷新替换。首页与我的消息入口只显示服务端 summary 的未读真值；无门店时仍能读账号通知。token、contextRev、门店、账号、成员角色和可进门店变化时清除本页缓存及旧角标，旧成功和旧错误均不能回写。消息标题、正文与金额取真实服务端 DTO，店员文案不在页面重造。
+
+单读和全读都按实际 required 契约保留同次意图的键；全读固定首次列表顶部 upToMessageId 与 tab，重试不把新到消息纳入旧意图。成功后读取真实列表/summary，失败不乐观减计数。点击先确认 read 成功，再进入已落地且当前角色允许的目标；跨店提示先切店，未来客服/广告/积分明细目标提示不可访问。协议目标以服务端固定 key 查询现有协议列表，取得真实 currentVersionId 后进入已交付正文页。转账驳回的 payment.detail 与 payment.result 复用已落地付款页、原 owner 准入和真实付款资源 GET，不扩权限。
+
+本页底部订阅设置 Sheet 展示 on/off/rejected/banned/unavailable。选择按钮直接同步调用既有 withSubscribe("notify_settings")，模板与槽位来自已在内存中的 bootstrap；真实 accept/reject/ban/filter 由 W2-18 接线报告，页面不伪造授权或额度。报告成功后经该次点击的可选回调再次读取当前设置；旧 GET 不能覆盖新请求结果，切换 scope 或卸载后不回写。原业务 handler 不等待上报、afterReport 仍刷新 bootstrap，报告或当前页回调失败不产生未处理拒绝。未配置仍保留站内消息和不可用状态。
+
+十态固定场景在 `shots/message-scenes.ts`、`shots/message-fixtures.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene messages-owner --scene messages-clerk --scene messages-category --scene messages-more --scene messages-all-read --scene messages-empty --scene messages-no-store --scene messages-unavailable --scene messages-loading --scene messages-error`；PNG 为 `shots/dist/png/message__<scene>.png`。无店模式使用真实空 memberships/currentStoreId，经中央 RequestLayer 的假 send 记录缺少 X-Store-Id；这仍是离线接口接线证据，不代表真实 API/微信平台结果。原截图场景、外发网络、console.error/pageerror 守卫保持。
+
+真机清单（尚未执行）：已授权测试号检查原生导航/安全区、横向页签的 44px 点击区、下拉与触底、切店/切账号后无旧内容、老板降店员后无老板专属消息；单读/全读后的入口角标；实际模板授权 accept/reject/ban 与后端额度相符。H5 截图不能代替上述验收，W2-30 合流演示另行登记。
 
 
 ## 首页与商城四页（W1-18 PR1）
@@ -168,3 +189,131 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 主页截图由 `withPrivacy` 包选图，正式环境只用公共 `prepareTaroFile/createTaroUpload`，分类 `channel_screenshot`；最多3张，图片上限取公共 `UPLOAD_LIMITS.imageMaxMb`（5MB），通道由登记接口的 mode 决定。H5 截图的入库文件ID是显式离线替身，不是真实上传证据。订单交付入口由 W1-20 接通：方案取实际方案ID，剧目卡按本项阶段与时间线进入样片、成片、发布任务和上线记录；目标页写按钮仍按实时 GET 的 actions。广告、参考素材、视频、解绑、授权书及取消入口均不出。原支付结果状态保持。
 
 H5 仍缺少原生导航栏、胶囊与真实安全区；下拉/触底、订阅授权、隐私授权和微信文件直传须在 E16/E7 到位后手验。本域离线图不能当作真实接口或微信授权/上传证据。
+
+## 搜索页面（W3-13）
+
+首页和商城的搜索入口以 navigateTo 打开 `sub/catalog/search/index`，原商城分类、筛选、排序和游标保留；详情只传既有 dramaId。热词取已发布 `m.mallConfig.get`，不硬编码运营词。本机历史只在真实提交时记归一后的关键词，最多十条、去重置顶、可清空；使用唯一登记的 `lyx.searchHistory`，不上报或写服务端。
+
+输入去空白和中点、1–20 Unicode 码点。输入防抖300ms在页面私有 `SEARCH_DEBOUNCE_MS`，确认和热词/历史点击立即执行。query代次与现有contextRev/store/token共同保护首屏、更多、配置、错误和finally；换店/身份清结果与游标。三角色的价格与套餐、三字段匹配顺序、industry_fallback与totalApprox都取服务器真值，不按端上规则重算。接口未返回主演姓名，cast匹配仅显示“主演匹配”；标题/题材使用实际matchedFields切分Text高亮，禁止HTML。
+
+八态清单在 `shots/search-scenes.ts`，运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/catalog/search/index` 或固定 `--scene search-idle/search-owner/search-clerk/search-guest/search-fallback/search-empty/search-error/search-more`（多态分别传多次参数）。产物 `shots/dist/png/search__<scene>.png` 为固定离线H5接线与交互证据，不能当真实API或微信真机验收。真实 mounted API 已以隔离库验证三角色配置/搜索/详情及实际换店晚响应；5条场景按首次4条通过、失效凭据定点1条通过分别记录。公开搜索的坏 token 按现有 optional-auth 返回游客字段；受保护 `/m/me` 的401触发中央恢复后，旧搜索响应不能写回，新游客资源重新查询。离线网络错误另行注入验证，不冒称后端故障。八态图与原首页/商城6场景分轮通过：原商城筛选/排序、搜索与详情往返保持；加载更多首次失败保留20条，重试同游标后24条去重。真机键盘、取消/确认、网络、原生导航与安全区、正式运营热词仍需外部手验。
+
+## 素材库与详情只读阶段（W3-17）
+
+`sub/asset/lib/index` 与 `sub/asset/detail/index` 消费既有 `m.storeAsset.list`、`m.storeAsset.summary`、`m.storeAsset.get` 三个 GET；老板和店员从“我的”进入素材库，详情路由只携带 storeAssetId。列表类型、状态、标签、本人和关键词筛选使用真实 DTO，分页按素材 ID 去重；类型计数、整理中及采用数均显示服务端 summary，不按当前页推算。详情展示原文、说明、全部文件、逐文件转写优先、整理要点、结构化条目、三维标签、复核与肖像材料事实、需求及使用记录。仅老板的已有短剧订单记录可跳转真实订单详情。
+
+读取与预览绑定当前 token、主体成员、角色、可进门店、currentStoreId/contextRev 和请求代次；切店、失权、隐藏及卸载废弃旧结果，停止音视频并取消下载。文件现签缺失或过期时明确重取当前详情，再按原 fileId 查找；图片/音视频消费真实原生端口，文档经 downloadFile 后 openDocument，不猜文件类型，临时文件随后清理。生产请求使用中央 request，H5 仅在显式 asset scene 下装入离线夹具。
+
+本阶段源码及轻量静态检查先交付，类型、完整旧新单测、生产体积与默认完整截图待串行验收；17 个新增候选场景登记在 `shots/asset-scenes.ts`，实际数量与 PNG 路径以本轮产出为准。纯端口测试覆盖同 token 的成员角色/范围变化及授权/下载迟到；当前 H5 回归没有相应 mutation 控制，不能当浏览器已证明。真实云签名内容、微信原生预览/播放/文档格式、隐私与安全区仍待真机手验。
+
+上传、上传中心、反馈与补交授权操作、首页摘要和订单参考选择继续后续阶段；这两页没有未实现入口，两项 W3-17 留桩仍未回补，整包保持进行中。
+
+## 微信分块上传平台构件（W3-17 后续准备）
+
+`lib/upload/multipart.ts` 通过文件范围读取与原生 ArrayBuffer PUT 消费既有 multipart grant，不增加 SDK、依赖、HTTP 接口或云权限。块大小取服务端 `chunkSize`（当前 8MiB），端上块并发取 `min(chunkParallel, 2)`（当前 grant 上限 4）；原 POST 摘要和上传链保持。SHA1/HMAC-SHA1 使用 UTF-8/纯字节实现；COS 二次 HMAC 的 key 是第一次签名的十六进制文本。依据：[COS 签名](https://cloud.tencent.com/document/product/436/7778)、[UploadPart](https://cloud.tencent.com/document/product/436/7750)、[ListParts](https://cloud.tencent.com/document/product/436/7747)、[微信官方类型](https://github.com/wechat-miniprogram/api-typings/blob/master/types/wx/lib.wx.api.d.ts)。
+
+恢复记录只保存完整用户/成员/主体/角色/门店范围、原 fileId/对象、完整分块 MD5、UploadId、阶段和确认键，不含会话令牌、STS、签名 URL 或文件路径，写入后读回验证。重选文件逐块比较字节摘要；分页 ListParts 校验真实归属、分块大小与 MD5，只有云端确认的块计入进度。初始化前先保存 `initiating`；无回执时禁止重复初始化。合并前保存 `completing`，未知结果重试先查询原 UploadId；NoSuchUpload 仅转交原服务端 complete 确认，不当作 stored。取消只走既有 `m.file.cancel`，成功后清理本机记录，不宣称对象已物理删除。
+
+普通 file 凭证没有 ListMultipartUploads 权限。本机第一次可保存 journal 后初始化一次；已有未知/损坏 journal 不自动重建 MPU。彻底清除本机记录后不能发现旧孤块，也不能证明没有旧 MPU；后续界面的“重新上传”须先明确取消原任务成功，再建立新意图。退出原账户清理本机记录，清理失败的残留仍由完整 owner 隔离。临时路径不承诺跨重启有效，失效时须重新选择完整相同文件。微信真实域名配置、STS/COS 回包、后台取消、断网重启与 2×8MiB 的实际内存峰值仍待真机/真实云外部验证；H5 保留 POST 近似能力，不假装支持原生分块恢复。
+
+本片仅平台 SOURCE，未新增上传/上传中心页面。新增纯端口/摘要/持久化用例与原上传测试一起交唯一串行窗口验收；本地轻格式、AST/ESLint 不替代 fresh 类型、完整 41 旧测试文件/331 旧用例、默认 152 场景/154 PNG 及生产预算验证。
+
+## 素材上传与当前成员任务（W3-17 A）
+
+素材库进入 `sub/asset/upload/index`；图片、视频、录音、音频、文档和文字消费既有 typed 接口。标签仅取启用的 content 字典项，需求按真实游标单飞去重；文档按实际服务能力支持 PDF/DOCX/TXT。文件沿公共 prepareTaroFile/createTaroUpload，微信自动消费已合 multipart，H5 保留原 POST 能力。录音先隐私与麦克风授权，最长5分钟，可停止和试听；微信聊天文件选择、录音及真机内存仍待外部验证。
+
+页内任务由本域运行时持有，离页只解绑界面，返回同一成员门店仍可见。全部文件实际确认 stored 且未拦截才创建素材，部分成功不重传已入库文件；创建回执未知保留同键同体确认。进度来自原上传器，100%不等于已创建素材。店员提交沿 asset_upload 订阅点位，业务成功计数由服务端直记。
+
+本机意图最多20份文件、24小时，完整 owner 隔离，只有白名单表单、原登记 token/fileId 和确认键；不存路径、会话令牌、STS 或签名 URL，写后读回验证。冷启动须用户重选同一上传字节文件，原 multipart 继续校验完整摘要及真实 ListParts；完全遗失本机记录无法发现旧孤块。切成员/门店/角色/ctxRev 停止旧代次并隐藏任务，不当作服务端取消；换账号清理本域记录，失败残留仍按完整 owner 隔离。
+
+取消未知只能用原 token/fileId/cancelKey 重试，登记回执未知先同 token 找回原登记，绝不初始化新 MPU；确认 expired 后才能新建意图。已入库文件不提供删除，部分入库说明明确保留事实。损坏公共 journal 不擅自清空或修复，保持 recovery_blocked；未知 Init 不盲目重发，未知 complete 沿原查询/确认协议。
+
+四个新完整测试文件和16个 H5候选场景与原44/454、152/154全部一起交串行验证，当前仅 SOURCE 和轻静态检查。独立上传中心、反馈/肖像授权、首页摘要及订单参考仍留后续片；此页不代表 W3-17 整包退出。H5平台替身只证明接线和界面，不代表真实微信授权、云传输或跨杀进程恢复。
+
+
+### W3-17 独立上传中心 B
+
+`sub/asset/uploader/index` 从上传页“上传中心”进入，也可由中心进入“上传新素材”。两页消费同一当前成员任务仓；页面离开只清理本页选择器，不销毁共享上传任务。进度、入库和提交回执均读原上传器/服务端事实；失败重试、同意图取消、取消未确认阻止重新上传、冷启动重选完整相同文件均沿 A 的既有协议。
+
+H5 新增 empty/active/failed/recovery/cancel-error/scope-late 六场景，验证真实 Taro 跨页与返回留存、请求次数、错文件零请求、取消同 key 和 ctxRev 迟到拒写。原 48 whole/601 cases、168 场景/170 PNG 保留，候选目标为 174 场景/176 PNG；通过数量以新完整验证原始报告为准。真机大文件、app hide/show、微信权限、临时文件与真实云续传仍待外部验证，B 不宣称新增实测。
+
+## 素材详情反馈与肖像材料
+
+详情页仅按既有 `StoreAssetDetail.actions` 提供反馈和补授权入口。反馈为1–200字，
+可指定标签维度；未知回执保留原正文及幂等键，已满每日次数显示服务端错误。
+补授权独立使用 `portrait_auth` 的图片/PDF分类、正式文件上传与确认链；全部真实
+stored且未block才可提交。部分失败保留已入库材料，重试原job；取消未知保留原
+文件登记及取消键，确认后才能重新选择。既有素材上传任务仓与公共上传协议不变。
+
+本页只在内存保存本批材料，离页停止未完成上传，不承诺跨页面恢复；已入库文件由
+服务端保留规则处理。完整成员/主体/角色/店范围、token与contextRev守卫异步；隐藏
+暂停，回前台复用原job结果。授权提交成功后重取详情，重放与刷新失败均不撤销已
+确认补交，材料仍等待交付经理确认。商家端不签发或预览安全桶授权材料。
+
+六个独立 `asset-action-*` H5场景只验证详情交互，不代表微信隐私授权、真实图片/PDF
+内容、云存储或重启恢复。2026-10-13 调度验证通过 weapp 类型、三个相关文件的48项
+测试、生产/H5构建及六个新场景；文案/浏览器断言修正后未重复旧全量。消费已合
+W3-14写口和既有W3-15读侧，不代表W3-15或W3-17整包完成。
+
+
+## 订单参考素材（W3-17）
+
+确认订购新增可选参考区域，消费真实 `m.storeAsset.list?isSelectableAsReference=true`、
+服务端每项可参考标记及游标，最多9条；需肖像授权的素材可以参考，选择不等于采用。
+参考ID只附加到原create提交，空选择仍省略该字段，不进入报价请求，不重算积分或
+变更协议/原订购意图。显式选择或移除沿原changed换key，同意图网络重试保持原key。
+后台刷新只更新展示与可参考性，不删除已选ID或改变提交key；失效项由用户明确移除，
+最终合法性仍由服务端原守卫裁决。订购在途同步锁阻止选择改变。
+
+详情读取订单返回的真实referenceStoreAssetIds，再按ids模式取卡片；缺失素材明确
+提示无法查看，当前不可参考的历史引用仍可回显。完整成员/主体/角色/门店范围、
+token/contextRev及卸载/隐藏使晚结果失效，签名不进入路由或持久化。
+
+2026-10-13 ROOT验证通过weapp类型、两个相关文件14项测试（含7组新增关键测试）、
+生产构建（总计913.1KB，原体积门槛通过）、H5构建及3个独立order-reference场景。
+唯一独立审查已收口后台刷新换意图的竞态，无剩余生产阻断；截图定位到本片参考区域。
+仅执行本片定点及最小旧回归，未重复旧全量或声明远端CI。订单参考留桩已回补，
+此段为2026-10-13阶段记录；首页后续回补与整包代码侧退出见下文，真机/真实云未验。
+
+## 首页素材需求与本人摘要（W3-17）
+
+首页老板、店员在当前成员门店显示开放素材需求与“我上传的”摘要。需求名称、说明、
+服务经理、完成日期、逾期及本人上传数全部来自 `m.assetDemand.list?status=open`；
+上传与采用数来自 `m.storeAsset.summary?uploader=me`，不把当前页条数或失败当零值。
+需求与摘要独立显示加载错误并可重试；游客或没有当前成员门店时不请求这两口。
+
+“为此需求上传”进入原上传页，只有当前开放需求列表返回的真实 ID 才能自动关联；
+需求移除时明确提示，未找到的分页需求须确认选择，不静默忽略关联。更换素材类型保留
+所选需求；主动选择其他需求或不关联优先。“查看素材”“查看被采用的素材”进入原素材库，
+首读即消费本人及采用筛选。没有新增创建、采用业务或改动原上传协议。
+
+读取绑定令牌、ctxRev、实际主体、成员角色及完整门店范围；切店、角色/范围变化、
+隐藏或卸载使旧成功、失败和 finally 失效。首页只新增私有组件 import 与一处挂载，
+老板概览/推荐、店员商城入口及 banner 行为保留；主仓用户首页五叶及 outputs 未读写。
+
+定点命令：`pnpm --filter @liyoxi/weapp exec vitest run src/sub/asset/private/home-assets-model.test.ts --maxWorkers=1 --no-file-parallelism`。
+三聚合覆盖实际 API 参数和入口传递、成员范围/代次/首读隐藏恢复、独立错误恢复。
+H5 仅新增 `asset-home-clerk`、`asset-home-owner`、`asset-home-empty-error`，沿现
+`pnpm weapp:shots -- --scene <名字>`；构建一次后可用 `--no-build` 顺序复用。
+ROOT 已验证最终 weapp 类型、三个新聚合（162ms）、正式构建（主包696.1KB、
+素材分包59.0KB，体积门槛通过）、H5 构建和三个新场景；三张 PNG 已实际目检。
+正式包体检查早于首读隐藏恢复的生命周期窄修，之后无新增依赖；窄修后类型/模型及
+H5 构建通过，不重复正式构建或旧全量。唯一生产独审和点修复核无未解决阻断。
+首页及原订单参考两项桩均已回补，W3-17 代码侧完成；W3-15 原依赖留桩已完成。
+H5 替身只由显式样张标记进入；微信真机、真实云签名、真实内容与大文件/断网恢复
+仍按既有外部清单验证，不由本轮页面样张代替。
+
+
+## 门店、成员与邀请六页（W2-14）
+
+既有“我的”和门店档案进入门店管理，老板按实际额度新增门店、管理成员和邀请；店员仅可访问所属门店与本人档案。公开加入页以当前协议版本完成 member_join 登录，接受后只选返回门店。原档案资质多轮、联系人验证、证照和历史入口沿后端真实事实，默认地址仍字典与手填。
+
+私有调用、异步所有权、建店成功后选店失败的继续入口、六聚合测试与八个精确 H5 场景见 [本包 README](src/sub/member/README.md)。ROOT 本地六聚合、九个 H5 场景、类型及正式构建已通过，唯一独审问题已闭环。真实微信分享/手机号与地图审批未验，不将固定离线样张当真实平台结果。
+
+## 发票与已签协议（W4-16）
+
+钱包仅老板显示“发票”“合同与协议”入口。发票页按真实付款单 actions 申请，全额、项目、抬头及计数均消费服务端；表单区分普通电子票、专票与纸质收件，敏感字段只留本页内存。同一提交内容失败重试复用意图键，成功显示实际申请号，再读取记录；不把申请成功显示为开具成功。
+
+蓝/红票依据 hasFile 和真实格式分别现签下载，不复用签名 URL。PDF 走原生打开；OFD/XML保留真实格式并提供设备能力错误，不改名为PDF。邮件 sent 显示“邮件已受理”。已签协议消费签署时版本，老板可看本主体前任老板及真实付款标题；店员仅本人裁剪列表，不请求汇总、不显示交易字段。隐藏、卸载、换账号/门店/角色使旧结果失效。
+
+本包仅新增5个模型聚合与6个H5场景：`invoice-empty`、`invoice-apply-error`、`invoice-pending`、`invoice-issued`、`contracts-old-version`、`contracts-clerk`；旧默认场景保留。ROOT已完成最终类型、5模型聚合、正式构建及6场景/6图目检；两受影响样张沿H5build2逐场景 `--no-build` 验证。最终主包710.4KB、billing49.0KB，相比实际0fa74d77基线分别增加12.0KB、26.9KB，原体积门槛通过。H5文件替身只由显式场景启用；真实发票、邮件到达、协议法律正文与微信真机文件能力仍待E8/E20验收。

@@ -22,6 +22,7 @@ audit_log INSERT,SELECT
 auth_event INSERT,SELECT
 drama_copyright_revision INSERT,SELECT
 file_object INSERT,SELECT,UPDATE
+notification_fanout INSERT,SELECT,UPDATE
 price_tier_revision INSERT,SELECT
 subscription_event INSERT,SELECT
 ledger_operation INSERT,SELECT
@@ -46,3 +47,4 @@ manual_reminder_log INSERT,SELECT
 agreement_consent INSERT,SELECT
 param_value INSERT,SELECT cancelled_at
 analytics_event INSERT,SELECT
+invitation_request INSERT,SELECT

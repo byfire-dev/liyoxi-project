@@ -1,0 +1,15 @@
+# 只有 worker 消费告警配置；机器人仍使用 Provider 固定 host/path，不提供任意 webhook URL。
+services:
+  worker:
+    environment:
+      ALERTS_FILE: /run/secrets/alerts.json
+    secrets:
+      - alerts.json
+  check-env:
+    environment:
+      ALERTS_FILE: /run/secrets/alerts.json
+    secrets:
+      - alerts.json
+secrets:
+  alerts.json:
+    file: ${LYX_SECRETS_DIR:?}/alerts.json

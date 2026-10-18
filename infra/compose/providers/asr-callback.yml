@@ -1,0 +1,23 @@
+# 选择器须同时选择 asr；密钥原始字节由发送与接收两端共用。
+services:
+  api:
+    environment:
+      ASR_CALLBACK_ORIGIN: ${ASR_CALLBACK_ORIGIN:?}
+      ASR_CALLBACK_KEY_FILE: /run/secrets/asr-callback-key
+    secrets:
+      - asr-callback-key
+  worker:
+    environment:
+      ASR_CALLBACK_ORIGIN: ${ASR_CALLBACK_ORIGIN:?}
+      ASR_CALLBACK_KEY_FILE: /run/secrets/asr-callback-key
+    secrets:
+      - asr-callback-key
+  check-env:
+    environment:
+      ASR_CALLBACK_ORIGIN: ${ASR_CALLBACK_ORIGIN:?}
+      ASR_CALLBACK_KEY_FILE: /run/secrets/asr-callback-key
+    secrets:
+      - asr-callback-key
+secrets:
+  asr-callback-key:
+    file: ${LYX_SECRETS_DIR:?}/asr-callback-key

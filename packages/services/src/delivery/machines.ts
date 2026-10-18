@@ -4,6 +4,9 @@ import { implementKeyed, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 const pass = Symbol("delivery.checked");
 export const checked = () => pass;
+export const cancelResumeChecked = (approvalRequestId: string) => ({ pass, approvalRequestId });
+const holdPass = Symbol("delivery.cancel_hold");
+export const cancelHoldChecked = (approvalRequestId: string) => ({ holdPass, approvalRequestId });
 const guards = (rows: ReadonlyArray<readonly [string, string]>) =>
   Object.fromEntries(
     rows.map(([ref, event]) => [
@@ -80,8 +83,59 @@ const ticket: MachineBinding = {
     "sample_confirmed_at",
     "delivered_at",
     "editor_id",
+    "pause_count",
+    "paused_at",
+    "pause_remaining_min",
   ],
-  guards: guards(rows.filter(([ref]) => ref !== "10:196")),
+  guards: {
+    ...guards(rows.filter(([ref]) => ref !== "10:196")),
+    [rowKey("10:189", "ticket.hold")]: async (tx, facts) => {
+      const args = facts.args as ReturnType<typeof cancelHoldChecked> | undefined;
+      if (args?.holdPass !== holdPass) return false;
+      const ticket = await tx.deliveryTicket.findUnique({ where: { id: facts.subjectId } });
+      const approval = await tx.approvalRequest.findUnique({
+        where: { id: args.approvalRequestId },
+      });
+      if (
+        !ticket ||
+        !approval ||
+        approval.status !== "pending" ||
+        approval.entityId !== ticket.entityId ||
+        approval.storeId !== ticket.storeId
+      )
+        return false;
+      const active = await tx.deliveryTicketPause.findMany({
+        where: { deliveryTicketId: ticket.id, releasedAt: null },
+      });
+      return (
+        active.length === ticket.pauseCount + 1 &&
+        active.some(
+          (p) =>
+            p.reason === "cancel_review" &&
+            p.refType === "approval_request" &&
+            p.refId === approval.id,
+        )
+      );
+    },
+    [rowKey("10:190", "ticket.resume")]: async (tx, facts) => {
+      const args = facts.args as ReturnType<typeof cancelResumeChecked> | undefined;
+      if (args?.pass !== pass) return false;
+      const ticket = await tx.deliveryTicket.findUnique({ where: { id: facts.subjectId } });
+      return (
+        !!ticket &&
+        ticket.pauseCount > 0 &&
+        !!(await tx.deliveryTicketPause.findFirst({
+          where: {
+            deliveryTicketId: ticket.id,
+            reason: "cancel_review",
+            refType: "approval_request",
+            refId: args.approvalRequestId,
+            releasedAt: null,
+          },
+        }))
+      );
+    },
+  },
   effects: Object.fromEntries(rows.map(([ref, event]) => [rowKey(ref, event), stage])),
   activity: (f) => ({
     category: "delivery",
@@ -129,6 +183,7 @@ export const deliveryMachines = [
     ],
     guards: guards([
       ["10:640", "sample.uploaded"],
+      ["10:641", "sample.check_rejected"],
       ["10:642", "sample.qc_failed"],
       ["10:643", "sample.qc_passed"],
       ["10:644", "sample.pushed"],

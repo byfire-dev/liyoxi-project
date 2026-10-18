@@ -1,0 +1,15 @@
+# 邮件只由 worker 发送；check-env 离线检查完整配置，API 不挂发信密钥。
+services:
+  worker:
+    environment:
+      MAIL_TENCENT_FILE: /run/secrets/mail-tencent.json
+    secrets:
+      - mail-tencent.json
+  check-env:
+    environment:
+      MAIL_TENCENT_FILE: /run/secrets/mail-tencent.json
+    secrets:
+      - mail-tencent.json
+secrets:
+  mail-tencent.json:
+    file: ${LYX_SECRETS_DIR:?}/mail-tencent.json

@@ -25,7 +25,7 @@ import {
   loadEnv,
   security,
 } from "@liyoxi/services";
-import type { IdentityContextInput, Runtime } from "@liyoxi/services";
+import type { IdentityContextInput, Runtime, RuntimeOptions } from "@liyoxi/services";
 import {
   assertTestDatabaseUrl,
   createClock,
@@ -37,6 +37,7 @@ import {
 import type {
   AdjustableClock,
   FakeWechat,
+  FakeProviders,
   TestDatabase,
   TestRedis,
 } from "@liyoxi/services/testing";
@@ -53,6 +54,15 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  /** 仅测试支付装配身份，渠道IO仍用原FakeWechatPay。默认未配不变。 */
+  readonly wechatPay?: { appid: string; mchid: string };
+  /** 证照识别场景显式启用；既有手填场景保持未配置，使用同一公知测试密钥环。 */
+  readonly qualificationOcr?: boolean;
+  /** External media IO only; real production facts/handlers remain in the Runtime. */
+  readonly mediaProduction?: (providers: FakeProviders) => {
+    config: NonNullable<RuntimeOptions["env"]["MEDIA_PRODUCTION"]>;
+    tools: NonNullable<RuntimeOptions["mediaProductionTools"]>;
+  };
   readonly webhookSources?: readonly security.WebhookSource[];
   /** 处理器清单；缺省是生产的那份 */
   readonly handlers?: readonly HandlerEntry[];
@@ -64,6 +74,8 @@ export interface TestApiOptions {
   readonly rateLimitQuotas?: RateLimitOptions["quotas"];
   /** 运行时连哪个 Redis，缺省环境变量里的那个；验“Redis 不可用”时传故障注入的转发口 */
   readonly redisUrl?: string;
+  /** 使用 API 构建的实际隔离转换产物；不以假转换结果代替正文验收。 */
+  readonly documentConverterWorkerUrl?: URL;
 }
 
 export interface TestRequestInit extends RequestInit {
@@ -126,16 +138,32 @@ export function useTestApi(): TestApiHandle {
         // 三份密钥用现造的假密钥：后台登录、敏感字段的用例才跑得起来
         ...fakeKeyEnv(),
         DATABASE_URL: databaseUrl,
+        ...(options.wechatPay
+          ? {
+              WECHAT_PAY: {
+                ...options.wechatPay,
+                merchantSerialNo: "01",
+                merchantPrivateKeyPem: "explicit-test-provider",
+                apiV3Key: "00000000000000000000000000000000",
+                publicKeyId: "PUB_KEY_ID_TEST",
+                publicKeyPem: "explicit-test-provider",
+                notifyUrl: "https://example.invalid/hooks/wechatpay",
+              },
+            }
+          : {}),
         ...(options.redisUrl === undefined ? {} : { REDIS_URL: options.redisUrl }),
       };
       const clock = createClock();
       const logs: Record<string, unknown>[] = [];
       // 十二个 Provider 换成 W0-25 的替身支架（带“事务内不外呼”的钩子）：商家端登录取的就是运行时上的这个假微信
       const { providers } = createProviderHarness({ clock });
+      if (!options.qualificationOcr) providers.ocr = { ...providers.ocr, configured: false };
+      const production = options.mediaProduction?.(providers);
       const runtime = createRuntime({
         webhookSources: options.webhookSources,
         entry: "api",
-        env,
+        env: production ? { ...env, MEDIA_PRODUCTION: production.config } : env,
+        mediaProductionTools: production?.tools,
         version: "test",
         clock,
         redisKeyPrefix: redis.prefix,
@@ -143,6 +171,8 @@ export function useTestApi(): TestApiHandle {
         // 机器忙的时候 Redis 的一条命令也可能慢过 200 毫秒：放宽，免得用例里把慢当成断
         rateLimitCommandTimeoutMs: 5_000,
         providers,
+        ...(options.qualificationOcr ? { billingKeyring: TEST_API_KEYRING } : {}),
+        documentWorkerUrl: options.documentConverterWorkerUrl,
         logger: createLogger({
           svc: "api",
           env: env.APP_ENV,

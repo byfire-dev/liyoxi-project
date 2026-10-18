@@ -2,10 +2,14 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 留桩中 |
-| 留桩内容 | 静默登录与手机号登录的两次外呼（登录凭证换 openid、手机号组件的凭证换手机号）走替身，没有真实的微信驱动；微信身份行与同意记录里的 appid 是占位值；登录页的手机号凭证采集仍是替身表单 |
-| 骨架里的做法 | `packages/services/src/identity/login.ts` 只依赖 `WechatProvider` 的两个方法；接口进程的装配点 `apps/api/src/merchant/services.ts` 取运行时上的 `providers.wechat`（本地与测试是假实现：openid 由凭证推出；stg、prod 在真实驱动到位之前是未配置的那一个，两条登录回 503 `WECHAT_UNAVAILABLE`）。appid 写占位值 `PLACEHOLDER_WEAPP_APPID`。用例经 `createRuntime` 的 `providers` 换成测试替身。端上 `apps/weapp/src/pages/login/PhoneForm.tsx` 输入11位号码当 phoneCode；loginCode 取平台登录码，取不到时用本机生成并存下的固定串；G2-B 只替换表单凭证采集 |
+| 状态 | 已回补 |
+| 留桩内容 | W2-21 已回补服务端真实微信驱动与 AppID/区号接线；W2-13 已回补原生手机号凭证采集。真实平台与真机验收仍在 E2/V19 外部台账 |
+| 骨架里的做法 | `identity/login.ts` 沿原两个 Provider 方法，完整配置时由真实驱动执行；API 取配置 AppID，未配置保留受控分支，测试显式注入替身。`PhoneForm.tsx` 使用原生 `getPhoneNumber`，经隐私授权及作用域检查后只提交 opaque code；H5 不接收手填号码 |
 | 登记的工作包 | W1-04、W1-05 |
 | 回补里程碑 | M2，G2-D |
-| 回补的工作包 | 待 W1-23 拆包后填；真实驱动在 G2-D（要 E2 的 AppID 与密钥；驱动要把手机号的区号交出来，现在 `identity/phone.ts` 只能看原串里的国际前缀），登录页的真实形态在 G2-B（V19） |
+| 回补的工作包 | W2-21：服务端真实 HTTP、完整配置、AppID 与 countryCode/purePhoneNumber；W2-13：原生手机号组件已合入 `223c3732`。E2/V19 真实平台与真机验收未验 |
 | 依据 | 计划 第 7.3 节留桩清单“微信登录、手机号组件、短信”“登录页、逐集下载页的真实形态”两行；m01 第 3.1、3.2 节；任务书 W1-04 第 7 节、W1-05 第 7、10 节 |
+
+2026-10-08 阶段记录（当时端上尚未回补）：服务端回补使用完整 `WECHAT_*` 配置，经统一 Provider 外呼守卫和真实身份/同意事务；未配置保留受控分支。API 的 AppID 三例及手机号事实三例通过。`PhoneForm.tsx` 仍把手输号码作为 phoneCode，不因驱动完成关闭本桩；真实平台与组件验收分别保留 E2/V19 未验事实。
+
+2026-10-15 代码桩关闭：按 W2-13 已合实现及本地模型/H5 验收记录核对，端上已不再把手输号码当 phoneCode。沿用原 E2/V19 外部未验边界，不声明真实微信账号、平台配置或真机通过。

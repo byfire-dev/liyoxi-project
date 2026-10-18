@@ -5,6 +5,7 @@
 import path from "node:path";
 
 import { defineConfig, type UserConfigExport } from "@tarojs/cli";
+import type { Plugin } from "vite";
 
 const root = path.resolve(__dirname, "..");
 const isH5 = process.env.TARO_ENV === "h5";
@@ -30,7 +31,24 @@ export default defineConfig<"vite">(async (merge) => {
     defineConstants: constants,
     copy: { patterns: [], options: {} },
     framework: "react",
-    compiler: { type: "vite", vitePlugins: [] },
+    compiler: {
+      type: "vite",
+      vitePlugins: isH5
+        ? []
+        : [
+            {
+              name: "lyx-weapp-unused-wrapper-map",
+              generateBundle: {
+                order: "post",
+                handler(_options, bundle) {
+                  // Taro emit会移除未使用的SDK wrapper，却留下同名map。
+                  if (!Object.hasOwn(bundle, "custom-wrapper.js"))
+                    delete bundle["custom-wrapper.js.map"];
+                },
+              },
+            } satisfies Plugin,
+          ],
+    },
     alias: { "@": path.resolve(root, "src") },
     sass: {
       // 每个 scss 自动可用商家端的样式变量（$lyx-*，W0-26 的生成物，只声明变量、不出样式）
@@ -39,6 +57,9 @@ export default defineConfig<"vite">(async (merge) => {
       ],
     },
     mini: {
+      enableSourceMap: true,
+      // Taro 4.2.1 的开发构建别名会把 zustand/react 误指向 React，导致所有页面启动失败。
+      debugReact: true,
       postcss: {
         // NutUI 内部已按 375 处理，跳过它的选择器
         pxtransform: { enable: true, config: { selectorBlackList: ["nut-"] } },

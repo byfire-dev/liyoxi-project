@@ -16755,7 +16755,8 @@
   "clerkView": "none",
   "xIdempotent": "natural",
   "idempotentBy": [
-   "uq_invitation_inviter_member_id_client_request_id"
+   "uq_invitation_inviter_member_id_client_request_id",
+   "uq_invitation_request_inviter_client"
   ],
   "idempotentNote": null,
   "screens": [
@@ -16763,6 +16764,7 @@
   ],
   "tables": [
    "invitation",
+   "invitation_request",
    "timer"
   ],
   "transitions": [
@@ -16779,7 +16781,7 @@
    "wf-api1-findings.md:131"
   ],
   "version": "V1.0",
-  "notes": "幂等 natural：请求体带 clientRequestId，按 (inviter_member_id, client_request_id) 去重（02-identity-tenant.md:767；C47 列出的可用约束）；idempotentBy 按 A49 写成数组。进入邀请页即调用，令牌须在分享前就绪（onShareAppMessage 同步返回，d7:683）。同一邀请人、同一门店已有 pending、未过期、未分享的卡片时复用同一行并重置有效期，不再占名额、不计每日上限；第二轮起复用条件去掉“定向手机号相同”，请求体带 remarkName / targetPhone 键时原地改写 invitation.remark_name / target_phone_bidx（键缺省不改、显式 null 清空），老板先预创建、后填备注名与手机号只有一张卡（复核意见 A）。原型 M:Invite 没有“备注名”“对方手机号（可选）”输入框，列 m02 第 6 节待补。invitation.require_phone 为真时端上先填手机号再调用。inviterName 非空：邀请人称呼为空时服务端回落“门店老板”。出站事件 invitation.created。“发送给微信好友”不受登录文案去“微信”的约束（design-spec.md:860），但邀请页里关于加入方式的提示同样去掉“微信”（design-spec.md:849）。"
+  "notes": "幂等 natural：请求体带 clientRequestId，按 (inviter_member_id, client_request_id) 去重（02-identity-tenant.md:767；C47 列出的可用约束）；idempotentBy 按 A49 写成数组。进入邀请页即调用，令牌须在分享前就绪（onShareAppMessage 同步返回，d7:683）。同一邀请人、同一门店已有 pending、未过期、未分享的卡片时复用同一行并重置有效期，不再占名额、不计每日上限；第二轮起复用条件去掉“定向手机号相同”，请求体带 remarkName / targetPhone 键时原地改写 invitation.remark_name / target_phone_bidx（键缺省不改、显式 null 清空），老板先预创建、后填备注名与手机号只有一张卡（复核意见 A）。原型 M:Invite 没有“备注名”“对方手机号（可选）”输入框，列 m02 第 6 节待补。invitation.require_phone 为真时端上先填手机号再调用。inviterName 非空：邀请人称呼为空时服务端回落“门店老板”。出站事件 invitation.created。“发送给微信好友”不受登录文案去“微信”的约束（design-spec.md:860），但邀请页里关于加入方式的提示同样去掉“微信”（design-spec.md:849）。 自然三段式只读 claim、事务外备注检测、settle 永久请求映射；同键库 pending 回原卡且零写，库终态拒绝。"
  },
  {
   "id": "m02.invitation.preview",
@@ -17425,7 +17427,7 @@
    "wf-api1-findings.md:158"
   ],
   "version": "V1.0",
-  "notes": "原路线图“natural（状态守卫）”按 A17 改 required。门店本身是操作对象，路径带 storeId，仍校验与 X-Store-Id 同属一个主体（C17）。原型没有停用入口，挂在“我的门店”。加锁次序：主体 → 该门店 pending 邀请 → 受影响的成员关系 → 门店（数据模型全局次序）。联动发 invitation.revoked、entity_member.removed 与 store.archived。停用后老板保留收尾上下文（看订单、下载成片、确认到期下架），不计入门店额度（d4:794）。"
+  "notes": "原路线图“natural（状态守卫）”按 A17 改 required。路径 storeId 与 X-Store-Id 同主体（C17）。账号80→主体100→全部数据库 pending 邀请110→主体成员120→主体门店130，排序锁后重读完整候选/权限/最后店/六类真实阻断，失败不默认零。私有同Tx见证联动 invitation.revoked、entity_member.removed、store.archived，原timer取消；本人仅账号级安全告知，老板深链仍有效店、经理按真实by_owner来源；派发/外发重验outbox与历史。停用保老板收尾/下载授权，不计门店额度（d4:794）；恢复/删除/新建及其他移除原因通知待后续。"
  },
  {
   "id": "m02.store.delete-draft",
@@ -17475,7 +17477,7 @@
    "conventions.md:107"
   ],
   "version": "V1.0",
-  "notes": "动作名 delete-draft 按词表改为 delete（软删除，C12；资源登记表 stores 的说明）。不物理删除，置为已停用（M93；06-data-model.md:74）。能力点沿用 store.archive（d4 未单列）。原路线图 natural 按 A17 改 required。停用联动同 m.store.archive（邀请撤回、店员移出），发 store.archived、store.draft_deleted、invitation.revoked、entity_member.removed。资质草稿轮次的丢弃（qualification_submission 草稿 → 已关闭，discarded）不是本接口同事务的迁移：由 profile 订阅 store.draft_deleted / store.archived 后在自己的事务里执行（04-profile.md:344），归 x01 的非 HTTP 迁移归属表。草稿判定：从未提交资质，且没有订购单、广告、渠道账号、客服工单、本店上传的未删除素材；新增门店时复制来的素材（source_store_asset_id 非空）不算。"
+  "notes": "动作名 delete-draft 按词表改为 delete（软删除，C12；资源登记表 stores 的说明）。不物理删除，置为已停用（M93；06-data-model.md:74）。能力点沿用 store.archive（d4 未单列）。原路线图 natural 按 A17 改 required。停用联动同 m.store.archive（邀请撤回、店员移出），发 store.archived、store.draft_deleted、invitation.revoked、entity_member.removed。资质草稿轮次的丢弃（qualification_submission 草稿 → 已关闭，discarded）不是本接口同事务的迁移：由 profile 订阅 store.draft_deleted / store.archived 后在自己的事务里执行（04-profile.md:344），归 x01 的非 HTTP 迁移归属表。草稿判定：从未提交资质，且没有订购单、广告、渠道账号、客服工单、本店上传的未删除素材；新增门店时复制来的素材（source_store_asset_id 非空）不算。已接真实六历史 callerTx 公口及原六阻断，终态仍计且未知值不默认零；required 收据、完整原锁图、私有 operation 见证和级联同事务。draft_deleted 归档/恢复隐藏404；成员安全告知按当前发生次，经理仍仅 by_owner，HTTP 不反向写档案。"
  },
  {
   "id": "m02.store.restore",
@@ -17508,7 +17510,7 @@
    "conventions.md:370"
   ],
   "version": "V1.0",
-  "notes": "原路线图 natural 按 A17 改 required。已停用门店的老板也可调用（d4 5.2）。仅 archive_reason = by_owner 可恢复，重新校验门店额度。原型未画入口。"
+  "notes": "原路线图 natural 按 A17 改 required。已停用门店的老板也可调用（d4 5.2）。仅 archive_reason = by_owner 可恢复，重新校验门店额度。原型未画入口。W2-10恢复入口采用同事务原额度事实、私有守卫及StoreCard投影；不复活旧成员或撤回邀请。"
  },
  {
   "id": "m03.asset-demand.list",

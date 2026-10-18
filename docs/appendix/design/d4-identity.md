@@ -713,15 +713,15 @@ stateDiagram-v2
 3. **离开页面**：没点过分享就离开时端上尽力撤回（`unshared_leave`）；撤回失败的由 24 小时到期回收。撤回的不计入每日上限。
 4. 邀请页展示名额时用 `GET /m/members` 返回的 `seats: {used, limit, includesThisDraft}`，文案为“发送后将占用 1 个名额”，避免未分享的草稿让数字无故加一。
 
-**接受 `POST /api/v1/m/invitations/{token}/accept`**（`x-auth: user`；未登录的受邀人先在加入页走手机号登录，已登录的不再弹手机号组件）
+**接受 `POST /api/v1/m/invitations/{invitationId}/accept`**（`x-auth: user`；未登录的受邀人先在加入页走手机号登录，已登录的不再弹手机号组件）
 
 ```
-输入：token, displayName(必填, ≤20), consents
-0. displayName 过文本内容安全检测（事务之外，§9.7）
-1. inv0 = 按 sha256(token) 查（不加锁）→ 不存在 404 INVITATION_INVALID
+输入：invitationId，正文 token、displayName（账号缺称呼时必填，≤20 Unicode 码点）；不收 consents
+0. 只读检查真实当前会话及令牌；首次接受提供的 displayName 过内容安全检测（事务之外，§9.7）
+1. inv0 = 按 invitationId 查且比对 sha256(token)（不加锁）→ 不存在或不匹配 404 INVITATION_INVALID
 2. 事务：
-   a. e = SELECT ... FROM entity WHERE id = inv0.entity_id FOR UPDATE
-      （当前用户名下另有主体、可能要让位时，两把主体锁按 id 升序一次取齐，避免交叉等待）
+   a. 先锁当前 merchant_user（80），再按 id 升序一次锁齐 old/target 主体（100）
+      （随后一次规划全部相关邀请110、成员120、门店130；完整等待后用新时间重验真实会话与业务事实）
       e.lifecycle ≠ 'active' → 410 INVITATION_REVOKED
    b. inv = SELECT ... FROM invitation WHERE id = inv0.id FOR UPDATE
       status ≠ pending → 410 INVITATION_{USED|REVOKED|EXPIRED}；expires_at ≤ now → 410 INVITATION_EXPIRED
@@ -733,13 +733,13 @@ stateDiagram-v2
       · 同主体、老板               → 409 ALREADY_OWNER，邀请保持 pending
       · 其他主体、满足“空草稿”条件 → 让位（§4.2、§4.7）后按“无”处理
       · 其他主体、其他情况         → 409 PHONE_IN_OTHER_ENTITY，邀请保持 pending
-   d. inv.status = accepted，写 accepted_*，token_enc = NULL；写 user_consent；写审计；outbox：通知老板
+   d. inv.status = accepted，写 accepted_*，token_enc = NULL；取消到期定时器；写审计；outbox：通知老板；不写协议同意
 3. 撞 uq_member_one_entity（同一用户并发接受两个主体的邀请）→ 映射为 409 PHONE_IN_OTHER_ENTITY
 ```
 
 - **卡片被转发 / 多人并发点击**：token 一次性，步骤 2b 的行锁保证只有第一个事务成功，其余得到 `INVITATION_USED`；加入页为四种失效状态各给一个说明页（原型未画，需补）。
 - **卡片落到陌生人手里**：默认不定向手机号（PRD 的交互就是发给微信好友）。缓解手段是一次性、24 小时、加入后立刻通知老板（带称呼与脱敏手机号）、老板可一键移除。老板想更稳妥可以在邀请页填“对方手机号”，此时只有该号码能接受。参数 `invitation.require_phone` 可把定向改成必填（参考工程 ADR-029 的做法【参考 docs/02-architecture.md ADR-029】）。
-- 幂等：同一 token 同一用户重复提交，第二次看到 `accepted` 且 `accepted_user_id` 是自己 → 返回 200 与当前成员关系。
+- 幂等：同一 token 同一用户重复提交，第二次看到 `accepted` 且 `accepted_by_user_id` 是自己 → 用私有收据返回真实当前成员关系（可为后来合法成为的 owner）；已移除或门店停用不复活成员。首次接受仍只建 clerk。
 
 **成员管理**（均为老板专属，事务内锁主体行）
 
@@ -1770,8 +1770,8 @@ resolveClientIp(req):
 | `/api/v1/m/*` 全局 | 每 IP 300 次 / 分；登录后每用户 600 次 / 分 |
 | `POST /m/auth/wechat/session` | 每 IP 30 次 / 分 |
 | `POST /m/auth/wechat/phone-login` | 每 IP 10 次 / 小时；每 openid 5 次 / 小时（每次成功 0.03 元） |
-| `GET /m/invitations/{token}` | 每 IP 30 次 / 分 |
-| `POST /m/invitations/{token}/accept` | 每用户 10 次 / 分 |
+| `GET /m/invitations/lookup?token=` | 每 IP 30 次 / 分 |
+| `POST /m/invitations/{invitationId}/accept` | 每用户 10 次 / 分 |
 | 创建邀请 | 每主体每天 20 条未撤回的（在事务内计数，不靠 Redis） |
 | 短信发送 | 每号码 1 次 / 60 秒、5 次 / 小时、10 次 / 天；每 IP 20 次 / 小时；全局日上限（熔断） |
 | `POST /admin/auth/login`、`/mfa`、`/activate` | 每 IP 10 次 / 分；账号维度分桶锁定（存 PostgreSQL，§6.3） |
@@ -2266,8 +2266,8 @@ hookRoute({
 | `GET /members` | member | `member.list` | 当前门店的成员与待接受邀请、名额；按角色裁剪 |
 | `PUT /members/{id}/stores`、`DELETE /members/{id}` | member | `member.manage` | |
 | `POST /invitations`、`POST /invitations/{id}/mark-shared`、`DELETE /invitations/{id}` | member | `member.manage` | 创建（幂等、未分享的复用）、上报已分享、撤回 |
-| `GET /invitations/{token}` | public | — | 落地页信息 |
-| `POST /invitations/{token}/accept` | user | — | |
+| `GET /invitations/lookup?token=` | public | — | 落地页信息 |
+| `POST /invitations/{invitationId}/accept` | user | — | token 在正文，required 三段式；协议同意由登录流程记录 |
 | `GET /portal-tickets/{code}`、`POST /portal-tickets/{code}/approve｜reject` | member | `portal.authorize` | 扫码授权确认页（票据表归 D7） |
 | `GET /portal-sessions`、`DELETE /portal-sessions/{id}` | user | `me.*` | 已授权的电脑：查看与撤销 |
 

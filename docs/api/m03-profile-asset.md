@@ -229,7 +229,7 @@ MembersBrief：
 | --- | --- | --- | --- | --- |
 | ownerDisplayName | string \| null | 是 | 老板称呼（店员视角“老板王先生”） | 本主体有效老板的 `entity_member.display_name` |
 | clerkCount | integer | 是 | 本门店有效店员数 | `store_member` 中 `store_id` 为当前门店、且对应 `entity_member.status = 'active'` 的行数 |
-| pendingInvitationCount | integer | 是 | 待接受邀请数；店员不返回（占名额） | `invitation` 中 `store_id` 为当前门店、`status = 'pending'` 的行数 |
+| pendingInvitationCount | integer | 是 | 待接受邀请数；店员不返回（占名额） | `invitation` 中 `store_id` 为当前门店、`status = 'pending'` 且 `expires_at > now` 的行数 |
 | preview | array<{ displayName, role }> | 是 | 头像预览，至多 3 人 | `entity_member.display_name`、`entity_member.role` |
 
 AdsBrief（店员不返回；只计本门店；口径与 m06-ad 的列表页签 `AdListTab` 相同，从首页卡片点进“我的广告”时各页签数量对得上；商家端映射见 d3-flow.md:1257）：
@@ -270,7 +270,7 @@ PendingChange（草稿里没有改的类别为空）：
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | qualificationSubmissionId | string(uuid) | 是 | `change` 轮次 | `qualification_submission.id` |
-| phase | enum `RoundPhase` | 是 | 只取 `draft`、`in_review` | 派生 |
+| phase | enum `RoundPhase` | 是 | 基础信息待审值只取 `draft`、`in_review`；资质轮次历史的 `proposed` 可取 `closed` | 派生 |
 | storeName | string \| null | 是 | 待审门店名称 | `qualification_submission.proposed_store_name` |
 | industry | DictRef \| null | 是 | 待审一级行业 | `qualification_submission.proposed_industry_code` + `dict_item.name` |
 | category | DictRef \| null | 是 | 待审二级品类 | `qualification_submission.proposed_category_code` + `dict_item.name` |
@@ -346,7 +346,7 @@ V1.1 的广告风格偏好、禁用内容不出接口（`store_profile.ad_style_
 | requiredPermits | array<{ permitType: DictRef, isProvided: boolean }> | 是 | 所选品类要求的行业许可证（“餐饮 / 火锅品类须上传”）及本轮是否已有 | 字典 `industry` 的 `dict_item.ext` 中 `requiredCerts`，品类取草稿的 `proposed_category_code`，否则 `store_profile.category_code`；`isProvided` 看未关闭轮次有无该 `permit_type` 的未移除行 |
 | contact | ContactView | 是 | 资质联系人 | 见下 |
 | declaration | `{ currentVersion: string }` | 是 | 现行“信息确认”文案版本号，提交时回传 | 配置（默认为契约登记的代码常量，见第 6 节第 1 项） |
-| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 草稿存在且门店非终局驳回 → `submit`；草稿存在 → `discard`（C16） |
+| actions | array<string> | 是 | 当前可执行的动作，取 `submit`、`discard` | 未提交草稿且门店非终局驳回 → `submit`；`change` / `new_store` 草稿另有 `discard`；在审与已关闭不下发（C16） |
 
 EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`，主体由门店上下文确定。与 m02 的 `EntityBrief` 不同构，按 C87、A132 改名，原名 `EntityBrief`）：
 
@@ -471,6 +471,8 @@ EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`
 
 **StoreAssetDetail**（详情）= StoreAssetCard 的全部字段，另加：
 
+商家老板与店员的 `same` 表示两者使用相同字段与数据。分析要点统一对外命名为 `highlights`，遵循 C57 的禁用字段规则；后台 a03 的 `keypoints` 与内部洞察的 `content.keypoints` 保持原名，三者承载同一字符串数组。
+
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | textBody | string \| null | 是 | 文字类正文 | `store_asset.text_body` |
@@ -478,7 +480,7 @@ EntityQualificationBrief（认证前除结论外各值为空；不带 `entityId`
 | files | array<MediaFileView> | 是 | 全部文件，按顺序 | `store_asset_file` 按 `position` |
 | transcript | `{ text: string, segments: array<{ fromMs, toMs, text }> }` \| null | 是 | 单值：语音转文字全文与分句（多个音频文件时取第一个，其余文件的转写在 `fileTranscripts`） | `kind = 'transcript'` 洞察的 `store_asset_insight.content`（取法见本节开头） |
 | fileTranscripts | array<{ fileId: string(uuid), text: string, segments: array<{ fromMs, toMs, text }> }> | 是 | 按文件的转写，按 `position` 排列；单文件素材与 `transcript` 相同 | 同上，逐文件 |
-| keypoints | array<string> | 是 | 自动提炼的要点 | `kind = 'digest'` 洞察的 `content.keypoints` |
+| highlights | array<string> | 是 | 自动提炼的要点（C57 命名避开积分禁用模式，数组内容不变） | `kind = 'digest'` 洞察的 `content.keypoints` |
 | structuredItems | array<{ name: string, priceText: string \| null }> | 是 | 菜单抽取的菜名与价格文字，按文件 `position` 依次拼接 | `kind = 'structured_items'` 洞察的 `content.items`（`price` 改名 `priceText`，A86 放行） |
 | isInsightPartial | boolean | 是 | 有理解步骤失败或跳过（详情显示“暂未转写”等） | `store_asset.is_insight_partial` |
 | tagsByDimension | `{ content, usage, timeliness }`，各为 array<AssetTag> | 是 | 分维度标签；有复核确认的标签时只给确认的 | `store_asset_tag` |
@@ -973,6 +975,8 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 - 联系人存 `store_profile`、不进审核，不调用 `ensureDraft`：审核期间与终局驳回之后都能改，不会被 `QUALIFICATION_IN_REVIEW` 挡住（d9-profile.md:357）；在审轮次的 `contact_snapshot` 不随之改变。
 - 联系人手机号 V1.0 不作为审核结果与交付通知的接收号码（d9-profile.md:777 C6）；原型“用于接收审核结果与交付通知”的文案待改。
 - 端上只有脱敏串，不能把默认号码回填后提交，所以用 `phoneSource` 表达（C40）。
+- W2-11 通过通知公口读取实际短信通道、验证码模板及开关可用性；专用发码与更新联系人均复核当前会话和真实 owner。错误尝试先在独立短事务提交，正确码只在联系人主事务成功时消费；内容安全、版本或晚期写入失败不会消费正确码。
+- 原先短信未配置时保存的 `unverified`，在通道恢复后送审须重新验证；仅当前联系人号码与当前登录号码等值时可按登录号放行，不能沿历史 `login` 标记绕过。真实短信供应商投递仍待平台验证。
 
 ### 3.11 m.storeProfile.contactSmsCode.create　资质联系人手机号发码
 `POST /m/store-profile/contact/sms-codes`
@@ -1202,7 +1206,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 | 错误码 | HTTP | 何时 |
 | --- | --- | --- |
 | `QUALIFICATION_IN_REVIEW` | 409 | 该轮已提交、在审 |
-| `STATE_NOT_ALLOWED` | 409 | 当前没有草稿，或 id 不是当前草稿 |
+| `STATE_NOT_ALLOWED` | 409 | 当前没有草稿，或 id 不是当前草稿，或是 `initial` 草稿（商家只能丢弃 `change` / `new_store` 草稿） |
 
 **副作用**：
 - 状态迁移：`qualification_submission`：草稿 → 已关闭（`discarded`，04-profile.md:344）；`qualification_doc`：草稿中 → 已移除（所属草稿被丢弃，04-profile.md:479）。
@@ -1210,7 +1214,7 @@ PermitFieldDef：`{ key: string（小驼峰）, label: string, sensitive: boolea
 - 不写 `status_transition`（轮次表没有状态列）；`audit_log` activity 流一行。
 - 完整度：第 4 步的“当前资质视图”回到生效轮次或最近一轮，锁 `store_profile`（轮次 → 档案行）重算并写回完整度三列（1.1“完整度缓存”）。
 
-**说明**：草案写作 `DELETE /profile/qualification/draft`；丢弃是轮次的阶段变化、不删行，按动作接口写（A7）。丢弃 `change` 草稿后，基础信息的待审值随之作废，生效值不变。
+**说明**：草案写作 `DELETE /profile/qualification/draft`；丢弃是轮次的阶段变化、不删行，按动作接口写（A7）。商家入口仅接受 `change` / `new_store` 的未提交草稿，初次草稿由原建档链继续处理；系统生命周期订阅的初次草稿丢弃不受此入口限制。丢弃 `change` 草稿后，基础信息的待审值随之作废，生效值不变。
 
 ### 3.17 m.storeProfile.qualification.submit　提交资质审核
 `POST /m/store-profile/qualification/submit`

@@ -6,6 +6,7 @@
 // 清洗：不带请求体与令牌；形如手机号、统一社会信用代码、会话令牌的字符串打码；用户只带 id。
 // 上报自己出错不再上报、不抛出；同一条错误一次会话只报一次，每分钟至多 10 条。
 import type { ClientPlatform, Clock, EnvVersion } from "./platform";
+import { clientErrorFrames } from "@liyoxi/shared/telemetry";
 
 /** 错误的来路，写进信封的 tags.kind */
 export type ErrorKind =
@@ -62,11 +63,15 @@ export function createErrorReporter(deps: ErrorReporterDeps) {
       return { type: error.name || "Error", value: error.message, stack: error.stack };
     }
     if (typeof error === "string") return { type: "Error", value: error };
-    try {
-      return { type: "Error", value: JSON.stringify(error) ?? String(error) };
-    } catch {
+    if (typeof error === "number" || typeof error === "boolean")
       return { type: "Error", value: String(error) };
+    if (typeof error === "object" && error !== null) {
+      // 未知拒绝对象可能携带请求体/凭据；只取自有数据属性，不调用 getter/toJSON。
+      const message = Object.getOwnPropertyDescriptor(error, "message");
+      if (message && typeof message.value === "string")
+        return { type: "Error", value: message.value };
     }
+    return { type: "Error", value: "Unknown error" };
   }
 
   /** 拼信封：信封头、条目头、事件，三行 */
@@ -75,6 +80,9 @@ export function createErrorReporter(deps: ErrorReporterDeps) {
     const now = deps.clock.now();
     const eventId = deps.uuid().replaceAll("-", "");
     const { type, value, stack } = describe(error);
+    const frames = clientErrorFrames(stack, "weapp").filter(
+      (one) => scrub(one.filename) === one.filename && scrub(one.abs_path) === one.abs_path,
+    );
     const userId = deps.getUserId();
     const event = {
       event_id: eventId,
@@ -82,6 +90,7 @@ export function createErrorReporter(deps: ErrorReporterDeps) {
       platform: "javascript",
       level: "error",
       release: client.version,
+      dist: "weapp",
       environment: client.envVersion,
       tags: {
         kind,
@@ -91,7 +100,12 @@ export function createErrorReporter(deps: ErrorReporterDeps) {
       ...(userId ? { user: { id: userId } } : {}),
       exception: {
         values: [
-          { type: scrub(type), value: scrub(value), ...(stack ? { stack: scrub(stack) } : {}) },
+          {
+            type: scrub(type),
+            value: scrub(value),
+            ...(stack ? { stack: scrub(stack) } : {}),
+            ...(frames.length ? { stacktrace: { frames } } : {}),
+          },
         ],
       },
     };

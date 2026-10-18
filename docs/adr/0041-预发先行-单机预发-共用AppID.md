@@ -11,6 +11,15 @@
 
 编号说明：本文用“结论 N”指业主已定的事，“建议 N”指调度会话对业主提问的答复与建议，“补 N”指本文补的、调度会话整理稿（未入库）没有覆盖的默认，“O N”指调度会话发现、请业主定的事。这四组编号只在本文与台账里用，与设计草案的 D1–D9、D5 第 16 节的 P1–P13、开发计划的 E、Q、V 编号无关。与调度会话整理稿的对应：结论 N 即其 D N，建议 N 即其 P N，O 不变。整理稿没有入库，仓库里查不到它；业主原话与各项状态以[业主清单](../plan/owner-checklist.md)为准。
 
+## 2026-10-14 资源与镜像方案续记
+
+本节按用户本轮回传与调度会话实际核验补记；2026-10-04 的决定、建议和查看记录保留其历史日期。当前资源状态见 [平台配置核对表](../plan/platform-config.md) 第 2.3、2.5 节，尚未完成的外部验收不因此关闭。
+
+- 用户截图确认开发与预发八桶 `lyx-{dev,stg}-{asset,media,pub,secure}-1257198915` 存在。截图不证明地域、数据万象、CAM、CORS 或桶策略；上海仍是计划地域，实际地域待核。
+- 预发仍用 `101.133.161.191`。本轮授权下 root SSH 成功，Linux 3 x86_64、RAM 1870MB（available 1460）、swap 2047MB、盘 40GB（free 29GB），无运行容器；已有公司站须保留。Docker/Compose、nginx、certbot 5.7.0 与续期 timer 就绪，不代表节点应用已部署。
+- 域名继续按既有 timavia 计划，免费证书由调度会话处理。三个独立 HTTP 站点已装为 ACME 验证入口，nginx -t/reload 与稳定后的本机 Host 路径响应 200；三个应用预发域名 Google DoH A 无记录，DNS 与正式签发仍待核，尚无本项目新证书。
+- 镜像改用本项目 GitHub Packages（GHCR），取代第 3.2 节建议 6 的阿里云镜像仓库及“拉取走内网”建议。当前源码为 `https://github.com/sanqianyuejia/liyoxi-project`；候选四镜像 `ghcr.io/sanqianyuejia/liyoxi/{server,gateway,mediatool,weapp-uploader}`，节点前缀候选 `ghcr.io/sanqianyuejia/`。四项公开 vars 已设置，GHCR 三叶已完成唯一独审修正，镜像/摘要定点 24 项与工作流检查 82 项通过，本地 main 已合 `af73fdc2`、`091da64d`；远端仅三叶 [PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1)（head `a5dc447d`）已运行 Actions，旧 `ghcr.io/byfire-dev/minio:latest` 拉取 denied 阻塞 required，gate-touch 标签已补且重跑通过；另有旧 infra 三项断言与历史密钥扫描测试夹具误报待处理；`STG_IMAGES_PUBLISH_ENABLED` 未开启，尚未发布。公开源码仓库不代表包公开，推拉权限与节点连通性待验；第 4.7 节 CI 构建、节点只拉及 PG/Redis 按摘要转存的约束保留。
+
 ## 背景
 
 **原设计。** 01 第 11 节、ADR-032、ADR-034 与 D7 第 7.1、7.2 节定的是：腾讯云单地域；生产两台节点加负载均衡、托管 PostgreSQL 一主一备、托管 Redis；另有一台独立的预发节点，预发用独立的 AppID、商户号、VPC、库与桶。[开发计划](../08-development-plan.md) 第 4.2 节 Q7 的默认是两个 AppID，第 4.1 节 E4 按 D7 第 7.2 节的资源表开通，第 5.6 节在 M2 提前建“生产最小集”。

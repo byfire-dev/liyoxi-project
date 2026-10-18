@@ -1,13 +1,15 @@
+import { assertAssetReferences } from "../media/index.js";
 // 报价与提交共用判定；报价收集业务拒绝，提交按同一顺序拒绝。
 import { DramaSnapshotSchema } from "@liyoxi/contract";
 import type { OrderCreateBody, DramaSnapshot } from "@liyoxi/contract";
-import { calendarDate, addDays } from "@liyoxi/shared/time";
-import { nthWorkdayAfter } from "@liyoxi/shared/workcal";
-import { AppError } from "../kernel/index.js";
+import { calendarDate } from "@liyoxi/shared/time";
+import { AppError, merchantFactsOf } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { assertProfileComplete, storeGate, industryOpen } from "../profile/index.js";
 import { getEntitlements } from "../billing/index.js";
-import { loadWorkCalendar, workHoursAt } from "../sla/index.js";
+import { assertWithinQuota } from "../tenant/index.js";
+import { createSla, workHoursAt } from "../sla/index.js";
+import type { SlaDeps } from "../sla/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
 import { orderAccounts } from "./accounts.js";
 export function owner(actor: OrderActor) {
@@ -16,12 +18,14 @@ export function owner(actor: OrderActor) {
 export function invalid(path: string, message: string): never {
   throw new AppError("VALIDATION_FAILED", { details: { fieldErrors: [{ path, message }] } });
 }
-export async function earliestLaunch(tx: Tx, at: Date) {
-  const today = calendarDate(at);
-  return nthWorkdayAfter(
-    await loadWorkCalendar(tx, { from: today, to: addDays(today, 180) }, await workHoursAt(tx, at)),
-    today,
-    7,
+export async function earliestLaunch(tx: Tx, deps: SlaDeps, at: Date) {
+  return (
+    await createSla(deps).nthWorkdayAfter(tx, {
+      policy: "plan.launch_min",
+      from: calendarDate(at),
+      amount: 7,
+      workHours: await workHoursAt(tx, at),
+    })
   ).date;
 }
 export async function qualification(tx: Tx, storeId: string) {
@@ -57,6 +61,9 @@ export async function subscription(tx: Tx, entityId: string, at: Date) {
 }
 export async function openIndustry(tx: Tx, storeId: string) {
   if (!(await industryOpen(tx, storeId))) throw new AppError("INDUSTRY_NOT_OPEN");
+}
+export function storeQuota(tx: Tx, deps: OrderDeps, entityId: string, at: Date) {
+  return assertWithinQuota(tx, { facts: merchantFactsOf(deps.assembly) }, at, entityId);
 }
 export async function profileChecks(tx: Tx, actor: OrderActor) {
   await assertProfileComplete(tx, actor.membership.storeId);
@@ -103,6 +110,7 @@ export async function submitChecks(
 ) {
   const gate = await profileChecks(tx, actor);
   await subscription(tx, actor.membership.entityId, at);
+  await storeQuota(tx, deps, actor.membership.entityId, at);
   const accounts = await orderAccounts(tx, actor.membership.storeId, input.channelAccountIds);
   const snapshots = await dramaSnapshots(
     tx,
@@ -122,8 +130,12 @@ export async function submitChecks(
     throw new AppError("ORDER_AD_INVALID", {
       details: { adId: input.adIds[0], reason: "not_in_store" },
     });
-  if (input.referenceStoreAssetIds?.length) invalid("referenceStoreAssetIds.0", "库里没有素材");
-  const earliest = await earliestLaunch(tx, at);
+  await assertAssetReferences(tx, {
+    entityId: actor.membership.entityId,
+    storeId: actor.membership.storeId,
+    ids: input.referenceStoreAssetIds ?? [],
+  });
+  const earliest = await earliestLaunch(tx, deps, at);
   if (input.expectedLaunchDate && input.expectedLaunchDate < earliest)
     throw new AppError("LAUNCH_DATE_TOO_EARLY", { details: { earliestLaunchDate: earliest } });
   return { gate, accounts: accounts.selected, snapshots };

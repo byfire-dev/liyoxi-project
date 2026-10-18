@@ -122,7 +122,7 @@ export function creationView(
     name,
     message:
       result.staff.status === "pending"
-        ? "账号已创建，暂不启用。启用入口将在后续版本开放。"
+        ? "账号已创建，暂不启用。可在员工详情中核对并启用。"
         : "账号已创建，本次没有返回激活码，请联系管理员。",
   };
 }

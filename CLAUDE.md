@@ -151,6 +151,7 @@
 | Redis 与 Compose | Redis 按键前缀隔离（库号只有 16 个，不够分）：每个会话、每个 worker 一个 `lyx:test:<会话标识>:<worker 编号>:`，测试文件顶层写 `const redis = useTestRedis()`；“清空”只清自己前缀下的键（SCAN 加 UNLINK），不用 FLUSHDB、FLUSHALL。Compose 只起一份共享实例，多个 worktree 共用：在哪个 worktree 里 `pnpm infra:up` 都是同一套容器，已经起着就不用再起，不要另起一套（会抢端口）；别的会话在跑测试时不要 `pnpm infra:down`；不直接删别人的库、清别人的键，连库的用例不往 `liyoxi`、`lyx_schema_check`、`lyx_migrate_check` 里写数据 |
 | 门禁自测 | 每加一道门禁，同包加一个反例进 `gates:selftest` |
 | 时长 | PR 必过检查合计 ≤15 分钟 |
+| 本机资源与性能观察 | 业主使用 MacBook Air，并于 2026-10-13 要求降低日常验证量：按风险只选新增/受影响用例和最小关键回归，不重复未受影响的已通过检查或全部历史页面场景；Vitest 使用 `--maxWorkers=1 --no-file-parallelism`，连库测试/构建/压测串行。保留原测试断言与 CI 门禁，新增竞争用例通常为两客户端、3–5 轮；性能只在有具体需要时轻量观察，正式容量结论另验。细则见 [本机开发验证](docs/plan/local-development-validation.md)。 |
 | 小程序 | CI 只构建；主包 ≤1,500KB、分包 ≤800KB；页面证据用截图命令的产物；真机手验按演示点批量做，由业主执行 |
 | 留桩 | 登记在 `docs/plan/stubs/`，一项一个文件，写明回补的里程碑。内核、账本、鉴权链不留桩 |
 
@@ -205,6 +206,7 @@
 | `REDIS_COMPAT_URL=<连接串> pnpm redis:compat` | 托管 Redis 与队列库的兼容脚本（验证项 V1）：七项逐项给结论并出一份 JSON 报告，连接串只从这个环境变量读、不落盘不打印。参数见 [脚本](apps/worker/src/cli/redis-compat.ts) 开头的注释；业主怎么跑见 [v01-managed-redis.md](docs/plan/external-verification/v01-managed-redis.md) |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e` | 后台 Playwright 样例冒烟：外壳、三种骨架、陈列页与鉴权样例，截图在 `apps/admin/dist/e2e-shots`。浏览器怎么备见 [README](apps/admin/README.md) |
+| `pnpm --filter @liyoxi/admin e2e:cover` | 后台独立封面上传三场景：替换与失败重试、非法文件、上架校验阻断；使用替身上传与保存接口，截图和失败 trace 在 `apps/admin/dist/e2e-results/cover-upload`。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e:live` | 后台真实 API 与生产构建验收：独立测试库/Redis 前缀、现造假密钥、首次激活与绑定、恢复码登录、复用登录态；全程无控制台错误。需本地 PostgreSQL/Redis；用法与造数登记见 [后台 README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由后台菜单登记表与下载页页面清单重新生成 `docs/plan/pages.md`。用法见 [脚本](infra/ci/pages/generate.mjs) 开头的注释 |
@@ -225,6 +227,9 @@
 | `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
 | `pnpm stack:build` | 构建本地整套环境的三个镜像 `liyoxi/{server,gateway,mediatool}:local`（三个同时构建）。要本机 Docker 与外网，第一次十来分钟。镜像里有什么见 [README](infra/docker/server/README.md) |
 | `pnpm stg:rehearse`（加 `--keep` 演练完不清场；加 `--release` 做两版发布/回滚） | 预发节点的本机演练（W2-25）：照 `infra/compose/node.yml` 另起六个容器（项目名、容器名前缀、网段、端口都与共享的本地依赖和 `pnpm stack:up` 那一套错开，不停它们），密钥用现造的假值，走一遍节点步骤（`check-env`、`migrate`、`seed`、`up`、`status`、`verify-db`），核对容器的形态与密钥分挂，冒烟，跑完自己清场。先要有三个本地镜像（`pnpm stack:build`）。--release 另构建两个真实构建号的 server/gateway，保存每秒探测、JSON发布/回滚摘要与部署后缺索引反例到自有临时证据目录，清场只删自有project/卷/标签。上服务器的步骤（业主执行）见 [README](infra/bootstrap/README.md) |
+| `pnpm stg:rehearse --redis-flush --without-image-smoke` | W2-27a显式本机清空演练，默认不运行：只清本次随机自有六容器项目的Redis DB0，正式服务产生的事件与合法周期任务先提交，再短事务持锁跨清空；120秒内核原worker/PID、同主租约续期、实际非空投递与timer完成。只额外构建一个临时helper bundle、不自动拉取或重建镜像；证据留自有临时目录，失败也清自有资源。现有镜像须与待验源码对应；真实预发仍另行授权，不等同本机检查 |
+| `pnpm stg:rehearse -- --errors --alerts --without-image-smoke` | W2-27本机受控协议演练：先默认未配，再在同一随机项目启用两FILE；仅本轮API/worker信任公开假CA、私网别名接收原生HTTPS信封与固定WeCom请求，无公开收件端口。正式租约/生产probe writer与dispatcher完成受控告警及三次健康恢复，核超管铃铛；finally恢复默认或外层清理。使用已核源码的镜像，不自动build/pull；与release/redis-flush分轮，不代表真实平台接通或端上符号化 |
+| `infra/deploy/node-step.sh logs <服务> <UUID>`；`log-stats <分钟>` | W2-27 日志首块：六服务白名单、最近60分钟/200匹配行；gateway统计1–1440分钟，完整输入超限拒绝。当前server镜像只读无网络执行helper，不挂密钥；不会操作远端。部署后实际节点调用仍须业主逐步授权，轮转/Redis恢复另续。 |
 | `pnpm stg:buckets -- --check --offline` | 预发四桶声明核对（W2-25b）：离线默认夹具报差异退出 1、不读凭据；线上只 GET，显式 apply 还需独立开关，未知配置或 pub 已启用版本均拒绝写。配置与独立 SDK 安装见 [README](infra/bootstrap/README.md) 第 12 节 |
 | `node infra/deploy/orchestrate.mjs --tag sha-<12位提交号> --node <发布用户>@<节点>`；回滚加 `--rollback`，可省 tag 取上一成功版 | W2-26a 的发布/回滚编排入口，输出 JSON，`--summary <文件>` 保存摘要，CI 有 GITHUB_STEP_SUMMARY 时追加摘要；b1 的 --probe-config <目标JSON> 与 --probe-summary <报告JSON> 成对启用独立每秒探测，终止仍保留报告；`--local` 换成本地节点步骤用于隔离演练。STG_FREEZE=true 预检拒绝；不安全回滚须 `--force --reason <说明>`，P1 越过须 `--override-p1 <UUID> --reason <说明>`。本地目标测试用假 SSH/Docker，不执行预发发布；服务器上的执行仍按任务书第 8 节逐步获准 |
 | `pnpm stack:up`（加 `--build` 先重建镜像；加 `--lan` 真机走局域网） | 一条命令起整套：依赖没起先起、镜像不在先构建、建库 `lyx_stack`、用 server 镜像跑迁移与播种、起 `lyx-gateway`、`lyx-api`、`lyx-worker`、`lyx-mediatool` 四个容器，都健康才返回。可以反复跑。后台在 `http://admin.localhost:8080`。整套只起一份，各 worktree 共用；用法与可调的环境变量见 [README](infra/stack/README.md) |
@@ -257,6 +262,9 @@
 | `pnpm demo:m0`（加 `--keep` 跑完不删演示库） | M0 的演示：建一个 `lyx_test_demo_m0_<进程号>` 库，跑全部迁移与种子，把样例链路走一遍并逐步打印（带幂等键的写用例 → 同键重放 → 状态历史、审计、出站事件 → 订阅者 → 定时器 → 全量不变量），末尾打印四个计数；跑完删掉自己建的库与 Redis 键，可反复跑。要本地的 PostgreSQL 与 Redis 在运行并给出连接参数。同一条链路的用例是 `packages/services/src/testing/m0-chain.db.test.ts`。见 [README](packages/services/src/testing/README.md) 第 12 节 |
 | `pnpm e2e`；`node infra/ci/e2e-repeat.mjs --times 10` | M1 的完整替身接口链：真实后台登录与商家建档、对公入账、20 集订购开工、制作交付和上线核验；每轮独立测试库/Redis 前缀，最后 full 不变量零违规。单轮含初始化与清理 ≤90 秒，十轮无重试；失败保留日志和部分汇总。合并后 main 手动 `e2e-repeat`，开发者工具与真机仍单独手验。 |
 | `pnpm demo:m1`（加 `--stack` 只播种手验库） | 缺省在本轮新隔离库复用同一真实接口主路径，讲解实际结果并清理自己的资源；要求明确 APP_ENV=test 与本机 PG/Redis。--stack 仅接受 APP_ENV=local 的本机 lyx_stack，不重置已有库、不激活已有员工；开工延迟当前默认0，实际非0明确拒绝。说明见 [M1 演示手册](docs/plan/demo/m1.md) 与 [合流回顾](docs/plan/retro/m1.md)。 |
+| `pnpm e2e:m2`；`pnpm demo:m2` | 共用 M1 二十集真实接口主链和 M2 生命周期/运输恢复；本机单路上传，明确 `CI=true` 才用原 M1 四路，90秒判据不变。本机分段目标不代替完整链或十连；说明与实际结果见 [M2 演示手册](docs/plan/demo/m2.md) 与 [合流回顾](docs/plan/retro/m2.md)。 |
+| `pnpm e2e:m3`；`node infra/ci/m3-repeat.mjs --times 10` | M3 的真实接口合流目标；与 M1 共用顺序执行、独立会话、90秒总墙钟和失败摘要，M3产物另存 `apps/api/dist/m3-e2e-repeat/`。失败不重试、不把超时或被中止的轮次记绿；本轮资源由主链自然收尾。真实云、预发与真机仍按外部台账单列。 |
+| `pnpm demo:m3` | M3的隔离演示入口，调用同一正式接口主链；连续两次核演示种子与业务数量，第二次零新增，拒绝生产库。说明见 [M3 演示手册](docs/plan/demo/m3.md) 与 [合流回顾](docs/plan/retro/m3.md)。 |
 | `node infra/ci/check-stubs.mjs` | 留桩门禁：34 个计划行精确关联功能留桩文件及既有未来页面登记，检查模板键、回补点和合法 M0–M8，M0/M1 必须已回补；删除文件、页面或只改计划回补点都失败。 |
 | `pnpm test:fault` | 故障注入套件：各包的并发、性质与故障注入用例一条命令跑完（按文件名圈：`*.concurrency.test.ts`、`*.property.test.ts`、名字是 `fault` 的目录与文件、幂等与租约的用例；它们也都在 `pnpm test` 里）。前提同 `pnpm test`。造什么、看什么的清单在 [docs/plan/m0-exit.md](docs/plan/m0-exit.md) 第 4 节 |
 | `pnpm plan:summaries` | 现生成台账三张汇总：`docs/plan/stubs/`、`changes/`、`external-verification/` 下各一份 `SUMMARY.md`（不入库，被 git 忽略，不用提交）。单项文件不合规时报错并指出是哪个文件的哪一项；CI 的“台账单项文件核对”只做这道核对（`node infra/ci/plan-summaries.mjs --check`，不写文件）。口径见 [脚本](infra/ci/plan-summaries.mjs) 开头的注释 |
@@ -265,10 +273,14 @@
 | `pnpm --filter @liyoxi/services exec vitest run src/billing/`（任务进程里的循环：`pnpm --filter @liyoxi/worker exec vitest run test/billing-advance.test.ts`） | 只跑账本的用例：账户锁与账本时钟、月度发放、加购入账、时间推进 advance 与它的并发、逐步故障注入、七条不变量、读函数与价目读侧。连带种子的测试库，要本地的 PostgreSQL 与 `DATABASE_URL`；循环的那一份另要 Redis。账本怎么调、夹具怎么造周期，见 [README](packages/services/src/billing/README.md) |
 | `pnpm --filter @liyoxi/services exec vitest run src/identity/` | 只跑 identity（商家账号、会话与登录）的用例：令牌的性质测试（固定种子、每个性质 200 轮，不连库）、会话的空闲与绝对过期边界、手机号登录各分支、两条并发（同一手机号首次登录 20 轮、同一身份并发登录 8 次）。连库的两份要本地的 PostgreSQL 与 `DATABASE_URL`。商家鉴权链的接口层用例是 `pnpm exec vitest run --project api apps/api/test/merchant-auth.test.ts`。见 [README](packages/services/src/identity/README.md) 与 [apps/api 的说明](apps/api/README.md) 第 7 节 |
 | `LYX_FC_RUNS=200 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run src/billing/ledger/ledger.model.property.test.ts` | 冻结单一族的甲类模型验收：随机 1–60 步对照独立内存账本，每步核对七桶、冻结单分摊、账户缓存、只读流水回放与 `I1`–`I5`。连带种子的测试库，前提同账本用例；并发用例 `hold.concurrency.test.ts` 使用 20 条独立连接重复 20 轮。见 [README](packages/services/src/billing/README.md) |
+| `node apps/worker/dist/sms-init.js --config <明确文件> --staff-id <超级管理员ID> --apply` | W2-22 短信九模板原子初始化；64KiB严格JSON，stg/prod必须明确apply，只输出变更数量；不新增x01命令名、不发短信。审批事实与真实平台未验见 [README](packages/services/src/notify/README.md) |
 | `pnpm staff:bootstrap --name <姓名> --phone <手机号>` | 建第一位超级管理员（后台的首个账号）：只在库里没有启用的超级管理员时可执行，建成待激活并在终端输出一次激活码，24 小时内到后台的激活页设密码、绑动态口令；第二次执行被拒绝（退出码 1）。库要先跑完迁移与 `pnpm db:seed`；要三份密钥文件（`DATA_KEYS_FILE`、`BIDX_KEYS_FILE`、`AUTH_KEYS_FILE`，各放一份自己生成的、不入库）。服务器上跑镜像里的 `node apps/worker/dist/staff-bootstrap.js`。见 [README](packages/services/src/staff/README.md) 第 8 节 |
+| `pnpm staff:reissue-activation --staff-id UUID --confirm-staff-no 工号` | 只恢复唯一启用且尚未激活的引导超级管理员；原未用激活码须已过期，补发码仅输出一次、仍24小时有效。生产另需 `--allow-production`，真实生产执行由业主授权。独立登记 staff_reissue_activation（M2）；见 [README](packages/services/src/staff/README.md) 第 9 节 |
 | `pnpm db:seed:demo` | 演示种子：按固定的先后跑各模块的演示数据（现在是 7 位演示员工，都建成待激活，各打印一枚激活码，只显示一次；仓库里没有任何固定口令）。可以反复跑，已有的不重建、不重发码；只进本地、测试与预发，`APP_ENV=prod` 拒绝。库要先跑完迁移与 `pnpm db:seed`；要字段加密的两份密钥文件。怎么加一步见 [demo-seed.ts](packages/services/src/demo-seed.ts) 开头的注释，演示员工见同一份 [README](packages/services/src/staff/README.md) 第 8 节 |
 | `pnpm exec vitest run --project api test/admin-auth.test.ts test/admin-matrix.test.ts`（前面加 `LYX_UPDATE_GOLDEN=1` 重写权限矩阵的黄金文件） | 只跑后台鉴权链的接口层用例：登录、激活、再验证、退出九条，防跨站，再验证后用原幂等键重放；权限矩阵回放（已挂载的后台路由 × 8 角色 × 主管与否，对黄金文件 `apps/api/golden/admin-permission-matrix.txt` 并逐格请求）。后台接口怎么登记、怎么写用例见 [README](apps/api/README.md) 第 8 节 |
 | `pnpm --filter @liyoxi/services exec vitest run src/billing/subscription/ src/billing/ports.test.ts` | 只跑履约（W1-11a 的账本侧）的用例：付清后建周期与发放计划、发首月、过期后重新开通、预约周期接续、周期不重叠、逐步故障注入、并发、性质测试（分摊不连库 200 轮；履约连库缺省 10 轮、固定种子，`LYX_FC_RUNS`、`LYX_FC_SEED` 可改）、三条不变量与两个端口。连带种子的测试库，要本地的 PostgreSQL 与 `DATABASE_URL`。`createFulfillment`、`fulfill` 怎么用、哪些算受阻，见 [README](packages/services/src/billing/subscription/README.md) |
+| `pnpm contract:compat` | W2-28a：从本地在役 `weapp-v*` 标签比较商家契约，后台/下载页比较最近在役 `v*`；无标签分别报无可比版本，缺快照失败。退役格式和六类判据见 [infra/ci](infra/ci/README.md#9-在役契约兼容w2-28a)。真实混跑与发布阻断由 W2-28b 交付，a 不表示整包完成 |
+| `node infra/ci/mixed-version-smoke.mjs --prev <完整提交SHA> --report <新报告.json>` | W2-28b：不同源码镜像同库四步，真实 HTTP 与独立 worker；保留二十集主链、实钟、30秒观察与10分钟整包上限。省略 prev 按发布标签或第一父提交选择；本地样本与 main CI 分列，运行边界见 [infra/ci](infra/ci/README.md#91-双版本混跑与发布阻断w2-28b) |
 
 本地连接参数：配置只经 `loadEnv`（`packages/services/src/kernel/env.ts`）读环境变量，会话与测试不建、不读 `.env`，在命令前或 shell 里给出。取值出处是 [local.yml](infra/compose/local.yml)，账号与口令是固定的开发值，只对本机这套容器有效；CI 的服务容器用同一组值。
 
@@ -283,7 +295,6 @@ export REDIS_URL=redis://localhost:6389/0
 | 命令 | 由谁提供 | 做什么 |
 | --- | --- | --- |
 | `pnpm demo:mN` | 各里程碑的合流包 | 重放该里程碑演示 |
-| `contract:compat` | M2 起 | 契约对在役小程序版本兼容 |
 | 小程序截图命令（可能是 `pnpm weapp:shots`） | W0-27a | 出页面截图；办法由该包定 |
 
 其余命令（安装、起环境、lint、测试、构建）由提供它的工作包同 PR 补进本节。本节没列的命令不要假定存在。默认：每个包只往本节加命令行；用法、参数、连接方式写进各自的 README，本节链过去（W0-04 定）。

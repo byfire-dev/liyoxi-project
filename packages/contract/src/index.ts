@@ -42,3 +42,21 @@ export * from "./routes/m04-mall-order/index.js";
 export * from "./routes/m05-delivery-publish/index.js";
 export * from "./routes/a06-publish/index.js";
 export * from "./routes/a05-order-delivery/index.js";
+export * from "./routes/h01-hooks/wechat.js";
+export * from "./routes/h01-hooks/wechatpay.js";
+
+export * from "./routes/a09-ops/site.schemas.js";
+export * from "./routes/a09-ops/site-configs.js";
+export * from "./routes/a09-ops/home-banners.js";
+export * from "./routes/a09-ops/site-notices.js";
+export * from "./routes/h01-hooks/ci.js";
+
+export * from "./routes/a04-content/index.js";
+
+export * from "./routes/a09-ops/agreement.schemas.js";
+
+export * from "./routes/a09-ops/agreements.js";
+export * from "./routes/a09-ops/agreement-versions.js";
+export * from "./routes/a09-ops/agreement-consents.js";
+export * from "./routes/h01-hooks/asr.js";
+export * from "./routes/h01-hooks/asr.schemas.js";

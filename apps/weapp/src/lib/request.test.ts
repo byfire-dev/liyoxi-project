@@ -73,6 +73,112 @@ const caught = async (promise: Promise<unknown>): Promise<ApiError> => {
 };
 
 describe("组头与地址", () => {
+  it("用户级请求显式省略门店头，保留鉴权/幂等；公开预览独立去凭据且普通调用默认不变", async () => {
+    const env = setup(() => ok(null), { token: "lyxm_t", storeId: "store-1" });
+    await env.layer.request("/m/stores");
+    await env.layer.request("/m/invitations/00000000-0000-4000-8000-000000000001/accept", {
+      method: "POST",
+      data: { token: "t".repeat(43) },
+      idempotencyKey: "invitation_accept:00000000-0000-4000-8000-000000000001",
+      store: false,
+    });
+    await env.layer.request(`/m/invitations/lookup?token=${"t".repeat(43)}`, {
+      auth: false,
+      store: false,
+    });
+    await env.layer.request("/m/stores");
+    expect(env.sent.map((request) => request.header["X-Store-Id"])).toEqual([
+      "store-1",
+      undefined,
+      undefined,
+      "store-1",
+    ]);
+    expect(env.sent.map((request) => request.header.Authorization)).toEqual([
+      "Bearer lyxm_t",
+      "Bearer lyxm_t",
+      undefined,
+      "Bearer lyxm_t",
+    ]);
+    expect(env.sent[1]?.header["Idempotency-Key"]).toBe(
+      "invitation_accept:00000000-0000-4000-8000-000000000001",
+    );
+    for (const request of env.sent) {
+      expect(request.header["X-Client-Platform"]).toBe("ios");
+      expect(request.header["X-Request-Id"]).toMatch(UUID);
+    }
+    expect(env.sent[1]?.timeout).toBe(30_000);
+    expect(env.sent[2]?.timeout).toBe(15_000);
+  });
+
+  it("省略门店头在网络重试/401与428恢复后保持同意图；拒绝同意仍结束原请求", async () => {
+    const silentLogin = vi.fn(async () => {
+      env.state.token = "new";
+      options.storeId = "store-after-login";
+      return "ok" as const;
+    });
+    const askConsent = vi.fn(async () => {
+      options.storeId = "store-after-consent";
+      return true;
+    });
+    const options = {
+      token: "old",
+      storeId: "store-1",
+      recover: { silentLogin, askConsent },
+    };
+    const env = setup((_request, index) => {
+      if (index === 0) throw new Error("request:fail timeout");
+      if (index === 1) return fail(401, "AUTH_REQUIRED");
+      if (index === 2) return fail(428, "CONSENT_REQUIRED", { details: { pendingConsents: [1] } });
+      return ok({ joined: true });
+    }, options);
+    const key = "invitation_accept:00000000-0000-4000-8000-000000000001";
+    const body = { token: "t".repeat(43) };
+    await expect(
+      env.layer.request("/m/invitations/00000000-0000-4000-8000-000000000001/accept", {
+        method: "POST",
+        data: body,
+        idempotencyKey: key,
+        store: false,
+      }),
+    ).resolves.toEqual({ joined: true });
+    expect(env.sent).toHaveLength(4);
+    expect(env.sleeps).toEqual([1000]);
+    expect(silentLogin).toHaveBeenCalledTimes(1);
+    expect(askConsent).toHaveBeenCalledTimes(1);
+    expect(askConsent).toHaveBeenCalledWith({ pendingConsents: [1] });
+    expect(env.sent.map((request) => request.header.Authorization)).toEqual([
+      "Bearer old",
+      "Bearer old",
+      "Bearer new",
+      "Bearer new",
+    ]);
+    for (const request of env.sent) {
+      expect(request.header).not.toHaveProperty("X-Store-Id");
+      expect(request.header["Idempotency-Key"]).toBe(key);
+      expect(request.header["X-Request-Id"]).toBe(env.sent[0]?.header["X-Request-Id"]);
+      expect(request.data).toEqual(body);
+    }
+    const refused = setup(() => fail(428, "CONSENT_REQUIRED"), {
+      token: "old",
+      storeId: "store-1",
+      recover: { askConsent: vi.fn(async () => false) },
+    });
+    expect(
+      (
+        await caught(
+          refused.layer.request("/m/invitations/00000000-0000-4000-8000-000000000001/accept", {
+            method: "POST",
+            data: body,
+            idempotencyKey: key,
+            store: false,
+          }),
+        )
+      ).error,
+    ).toBe("CONSENT_REQUIRED");
+    expect(refused.sent).toHaveLength(1);
+    expect(refused.sent[0]?.header).not.toHaveProperty("X-Store-Id");
+  });
+
   it("请求头齐全：平台、版本、环境、请求编号、门店、令牌、幂等键；地址补上 /api/v1", async () => {
     const { layer, sent } = setup(() => ok({ id: 1 }), { token: "lyxm_t", storeId: "store-1" });
     const key = newIdempotencyKey("orderSubmit", () => "11111111-1111-4111-8111-111111111111");

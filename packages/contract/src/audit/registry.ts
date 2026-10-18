@@ -43,6 +43,7 @@ export const AUDIT_CATEGORIES = [
   "approval",
   "review",
   "flow",
+  "follow_up",
 ] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 
@@ -150,6 +151,20 @@ export const AUDIT_TARGET_TYPES = [
   "agreement_consent", // W2-04：协议同意快照字段的 access 审计
   // 01：年度日历配置审计的自然键对象（W2-05）
   "work_calendar_day",
+  "sms_template", // W2-22：短信初始化，template_key 写 target_key
+  "timer", // W2-23：失败定时器人工恢复/取消
+  "outbox_delivery", // W2-23：事件×订阅者复合键人工重投
+  "analytics_event", // W2-18：受限月归档/兜底修复，以月份写target_key
+  "media_job", // W3-03：媒体任务人工重试
+  "drama_price_revision", // W3-10：单剧积分价修订与撤销
+  "agreement_version", // W2-12：实际版本簿记与审计对象
+  "store_asset", // W3-14：素材与反馈审计
+  "store_asset_demand", // W3-14：素材需求审计
+  "plan", // W4-07：套餐版本改名与上下架，真实对象为plan而非价目修订
+  "plan_revision", // W4-07：不可变价目修订创建与生效前撤回
+  "price_tier_revision", // W4-07：只增等级模板价，同次保存一审计
+  "file_purge_run", // W3-06：真实清除运行放行与驳回
+  "point_pack", // W4-06：积分包创建、编辑与上下架
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

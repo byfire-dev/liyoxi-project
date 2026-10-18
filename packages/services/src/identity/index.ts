@@ -1,7 +1,14 @@
 // identity：商家账号、微信身份、会话与登录（W1-04 交会话与鉴权链：令牌与会话、静默登录、手机号登录、退出、当前账号、
 // 协议同意的门、版本门槛的判断）。用法见本目录的 README.md。改称呼、换绑手机号、已登录的微信、一次性提示的关闭、注销随 M2。
 export { createIdentity } from "./service.js";
+export { hasActiveWecomContact } from "./wecom-contact-facts.js";
 export type { Identity, IdentityDeps } from "./service.js";
+export type { AccountChanges } from "./account-changes.js";
+export type {
+  AdminUserAction,
+  AdminUserActionInput,
+  AdminUserActionOptions,
+} from "./admin-user-actions.js";
 export {
   hashSecret,
   issueToken,
@@ -29,7 +36,9 @@ export type { RegisterArgs } from "./machines.js";
 export {
   findI22Violations,
   findI23Violations,
+  findI24Violations,
   findI25Violations,
+  findI26Violations,
   findI8Violations,
   findI9Violations,
   IDENTITY_INVARIANT_LIMIT,
@@ -41,6 +50,13 @@ export { registration } from "./register.js";
 export { assembleBootstrap, bootstrapDefaults } from "./bootstrap.js";
 export type { BootstrapInput, BootstrapLoaders } from "./bootstrap.js";
 export { currentSessionOpenid } from "./current-openid.js";
+export { assertCurrentSession } from "./current-session.js";
 
 export { identityPiiFields } from "./pii-fields.js";
 export { membershipAuthorizations, revokePortalGrants } from "./portal-grants.js";
+export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
+
+export { merchantTargetForNotify, wechatTargetForNotify } from "./notify-facts.js";
+
+export { countActiveMerchantUsers } from "./active-user-count.js";
+export type { ReferralCodes } from "./referral-codes.js";

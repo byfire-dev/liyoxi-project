@@ -1,8 +1,21 @@
 // 商家端：主体、门店与成员 · invitations（docs/api/m02-tenant.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { errorResponses, okResponse } from "../../common/index.js";
+import {
+  InvitationCreateBodySchema,
+  InvitationCardSchema,
+  InvitationIdParamsSchema,
+  InvitationMarkSharedResultSchema,
+  InvitationRevokeBodySchema,
+  InvitationRevokeResultSchema,
+  InvitationLookupQuerySchema,
+  InvitationPreviewSchema,
+  InvitationAcceptBodySchema,
+  MembershipResultSchema,
+} from "./tenant.schemas.js";
 
-export const mInvitationCreate = merchantMeta({
+export const mInvitationCreate = merchantRoute({
   method: "post",
   path: "/m/invitations",
   operationId: "m.invitation.create",
@@ -11,10 +24,24 @@ export const mInvitationCreate = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "natural",
-  "x-idempotent-by": ["uq_invitation_inviter_member_id_client_request_id"],
+  "x-idempotent-by": [
+    "uq_invitation_inviter_member_id_client_request_id",
+    "uq_invitation_request_inviter_client",
+  ],
+  "x-three-phase": true,
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvitationCreateBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(InvitationCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mInvitationLookup = merchantMeta({
+export const mInvitationLookup = merchantRoute({
   method: "get",
   path: "/m/invitations/lookup",
   operationId: "m.invitation.lookup",
@@ -23,9 +50,12 @@ export const mInvitationLookup = merchantMeta({
   "x-auth": "public",
   "x-clerk-view": "same",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  "x-rate-limit": "m.invitation",
+  request: { query: InvitationLookupQuerySchema },
+  responses: { ...okResponse(InvitationPreviewSchema), ...errorResponses(400, 404, 429) },
 });
 
-export const mInvitationAccept = merchantMeta({
+export const mInvitationAccept = merchantRoute({
   method: "post",
   path: "/m/invitations/{invitationId}/accept",
   operationId: "m.invitation.accept",
@@ -34,9 +64,22 @@ export const mInvitationAccept = merchantMeta({
   "x-auth": "user",
   "x-clerk-view": "same",
   "x-idempotent": "required",
+  "x-three-phase": true,
+  "x-rate-limit": "m.invitation",
+  request: {
+    params: InvitationIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvitationAcceptBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(MembershipResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 410, 428, 503),
+  },
 });
 
-export const mInvitationMarkShared = merchantMeta({
+export const mInvitationMarkShared = merchantRoute({
   method: "post",
   path: "/m/invitations/{invitationId}/mark-shared",
   operationId: "m.invitation.markShared",
@@ -44,9 +87,14 @@ export const mInvitationMarkShared = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: { params: InvitationIdParamsSchema },
+  responses: {
+    ...okResponse(InvitationMarkSharedResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });
 
-export const mInvitationRevoke = merchantMeta({
+export const mInvitationRevoke = merchantRoute({
   method: "post",
   path: "/m/invitations/{invitationId}/revoke",
   operationId: "m.invitation.revoke",
@@ -54,4 +102,15 @@ export const mInvitationRevoke = merchantMeta({
   "x-capability": "member.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: InvitationIdParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvitationRevokeBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(InvitationRevokeResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409),
+  },
 });

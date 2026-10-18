@@ -11,6 +11,13 @@ import { repoRoot } from "./helpers.js";
 // 先 pnpm infra:up 并给出 DATABASE_URL（CLAUDE.md 第 9 节）；连不上即失败，不跳过。
 // 只建、删自己的库 lyx_test_infra_managed_<进程号>。
 
+const { readSnapshot } = (await import(
+  pathToFileURL(join(repoRoot, "infra/ci/db-structure-lib.mjs")).href
+)) as { readSnapshot(): { counts: Record<string, [number, number]> } };
+const expectedCounts = readSnapshot().counts;
+const expectedTables = expectedCounts["表"];
+if (!expectedTables) throw new Error("结构快照缺少表数量期望");
+
 interface DbLib {
   recreateDb(name: string): void;
   dropDb(name: string): void;
@@ -82,17 +89,16 @@ describe("db-verify-managed.mjs", () => {
         `- 迁移：跑通，已完成 ${migrations.length} 个（${migrations.join("、")}）`,
       );
       expect(result.stdout).toMatch(/- 迁移建出的扩展：btree_gist [\d.]+、pg_trgm [\d.]+\n/);
-      expect(result.stdout).toContain("| 表 | 166 / 171 | 166 / 171 |");
-      expect(result.stdout).toContain("| CHECK 约束 | 1234 / 1284 | 1234 / 1284 |");
+      for (const [item, pair] of Object.entries(expectedCounts)) {
+        expect(result.stdout).toContain(`| ${item} | ${pair.join(" / ")} | ${pair.join(" / ")} |`);
+      }
       expect(result.stdout).toContain("结论：通过。两个扩展可建，迁移跑通，数量对得上");
       expect(result.stdout).not.toContain(password);
       expect(result.stdout).not.toMatch(/postgres(?:ql)?:\/\/|localhost|127\.0\.0\.1|:5442/);
 
       const again = verify(urlOf(DB));
       expect(again.status).toBe(2);
-      expect(again.stderr).toMatch(
-        /库 lyx_test_infra_managed_\d+ 里已经有 17[12] 张表：要一个空库/,
-      );
+      expect(again.stderr).toContain(`库 ${DB} 里已经有 ${expectedTables[1] + 1} 张表：要一个空库`);
     },
   );
 

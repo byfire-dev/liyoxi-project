@@ -229,6 +229,6 @@ test("hostile：请求体超过 64KB、不是 JSON 对象、没有的操作，�
   for (const body of ["not json", "[]", "null", '"text"']) {
     assert.equal((await call("POST", "/probe", body)).status, 400);
   }
-  assert.equal((await call("POST", "/docText", {})).status, 404);
+  assert.equal((await call("POST", "/unknownOperation", {})).status, 404);
   assert.equal((await call("GET", "/probe")).status, 404);
 });

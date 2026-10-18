@@ -170,6 +170,15 @@ export const paymentExceptionOpenedPayload = z.strictObject({
   transition: z.literal("payment_exception.open"),
 });
 
+/** 查单补记或既存bill_only重分类：只给身份与正式迁移键。 */
+export const paymentExceptionAutoHealedPayload = z.strictObject({
+  v: z.literal(1),
+  paymentExceptionId: IdSchema,
+  fromState: orNull(z.literal("open")),
+  toState: z.literal("auto_healed"),
+  transition: z.enum(["payment_exception.record_healed", "payment_exception.reclassify"]),
+});
+
 export const billingOrderCreatedPayload = z.strictObject({
   v: z.literal(1),
   billingOrderId: IdSchema,
@@ -194,9 +203,95 @@ export const transferRejectedPayload = z.strictObject({
   entityId: IdSchema,
   reasonCodes: z.array(z.string()).min(1),
 });
+export const dramaPriceChangedPayload = z.strictObject({
+  v: z.literal(1),
+  dramaId: IdSchema,
+  dramaPriceRevisionId: IdSchema.nullable(),
+  cause: z.enum(["revision", "tier_change", "tier_template"]),
+  effectiveAt: InstantSchema,
+});
+const invoiceTransition = {
+  fromState: z.enum(["pending", "issued", "rejected", "red_pending", "red_issued"]).nullable(),
+  toState: z.enum(["pending", "issued", "rejected", "red_pending", "red_issued"]),
+  transition: z.string(),
+};
+const invoiceRef = { v: z.literal(1), invoiceRequestId: IdSchema };
 export const payloads = {
+  "invoice.requested": z.strictObject({
+    ...invoiceRef,
+    billingOrderId: IdSchema,
+    entityId: IdSchema,
+    dueAt: InstantSchema.optional(),
+    ...invoiceTransition,
+  }),
+  "invoice.issued": z.strictObject({
+    ...invoiceRef,
+    invoiceDocId: IdSchema,
+    entityId: IdSchema,
+    medium: z.enum(["electronic", "paper"]),
+    needsEmail: z.boolean(),
+    ...invoiceTransition,
+  }),
+  "invoice.rejected": z.strictObject({
+    ...invoiceRef,
+    entityId: IdSchema,
+    rejectKind: z.enum(["manual", "order_refunded"]),
+    ...invoiceTransition,
+  }),
+  "invoice.red_requested": z.strictObject({
+    ...invoiceRef,
+    refundRequestId: IdSchema.optional(),
+    ...invoiceTransition,
+  }),
+  "invoice.red_issued": z.strictObject({
+    ...invoiceRef,
+    invoiceDocId: IdSchema,
+    ...invoiceTransition,
+  }),
+  "invoice.red_cancelled": z.strictObject({ ...invoiceRef, ...invoiceTransition }),
+  "invoice.sla_breached": z.strictObject({ ...invoiceRef, dueAt: InstantSchema }),
+  "finance_config.proposed": z.strictObject({
+    v: z.literal(1),
+    financeConfigRevisionId: IdSchema,
+    configKey: z.enum(["bank_account", "purchase_policy", "controls"]),
+    approvalRequestId: IdSchema,
+  }),
+  "finance_config.approved": z.strictObject({
+    v: z.literal(1),
+    financeConfigRevisionId: IdSchema,
+    configKey: z.enum(["bank_account", "purchase_policy", "controls"]),
+    effectiveAt: InstantSchema,
+  }),
+  "payment_txn.succeeded": z.strictObject({
+    v: z.literal(1),
+    paymentTxnId: IdSchema,
+    billingOrderId: orNull(IdSchema),
+    amountFen: z.int().positive(),
+    channel: zodEnum(PAY_CHANNEL),
+  }),
+  "billing.param_change_scheduled": z.strictObject({
+    v: z.literal(1),
+    billingParamId: IdSchema,
+    changeId: IdSchema,
+    paramKey: z.string(),
+    effectiveAt: InstantSchema,
+  }),
+  "billing.plan_revision_scheduled": z.strictObject({
+    v: z.literal(1),
+    planRevisionId: IdSchema,
+    planId: IdSchema,
+    effectiveAt: InstantSchema,
+  }),
+  "pricing.drama_price_changed": dramaPriceChangedPayload,
   "billing_order.created": billingOrderCreatedPayload,
   "transfer.proof_submitted": transferProofSubmittedPayload,
+  "transfer.sla_breached": z.strictObject({
+    v: z.literal(1),
+    transferProofId: IdSchema,
+    billingOrderId: IdSchema,
+    entityId: IdSchema,
+    dueAt: InstantSchema,
+  }),
   "transfer.rejected": transferRejectedPayload,
   "billing.points.granted": pointsGrantedPayload,
   "billing.points.purchased": pointsPurchasedPayload,
@@ -214,4 +309,5 @@ export const payloads = {
   "billing_order.cancelled": billingOrderCancelledPayload,
   "billing_order.fulfillment_blocked": billingOrderFulfillmentBlockedPayload,
   "payment_exception.opened": paymentExceptionOpenedPayload,
+  "payment_exception.auto_healed": paymentExceptionAutoHealedPayload,
 } as const;

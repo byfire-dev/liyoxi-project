@@ -1,5 +1,20 @@
 import { fenToYuan, yuanToFen } from "@liyoxi/shared/format/money";
 import { ApiError } from "../../../lib/request";
+import type { OwnerQualification } from "./api";
+export const qualificationEditable = (owner: OwnerQualification | null | undefined) =>
+  !!owner &&
+  !owner.isFinalRejected &&
+  (owner.openRound
+    ? owner.openRound.phase === "draft"
+    : owner.storeQualificationStatus === "unsubmitted" ||
+      owner.storeQualificationStatus === "rejected");
+export const qualificationKind = (owner: OwnerQualification) =>
+  owner.openRound?.kind ??
+  (owner.entity.verificationStatus !== "verified"
+    ? "initial"
+    : owner.storeQualificationStatus === "verified"
+      ? "change"
+      : "new_store");
 /** 意图键与同步闩：失败重试相同内容沿用键，改内容换键，重复触发只调用一次。 */
 export function createIntent(key: () => string) {
   let fingerprint: string | null = null;
@@ -25,6 +40,25 @@ export function createIntent(key: () => string) {
     },
   };
 }
+const requiredLabels: Record<string, string> = {
+  brand_name: "品牌名称",
+  store_name: "门店名称",
+  industry: "行业品类",
+  address: "门店地址",
+  business_hours: "营业时间",
+  store_tel: "门店电话",
+  avg_spend: "人均消费",
+  door_photos: "门头照片",
+  interior_photos: "店内环境照片",
+  service_items: "主推服务",
+  selling_points: "核心卖点标签",
+  entity_type: "主体类型",
+  business_license: "营业执照",
+  contact: "资质联系人",
+  declaration: "信息确认",
+  permit: "行业许可证",
+};
+export const profileMissingLabel = (item: string) => requiredLabels[item] ?? "资料项目";
 export function errorInfo(error: unknown): {
   message: string;
   conflict: boolean;
@@ -41,36 +75,21 @@ export function errorInfo(error: unknown): {
   const details = error.details as {
     missing?: { step: number; item: string; permitType?: string | null }[];
     rejectedNotReplaced?: { docType: string; permitType: string | null }[];
+    attemptsLeft?: number;
   } | null;
-  const labels: Record<string, string> = {
-    brand_name: "品牌名称",
-    store_name: "门店名称",
-    industry: "行业品类",
-    address: "门店地址",
-    business_hours: "营业时间",
-    store_tel: "门店电话",
-    avg_spend: "人均消费",
-    door_photos: "门头照片",
-    interior_photos: "店内环境照片",
-    service_items: "主推服务",
-    selling_points: "核心卖点",
-    entity_type: "主体类型",
-    business_license: "营业执照",
-    contact: "资质联系人",
-    declaration: "信息确认",
-    permit: "行业许可证",
-  };
   return {
     message:
       error.error === "VERSION_CONFLICT"
         ? "资料已更新，已保留本次输入。请先刷新核对，再保存"
         : error.error === "DECLARATION_REQUIRED"
           ? "信息确认已更新，请刷新后重新阅读并确认"
-          : error.message,
+          : error.error === "SMS_CODE_INVALID" && typeof details?.attemptsLeft === "number"
+            ? `${error.message}，剩余 ${details.attemptsLeft} 次`
+            : error.message,
     conflict: error.error === "VERSION_CONFLICT" || error.error === "DECLARATION_REQUIRED",
     step: details?.missing?.[0]?.step ?? null,
     missing:
-      details?.missing?.map((item) => labels[item.item] ?? "资料项目") ??
+      details?.missing?.map((item) => profileMissingLabel(item.item)) ??
       details?.rejectedNotReplaced?.map((item) =>
         item.docType === "industry_permit" ? "被驳回的许可证" : "被驳回的执照",
       ) ??

@@ -5,67 +5,26 @@
 // → 解析外层 → 解密 → 核对必需字段。输入的 rawBody 必须是网关收到的原始字节（或其未改动的文本），
 // 不得是解析后再序列化的结果。探测签名照常验签（必然失败），只在失败结果上打 probe 标记。
 
-import type { WechatPayNotification } from "../types.js";
-import { AEAD_ALGORITHM } from "./keyring.js";
+import type { WechatPayConfig } from "./config.js";
+import type {
+  NotificationFailureKind,
+  NotificationFailure,
+  NotificationSuccess,
+  NotificationResult,
+} from "../types.js";
+import { createApiV3Keyring, createVerifierTable, AEAD_ALGORITHM } from "./keyring.js";
 import type { ApiV3Keyring, ResourceCipher, VerifierTable } from "./keyring.js";
 import { fen, isObject, mapRefund, mapTransaction, parseObject, text } from "./mapping.js";
 import type { Json } from "./mapping.js";
 import { PROBE_SIGNATURE_PREFIX, responseSignMessage, rsaVerify, withinSkew } from "./sign.js";
 
-export type NotificationFailureKind =
-  /** 验签不过，或四个请求头不全 */
-  | "signature_invalid"
-  /** 时间戳与本机相差超过 5 分钟 */
-  | "timestamp_skewed"
-  /** Wechatpay-Serial 在验签身份表里查不到 */
-  | "key_not_found"
-  /** 验签通过但解不开：APIv3 密钥或版本不对 */
-  | "decrypt_failed"
-  /** 报文不全：外层不是 JSON、缺 id、resource 不合规，或解密后缺必需字段、状态与事件类型对不上 */
-  | "payload_invalid";
-
-export interface NotificationFailure {
-  ok: false;
-  kind: NotificationFailureKind;
-  /** 签名带探测前缀（WECHATPAY/SIGNTEST/）：照常回失败，不计入验签失败告警 */
-  probe: boolean;
-  /** 给日志看的一句话；不含请求体、签名与任何密钥 */
-  detail: string;
-}
-
-/** 长期保留的摘要（h01 第 2.4 节 WechatpayPayload.summary）：任何层级都没有 openid 与 payer */
-export interface NotificationSummary {
-  serial: string;
-  outTradeNo: string;
-  outRefundNo?: string;
-  transactionId: string;
-  refundId?: string;
-  state: string;
-  amountFen: number;
-  /** 成功时间，UTC */
-  successAt?: string;
-}
-
-export interface NotificationSuccess {
-  ok: true;
-  /** 通知 id：同一事件重复投递时不变 */
-  id: string;
-  eventType: string;
-  /** 验签所用身份的序列号 */
-  serial: string;
-  /** 实际解开密文的 APIv3 密钥版本 */
-  kid: string;
-  /** 报文 resource 原样：收件行存它，重处理时按 kid 重新解密 */
-  resourceCipher: ResourceCipher;
-  /** 解密后的资源，键名保持微信的写法 */
-  resource: Json;
-  /** 登记清单内的四种事件给出归一的内容与摘要；清单外的事件两项都是 null */
-  notification: WechatPayNotification | null;
-  summary: NotificationSummary | null;
-}
-
-export type NotificationResult = NotificationSuccess | NotificationFailure;
-
+export type {
+  NotificationFailureKind,
+  NotificationFailure,
+  NotificationSummary,
+  NotificationSuccess,
+  NotificationResult,
+} from "../types.js";
 export interface NotificationDeps {
   verifiers: VerifierTable;
   keyring: ApiV3Keyring;
@@ -182,4 +141,22 @@ function mapResource(id: string, eventType: string, serial: string, r: Json): Ma
     };
   }
   return { notification: null, summary: null };
+}
+
+/** 驱动与协议替身共用已验证的纯密码学能力；构造与调用均零网络。 */
+export function createWechatPayNotificationCrypto(
+  config: Pick<WechatPayConfig, "verifiers" | "apiV3Keys">,
+  now: () => Date,
+) {
+  const deps = {
+    verifiers: createVerifierTable(config.verifiers),
+    keyring: createApiV3Keyring(config.apiV3Keys.current, config.apiV3Keys.previous),
+    now,
+  };
+  return {
+    verifyNotification: (input: Parameters<typeof verifyAndDecrypt>[1]) =>
+      verifyAndDecrypt(deps, input),
+    reopenResource: (resource: ResourceCipher, kid: string) =>
+      parseObject(deps.keyring.decrypt(resource, kid)?.plaintext ?? ""),
+  };
 }

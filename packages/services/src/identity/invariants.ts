@@ -88,3 +88,34 @@ export async function findI25Violations(db: Reader): Promise<InvariantViolation[
     detail: { limit: MAX_SESSIONS_PER_IDENTITY, liveSessions: row.live },
   }));
 }
+
+/** 02:I24：注销后所有个人依附已清；同意/交易/审计证据不属于清除对象。 */
+export async function findI24Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT u.id::text AS id FROM merchant_user u WHERE u.status='deleted' AND (
+      EXISTS (SELECT 1 FROM wechat_identity w WHERE w.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM user_session s WHERE s.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM portal_session p WHERE p.approved_by_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM sms_verification s WHERE s.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM merchant_user_notice n WHERE n.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM wecom_contact w WHERE w.merchant_user_id=u.id) OR
+      EXISTS (SELECT 1 FROM entity_member m WHERE m.merchant_user_id=u.id AND m.display_name IS NOT NULL)
+    ) ORDER BY u.id LIMIT ${IDENTITY_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "merchant_user", id: row.id },
+    detail: { problem: "residual_personal_data" },
+  }));
+}
+
+/** 02:I26：审批即生效，终态不保留新手机号密文。 */
+export async function findI26Violations(db: Reader): Promise<InvariantViolation[]> {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT r.id::text AS id FROM account_change_request r JOIN approval_request a ON a.id=r.approval_request_id
+    WHERE a.kind<>'account_change' OR (a.status='approved')<>(r.applied_at IS NOT NULL)
+      OR (a.status<>'pending' AND r.new_phone_enc IS NOT NULL)
+    ORDER BY r.id LIMIT ${IDENTITY_INVARIANT_LIMIT}`;
+  return rows.map((row) => ({
+    subject: { type: "account_change_request", id: row.id },
+    detail: { problem: "approval_application_mismatch" },
+  }));
+}

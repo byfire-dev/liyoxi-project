@@ -10,6 +10,8 @@ export interface LiveContext {
   activationCode: string;
   storageState: string;
   fixtures: unknown;
+  /** 仅本轮假管理员的未用恢复码队列；每次真实再验证前先消费，不进截图或追踪。 */
+  stepUp?: { staffId: string; recoveryCodes: string[] };
 }
 export function liveContext(): LiveContext {
   const file = process.env.LYX_ADMIN_LIVE_CONTEXT;

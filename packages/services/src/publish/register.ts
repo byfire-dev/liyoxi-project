@@ -1,3 +1,13 @@
+import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { publishCloseFactsPort } from "../tenant/index.js";
+import { countPendingChannelAccountsByStore } from "./service.js";
+import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
+import { publishStaffWork } from "./staff-work.js";
+import {
+  implementKeyed as notifyFactImplementation,
+  notifyReadPort as currentNotifyRead,
+} from "../kernel/index.js";
+import { accountNoticeFact, launchNoticeFact, launchLinkForItem } from "./notify-facts.js";
 import { approvalKindPort } from "../approval/index.js";
 import { hasPermission } from "../authz/index.js";
 import { fileCategoryGuardPort } from "../media/index.js";
@@ -19,6 +29,37 @@ import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
 export const registration = defineRegistration("publish", {
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    implementTenantCloseFacts(publishCloseFactsPort, { countPendingChannelAccountsByStore }),
+    implementKeyed(staffFollowUpPort, "takedown_task", async (tx, id) => {
+      const row = await tx.takedownTask.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffFollowUpPort, "patrol_task", async (tx, id) => {
+      const row = await tx.patrolTask.findUnique({
+        where: { id },
+        select: { entityId: true, storeId: true },
+      });
+      return row === null ? null : { entityId: row.entityId, storeId: row.storeId };
+    }),
+    implementKeyed(staffWorkPort, "publish", publishStaffWork),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "manualSubjectExists.takedown_task",
+      async (tx, id: string) =>
+        (await tx.takedownTask.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "manualSubjectExists.patrol_task",
+      async (tx, id: string) =>
+        (await tx.patrolTask.findUnique({ where: { id }, select: { id: true } })) !== null,
+    ),
+    notifyFactImplementation(currentNotifyRead, "launchLinkForItem", launchLinkForItem),
+    notifyFactImplementation(currentNotifyRead, "accountNoticeFact", accountNoticeFact),
+    notifyFactImplementation(currentNotifyRead, "launchNoticeFact", launchNoticeFact),
     ...publishMachines,
     implementKeyed(approvalKindPort, "channel_account", accountKind),
     implementKeyed(approvalKindPort, "launch_link", launchKind),
@@ -36,6 +77,16 @@ export const registration = defineRegistration("publish", {
       },
     }),
     implementKeyed(fileRefTypePort, "channel_account_submission", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.channelAccountSubmission.findMany({
+            where: {
+              screenshotFileIds: { has: fileId },
+              channelAccount: { status: { not: "unbound" } },
+            },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "screenshot" })),
       roles: {
         screenshot: {
           categories: ["channel_screenshot"],
@@ -59,6 +110,14 @@ export const registration = defineRegistration("publish", {
         ),
     }),
     implementKeyed(fileRefTypePort, "launch_submission", {
+      // 已提交上线证据遵守既有canRelease=false，未通过新策略擅自放宽法定留存。
+      inUse: async (tx, fileId) =>
+        (
+          await tx.launchSubmission.findMany({
+            where: { evidenceFileIds: { has: fileId } },
+            select: { id: true },
+          })
+        ).map((row) => ({ fileId, refId: row.id, role: "evidence" })),
       roles: {
         evidence: { categories: ["evidence"], retentionDays: 1095, canRelease: async () => false },
       },

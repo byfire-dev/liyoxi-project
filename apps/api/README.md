@@ -229,3 +229,41 @@ W1-02 的 `admin:e2e:live` 起构建产物时传 `--test-redis-prefix lyx:test:a
 ## 10. 套餐购买与对公付款（W1-11b）
 
 商家七条与后台六条处理器分别在 `src/routes/billing.ts`、`src/routes/admin/billing.ts`；业务交 `Runtime.billing`，最终 JSON DTO 才交事务幂等保存。七条商家接口只允许老板，后台确认/驳回按权限点、再验证、范围和回显校验；队列计数与列表同源。账号明文只在商家本次响应，Cache-Control=no-store，同键重放为 null；后台只给脱敏串，不签凭证 URL。完整服务约定与 M4 留桩见 [付款 README](../../packages/services/src/billing/payment/README.md) 第 6 节。
+
+## 客户端上报接收（W2-18 PR1）
+
+四个真实处理器消费生成契约：m.analyticsEvent.batchCreate、m.subscribeResult.create、m.clientError.create、admin.clientError.create。订阅取当前商家session身份并校验精确required键；埋点是批头严格、事件逐条strict白名单与部分受理。两端信封必须原文application/x-sentry-envelope，合法受理即202/data=null，后台登录页optional仍保留原CSRF头/Origin检查。最低版本与协议同意豁免只沿原metadata；telemetry限流不放松。
+
+reporting-body在原pipeline末尾、OpenAPI解析前逐chunk读取真实字节，埋点64KiB、两端信封200KiB；不依赖Content-Length，超限取消流并释放reader。只三operation启用，订阅与其他路由不变。上限返回入口传输层纯文本413，C24业务响应/错误码不新增413；应用真实边界已验，nginx/W2-27网关未验。Hono4.13.9公开BodyCache类型是值，真实cachedBody使用.then，本包窄适配已受限字节的settled Promise，供正式解析器复用，不无限clone/二次整流读取。
+
+CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":"https://publickey@example.invalid/7","upstreamDsn":"https://upstreamkey@example.invalid/7"}]}（仅占位示例）。至多3个唯一公开dsn，HTTPS/数字项目/可固定前缀、无password/query/hash；传入信封dsn精确匹配公开白名单，外呼只从已配置upstreamDsn推导固定目标，redirect:error。FILE未配则严格解析/去敏后日志202，upstream未配只日志；原信封/DSN凭据/请求体/手机号不落日志。两端公开构建DSN须与配置dsn逐字一致：小程序WEAPP_SENTRY_DSN，后台VITE_CLIENT_ERROR_DSN。真实FILE、模板与收件按W2-27授权另验，不能把fakeHTTP当真实平台证据。转发器队列/熔断/关闭语义见[说明](../../packages/services/src/ops/client-errors.README.md)。
+
+定向验证：pnpm exec vitest run --project api apps/api/test/client-reporting.test.ts apps/api/src/http/reporting-body.test.ts apps/api/test/pipeline.test.ts。商家三条原店员回放样例只增reporting-samples，golden由原pnpm clerk:snapshot生成；后台optional上报不属于staff矩阵，新资源不修改既有矩阵行。
+
+## 邀请预览店员字段门禁独立前置
+
+正式 m02 §2.9 的 `InvitationPreview.isPhoneRestricted` 是公开布尔决策，不回显手机号。
+本片从 actual main `46c6c04a` 独立准备 `gate-change`：仅 `m.invitation.lookup`、顶层完整路径 `isPhoneRestricted`、boolean 三条件同时成立时放行。
+原 FORBIDDEN、递归、其它例外与旧测试不变；新组仅附 mall-filter-fields.test.ts 尾，错误类型、嵌套、其它路由及 phone/targetPhone 仍拒绝。
+非测试含文档≤80、新测试≤180；当前仅 SOURCE/轻静态，完整两测试叶、fresh API 类型、必要门禁与唯一 ROOT180秒独审尚未执行。
+验收命令：`pnpm exec vitest run --project api apps/api/test/clerk/clerk.test.ts apps/api/test/clerk/mall-filter-fields.test.ts --maxWorkers=1 --no-file-parallelism --no-cache`，以及原分类器 `node infra/ci/classify-gate-changes.mjs --base 46c6c04af68c7ffc956712837538fcf743b28bd2 --labels gate-change`。
+此门禁放松独立于邀请业务源码，不改分类规则、契约、HTTP、DDL 或依赖；不计完整邀请、emptyDraft 或 W2-10 完成。
+
+2026-10-11 本地合流记录：邀请预览店员字段门禁独立前置源387b041c从实际main46c6c04a开工，经唯一非作者ROOT正式审查76.861018208/180秒通过，P1/P2/D=0、首尾SHA无差异。非测试新增14/80、测试新增84/180；只允许m.invitation.lookup顶层isPhoneRestricted布尔，原FORBIDDEN/其它路径与类型行为保留。新增33边界与原98共131/131、两个完整文件、fresh API类型及17阶段全部退出0，0失败/跳过/pending/todo/复用/未执行。原mall7858字节前缀及clerk整叶经ROOT独立base核对完全保留；原classifier明确loosen、outside为空，按gate-change独立验收，不改登记或规则。69观测PID/20PGID（含observer/owner/caffeinate）退出后fresh OS全部归零，自有DB/Redis/TMP归零。正常hooks后立即合本地main，仅三个已登记门禁叶，五个外来首页文件逐SHA保留且未暂存、outputs未读写。本段替代本片SOURCE未验证状态；此片不交邀请业务HTTP/到期、emptyDraft或完整W2-10，不声称远端CI/真实平台或生产容量。
+## W2-10 分店创建
+
+`POST /api/v1/m/stores` 为老板能力，要求当前启用门店上下文、JSON 正式请求及 `Idempotency-Key`。API 固定绑定真实会话校验、Profile.validateStoreBasics 和四项档案/品牌复制 factory；店名与地址外检只投影正式拒绝字段。成功返回当前真实完整老板 StoreCard 并标记 no-store，required 重放保留原响应。
+
+当前记录为 SOURCE 准备；官方契约与 clerk golden 只能经独占验证窗口生成，类型、整叶、资源及最终审查结果另行记录。真实云付费、像素/帧验证和默认模型预算不属于本片。
+
+
+### API 模型与预算连接（W3-15）
+
+自有 ASR/国内 LLM 通过原工厂与唯一事务外呼守卫装配，成对 close 由 server 入口持有；
+借用整套 providers 时不创建或关闭其中的模型驱动。预算用另一条 lazy Redis 连接，
+无离线排队、自动重放或重连，连接/命令时限250ms。未就绪先拒绝本次准入；
+默认零额度或冷账本仍关闭，不自动初始化/恢复或启用付费。
+
+HTTP 排空后依次关闭 runtime、模型与预算连接；部分启动失败仍清理已拥有资源。
+`--test-redis-prefix` 的既有 test 专用守卫也约束预算连接，生产 ledger key 保持原样。
+当前 SOURCE 仅轻检查，真实云、账单与 E22 不由本机替身测试证明。

@@ -16,6 +16,8 @@ import { showApiNotice } from "../../app/feedback";
 import { FormField } from "../../components/FormField";
 import { readFailure } from "../../lib/api-errors";
 import type { AccessSnapshot } from "../../lib/permissions";
+import { actorScope } from "../system/staff-access";
+import { SecurityDialog, securityMenuItems, type SecurityMode } from "./security-menu";
 
 import {
   accessFromMe,
@@ -612,45 +614,71 @@ function StepUpForm({ services }: { services: AppServices }) {
   );
 }
 export function UserMenu({ services, access }: { services: AppServices; access: AccessSnapshot }) {
+  return <UserMenuBody key={actorScope(access)} services={services} access={access} />;
+}
+function UserMenuBody({ services, access }: { services: AppServices; access: AccessSnapshot }) {
   const router = useRouter();
   const submit = useSubmit();
+  const [security, setSecurity] = useState<SecurityMode>();
   useEffect(() => {
     if (submit.error)
       showApiNotice({ symbol: "NETWORK_ERROR", message: submit.error, requestIdTail: null });
   }, [submit.error]);
   return (
-    <Dropdown
-      trigger={["click"]}
-      menu={{
-        items: [{ key: "logout", label: "退出登录", disabled: submit.pending }],
-        onClick: () =>
-          void submit.run(async () => {
-            const { response } = await services.api.client.DELETE("/api/v1/admin/sessions/current");
-            if (!response.ok) throw new Error(await failureText(response));
-            services.stepUp.settle(false);
-            authTicket.set(null);
-            services.api.resetLoginLatch();
-            // 等登录页提交、原页查询观察者卸载后清缓存，避免已退出的页面重新取数。
-            await router.navigate({ to: "/login", search: { redirect: undefined }, replace: true });
-            services.queryClient.clear();
-          }),
-      }}
-    >
-      <button
-        type="button"
-        className="lyx-auth-user lyx-focusable"
-        aria-label="用户菜单"
-        disabled={submit.pending}
+    <>
+      <Dropdown
+        trigger={["click"]}
+        menu={{
+          items: securityMenuItems(access.actions, submit.pending),
+          onClick: ({ key }) => {
+            if (key === "password" || key === "totp" || key === "wecom") {
+              setSecurity(key);
+              return;
+            }
+            setSecurity(undefined);
+            void submit.run(async () => {
+              const { response } = await services.api.client.DELETE(
+                "/api/v1/admin/sessions/current",
+              );
+              if (!response.ok) throw new Error(await failureText(response));
+              services.stepUp.settle(false);
+              authTicket.set(null);
+              services.api.resetLoginLatch();
+              // 等登录页提交、原页查询观察者卸载后清缓存，避免已退出的页面重新取数。
+              await router.navigate({
+                to: "/login",
+                search: { redirect: undefined },
+                replace: true,
+              });
+              services.queryClient.clear();
+            });
+          },
+        }}
       >
-        <span className="lyx-user__avatar" aria-hidden="true">
-          {access.staff.name.slice(0, 1)}
-        </span>
-        <span>
-          <span className="lyx-user__name">{access.staff.name}</span>
-          <span className="lyx-user__role">{access.staff.roleName}</span>
-        </span>
-        <span aria-hidden="true">⌄</span>
-      </button>
-    </Dropdown>
+        <button
+          type="button"
+          className="lyx-auth-user lyx-focusable"
+          aria-label="用户菜单"
+          disabled={submit.pending}
+        >
+          <span className="lyx-user__avatar" aria-hidden="true">
+            {access.staff.name.slice(0, 1)}
+          </span>
+          <span>
+            <span className="lyx-user__name">{access.staff.name}</span>
+            <span className="lyx-user__role">{access.staff.roleName}</span>
+          </span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+      </Dropdown>
+      {security ? (
+        <SecurityDialog
+          key={security}
+          mode={security}
+          services={services}
+          close={() => setSecurity(undefined)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -1,8 +1,17 @@
 // Node 私有 helper：只读本轮 public-test context，窄 CLI 不接收生产服务配置或密钥路径。
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, type APIRequestContext, type Page, type Response } from "@playwright/test";
+import {
+  FILE_OBJECT_STATUS,
+  MEDIA_CHECK_GATE,
+  MEDIA_JOB_KIND,
+  MEDIA_JOB_STATE,
+  PLAYABLE_ASSET_STATE,
+  PRODUCTION_RECORD_PIPELINE_STATE,
+} from "@liyoxi/contract/enums";
 import { liveContext } from "./live-context";
 import { liveChildEnv, liveChildFailure } from "./live-child-env";
 import { orderFixture, type OrderFixture } from "./live-order-fixture";
@@ -49,22 +58,74 @@ export function managerLogin() {
   if (!f.managerRecoveryCodePR2) throw new Error("缺少独立经理恢复码");
   return { ...f.manager, recoveryCode: f.managerRecoveryCodePR2 };
 }
+export function deliveryVideo() {
+  const manifest = (
+    liveContext().fixtures as {
+      fixtures: {
+        w302: {
+          video: { path: string; size: number; sha256: string; probe: { durationMs: number } };
+        };
+      };
+    }
+  ).fixtures.w302.video;
+  const bytes = readFileSync(manifest.path);
+  if (
+    bytes.length !== manifest.size ||
+    createHash("sha256").update(bytes).digest("hex") !== manifest.sha256
+  )
+    throw new Error("本轮真实视频输入证明不一致");
+  return { manifest, bytes };
+}
 export function knownFile(artifact: Artifact) {
   return {
     name: `${deliveryFixture().scope.runId}-${artifact}.mp4`,
     mimeType: "video/mp4",
-    buffer: readFileSync(
-      new URL(
-        "../../../../packages/services/src/testing/admin-live/w119-known.mp4",
-        import.meta.url,
-      ),
-    ),
+    buffer: deliveryVideo().bytes,
   };
 }
 interface Upload {
   fileId: string;
   clientToken: string;
   artifact: Artifact;
+}
+function bridgeDiagnostic(stderr: string) {
+  const record = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+  const pick = (values: readonly string[], value: unknown) => values.find((v) => v === value);
+  for (const line of stderr.split("\n")) {
+    try {
+      const data: unknown = JSON.parse(line);
+      if (!record(data) || data.evt !== "w119.bridge.failed") continue;
+      const phase = pick(
+        ["environment", "context", "runtime", "input", "observe", "cleanup", "verify", "output"],
+        data.phase,
+      );
+      if (!phase) continue;
+      const facts = record(data.facts) ? data.facts : {};
+      return {
+        phase,
+        category: pick(["observation_timeout", "guard_rejected", "error"], data.category),
+        fileStatus: pick(FILE_OBJECT_STATUS.values, facts.fileStatus),
+        pipelineState: pick(PRODUCTION_RECORD_PIPELINE_STATE.values, facts.pipelineState),
+        checkGate: pick(MEDIA_CHECK_GATE.values, facts.checkGate),
+        jobs: Array.isArray(facts.jobs)
+          ? facts.jobs
+              .slice(0, 20)
+              .filter(record)
+              .map((job) => ({
+                kind: pick(MEDIA_JOB_KIND.values, job.kind),
+                state: pick(MEDIA_JOB_STATE.values, job.state),
+              }))
+          : [],
+        playables: Array.isArray(facts.playables)
+          ? facts.playables.slice(0, 20).map((state) => pick(PLAYABLE_ASSET_STATE.values, state))
+          : [],
+      };
+    } catch {
+      // 不回显任意原始 stderr；仅接受固定阶段与正式状态枚举。
+    }
+  }
+  return undefined;
 }
 function runBridge(file: Upload, cleanup = false) {
   const context = process.env.LYX_ADMIN_LIVE_CONTEXT;
@@ -120,7 +181,10 @@ function runBridge(file: Upload, cleanup = false) {
     child.on("error", reject);
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(liveChildFailure("本域文件窄桥失败", error));
+        const failure = liveChildFailure("本域文件窄桥失败", error);
+        const diagnostic = bridgeDiagnostic(error);
+        if (diagnostic) failure.message += ` ${JSON.stringify(diagnostic)}`;
+        reject(failure);
         return;
       }
       try {

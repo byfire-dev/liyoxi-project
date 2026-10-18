@@ -1,0 +1,163 @@
+import type { TransactionConsentFact, Tx } from "../kernel/index.js";
+export async function billingOrderForNotify(tx: Tx, id: string) {
+  const row = await tx.billingOrder.findUnique({ where: { id } });
+  return row
+    ? {
+        bizType: "billing_order",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: row.storeId,
+        status: row.status,
+        version: 0,
+        name: row.orderNo,
+        amountFen: row.amountFen,
+        detail: row.type === "plan_renew" ? "服务已续期" : "服务已开通",
+        ...(row.paidAt ? { occurredAt: row.paidAt.toISOString() } : {}),
+      }
+    : null;
+}
+export async function termForNotify(tx: Tx, id: string) {
+  const row = await tx.subscriptionTerm.findUnique({ where: { id } });
+  return row
+    ? {
+        bizType: "subscription_term",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: row.status,
+        version: row.termNo,
+        name: `第${row.termNo}期套餐`,
+      }
+    : null;
+}
+export async function billingAccountForNotify(tx: Tx, entityId: string) {
+  const row = await tx.billingAccount.findUnique({ where: { entityId } });
+  return row
+    ? {
+        bizType: "billing_account",
+        bizId: row.entityId,
+        entityId: row.entityId,
+        storeId: null,
+        status: row.subStatus,
+        version: 0,
+        name: "积分账户",
+        balance: row.planAvailableQty + row.addonAvailableQty,
+      }
+    : null;
+}
+
+export async function transferForNotify(tx: Tx, id: string) {
+  const row = await tx.transferProof.findUnique({
+    where: { id },
+    include: { billingOrder: { select: { orderNo: true, storeId: true, status: true } } },
+  });
+  return row &&
+    (row.reviewStatus !== "pending" || row.billingOrder.status === "pending_confirmation")
+    ? {
+        bizType: "transfer_proof",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: row.billingOrder.storeId,
+        status: row.reviewStatus,
+        version: row.uploadNo,
+        name: row.billingOrder.orderNo,
+        ...(row.dueAt ? { occurredAt: row.dueAt.toISOString() } : {}),
+      }
+    : null;
+}
+export async function paymentExceptionForNotify(tx: Tx, id: string) {
+  const row = await tx.paymentException.findUnique({ where: { id } });
+  return row
+    ? {
+        bizType: "payment_exception",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: row.status,
+        version: row.lockVersion,
+        name: row.exceptionNo,
+      }
+    : null;
+}
+
+export async function billingConsentFacts(tx: Tx): Promise<TransactionConsentFact[]> {
+  return (
+    await tx.billingOrder.findMany({
+      where: { source: "weapp", status: { in: ["paid", "refunded"] } },
+      select: { id: true, orderNo: true, entityId: true, placedByUserId: true, createdAt: true },
+      orderBy: { id: "asc" },
+    })
+  ).map((row) => ({
+    bizType: "billing_order",
+    bizId: row.id,
+    bizNo: row.orderNo,
+    entityId: row.entityId,
+    merchantUserId: row.placedByUserId,
+    at: row.createdAt,
+    agreementKeys: ["member", "points"],
+  }));
+}
+
+export async function invoiceRequestForNotify(tx: Tx, id: string) {
+  const row = await tx.invoiceRequest.findUnique({ where: { id } });
+  return row
+    ? {
+        bizType: "invoice_request",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: row.status,
+        version: row.lockVersion,
+        name: row.requestNo,
+        ...(row.dueAt ? { occurredAt: row.dueAt.toISOString() } : {}),
+      }
+    : null;
+}
+export async function invoiceDocForNotify(tx: Tx, id: string) {
+  const row = await tx.invoiceDoc.findUnique({ where: { id }, include: { invoiceRequest: true } });
+  return row && row.docKind === "blue"
+    ? {
+        bizType: "invoice_doc",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: "issued",
+        version: 0,
+        name: row.invoiceRequest.requestNo,
+        guardBizType: "invoice_request",
+        guardBizId: row.invoiceRequestId,
+        ...(row.invoiceRequest.medium === "electronic" && row.invoiceRequest.recvEmailEnc
+          ? { detail: "email" }
+          : {}),
+      }
+    : null;
+}
+export async function invoiceParentForNotify(tx: Tx, input: { type: string; id: string }) {
+  const request =
+    input.type === "invoice_doc"
+      ? (
+          await tx.invoiceDoc.findUnique({
+            where: { id: input.id },
+            select: { invoiceRequest: true },
+          })
+        )?.invoiceRequest
+      : await tx.invoiceRequest.findUnique({ where: { id: input.id } });
+  return request ? { billingOrderId: request.billingOrderId, invoiceRequestId: request.id } : null;
+}
+export async function financeConfigForNotify(tx: Tx, id: string) {
+  const row = await tx.financeConfigRevision.findUnique({
+    where: { id },
+    include: { approvalRequest: true },
+  });
+  return row
+    ? {
+        bizType: "finance_config_revision",
+        bizId: row.id,
+        entityId: null,
+        storeId: null,
+        status: row.approvalRequest.status,
+        version: row.approvalRequest.lockVersion,
+        name: "受控财务配置变更",
+      }
+    : null;
+}

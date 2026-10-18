@@ -7,7 +7,7 @@
 //   setDeliveryManager     改门店的交付经理并写审计。
 //
 // 加锁：主体（100）→ 门店（130）。调用方（profile）在这之前锁的资质轮次（65）次序更小，不冲突。
-// change、new_store 两种轮次随 M2。
+// W2-11：new_store/change复用真实资质/审批事实；初次链与系统生命周期撤回保持原守卫。
 import { record as recordAudit } from "../audit/index.js";
 import type { AuditRequestMeta } from "../audit/index.js";
 import type { Flow, MergedAudit } from "../flow/index.js";
@@ -19,18 +19,21 @@ import type {
   VerifiedEntityFields,
 } from "./machines.js";
 import { selectStateBeforePending } from "./repo.js";
+import { hasFinalQualificationRejection } from "./qualification-facts.js";
 
 export const QUALIFICATION_ACTIONS = ["submit", "approve", "reject", "withdraw"] as const;
 export type QualificationAction = (typeof QUALIFICATION_ACTIONS)[number];
 
 export interface StoreQualificationInput {
   readonly storeId: string;
-  /** 只做含主体营业执照的那一轮；别的轮次随 M2 */
-  readonly round: "initial";
+  /** 初次、新店、变更；非初次商家提交/决定必须带submissionId。 */
+  readonly round: "initial" | "new_store" | "change";
   readonly action: QualificationAction;
+  /** 多轮提交与决定必须对应真实资质轮次/审批事实。 */
+  readonly submissionId?: string;
   /** approve 必给：写进主体的认证字段 */
   readonly verified?: VerifiedEntityFields;
-  /** reject 必给：原因至少一项、说明必填 */
+  /** reject必给：员工至少一个原因；系统空原因须通过真实重复主体事实守卫。 */
   readonly rejection?: QualificationRejection;
   /** 随审批单联动时：两次迁移并入审批单那一行审计，不另写。不给即各补一条 activity 行 */
   readonly audit?: MergedAudit;
@@ -89,7 +92,9 @@ export async function setStoreQualification(
   const { storeId, action } = input;
   const store = await lockStore(tx, storeId, true);
   const entityId = store.entityId;
-  const event = `qualification.${action}`;
+  const entity = await tx.entity.findUniqueOrThrow({ where: { id: entityId } });
+  const event =
+    input.round === "change" ? `qualification.change_${action}` : `qualification.${action}`;
   const refuse = (reason: string): never => {
     throw new AppError("STATE_NOT_ALLOWED", {
       details: {
@@ -101,12 +106,56 @@ export async function setStoreQualification(
       },
     });
   };
-  // initial 轮次只发生在首家门店上：主体的结论随它变
-  if (!store.isPrimary) refuse("not_initial_round");
+  if (input.round !== "initial") {
+    if (action === "withdraw") {
+      if (
+        ctx.actor.type !== "system" ||
+        !["closed", "abandoned"].includes(entity.lifecycle) ||
+        entity.verificationStatus !== "verified"
+      )
+        refuse("only_system_lifecycle_withdraw_open");
+    } else {
+      const round = input.submissionId
+        ? await tx.qualificationSubmission.findFirst({
+            where: {
+              id: input.submissionId,
+              entityId,
+              storeId,
+              kind: input.round,
+              submittedAt: { not: null },
+              closedAt: null,
+            },
+            include: { approvalRequest: true },
+          })
+        : null;
+      if (
+        entity.lifecycle !== "active" ||
+        entity.verificationStatus !== "verified" ||
+        !round ||
+        round.approvalRequest?.status !==
+          ({ submit: "pending", approve: "approved", reject: "rejected" } as const)[action]
+      )
+        refuse("qualification_round_fact_required");
+      if (action === "submit") {
+        const member =
+          ctx.actor.type === "merchant"
+            ? await tx.entityMember.findFirst({
+                where: { entityId, merchantUserId: ctx.actor.id, role: "owner", status: "active" },
+              })
+            : null;
+        if (!member) refuse("owner_required");
+      } else if (ctx.actor.type !== "staff" && ctx.actor.type !== "system")
+        refuse("review_actor_required");
+    }
+    if (input.round === "new_store" && store.isPrimary) refuse("not_new_store_round");
+  } else if (!store.isPrimary) refuse("not_initial_round");
+  if (action === "submit" && (await hasFinalQualificationRejection(tx, storeId)))
+    throw new AppError("QUALIFICATION_CLOSED");
   // 服务层先断言；库里的 ck_store_name_required 兜底
   if (action === "submit" && store.name === null) refuse("store_name_required");
 
   const args: QualificationArgs = {
+    ...(input.submissionId === undefined ? {} : { submissionId: input.submissionId }),
     ...(input.verified === undefined ? {} : { verified: input.verified }),
     ...(input.rejection === undefined ? {} : { rejection: input.rejection }),
   };
@@ -121,7 +170,13 @@ export async function setStoreQualification(
         ? { round: input.round }
         : { round: input.round, reasonCodes: [...input.rejection.reasonCodes] },
     ...(input.audit === undefined ? {} : { audit: input.audit }),
-    emit: { none: true, primary: PRIMARY_EVENT[action] },
+    emit: {
+      none: true,
+      primary:
+        input.round === "change"
+          ? `store.qualification_change.${action === "submit" ? "submitted" : action === "approve" ? "approved" : action === "reject" ? "rejected" : "withdrawn"}`
+          : PRIMARY_EVENT[action],
+    },
   } as const;
   /** 撤回回到提交前的值：这条链最近一次进入 pending 之前的状态 */
   const revertTo = async (machine: "store" | "entity", stateField: string, id: string) =>
@@ -135,8 +190,33 @@ export async function setStoreQualification(
     stateField: "qualification_status",
     id: storeId,
     storeId,
-    ...(await revertTo("store", "qualification_status", storeId)),
+    ...(input.round === "change" ? {} : await revertTo("store", "qualification_status", storeId)),
   });
+  if (input.round === "change" && action === "approve" && input.verified) {
+    const v = input.verified;
+    if (!v.name.trim() || !v.usccEnc || !v.usccMask || v.usccBidx.byteLength !== 32)
+      refuse("verified_fields_required");
+    await tx.entity.update({
+      where: { id: entityId },
+      data: {
+        name: v.name,
+        entityType: v.entityType,
+        usccEnc: v.usccEnc,
+        usccBidx: new Uint8Array(v.usccBidx),
+        usccMask: v.usccMask,
+        legalRepNameEnc: v.legalRepNameEnc,
+        legalRepNameMask: v.legalRepNameMask,
+        updatedAt: now,
+      },
+    });
+  }
+  if (input.round !== "initial")
+    return {
+      storeId,
+      entityId,
+      store: { from: onStore.from, to: onStore.to },
+      entity: { from: entity.verificationStatus, to: entity.verificationStatus },
+    };
   const verified = action === "approve" ? input.verified : undefined;
   const onEntity = await deps.flow.transition(tx, ctx, {
     ...shared,
@@ -171,6 +251,40 @@ export async function setStoreQualification(
 
 export const STORE_NAME_MIN = 2;
 export const STORE_NAME_MAX = 30;
+
+/** 审批回调专用：调用方先完成scope/auth/version；本出口复核真实已批准change事实。 */
+export async function renameStore(
+  tx: Tx,
+  now: Date,
+  ctx: IdentityContext,
+  input: { storeId: string; name: string; submissionId: string },
+) {
+  const store = await lockStore(tx, input.storeId, true);
+  const round = await tx.qualificationSubmission.findFirst({
+    where: {
+      id: input.submissionId,
+      storeId: store.id,
+      entityId: store.entityId,
+      kind: "change",
+      closedAt: null,
+      submittedAt: { not: null },
+      proposedStoreName: input.name,
+    },
+    include: { approvalRequest: true },
+  });
+  const name = input.name.trim();
+  if (
+    (ctx.actor.type !== "staff" && ctx.actor.type !== "system") ||
+    !round ||
+    round.approvalRequest?.status !== "approved" ||
+    store.qualificationStatus !== "verified"
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
+  if ([...name].length < STORE_NAME_MIN || [...name].length > STORE_NAME_MAX)
+    throw new AppError("VALIDATION_FAILED");
+  await tx.store.update({ where: { id: store.id }, data: { name, updatedAt: now } });
+  return { storeId: store.id, name };
+}
 
 /** 首店起名：只在资质还没提交（或被驳回待重交）时可改 */
 export async function setStoreName(

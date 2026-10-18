@@ -228,12 +228,15 @@ describe("查单 queryByOutTradeNo", () => {
     expect(result).toEqual({
       ok: true,
       value: {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
         outTradeNo: NO,
         tradeState: "SUCCESS",
         transactionId: "4200000000202610040000000001",
         amountFen: 19900,
         payerOpenid: "o-test-openid-0001",
         attach: "v1.e.o.N.r.12",
+        bankType: "OTHERS",
         successAt: new Date("2026-10-04T02:00:00.000Z"),
       },
     });
@@ -250,11 +253,19 @@ describe("查单 queryByOutTradeNo", () => {
     "各状态 %s：未支付的没有金额、付款人与成功时间",
     async (tradeState) => {
       replies.push(
-        signed(200, { out_trade_no: NO, trade_state: tradeState, trade_state_desc: "…" }),
+        signed(200, {
+          appid: "wx0000000000000000",
+          mchid: "1900000109",
+          out_trade_no: NO,
+          trade_state: tradeState,
+          trade_state_desc: "…",
+        }),
       );
       expect(await driver().queryByOutTradeNo({ outTradeNo: NO })).toEqual({
         ok: true,
         value: {
+          appid: "wx0000000000000000",
+          mchid: "1900000109",
           outTradeNo: NO,
           tradeState,
           transactionId: undefined,
@@ -281,6 +292,9 @@ describe("查单 queryByOutTradeNo", () => {
   });
 
   it.each([
+    ["AppID不是本小程序", { appid: "wx0000000000000001" }],
+    ["商户号不是本商户", { mchid: "1900000110" }],
+    ["币种不是人民币", { amount: { total: 19900, currency: "USD" } }],
     ["金额是小数", { amount: { total: 199.5 } }],
     ["金额是字符串", { amount: { total: "19900" } }],
     ["金额是负数", { amount: { total: -1 } }],
@@ -398,7 +412,12 @@ describe("关单 closeOrder：已关、已支付、可重试三态", () => {
   it("关单被拒、回查是已关闭：已关", async () => {
     replies.push(
       refused(400, "ORDER_CLOSED"),
-      signed(200, { out_trade_no: NO, trade_state: "CLOSED" }),
+      signed(200, {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
+        out_trade_no: NO,
+        trade_state: "CLOSED",
+      }),
     );
     expect(await close()).toEqual({ ok: true, value: { outcome: "closed" } });
   });
@@ -406,7 +425,12 @@ describe("关单 closeOrder：已关、已支付、可重试三态", () => {
   it("关单被拒、回查仍未支付：照关单接口的拒绝返回", async () => {
     replies.push(
       refused(400, "PARAM_ERROR"),
-      signed(200, { out_trade_no: NO, trade_state: "NOTPAY" }),
+      signed(200, {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
+        out_trade_no: NO,
+        trade_state: "NOTPAY",
+      }),
     );
     expect(await close()).toMatchObject({ ok: false, reason: "rejected", code: "PARAM_ERROR" });
   });

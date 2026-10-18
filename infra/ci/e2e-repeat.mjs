@@ -28,15 +28,17 @@ export function parseArgs(argv) {
   return options;
 }
 
-/** spawnProcess 仅供用例注入本地子进程；CLI 始终固定 pnpm e2e、90 秒上限。 */
+/** 具名接口链共用执行器；M1默认命令与90秒上限保持，CLI不接受命令覆盖。 */
 export function runRound({
   session,
   logPath,
   signal,
   timeoutMs = ROUND_TIMEOUT_MS,
   spawnProcess = spawn,
+  script = "e2e",
 }) {
   if (
+    !["e2e", "e2e:m2", "e2e:m3"].includes(script) ||
     !/^[a-z0-9]{1,12}$/.test(session) ||
     !Number.isInteger(timeoutMs) ||
     timeoutMs < 1 ||
@@ -86,7 +88,7 @@ export function runRound({
       );
       return;
     }
-    child = spawnProcess("pnpm", ["e2e"], {
+    child = spawnProcess("pnpm", [script], {
       cwd: repoRoot,
       env: { ...process.env, APP_ENV: "test", LYX_TEST_SESSION: session },
       detached: process.platform !== "win32",
@@ -205,12 +207,17 @@ export async function runRepeated({
   return summary;
 }
 
-async function main() {
+export async function runRepeatCli({
+  label = "M1",
+  parse = parseArgs,
+  run = runRepeated,
+  argv = process.argv.slice(2),
+} = {}) {
   let options;
   try {
-    options = parseArgs(process.argv.slice(2));
+    options = parse(argv);
   } catch (err) {
-    console.error(`M1 连续运行：${err.message}`);
+    console.error(`${label} 连续运行：${err.message}`);
     process.exitCode = 2;
     return;
   }
@@ -220,17 +227,17 @@ async function main() {
   process.once("SIGINT", onInt);
   process.once("SIGTERM", onTerm);
   try {
-    const result = await runRepeated({
+    const result = await run({
       ...options,
       signal: controller.signal,
       report: console.log,
     });
     const message = `${result.attempted}/${result.requested} 轮已尝试，成功 ${result.passed}，失败 ${result.failed}，未执行 ${result.skipped}；${result.summaryPath}`;
-    if (result.exitCode === 0) console.log(`M1 连续运行通过：${message}`);
-    else console.error(`M1 连续运行未通过：${message}`);
+    if (result.exitCode === 0) console.log(`${label} 连续运行通过：${message}`);
+    else console.error(`${label} 连续运行未通过：${message}`);
     process.exitCode = result.exitCode;
   } catch (err) {
-    console.error(`M1 连续运行未完成：${err.message}`);
+    console.error(`${label} 连续运行未完成：${err.message}`);
     process.exitCode = 1;
   } finally {
     process.removeListener("SIGINT", onInt);
@@ -238,4 +245,4 @@ async function main() {
   }
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url)
-  await main();
+  await runRepeatCli();

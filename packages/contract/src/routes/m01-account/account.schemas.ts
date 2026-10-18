@@ -1,8 +1,15 @@
 import { PendingConsentSchema } from "../../common/pending-consent.js";
-// 商家端：账号与登录 · 当前账号与登录的结构（docs/api/m01-account.md 第 2.1–2.4、2.6–2.8、3.1–3.4 节；W1-04）。
+// 商家端：账号与登录 · 当前账号、登录与本人安全结构（docs/api/m01-account.md 第 2、3.1–3.5、3.8–3.10 节）。
 // PendingConsent 引 common；ConsentInput、DeviceInfo 引 agreement.schemas.ts 的，EntityBrief 引 m02 的（约定 C87），不另写一份。
 // 老板与店员同一结构（clerkView = same）：手机号只出脱敏串（约定 C40、C57 放行 Mask 结尾的键）。
-import { IdSchema, InstantSchema, openEnum, orNull } from "../../common/index.js";
+import {
+  CursorQuerySchema,
+  IdSchema,
+  InstantSchema,
+  cursorPage,
+  openEnum,
+  orNull,
+} from "../../common/index.js";
 import {
   MERCHANT_ROLE,
   MERCHANT_USER_NOTICE_KIND,
@@ -30,6 +37,38 @@ export const MeUserSchema = z
   })
   .openapi("MeUser");
 export type MeUser = z.infer<typeof MeUserSchema>;
+
+export const SmsCodeCreateBodySchema = z.strictObject({ purpose: z.literal("phone_change") });
+export const SmsCodeResultSchema = z
+  .strictObject({
+    purpose: z.literal("phone_change"),
+    targetPhoneMask: z.string(),
+    expiresAt: InstantSchema,
+    resendAfterSec: z.int().nonnegative(),
+  })
+  .openapi("SmsCodeResult");
+export type SmsCodeResult = z.infer<typeof SmsCodeResultSchema>;
+export const DeletionBodySchema = z.strictObject({ hasConfirmed: z.literal(true) });
+export const DeletionResultSchema = z
+  .strictObject({ deletedAt: InstantSchema })
+  .openapi("DeletionResult");
+export const DeletionBlockerSchema = z
+  .strictObject({
+    kind: z.enum([
+      "subscription_active",
+      "payment_open",
+      "refund_open",
+      "invoice_open",
+      "open_order",
+      "release_online",
+    ]),
+    count: z.int().positive(),
+  })
+  .openapi("DeletionBlocker");
+export const MeChangePhoneBodySchema = z.strictObject({
+  oldSmsCode: z.string().regex(/^\d{4,8}$/),
+  newPhoneCode: z.string().min(1).max(128),
+});
 
 // ---------- 2.3、2.4 成员关系概要 ----------
 
@@ -71,6 +110,41 @@ export const UserNoticeSchema = z
   .openapi("UserNotice");
 export type UserNotice = z.infer<typeof UserNoticeSchema>;
 
+// ---------- 2.11 本人账号安全 ----------
+
+export const UserNoticeAckResultSchema = z
+  .object({ userNoticeId: IdSchema, ackedAt: InstantSchema })
+  .openapi("UserNoticeAckResult");
+export type UserNoticeAckResult = z.infer<typeof UserNoticeAckResultSchema>;
+
+export const WECHAT_IDENTITY_ACTIONS = ["delete"] as const;
+export type WechatIdentityAction = (typeof WECHAT_IDENTITY_ACTIONS)[number];
+
+export const WechatIdentityItemSchema = z
+  .object({
+    wechatIdentityId: IdSchema,
+    boundAt: InstantSchema,
+    lastLoginAt: InstantSchema,
+    deviceSummary: orNull(z.string()),
+    isCurrent: z.boolean(),
+    actions: z.array(z.enum(WECHAT_IDENTITY_ACTIONS)),
+  })
+  .openapi("WechatIdentityItem");
+export type WechatIdentityItem = z.infer<typeof WechatIdentityItemSchema>;
+
+export const WechatIdentityListSchema =
+  cursorPage(WechatIdentityItemSchema).openapi("WechatIdentityList");
+export type WechatIdentityList = z.infer<typeof WechatIdentityListSchema>;
+
+export const WechatIdentityRemoveResultSchema = z
+  .object({
+    wechatIdentityId: IdSchema,
+    revokedSessionCount: z.int().nonnegative(),
+    isCurrentSessionRevoked: z.boolean(),
+  })
+  .openapi("WechatIdentityRemoveResult");
+export type WechatIdentityRemoveResult = z.infer<typeof WechatIdentityRemoveResultSchema>;
+
 // ---------- 2.1 MeView ----------
 
 export const MeViewSchema = z
@@ -83,6 +157,26 @@ export const MeViewSchema = z
   })
   .openapi("MeView");
 export type MeView = z.infer<typeof MeViewSchema>;
+
+// ---------- 3.5、3.8–3.10 本人账号请求 ----------
+
+export const MeUpdateBodySchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .refine((value) => [...value].length >= 1 && [...value].length <= 20, "称呼须为 1 至 20 字")
+    .openapi({ minLength: 1, maxLength: 20 }),
+});
+export type MeUpdateBody = z.infer<typeof MeUpdateBodySchema>;
+
+export const UserNoticeAcknowledgeParamsSchema = z.object({ userNoticeId: IdSchema });
+export type UserNoticeAcknowledgeParams = z.infer<typeof UserNoticeAcknowledgeParamsSchema>;
+
+export const WechatIdentityListQuerySchema = CursorQuerySchema;
+export type WechatIdentityListQuery = z.infer<typeof WechatIdentityListQuerySchema>;
+
+export const WechatIdentityRemoveParamsSchema = z.object({ wechatIdentityId: IdSchema });
+export type WechatIdentityRemoveParams = z.infer<typeof WechatIdentityRemoveParamsSchema>;
 
 // ---------- 2.7 首触来源 ----------
 

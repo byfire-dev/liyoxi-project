@@ -12,6 +12,9 @@ export interface M1RequestInit extends Omit<RequestInit, "body" | "headers"> {
 }
 export interface M1Api {
   readonly support: M1Support;
+  /** HTTP 混跑使用真实等待；原接口测试默认仍使用可拨时钟。 */
+  readonly waitForNextMfaStep?: () => Promise<void>;
+  readonly waitUntil?: (at: Date) => Promise<void>;
   request(path: string, init?: M1RequestInit): Promise<Response>;
 }
 export function createM1Api(support: M1Support): M1Api {

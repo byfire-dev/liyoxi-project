@@ -35,6 +35,76 @@ function failure(source: EnvSource, groups?: readonly EnvGroup[]): EnvError {
 
 const keysOf = (error: EnvError) => error.issues.map((issue) => issue.key);
 
+describe("MinIO 本地端点", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  const endpoint = "http://127.0.0.1:9100";
+  const publicEndpoint = "https://minio.example.invalid/";
+
+  it("两个端点独立可选；空白当未配，保留已有缺省配置", () => {
+    expect(loadEnv({ ...base, MINIO_ENDPOINT: " ", MINIO_PUBLIC_ENDPOINT: "" })).not.toHaveProperty(
+      "MINIO",
+    );
+    expect(loadEnv({ ...base, MINIO_ENDPOINT: ` ${endpoint} ` }).MINIO).toEqual({ endpoint });
+    expect(loadEnv({ ...base, MINIO_PUBLIC_ENDPOINT: publicEndpoint }).MINIO).toEqual({
+      publicEndpoint,
+    });
+  });
+
+  it.each(["local", "test"])("%s 可以给服务端和客户端不同端点；配置冻结", (appEnv) => {
+    const env = loadEnv({
+      ...base,
+      APP_ENV: appEnv,
+      MINIO_ENDPOINT: endpoint,
+      MINIO_PUBLIC_ENDPOINT: publicEndpoint,
+    });
+    expect(env.MINIO).toEqual({ endpoint, publicEndpoint });
+    expect(Object.isFrozen(env.MINIO)).toBe(true);
+  });
+
+  it.each(["stg", "prod"])("%s 拒绝本地 MinIO 覆盖", (appEnv) => {
+    const error = failure({
+      APP_ENV: appEnv,
+      DATABASE_URL_FILE: fileWith(`minio-${appEnv}-pg`, DATABASE_URL),
+      REDIS_URL_FILE: fileWith(`minio-${appEnv}-redis`, REDIS_URL),
+      MINIO_ENDPOINT: endpoint,
+      MINIO_PUBLIC_ENDPOINT: publicEndpoint,
+    });
+    expect(keysOf(error)).toEqual(["MINIO_ENDPOINT", "MINIO_PUBLIC_ENDPOINT"]);
+    expect(error.message).toContain("只允许在 local、test 环境配置");
+    expect(error.message).not.toContain(endpoint);
+    expect(error.message).not.toContain(publicEndpoint);
+  });
+
+  const invalid = [
+    "not-a-url",
+    "ftp://minio.example.invalid",
+    "http:////minio.example.invalid",
+    "http://minio.example.invalid:99999",
+    "http://minio.example.invalid/photos",
+    "http://minio.example.invalid/../",
+    "http://minio.example.invalid/%2e/",
+    "http://minio.example.invalid?",
+    "http://minio.example.invalid?marker=private",
+    "http://minio.example.invalid#",
+    "http://minio.example.invalid#private",
+    "http://fake-user:fake-secret@minio.example.invalid",
+    "http://@minio.example.invalid",
+    "http://minio.example.invalid\\photos",
+    "http://mini\no.example.invalid",
+  ];
+  for (const key of ["MINIO_ENDPOINT", "MINIO_PUBLIC_ENDPOINT"]) {
+    it.each(invalid)(`${key} 拒绝非法 URL：%s；错误不带值`, (value) => {
+      const error = failure({ ...base, [key]: value });
+      expect(keysOf(error)).toEqual([key]);
+      const text = `${error.message}\n${JSON.stringify(error.issues)}`;
+      expect(text).not.toContain(value);
+      expect(text).not.toContain("minio.example.invalid");
+      expect(text).not.toContain("fake-user");
+      expect(text).not.toContain("fake-secret");
+    });
+  }
+});
+
 describe("合格的配置", () => {
   it("local 下给明文连接串：通过，LOG_LEVEL 不填按 info", () => {
     const env = loadEnv({ APP_ENV: "local", DATABASE_URL, REDIS_URL });
@@ -220,9 +290,22 @@ describe("成组变量成对校验", () => {
   };
   const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
 
-  it("登记的组：两份密钥文件（W0-14）", () => {
+  it("登记的组：两份密钥文件（W0-14）与微信完整配置（W2-21）", () => {
     expect(ENV_GROUPS).toEqual([
+      {
+        name: "腾讯云短信",
+        keys: ["SMS_SECRET_ID_FILE", "SMS_SECRET_KEY_FILE", "SMS_SDK_APP_ID", "SMS_REGION"],
+      },
       { name: "字段加密与盲索引密钥", keys: ["DATA_KEYS_FILE", "BIDX_KEYS_FILE"] },
+      {
+        name: "微信小程序与唯一消息接收地址",
+        keys: [
+          "WECHAT_APPID",
+          "WECHAT_SECRET_FILE",
+          "WECHAT_MESSAGE_TOKEN_FILE",
+          "WECHAT_MESSAGE_AES_KEY_FILE",
+        ],
+      },
     ]);
   });
 
@@ -251,9 +334,12 @@ describe("成组变量成对校验", () => {
   });
 
   it("多个组各自判断；与别的问题一并列出", () => {
-    const cos: EnvGroup = { name: "对象存储", keys: ["COS_BUCKET", "COS_REGION"] };
-    const error = failure({ APP_ENV: "local", REDIS_URL, COS_REGION: "r" }, [pay, cos]);
-    expect(keysOf(error)).toEqual(["DATABASE_URL", "COS_BUCKET"]);
+    const cos: EnvGroup = {
+      name: "对象存储",
+      keys: ["TEST_STORAGE_BUCKET", "TEST_STORAGE_REGION"],
+    };
+    const error = failure({ APP_ENV: "local", REDIS_URL, TEST_STORAGE_REGION: "r" }, [pay, cos]);
+    expect(keysOf(error)).toEqual(["DATABASE_URL", "TEST_STORAGE_BUCKET"]);
   });
 });
 
@@ -266,10 +352,88 @@ describe("键名清单", () => {
       "DATABASE_URL_FILE",
       "REDIS_URL",
       "REDIS_URL_FILE",
+      "MINIO_ENDPOINT",
+      "MINIO_PUBLIC_ENDPOINT",
       "DATA_KEYS_FILE",
       "BIDX_KEYS_FILE",
       "AUTH_KEYS_FILE",
+      "ADMIN_IP_ALLOWLIST",
+      "CERT_DOMAINS",
+      "BACKUP_FILE",
+      "ALERTS_FILE",
+      "SMS_SECRET_ID_FILE",
+      "SMS_SECRET_KEY_FILE",
+      "SMS_SDK_APP_ID",
+      "SMS_REGION",
+      "WECHAT_PAY_FILE",
+      "WECHAT_APPID",
+      "WECHAT_SECRET_FILE",
+      "WECHAT_MESSAGE_TOKEN_FILE",
+      "WECHAT_MESSAGE_AES_KEY_FILE",
+      "CLIENT_ERROR_PROJECTS_FILE",
+      "SERVER_ERRORS_FILE",
+      "COS_REGION",
+      "COS_BUCKET_SECURE",
+      "COS_BUCKET_ASSET",
+      "COS_BUCKET_MEDIA",
+      "COS_BUCKET_PUB",
+      "COS_SIGNER_KEYS_FILE",
+      "COS_STS_ISSUER_KEYS_FILE",
+      "COS_WORKER_KEYS_FILE",
+      "CI_REGION",
+      "CI_BUCKET_SECURE",
+      "CI_BUCKET_ASSET",
+      "CI_BUCKET_MEDIA",
+      "CI_BUCKET_PUB",
+      "CI_WORKER_KEYS_FILE",
+      "CI_CALLBACK_KEY_FILE",
+      "CI_CALLBACK_ORIGIN",
+      "MEDIA_PRODUCTION_FILE",
+      "ASR_TENCENT_FILE",
+      "OCR_TENCENT_FILE",
+      "MAIL_TENCENT_FILE",
+      "LLM_DOMESTIC_FILE",
+      "ASR_CALLBACK_ORIGIN",
+      "ASR_CALLBACK_KEY_FILE",
     ]);
+    const base = { APP_ENV: "test", DATABASE_URL, REDIS_URL };
+    expect(loadEnv(base).OCR_TENCENT).toBeUndefined();
+    const config = {
+      secretId: "PUBLIC_OCR_ID",
+      secretKey: "PUBLIC_OCR_SECRET",
+      region: "ap-guangzhou",
+    };
+    const json = JSON.stringify(config);
+    const source = { ...base, OCR_TENCENT_FILE: fileWith("ocr-public.json", json) };
+    const parsed = loadEnv(source);
+    expect(parsed.OCR_TENCENT).toEqual(config);
+    expect(Object.isFrozen(parsed.OCR_TENCENT)).toBe(true);
+    const exact = json + " ".repeat(4096 - Buffer.byteLength(json));
+    expect(
+      loadEnv({ ...base, OCR_TENCENT_FILE: fileWith("ocr-4096.json", exact) }).OCR_TENCENT,
+    ).toEqual(config);
+    for (const value of [
+      JSON.stringify({ secretId: config.secretId }),
+      JSON.stringify({ ...config, url: "https://private-ocr.invalid" }),
+      JSON.stringify({ ...config, region: "private-region-marker" }),
+      "private-json-marker{",
+      exact + " ",
+    ]) {
+      const error = failure({ ...base, OCR_TENCENT_FILE: fileWith("ocr-invalid.json", value) });
+      expect(keysOf(error)).toEqual(["OCR_TENCENT_FILE"]);
+      for (const marker of [
+        temp,
+        config.secretId,
+        config.secretKey,
+        "private-ocr",
+        "private-region",
+        "private-json",
+      ])
+        expect(error.message).not.toContain(marker);
+    }
+    const plaintext = failure({ ...base, OCR_TENCENT: json });
+    expect(keysOf(plaintext)).toEqual(["OCR_TENCENT"]);
+    expect(plaintext.message).not.toContain(config.secretKey);
   });
 });
 
@@ -443,5 +607,106 @@ describe("后台登录的密钥文件", () => {
     expect(example.split("\n").filter((line) => line.startsWith("AUTH_KEYS"))).toEqual([
       "AUTH_KEYS_FILE=<文件路径>",
     ]);
+  });
+});
+
+// W222：公开虚构腾讯凭据，FILE-only 与部分配置拒绝。
+describe("腾讯短信成组环境配置", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  const idFile = fileWith("sms-id.txt", "AKIDEXAMPLE0000000");
+  const keyFile = fileWith("sms-key.txt", "SECRETKEYEXAMPLE0000000");
+  it("全组经文件加载；不配则省略SMS", () => {
+    expect(loadEnv(base).SMS).toBeUndefined();
+    expect(
+      loadEnv({
+        ...base,
+        SMS_SECRET_ID_FILE: idFile,
+        SMS_SECRET_KEY_FILE: keyFile,
+        SMS_SDK_APP_ID: "1400006666",
+        SMS_REGION: "ap-guangzhou",
+      }).SMS,
+    ).toEqual({
+      secretId: "AKIDEXAMPLE0000000",
+      secretKey: "SECRETKEYEXAMPLE0000000",
+      sdkAppId: "1400006666",
+      region: "ap-guangzhou",
+    });
+  });
+  it("半配及任何环境明文拒绝，错误不泄露内容或路径", () => {
+    const missing = failure({ ...base, SMS_SDK_APP_ID: "1400006666" });
+    expect(keysOf(missing)).toContain("SMS_SECRET_KEY_FILE");
+    const error = failure({ ...base, SMS_SECRET_KEY: "private-value", SMS_SECRET_ID_FILE: idFile });
+    expect(error.message).not.toContain("private-value");
+    expect(error.message).not.toContain(idFile);
+  });
+  it("密钥文件4KiB实际字节边界、目录和非法内容受控；失败不泄露路径/内容", () => {
+    const source = {
+      ...base,
+      SMS_SECRET_ID_FILE: idFile,
+      SMS_SECRET_KEY_FILE: keyFile,
+      SMS_SDK_APP_ID: "1400006666",
+      SMS_REGION: "ap-guangzhou",
+    };
+    const secret = "AKIDEXAMPLE0000000";
+    const padded = fileWith("sms-4096.txt", " ".repeat(4096 - secret.length) + secret);
+    expect(loadEnv({ ...source, SMS_SECRET_ID_FILE: padded }).SMS?.secretId).toBe(
+      "AKIDEXAMPLE0000000",
+    );
+    for (const path of [
+      temp,
+      fileWith("sms-4097.txt", " ".repeat(4097 - secret.length) + secret),
+      fileWith("sms-bad.txt", "private-marker-content!"),
+    ]) {
+      const error = failure({ ...source, SMS_SECRET_ID_FILE: path });
+      expect(keysOf(error)).toContain("SMS_SECRET_ID_FILE");
+      expect(error.message).not.toContain(path);
+      expect(error.message).not.toContain("private-marker-content");
+    }
+  });
+});
+
+// W2-18：全部是示例 DSN，未连接外部项目。
+describe("客户端错误项目 FILE", () => {
+  const base = { APP_ENV: "test", DATABASE_URL, REDIS_URL };
+  const project = {
+    dsn: "https://publickey@example.invalid/42",
+    upstreamDsn: "https://upstreamkey@upstream.invalid/sentry/7",
+  };
+  it("未配置降级；完整 FILE 严格读取", () => {
+    expect(loadEnv(base).CLIENT_ERROR_PROJECTS).toBeUndefined();
+    expect(
+      loadEnv({
+        ...base,
+        CLIENT_ERROR_PROJECTS_FILE: fileWith(
+          "report-projects",
+          JSON.stringify({ projects: [project] }),
+        ),
+      }).CLIENT_ERROR_PROJECTS,
+    ).toEqual({ projects: [project] });
+  });
+  it.each([
+    { projects: [] },
+    { projects: [project, project] },
+    { projects: [project], extra: true },
+    { projects: [{ ...project, extra: true }] },
+    { projects: [{ dsn: "http://publickey@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey:secret@example.invalid/42" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/42?query=secret" }] },
+    { projects: [{ dsn: "https://publickey@example.invalid/abc" }] },
+    { projects: [{ ...project, upstreamDsn: "https://key@upstream.invalid/7#secret" }] },
+  ])("非法项目受控拒绝，不输出 DSN 或文件路径", (content) => {
+    const path = fileWith("bad-projects", JSON.stringify(content));
+    const error = failure({ ...base, CLIENT_ERROR_PROJECTS_FILE: path });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS_FILE"]);
+    expect(error.message).not.toContain(path);
+    expect(error.message).not.toContain("publickey");
+    expect(error.message).not.toContain("secret");
+  });
+  it("明文配置在任意环境均拒绝", () => {
+    const error = failure({
+      ...base,
+      CLIENT_ERROR_PROJECTS: JSON.stringify({ projects: [project] }),
+    });
+    expect(keysOf(error)).toEqual(["CLIENT_ERROR_PROJECTS"]);
   });
 });

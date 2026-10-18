@@ -1,15 +1,67 @@
 import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
+import type { ClockBoundFileRefType, StoreBoundFileRefType } from "./ports.js";
 import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
 import { register, complete, refresh, cancel } from "./upload.js";
-import { getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
-import { link, release } from "./refs.js";
+import { assertUsableForModel, getAdmin, getMerchant, createSigner, downloadUrls } from "./read.js";
+import { link, release, readRefRetention } from "./refs.js";
 import { putSystemFile } from "./system.js";
-import { promote, scanPromote } from "./promote.js";
-import { readableByStaff } from "./access.js";
+import { createWechatImageHandlers, applyWechatImageResult } from "./wechat-image-audit.js";
+import { createModerationHandlers } from "./handlers/moderation/handlers.js";
+import { enqueueExtractedTextAudit } from "./handlers/moderation/queue.js";
+import { createPromoteHandler } from "./promote.js";
+import { createMediaJobAdmin } from "./jobs/admin.js";
+import { createMediaJobs } from "./jobs/runner.js";
+import { uuidv7, lockRows } from "../kernel/index.js";
+import { owned, readableByStaff } from "./access.js";
 import { bindFileRefTypes } from "./invariants.js";
+import { createUploadBatches } from "./batches/service.js";
+import { createBatchWorkerHooks } from "./batches/worker.js";
+import { enqueueProbe, enqueueDerivation, productionFacts } from "./production.js";
+import { deliveryProductionFacts } from "./production/facts.js";
+import { prepareDeliveryProduction } from "./production/prepare.js";
+import type { ManualProductionInput } from "./production/prepare.js";
+import {
+  enqueueTrailer,
+  createProductionConvergence,
+  retireDramaMedia,
+} from "./production-playables.js";
+import { createProbeHandler } from "./handlers/probe.js";
+import { createRestampHandler } from "./handlers/restamp.js";
+import { createTranscodeHandler } from "./handlers/transcode.js";
+import { createWatermarkHandler } from "./handlers/watermark.js";
+import { createNormalizeHandler } from "./handlers/normalize.js";
+import type { BoundMediaDeps } from "./context.js";
+import { createMediaAssets } from "./assets/service.js";
+import { wakeAssetAsrJob } from "./assets/asr-wake.js";
+import {
+  createAssetHandlers,
+  createAssetConvergence,
+  combineAssetHandler,
+} from "./assets/handlers.js";
+import { onAssetCalendarImported, onAssetSlaBreach } from "./assets/sla.js";
+import type { DeliveredEvent, FiredTimer, Tx } from "../kernel/index.js";
+import type { MediaConvergenceHandler } from "./jobs/types.js";
+import { createMediaRetention } from "./retention/service.js";
+import { createQualificationOcr } from "./ocr/service.js";
+import {
+  createBankReceiptOcrHandler,
+  enqueueBankReceiptOcr,
+  readBankReceiptOcr,
+} from "./ocr/receipt.js";
 export function createMedia(options: MediaDeps) {
-  const refTypes = options.assembly.portEntries(fileRefTypePort);
+  const refTypes = new Map(
+    [...options.assembly.portEntries(fileRefTypePort)].map(([key, definition]) => {
+      const factory = definition as Partial<ClockBoundFileRefType & StoreBoundFileRefType>;
+      const bound = factory.withClock ? factory.withClock(options.clock) : definition;
+      return [
+        key,
+        factory.withStoreFacts && options.assets
+          ? factory.withStoreFacts(options.assets.readStore, options.clock)
+          : bound,
+      ] as const;
+    }),
+  );
   const guards = options.assembly.portEntries(fileCategoryGuardPort);
   for (const [key, definition] of refTypes) {
     if (!/^[a-z][a-z0-9_]*$/.test(key) || Object.keys(definition.roles).length === 0)
@@ -26,9 +78,154 @@ export function createMedia(options: MediaDeps) {
     if (!Object.hasOwn(UPLOAD_CATEGORIES, key))
       throw new TypeError(`文件分类守卫登记不合格：${key}`);
   bindFileRefTypes(refTypes);
-  const deps = { ...options, refTypes, guards };
+  let batchWorker: ReturnType<typeof createBatchWorkerHooks> | undefined;
+  const batchHooks = () => (batchWorker ??= createBatchWorkerHooks(deps));
+  const deps: BoundMediaDeps = {
+    ...options,
+    production:
+      options.production && options.batches
+        ? {
+            ...options.production,
+            batchLockSiblings: (tx, batchId) => batchHooks().lockSiblings(tx, batchId),
+            batchNeedsJob: (tx, input) => batchHooks().needsJob(tx, input),
+            batchConverge: (tx, batchId) => batchHooks().converge(tx, batchId),
+            productionChecked: (tx, input) => batchHooks().checked(tx, input),
+          }
+        : options.production,
+    batchStored: options.batches ? (tx, fileId) => batchHooks().stored(tx, fileId) : undefined,
+    batchRejected: options.batches ? (tx, fileId) => batchHooks().rejected(tx, fileId) : undefined,
+    queueBatchProbe:
+      options.production && options.batches
+        ? (tx, fileId, batchId) => enqueueProbe(deps, tx, fileId, { parentBatchId: batchId })
+        : undefined,
+    refTypes,
+    guards,
+    queueProbe: options.production
+      ? (tx, file) =>
+          ["mp4", "mov", "m4a", "mp3", "wav", "aac"].includes(file.ext)
+            ? enqueueProbe(deps, tx, file.id, { parentBatchId: file.uploadBatchId ?? undefined })
+            : Promise.resolve(null)
+      : undefined,
+  };
   const signRead = createSigner(deps);
+  let uploadBatches: ReturnType<typeof createUploadBatches> | undefined;
+  const batchConvergence: MediaConvergenceHandler[] = options.batches
+    ? [
+        {
+          parentType: "upload_batch",
+          lockSiblings: batchHooks().lockSiblings,
+          needed: (tx, job) =>
+            batchHooks().needsJob(tx, {
+              batchId: job.parentId!,
+              fileId: job.subjectId,
+            }),
+          converge: batchHooks().converge,
+        },
+      ]
+    : [];
+  const assetDeps = options.assets ? { ...deps, assets: options.assets } : undefined;
+  const baseHandlers = [
+    createPromoteHandler(deps),
+    createBankReceiptOcrHandler(deps),
+    ...createWechatImageHandlers(deps),
+    ...createModerationHandlers(deps),
+    createProbeHandler(deps),
+    createRestampHandler(deps),
+    createTranscodeHandler(deps),
+    createWatermarkHandler(deps),
+    createNormalizeHandler(deps),
+    ...(options.jobHandlers ?? []),
+  ];
+  const assetHandlers = assetDeps ? createAssetHandlers(assetDeps) : [];
+  const handlers = baseHandlers.map((original) => {
+    const asset = assetHandlers.find((item) => item.kind === original.kind);
+    return asset ? combineAssetHandler(original, asset) : original;
+  });
+  handlers.push(
+    ...assetHandlers.filter((asset) => !baseHandlers.some((item) => item.kind === asset.kind)),
+  );
+  let assets: ReturnType<typeof createMediaAssets> | undefined;
+  const jobs = createMediaJobs({
+    tx: options.tx,
+    clock: options.clock,
+    channel: options.channel,
+    ownerId: options.jobOwnerId ?? uuidv7(),
+    handlers,
+    convergenceHandlers: [
+      ...createProductionConvergence(deps).filter(
+        (handler) => !options.batches || handler.parentType !== "upload_batch",
+      ),
+      ...batchConvergence,
+      ...(assetDeps ? [createAssetConvergence(assetDeps)] : []),
+      ...(options.jobConvergenceHandlers ?? []),
+    ],
+  });
   return {
+    ocr: createQualificationOcr(deps),
+    enqueueBankReceiptOcr: (
+      tx: Tx,
+      ctx: Parameters<typeof enqueueBankReceiptOcr>[2],
+      input: Parameters<typeof enqueueBankReceiptOcr>[3],
+    ) => enqueueBankReceiptOcr(deps, tx, ctx, input),
+    readBankReceiptOcr: (tx: Tx, input: Parameters<typeof readBankReceiptOcr>[2]) =>
+      readBankReceiptOcr(deps, tx, input),
+    retention: createMediaRetention(deps),
+    get assets() {
+      return (assets ??= createMediaAssets(deps));
+    },
+    onAssetCalendarImported: (tx: Tx, event: DeliveredEvent) => {
+      if (!assetDeps) throw new TypeError("素材运行时未配置");
+      return onAssetCalendarImported(tx, assetDeps, event);
+    },
+    onAssetSlaBreach: (tx: Tx, timer: FiredTimer) => {
+      if (!assetDeps) throw new TypeError("素材运行时未配置");
+      return onAssetSlaBreach(tx, assetDeps, timer);
+    },
+    enqueueExtractedTextAudit: (
+      tx: Parameters<typeof enqueueExtractedTextAudit>[1],
+      input: Parameters<typeof enqueueExtractedTextAudit>[2],
+    ) => enqueueExtractedTextAudit(deps, tx, input),
+    get uploadBatches() {
+      return (uploadBatches ??= createUploadBatches(deps));
+    },
+    enqueueProbe: (
+      tx: Parameters<typeof enqueueProbe>[1],
+      fileId: string,
+      options: Parameters<typeof enqueueProbe>[3] = {},
+    ) => enqueueProbe(deps, tx, fileId, options),
+    normalize: (tx: Parameters<typeof enqueueDerivation>[1], fileId: string) =>
+      enqueueDerivation(deps, tx, fileId, "normalize"),
+    restamp: (tx: Parameters<typeof enqueueDerivation>[1], fileId: string) =>
+      enqueueDerivation(deps, tx, fileId, "restamp"),
+    enqueueTrailer: (
+      tx: Parameters<typeof enqueueTrailer>[1],
+      input: Parameters<typeof enqueueTrailer>[2],
+    ) => enqueueTrailer(deps, tx, input),
+    productionFacts,
+    prepareDeliveryProduction: (
+      tx: Parameters<typeof prepareDeliveryProduction>[0],
+      inputs: readonly ManualProductionInput[],
+      beforeFiles?: () => Promise<void>,
+    ) =>
+      prepareDeliveryProduction(
+        tx,
+        {
+          clock: deps.clock,
+          enqueueProbe: (inner, fileId) => enqueueProbe(deps, inner, fileId),
+          awaitingRestamp: async (inner, fileId) =>
+            (await deliveryProductionFacts(deps, inner, fileId)).awaitingRestamp,
+        },
+        inputs,
+        beforeFiles,
+      ),
+    deliveryProductionFacts: (tx: Parameters<typeof deliveryProductionFacts>[1], fileId: string) =>
+      deliveryProductionFacts(deps, tx, fileId),
+    assertUsableForModel,
+    retireDramaMedia: (
+      tx: Parameters<typeof retireDramaMedia>[1],
+      dramaId: string,
+      options: Parameters<typeof retireDramaMedia>[3],
+    ) => retireDramaMedia(deps, tx, dramaId, options),
     register: (...args: Parameters<typeof register> extends [unknown, ...infer A] ? A : never) =>
       register(deps, ...args),
     complete: (
@@ -47,6 +244,11 @@ export function createMedia(options: MediaDeps) {
       refresh(deps, ...args),
     cancel: (...args: Parameters<typeof cancel> extends [unknown, ...infer A] ? A : never) =>
       cancel(deps, ...args),
+    cancelAdmin: (
+      actor: Parameters<typeof cancel>[1],
+      fileId: string,
+      options: Parameters<typeof cancel>[3] = {},
+    ) => cancel(deps, actor, fileId, options, true),
     getMerchant: (
       ...args: Parameters<typeof getMerchant> extends [unknown, ...infer A] ? A : never
     ) => getMerchant(deps, ...args),
@@ -56,6 +258,9 @@ export function createMedia(options: MediaDeps) {
       link(deps, ...args),
     release: (...args: Parameters<typeof release> extends [unknown, ...infer A] ? A : never) =>
       release(deps, ...args),
+    readRefRetention: (
+      ...args: Parameters<typeof readRefRetention> extends [unknown, ...infer A] ? A : never
+    ) => readRefRetention(deps, ...args),
     putSystemFile: (
       ...args: Parameters<typeof putSystemFile> extends [unknown, ...infer A] ? A : never
     ) => putSystemFile(deps, ...args),
@@ -67,12 +272,47 @@ export function createMedia(options: MediaDeps) {
           { kind: "delivery-download", fileName: input.fileName },
         )
       ).signed,
-    assertReadableByStaff: readableByStaff,
+    assertReadableByStaff: (
+      tx: Parameters<typeof readableByStaff>[0],
+      staff: Parameters<typeof readableByStaff>[1],
+      fileId: string,
+    ) => readableByStaff(tx, staff, fileId, deps),
+    assertOwned: owned,
     downloadUrls: (
       ...args: Parameters<typeof downloadUrls> extends [unknown, unknown, ...infer A] ? A : never
     ) => downloadUrls(deps, signRead, ...args),
-    promote: (ref: Parameters<typeof promote>[1]) => promote(deps, ref),
-    scanPromote: () => scanPromote(deps),
+    promote: jobs.run,
+    scanPromote: jobs.scan,
+    jobs,
+    jobAdmin: createMediaJobAdmin({ tx: options.tx, clock: options.clock, jobs }),
+    wakeAsrJob: (tx: Tx, input: { mediaJobId: string; externalJobId: string }) =>
+      wakeAssetAsrJob(
+        tx,
+        input,
+        options.clock,
+        assetHandlers.find((handler) => handler.kind === "asr"),
+      ),
+    wakeCiJob: async (
+      tx: Parameters<typeof applyWechatImageResult>[1],
+      input: { mediaJobId: string; externalJobId: string },
+    ): Promise<"processed" | "ignored"> => {
+      await lockRows(tx, "media_job", [input.mediaJobId]);
+      const count = await tx.mediaJob.updateMany({
+        where: {
+          id: input.mediaJobId,
+          state: "submitted",
+          provider: "ci",
+          externalJobId: input.externalJobId,
+        },
+        data: { nextRunAt: options.clock.now(), updatedAt: options.clock.now() },
+      });
+      return count.count === 1 ? "processed" : "ignored";
+    },
+    applyWechatImageResult: (
+      tx: Parameters<typeof applyWechatImageResult>[1],
+      input: Parameters<typeof applyWechatImageResult>[2],
+      ctx: Parameters<typeof applyWechatImageResult>[3],
+    ) => applyWechatImageResult(deps, tx, input, ctx),
   };
 }
 export type Media = ReturnType<typeof createMedia>;

@@ -294,16 +294,16 @@ erDiagram
 | `sla`（时限策略，值形态 `sla_policy`，见第 4.2 节） | `sla.ticket.assign`（120 `work_minutes`）、`sla.ticket.plan_confirm`（1 `work_days`）、`sla.ticket.sample_making`（1 `work_days`）、`sla.ticket.batch_compose`（2 `work_days`）、`sla.ticket.delivering`（1080 `same_day_cutoff`，即当日 18:00，播种值 `{ amount: 1080, unit: 'same_day_cutoff' }`）、`sla.delivery.target`（6 `work_days`）、`sla.ad.first_version`（2 `work_days`）、`sla.ad.revision`（1 `work_days`）、`sla.review.qualification`（1 `work_days`，可调 1–5，d9:569）、`sla.review.channel_account`、`sla.review.launch_link`、`sla.review.store_asset`、`sla.review.refund_approve`、`sla.review.refund_execute`、`sla.review.transfer_proof`（各 1 `work_days`）、`sla.review.invoice_request`（无默认值，未配置即不计时）、`sla.takedown.check`（1 `work_days`）、`sla.service.first_response`（30 `work_minutes`）、`sla.service.solution`（24 `natural_hours`）、`sla.service.auto_resolve`（3 `natural_days`）、`sla.manager.first_contact`（1 `work_days`） | d3:3017-3036；03、06、08、09、10、11、12 分组的请求。各单据 `sla_snapshot.policy` 取键名去掉 `sla.` 的部分（M60） |
 | `calendar` | `work.start`（09:00）、`work.end`（18:00）：即 d3:2999 的工作时间段 `workhours`；节假日在 `work_calendar_day` | d6:1548；01 的请求 |
 | `remind` | `remind.plan_expiry.time`、`remind.launch.days`、`remind.offline.days`、`remind.sample.after_days`、`remind.copyright.days`、`remind.grace_hours` 等；`remind.cert_expiry.days`（默认 30） | d6:1549；d9:805 ② |
-| `notify` | `notify.window.start` / `end`、`notify.sms.daily_cap`、`notify.sms.keepalive_days`、`notify.wx.quota_cap`、`notify.wx.field_fail_streak` 等 | d6:1550；13 的请求 |
+| `notify` | `notify.window.start` / `end`、`notify.sms.daily_cap`、`notify.sms.keepalive_days`、`notify.wx.quota_cap`、`notify.wx.ask_cooldown_days`（7–30天，默认7）、`notify.wx.max_per_ask`（1–5个，默认3，平台上限5）、`notify.wx.field_fail_streak`、`notify.fanout.batch`（默认1000主体接收人，按账号/主体二元组计数；1–10000是W2-17批准的防误值宽边界，不改变默认）等 | d6:514、854、856、1550；13 的请求；m08 2.9/3.19；W2-17/W2-18共用引导与设置的参数 |
 | `general` | `package.link_ttl_days`（成片下载授权的有效天数，1–30，默认 7；10 分组 `valid_days` 取它的快照）、`audit.retention_years`、`trial.episodes`（V1.1）、`inbox.scope`、`home.banner.max_active`（默认 5） | d6:1551；10、13 的请求 |
 | `billing`（三个时限键） | `billing.payment.order_timeout_minutes`（默认 30）、`billing.payment.transfer_valid_days`（默认 7）、`billing.upgrade_quote_valid_hours`（默认 48） | M24、M35；decisions 7.2；07、08 的请求 |
-| `payment` / `refund` / `invoice` / `recon` | `payment.bank_transfer.min_fen`、`payment.wechat.advise_transfer_above_fen`、`payment.description_template.*`、`refund.original_route_safety_hours`、`refund.bill_wait_days`、`refund.points.auto_approve_before_production`、`refund.require_distinct_executor`（boolean，默认 false；为 true 时取消申请与现金退款申请的执行人不得是该单的审批人（a05 3.15、a07 现金退款执行），d4-identity.md:1501，原名 `sod.refund.distinct_executor` 作废；A156）、`invoice.item_name.*`、`invoice.apply_within_days`、`invoice.no_rules`、`recon.first_run_time`、`recon.alarm_time` | d2:1424-1433；decisions 7.3；08、09 的请求；A156 |
+| `payment` / `refund` / `invoice` / `recon` | `payment.bank_transfer.min_fen`、`payment.wechat.advise_transfer_above_fen`、`payment.description_template.*`、`refund.original_route_safety_hours`、`refund.bill_wait_days`、`refund.points.auto_approve_before_production`、`refund.require_distinct_executor`（boolean，默认 false；为 true 时取消申请与现金退款申请的执行人不得是该单的审批人（a05 3.15、a07 现金退款执行），d4-identity.md:1501，原名 `sod.refund.distinct_executor` 作废；A156）、`invoice.item_name.*`（W4-13 已落实 `invoice.item_name.plan_new`、`invoice.item_name.plan_renew`、`invoice.item_name.plan_upgrade`、`invoice.item_name.topup` 四键）、`invoice.apply_within_days`、`invoice.no_rules`、`recon.first_run_time`、`recon.alarm_time` | d2:1424-1433；decisions 7.3；08、09 的请求；A156 |
 | `export` / `analytics` | `export.max_rows`、`export.xlsx_max_rows`、`export.max_concurrent_per_staff`、`export.retention_hours`（导出文件保留时长，默认 24）、`analytics.anon.daily_cap`、`analytics.retention_months`（默认 25） | d6:1553、1952；03:591 |
 | `platform` | `platform.legal_entity`、`agreement.announce_min_days`（默认 30）、`docs.license.allow_stamp_only` | d6:1554；13 的请求 |
 | `identity` / `tenant`（02） | `auth.dormant_days`、`auth.identity_remove_min_age_days`、`tenant.default_store_limit`、`tenant.default_member_limit`、`invitation.ttl_hours`、`invitation.require_phone`、`invitation.daily_cap` | 02 的请求（d4:2342-2361） |
 | `staff` / `approval`（03） | `approval.remind_workdays`、`approval.escalate_workdays`、`admin.password_max_age_days` | 03 的请求 |
 | `content`（05） | `content.permit.platform_check`、`content.placement.open_slots` | d8:645；05 的请求 |
-| `media`（06） | `files.purge.mode`、`files.purge.max_objects`、`files.purge.max_bytes`、`files.retention.portrait_auth_adopted_years`（被采用过的素材删除后，其肖像授权材料的保留年数，默认 3，待法务确认；06 分组第 6 节第 5 项） | 06 的请求 |
+| `media`（06） | `files.purge.mode`、`files.purge.max_objects`、`files.purge.max_bytes`、`files.retention.portrait_auth_adopted_years`（被采用过的素材删除后，其肖像授权材料的保留年数，默认 3，待法务确认；06 分组第 6 节第 5 项）、`media.assets.daily_file_cap`（门店每日模型处理文件上限，默认 200，0–200文件）、`media.model.daily_call_cap`（全局每日保守预留槽上限，默认 0，0–10000槽；ASR提交1槽，LLM逻辑调用3槽，任一上限0则关闭） | 06 的请求；D5 §9.5预算护栏，W3-15独立账本前置；登记不代表模型已接入 |
 | `order` / `ad`（09） | `order.start_delay_minutes`、`order.rejected_stale_days`（默认 7）、`ad.returned_stale_days`（默认 7） | d3:3045；09 的请求 |
 | `delivery`（10） | `qc.episode.four_eyes` | 10 的请求 |
 | `publish`（11） | `launch.partial_goes_live`、`launch.verify_revoke_window`、`patrol.weekly_sample`、`takedown.check_mode`（下架核查口径：默认逐条核查留证，可改为按比例抽查，抽查比例用万分比；值形态见第 4.2 节） | d3:1998、3398；11 的请求 |
@@ -739,13 +739,16 @@ Banner 各有独立的时间窗与启停，保存即生效，到结束时间自�
 | `trg_analytics_event_append_only` | 触发器：行级拦截 UPDATE、DELETE（`lyx_forbid_mutation`）；建在父表上，自动带到各分区 |
 | `trg_analytics_event_no_truncate` | 触发器：禁止 TRUNCATE 父表（`lyx_forbid_mutation`） |
 | `analytics_event_default` | 兜底分区（`DEFAULT`），带 `trg_analytics_event_default_no_truncate`。正常应为空 |
-| `lyx_14_analytics_event_ensure_partition(date)` | 函数：建某个月的分区 `analytics_event_y<年>m<月>`（已存在则跳过），并给它加禁止 TRUNCATE 的语句级触发器（语句级触发器不会从父表带到分区）。迁移执行时预建当月与未来 3 个月 |
+| `lyx_14_analytics_event_ensure_partition(date)` | 受限 SECURITY DEFINER，PUBLIC 收回、仅授 lyx_app；参数须为 0001–9999 年有限公历月首，返回固定分区名 text。父表独占锁内建 Shanghai 月分区，给它补禁止 TRUNCATE 的语句级 trigger；已有对象须精确校验 owner、父关系、范围、trigger OID/类型/启用/克隆关系，否则失败。default 有目标月行时原样失败。首版迁移预建当月与未来 3 月 |
+| `lyx_14_analytics_event_repartition_month(date)` | 同样受限的 SECURITY DEFINER 与月首校验，返回本月搬移条数 bigint。锁定 parent/default，用本次自建 pg_temp 表保存完整行，临时停用 default 行级防改 trigger 后 DELETE RETURNING，调用严格 ensure、INSERT 父表、按条数与全列 EXCEPT ALL 验证，再恢复 trigger 并删除自建 temp；已有同名 temp 先拒绝，任何错误/外层回滚整体恢复 |
 
 **分区运维**
 
-- `analytics.partitions`（每月 20 日的周期任务）调用 `lyx_14_analytics_event_ensure_partition`，预建未来 3 个月的分区（d6:1952）。这是 DDL，用迁移账号执行。
+- `analytics.partitions`（每月 20 日的周期任务）调用 `lyx_14_analytics_event_ensure_partition`，预建未来 3 个月的分区（d6:1952）。由 lyx_app 调用受限 SECURITY DEFINER，不给 worker 迁移口令或直接 DDL 权限。服务按注入 clock 与现有参数确定允许月份，数据库仅校验结构日期，不新增 now/保留期业务规则。
 - 原始事件保留 25 个月（参数 `analytics.retention_months`）：到期整分区导出到对象存储后 `DETACH` 再 `DROP`，不逐行删除。
-- 兜底分区有数据之后的修复（d6:1954-1965）：脚本 `ops analytics:repartition <YYYY-MM>` 在同一事务里先 `ALTER TABLE analytics_event_default DISABLE TRIGGER trg_analytics_event_append_only`，把该月的行搬到新分区，再恢复触发器。只有迁移账号能做。
+- 后续独立结构迁移提供受限 `lyx_14_analytics_event_retire_partition(date,timestamptz,integer,bigint,text)`：固定月份、注入时钟、正式保留期 13–60、实际归档行数和 manifest SHA-256；结束边界不晚于时钟减保留期的完整北京时间月份才可退役。在父表独占锁内验证原完整结构/只增 guards 与行数，再原子 DETACH/DROP，无 CASCADE。服务须先验证完整对象归档，函数不外呼、不把参数哈希当对象存在证明；迟到数据导致行数失配即拒绝，不改旁侧表。业务任务只在能力实际合入 main 后消费，真实归档仍由 W2-18 PR2 验收。
+- 角色权限另有不可越过的最短年龄界：按数据库语句时间保留至少 13 个月，伪造未来业务时钟不能绕过；同现有 auth_event purge 的防未来用途，不替代注入时钟与实际业务保留参数。
+- 兜底分区有数据之后的修复（d6:1954-1965）：脚本 `ops analytics:repartition <YYYY-MM>` 按服务范围和环境授权调用 `lyx_14_analytics_event_repartition_month(date)`，只搬该月完整行，同一事务恢复 trigger；其他月、dedup、identity 不改。此能力由独立结构迁移包落地，W2-18 主包实际合流后才消费；不授任意 DDL，不改归档权限。
 
 **不变量**
 

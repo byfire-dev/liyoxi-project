@@ -42,7 +42,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), buildNumberPlugin(build, mode)],
     define: { __LYX_BUILD__: JSON.stringify(build) },
-    build: { outDir: "dist/app", emptyOutDir: true, sourcemap: false },
+    build: {
+      outDir: "dist/app",
+      emptyOutDir: true,
+      sourcemap: mode === "production" ? "hidden" : false,
+    },
     server: { port: 5184 },
     test: { name: "portal", environment: "node", include: ["src/**/*.test.{ts,tsx}"] },
   };

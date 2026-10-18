@@ -90,7 +90,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     implemented: true,
   }),
   // sub/catalog（3 页）
-  page("sub/catalog/search/index", "sub/catalog", "搜索", "Search", "M03", "M3", "G3-B"),
+  page("sub/catalog/search/index", "sub/catalog", "搜索", "Search", "M03", "M3", "W3-13", {
+    implemented: true,
+  }),
   page("sub/catalog/trailer/index", "sub/catalog", "预告片模式", "Trailer", "M05", "V1.1", "—", {
     note: "V1.0 不做（规范 第 11 节）",
   }),
@@ -170,8 +172,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
   }),
   page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "G4-C"),
   page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "G4-C"),
-  page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "G4-C"),
-  page("sub/billing/contracts/index", "sub/billing", "合同", "Contracts", "M34", "M4", "G4-C"),
+  page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "W4-16", {
+    implemented: true,
+  }),
+  page("sub/billing/contracts/index", "sub/billing", "合同", "Contracts", "M34", "M4", "W4-16", {
+    implemented: true,
+  }),
   // sub/profile（9 页）
   page("sub/profile/profile/index", "sub/profile", "建档首页", "Profile", "M12", "M1", "W1-09", {
     implemented: true,
@@ -205,8 +211,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "W1-09",
     { implemented: true },
   ),
-  page("sub/profile/stores/index", "sub/profile", "门店管理", "Stores", "M48", "M2", "G2-B"),
-  page("sub/profile/store-add/index", "sub/profile", "新增门店", "StoreAdd", "M49", "M2", "G2-B"),
+  page("sub/profile/stores/index", "sub/profile", "门店管理", "Stores", "M48", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/profile/store-add/index", "sub/profile", "新增门店", "StoreAdd", "M49", "M2", "W2-14", {
+    implemented: true,
+  }),
   page(
     "sub/profile/staff-profile/index",
     "sub/profile",
@@ -214,16 +224,24 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "StaffProfile",
     "M56",
     "M2",
-    "G2-B",
+    "W2-14",
     {
       note: "仅店员",
+      implemented: true,
     },
   ),
   // sub/asset（4 页）
-  page("sub/asset/lib/index", "sub/asset", "素材库", "AssetLib", "M50", "M3", "G3-C"),
-  page("sub/asset/upload/index", "sub/asset", "上传素材", "AssetUpload", "M51", "M3", "G3-C"),
-  page("sub/asset/detail/index", "sub/asset", "素材详情", "AssetDetail", "M52", "M3", "G3-C"),
-  page("sub/asset/uploader/index", "sub/asset", "上传中心", null, null, "M3", "G3-C", {
+  page("sub/asset/lib/index", "sub/asset", "素材库", "AssetLib", "M50", "M3", "W3-17", {
+    implemented: true,
+  }),
+  page("sub/asset/upload/index", "sub/asset", "上传素材", "AssetUpload", "M51", "M3", "W3-17", {
+    implemented: true,
+  }),
+  page("sub/asset/detail/index", "sub/asset", "素材详情", "AssetDetail", "M52", "M3", "W3-17", {
+    implemented: true,
+  }),
+  page("sub/asset/uploader/index", "sub/asset", "上传中心", null, null, "M3", "W3-17", {
+    implemented: true,
     note: "新增页：大文件上传",
   }),
   // sub/ad（2 页）
@@ -245,15 +263,23 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
       note: "一页两态",
     },
   ),
-  page("sub/service/messages/index", "sub/service", "消息", "Messages", "M36", "M2", "G2-C"),
-  page("sub/service/settings/index", "sub/service", "设置", null, null, "M2", "G2-B", {
+  page("sub/service/messages/index", "sub/service", "消息", "Messages", "M36", "M2", "W2-19", {
+    implemented: true,
+  }),
+  page("sub/service/settings/index", "sub/service", "设置", null, null, "M2", "W2-13", {
+    implemented: true,
     note: "新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑",
   }),
   // sub/member（3 页）
-  page("sub/member/members/index", "sub/member", "成员", "Members", "M53", "M2", "G2-B"),
-  page("sub/member/invite/index", "sub/member", "邀请店员", "Invite", "M54", "M2", "G2-B"),
-  page("sub/member/join/index", "sub/member", "加入门店", "Join", "M55", "M2", "G2-B", {
+  page("sub/member/members/index", "sub/member", "成员", "Members", "M53", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/member/invite/index", "sub/member", "邀请店员", "Invite", "M54", "M2", "W2-14", {
+    implemented: true,
+  }),
+  page("sub/member/join/index", "sub/member", "加入门店", "Join", "M55", "M2", "W2-14", {
     note: "游客可进",
+    implemented: true,
   }),
 ];
 

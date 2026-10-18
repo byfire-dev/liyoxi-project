@@ -1,6 +1,65 @@
+import { createWechatPaymentSource, bindPaymentChannel } from "./billing/index.js";
+import {
+  createRuntimeMediaAssets,
+  createMediaAssetsAssembly,
+  createModelBudgetRuntime,
+} from "./ops/index.js";
+import { readTargetActivity } from "./audit/index.js";
+import {
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+  createProfileQualificationConsistency,
+} from "./profile/index.js";
+import {
+  createDeliveryProductionAssembly,
+  createDeliverySlaAssembly,
+  createContentPricingAssembly,
+  createContentAdmin,
+  createInvitationAssembly,
+} from "./ops/index.js";
+import type { ContentAdmin } from "./ops/index.js";
+import {
+  createContentCopyright,
+  createContentLicense,
+  createContentMaintenance,
+  DramaPricePort,
+  DramaUsagePort,
+} from "./content/index.js";
+import { createDramaPricing } from "./billing/index.js";
+import { createPlanAdmin, createParameterChanges } from "./billing/index.js";
+import { latestStaffWecomInviteKey } from "./audit/index.js";
+import { createSmsInit, createSmsHealth, smsTemplateReader } from "./notify/index.js";
+import { keyringFromEnv } from "./security/index.js";
+import {
+  createAnalyticsJobs,
+  createAnalyticsReceiver,
+  countBannerClicks,
+} from "./analytics/index.js";
+import type { AnalyticsReceiver, AnalyticsJobs } from "./analytics/index.js";
+import type { NotifyDispatcherService } from "./notify/index.js";
+import { bindAgreementNoticeLink } from "./config/index.js";
+import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
+import {
+  currentSessionOpenid,
+  findWechatIdentityId,
+  recentWechatOpenid,
+} from "./identity/index.js";
+import type { SubscribeResults } from "./notify/index.js";
+import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
+import type { Docs } from "./docs/index.js";
+import { createClientErrorForwarder, createServerErrorReporter } from "./ops/index.js";
+import type { ClientErrorForwarder, ServerErrorReporter } from "./ops/index.js";
+import { createFlowOps, createAlertActions } from "./ops/index.js";
+import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
-import { createOrderService, bindOrder, bindOrderStart } from "./order/index.js";
+import {
+  createOrderService,
+  bindOrder,
+  bindOrderStart,
+  readUnassignedStoreOrderIds,
+  syncUnassignedStoreOrders,
+} from "./order/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
@@ -20,7 +79,9 @@ import { bindPublish } from "./publish/index.js";
 // W1-01a 接进来的两样：flow（状态迁移，装配之后、events 之上建一次）与 staffAuth（后台登录与会话的用例）。
 // staffAuth 第一次取时才加载密钥并装配：本地与用例里不配密钥文件进程也起得来，只是后台登录用不了；
 // stg、prod 下三份密钥缺了由启动自检拦（security.crypto 两份；api 进程另有 security.auth_keys）。
-import { createPrismaClient } from "@liyoxi/db";
+import { createPrismaClient, createSessionMutexConnectionFactory } from "@liyoxi/db";
+import { createSessionMutex } from "./kernel/index.js";
+import type { SessionMutex } from "./kernel/index.js";
 import { Redis } from "ioredis";
 
 import { assembleServices } from "./assembly.js";
@@ -29,19 +90,34 @@ import type { Approval } from "./approval/index.js";
 import {
   bindBillingTimers,
   createBillingPurchase,
+  createTransferReviewAssembly,
+  createInvoiceAssembly,
+  createInvoices,
+  createFinanceConfigService,
   createLedger,
   createPayment,
   createFulfillment,
+  getNotifyPurchaseMode,
 } from "./billing/index.js";
-import type { BillingPurchase } from "./billing/index.js";
-import { staffBriefs } from "./staff/index.js";
-import { createDocs } from "./docs/index.js";
-import { createTenant } from "./tenant/index.js";
+import type { BillingPurchase, BillingPurchaseDeps } from "./billing/index.js";
+import { createNotifyMessages } from "./notify/index.js";
+import type { NotifyMessages } from "./notify/index.js";
+import { staffBriefs, createStaffAssembly } from "./staff/index.js";
+import { staffWorkSourcesOf } from "./kernel/index.js";
+import { sendStaffWecomInvite } from "./notify/index.js";
+import { readAgreementNoticeLink } from "./docs/index.js";
+import { createTenant, createInvitationExpiry } from "./tenant/index.js";
 import { createSla, createCalendarAdmin, bindCalendarCoverage } from "./sla/index.js";
 import type { CalendarAdmin } from "./sla/index.js";
 import type { Keyring } from "./security/index.js";
-import { createConfig, createConfigAdmin } from "./config/index.js";
-import type { Config, ConfigAdmin } from "./config/index.js";
+import {
+  createConfig,
+  createConfigAdmin,
+  createSiteAdmin,
+  normalizeSiteNoticeLink,
+  createNotices,
+} from "./config/index.js";
+import type { Config, ConfigAdmin, SiteAdmin } from "./config/index.js";
 import { createEvents } from "./events/index.js";
 import type { Events } from "./events/index.js";
 import { createFlow } from "./flow/index.js";
@@ -50,6 +126,7 @@ import {
   alertsOf,
   piiFieldsOf,
   assembleProviders,
+  createDocumentConverter,
   createBizNoIssuer,
   createTxRunner,
   createQueueChannel,
@@ -67,13 +144,29 @@ import type {
 } from "./kernel/index.js";
 import { createLogger } from "./logger.js";
 import type { Logger } from "./logger.js";
-import { bindOps, createHealth, createStartupChecks } from "./ops/index.js";
+import {
+  bindOps,
+  createInvariantReportingAssembly,
+  createHealth,
+  createStartupChecks,
+  createRuntimeNotify,
+  createNotifyAssembly,
+  createTenantEntitlementAssembly,
+  createRuntimeTenantEntitlement,
+  createAlertFactsAssembly,
+} from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
-import type { Providers } from "./providers/types.js";
-import { createContent, bindContent } from "./content/index.js";
+import type { Providers, ProductionMediaTools } from "./providers/types.js";
+import { createContent, bindContent, readTemplatePriceCandidates } from "./content/index.js";
 import type { Content } from "./content/index.js";
 import { createMedia } from "./media/index.js";
-import type { Media } from "./media/index.js";
+import {
+  createMediaAssembly,
+  mediaSweepOptions,
+  createRuntimeMediaBatches,
+  createRuntimeMediaProduction,
+} from "./ops/index.js";
+import type { Media, ModelBudgetTransport } from "./media/index.js";
 import { createRateLimiter } from "./rate-limit.js";
 import type { RateLimiter } from "./rate-limit.js";
 import {
@@ -82,6 +175,9 @@ import {
   createPiiReveal,
   bindWebhooks,
   createWebhooks,
+  createWechatMessageSource,
+  createCiWebhookSource,
+  createAsrWebhookSource,
 } from "./security/index.js";
 import type { Webhooks, WebhookSource } from "./security/index.js";
 import {
@@ -89,8 +185,9 @@ import {
   recommendedStaff,
   createRoleManagement,
   createStaffSelfSecurity,
+  createStaffFollowUps,
 } from "./staff/index.js";
-import type { StaffAuth } from "./staff/index.js";
+import type { StaffAuth, createStaffManagement } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
 import type { Timers } from "./timers/index.js";
 
@@ -126,6 +223,18 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  /** 仅进程入口提供自有dist目录；测试/借用装配不自动启用服务端出口。 */
+  readonly serverErrorRoot?: URL;
+  /** API自有ASR/LLM/OCR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
+  readonly modelDrivers?: {
+    registerClose(close: () => Promise<void>): void;
+    close(): Promise<void>;
+  };
+  /** API入口借入的独立预算连接；本运行时只排空准入，连接关闭仍归入口。 */
+  readonly modelBudgetTransport?: ModelBudgetTransport;
+  readonly documentWorkerUrl?: URL;
+  /** Only local/test external-tool substitution; production facts and handlers stay real. */
+  readonly mediaProductionTools?: ProductionMediaTools;
   readonly webhookSources?: readonly WebhookSource[];
   /** 仅测试/演示装配传假密钥；生产仍通过受控配置延迟加载。 */
   readonly billingKeyring?: Keyring;
@@ -153,10 +262,28 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly sessionMutex: SessionMutex;
+  readonly docs: Docs;
+  readonly docsAdmin: ReturnType<typeof createRuntimeDocs>["admin"];
+  readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
+  readonly smsInit: ReturnType<typeof createSmsInit>;
+  readonly analytics: AnalyticsReceiver;
+  readonly analyticsPartitions: Pick<AnalyticsJobs, "repartition">;
+  readonly subscribeResults: SubscribeResults;
+  readonly clientErrors: ClientErrorForwarder;
+  readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
-  readonly billing: BillingPurchase;
+  readonly billing: BillingPurchase & {
+    invoices: ReturnType<typeof createInvoices>;
+    financeConfig: ReturnType<typeof createFinanceConfigService>;
+  };
+  readonly billingPlansAdmin: ReturnType<typeof createPlanAdmin>;
+  readonly billingParameters: ReturnType<typeof createParameterChanges>;
+  readonly notifyMessages: NotifyMessages;
+  readonly notify: NotifyDispatcherService;
   readonly content: Content;
+  readonly contentAdmin: ContentAdmin;
   readonly media: Media;
   /** 审批执行器与只读队列：api、worker 各自装配（移交表 64） */
   readonly approval: Approval;
@@ -170,6 +297,7 @@ export interface Runtime {
   readonly bizNo: BizNoIssuer;
   readonly config: Config;
   readonly configAdmin: ConfigAdmin;
+  readonly siteAdmin: SiteAdmin;
   readonly calendarAdmin: CalendarAdmin;
   readonly health: Health;
   /** 限流计数：Redis 上的固定窗口，Redis 不可用时进程内兜底、限额减半（约定 C68） */
@@ -195,9 +323,13 @@ export interface Runtime {
    * 第一次取时才加载密钥并装配；三份密钥文件（DATA_KEYS_FILE、BIDX_KEYS_FILE、AUTH_KEYS_FILE）没配全即抛 SecurityError
    */
   readonly staffAuth: StaffAuth;
+  readonly staffManagement: ReturnType<typeof createStaffManagement>;
+  readonly followUps: ReturnType<typeof createStaffFollowUps>;
   readonly staffRoles: ReturnType<typeof createRoleManagement>;
   readonly staffSelfSecurity: ReturnType<typeof createStaffSelfSecurity>;
   readonly auditRead: ReturnType<typeof createAuditRead>;
+  readonly flowOps: FlowOps;
+  readonly alertActions: AlertActions;
   readonly piiReveal: ReturnType<typeof createPiiReveal>;
 }
 
@@ -208,11 +340,37 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  const ownsModels =
+    options.providers === undefined &&
+    ((entry === "api" && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC)) || !!env.OCR_TENCENT);
+  const ownsAsr = entry === "api" && options.providers === undefined && !!env.ASR_TENCENT;
+  const ownsOcr = options.providers === undefined && !!env.OCR_TENCENT;
+  const ownsMail = entry === "worker" && options.providers === undefined && !!env.MAIL_TENCENT;
+  const asrCallback = ownsAsr ? env.ASR_CALLBACK : undefined;
+  const modelDrivers = ownsModels ? options.modelDrivers : undefined;
+  if (
+    ownsModels &&
+    (typeof modelDrivers?.registerClose !== "function" || typeof modelDrivers?.close !== "function")
+  )
+    throw new TypeError(
+      ownsAsr
+        ? "API ASR配置须成对提供本实例关闭登记与关闭函数"
+        : ownsOcr
+          ? "OCR配置须成对提供本实例关闭登记与关闭函数"
+          : "API LLM配置须成对提供本实例关闭登记与关闭函数",
+    );
+  if (entry === "worker" && env.CI && !env.CI.worker)
+    throw new TypeError("CI worker入口缺少worker角色");
+  if (env.COS && (entry === "worker" ? !env.COS.worker : !env.COS.signer || !env.COS.stsIssuer))
+    throw new TypeError("当前进程 COS 角色配置不完整");
   const clock = options.clock ?? systemClock;
   const logger =
     options.logger ?? createLogger({ svc: entry, env: env.APP_ENV, level: env.LOG_LEVEL, version });
 
   const prisma = createPrismaClient({ connectionString: env.DATABASE_URL, ...DB_POOLS[entry] });
+  const sessionMutex = createSessionMutex({
+    connect: createSessionMutexConnectionFactory({ connectionString: env.DATABASE_URL }),
+  });
 
   const keyPrefix = options.redisKeyPrefix ?? `lyx:${env.APP_ENV}:`;
   // 一条命令只等一次重连：Redis 不可用时调用方很快拿到错误，各自降级（01 第 7.3 节）
@@ -231,7 +389,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const report = (violation: KernelViolation): void => {
     logger.error({ evt: "kernel.violation", err: violation }, violation.message);
   };
-  const tx = createTxRunner({ prisma, appEnv: env.APP_ENV, report });
+  const profileCommits = createProfileConsistencyTransactions(
+    createTxRunner({ prisma, appEnv: env.APP_ENV, report }),
+    () =>
+      logger.error({ evt: "profile.consistency_notification_failed" }, "资质一致性提交后通知失败"),
+  );
+  const tx = profileCommits.tx;
   const config = createConfig({
     db: prisma,
     clock,
@@ -250,6 +413,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     version,
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
+  const notifyMessages = createNotifyMessages({
+    tx,
+    clock,
+    config,
+    purchaseMode: getNotifyPurchaseMode,
+  });
+  const clientErrors = createClientErrorForwarder({
+    clock,
+    logger,
+    projects: env.CLIENT_ERROR_PROJECTS?.projects ?? [],
+  });
   const rateLimiter = createRateLimiter({
     store: redis,
     clock,
@@ -258,24 +432,278 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ? {}
       : { commandTimeoutMs: options.rateLimitCommandTimeoutMs }),
   });
-  const assembly = assembleServices({ entry, appEnv: env.APP_ENV });
+  const alertFactsScope = createAlertFactsAssembly(
+    createInvariantReportingAssembly(assembleServices({ entry, appEnv: env.APP_ENV }), {
+      db: prisma,
+      clock,
+    }),
+    {
+      tx,
+      clock,
+      logger,
+    },
+  );
+  const analyticsScope = createAnalyticsJobs(alertFactsScope.assembly, {
+    tx,
+    clock,
+    appEnv: env.APP_ENV,
+    storage: () => providers.storage,
+  });
+  const notifyScope = createNotifyAssembly(analyticsScope.assembly);
+  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
+  const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
+  const profileConsistencyScope = createProfileConsistencyAssembly(staffScope.assembly);
+  const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
+  const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
+  const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
+  const docsScope = createDocsAssembly(deliverySlaScope.assembly);
+  const invitationScope = createInvitationAssembly(docsScope.assembly);
+  const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
+  const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
+  const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
+  const assembly = invoiceScope.assembly;
+  const documentConverter = options.documentWorkerUrl
+    ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
+    : null;
   // 违规上报端口（invariants.report）的实现在 ops，要连接、时钟与装配结果（W0-24）
   const unbindOps = bindOps({ db: prisma, tx, clock, assembly });
-  const providers = options.providers ?? assembleProviders({ appEnv: env.APP_ENV, logger });
+  const wechatClosers: Array<() => Promise<void>> = [];
+  const providers =
+    options.providers ??
+    assembleProviders({
+      appEnv: env.APP_ENV,
+      logger,
+      settings: {
+        ...(ownsAsr ? { asr: env.ASR_TENCENT } : {}),
+        ...(ownsOcr ? { ocr: env.OCR_TENCENT } : {}),
+        ...(ownsMail ? { mail: env.MAIL_TENCENT } : {}),
+        ...(ownsModels && entry === "api" && env.LLM_DOMESTIC ? { llm: env.LLM_DOMESTIC } : {}),
+        ...(env.SMS
+          ? {
+              sms: {
+                driver: "tencent" as const,
+                tencent: {
+                  config: env.SMS,
+                  getTemplate: smsTemplateReader(prisma),
+                  now: () => clock.now(),
+                },
+              },
+            }
+          : {}),
+        ...(entry === "worker" && env.CI?.worker
+          ? {
+              media: {
+                ci: {
+                  region: env.CI.worker.region,
+                  buckets: env.CI.worker.buckets,
+                  worker: { secretId: env.CI.worker.secretId, secretKey: env.CI.worker.secretKey },
+                  callback: env.CI.callback,
+                },
+              },
+            }
+          : {}),
+        ...(env.MINIO ? { storage: { minio: env.MINIO } } : {}),
+        ...(env.COS
+          ? {
+              storage: {
+                driver: "cos" as const,
+                cos: {
+                  region: env.COS.region,
+                  buckets: env.COS.buckets,
+                  ...(entry === "worker"
+                    ? { worker: env.COS.worker }
+                    : { signer: env.COS.signer, stsIssuer: env.COS.stsIssuer }),
+                },
+              },
+            }
+          : {}),
+        ...(env.WECHAT_PAY ? { wechatPay: env.WECHAT_PAY } : {}),
+        ...(env.WECHAT ? { wechat: { appid: env.WECHAT.appid, secret: env.WECHAT.secret } } : {}),
+      },
+      ...(ownsAsr
+        ? {
+            asr: {
+              ...(asrCallback ? { callback: asrCallback } : {}),
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsModels && entry === "api" && env.LLM_DOMESTIC
+        ? {
+            llm: {
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsOcr
+        ? {
+            ocr: {
+              registerClose: (close: () => Promise<void>) => modelDrivers!.registerClose(close),
+            },
+          }
+        : {}),
+      ...(ownsMail
+        ? {
+            mail: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
+            },
+          }
+        : {}),
+      ...(entry === "worker" && env.CI?.worker
+        ? {
+            media: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => wechatClosers.push(close),
+            },
+          }
+        : {}),
+      ...(env.COS
+        ? {
+            storage: {
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          }
+        : {}),
+      ...(env.WECHAT_PAY ? { wechatPay: { now: () => clock.now() } } : {}),
+      ...(env.WECHAT
+        ? {
+            wechat: {
+              redis,
+              prefix: keyPrefix,
+              now: () => clock.now(),
+              registerClose: (close: () => Promise<void>) => {
+                wechatClosers.push(close);
+              },
+            },
+          }
+        : {}),
+    });
+  const asrCallbackEnabled =
+    asrCallback !== undefined && providers.asr.configured && providers.asr.status === "tencent";
+  if (entry === "worker")
+    notifyScope.attachSmsHealth(
+      createSmsHealth({
+        db: prisma,
+        tx,
+        clock,
+        config,
+        sms: providers.sms,
+        alerts: alertsOf(assembly),
+        env: env.APP_ENV,
+        keyring: () => (env.DATA_KEYS && env.BIDX_KEYS ? keyringFromEnv(env) : null),
+      }),
+    );
   const events = createEvents({ assembly, clock, tx });
+  deliverySlaScope.attach({ events, clock });
+  const wechatSources = env.WECHAT
+    ? [
+        createWechatMessageSource({
+          cryptoConfig: {
+            appid: env.WECHAT.appid,
+            token: env.WECHAT.messageToken,
+            encodingAESKey: env.WECHAT.messageEncodingAESKey,
+          },
+          logger,
+          findWechatIdentityId,
+          handleImage: (t, input, ctx) => media.applyWechatImageResult(t, input, ctx),
+          handleSubscription: createWechatReceiptHandler({ clock, logger }),
+        }),
+      ]
+    : [];
   const webhooks = createWebhooks({
     tx,
     clock,
     events,
-    sources: options.webhookSources,
+    sources: options.webhookSources ?? [
+      ...wechatSources,
+      createWechatPaymentSource({
+        provider: () => providers.wechatPay,
+        identity: () => env.WECHAT_PAY,
+        channel: () => billing.wechatChannel,
+        alerts: alertsOf(assembly),
+      }),
+      createCiWebhookSource({
+        key: env.CI?.callback.key,
+        wake: (tx, input) => media.wakeCiJob(tx, input),
+      }),
+      ...(asrCallbackEnabled
+        ? [
+            createAsrWebhookSource({
+              key: asrCallback?.key,
+              configured: () => asrCallbackEnabled,
+              wake: (tx, input) => media.wakeAsrJob(tx, input),
+            }),
+          ]
+        : []),
+    ],
     alerts: alertsOf(assembly),
   });
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
   const flow = createFlow({ assembly, clock, events });
-  const unbindOrder = bindOrder({ assembly, clock, flow });
+  invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
+  const reportingTenant = createTenant({ tx, clock, flow, assembly });
+  const analytics = createAnalyticsReceiver({
+    tx,
+    clock,
+    config,
+    tenant: reportingTenant,
+    alerts: alertsOf(assembly),
+  });
+  const subscribeResults = createSubscribeResults({
+    tx,
+    clock,
+    params: config.params,
+    alerts: alertsOf(assembly),
+    logger,
+  });
   const mediaChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${keyPrefix}bull` });
+  const mediaProduction = createRuntimeMediaProduction(
+    env.MEDIA_PRODUCTION,
+    providers,
+    options.mediaProductionTools
+      ? { appEnv: env.APP_ENV, tools: options.mediaProductionTools }
+      : undefined,
+  );
+  // API借用入口专用transport；默认额度与冷账本仍关闭，原TaskId回查不重复扣槽。
+  const modelBudget =
+    entry === "api"
+      ? createModelBudgetRuntime({
+          clock,
+          prefix: `lyx:${env.APP_ENV}:`,
+          transport: options.modelBudgetTransport,
+          alerts: alertsOf(assembly),
+          logger,
+        })
+      : undefined;
   const media = createMedia({
+    ocr: {
+      provider: providers.ocr,
+      sessionMutex,
+      keyring: () => (billingKeys ??= loadKeyring(env)),
+    },
+    retention: {
+      sessionMutex,
+      alerts: alertsOf(assembly),
+      staffBriefs,
+      sweep: mediaSweepOptions(config.params, (tx, id) => notify.remindAssetDemand(tx, id)),
+    },
+    assets: createRuntimeMediaAssets({
+      clock,
+      assembly,
+      timers,
+      providers,
+      asrCallback: asrCallbackEnabled,
+      ...(modelBudget ? { modelBudget: modelBudget.admission } : {}),
+    }),
+    batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
+    ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,
     assembly,
@@ -283,7 +711,29 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     storage: providers.storage,
     channel: mediaChannel,
     videoMaxMb: () => config.params.get("upload.weapp_video_max_mb"),
+    moderation: providers.media,
+    wechatImage: {
+      appid: env.WECHAT?.appid,
+      provider: providers.wechat,
+      fallback: providers.media,
+      recentWechatOpenid,
+    },
   });
+  mediaScope.attach(media.jobs, media.retention);
+  mediaAssetsScope.attach(media);
+  deliveryProductionScope.attach({ clock, flow, media });
+  const docsServices = createRuntimeDocs({
+    tx,
+    clock,
+    assembly,
+    media,
+    storage: providers.storage,
+    converter: documentConverter,
+    events,
+    config,
+    bumpAgreement: () => config.cache.bump("agreement"),
+  });
+  docsScope.attach(docsServices.jobs);
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -295,10 +745,46 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sla: createSla({ clock, assembly }),
   });
-  const content = createContent({ clock, flow, media, assembly });
+  const contentLicense = createContentLicense({ clock, flow, timers });
+  const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
+  const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
+  contentPricingScope.attach({
+    license: contentLicense,
+    pricing: dramaPricing,
+    maintenance: createContentMaintenance({ clock, usage: assembly.port(DramaUsagePort), media }),
+  });
+  const contentCopyright = createContentCopyright({
+    clock,
+    media,
+    events,
+    prices: assembly.port(DramaPricePort),
+    license: contentLicense,
+  });
+  const contentAdmin = createContentAdmin({
+    clock,
+    tx,
+    content,
+    prices: assembly.port(DramaPricePort),
+    staffBriefs,
+    activity: readTargetActivity,
+    pricing: (t, staff, id, at) => dramaPricing.detailPricing(t, staff, id, at),
+    copyright: contentCopyright,
+    pricingService: dramaPricing,
+    media,
+  });
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const sla = createSla({ clock, assembly });
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
+  profileConsistencyScope.attach(
+    createProfileQualificationConsistency({
+      assembly,
+      clock,
+      tenant: reportingTenant,
+      approval,
+      events,
+      commits: profileCommits,
+    }),
+  );
   const unbindApprovalSla = bindApprovalSla({
     clock,
     flow,
@@ -307,7 +793,89 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     timers,
     kinds: approval.kinds,
   });
+  const notify = createRuntimeNotify({
+    events,
+    tx,
+    clock,
+    assembly,
+    appEnv: env.APP_ENV,
+    params: config.params,
+    providers,
+    logger,
+    keys: env,
+    keyring: options.billingKeyring,
+    appid: env.WECHAT?.appid,
+  });
+  notifyScope.attach(notify);
+  entitlementScope.attach(createRuntimeTenantEntitlement({ clock, assembly, notify }));
+  const staffManagement = staffScope.attach({
+    tx,
+    clock,
+    flow,
+    config,
+    keyring: () => keyringFromEnv(env),
+    workSources: staffWorkSourcesOf(assembly),
+    storeManagerOrders: {
+      readUnassignedIds: readUnassignedStoreOrderIds,
+      syncUnassigned: syncUnassignedStoreOrders,
+    },
+    media,
+    events,
+    sla,
+    timers,
+    sendActivation: (input) =>
+      notify.sendDirect({
+        purpose: "staff_activation",
+        templateKey: "verify_code",
+        phone: input.phone,
+        params: { code: input.code },
+        directKey: `staff-activation:${input.activationId}`,
+      }),
+    sendWecomInvite: (input) =>
+      tx.run(async (t) =>
+        sendStaffWecomInvite(t, {
+          staffId: input.staffId,
+          invitationKey:
+            (await latestStaffWecomInviteKey(t, input.staffId)) ?? input.createdAt.toISOString(),
+          now: clock.now(),
+        }),
+      ),
+  });
+  const unbindNoticeLink = bindAgreementNoticeLink(readAgreementNoticeLink);
   const configAdmin = createConfigAdmin({ tx, clock, assembly, config, staffBriefs });
+  const siteAdmin = createSiteAdmin({
+    tx,
+    clock,
+    assembly,
+    config,
+    staffBriefs,
+    clicks: countBannerClicks,
+    noticeLink: (t, notice) => normalizeSiteNoticeLink(t, notice, readAgreementNoticeLink),
+    files: {
+      link: async (t, fileId, bannerId) => {
+        await media.link(t, {
+          fileId,
+          refType: "home_banner",
+          refId: bannerId,
+          role: "image",
+          entityId: null,
+          storeId: null,
+        });
+      },
+      release: async (t, fileId, bannerId, keepUntil) => {
+        await media.release(t, {
+          fileId,
+          refType: "home_banner",
+          refId: bannerId,
+          role: "image",
+          keepUntil,
+          entityId: null,
+          storeId: null,
+        });
+      },
+      sign: (fileId) => media.signRead({ fileId }),
+    },
+  });
   const calendarAdmin = createCalendarAdmin({ tx, clock, events });
   const unbindCalendarCoverage = bindCalendarCoverage({
     clock,
@@ -316,6 +884,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
+  const unbindOrder = bindOrder({
+    assembly,
+    clock,
+    flow,
+    cancel: { tx, clock, flow, events, approval, ledger, timers, sla },
+  });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const unbindOrderStart = bindOrderStart({
     tx,
@@ -332,7 +906,17 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
   });
   let billingKeys = options.billingKeyring;
-  const billing = createBillingPurchase({
+  const purchaseDeps: BillingPurchaseDeps = {
+    ...(env.WECHAT_PAY
+      ? {
+          wechatPay: {
+            provider: providers.wechatPay,
+            appid: env.WECHAT_PAY.appid,
+            mchid: env.WECHAT_PAY.mchid,
+            currentOpenid: (t, session) => currentSessionOpenid(t, session, env.WECHAT_PAY!.appid),
+          },
+        }
+      : {}),
     tx,
     clock,
     assembly,
@@ -351,11 +935,26 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       bizNo,
       fulfillment: createFulfillment({ clock, events }),
     }),
-    docs: createDocs({ tx, clock }),
+    approval,
+    docs: docsServices.docs,
     tenant,
     keyring: () => (billingKeys ??= loadKeyring(env)),
     sla: createSla({ clock, assembly }),
-  });
+  };
+  const invoiceDeps = {
+    ...purchaseDeps,
+    invoiceMedia: media,
+    invoiceMailEnabled: notify.invoiceMailEnabled,
+    resendMail: notify.resendInvoiceMail,
+  };
+  const billing = {
+    ...createBillingPurchase(purchaseDeps),
+    invoices: createInvoices(invoiceDeps),
+    financeConfig: createFinanceConfigService(purchaseDeps),
+  };
+  invoiceScope.attach(invoiceDeps);
+  transferReviewScope.attach(purchaseDeps);
+  const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
   const order = createOrderService({
     tx,
     clock,
@@ -367,7 +966,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     media,
     ledger,
     content,
-    docs: createDocs({ tx, clock }),
+    docs: docsServices.docs,
   });
   let staffAuth: StaffAuth | undefined;
   let staffRoles: ReturnType<typeof createRoleManagement> | undefined;
@@ -384,12 +983,25 @@ export function createRuntime(options: RuntimeOptions): Runtime {
 
   // 连库一项加移交表第 1 行的四个自检：security 的加解密与盲索引、审计 target_type 对表名单、聚合类型对表名单、
   // machine 与 state_field 对库里的表与列
+  let notifyDatabaseConnected = false;
   const startupChecks: StartupCheck[] = createStartupChecks({
     db: prisma,
     appEnv: env.APP_ENV,
     keys: env,
     warn: (message) => logger.warn({ evt: "startup.check_skipped" }, message),
-  });
+  }).map((check) =>
+    check.name !== "db.connect"
+      ? check
+      : {
+          ...check,
+          async run() {
+            notifyDatabaseConnected = false;
+            const issues = await check.run();
+            notifyDatabaseConnected = issues.length === 0;
+            return issues;
+          },
+        },
+  );
   // 后台登录的三把密钥（W1-01a）：只有 api 进程签票据、建会话。没配：stg、prod 下不过；local、test 下放行并记一条告警
   if (entry === "api") {
     startupChecks.push({
@@ -409,11 +1021,59 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     });
   }
 
+  startupChecks.push({
+    name: "notify.templates",
+    async run() {
+      if (notifyDatabaseConnected) await notify.validateConfiguration();
+      return [];
+    },
+  });
+
+  let closing: Promise<void> | undefined;
+  const serverErrors = options.serverErrorRoot
+    ? createServerErrorReporter({
+        component: entry,
+        release: version,
+        artifactRoot: options.serverErrorRoot,
+        dsn: env.SERVER_ERRORS?.[entry]?.dsn,
+        clock,
+        logger,
+      })
+    : undefined;
   return {
+    sessionMutex,
+    docs: docsServices.docs,
+    docsAdmin: docsServices.admin,
+    documentConverter,
+    smsInit: createSmsInit({ tx, clock }),
+    analytics,
+    subscribeResults,
+    clientErrors,
+    ...(serverErrors ? { serverErrors } : {}),
     webhooks,
     order,
     billing,
+    billingParameters: createParameterChanges({
+      tx,
+      clock,
+      staffBriefs,
+      events,
+      notices: createNotices({ clock, events }),
+      candidates: readTemplatePriceCandidates,
+    }),
+    billingPlansAdmin: createPlanAdmin({
+      tx,
+      clock,
+      staffBriefs,
+      events,
+      notices: createNotices({ clock, events }),
+    }),
+    notifyMessages,
+    notify,
+    staffManagement,
+    followUps: createStaffFollowUps({ tx, clock, assembly }),
     content,
+    contentAdmin,
     media,
     entry,
     env,
@@ -425,6 +1085,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     approval,
     config,
     configAdmin,
+    siteAdmin,
     calendarAdmin,
     health,
     rateLimiter,
@@ -434,23 +1095,75 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     timers,
     report,
     startupChecks,
-    async close() {
-      unbindOrderStart();
-      unbindOrder();
-      unbindBilling();
-      unbindContent();
-      unbindPublish();
-      unbindDelivery();
-      unbindApprovalSla();
-      unbindCalendarCoverage();
-      unbindOps();
-      unbindWebhooks();
-      await mediaChannel.close();
-      redis.disconnect();
-      await prisma.$disconnect();
+    close() {
+      return (closing ??= (async () => {
+        const mutexClosing = sessionMutex.close();
+        void mutexClosing.catch(() => undefined);
+        let failure: PromiseRejectedResult | undefined;
+        const settle = async (closes: readonly (() => unknown)[]) => {
+          const results = await Promise.allSettled(
+            closes.map((close) => Promise.resolve().then(close)),
+          );
+          failure ??= results.find(
+            (result): result is PromiseRejectedResult => result.status === "rejected",
+          );
+        };
+        await settle([
+          () => modelBudget?.disable(),
+          () => {
+            entitlementScope.close();
+            invitationScope.close();
+          },
+        ]);
+        await settle([() => docsScope.close(), () => documentConverter?.close()]);
+        await settle([
+          () => staffScope.close(),
+          () => media.jobs.shutdown(),
+          () => analyticsScope.close(),
+          () => notifyScope.close(),
+        ]);
+        await settle([() => modelDrivers?.close()]);
+        await settle([() => modelBudget?.close()]);
+        await settle([
+          () => invoiceScope.close(),
+          () => transferReviewScope.close(),
+          () => mediaAssetsScope.close(),
+          () => profileConsistencyScope.close(),
+          () => mediaScope.close(),
+          () => contentPricingScope.close(),
+          () => deliveryProductionScope.close(),
+          () => deliverySlaScope.close(),
+          () => mediaProduction.close(),
+          unbindNoticeLink,
+          ...wechatClosers,
+          () => clientErrors.close(),
+          () => serverErrors?.close(),
+        ]);
+        await settle([
+          unbindOrderStart,
+          unbindOrder,
+          unbindBilling,
+          unbindPaymentChannel,
+          unbindContent,
+          unbindPublish,
+          unbindDelivery,
+          unbindApprovalSla,
+          unbindCalendarCoverage,
+          unbindOps,
+          unbindWebhooks,
+        ]);
+        await settle([() => mediaChannel.close()]);
+        await settle([() => mutexClosing]);
+        await settle([() => alertFactsScope.close()]);
+        await settle([() => redis.disconnect(), () => prisma.$disconnect()]);
+        if (failure) throw failure.reason;
+      })());
     },
     flow,
     auditRead,
+    flowOps: createFlowOps({ tx, clock }),
+    alertActions: createAlertActions({ tx, clock }),
+    analyticsPartitions: { repartition: analyticsScope.repartition },
     piiReveal,
     get staffRoles() {
       staffRoles ??= createRoleManagement({ db: prisma, tx, clock, roles: this.staffAuth.roles });

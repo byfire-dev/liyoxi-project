@@ -9,6 +9,18 @@
 import { bool, enumOf, int, intList, json, slaPolicy, timeHm } from "./define.js";
 import type { ParamDef } from "./define.js";
 
+// 项目名由财务显式配置；未配置不猜税务名称，不发起开票申请。
+function invoiceItem<const K extends string>(key: K): ParamDef<K, string, null> {
+  return {
+    key,
+    type: "text",
+    label: "开票项目名称",
+    unit: null,
+    default: null,
+    snapshotOn: "create",
+    maxLength: 100,
+  };
+}
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const isPositiveInt = (value: unknown): value is number =>
@@ -245,6 +257,19 @@ export const PARAM_DEFS = [
   }),
   int("notify.sms.keepalive_days", "短信模板保活间隔", { default: 5, unit: "天", min: 1, max: 30 }),
   int("notify.wx.quota_cap", "订阅消息额度估计上限", { default: 1, unit: "条", min: 1, max: 20 }),
+  // D6 §2.9：拒绝后至少冷却七天；平台单次请求最多五个模板。
+  int("notify.wx.ask_cooldown_days", "同一点位拒绝订阅后的本地冷却天数", {
+    default: 7,
+    unit: "天",
+    min: 7,
+    max: 30,
+  }),
+  int("notify.wx.max_per_ask", "每次授权请求的模板数上限", {
+    default: 3,
+    unit: "个",
+    min: 1,
+    max: 5,
+  }),
   int("notify.wx.field_fail_streak", "订阅消息字段错误连续几条即停用槽位", {
     default: 5,
     unit: "条",
@@ -257,6 +282,13 @@ export const PARAM_DEFS = [
     "测试发送的接收人",
     { default: [], check: checkTestRecipients, sensitivePaths: ["phone", "wxOpenid"] },
   ),
+  // D6 §2.4 默认一千；范围是 W2-17 批准的防误值宽边界，按 user/entity 二元接收人计数。
+  int("notify.fanout.batch", "规则公告每页主体接收人上限", {
+    default: 1000,
+    unit: "主体接收人",
+    min: 1,
+    max: 10000,
+  }),
 
   // ---- general（D6 第 4.2.1 节 general 一行）
   // 1–30，默认 7（10 分组 package_link.valid_days）
@@ -331,6 +363,10 @@ export const PARAM_DEFS = [
   }),
   bool("refund.points.auto_approve_before_production", "开工前取消免审批", { default: false }),
   bool("refund.require_distinct_executor", "退款执行人不得是审批人", { default: false }),
+  invoiceItem("invoice.item_name.plan_new"),
+  invoiceItem("invoice.item_name.plan_renew"),
+  invoiceItem("invoice.item_name.plan_upgrade"),
+  invoiceItem("invoice.item_name.topup"),
   int("invoice.apply_within_days", "开票申请时限", {
     default: null,
     unit: "天",
@@ -465,6 +501,18 @@ export const PARAM_DEFS = [
   bool("catalog.search.industry_fallback", "搜索无结果时按行业兜底推荐", { default: true }),
 
   // ---- media（D5 第 3.6、6.2 节；D7 第 4.11 节；07 第 7 节）
+  int("media.assets.daily_file_cap", "门店每日模型处理文件上限", {
+    default: 200,
+    unit: "文件",
+    min: 0,
+    max: 200,
+  }),
+  int("media.model.daily_call_cap", "全局每日模型保守预留槽上限", {
+    default: 0,
+    unit: "槽",
+    min: 0,
+    max: 10_000,
+  }),
   enumOf("files.purge.mode", "文件清除的运行模式", {
     options: ["list_only", "auto"],
     default: "list_only",

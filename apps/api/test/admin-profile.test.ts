@@ -55,7 +55,7 @@ async function pending() {
   return { ...owner, ...ready };
 }
 describe("后台档案六接口", { timeout: 60000 }, () => {
-  it("六条实际挂载；读侧脱敏、完整筛选和GET无写，M1未开放筛选明确400", async () => {
+  it("六条实际挂载；读侧脱敏、完整筛选和GET无写，非法筛选明确400", async () => {
     for (const op of operations)
       expect(HANDLERS.some((v) => v.route.operationId === op)).toBe(true);
     const p = await pending();
@@ -85,25 +85,43 @@ describe("后台档案六接口", { timeout: 60000 }, () => {
     expect(detail.docs[0]).toMatchObject({
       fileId: expect.any(String),
       ocrStatus: "unavailable",
-      fieldChecks: [],
+      fieldChecks: [{ code: "C11", field: "ocr", result: "manual" }],
       isCorrected: false,
     });
     expect(JSON.stringify(detail)).not.toContain(p.number);
     expect(JSON.stringify(detail)).not.toContain("张测试");
     expect(detail.approval.lockVersion).toBe(0);
     expect(detail.lockVersion).toBeGreaterThan(0);
-    expect(
-      await h.prisma.storeProfile.findUniqueOrThrow({ where: { storeId: p.store.id } }),
-    ).toEqual(before);
+    for (const { query, ids } of [
+      { query: "sort=-lastOrderAt", ids: [p.store.id] },
+      { query: "sourceType=organic", ids: [p.store.id] },
+      { query: "sourceType=sales", ids: [] },
+      { query: "subscriptionStatus=none", ids: [p.store.id] },
+      { query: "subscriptionStatus=active", ids: [] },
+      { query: "planId=" + uuidv7(), ids: [] },
+      { query: "expiresWithinDays=7", ids: [] },
+    ]) {
+      const filtered = AdminStoreListSchema.parse(
+        await data(await req(`stores?entityId=${p.entity.id}&${query}`)),
+      );
+      expect(filtered.total, query).toBe(ids.length);
+      expect(
+        filtered.items.map((item) => item.storeId),
+        query,
+      ).toEqual(ids);
+    }
     for (const query of [
-      "sort=-lastOrderAt",
+      "sort=lastOrderAt",
       "sourceType=natural",
-      "subscriptionStatus=none",
-      "planId=" + uuidv7(),
-      "expiresWithinDays=7",
+      "subscriptionStatus=future",
+      "planId=invalid",
+      "expiresWithinDays=8",
       `deliveryManagerId=${manager.staff.id}&isManagerUnassigned=true`,
     ])
       await error(await req("stores?" + query), 400, "VALIDATION_FAILED");
+    expect(
+      await h.prisma.storeProfile.findUniqueOrThrow({ where: { storeId: p.store.id } }),
+    ).toEqual(before);
   });
   it("真实权限、范围404、版本先于缺回显，override追加权限先于版本", async () => {
     const p = await pending();
@@ -140,7 +158,7 @@ describe("后台档案六接口", { timeout: 60000 }, () => {
         confirm: { roundNo: 1 },
       }),
       409,
-      "STATE_NOT_ALLOWED",
+      "CONFIRM_MISMATCH",
     );
     expect(
       (

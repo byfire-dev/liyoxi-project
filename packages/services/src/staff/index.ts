@@ -1,8 +1,11 @@
 // W0-21 种子：8 个角色；staff.I8 的 SQL 断言
 export { seed } from "./seed.js";
+export { readStoreManagerContact } from "./store-contact-facts.js";
 export { staffSeedAssertions } from "./invariants.js";
 // W1-01a 凭据与会话：进程启动时调一次 createStaffAuth，拿到九个接口对应的用例与引导用例。用法见本目录的 README.md
 export { createStaffAuth } from "./service.js";
+export { createStaffFollowUps } from "./follow-ups.js";
+export type { FollowUpsDeps } from "./follow-ups.js";
 export type { StaffAuth } from "./service.js";
 export type {
   AuthNext,
@@ -51,8 +54,9 @@ export type {
 } from "./demo-seed.js";
 export { BOOTSTRAP_JOB } from "./bootstrap.js";
 export { createStaffManagement } from "./management.js";
+export { createStaffAssembly } from "./runtime.js";
 export type { StaffManagementDeps } from "./management.js";
-export { pickNext, recommendedStaff, staffBriefs } from "./assignment.js";
+export { pickNext, recommendedStaff, staffBriefs, prepareAssignmentPools } from "./assignment.js";
 export type { AssignmentPool } from "./assignment.js";
 export { createRoleManagement, roleDefaults } from "./role-management.js";
 export type { RoleManagementDeps } from "./role-management.js";
@@ -60,3 +64,6 @@ export { createStaffSelfSecurity } from "./self-security.js";
 export type { StaffSelfSecurityDeps } from "./self-security.js";
 
 export { staffPiiFields } from "./pii-fields.js";
+export { loadCliStaffContext } from "./cli-context.js";
+
+export { staffContextsForNotify, staffTargetForNotify } from "./notify-facts.js";

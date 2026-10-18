@@ -1298,7 +1298,7 @@
 - 应用生成变更集 id，同时用作 `billing_param.change_id` 与 `price_tier_revision.batch_id`（2.6）。
 - 含需公告的键：先 `notices.announce`（`kind = billing_param`，`ref_id` = 变更集 id，`effective_at` = 该组生效时刻）：`site_notice`：（新建）→ `announced`，出站事件 `site_notice.announced`；再插需公告的各行，写好同一个 `site_notice_id`（07-billing-ledger.md:380-384）。
 - 插入 `billing_param` 各行（`created_by_staff_id` = 本人）；生效时间晚于当前时刻的每行发 `billing.param_change_scheduled`（负载带 `changeId`）。
-- 插入 `price_tier_revision` 各行；按模板定价、热度等级为变化档的剧，价格随即变化，逐部发 `pricing.drama_price_changed`（聚合取 `drama`，`cause = tier_template`；07-billing-ledger.md:1600）。x01 目录里这个事件的 `cause` 只有 `revision`、`tier_change`，发出方也没有本接口：已请 x01 补登 `tier_template` 与发出方（cross_doc），x01 定稿后按它改。
+- 插入 `price_tier_revision` 各行；按模板定价、热度等级为变化档的剧，价格随即变化，逐部发 `pricing.drama_price_changed`（聚合取 `drama`，`cause = tier_template`；07-billing-ledger.md:1600）。x01 §3.7 与现契约已登记 `tier_template` 及本接口发出方，沿该正式口径发出，不新增事件名。
 - 审计：每个参数键一条（`category = param`、`target_type = billing_param`、`target_key` = 键），模板价一条（`category = price_adjust`、`target_type = price_tier_revision`），`before` / `after` 记旧值与新值，`meta` 带 `changeSetId` 与 `note`。
 - 无状态迁移（修订行不是状态机），无定时器（参数按时间取值）。
 
@@ -2163,7 +2163,7 @@
 | 乐观锁 | 带复核审批单的 `lockVersion` |
 | 对应画板 | A:Receipts（复核中的凭证）；我的待审批 |
 
-**请求**：路径 `transferProofId`。请求体 `ApproveBody`，`confirmChecks` 必含 `bank_statement_checked`（复核人同样在银行流水里核对到账）。
+**请求**：路径 `transferProofId`。请求体 `ApproveBody`，另必填 `approvalId`（string(uuid)，本面板 `review.approvalId`）；`confirmChecks` 必含 `bank_statement_checked`（复核人同样在银行流水里核对到账）。锁内核 `approvalId` 与凭证当前复核单一致，审批类型/主体/轮次归属及审批单 `lockVersion` 一致；退回后重提的新复核单即使版本同为 0，旧面板也不能批准新轮。
 
 **响应**：`TransferProofDetail`（`reviewStatus = accepted`，`outcome = paid`）。
 
@@ -2185,7 +2185,7 @@
 | 乐观锁 | 不带（驳回的守卫没有列锁版本） |
 | 对应画板 | A:Receipts；我的待审批 |
 
-**请求**：路径 `transferProofId`。请求体 `RejectBody`：`note` 必填；`reasonCodes` 不传——字典 `reject_reason` 没有对公复核场景（14-config-data.md:124-131 只播种了 `transfer` 凭证驳回等 6 个场景），退回原因写在 `note` 里；14 分组若补场景再启用。
+**请求**：路径 `transferProofId`。请求体 `RejectBody`，另必填 `approvalId`（string(uuid)，本面板 `review.approvalId`）；锁内核当前凭证指针与该审批的类型/主体/轮次归属，旧面板不能退回新轮。`note` 必填；`reasonCodes` 不传——字典 `reject_reason` 没有对公复核场景（14-config-data.md:124-131 只播种了 `transfer` 凭证驳回等 6 个场景），退回原因写在 `note` 里；14 分组若补场景再启用。
 
 **响应**：`TransferProofDetail`（凭证仍 `pending`，`firstConfirm = null`）。
 
@@ -2723,7 +2723,7 @@
 | `FILE_NOT_USABLE` | 400 | （m03） |
 | `CONFIRM_MISMATCH` | 409 | |
 
-**副作用**（一个事务）：插入 `invoice_doc`（`doc_kind = blue`、`amount_fen` = 开票金额、`issued_by_staff_id` = 本人、`issued_at` = 现在；纸质另写 `shipped_at`）；`invoice_request.status`：`pending → issued`（08-billing-payment.md:1111-1112）；电子且有接收邮箱：`invoice_doc.email_state`：`none → queued`（未配置邮件驱动为 `skipped`）；取消 `sla.breach` 定时器（如有）；出站事件 `invoice.issued`（通知商家，电子发票经通知中心发邮件，R14）；审计（`category = invoice`）。
+**副作用**（一个事务）：插入 `invoice_doc`（`doc_kind = blue`、`amount_fen` = 开票金额、`issued_by_staff_id` = 本人、`issued_at` = 现在；纸质另写 `shipped_at`）；`invoice_request.status`：`pending → issued`（08-billing-payment.md:1111-1112）；电子且有接收邮箱：`invoice_doc.email_state`：`none → queued`（通知场景已关闭则 `skipped`；API 不持邮件密钥，真实 worker 未配置后由通知结果回写 `skipped`）；取消 `sla.breach` 定时器（如有）；出站事件 `invoice.issued`（通知商家，电子发票经通知中心发邮件，R14）；审计（`category = invoice`）。
 
 ### 3.71 admin.invoiceRequest.reject　驳回开票申请
 `POST /admin/invoice-requests/{invoiceRequestId}/reject`

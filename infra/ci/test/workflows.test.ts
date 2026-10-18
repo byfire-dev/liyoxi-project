@@ -13,6 +13,8 @@ const read = (path: string) => readFileSync(join(repoRoot, path), "utf8");
 const ci = read(".github/workflows/ci.yml");
 const nightly = read(".github/workflows/nightly.yml");
 const compose = read("infra/compose/local.yml");
+const MINIO_IMAGE =
+  "ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb";
 
 interface Job {
   id: string;
@@ -97,25 +99,32 @@ function jobBody(workflow: string, id: string): string {
   return (shapeOf(workflow).jobs.find((job) => job.id === id)?.lines ?? []).join("\n");
 }
 
-// 仅默认关闭的可信发布与回滚任务可引用明确的加密凭据；构建与其余工作流仍禁止。
+// 默认关闭的可信发布/回滚任务及下述唯一私有映射上传步骤可引用明确凭据。
 const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: string[] }[]> = {
   "images.yml": [
     {
       id: "publish-images",
       condition:
         "vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
-      keys: [
-        "STG_REGISTRY_USERNAME",
-        "STG_REGISTRY_PASSWORD",
-        "STG_COS_SECRET_ID",
-        "STG_COS_SECRET_KEY",
-      ],
+      keys: ["STG_REGISTRY_USERNAME", "STG_REGISTRY_PASSWORD", "GITHUB_TOKEN"],
+    },
+    {
+      id: "publish-artifacts",
+      condition:
+        "vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && vars.STG_ARTIFACT_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+      keys: ["STG_COS_SECRET_ID", "STG_COS_SECRET_KEY"],
     },
     {
       id: "mirror-base",
       condition:
         "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_IMAGES_PUBLISH_ENABLED == 'true' && inputs.mirror_base == true",
-      keys: ["STG_REGISTRY_USERNAME", "STG_REGISTRY_PASSWORD"],
+      keys: ["STG_REGISTRY_USERNAME", "STG_REGISTRY_PASSWORD", "GITHUB_TOKEN"],
+    },
+    {
+      id: "mirror-minio",
+      condition:
+        "github.event_name == 'workflow_dispatch' && inputs.mirror_minio == true && vars.MINIO_MIRROR_ENABLED == 'true' && github.repository == 'sanqianyuejia/liyoxi-project' && github.sha == vars.MINIO_MIRROR_APPROVED_SHA",
+      keys: ["GITHUB_TOKEN"],
     },
   ],
   "deploy-stg.yml": [
@@ -135,6 +144,31 @@ const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: str
     },
   ],
 };
+const SOURCE_MAP_UPLOAD_NAME = "      - name: 上传本轮私有源码映射（显式启用）";
+const SOURCE_MAP_TOKEN = "          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}";
+const SOURCE_MAP_UPLOAD_STEP = [
+  SOURCE_MAP_UPLOAD_NAME,
+  "        if: vars.STG_SOURCE_MAP_UPLOAD_ENABLED == 'true' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+  "        env:",
+  SOURCE_MAP_TOKEN,
+  "          LYX_SENTRY_UPLOAD_CONFIG: ${{ vars.LYX_SENTRY_UPLOAD_CONFIG }}",
+  "          TAG: ${{ steps.source.outputs.tag }}",
+  '        run: node infra/deploy/source-map-upload.mjs "$LYX_SOURCE_MAPS_DIR" "$GITHUB_SHA" "$TAG"',
+].join("\n");
+
+function approvedSourceMapStep(workflow: string, name: string): boolean {
+  if (name !== "images.yml") return false;
+  const shape = shapeOf(workflow);
+  const jobs = shape.jobs.filter((job) => job.id === "build-images");
+  if (shape.problems.length || jobs.length !== 1) return false;
+  const body = jobs[0]!.lines.join("\n");
+  if (/(?:^|[\s[{,])[&*][\w-]+(?=\s|[,\]}]|$)/m.test(body)) return false;
+  const steps = body
+    .split(/(?=^ {6}- )/m)
+    .filter((step) => step.startsWith(SOURCE_MAP_UPLOAD_NAME));
+  return steps.length === 1 && steps[0]!.trimEnd() === SOURCE_MAP_UPLOAD_STEP;
+}
+
 function unapprovedCredentials(workflow: string, name: string): string {
   const approved = new Map<string, string[]>();
   for (const job of CREDENTIAL_JOBS[name] ?? []) {
@@ -147,6 +181,9 @@ function unapprovedCredentials(workflow: string, name: string): string {
   }
   let inJobs = false;
   let keys: string[] | undefined;
+  let jobId = "";
+  let inSourceMapUpload = false;
+  const sourceMapApproved = approvedSourceMapStep(workflow, name);
   // 只定位原始行，不拿 shapeOf 压缩过的正文替换原文；合法空行不改变任务范围。
   return workflow
     .split("\n")
@@ -155,10 +192,19 @@ function unapprovedCredentials(workflow: string, name: string): string {
         if (indentOf(line) === 0) {
           inJobs = line === "jobs:";
           keys = undefined;
+          jobId = "";
+          inSourceMapUpload = false;
         } else if (inJobs && indentOf(line) === 2) {
-          keys = approved.get(line.match(JOB_KEY)?.[1] ?? "");
+          jobId = line.match(JOB_KEY)?.[1] ?? "";
+          keys = approved.get(jobId);
+          inSourceMapUpload = false;
+        } else if (inJobs && /^ {6}- /.test(line)) {
+          inSourceMapUpload =
+            sourceMapApproved && jobId === "build-images" && line === SOURCE_MAP_UPLOAD_NAME;
         }
       }
+      if (inSourceMapUpload && line === SOURCE_MAP_TOKEN)
+        return line.replace("secrets.SENTRY_AUTH_TOKEN", "");
       return inJobs && keys
         ? line.replace(/\bsecrets\.([\w]+)/g, (reference: string, key: string) =>
             keys!.includes(key) ? "" : reference,
@@ -193,6 +239,47 @@ describe("发布凭据例外的反例", () => {
     const runner =
       "jobs:\n  build:\n    name: build\n    runs-on: &runner ubuntu-24.04\n  other:\n    name: other\n    runs-on: *runner\n";
     expect(unapprovedCredentials(runner, "ci.yml")).not.toMatch(/\bsecrets\./);
+  });
+  it("私有映射凭据仅固定上传步骤可用，PR/错条件/额外入口/锚点仍拒绝", () => {
+    const valid = [
+      "jobs:",
+      "  build-images:",
+      "    name: build-images",
+      "    steps:",
+      SOURCE_MAP_UPLOAD_STEP,
+      "      - name: 下一步不取凭据",
+      "        run: true",
+    ].join("\n");
+    expect(unapprovedCredentials(valid, "images.yml")).not.toMatch(/\bsecrets\./);
+    expect(unapprovedCredentials(valid, "ci.yml")).toMatch(/\bsecrets\./);
+    for (const invalid of [
+      valid.replaceAll("build-images", "build"),
+      valid.replace(SOURCE_MAP_UPLOAD_NAME, "      - name: 其他步骤"),
+      valid.replace(/ {8}if: .+\n/, ""),
+      valid.replace(/ {8}if: .+/, "        if: github.event_name == 'pull_request'"),
+      valid.replace(
+        "STG_SOURCE_MAP_UPLOAD_ENABLED == 'true'",
+        "STG_SOURCE_MAP_UPLOAD_ENABLED != 'true'",
+      ),
+      valid.replace("refs/heads/main", "refs/heads/other"),
+      valid.replace("        env:", "        env: &credentials"),
+      valid.replace(
+        SOURCE_MAP_TOKEN,
+        `${SOURCE_MAP_TOKEN}\n          EXTRA: \${{ secrets.OTHER_TOKEN }}`,
+      ),
+      valid.replace(
+        "    steps:",
+        "    env:\n      TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n    steps:",
+      ),
+      valid.replace(
+        "      - name: 下一步不取凭据\n        run: true",
+        "      - name: PR步骤\n        env:\n          TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n        run: true",
+      ),
+      valid.replace('"$GITHUB_SHA" "$TAG"', '"$GITHUB_SHA" "$TAG" && echo extra'),
+      valid.replace(SOURCE_MAP_UPLOAD_STEP, `${SOURCE_MAP_UPLOAD_STEP}\n        if: true`),
+      valid.replace(SOURCE_MAP_UPLOAD_STEP, `${SOURCE_MAP_UPLOAD_STEP}\n${SOURCE_MAP_UPLOAD_STEP}`),
+    ])
+      expect(unapprovedCredentials(invalid, "images.yml")).toMatch(/\bsecrets\./);
   });
   for (const [name, jobs] of Object.entries(CREDENTIAL_JOBS)) {
     for (const job of jobs) {
@@ -481,7 +568,7 @@ describe("ci.yml", () => {
   // packages/db 的用例、枚举对账及其反例要连迁移库 lyx_migrate_check，W0-10 的 api-check、约束名核对
   // 及其用例与反例也读它：用到它的任务各建一份
   const MIGRATE = 'psql -X -w -d postgres -c "CREATE DATABASE lyx_migrate_check" && pnpm db:deploy';
-  const MINIO_UP = "docker compose -f infra/compose/local.yml up -d --wait minio";
+  const MINIO_UP = `docker pull ${MINIO_IMAGE} && docker tag ${MINIO_IMAGE} ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio`;
   // 已挂载清单由 apps/api 的探活用例写出，待落地数读它：先删旧的，跑完看文件在不在
   const EXPORT_MOUNTED =
     "rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts && test -s apps/api/dist/mounted-operations.json";
@@ -509,6 +596,7 @@ describe("ci.yml", () => {
       'pnpm db:migration-lint --base "$BASE"',
       "pnpm db:draft-freeze:check",
       "pnpm contract:check",
+      "pnpm contract:compat",
       // W0-09a：登记表对账（x01 名称登记与归属表）
       "pnpm registry:check",
       // W0-12：状态机迁移表与分组文档逐行对照
@@ -551,6 +639,7 @@ describe("ci.yml", () => {
       // infra 以外的全部测试项目分成三片，这里是第一片；另两片在 test-2、test-3
       "pnpm test --project '!infra' --shard=1/3",
       "pnpm e2e",
+      "pnpm e2e:m3",
       // W0-10：api-check、约束名核对读上面建的迁移库；待落地数只减不增要排在“测试”之后（已挂载处理器的清单由
       // apps/api 的测试装配导出）；计划 第 8.2 节的表（它的下一步上传两份清单，没有 run）
       "node infra/ci/api-check.mjs",
@@ -559,21 +648,30 @@ describe("ci.yml", () => {
       EXPORT_MOUNTED,
       "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
       "node infra/ci/landed.mjs --check --require M0,M1",
+      "node infra/ci/landed.mjs --check --require M0,M1,M3",
       "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
-      // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面两步跑它的产物
+      // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面步骤跑它的产物
       "pnpm --filter @liyoxi/worker build",
+      // 正式 built seed 为同一迁移库补齐通知等配置，随后自检继续核全部启动守卫。
+      "node apps/worker/dist/seed.js",
       // W0-23：任务进程的产物自检；兼容脚本在 CI 的 Redis 上跑通
       "node apps/worker/dist/index.js --check",
       "pnpm redis:compat --jobs 500 --idle-minutes 0.05",
       // W0-30：四个计数，排在“测试”之后（读 apps/api 的用例写出的已挂载清单）；M0 的四样退回去即失败
       "node infra/ci/four-counts.mjs --require M0",
       "node infra/ci/four-counts.mjs --require M0,M1",
+      "node infra/ci/four-counts.mjs --require M0,M1,M3",
     ],
     // “测试”的第二、三片：各自生成客户端、建迁移库、起 MinIO
     "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],
     "test-3": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=3/3"],
     // infra 项目的用例：连库的几份自己建临时库，不用生成的客户端；W0-10 约束名核对的用例只读迁移库，所以先建一份
-    "test-infra": [INSTALL, MIGRATE, "pnpm test --project infra"],
+    "test-infra": [
+      INSTALL,
+      MIGRATE,
+      "docker pull ghcr.io/gitleaks/gitleaks:v8.30.1",
+      "pnpm test --project infra",
+    ],
     // W0-05b：两个会话同时跑连库的测试项目（挂了 globalSetup 的），核对库名与 Redis 前缀没有交集。
     // 全量分成四片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
     "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/4"],
@@ -772,7 +870,9 @@ describe("nightly.yml", () => {
   it("在 Node 26 上装依赖、查类型、跑测试；关掉 engine-strict", () => {
     expect(nightly).toMatch(/^ {10}node-version: 26$/m);
     expect(nightly).toContain('NPM_CONFIG_ENGINE_STRICT: "false"');
-    const commands = [...nightly.matchAll(/^ {8}run: (.+)$/gm)].map((match) => match[1]);
+    const commands = [...jobBody(nightly, "node26").matchAll(/^ {8}run: (.+)$/gm)].map(
+      (match) => match[1],
+    );
     expect(commands).toEqual([
       "pnpm install --frozen-lockfile",
       // W0-05：数据库客户端不入库，类型检查之前先生成
@@ -798,7 +898,7 @@ describe("nightly.yml", () => {
   });
 
   it("不在必过检查里：ci.yml 的任务清单里没有它", () => {
-    expect(jobIds(nightly)).toEqual(["node26"]);
+    expect(jobIds(nightly)).toEqual(["node26", "p95"]);
     expect(jobIds(ci)).not.toContain("node26");
   });
 });
@@ -828,8 +928,9 @@ describe("本地 Compose 与 CI 的服务容器", () => {
     for (const image of images.slice(0, 2)) expect(image).toMatch(/:(?!latest$)[\w.-]+$/);
     expect(images[0]).toMatch(/^postgres:17-/);
     expect(images[1]).toBe("redis:7.4-alpine");
-    // MinIO 的来源与“只写 latest”是业主定的（状态文件偏差 1）；换来源或换标签要改这里。
-    expect(images[2]).toBe("ghcr.io/byfire-dev/minio:latest");
+    // 迁移期兼容旧远端 Compose 与本地新引用；CI 始终先拉上述固定新摘要。
+    // 旧名称仅由该镜像打本地标签，不能接受任意来源或其他 latest。
+    expect(["ghcr.io/byfire-dev/minio:latest", MINIO_IMAGE]).toContain(images[2]);
     expect(compose).not.toMatch(/^\s*TZ:/m);
   });
 

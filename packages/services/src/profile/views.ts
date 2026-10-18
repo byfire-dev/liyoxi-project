@@ -7,6 +7,8 @@ import type { Keyring } from "../security/index.js";
 import type { ProfileDeps } from "./context.js";
 import { dictRef, permitSpec, submittedFields } from "./repo.js";
 import type { ProfileSnapshot } from "./repo.js";
+import { pendingView } from "./round-basics.js";
+import { readQualificationRecognition } from "../media/index.js";
 
 export const instant = (date: Date | null | undefined) => date?.toISOString() ?? null;
 const day = (date: Date | null) => date?.toISOString().slice(0, 10) ?? null;
@@ -57,9 +59,11 @@ export async function basicView(tx: Tx, s: ProfileSnapshot) {
     storeTel: p?.storeTel ?? null,
     avgSpendFen: p?.avgSpendFen ?? null,
     brandIntro: p?.brandIntro ?? null,
-    reviewFieldsLocked: s.store.qualificationStatus === "pending",
+    reviewFieldsLocked:
+      s.store.qualificationStatus === "pending" ||
+      (s.open?.kind === "change" && s.open.submittedAt !== null),
     reviewRequiredOnChange: s.store.qualificationStatus === "verified",
-    pendingChange: null,
+    pendingChange: await pendingView(tx, s.open),
     lastEditedAt: instant(p?.lastEditedAt),
     lockVersion: p?.lockVersion ?? 0,
     completeness: s.completeness,
@@ -115,6 +119,7 @@ export async function serviceView(tx: Tx, s: ProfileSnapshot) {
 }
 export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: QualificationDoc) {
   const fields = submittedFields(keyring, doc);
+  const recognition = await readQualificationRecognition(tx, keyring, doc);
   const displayFields = [];
   if (doc.docType === "industry_permit" && doc.permitType) {
     const spec = await permitSpec(tx, doc.permitType);
@@ -141,8 +146,8 @@ export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: Qualific
     scope: doc.scope,
     origin: doc.origin,
     fileId: doc.fileId,
-    ocrStatus: "unavailable",
-    ocrWarnings: [],
+    ocrStatus: recognition.status,
+    ocrWarnings: recognition.warnings,
     hasSubmittedFields: doc.submittedFieldsEnc !== null,
     holderName: doc.holderName,
     certNoMask: doc.certNoMask,
@@ -160,7 +165,12 @@ export async function docView(tx: Tx, keyring: Keyring, now: Date, doc: Qualific
     uploadedAt: doc.createdAt.toISOString(),
   };
 }
-export async function contactView(tx: Tx, s: ProfileSnapshot, merchantUserId: string) {
+export async function contactView(
+  tx: Tx,
+  s: ProfileSnapshot,
+  merchantUserId: string,
+  available = false,
+) {
   const user = await tx.merchantUser.findUnique({
     where: { id: merchantUserId },
     select: { phoneMask: true },
@@ -171,7 +181,7 @@ export async function contactView(tx: Tx, s: ProfileSnapshot, merchantUserId: st
     phoneVerifyState: s.profile?.contactPhoneSource ?? null,
     phoneVerifiedAt: instant(s.profile?.contactPhoneVerifiedAt),
     loginPhoneMask: user?.phoneMask ?? null,
-    isSmsVerifyAvailable: false,
+    isSmsVerifyAvailable: available,
     lockVersion: s.profile?.lockVersion ?? 0,
   };
 }
@@ -198,7 +208,7 @@ async function roundView(tx: Tx, deps: ProfileDeps, round: NonNullable<ProfileSn
     declarationConfirmedAt: instant(round.declarationConfirmedAt),
     declarationVersion: round.declarationVersion,
     changedFields: round.changedFields,
-    proposed: null,
+    proposed: await pendingView(tx, round),
     contactSnapshot: contact
       ? { name: contact.name, phoneMask: contact.phoneMask, phoneVerifyState: contact.phoneSource }
       : null,
@@ -247,7 +257,7 @@ export async function qualificationView(
   return {
     viewerRole: "owner" as const,
     storeQualificationStatus: s.store.qualificationStatus,
-    isChangeInReview: false,
+    isChangeInReview: s.open?.kind === "change" && s.open.submittedAt !== null,
     isFinalRejected: s.profile?.finalRejectedAt != null,
     entity: {
       verificationStatus: e.verificationStatus,
@@ -261,13 +271,33 @@ export async function qualificationView(
     lastClosedRound: s.last ? await roundView(tx, deps, s.last) : null,
     effectiveDocs,
     requiredPermits: required,
-    contact: await contactView(tx, s, merchantUserId),
+    contact: await contactView(
+      tx,
+      s,
+      merchantUserId,
+      (await deps.contactSms?.available(tx)) ?? false,
+    ),
     declaration: { currentVersion: QUALIFICATION_DECLARATION_VERSION },
-    actions: s.open && !s.open.submittedAt ? ["submit"] : [],
+    actions:
+      s.open && !s.open.submittedAt
+        ? s.open.kind === "initial"
+          ? s.profile?.finalRejectedAt
+            ? []
+            : ["submit"]
+          : [...(s.profile?.finalRejectedAt ? [] : ["submit"]), "discard"]
+        : [],
   };
 }
 /** DTO 随事务落幂等结果时地址为空。首响应/GET 在提交后签地址；重放永不重新签。 */
-export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = false): Promise<T> {
+export async function attachUrls<T>(
+  deps: ProfileDeps,
+  result: T,
+  replayed = false,
+  signing: {
+    audience?: "staff" | "merchant";
+    assertAccess?: (fileId: string, coverFileId?: string) => Promise<void>;
+  } = {},
+): Promise<T> {
   if (replayed) return result;
   async function visit(value: unknown): Promise<void> {
     if (Array.isArray(value)) {
@@ -293,7 +323,12 @@ export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = fal
         }),
       );
       if (technical?.status === "stored" && technical.moderationState !== "block") {
-        const signed = await deps.media.signRead({ fileId, audience: "merchant" });
+        await signing.assertAccess?.(fileId);
+        const signed = await deps.media.signRead({
+          fileId,
+          audience: signing.audience ?? "merchant",
+        });
+        await signing.assertAccess?.(fileId);
         row["url"] = signed.url;
         row["expiresAt"] = signed.expiresAt;
         const coverFileId = technical.mediaInfo?.coverFileId;
@@ -304,10 +339,15 @@ export async function attachUrls<T>(deps: ProfileDeps, result: T, replayed = fal
               select: { status: true, moderationState: true },
             }),
           );
-          if (cover?.status === "stored" && cover.moderationState !== "block")
-            row["coverUrl"] = (
-              await deps.media.signRead({ fileId: coverFileId, audience: "merchant" })
-            ).url;
+          if (cover?.status === "stored" && cover.moderationState !== "block") {
+            await signing.assertAccess?.(fileId, coverFileId);
+            const signedCover = await deps.media.signRead({
+              fileId: coverFileId,
+              audience: signing.audience ?? "merchant",
+            });
+            await signing.assertAccess?.(fileId, coverFileId);
+            row["coverUrl"] = signedCover.url;
+          }
         }
       }
       return;

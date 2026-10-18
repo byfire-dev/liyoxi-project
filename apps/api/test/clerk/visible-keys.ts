@@ -7,8 +7,12 @@ export const CLERK_DICTIONARY_PATHS = ["flags", "versions.dict", "versions.site"
 export const CLERK_CATALOG_PRICE_PATHS: Readonly<Record<string, readonly string[]>> = {
   // m03 §2.5、A86：公开服务标价保留在店员视图。
   "m.storeProfile.service.get": ["serviceItems[].priceFen", "serviceItems[].originalPriceFen"],
+  // m03 §2.7、A86：素材菜单价格文字沿正式详情字段路径登记。
+  "m.storeAsset.get": ["structuredItems[].priceText"],
+  "m.storeAsset.portraitAuth.create": ["structuredItems[].priceText"],
   // 目录包在此按 operationId 只增完整字段路径。
   "m.drama.list": ["items[].listPricePoints"],
+  "m.drama.search": ["items[].listPricePoints"],
   "m.drama.get": ["listPricePoints", "adUnitPoints"],
 };
 
@@ -46,9 +50,14 @@ export function clerkVisibleKeys(operationId: string, data: unknown): string[] {
       const path = parent ? `${parent}.${dictionary ? "*" : key}` : key;
       const loginDecision =
         operationId === "m.session.create" && path === "needPhone" && typeof child === "boolean";
+      const invitationDecision =
+        operationId === "m.invitation.lookup" &&
+        path === "isPhoneRestricted" &&
+        typeof child === "boolean";
       if (
         !dictionary &&
         !loginDecision &&
+        !invitationDecision &&
         !isMallFilter(operationId, path, child) &&
         !isSellingPoints(operationId, path, child) &&
         FORBIDDEN.test(key) &&

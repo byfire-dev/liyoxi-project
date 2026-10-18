@@ -1,9 +1,22 @@
 // W0-07b 服务装配：组合根。api、worker 启动时各调一次 assembleServices
 export { assembleServices } from "./assembly.js";
+export { readStoreDraftFacts } from "./ops/index.js";
+export { readTenantAdminBillingFacts } from "./billing/index.js";
+export { readEntityStoreProfileFacts } from "./profile/index.js";
+export type { TenantAdminReadDeps } from "./tenant/index.js";
 export type { AssembleServicesOptions } from "./assembly.js";
 export { AssemblyError } from "./kernel/index.js";
 export type { Assembly, AssemblyEntry, AssemblyIssue } from "./kernel/index.js";
 // @liyoxi/services 的包入口：应用层只从这里取业务能力。各包只在末尾加自己的导出行。
+export { createNotifyMessages, countUnread } from "./notify/index.js";
+export type {
+  NotifyMessages,
+  NotifyMessagesDeps,
+  UnreadMessageQuery,
+  MessageActor,
+  NotifySettingActor,
+} from "./notify/index.js";
+export type { NotifyQueueRef, NotifyQueueTask } from "./notify/index.js";
 // W0-14：敏感字段与审计。按模块名取用：security.sealPhone(…)、audit.record(…)
 export * as security from "./security/index.js";
 export * as audit from "./audit/index.js";
@@ -45,6 +58,7 @@ export type { AppEnv, Clock, Env, LogLevel, QueueChannel, QueueConsumer } from "
 export {
   buildWorkerServices,
   connectWorkerDatabase,
+  connectProbeDatabase,
   createWorkerLease,
   LEASE_RENEW_MS,
 } from "./ops/index.js";
@@ -110,11 +124,27 @@ export type {
   DocsDeps,
   SignedAgreementViewer,
 } from "./docs/index.js";
-export { billingAccountPort, createTenant, membershipAuthorizationsPort } from "./tenant/index.js";
+export {
+  assertWithinQuota,
+  billingAccountPort,
+  billingHistoryPort,
+  createTenant,
+  closeEntityIn,
+  membershipAuthorizationsPort,
+  entityAdCancelClosePort,
+} from "./tenant/index.js";
 export type {
   ActiveMembership,
   BillingAccountOpener,
+  BillingHistoryFacts,
+  BillingHistoryReader,
+  CloseEntityActor,
+  CloseEntityDeps,
+  CloseEntityInput,
+  CloseEntityResult,
   MembershipAuthorizations,
+  EntityAdCancelCloser,
+  EntityAdCancelClosePlan,
   PortalGrantRevocation,
   QuotaUsage,
   StoreMembership,
@@ -186,6 +216,9 @@ export type { MerchantViewerRole, MerchantViewSchemas } from "./authz/index.js";
 
 // W1-11a 付款侧：对公确认在自己的事务里调用唯一入账入口；履约依赖由组合根装配。
 export { createPayment, createFulfillment } from "./billing/index.js";
+export { deletionGuard } from "./billing/index.js";
+export { readBillingHistoryFacts } from "./billing/index.js";
+export type { BillingDeletionGuardCounts } from "./billing/index.js";
 export {
   createBillingPurchase,
   bindBillingTimers,
@@ -206,13 +239,29 @@ export type {
 } from "./billing/index.js";
 
 export * as media from "./media/index.js";
+export { countBlockingStoreAds } from "./ad/index.js";
+export { clearAdCancelRequestPointers } from "./ad/index.js";
+export type { AdCancelPointersInput } from "./ad/index.js";
+export { readStoreCloseCounts, readEntityDeletionCounts } from "./tenant/index.js";
 export { createMedia } from "./media/index.js";
 export type { Media, MediaActor, MediaDeps, PromoteRef } from "./media/index.js";
 export { seedPlaceholderFinanceConfig, PLACEHOLDER_FINANCE } from "./billing/index.js";
 // W1-08a：商家档案及 initial 资质核心；后台路由随 b。
 export { createProfile } from "./profile/index.js";
+export {
+  createProfileQualificationConsistency,
+  createProfileConsistencyAssembly,
+  createProfileConsistencyTransactions,
+} from "./profile/index.js";
+export { createStoreProfileAssetInitializer } from "./profile/index.js";
+export type { StoreProfileAssetInitializer, StoreProfileAssetInitInput } from "./profile/index.js";
+export {
+  countQualificationSubmissionsInReview,
+  countUnverifiedPrimaryStore,
+} from "./profile/index.js";
 export type { Profile, ProfileDeps, ProfileViewer } from "./profile/index.js";
-export { currentSessionOpenid } from "./identity/index.js";
+export { currentSessionOpenid, recentWechatOpenid } from "./identity/index.js";
+export { assertCurrentSession } from "./identity/index.js";
 
 export { createContent } from "./content/index.js";
 export type { Content, ContentDeps, DramaPrices, DramaPrice } from "./content/index.js";
@@ -252,7 +301,14 @@ export {
   getTicketBriefsByOrder,
   getTicketTimeline,
   getPlanBriefByOrder,
+  countBlockingStoreTickets,
+  countOnlineReleaseTicketsByEntity,
+  readCancelReviewPauseTargets,
+  releaseCancelReviewPauses,
+  readCancelReviewHoldTargets,
+  holdCancelReviewPauses,
 } from "./delivery/index.js";
+export type { CancelReviewPauseTargets, CancelReviewHoldTargets } from "./delivery/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.js";
 export type {
   Delivery,
@@ -271,3 +327,91 @@ export {
   countOrderItemsByPhase,
 } from "./order/index.js";
 export type { OrderActor, OrderDeps, OrderService, OrderStartBinding } from "./order/index.js";
+export {
+  quoteOrderCancel,
+  quoteAdCancel,
+  previewFinalReject,
+  revalidateCancel,
+} from "./order/index.js";
+export { QualificationImpactPort } from "./profile/index.js";
+export { createAdCancelApprovalRefCompanion } from "./support/index.js";
+export type { QualificationImpact } from "./profile/index.js";
+
+export { createDocumentConverter, runDocumentConversionWorker } from "./kernel/index.js";
+export { createSessionMutex, SessionMutexError } from "./kernel/index.js";
+export type { SessionMutex, SessionMutexScope, SessionMutexFailure } from "./kernel/index.js";
+export type {
+  DocumentConversionRequest,
+  DocumentConversionResult,
+  DocumentConverter,
+  DocumentInput,
+} from "./kernel/index.js";
+export * as notify from "./notify/index.js";
+export {
+  createAnalyticsJobs,
+  createAnalyticsReceiver,
+  analyticsDayStart,
+  purgeAnalyticsDedup,
+} from "./analytics/index.js";
+export type {
+  AnalyticsJobs,
+  AnalyticsReceiver,
+  AnalyticsReceiverDeps,
+  AnalyticsRequest,
+} from "./analytics/index.js";
+export { createSubscribeResults, readSubscribePlan } from "./notify/index.js";
+export type { SubscribeResults, SubscribeResultsDeps, SubscribePrincipal } from "./notify/index.js";
+export {
+  createClientErrorForwarder,
+  CLIENT_ERROR_MAX_BYTES,
+  CLIENT_ERROR_QUEUE_SIZE,
+} from "./ops/index.js";
+export type {
+  ClientErrorProject,
+  ClientErrorLogger,
+  ClientErrorForwarderOptions,
+  ClientErrorSnapshot,
+  ClientErrorForwarder,
+} from "./ops/index.js";
+export {
+  createServerErrorReporter,
+  drainServerErrors,
+  installServerErrorHandlers,
+} from "./ops/index.js";
+export type { ServerErrorKind, ServerErrorOptions, ServerErrorReporter } from "./ops/index.js";
+export { createFlowOps, assertFlowOpsRead, createAlertActions } from "./ops/index.js";
+export type {
+  FlowOps,
+  FlowOpsActor,
+  FlowOpsDeps,
+  AlertActions,
+  AlertCliCommand,
+  AlertCliInput,
+  AlertCliResult,
+} from "./ops/index.js";
+
+export { createSiteAdmin } from "./config/index.js";
+export type { SiteAdmin, SiteAdminDeps } from "./config/index.js";
+
+export { createDocsAdmin } from "./docs/index.js";
+export type { AgreementActor, DocsAdminDeps, AgreementFilePort } from "./docs/index.js";
+export type { ContentAdmin, ContentAdminActor } from "./ops/index.js";
+export { createContentLicense } from "./content/index.js";
+export type { ContentLicense } from "./content/index.js";
+
+export {
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+  createDemoMasterInputPreparer,
+} from "./ops/index.js";
+
+export {
+  createInvoices,
+  createInvoiceAssembly,
+  createFinanceConfigService,
+  readInvoiceRefundGuard,
+  markInvoiceRedPending,
+  cancelInvoiceRed,
+  rejectInvoiceAfterRefund,
+} from "./billing/index.js";
+export type { InvoiceDeps, InvoiceRuntimeDeps } from "./billing/index.js";

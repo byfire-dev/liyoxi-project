@@ -6,7 +6,7 @@
 //      storage 与 sms 的本地落点是驱动（storage/minio.ts、sms/console.ts），不在这里。
 // 哪个环境用哪一个，由 index.ts 的工厂定。
 
-import { failed, ok } from "./types.js";
+import { failed, notificationFailed, ok } from "./types.js";
 import type {
   AsrProvider,
   EsignProvider,
@@ -33,6 +33,21 @@ function unconfigured(what: string, degrade: string): () => Promise<ProviderFail
   return () => Promise.resolve(failure);
 }
 
+function unconfiguredNotification(what: string, degrade: string) {
+  return ({ signal }: { signal?: AbortSignal }) =>
+    Promise.resolve(
+      signal?.aborted
+        ? notificationFailed("rejected", "通知调用开始前已取消", {
+            acceptance: "not_accepted",
+            code: "aborted",
+          })
+        : notificationFailed("unconfigured", `${what}未配置：${degrade}`, {
+            acceptance: "not_accepted",
+            code: "unconfigured",
+          }),
+    );
+}
+
 // ---------- wechat：本地用假实现 ----------
 
 const wechatOff = unconfigured("微信小程序", "只有 local、test 有本地的假实现");
@@ -41,7 +56,7 @@ export const unconfiguredWechat: WechatProvider = {
   ...BASE,
   code2Session: wechatOff,
   getPhoneNumber: wechatOff,
-  sendSubscribeMessage: wechatOff,
+  sendSubscribeMessage: unconfiguredNotification("微信小程序", "只有 local、test 有本地的假实现"),
   createMiniProgramCode: wechatOff,
   checkText: wechatOff,
   checkImage: wechatOff,
@@ -75,7 +90,12 @@ export function createLocalWechat(deps: { logger: ProviderLogger }): WechatProvi
     async getPhoneNumber({ code }) {
       return ok({ phone: /^1\d{10}$/.test(code) ? code : LOCAL_WECHAT_PHONE });
     },
-    async sendSubscribeMessage({ openid, templateId, page }) {
+    async sendSubscribeMessage({ openid, templateId, page, signal }) {
+      if (signal?.aborted)
+        return notificationFailed("rejected", "通知调用开始前已取消", {
+          acceptance: "not_accepted",
+          code: "aborted",
+        });
       deps.logger.info(
         { provider: "wechat", openid, templateId, page },
         "[wechat:local] 订阅消息（没有真发）",
@@ -100,6 +120,7 @@ const wechatPayOff = unconfigured("微信支付", "只剩对公转账");
 
 export const unconfiguredWechatPay: WechatPayProvider = {
   ...BASE,
+  signMiniProgramPay: wechatPayOff,
   createJsapiOrder: wechatPayOff,
   verifyAndDecryptNotification: wechatPayOff,
   queryByOutTradeNo: wechatPayOff,
@@ -113,10 +134,12 @@ export const unconfiguredWechatPay: WechatPayProvider = {
 const smsOff = unconfigured("短信", "提醒只剩站内与订阅消息");
 
 export const unconfiguredSms: SmsProvider = {
+  sendTemplate: smsOff,
+  checkBalance: smsOff,
   ...BASE,
-  sendActivationCode: smsOff,
-  sendSubscribeFallback: smsOff,
-  sendOncallAlert: smsOff,
+  sendActivationCode: unconfiguredNotification("短信", "提醒只剩站内与订阅消息"),
+  sendSubscribeFallback: unconfiguredNotification("短信", "提醒只剩站内与订阅消息"),
+  sendOncallAlert: unconfiguredNotification("短信", "提醒只剩站内与订阅消息"),
 };
 
 // ---------- storage / media：本地用 MinIO 走小文件通道 ----------
@@ -130,10 +153,20 @@ export const unconfiguredStorage: StorageProvider = {
   issueSts: storageOff,
   head: storageOff,
   readPrefix: storageOff,
+  readObject: storageOff,
   putObject: storageOff,
   copy: storageOff,
   presignGet: storageOff,
+  presignVisionGet: storageOff,
   delete: storageOff,
+  restoreVersions: storageOff,
+  eraseVersions: storageOff,
+  abortMultipart: storageOff,
+  readTo: storageOff,
+  putStream: storageOff,
+  putBackupStream: storageOff,
+  headBackup: storageOff,
+  copyBackup: storageOff,
 };
 
 const mediaOff = unconfigured("媒体处理", "只有 local、test 有小文件通道");
@@ -144,6 +177,12 @@ export const unconfiguredMedia: MediaProvider = {
   transcode: mediaOff,
   pack: mediaOff,
   audit: mediaOff,
+  auditText: mediaOff,
+  auditVideo: mediaOff,
+  describeAudit: mediaOff,
+  describe: mediaOff,
+  find: mediaOff,
+  cancel: mediaOff,
 };
 
 /**
@@ -166,6 +205,24 @@ export function createLocalMedia(): MediaProvider {
     async audit() {
       return ok({ verdict: "pass", processed: false });
     },
+    async auditText() {
+      return ok({ verdict: "pass", processed: false });
+    },
+    async auditVideo() {
+      return failed("unsupported", "本地媒体未执行视频审核");
+    },
+    async describeAudit() {
+      return failed("unsupported", "本地媒体没有审核任务查询能力");
+    },
+    async describe() {
+      return failed("unsupported", "本地媒体没有外部任务查询能力");
+    },
+    async find() {
+      return failed("unsupported", "本地媒体没有外部任务查找能力");
+    },
+    async cancel() {
+      return failed("unsupported", "本地媒体没有外部任务取消能力");
+    },
   };
 }
 
@@ -176,12 +233,20 @@ const ocrOff = unconfigured("证照识别", "商家手填、审核人手工核�
 export const unconfiguredOcr: OcrProvider = {
   ...BASE,
   recognizeBusinessLicense: ocrOff,
+  recognizeBankReceipt: ocrOff,
   extractLicenseFields: ocrOff,
 };
 
 export const unconfiguredAsr: AsrProvider = {
   ...BASE,
   transcribe: unconfigured("录音转写", "不转写"),
+  submit: () =>
+    Promise.resolve({
+      ...failed("unconfigured", "录音转写未配置：不转写"),
+      acceptance: "not_accepted",
+      code: "unconfigured",
+    }),
+  query: unconfigured("录音转写", "不转写"),
 };
 
 const llmOff = unconfigured("素材理解", "不打标");
@@ -190,12 +255,16 @@ export const unconfiguredLlm: LlmProvider = {
   ...BASE,
   tagAsset: llmOff,
   extractKeyPoints: llmOff,
+  summarizeAsset: llmOff,
+  analyzeVision: llmOff,
 };
 
 export const unconfiguredWecom: WecomProvider = {
   ...BASE,
+  capabilities: { robot: false },
   exchangeWebLoginCode: unconfigured("企业微信", "后台绑定使用手工录入成员账号"),
-  sendAppMessage: unconfigured("企业微信", "员工只收站内待办"),
+  sendAppMessage: unconfiguredNotification("企业微信", "员工只收站内待办"),
+  sendRobotMessage: unconfiguredNotification("企业微信机器人", "告警仅保留站内事实"),
   createContactWay: unconfigured("企业微信", "服务经理二维码人工上传"),
   verifyAndDecryptCallback: unconfigured("企业微信", "没有加好友回调，商家与服务经理人工绑定"),
   getKfLink: unconfigured("企业微信", "在线客服退回小程序原生客服消息"),
@@ -203,7 +272,7 @@ export const unconfiguredWecom: WecomProvider = {
 
 export const unconfiguredMail: MailProvider = {
   ...BASE,
-  send: unconfigured("邮件", "电子发票只在小程序内下载"),
+  send: unconfiguredNotification("邮件", "电子发票只在小程序内下载"),
 };
 
 // ---------- esign：图片章（生产须显式开关） ----------

@@ -20,10 +20,11 @@
 | `status-summary.mjs` | 核对各包的状态文件合不合规；生成状态汇总 `docs/plan/status/SUMMARY.md`（不入库，要看时现生成） | CI 用 `--check` 只核对状态文件；`pnpm status:summary` 在本地现生成（第 6 节） |
 | `selftest/run.mjs`、`selftest/cases/` | 门禁自测：一个反例一个文件 | `pnpm gates:selftest`；CI |
 | `isolation-shard.mjs` | 测试隔离的全量分片跑：范围同 `pnpm test:isolation --scope connected`，分成互不重叠的几片，一次跑一片（两个会话同时跑），核对交给 `packages/services/src/testing/isolation.mjs --check`（第 2 节） | CI 的 `test-isolation` 与它的另三片；本地 `node infra/ci/isolation-shard.mjs --shard 1/4` |
-| `db-catalog-diff.mjs`、`db-lib.mjs` | 系统目录比对（W0-05）：由底稿建的参照库与首版迁移建的库逐项 0 差异，数量两组口径对得上；出报告。`db-lib.mjs` 是连库、读系统目录、计数的共用部分 | `pnpm db:catalog-diff`；CI |
+| `db-catalog-diff.mjs`、`db-lib.mjs`、`db-post-init-lib.mjs` | 系统目录比对：冻结草稿与仅首版迁移独立证明七类等价及首版数量；现行参照与目标七类逐项比较，数量读当前快照，目标六类结构与快照、Prisma 只读库→schema diff 一致。连接与计数共用 `db-lib.mjs` | `pnpm db:catalog-diff`；CI |
 | `db-verify-managed.mjs` | 托管库验证（W0-05）：两个扩展可建、迁移跑通、数量对得上；不打印连接串 | `pnpm db:verify-managed`；业主在托管库上跑 |
 | `db-verify-grants.mjs`、`db-grants-rules.mjs` | 角色与授权的核对（W0-06a）：两个角色在、成员与属主合规、授权生效、分区表可写可查；只读系统目录（另有一处插完即回滚的写入），不打印连接串。前一份是命令，后一份是不连库的判定规则（拆开是为了用例能不动实例就验到成员那几条）。期望的授权不写在脚本里，读 `packages/db/src/grants.expected.json`（与权限测试共用，不是门禁文件）：加表、加函数、改一张表的授权的包往那里加行、改行，脚本与它的用例不用改，用例里不写数量、不点名表的权限（[packages/db/README.md](../../packages/db/README.md) 第 9 节）。缺省只认 `lyx_` 开头的库名，核对别的库名加 `--database <库名>`；要 PostgreSQL 16 及以上。没有改 `db-verify-managed.mjs`（改已有的检查脚本是放松类改动），做成它的后置步骤 | `pnpm db:verify-grants`；根脚本 `postdb:verify-managed` 让 `pnpm db:verify-managed` 成功后自动接着跑（要经 pnpm 跑才有这一步；`test/db-verify-managed-hook.test.ts` 把它钉住，核对不通过时整条命令的退出码也钉住） |
 | `grants-floor.txt` | 授权下限清单（W0-06a）：受限的表上应用角色最多能有什么权限，一行一张表。期望数据不是门禁文件，这一份是：按 `append` 判，加行（新登记一张受限的表）算只增，删行、改行（放开）算放松，要走单独的 `gate-change` PR。期望与库里的授权都不得超过它，受限的表都得登记。写法与放开的走法见文件开头 | `db-verify-grants.mjs`；`test/grants-floor.test.ts`（不连库） |
+| `contract-compat.mjs` | C77/C78：标签快照与当前 OpenAPI 比六类破坏；退役记录 frozen，5 个在役小程序版本只提醒 | `pnpm contract:compat`；verify；`test/contract-compat.test.ts` 与两条 `selftest/cases/contract-compat-*` |
 | `fixtures/` | tsconfig 预设的最小工程；依赖方向与分层的反例夹具 | `pnpm typecheck`；用例与门禁自测 |
 | `pages/generate.mjs`、`pages/sources/` | 页面清单：由后台菜单登记表与下载页页面清单生成 `docs/plan/pages.md`。一个端一个数据源文件，自动收集；小程序的由 W0-27a 往 `sources/` 里加 | `node infra/ci/pages/generate.mjs`；CI 用 `--check` 核对无差异 |
 | `apps/admin/scripts/check-build.mjs`（不在本目录） | 后台与下载页的构建产物检查：文件名带内容哈希、写入了构建号、是生产构建、不含夹具的标记 | 两个应用各自的 `build` 脚本，即 `pnpm admin:build`、`pnpm portal:build`；CI |
@@ -196,6 +197,10 @@ node infra/ci/classify-gate-changes.mjs --base origin/main --labels gate-change
 
 登记新的门禁文件：往 `gate-files.json` 的 `files` 末尾加一条（`pattern`、`kind`、`note`）。`pattern` 里 `**` 跨目录、`*` 不跨目录。白名单、基线、黄金文件这类“一动就该让业主看”的用 `frozen`；规则与配置用 `append`；tsconfig 用 `tsconfig`；入库的生成物目录用 `generated`，另写 `check`，前提见第 5.1 节。新依赖一律写精确版本，写成范围会被判成放松。`infra/ci/` 下的检查脚本（`.mjs`）与 `selftest/` 已经被现有条目按 `new-file` 盖住，不用再登记；放在别处的检查脚本按 `new-file` 登记。
 
+授权书坐标独立 gate 包：数据模型插入文档行后，普通 source 包把 `license_letter.status` 六行引用统一后移两行，并同步 x01 来源与官方生成映射；此处只把 `machines-coverage-baseline.jsonl` 原第 39 项的 `13:947` 归位为 `13:949`。它仍是同一条 `license_letter.void` / `manual` 未覆盖项，原 70 项数量、顺序与 reason 完全不变，没有新增豁免或修改 checker。
+
+这是对既有基线行的替换，按原分类规则走独立 `gate-change`，不能伪装成 append 或和非门禁路径混合。source 单独合流时已知覆盖基线暂时未对齐；只有组合经原 `machines:check`、strict contract coverage、官方 registry 生成/对账与分类通过，分别独审后按 source → gate 普通合流才闭合。该记录不声称远端 CI 或部署。
+
 ### 5.1 生成物（`generated`）
 
 来历：计划 第 5.3 节把“重新生成的生成物”列在只增类，分类脚本第一版没有这一种口径。契约生成物当时登记成“算门禁路径、不逐行判”（条目的 `except` 盖住整个匹配式：重新生成不进清单，删掉一份也不报）；设计生成物按 `append` 登记（改一个已有变量的取值就判成放松，而来源 `design/tokens.json` 不是门禁文件，带 `gate-change` 的 PR 也放不进去）。业主 2026-10-05 同意加这一种口径（原话：“生成物的门禁口径、状态汇总不入库：两个减少摩擦的门禁改动。同意。”），两处登记统一到它上面。
@@ -346,16 +351,37 @@ DATABASE_URL=<同上> pnpm db:partitions:assert --db <库名>
 4. 同一个 PR 改分组文档的字段表（`python3 tools/schema-check/check.py` 核对），授权的期望与下限清单（`packages/db/README.md` 第 9 节）。
 5. 不改草稿：`docs/data-model/schema.prisma` 与 `constraints/` 已冻结。
 
-本包之前写死的数量还有几处，第一个改结构的包会撞上，要先用一个单独的 `gate-change` PR 处理（任务书 第 11 节第 9 项说的“届时”）：
+首版之后的结构检查已由独立 `gate-change` 包衔接；现行结构变更沿以下口径：
 
-- `db-lib.mjs` 的 `EXPECTED_COUNTS`（首版迁移的数量，七项）被两处用着。`db-verify-managed.mjs` 拿它核对“空库上跑完全部迁移”的数量：改成读快照的“计数”一节（`db-structure-lib.mjs` 的 `readSnapshot().counts` 与它同形），`test/db-verify-managed.test.ts` 里三处写死的数跟着改。`db-catalog-diff.mjs` 拿它核对首版迁移：见下一条。
-- `pnpm db:catalog-diff` 是首版迁移的等价性证明。它的第 1 段拿草稿的 `schema.prisma` 与 `packages/db` 的逐字节比，模型一改就红；第 3 段的数量同上。草稿冻结、首版迁移不能改之后，“首版迁移与草稿等价”是一个不会再变的事实：届时把 CI 里那几步撤下，或固定成“草稿（`check.py --from-draft`）对只跑首版迁移的库”。
-- `packages/db` 里不是门禁文件的几处随结构变更包自己改：`scripts/build-init-migration.mjs` 现在拿 `prisma/schema.prisma` 重拼首版迁移（模型一改就对不上，要改成读冻结的草稿）；`src/grants.test.ts` 里的几个数。
+- `db-lib.mjs` 的 `EXPECTED_COUNTS` 固定代表冻结首版的七项数量。`db-verify-managed.mjs` 与 `db-catalog-diff.mjs` 核对现行全部迁移时读 `readSnapshot().counts`；缺项或非法数量直接失败，不扩大首版数量。
+- `pnpm db:catalog-diff` 每次从冻结 `docs/data-model/schema.prisma` 独立出 DDL，接上 00–15 约束，在本进程临时库上与仅执行 init 的库按七类逐项比较，保留首版等价证明。另对现行 ref/target 七类比较、目标六类快照核对和 ADR-045 只读库→schema diff。唯一允许的 Prisma 假动作是完整且唯一的 `DROP INDEX "ix_store_asset_search";`；同名索引旁的其他动作仍失败。
+- `packages/db` 中非门禁文件随结构包维护：`scripts/build-init-migration.mjs` 从冻结草稿重拼首版，现行模型新增表仍不改变原首版迁移；`src/grants.test.ts` 的当前表数随新结构调整，原权限断言保留。
 
 ### 8.4 已知的限度
 
-- CI 里“由底稿建参照库（schema-check）”那一步的命令没有变（`check.py --keep`），而 `check.py` 的缺省流程从本包起是“跑全部迁移”：那一步现在建出来的 `lyx_schema_check` 是迁移后的库，不再是由草稿建的；它后面的“系统目录比对”因此比的是“迁移对迁移”，第 2 段恒为 0 差异。首版等价性现在靠三样合起来保证：草稿冻结守卫、`packages/db` 的用例里重拼首版迁移的逐字节比对（`migration:build --check`）、已经合并的迁移不能改。改那一步是放松类改动，本包没有动，留给第 8.3 节说的 `gate-change` PR 一并处理。
+- CI 原参照构造命令 `check.py --keep` 与 required 步骤保留；其 `lyx_schema_check` 跑全部迁移，现行 ref/target 仍比较完整迁移之间的一致性。首版等价另由 `db-catalog-diff` 每次真正独立建冻结草稿库及仅 init 库证明，不能把“迁移对迁移”称为首版证明。草稿冻结守卫、首版逐字节重拼及旧迁移不可改仍保留。
 - 快照不逐行判（`generated` 口径）：单独改快照过不了 `db:snapshot:check`；改了生成脚本的输出再重出快照，检查是绿的，要连同脚本的差异一起看（第 5.1 节的限度同样适用）。
 - 迁移规范检查按文本认语句：动态拼出来再 `EXECUTE` 的、先建函数再调它来删东西的，查不出；“带不带默认值”按迁移自己的文本推。迁移是甲类，靠评审。
 - 06 第 1 节的数量是从正文那一条里按句式读出来的：句式被改写、读不出数时检查报错（不当成通过），把 `db-structure-lib.mjs` 的 `readDocCounts` 一起改（改已有的检查脚本，走 `gate-change` PR）。
 - 本地那个长期留着的 `lyx_migrate_check` 过了月初会少一个月的分区，`pnpm db:partitions:assert` 会红：删掉重建（`packages/db/README.md` 第 3 节）。CI 里只有一种情形会这样：迁移在北京时间月末的最后几分钟跑完、断言在下个月的头几分钟跑，那一次重跑即可。
+
+本地 gate-only 合流记录：源包已普通合入 00c200bf，ROOT 对本包唯一 NONCODER 审查 46.747/90 秒，P1/P2/D=0、冻结哈希无变化。分类器真实结论为 loosen（既有 JSONL 行替换），按 gate-change 独立合流，outside=0；只有同一 manual 原存量项坐标 947→949，没有新增豁免，原70项数量、顺序和原因保持。执行元数据与组合271G字节一致，135/205、70存量、未知0；两前置按顺序完成本地普通合流，中间坐标依赖至此闭合。无远端CI或部署结论。
+
+
+## 9. 在役契约兼容（W2-28a）
+
+`pnpm contract:compat` 只读本地 Git 标签和当前三份生成物，不 fetch、打标签或修改契约。verify 已检出完整历史与标签；新增步骤紧接 `contract:check`。商家端比较全部在役 `weapp-v*`，后台与下载页比较最近在役 `v*`（标签创建时间，时间相同按版本名降序）；无对应标签分别输出“无可比版本”并成功，存在标签但缺生成物必须失败。超过 4 个在役小程序标签只提醒。整个检查预算 20 秒，Git 子进程共享剩余预算。
+
+六类拒绝：旧路径/方法消失、operationId 改名、请求新增必填（含参数、body 与嵌套字段）、响应删字段或必有字段变可空、请求枚举删值、旧封闭响应枚举加值。原必有响应字段变可选也属于可能丢失字段。新增路径、可选请求字段、响应字段允许；响应开放枚举只读旧契约上的 `x-open-enum: true`，在新契约补标记不能追溯豁免旧客户端。
+
+比较展开本地 JSON pointer（含 `~0/~1` 与引用兄弟键）、数组、嵌套对象、递归引用和 anyOf/oneOf 分支；allOf 按类型/枚举交集、字段与 required 并集，不能把 `allOf: [object, object|null]` 当可空。null 按组合语义判断，oneOf 中被多个分支接受的 null 不属于可用值。分支用真实共同枚举/const 判别值对应，成对递归引用防止无限展开；超过 128 个组合、纯引用环、外部/悬空引用或尚未支持的结构关键字会带位置失败，不当作兼容。格式、长度等六类之外的差异不额外判成破坏。
+
+`packages/contract/released/retired.json` 初始为空数组。每项仅包含 `version`、非空 `reason`、真实 ISO 日期 `date`，例如 `{ "version": "weapp-v1.0.0", "reason": "最低客户端版本已提高", "date": "2026-10-10" }`。版本重复、未知字段、无效日期均失败；只摘除精确标签。该文件新登记为 frozen，以后修改属于放松类，须走现有 gate-change 评审并按 C78 同时登记最低版本计划。
+
+临时 Git 用例与两条 selftest 仅在自有临时仓库 commit/tag，并在 finally 清理；从不操作本仓库的真实标签。W2-28a 只代表契约门禁；b 的实现与实际运行结果分别见下节及 [W2-28 台账](../../docs/plan/status/W2-28.md)，W2-29 仍等整包。不得将无可比版本或假服务用例充作混跑通过。
+
+### 9.1 双版本混跑与发布阻断（W2-28b）
+
+`node infra/ci/mixed-version-smoke.mjs --prev <完整提交SHA> --report <新报告.json>` 在自有隔离库中完成 HEAD 迁移补种、HEAD 主流程、旧版同库读取与第二条主流程、HEAD 复读。两个版本分别从各自提交构建，使用真实 HTTP、独立 worker、PG、Redis 与 MinIO；不拨业务时钟，观察上限30秒、整包上限10分钟。省略 `--prev` 时按最近发布标签或第一父提交选择；没有可比版本仍运行 HEAD 初始化与主链，报告不能记为完整四步通过。参数、替身范围与资源清理见 [运行说明](mixed-version-smoke.README.md)。
+
+`mixed-smoke.yml` 只消费 main push；部署默认关闭，开启后仍在 SSH 与拉镜像前核对同 SHA 最新的 images、mixed-smoke 两项检查均已成功。检查读取串行、各一次，遇403、429或 Retry-After 即失败，不轮询或自动重试。工作流接线、本地测试与远端实际运行分别记录在台账，不能互相替代。

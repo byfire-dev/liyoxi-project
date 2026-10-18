@@ -1,8 +1,8 @@
 // 参数键清单（14 分组 第 2.3 节“参数键的归属”表，加 07 第 7 节“待回写清单”里的参数）：只登记键名与所属分组。
 // 参数的类型、单位、范围、默认值不在这里：定义由 W0-18 按 14 分组 第 2.3 节交付（任务书 W0-09a 第 11 节第 3 项）；
 // 不变量 config.N17 核对库里 param_value.key 都是登记过的键。
-// 归属表里用“等”带过的键、带通配的键（payment.description_template.*、invoice.item_name.*）不猜、不登记，
-// 随用到它的包补登；计费规则参数的 12 个键在 billing_param，按枚举登记（enums/billing.ts 的 BILLING_PARAM_KEY）。
+// 归属表里用“等”带过或尚未落实的通配键不猜；invoice.item_name.* 已由 W4-13 补登四项，
+// payment.description_template.* 仍待用到它的包补登；计费规则参数的 12 个键在 billing_param，按枚举登记（enums/billing.ts 的 BILLING_PARAM_KEY）。
 // 纯常量：经 ./config/params 子路径给 shared 用，本文件不引任何包。
 import type { NameFormat } from "../registry/formats.js";
 
@@ -61,9 +61,13 @@ export const PARAM_KEYS_BY_GROUP = {
     "notify.sms.daily_cap",
     "notify.sms.keepalive_days",
     "notify.wx.quota_cap",
+    "notify.wx.ask_cooldown_days",
+    "notify.wx.max_per_ask",
     "notify.wx.field_fail_streak",
     // 07 第 7 节的待回写项：后台“测试发送”的接收人；值里的 phone、wxOpenid 是敏感路径
     "notify.test_recipients",
+    // D6 §2.4：超过一页的规则公告使用持久分页；默认值与范围由 shared 定义。
+    "notify.fanout.batch",
   ],
   general: [
     "package.link_ttl_days",
@@ -86,7 +90,14 @@ export const PARAM_KEYS_BY_GROUP = {
     "refund.points.auto_approve_before_production",
     "refund.require_distinct_executor",
   ],
-  invoice: ["invoice.apply_within_days", "invoice.no_rules"],
+  invoice: [
+    "invoice.apply_within_days",
+    "invoice.no_rules",
+    "invoice.item_name.plan_new",
+    "invoice.item_name.plan_renew",
+    "invoice.item_name.plan_upgrade",
+    "invoice.item_name.topup",
+  ],
   recon: ["recon.first_run_time", "recon.alarm_time"],
   export: [
     "export.max_rows",
@@ -117,6 +128,8 @@ export const PARAM_KEYS_BY_GROUP = {
     "catalog.search.industry_fallback",
   ],
   media: [
+    "media.assets.daily_file_cap",
+    "media.model.daily_call_cap",
     "files.purge.mode",
     "files.purge.max_objects",
     "files.purge.max_bytes",

@@ -5,7 +5,7 @@
 | 分组 | 文档 | 表数 | 主要依据 |
 | --- | --- | --- | --- |
 | 01 内核与流程基础 | [01-kernel-flow.md](01-kernel-flow.md) | 7 | d3、d7 |
-| 02 身份与租户 | [02-identity-tenant.md](02-identity-tenant.md) | 15 | d4、d7、d9 |
+| 02 身份与租户 | [02-identity-tenant.md](02-identity-tenant.md) | 16 | d4、d7、d9；W2-10 邀请请求映射结构前置 |
 | 03 员工、权限、审计与审批 | [03-staff-authz-audit.md](03-staff-authz-audit.md) | 12 | d4、d3 |
 | 04 门店档案与资质审核 | [04-profile.md](04-profile.md) | 5 | d9 |
 | 05 短剧库 | [05-content.md](05-content.md) | 6 | d8 |

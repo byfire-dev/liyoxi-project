@@ -3,9 +3,14 @@ import type { BillingOrder, PaymentTxn } from "@liyoxi/db";
 import { calendarDate } from "@liyoxi/shared/time";
 import { uuidv7 } from "../../kernel/index.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
+import type { WechatPayTransaction } from "../../providers/types.js";
 import type { PaymentDeps, PaymentExceptionKind } from "./types.js";
 
 const CAUSES = {
+  status_mismatch: "渠道成功事实与既存收款不一致",
+  bill_only: "成功收款没有对应付款单",
+  bank_unmatched: "对公收款没有对应付款单",
+  payer_mismatch: "付款人与下单记录不符",
   amount_mismatch: "实收与应付不符",
   duplicate_receipt: "重复收款",
   paid_after_cancel: "取消后收到款",
@@ -15,16 +20,24 @@ export async function openPaymentException(
   tx: Tx,
   deps: Pick<PaymentDeps, "clock" | "bizNo" | "flow">,
   ctx: IdentityContext,
-  input: { kind: PaymentExceptionKind; order: BillingOrder; receipt: PaymentTxn },
+  input: {
+    kind: PaymentExceptionKind;
+    order: BillingOrder | null;
+    receipt: PaymentTxn;
+    detectedBy?: "apply" | "callback" | "query";
+    healed?: boolean;
+    channelFact?: WechatPayTransaction;
+  },
 ): Promise<string> {
   const { kind, order, receipt } = input;
   const dedupeKey = `${kind}:${receipt.outTradeNo}`;
   const prior = await tx.paymentException.findUnique({ where: { dedupeKey } });
   if (prior !== null) return prior.id;
   const now = deps.clock.now();
+  const healed = input.healed === true;
   const amountFen =
     kind === "amount_mismatch"
-      ? Math.abs((receipt.channelAmountFen ?? 0) - order.amountFen)
+      ? Math.abs((receipt.channelAmountFen ?? 0) - (order?.amountFen ?? 0))
       : receipt.channelAmountFen!;
   const id = uuidv7();
   const { count } = await tx.paymentException.createMany({
@@ -32,24 +45,28 @@ export async function openPaymentException(
       {
         id,
         exceptionNo: await deps.bizNo.next(tx, "CY"),
-        entityId: order.entityId,
+        entityId: order?.entityId ?? receipt.entityId,
         kind,
-        detectedBy: "apply",
+        detectedBy: input.detectedBy ?? "apply",
         billDate: new Date(`${calendarDate(now)}T00:00:00.000Z`),
-        billingOrderId: order.id,
+        billingOrderId: order?.id ?? null,
         paymentTxnId: receipt.id,
         amountFen,
         billFact: {
-          channelTxnNo: receipt.channelTxnNo,
-          amountFen: receipt.channelAmountFen,
-          status: receipt.status,
-          successAt: receipt.channelSuccessAt?.toISOString() ?? null,
+          channelTxnNo: input.channelFact?.transactionId ?? receipt.channelTxnNo,
+          amountFen: input.channelFact?.amountFen ?? receipt.channelAmountFen,
+          status: input.channelFact?.tradeState ?? receipt.status,
+          successAt:
+            (input.channelFact?.successAt ?? receipt.channelSuccessAt)?.toISOString() ?? null,
         },
-        platformFact: { status: order.status, amountFen: order.amountFen },
+        platformFact: order
+          ? { status: order.status, amountFen: order.amountFen }
+          : { missingOrder: true },
         causeText: CAUSES[kind],
-        status: "open",
+        status: healed ? "auto_healed" : "open",
         resolution: "none",
         dedupeKey,
+        resolvedAt: healed ? now : null,
         createdAt: now,
         updatedAt: now,
       },
@@ -64,10 +81,13 @@ export async function openPaymentException(
     machine: "payment_exception",
     stateField: "status",
     id,
-    event: "payment_exception.open",
+    event: healed ? "payment_exception.record_healed" : "payment_exception.open",
     created: true,
-    entityId: order.entityId,
-    storeId: order.storeId,
+    ...(order
+      ? { entityId: order.entityId, storeId: order.storeId }
+      : receipt.entityId
+        ? { entityId: receipt.entityId }
+        : {}),
     audit: {
       stream: "ops",
       category: "payment",
@@ -76,25 +96,28 @@ export async function openPaymentException(
       target: { type: "payment_exception", id },
     },
     emit: {
-      type: "payment_exception.opened",
-      payload: {
-        v: 1,
-        paymentExceptionId: id,
-        kind,
-        billingOrderId: order.id,
-        paymentTxnId: receipt.id,
-        amountFen,
-      },
-      dedupeKey: `payment_exception.opened:${id}`,
+      type: healed ? "payment_exception.auto_healed" : "payment_exception.opened",
+      payload: healed
+        ? { v: 1, paymentExceptionId: id }
+        : {
+            v: 1,
+            paymentExceptionId: id,
+            kind,
+            billingOrderId: order?.id ?? null,
+            paymentTxnId: receipt.id,
+            amountFen,
+          },
+      dedupeKey: `${healed ? "payment_exception.auto_healed" : "payment_exception.opened"}:${id}`,
     },
   });
-  await tx.billingOrder.update({
-    where: { id: order.id },
-    data: { hasOpenException: true, updatedAt: now },
-  });
+  if (order && !healed)
+    await tx.billingOrder.update({
+      where: { id: order.id },
+      data: { hasOpenException: true, updatedAt: now },
+    });
   await tx.paymentTxn.update({
     where: { id: receipt.id },
-    data: { reconState: "diff", updatedAt: now },
+    data: { reconState: healed ? receipt.reconState : "diff", updatedAt: now },
   });
   return id;
 }

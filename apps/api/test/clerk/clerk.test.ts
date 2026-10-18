@@ -124,6 +124,29 @@ it("键扫描：Mask 例外、嵌套/数组泄漏、动态字典值仍扫描、�
     { current: { contractNo: "a" } },
   ])
     expect(() => clerkVisibleKeys("m.sample", data)).toThrow("店员禁用字段");
+  for (const operationId of ["m.storeAsset.get", "m.storeAsset.portraitAuth.create"]) {
+    expect(
+      clerkVisibleKeys(operationId, {
+        highlights: ["同一要点"],
+        structuredItems: [{ name: "套餐", priceText: "68元" }],
+      }),
+    ).toEqual([
+      "highlights",
+      "structuredItems",
+      "structuredItems[].name",
+      "structuredItems[].priceText",
+    ]);
+    for (const data of [
+      { keypoints: ["旧字段仍拒绝"] },
+      { priceText: "非菜单路径" },
+      { nested: { structuredItems: [{ priceText: "嵌套错路径" }] } },
+      { structuredItems: [{ priceText: { balance: 1 } }] },
+    ])
+      expect(() => clerkVisibleKeys(operationId, data)).toThrow("店员禁用字段");
+  }
+  expect(() =>
+    clerkVisibleKeys("m.sample", { structuredItems: [{ priceText: "其它接口仍拒绝" }] }),
+  ).toThrow("店员禁用字段");
 });
 
 it("静默登录既定 needPhone 只放行该路由的布尔值，明文与其它路由仍失败", () => {

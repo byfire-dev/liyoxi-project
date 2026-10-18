@@ -221,6 +221,8 @@ const report = await runM0Chain({
 - 这里不注入故障。重复投递、进程中断、Redis 不可用下的“恰好一次”由 `apps/worker/test/fault/` 管；整套故障注入用例一条命令 `pnpm test:fault`，清单在 [docs/plan/m0-exit.md](../../../../docs/plan/m0-exit.md) 第 4 节。
 - 经 HTTP 的写请求重放（`Idempotency-Key` 请求头、`Idempotent-Replayed` 应答头）不在这条链路里，由 `apps/api/test/idempotency.test.ts` 管。M1 的接口级端到端脚本（W1-21）在 `apps/api/test/e2e/` 自建运行器；任务进程一侧“中继 → 派发 → 消费 → 扫描”怎么一步一步推，可以照 `runM0Chain` 的写法。
 
+M1 的 `drainEvents` 使用真实 `expand`、`claimDeliveries` 和 `consumeDelivery`。一批最多展开 200 条；没有订阅者的事件也必须全部标记已展开。没有认领到投递时，只有全部投递已完成且不存在 `publishedAt=null` 的事件才返回排空。被其他事务锁住的待展开行也算未排空，仍受原 32 轮上限约束；退避、死信、事件时刻与本轮资源归属检查保持原样。真实数据库回归在 `m1-transport.db.test.ts`；样例订阅者只用于测试装配，不登记到生产目录。
+
 ### 命令：`pnpm demo:m0`
 
 ```sh
@@ -232,3 +234,63 @@ APP_ENV=test DATABASE_URL=… REDIS_URL=… pnpm demo:m0          # 连接参数
 - 跑完删掉演示库与自己在 Redis 里的键（前缀 `lyx:test:demo<进程号>:0:`，只用 SCAN 加 UNLINK）。中途被打断留下的库用 `pnpm test:db:prune --all` 清（先确认没有别的会话在跑测试），或自己删那一个库。
 - 退出码：0 走通且各步与预期相符；1 有一步不符；2 环境变量缺、库或 Redis 连不上。连接串与口令不打印。
 - 入口是 `packages/services/scripts/demo-m0.ts`。每晚任务（`.github/workflows/nightly.yml`）末尾重放一遍；必过检查里不跑它，同一条链路的用例 `m0-chain.db.test.ts` 在 `pnpm test` 里。
+
+## M1 制作输入与外呼模型
+
+W3-07 的 `m1-production.mp4` 是本轮单次生成的固定色画面和440Hz音调：
+368254B、20秒、720×1280、H.264 High/yuv420p8、AAC双声道。
+字节 SHA256 为 `55290244d31b267a68d47cfe26e443f527b255d4254c759dd98bd10fd935bbc3`。
+同一固定镜像 `sha256:91a0ba46c7135164b5cae54ee329134c105d7bf5d08c5286232dbfd946a9310d`
+的公开 probe 实际读取 boxes、faststart 和 AIGC，原始响应保存在
+`m1-production.probe.json`；原始公开响应 SHA256 为
+`2a4e68caa0a5aab10a433184a62c8ad47e674f7b133f6e59545a07a592026765`。
+正常提交格式化后的仓内报告 SHA256 为
+`5b21c91d18607c0c0834df19977ffbfa1b12d424ec7b623f6ab073bd606c829f`，
+与原始响应解析后逐字段相同，加载器严格校验仓内字节。
+加载时同时验证两摘要，不将旧2秒/noaudio素材投影为20秒；旧素材与 FACTS 不改。
+
+M1 购入的20集母片经真实公开批次/complete/promote/probe/commit，制作经同一完整
+Runtime 的公开任务、checked dispatcher、人工QC与签名下载。codec/cloud 为受控
+替身，固定报告不是运行时原生探测声明，替身水印也不是视觉验收；原生探测与叠加
+另有真实容器/浏览器证据。其他60/40集原演示模型不计媒体技术覆盖。财务种子的
+正式25小时历史由本轮 startedAt 描述，注入 clock 不变；通用运输守卫仍拒绝更早事件。
+
+## W2-28 HTTP 与同库 attach 前置
+
+### 容器内 HEAD owner 的显式私网
+
+`createM1Support({runId,ownerNetwork})` 只在 `APP_ENV=test`、非 attach 且未传 `clock` 时接受本轮私网；使用禁止 set/advance 的实钟。默认本机 owner 与 attach 原守卫不变。该模式仍走原随机库命名、Redis NX owner token、拒绝已有资源、正式迁移与 `runSeed`，关闭仍只清本轮库/前缀；本片没有 Docker/数据库实跑证据。
+
+`ownerNetwork` 的唯一形状可通过 `M1SupportOptions["ownerNetwork"]` 消费，未知JSONL输入复用testing出口的`M1OwnerNetworkSchema.parse`，不复制DTO或类型断言：`expected:{runId,source,nonce,networkId}`，`receipt:{schemaVersion:1,runId,source,nonce,networkId,containers:{postgres,redis,minio}}`。所有对象键精确匹配（包括拒绝额外symbol/非自有键），runId 为1–12位小写字母数字、source为40位小写hex、nonce为32位、networkId与三个不同的完整容器ID为64位；receipt四项 identity 必须与 expected 及显式 options.runId 一致。nonce与`sharedScope().ownerToken`用途不同，两者和收据只在私有内存或0600任务文件中传递，不进公开报告。
+
+只接受 `postgresql://liyoxi:lyx-local-dev@lyx-mixed-<runId>-postgres:5432/liyoxi`（同值 `postgres:` 也可）与 `redis://lyx-mixed-<runId>-redis:6379/0`。不收任意host/alias/port/credentials/query。后继controller固定MinIO为`lyx-mixed-<runId>-minio:9000`；对应版本attach既有守卫仍核本轮alias、公共开发凭据和四桶，owner不接手对象IO，演示数据由正式attach阶段补种。
+
+收据仅核输入一致性，不能认证真实Docker身份。后继controller须先inspect共享三容器的完整ID/Compose角色、本轮network ID/标签/source/nonce，再连接固定alias；私有`w228-rpc-v1`的`owner.init`只传上述对象，不提供任意SQL/argv。controller只disconnect自己成功建立且再次核身份的本轮连接，不stop/rm共享容器。HEAD镜像内owner负责正式造库迁移补种，phase容器仅attach；不以host owner冒充镜像迁移。纯守卫目标为`testing/m1-owner-network.test.ts`，直接调用无IO helper；本机用临时纯配置只圈该文件，仓库services项目的既有globalSetup保持不变。
+
+`owner.close`无新增返回字段：只在显式ownerNetwork且本实例已取得库/Redis scope时，原drop/clear后、disconnect前只读复查本轮库不存在和前缀完整SCAN为零；任一失败加入原清理错误并拒绝。后继controller只有实际close成功后才能报告`scopeAbsenceVerified:true`，不编造数量；网络membership与对象桶仍各自精确收尾。
+
+私有RPC可传`diagnosticWrite(line)`接两处support logger与原fullInvariants失败摘要，driver只记录私有计数、不转印原文。缺省仍写原stdout，错误、日志脱敏和全不变量失败逻辑不变；RPC stdout只留协议帧由driver保证。
+
+### 默认接口与 attach
+
+`createM1Support()` 默认仍只接受 `APP_ENV=test`，创建随机库/Redis前缀并自清；原 M1 七段数据、二十集与可拨时钟不变。原拥有者可在内存或0600任务文件交出 `sharedScope()`，对应版本通过 `createM1Support({attach:{scope,chainId,version,storage}})` 接入。attach 只接受明确 `APP_ENV=local`、精确测试库/前缀、当前 owner token；拒绝已有栈库/远端/错归属，不重置、不删前轮资源。资源拥有者须在两个版本的连接关闭后清理库/前缀；四桶 MinIO 必须是本轮自有容器或精确自有桶。
+
+HTTP 装配见 `apps/api/test/e2e/http-bridge.ts`，由所选版本连同自己的服务源码/处理器构建。它真实监听 HTTP，逐请求核 `/health.version`，未知接口/5xx 失败关闭；IO与只读事实/任务运输也来自该版本，不能拿 HEAD 服务结果替旧版。测试 API/worker 装配与 codec/cloud IO 替身边界必须在混跑报告声明，不能称生产部署或真实转码已验。local 微信使用正式本地协议（十一位 phoneCode 为测试手机号），实际文件经本轮 MinIO 表单、入库与签读，进程切换不依赖 fake maps。
+
+`runChain({admin?})` 复用七段主链：没有 admin 时真实引导；后轮用前轮私有 admin 能力重新登录/MFA，经真实员工接口创建独立质检人。每轮 `chainId` 产生独立虚构商家手机号/USCC/对象命名；返回 `report/initialization/observedReads` 与私有 `access`，禁止把 `access` 写入公开报告。真实时钟拒绝 `set/advance`，TOTP、定时器与水印回查按实际到期等待，每次等待/worker排空上限三十秒；未知事件/退避或死信/未完成仍失败。
+
+前置风险目标为 `http.test.ts` 四聚合和 `http-bridge.db.test.ts` 一个真实HTTP/同库/MinIO目标，后者两次使用同源码，不能当新旧镜像演练。本前置不实现四步编排、发布工作流或同SHA发布阻断；W2-28b仍须在实际镜像进程完成这些验收。
+
+### 对应源码的后台 worker 测试装配
+
+`createM1WorkerResources(attach, workerQueues)` 只在local校验原owner token/随机库/前缀后提供本轮真实MinIO与codec外部IO替身；不建库、重置或删前轮。私有入口按本版本实际`QUEUE_CONCURRENCY`传入消费者清单，探针与快照共用该清单，不把未来契约队列当作已装配消费者。`apps/worker/test/e2e/mixed-worker.ts` 是独立IPC进程，运行原`buildWorkerServices/createWorkerRuntime`、真实PG主租约与BullMQ消费者。只有outbox_relay/outbox_dispatch/timer_scan/media_job_run的运输扫描为100ms；ensure_recurring、其它域循环、业务实钟、并发、租期/看门狗与媒体poll退避保持原值。它是测试Provider装配，不冒称生产dist入口/生产节奏/真实云通过。
+
+父控制器必须在整链前await `pause-timers`：停真实timer_scan并等待在途scan/队列收完，同时核库中无pending_start与活跃order.start目标。API桥以`backgroundWorker:{resumeTimerScan}`进入只读模式；原runner读pending_start/held后，runDueTimer调用私有IPC `resume-timers`，随后仅观察真实timer_run消费。不能用100ms概率代替这道屏障。其他loop与租约不暂停；每个新版本实例重建屏障状态，stop/SIGTERM从暂停状态照常回收。
+
+后台support的drain/promote/finishProduction及演示原片等待不再直接认领、调用handler或拨钟；每次观察最多30s，未知事件/订阅者/timer/media kind、失败/死信或未完成不可算排空。IPC快照记录真实PID、lease版本、队列与真实consumer入口计数，访问能力不进stdout/artifact。小代表目标为`apps/api/test/e2e/worker-loop.db.test.ts`，纯守卫为`testing/m1-worker.test.ts`；完整20集后台链留到后继双SHA四步，不重复现已绿直驱HTTP链。
+
+后台测试装配为`backup.pgdump`提供明确BACKUP配置、固定命令/只读参数校验的typed进程流替身，且仅备份三个方法委托worker独享FakeStorage；原createBackup流校验/摘要与timer状态仍实际执行，业务文件上传/head继续真实MinIO。替身不启动pg_dump/age、不建额外桶、不证明备份密文或恢复；缺配备份的catch-up会按正式语义留在dispatched退避，不能为排空过滤该行。取消收回替身流，实例close清空其内存对象。
+
+告警仍执行正式探针与通知直发；只在已核验的本轮库、worker启动前配置虚构值班号码和`ops_alert`测试模板（字段取正式定义）。原`sendOpsAlert`/`sendDirect`经FakeSms受理，代表目标对照实际调用次数与持久`sent`投递；这不证明真实短信送达，也不关闭或跳过告警规则。
+
+2026-10-15本地新增五目标已分批通过；同源码真实目标实际等待两次MFA、跨attach读取本轮MinIO字节并排空worker。Node24 fetch以物理Host发送，transport仅将已知逻辑Host/Origin成对映射到本轮真实origin，未知/异源不重写，大小写经Headers规范化；返回对象字节为真正Uint8Array，保持主链原严格字节断言。默认M1二十集单目标60.36秒通过、123项不变量零违规；本片精确核4个owner前缀、8库及12随机桶均已自然清零。真实混跑、完整HTTP主链与生产发布仍按W2-28b另验。

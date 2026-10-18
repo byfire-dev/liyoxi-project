@@ -9,6 +9,9 @@ import { zodEnum } from "../../enums/zod.js";
 import { z } from "../../zod.js";
 
 export const A03_ERROR_DETAILS = {
+  QUALIFICATION_CHECK_FAILED: z.object({
+    items: z.array(z.object({ qualificationDocId: IdSchema, code: z.string(), field: z.string() })),
+  }),
   STORE_MANAGER_ASSIGNED: z.object({ deliveryManagerId: IdSchema }),
   /** 审批单此刻的状态与进入终态的时间 */
   APPROVAL_NOT_PENDING: z.object({
@@ -20,6 +23,7 @@ export const A03_ERROR_DETAILS = {
     approvalId: IdSchema,
     requestNo: orNull(z.string()),
   }),
+  FIELD_NOT_PROXY_EDITABLE: z.object({ fields: z.array(z.string()) }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type ApprovalNotPendingDetails = z.infer<(typeof A03_ERROR_DETAILS)["APPROVAL_NOT_PENDING"]>;

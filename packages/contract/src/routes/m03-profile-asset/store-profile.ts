@@ -1,6 +1,5 @@
 // 商家端：门店档案、资质与素材 · store-profile（docs/api/m03-profile-asset.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 import { merchantRoute } from "../builders.js";
 import { errorResponses, okResponse } from "../../common/index.js";
 import {
@@ -21,8 +20,11 @@ import {
   QualificationViewOwnerSchema,
   QualificationDraftPatchSchema,
   ContactPatchSchema,
+  ContactSmsCodeBodySchema,
+  ContactSmsCodeResultSchema,
   ContactViewSchema,
   QualificationSubmitBodySchema,
+  QualificationDiscardBodySchema,
 } from "./qualification.schemas.js";
 
 export const mStoreProfileGet = merchantRoute({
@@ -91,7 +93,7 @@ export const mStoreProfileContactUpdate = merchantRoute({
   responses: { ...okResponse(ContactViewSchema), ...errorResponses(400, 401, 403, 409, 503) },
 });
 
-export const mStoreProfileContactSmsCodeCreate = merchantMeta({
+export const mStoreProfileContactSmsCodeCreate = merchantRoute({
   method: "post",
   path: "/m/store-profile/contact/sms-codes",
   operationId: "m.storeProfile.contactSmsCode.create",
@@ -102,6 +104,13 @@ export const mStoreProfileContactSmsCodeCreate = merchantMeta({
   "x-idempotent": "required",
   "x-idempotent-reason":
     "三段式（C51 先落库、提交后直发，A84）：先占用幂等记录，事务插入 sms_verification 并提交，事务外 notify.sendDirect，发送失败删行并释放占用",
+  request: {
+    body: { content: { "application/json": { schema: ContactSmsCodeBodySchema } }, required: true },
+  },
+  responses: {
+    ...okResponse(ContactSmsCodeResultSchema),
+    ...errorResponses(400, 401, 403, 409, 429, 503),
+  },
 });
 
 export const mStoreProfileMediaGet = merchantRoute({
@@ -183,7 +192,7 @@ export const mStoreProfileQualificationUpdate = merchantRoute({
   },
 });
 
-export const mStoreProfileQualificationDiscard = merchantMeta({
+export const mStoreProfileQualificationDiscard = merchantRoute({
   method: "post",
   path: "/m/store-profile/qualification/discard",
   operationId: "m.storeProfile.qualification.discard",
@@ -191,6 +200,16 @@ export const mStoreProfileQualificationDiscard = merchantMeta({
   "x-capability": "store.qualification.edit",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: QualificationDiscardBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(QualificationViewOwnerSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 export const mStoreProfileQualificationSubmit = merchantRoute({

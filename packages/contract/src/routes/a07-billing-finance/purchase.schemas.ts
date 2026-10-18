@@ -7,6 +7,7 @@ import {
   openEnum,
   orNull,
 } from "../../common/index.js";
+import { ApprovalDecisionViewSchema } from "../a01-system/approvals.schemas.js";
 import { adminPage, StaffBriefSchema } from "../a01-system/structures.js";
 import {
   BillingFormulaSchema,
@@ -78,8 +79,17 @@ export const TransferProofDetailSchema = TransferProofQueueItemSchema.extend({
   fileId: IdSchema,
   fileMime: z.string(),
   ocr: z.object({
-    status: z.literal("unavailable"),
-    recognized: z.null(),
+    status: openEnum(["pending", "ok", "unavailable", "unreadable"]),
+    recognized: z
+      .object({
+        payerName: z.string().nullable(),
+        payerAccountMask: z.string().nullable(),
+        payeeName: z.string().nullable(),
+        amountFen: z.int().positive().nullable(),
+        remark: z.string().nullable(),
+        tradedAt: nullableTime,
+      })
+      .nullable(),
     warnings: z.array(z.string()),
   }),
   checks: z.array(
@@ -90,8 +100,22 @@ export const TransferProofDetailSchema = TransferProofQueueItemSchema.extend({
       orderValue: z.string().nullable(),
     }),
   ),
-  firstConfirm: z.null(),
-  review: z.null(),
+  firstConfirm: z
+    .object({
+      bankSerialRaw: z.string(),
+      payerBank: orNull(DictRefSchema),
+      receivedAmountFen: z.int().positive(),
+      confirmedBy: orNull(StaffBriefSchema),
+      confirmedAt: InstantSchema,
+    })
+    .nullable(),
+  review: orNull(
+    ApprovalDecisionViewSchema.extend({
+      requestNo: z.string().nullable(),
+      requesterRoleName: z.string().nullable(),
+      confirmChecks: z.array(z.string()),
+    }),
+  ),
   rejectReason: orNull(DictRefSchema),
   rejectNote: z.string().nullable(),
   otherUploads: z.array(
@@ -227,7 +251,26 @@ export const PaymentOrderAdminDetailSchema = z
         createdAt: InstantSchema,
       }),
     ),
-    invoice: z.object({ state: z.literal("not_eligible"), latest: z.null() }),
+    invoice: z.object({
+      state: openEnum([
+        "not_eligible",
+        "not_requested",
+        "requested",
+        "issued",
+        "red_pending",
+        "red_issued",
+        "rejected",
+      ]),
+      latest: z
+        .object({
+          invoiceRequestId: IdSchema,
+          requestNo: z.string(),
+          status: openEnum(["pending", "issued", "rejected", "red_pending", "red_issued"]),
+          invoiceType: z.enum(["normal", "special"]),
+          medium: z.enum(["electronic", "paper"]),
+        })
+        .nullable(),
+    }),
     openExceptions: z.array(
       z.object({
         paymentExceptionId: IdSchema,

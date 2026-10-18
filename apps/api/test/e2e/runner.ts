@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { COMPARE_FIELDS } from "@liyoxi/contract";
-import type { M1Support, M1Scope, M1MediaScope } from "@liyoxi/services/testing";
+import type { M1Support, M1Scope, M1MediaScope, M1HttpObjectIO } from "@liyoxi/services/testing";
 import { activateM1Staff, bootstrapM1Admin } from "./m1-auth.js";
+import type { M1AuthenticatedStaff } from "./m1-auth.js";
 import { createM1Caller } from "./runner-api.js";
 import type { M1Result } from "./runner-api.js";
 import type { M1Api } from "./in-process.js";
@@ -34,6 +35,45 @@ export interface M1ChainInput {
   readonly api: M1Api;
   readonly support: M1Support;
   readonly say?: (message: string) => void;
+  /** M1 默认仍为二十集、四路；后续里程碑可用小剧验证新增机制。 */
+  readonly episodeCount?: number;
+  readonly uploadConcurrency?: number;
+  readonly seedDemo?: (admin: M1AuthenticatedStaff) => ReturnType<M1Support["seedDemo"]>;
+  /** 混跑两遍各自的真实身份输入；默认 M1 数据与步骤保持原样。 */
+  readonly merchantIdentity?: {
+    readonly loginCode: string;
+    readonly phoneCode: string;
+    readonly uscc: string;
+  };
+  readonly bootstrapAdmin?: (api: M1Api) => Promise<M1AuthenticatedStaff>;
+  readonly reviewerPhone?: string;
+  readonly externalIO?: M1HttpObjectIO;
+  readonly qualificationDoc?: (
+    context: M1ChainContext & {
+      readonly qualificationDocId: string;
+      readonly fileId: string;
+      readonly result: M1Result<"m.qualificationDoc.create">;
+    },
+  ) => Promise<void>;
+  readonly beforeOrder?: (context: M1ChainContext) => Promise<readonly string[]>;
+  readonly beforeEpisodes?: (
+    context: M1ChainContext & { readonly scope: M1Scope },
+  ) => Promise<void>;
+  readonly afterChain?: (
+    context: M1ChainContext & { readonly scope: M1Scope; readonly sampleId: string },
+  ) => Promise<void>;
+}
+export interface M1ChainContext {
+  readonly api: M1Api;
+  readonly support: M1Support;
+  readonly admin: M1AuthenticatedStaff;
+  readonly reviewer: M1AuthenticatedStaff;
+  readonly owner: {
+    readonly entityId: string;
+    readonly storeId: string;
+    readonly merchantUserId: string;
+    readonly headers: Readonly<Record<string, string>>;
+  };
 }
 const image = new Uint8Array(
   Buffer.from(
@@ -61,8 +101,23 @@ export async function runM1Chain({
   api,
   support,
   say = () => {},
+  episodeCount = 20,
+  uploadConcurrency = 4,
+  seedDemo,
+  merchantIdentity,
+  bootstrapAdmin = bootstrapM1Admin,
+  reviewerPhone = "19900000002",
+  externalIO,
+  qualificationDoc,
+  beforeOrder,
+  beforeEpisodes,
+  afterChain,
 }: M1ChainInput): Promise<M1ChainReport> {
   assert.equal(api.support, support, "API 与 worker 必须共用同一支架/时钟");
+  assert.ok(Number.isInteger(episodeCount) && episodeCount >= 1 && episodeCount <= 20);
+  assert.ok(
+    Number.isInteger(uploadConcurrency) && uploadConcurrency >= 1 && uploadConcurrency <= 4,
+  );
   const started = performance.now(),
     steps: { name: string; elapsedMs: number }[] = [];
   const call = createM1Caller(api);
@@ -76,12 +131,32 @@ export async function runM1Chain({
     return value;
   }
   const actors = await step("后台真实引导、激活、登录与二次验证", async () => {
-    const admin = await bootstrapM1Admin(api);
-    const seeded = await support.seedDemo();
+    const admin = await bootstrapAdmin(api);
+    const seeded = await (seedDemo ? seedDemo(admin) : support.seedDemo());
+    // staff.I6 requires an active lead in every nonempty group, including the bootstrap group.
+    const members = (await call("admin.staff.list", admin.headers, { query: { limit: 100 } }))
+      .items;
+    for (const groupId of new Set(
+      members.flatMap((member) => (member.staffGroup ? [member.staffGroup.staffGroupId] : [])),
+    )) {
+      const group = members.filter((member) => member.staffGroup?.staffGroupId === groupId);
+      if (group.some((member) => member.status === "active" && member.isLead)) continue;
+      const candidate = group.find((member) => member.status === "active");
+      assert.ok(candidate, "M1 非空员工组必须有真实启用成员可担任主管");
+      const detail = await call("admin.staff.get", admin.headers, {
+        params: { staffId: candidate.staffId },
+      });
+      const updated = await call("admin.staff.update", admin.headers, {
+        params: { staffId: candidate.staffId },
+        body: { isLead: true, lockVersion: detail.lockVersion, ackNoLead: false },
+      });
+      assert.equal(updated.isLead, true);
+      assert.equal(updated.staffGroup?.staffGroupId, groupId);
+    }
     const manager = seeded.staff.find((s) => s.key === "delivery_manager");
     assert.ok(manager?.activation, "干净演示库必须产出交付经理激活码");
     const reviewer = await activateM1Staff(api, {
-      phone: "19900000002",
+      phone: reviewerPhone,
       staffId: manager.staffId,
       activationCode: manager.activation.code,
     });
@@ -100,10 +175,12 @@ export async function runM1Chain({
         agreementVersionId: a.currentVersion!.agreementVersionId,
       }));
     assert.equal(consents.length, 2);
-    const loginCode = `m1-login-${support.runId}`,
-      phoneCode = `m1-phone-${support.runId}`;
-    support.providers.wechat.sessions.set(loginCode, { openid: `oM1_${support.runId}` });
-    support.providers.wechat.phones.set(phoneCode, "13700000121");
+    const loginCode = merchantIdentity?.loginCode ?? `m1-login-${support.runId}`,
+      phoneCode = merchantIdentity?.phoneCode ?? `m1-phone-${support.runId}`;
+    if (!merchantIdentity) {
+      support.providers.wechat.sessions.set(loginCode, { openid: `oM1_${support.runId}` });
+      support.providers.wechat.phones.set(phoneCode, "13700000121");
+    }
     const login = await call(
       "m.session.phoneLogin",
       {},
@@ -125,14 +202,15 @@ export async function runM1Chain({
     return { ...membership, merchantUserId: login.me.user.merchantUserId, headers };
   });
   const headers = owner.headers;
-  function upload(
+  const context: M1ChainContext = { api, support, ...actors, owner };
+  async function upload(
     registration: Pick<M1Result<"admin.file.create">, "mode" | "post" | "key" | "expiresAt">,
     bytes: Uint8Array,
   ) {
     assert.equal(registration.mode, "post");
     assert.ok(registration.post, "本轮实际存储必须签发直传表单");
     assert.equal(
-      support.providers.storage.upload(
+      await (externalIO?.upload ?? support.providers.storage.upload)(
         {
           ...registration.post,
           key: registration.key,
@@ -141,7 +219,7 @@ export async function runM1Chain({
         bytes,
       ),
       204,
-      "实际替身表单直传必须成功",
+      "实际表单直传必须成功",
     );
   }
   async function merchantFile(
@@ -162,8 +240,11 @@ export async function runM1Chain({
     });
     const file = registrations.items[0];
     assert.ok(file);
-    upload(file, image);
-    await call("m.file.complete", headers, { body: {}, params: { fileId: file.fileId } });
+    await upload(file, image);
+    const complete = () =>
+      call("m.file.complete", headers, { body: {}, params: { fileId: file.fileId } });
+    if (support.completeWithPromote) await support.completeWithPromote(file.fileId, complete);
+    else await complete();
     await support.promote(file.fileId);
     assert.equal(
       (await call("m.file.get", headers, { params: { fileId: file.fileId } })).status,
@@ -220,8 +301,15 @@ export async function runM1Chain({
     assert.equal(draft.viewerRole, "owner");
     if (draft.viewerRole !== "owner") throw new Error("资质必须为老板视图");
     assert.ok(draft.openRound);
+    const licenseFileId = await merchantFile("kyc_license");
     const doc = await call("m.qualificationDoc.create", headers, {
-      body: { docType: "business_license", fileId: await merchantFile("kyc_license") },
+      body: { docType: "business_license", fileId: licenseFileId },
+    });
+    await qualificationDoc?.({
+      ...context,
+      qualificationDocId: doc.doc.qualificationDocId,
+      fileId: licenseFileId,
+      result: doc,
     });
     await call("m.qualificationDoc.update", headers, {
       params: { qualificationDocId: doc.doc.qualificationDocId },
@@ -229,7 +317,7 @@ export async function runM1Chain({
         lockVersion: doc.lockVersion,
         fields: {
           name: "M1演示经营主体",
-          uscc: fakeUscc(),
+          uscc: merchantIdentity?.uscc ?? fakeUscc(),
           principal: "演示负责人",
           principalRole: "legal_rep",
           subjectType: "enterprise",
@@ -381,65 +469,76 @@ export async function runM1Chain({
       grantedPoints: quote.benefits.monthlyPoints,
     };
   });
-  const purchased = await step("订购实际二十集演示剧，认领具名到期定时器并真实开工", async () => {
-    const dramas = await call("m.drama.list", headers);
-    const drama = dramas.items.find((d) => d.totalEpisodes === 20);
-    assert.ok(drama, "演示主链必须选真实20集剧，不缩改订单集数");
-    await call("m.cartItem.create", headers, { body: { dramaId: drama.dramaId } });
-    const quote = await call("m.order.quote", headers, {
-      body: { dramaIds: [drama.dramaId], channelAccountIds: [channelAccountId], isTopModel: false },
-    });
-    assert.deepEqual(quote.blockers, []);
-    const order = await call("m.order.create", headers, {
-      body: {
-        dramaIds: [drama.dramaId],
-        channelAccountIds: [channelAccountId],
-        focusCodes: ["CF01"],
-        isTopModel: false,
-        expectedLaunchDate: quote.earliestLaunchDate,
-        agreementVersionId: quote.agreement.agreementVersionId,
-        expect: quote.expect,
-      },
-    });
-    const scope = { ...owner, orderId: order.orderId };
-    const held = await support.readState(scope);
-    assert.equal(held.order?.status, "pending_start");
-    assert.equal(held.holds.filter((h) => h.status === "held").length, 1);
-    assert.equal(held.wallet?.heldTotalQty, quote.totalChargePoints);
-    const timer = await support.orderTimer(scope);
-    support.clock.set(
-      new Date(Math.max(support.clock.now().getTime(), timer.fireAt.getTime()) + 1),
-    );
-    const fired = await support.runDueTimer(scope, timer.timerId);
-    assert.equal(fired.outcome, "fired");
-    assert.ok(fired.dispatchNo > 0);
-    await support.drainEvents();
-    const state = await support.readState(scope);
-    assert.equal(state.order?.status, "producing");
-    assert.equal(state.items.length, 1);
-    assert.equal(state.items[0]?.episodeCount, 20);
-    assert.equal(state.tickets.length, 1);
-    assert.equal(state.plans.length, 1);
-    assert.equal(state.holds[0]?.status, "captured");
-    assert.equal(state.wallet?.heldTotalQty, 0);
-    const tickets = await call("admin.deliveryTicket.list", admin, {
-      query: { orderId: order.orderId, tab: "all" },
-    });
-    assert.equal(tickets.items.length, 1);
-    await call("admin.order.get", admin, { params: { orderId: order.orderId } });
-    const fullScope: M1Scope = {
-      ...scope,
-      orderItemId: state.items[0]!.id,
-      deliveryTicketId: state.tickets[0]!.id,
-    };
-    return {
-      scope: fullScope,
-      orderNo: order.orderNo,
-      chargePoints: quote.totalChargePoints,
-      deliveryPlanId: state.plans[0]!.id,
-      launchDate: quote.earliestLaunchDate,
-    };
-  });
+  const referenceStoreAssetIds = [...((await beforeOrder?.(context)) ?? [])];
+  const purchased = await step(
+    `订购实际${episodeCount}集演示剧，认领具名到期定时器并真实开工`,
+    async () => {
+      const dramas = await call("m.drama.list", headers);
+      const drama = dramas.items.find((d) => d.totalEpisodes === episodeCount);
+      assert.ok(drama, `演示主链必须选真实${episodeCount}集剧，不缩改订单集数`);
+      await call("m.cartItem.create", headers, { body: { dramaId: drama.dramaId } });
+      const quote = await call("m.order.quote", headers, {
+        body: {
+          dramaIds: [drama.dramaId],
+          channelAccountIds: [channelAccountId],
+          isTopModel: false,
+        },
+      });
+      assert.deepEqual(quote.blockers, []);
+      const order = await call("m.order.create", headers, {
+        body: {
+          dramaIds: [drama.dramaId],
+          channelAccountIds: [channelAccountId],
+          focusCodes: ["CF01"],
+          ...(referenceStoreAssetIds.length ? { referenceStoreAssetIds } : {}),
+          isTopModel: false,
+          expectedLaunchDate: quote.earliestLaunchDate,
+          agreementVersionId: quote.agreement.agreementVersionId,
+          expect: quote.expect,
+        },
+      });
+      const scope = { ...owner, orderId: order.orderId };
+      const held = await support.readState(scope);
+      assert.equal(held.order?.status, "pending_start");
+      assert.equal(held.holds.filter((h) => h.status === "held").length, 1);
+      assert.equal(held.wallet?.heldTotalQty, quote.totalChargePoints);
+      const timer = await support.orderTimer(scope);
+      const afterFire = new Date(
+        Math.max(support.clock.now().getTime(), timer.fireAt.getTime()) + 1,
+      );
+      if (api.waitUntil) await api.waitUntil(afterFire);
+      else support.clock.set(afterFire);
+      const fired = await support.runDueTimer(scope, timer.timerId);
+      assert.equal(fired.outcome, "fired");
+      assert.ok(fired.dispatchNo > 0);
+      await support.drainEvents();
+      const state = await support.readState(scope);
+      assert.equal(state.order?.status, "producing");
+      assert.equal(state.items.length, 1);
+      assert.equal(state.items[0]?.episodeCount, episodeCount);
+      assert.equal(state.tickets.length, 1);
+      assert.equal(state.plans.length, 1);
+      assert.equal(state.holds[0]?.status, "captured");
+      assert.equal(state.wallet?.heldTotalQty, 0);
+      const tickets = await call("admin.deliveryTicket.list", admin, {
+        query: { orderId: order.orderId, tab: "all" },
+      });
+      assert.equal(tickets.items.length, 1);
+      await call("admin.order.get", admin, { params: { orderId: order.orderId } });
+      const fullScope: M1Scope = {
+        ...scope,
+        orderItemId: state.items[0]!.id,
+        deliveryTicketId: state.tickets[0]!.id,
+      };
+      return {
+        scope: fullScope,
+        orderNo: order.orderNo,
+        chargePoints: quote.totalChargePoints,
+        deliveryPlanId: state.plans[0]!.id,
+        launchDate: quote.earliestLaunchDate,
+      };
+    },
+  );
   const scope = purchased.scope,
     ticketParams = { deliveryTicketId: scope.deliveryTicketId };
   async function checks(
@@ -451,14 +550,32 @@ export async function runM1Chain({
       results: template.items.map((item) => ({ key: item.key, result: "pass" as const })),
     };
   }
-  async function productionFile(category: M1MediaScope["category"], episodeNo: number) {
+  async function finishProduction(
+    fileId: string,
+    category: M1MediaScope["category"],
+    episodeNo: number,
+  ) {
+    await support.promote(fileId);
+    await support.finishProduction(fileId, {
+      ...scope,
+      uploaderId: actors.admin.staffId,
+      category,
+      episodeNo,
+    });
+    assert.equal((await call("admin.file.get", admin, { params: { fileId } })).status, "stored");
+  }
+  async function productionFile(
+    category: M1MediaScope["category"],
+    episodeNo: number,
+    finish = true,
+  ) {
     const file = await call("admin.file.create", admin, {
       body: {
         category,
         storeId: owner.storeId,
         fileName: `m1-${support.runId}-${category}-${episodeNo}.mp4`,
         mime: "video/mp4",
-        sizeBytes: String(support.video.sizeBytes),
+        sizeBytes: String(support.productionVideo.sizeBytes),
         clientToken: randomUUID(),
         production: {
           kind: category === "sample_video" ? "sample" : "final",
@@ -468,19 +585,12 @@ export async function runM1Chain({
         },
       },
     });
-    upload(file, support.video.bytes);
-    await call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
-    await support.promote(file.fileId);
-    await support.installKnownMedia(file.fileId, {
-      ...scope,
-      uploaderId: actors.admin.staffId,
-      category,
-      episodeNo,
-    });
-    assert.equal(
-      (await call("admin.file.get", admin, { params: { fileId: file.fileId } })).status,
-      "stored",
-    );
+    await upload(file, support.productionVideo.bytes);
+    const complete = () =>
+      call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
+    if (support.completeWithPromote) await support.completeWithPromote(file.fileId, complete);
+    else await complete();
+    if (finish) await finishProduction(file.fileId, category, episodeNo);
     return file.fileId;
   }
   const sampleId = await step("交付方案推送确认，双人样片质检与实际签名保存后确认", async () => {
@@ -492,7 +602,7 @@ export async function runM1Chain({
         draftLockVersion: plan.draftLockVersion,
         content: {
           focusCodes: ["CF01"],
-          referenceAssetIds: [],
+          referenceAssetIds: referenceStoreAssetIds,
           note: "突出门店特色与服务体验",
           launchMode: "merchant_self",
           items: [
@@ -527,10 +637,12 @@ export async function runM1Chain({
     });
     await call("admin.sample.push", admin, { params: sampleParams, body: {} });
     const signed = await call("m.sample.downloadUrls", headers, { params: sampleParams, body: {} });
-    const actual = support.providers.storage.fetch(signed.url);
+    const actual = externalIO
+      ? await externalIO.readSigned(signed.url)
+      : support.providers.storage.fetch(signed.url);
     assert.equal(actual.status, 200);
     if (actual.status !== 200) throw new Error("实际样片签名不能读取");
-    assert.deepEqual(actual.body, support.video.bytes);
+    assert.deepEqual(actual.body, support.productionVideo.bytes);
     await call("m.sample.confirm", headers, {
       params: sampleParams,
       body: { versionNo: sample.versionNo, viewedVia: "album", hasViewed: true },
@@ -542,35 +654,46 @@ export async function runM1Chain({
     assert.equal(state.ticket?.step, "batch_compose");
     return sample.sampleId;
   });
-  await step("完整二十集真实登记、逐集质检、成片包质检和推送", async () => {
+  await beforeEpisodes?.({ ...context, scope });
+  await step(`完整${episodeCount}集真实登记、逐集质检、成片包质检和推送`, async () => {
     const items: { episodeNo: number; fileId: string; variant: "common" }[] = [];
-    // complete 的生产短轮询仍生效；独立集文件按4路上传，整批结束才允许清理资源。
-    for (let firstEpisode = 1; firstEpisode <= 20; firstEpisode += 4) {
+    // complete 的生产短轮询仍生效；只使用约定并发，整批结束才允许清理资源。
+    for (let firstEpisode = 1; firstEpisode <= episodeCount; firstEpisode += uploadConcurrency) {
       const batch = await Promise.allSettled(
-        Array.from({ length: 4 }, async (_unused, offset) => {
-          const episodeNo = firstEpisode + offset;
-          return {
-            episodeNo,
-            fileId: await productionFile("final_episode", episodeNo),
-            variant: "common" as const,
-          };
-        }),
+        Array.from(
+          { length: Math.min(uploadConcurrency, episodeCount - firstEpisode + 1) },
+          async (_unused, offset) => {
+            const episodeNo = firstEpisode + offset;
+            return {
+              episodeNo,
+              fileId: await productionFile("final_episode", episodeNo, false),
+              variant: "common" as const,
+            };
+          },
+        ),
       );
       const failures = batch.filter((result) => result.status === "rejected");
       if (failures.length)
         throw new AggregateError(
           failures.map((result) => result.reason),
-          "二十集文件上传失败",
+          "成片文件上传失败",
         );
       for (const result of batch) {
-        if (result.status === "fulfilled") items.push(result.value);
+        if (result.status === "fulfilled") {
+          // 上传结束后按序驱动有界执行器和事件分发器。
+          await finishProduction(result.value.fileId, "final_episode", result.value.episodeNo);
+          items.push(result.value);
+        }
       }
     }
     const registered = await call("admin.deliveryTicket.episodeOutput.create", admin, {
       params: ticketParams,
-      body: { items },
+      body: {
+        items,
+        ...(referenceStoreAssetIds.length ? { adoptedStoreAssetIds: referenceStoreAssetIds } : {}),
+      },
     });
-    assert.equal(registered.items.length, 20);
+    assert.equal(registered.items.length, episodeCount);
     const quality = await checks("qc.episode");
     await call("admin.deliveryTicket.inspectEpisodes", reviewer, {
       params: ticketParams,
@@ -597,20 +720,22 @@ export async function runM1Chain({
     const release = await call("m.orderItem.release.get", headers, {
       params: { orderItemId: scope.orderItemId },
     });
-    assert.equal(release?.episodeCount, 20);
-    assert.equal(release?.episodes.length, 20);
+    assert.equal(release?.episodeCount, episodeCount);
+    assert.equal(release?.episodes.length, episodeCount);
     assert.equal(release?.isDownloadable, true);
   });
   const launchTaskId = await step("实际逐集签名下载、商家回填与后台通过核验", async () => {
-    for (let episodeNo = 1; episodeNo <= 20; episodeNo++) {
+    for (let episodeNo = 1; episodeNo <= episodeCount; episodeNo++) {
       const download = await call("m.orderItem.downloadUrls", headers, {
         params: { orderItemId: scope.orderItemId },
         body: { kind: "episode", episodeNo },
       });
-      const fetched = support.providers.storage.fetch(download.url);
+      const fetched = externalIO
+        ? await externalIO.readSigned(download.url)
+        : support.providers.storage.fetch(download.url);
       assert.equal(fetched.status, 200);
       if (fetched.status !== 200) throw new Error("实际成片签名不能读取");
-      assert.deepEqual(fetched.body, support.video.bytes);
+      assert.deepEqual(fetched.body, support.productionVideo.bytes);
       assert.ok(fetched.contentDisposition?.startsWith("attachment;"));
     }
     const tasks = await call("m.launchTask.list", headers, {
@@ -627,7 +752,7 @@ export async function runM1Chain({
       body: {
         linkKind: "collection",
         collectionUrl: `https://example.invalid/m1/${support.runId}`,
-        reportedEpisodeCount: 20,
+        reportedEpisodeCount: episodeCount,
         actualLaunchDate: localDate(support.clock.now()),
       },
     });
@@ -643,9 +768,9 @@ export async function runM1Chain({
       params: { launchSubmissionId: submissionId },
       body: {
         lockVersion: view.approval.lockVersion,
-        confirm: { roundNo: view.roundNo, reportedEpisodeCount: 20 },
+        confirm: { roundNo: view.roundNo, reportedEpisodeCount: episodeCount },
         confirmChecks: view.approval.confirmChecks,
-        verifiedEpisodeCount: 20,
+        verifiedEpisodeCount: episodeCount,
         ...(await checks("launch.verify")),
       },
     });
@@ -664,12 +789,12 @@ export async function runM1Chain({
     });
     assert.equal(item.phase, "live");
     assert.equal(item.ticketStep, "in_service");
-    assert.equal(item.episodeCount, 20);
-    assert.equal(item.liveEpisodeCount, 20);
+    assert.equal(item.episodeCount, episodeCount);
+    assert.equal(item.liveEpisodeCount, episodeCount);
     assert.equal(item.usageStartDate, localDate(support.clock.now()));
     assert.equal(state.order?.status, "live");
     assert.equal(state.item?.phase, "live");
-    assert.equal(state.item?.liveEpisodeCount, 20);
+    assert.equal(state.item?.liveEpisodeCount, episodeCount);
     assert.ok(state.item?.usageStartDate);
     assert.equal(state.ticket?.step, "in_service");
     assert.equal(state.launchTask?.isLive, true);
@@ -680,6 +805,7 @@ export async function runM1Chain({
     assert.equal(wallet.subscription.status, "active");
     assert.equal(wallet.points.heldPoints, 0);
     assert.equal(wallet.points.spendablePoints, payment.grantedPoints - purchased.chargePoints);
+    await afterChain?.({ ...context, scope, sampleId });
     const invariants = await support.fullInvariants();
     assert.equal(invariants.status, "succeeded");
     assert.equal(invariants.violationsFound, 0);
@@ -688,7 +814,7 @@ export async function runM1Chain({
       runId: support.runId,
       orderNo: purchased.orderNo,
       paymentOrderNo: payment.orderNo,
-      episodeCount: 20,
+      episodeCount,
       chargePoints: purchased.chargePoints,
       spendablePoints: state.wallet!.planAvailableQty,
       final: {

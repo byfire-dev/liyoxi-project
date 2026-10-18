@@ -1,0 +1,27 @@
+# 两个业务入口均消费制作配置；mediatool 仍无环境变量或密钥。
+services:
+  api:
+    environment:
+      MEDIA_PRODUCTION_FILE: /run/secrets/media-production.json
+    secrets:
+      - media-production.json
+    volumes:
+      - work:/work
+    depends_on:
+      mediatool:
+        condition: service_healthy
+  worker:
+    environment:
+      MEDIA_PRODUCTION_FILE: /run/secrets/media-production.json
+    secrets:
+      - media-production.json
+    volumes:
+      - work:/work
+  check-env:
+    environment:
+      MEDIA_PRODUCTION_FILE: /run/secrets/media-production.json
+    secrets:
+      - media-production.json
+secrets:
+  media-production.json:
+    file: ${LYX_SECRETS_DIR:?}/media-production.json

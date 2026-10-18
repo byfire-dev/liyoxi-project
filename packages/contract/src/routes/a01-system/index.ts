@@ -76,6 +76,8 @@ export * from "./roles.js";
 
 export * from "./files.js";
 export * from "./files.schemas.js";
+export * from "./purge-runs.js";
+export * from "./purge-runs.schemas.js";
 
 export * from "./checklist.schemas.js";
 export * from "./checklist-templates.js";
@@ -87,3 +89,19 @@ export * from "./calendar-days.js";
 export * from "./system-config.schemas.js";
 export * from "./audit-logs.js";
 export * from "./pii-reveals.js";
+
+export * from "./client-errors.js";
+export * from "./flow-ops.schemas.js";
+export * from "./timers.js";
+export * from "./outbox-events.js";
+export * from "./outbox-deliveries.js";
+export * from "./webhook-events.js";
+
+export * from "./media-jobs.js";
+export * from "./media-jobs.schemas.js";
+
+export * from "./staff-groups.js";
+export * from "./staff-sessions.js";
+export * from "./assignment-pool-members.js";
+
+export * from "./staff-full.schemas.js";

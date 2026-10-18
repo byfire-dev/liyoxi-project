@@ -1,4 +1,5 @@
 import { z } from "../../zod.js";
+import { PendingChangeSchema } from "./profile.schemas.js";
 import {
   orNull,
   DateSchema,
@@ -22,6 +23,7 @@ import {
 
 // 信息确认版本随发版；不是协议同意记录（m03 第 6 节默认 1）。
 export const QUALIFICATION_DECLARATION_VERSION = "1";
+export const QUALIFICATION_DUPLICATE_REJECT_NOTE = "信用代码已被其他主体认证，系统驳回本轮资质审核";
 export const QualificationDocSchema = z
   .object({
     qualificationDocId: IdSchema,
@@ -59,6 +61,14 @@ export const ContactViewSchema = z
     lockVersion: z.int(),
   })
   .openapi("ContactView");
+export const ContactSmsCodeBodySchema = z.strictObject({ phone: z.string().regex(/^1\d{10}$/) });
+export const ContactSmsCodeResultSchema = z
+  .object({
+    isLoginPhone: z.boolean(),
+    expiresAt: orNull(InstantSchema),
+    resendAfterSec: orNull(z.int().min(0)),
+  })
+  .openapi("ContactSmsCodeResult");
 export const QualificationRoundSchema = z
   .object({
     qualificationSubmissionId: IdSchema,
@@ -72,7 +82,7 @@ export const QualificationRoundSchema = z
     changedFields: z.array(
       openEnum(["store_name", "address", "industry", "docs", "entity_license"]),
     ),
-    proposed: z.null(),
+    proposed: orNull(PendingChangeSchema),
     contactSnapshot: z
       .object({
         name: z.string(),
@@ -188,8 +198,45 @@ export const QualificationDocUpdateResultSchema = QualificationDocRecognizedSche
   lockVersion: true,
   doc: true,
 });
+export const QualificationDocRemoveResultSchema = z
+  .object({
+    qualificationDocId: IdSchema,
+    removedAt: InstantSchema,
+    qualificationSubmissionId: IdSchema,
+    lockVersion: z.int().min(0),
+  })
+  .openapi("QualificationDocRemoveResult");
+export const QualificationDiscardBodySchema = z
+  .strictObject({
+    qualificationSubmissionId: IdSchema,
+  })
+  .openapi("QualificationDiscardBody");
+export type QualificationDiscardBody = z.infer<typeof QualificationDiscardBodySchema>;
 export type QualificationDraftPatch = z.infer<typeof QualificationDraftPatchSchema>;
 export type ContactPatch = z.infer<typeof ContactPatchSchema>;
 export type QualificationSubmitBody = z.infer<typeof QualificationSubmitBodySchema>;
 export type QualificationDocCreateBody = z.infer<typeof QualificationDocCreateBodySchema>;
 export type QualificationDocPatch = z.infer<typeof QualificationDocPatchSchema>;
+
+export const QualificationRecordSchema = QualificationRoundSchema.pick({
+  qualificationSubmissionId: true,
+  kind: true,
+  isResubmit: true,
+  changedFields: true,
+  outcome: true,
+  decidedAt: true,
+  isDecidedBySystem: true,
+  rejectReasons: true,
+  decisionNote: true,
+  systemRejectCode: true,
+  finalRejectedAt: true,
+})
+  .extend({
+    roundNo: z.int().positive(),
+    submittedAt: InstantSchema,
+    uploadedDocs: z.array(QualificationDocSchema.pick({ docType: true, permitType: true })),
+    rejectedDocs: z.array(
+      QualificationDocSchema.pick({ qualificationDocId: true, docType: true, permitType: true }),
+    ),
+  })
+  .openapi("QualificationRecord");

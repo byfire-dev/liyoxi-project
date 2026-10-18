@@ -12,15 +12,26 @@ let h: Awaited<ReturnType<typeof buildContentTest>>;
 beforeAll(async () => {
   h = await buildContentTest(db, clock);
   await seedDemoContent(
-    { tx: h.tx, clock, content: h.content, media: h.media, appEnv: "test" },
+    {
+      tx: h.tx,
+      clock,
+      content: h.content,
+      media: h.media,
+      prepareMasters: h.prepareMasters,
+      appEnv: "test",
+    },
     h.staff.id,
   );
 }, 180000);
-afterAll(() => h?.unbind());
-it("六项已装配且演示库全通过，I3没有伪造恢复", async () => {
+afterAll(async () => {
+  await h?.media.jobs.shutdown();
+  h?.unbind();
+});
+it("七项已装配且演示库全通过，I3有真实登记且没有伪造恢复", async () => {
   expect(contentInvariants.map((item) => item.code)).toEqual([
     "content.I1",
     "content.I2",
+    "content.I3",
     "content.I4",
     "content.I5",
     "content.I6",

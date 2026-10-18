@@ -2,6 +2,7 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
+import { ensureLiveStepUp } from "./live-step-up";
 
 interface StaffFixture {
   staff: { id: string; name: string; roleKey: string; status: string; phoneLast4: string }[];
@@ -40,7 +41,8 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(table.getByRole("columnheader")).toHaveCount(8);
   await expect(table.getByRole("columnheader", { name: /手机号.*已脱敏/ })).toBeVisible();
   await expect(table).toContainText("****");
-  await expect(table.getByRole("row")).toHaveCount(14);
+  // 初始14名员工：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；再加表头。
+  await expect(table.getByRole("row")).toHaveCount(15);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
   await expect(table.getByText("已禁用", { exact: true })).toBeVisible();
@@ -50,8 +52,9 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
 
   await select(page, "全部角色", "交付经理");
   await expect(page).toHaveURL(/roleKey=delivery_manager/);
-  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("row")).toHaveCount(3);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
+  await expect(table.getByText("W215原交付经理", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "重置筛选", exact: true }).click();
   await select(page, "全部状态", "已禁用");
   await expect(page).toHaveURL(/status=disabled/);
@@ -68,10 +71,10 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page).toHaveURL(/pageSize=10/);
   await page.getByRole("button", { name: "下一页", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(4);
+  await expect(table.getByRole("row")).toHaveCount(5);
   await page.reload();
   await expect(page.getByLabel("第 2 页", { exact: true })).toBeVisible();
-  await expect(table.getByRole("row")).toHaveCount(4);
+  await expect(table.getByRole("row")).toHaveCount(5);
   await page.getByRole("button", { name: "上一页", exact: true }).click();
   await noHorizontalScroll(page, "员工分页");
 
@@ -92,6 +95,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       creates++;
   });
   // 两次同一事件循环的真实表单提交，验证React渲染禁用按钮前的同步锁。
+  await ensureLiveStepUp(page);
   await form.evaluate((element) => {
     (element as HTMLFormElement).requestSubmit();
     (element as HTMLFormElement).requestSubmit();
@@ -106,7 +110,15 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   const row = table.getByRole("row").filter({ hasText: fixture.newStaff.name });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("待激活");
-  await expect(row.getByRole("button")).toHaveCount(0);
+  await expect(row.getByRole("button")).toHaveCount(1);
+  await row.getByRole("button", { name: "查看 / 操作", exact: true }).click();
+  const details = page.getByRole("dialog", { name: "员工详情", exact: true });
+  await expect(details).toContainText(fixture.newStaff.name);
+  await expect(details.getByRole("button", { name: "编辑员工", exact: true })).toBeVisible();
+  await expect(details.getByRole("button", { name: "禁用员工", exact: true })).toBeVisible();
+  await expect(details.getByRole("button", { name: "启用员工", exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(details).toHaveCount(0);
   const response = await page.request.get(
     `/api/v1/admin/staff?q=${fixture.newStaff.phone.slice(-4)}`,
   );
@@ -117,7 +129,17 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
     name: fixture.newStaff.name,
     status: "active",
     isActivated: false,
-    actions: [],
+    actions: [
+      "update",
+      "unlock",
+      "handover",
+      "reissue-activation-code",
+      "disable",
+      "reset-password",
+      "reset-mfa",
+      "bind-wecom",
+      "invite-wecom",
+    ],
   });
   await page.getByRole("button", { name: "＋ 新增员工", exact: true }).click();
   await expect(form.getByRole("textbox", { name: "姓名", exact: true })).toHaveValue("");
@@ -127,3 +149,14 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await noHorizontalScroll(page, "员工创建完成");
   expect(errors).toEqual([]);
 });
+
+// W223 后置：原员工验收全部完成后才创建自己的只读员工；不污染旧数量/筛选事实。
+import { registerFlowOpsReadonlyTest } from "./w223-flow-ops-readonly";
+registerFlowOpsReadonlyTest();
+
+import { registerW206CreatedActivationTest } from "./w206-created-activation";
+registerW206CreatedActivationTest();
+
+// W216 own identities are created only after the original staff cases and existing postlude.
+import { registerAgreementPermissionsTest } from "./w216-agreements-readonly";
+registerAgreementPermissionsTest();

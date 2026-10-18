@@ -504,7 +504,7 @@
 
 | kind | 主体 `subject_type` | 关键类 | 到期 `fire_at` | 去重键 `dedupe_key` | 登记 | 取消或改期 | 处理器：守卫 → 动作 → 事件 | 出处 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `invitation.expire` | `invitation` | 否 | `invitation.expires_at` | `invitation.expire:invitation:{invitationId}` | `m.invitation.create`（同事务）；未分享卡片复用时同键改 fire_at | `m.invitation.accept`、`m.invitation.revoke`；门店停用、删除草稿门店、主体关闭与注销的撤回联动（`m.store.archive`、`m.store.delete`、`admin.entity.close`、`m.me.deletion.create`） | 仍 pending 且 expires_at ≤ now → `invitation.expired`（02:789）；否则 skipped | 02:794；01:609 |
+| `invitation.expire` | `invitation` | 否 | `invitation.expires_at` | `invitation.expire:invitation:{invitationId}` | `m.invitation.create`（同事务）；未分享卡片复用时同键改 fire_at | `m.invitation.accept`、`m.invitation.revoke`；门店停用、删除草稿门店、主体关闭与注销的撤回联动（`m.store.archive`、`m.store.delete`、`admin.entity.close`、`m.me.deletion.create`） | 锁后 fresh now：pending 且 expires_at ≤ now → `invitation.expired`（02:789）；pending 尚未到期抛错走原 retry/backoff；终态或不存在才 skipped | 02:794；01:609 |
 | `order.start` | `drama_order` | 是 | max(now, 提交时间 + 参数 `order.start_delay_minutes`) | `order.start:drama_order:{dramaOrderId}`（不带轮次，声明 rearmAfterSkip） | `m.order.create`（下单时资质已通过）；订阅者 `order.onQualificationDecided`；取消申请关闭为 not_executed（`admin.cancelRequest.reject` / `withdraw` / `void`）；周期任务 `order.pending_start_sweep` | 不主动取消：有在途取消或资质不再通过时处理器返回 skipped，之后同键复活 | 待开工、无在途取消、门店闸门 full → capture、订单项 pending_start → producing、建工单（ticket.created）、订购单重新推导 → `order.started`、`billing.points.captured` | 09:205-212；01:378 |
 | `order.rejected_stale` | `drama_order` | 否 | 资质驳回时刻 + 参数 `order.rejected_stale_days`（默认 7 个自然日） | `order.rejected_stale:drama_order:{dramaOrderId}:r{资质轮次 roundNo}`（本稿定） | 订阅者 `order.onQualificationDecided`（非终局驳回） | 不主动取消：重新提交后处理器守卫不成立即 skipped | 仍待开工，且门店当前的资质轮次就是键里的第 r 轮、仍为 rejected（商家重新提交后第 r + 1 轮又被驳回的，第 r 轮的定时器 skipped，由第 r + 1 轮的定时器在其驳回满 7 天时提醒）→ `order.rejected_stale`（客服待办） | d3:2972；09:1042 |
 | `usage.end` | `order_item` | 是 | `order_item.usage_end_date` 次日 00:00（Asia/Shanghai） | `usage.end:order_item:{orderItemId}:{usageEndDate}`（本稿定；01:318 的示例已按 A96 改为 `order_item`） | `admin.deliveryTicket.pushPackage`；止日改写时（定时器 `usage.resync`、平台原因终止）按前缀 `usage.end:order_item:{orderItemId}:` 取消旧行再登记 | 工单终止、订单项取消（取消执行事务） | 工单在待上线、上线核验或服务中 → reevaluate 进入到期下架（10:186-187）；同事务 `launch.void` / `launch.settle`、`ensureTakedownTasks`、撤销下载授权、关闭补发跟进 → `ticket.step_changed`、`takedown.created`、`launch.voided` / `launch.settled` | d3:2971；01:600 |
@@ -539,7 +539,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `billing.sweep.daily` | 每日 00:00 | job | P1 | billing（07） | 对 next_due_at 已到的主体执行 advance（发放与清零兜底）；累加 billing_entity_daily；跑估值 | 07:1587；d7:1578 |
 | `bill.download` | 每日 10:30；失败 30 分钟后重试，14:00 仍失败告警；补扫近 90 天未完成的账单日 | job | P1 | billing（08） | 下载、校验、归档微信账单；解析入 wx_bill_line；匹配交易，补建孤儿交易，开或自愈差异单（`detected_by = reconciliation`；账单上发现的退款成功走与回调同一段退款结果处理代码，08:529、531、669；与回调、查单同类的事实用 h01 2.6 的同一套键，同键已有则跳过），写 recon_day，发 `recon.day_closed` | 08:852；d2:1179；d7:1579 |
-| `tx.unapplied_scan` | 每 5 分钟 | tx | P2 | billing（08） | 成功未入账且没有未决差异单的收款 → applyPayment | 08:307；d2:1180 |
+| `tx.unapplied_scan` | 每 5 分钟 | job | P2 | billing（08） | 成功未入账且没有未决差异单的收款 → applyPayment | 08:307；d2:1180 |
 | `receipt.daily_digest` | 每日 18:00 | job | P3 | billing（08） | 当日对公确认清单（含流水号冲突放行标记）推送超级管理员 | d2:1182；08:1534 |
 | `order.pending_start_sweep` | 每 5 分钟 | tx | P2 | order（09） | 待开工、资质已通过、无在途取消（`drama_order.open_cancel_request_id` 为空）、没有 scheduled / dispatched 的 order.start 的订购单 → timers.arm 补登记或复活（漏了“无在途取消”会让有在途取消的单每 5 分钟复活、到点、跳过地空转） | 09:203、212；01:378；d3:2970、3218 |
 | `patrol.weekly_generate` | 每周一 09:00 | tx | P2 | publish（11） | 按周幂等取批次行，抽样生成巡检任务（`patrol.created`） | 11:463；d3:1887 |
@@ -552,7 +552,7 @@
 | `notify.sms_balance` | 每日 10:20 | job | P3 | notify（13） | 短信余量检查 | 13:1212；d6:150 |
 | `docs.sweep` | 每 5 分钟 | job | P2 | docs（13） | 协议版本到点簿记翻转；重投 queued、租约过期的授权书版次 | 13:766、1039；d6:147 |
 | `evidence.consent_digest` | 每日 00:40 | job | P2 | docs（13） | 前一日同意记录按 seq 求 SHA-256，写入 secure 桶；次日校验 | 13:864；d6:151 |
-| `analytics.partitions` | 每月 20 日 | job | P2 | analytics（14） | 预建未来 3 个月的埋点分区（迁移账号） | 14:746 |
+| `analytics.partitions` | 每月 20 日 | job | P2 | analytics（14） | 预建未来 3 个月的埋点分区（应用角色调用受限函数） | 14:746 |
 | `analytics.dedup_purge` | 每日 04:10 | job | P3 | analytics（14） | 删除 8 天前的去重行 | 14:777 |
 | `export.sweep` | 每 5 分钟 | job | P2 | exports（14） | 回收租约过期的导出任务；到期置 expired 并删除文件 | 14:982-984 |
 | `reports.finalize` | 每日 00:30 | job | P2 | reports（14） | 续费率到期满 7 天后定稿，重出月度快照 | 14:890 |
@@ -617,9 +617,13 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | 命令 | 出处 | 做什么 |
 | --- | --- | --- |
 | `staff:bootstrap` | 03:217；d4:1040 | 建第一位超级管理员（staff → active） |
+| `staff:reissue-activation` | W2-03；tasks README 第5.2节 | 仅补发仍未激活的首位超级管理员已过期的激活码；必须确认工号，生产另需显式授权，不改员工状态 |
 | `refund:abandon-txn` | 08:668；d2:937 | 两人确认放弃异常退款交易（refund_txn abnormal → abandoned），驱动 08:532 |
-| `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（迁移账号） |
+| `ops analytics:repartition <YYYY-MM>` | 14:748 | 兜底分区搬迁（应用角色调用受限函数，服务校验操作者与环境） |
 | `cli.alerts.ack / 关闭告警、重置死信回调` | 15:120、260 | 以 `--staff` 指定的员工身份写 alert_event、webhook_event 与审计（client = cli） |
+
+实际worker入口`alerts-ack`仅接受`ack`、`close`、`reset-webhook`。三者均必须指定`--staff <active员工UUID>`、一个目标（前两者`--alert-id`，后者`--webhook-event-id`）与`--note <5–200字原因>`，不接受另一个目标参数、批量或任意状态。服务在同一事务读取员工当前角色、验证`sys.health.manage`或`flow.ops.manage`并修改固定目标、追加审计；不伪造会话/step-up，stdout只给命令、对象与结果状态。HTTP可选note的协议保持原样。`acked`状态供告警求值器延长重复通知间隔使用，人工关闭本身不发恢复通知。
+
 
 ### 4.7 草案提到、不单独登记的任务（去向）
 
@@ -805,6 +809,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `08:1114` | `invoice_request.status` | pending→rejected（order_refunded） | 随付款单退款成功（08:177：回调、`rf.poll`、`bill.download`，含 08:529 回调晚到） | 回调处理 |
 | `08:1115` | `invoice_request.status` | issued→red_pending | 随 `admin.refundRequest.approve`、`admin.paymentException.resolve` | 随调用方事务 |
 | `08:1117` | `invoice_request.status` | red_pending→issued | 随 `admin.refundRequest.void`（驳回、撤回发生在审批通过之前，那时还没有 red_pending） | 随调用方事务 |
+| `08:1133` | `invoice_request.status` | pending→pending（sla.recalculated） | 订阅者 `billing.onCalendarImported`：申请计算窗口内日历更正后，在同一事务经 flow 重算时限与日历快照、记录同态历史及审计，取消旧批次定时器并重设 | 订阅者 |
 | `08:1213-1214` | `invoice_doc.email_state` | none→queued / skipped | 随 `admin.invoiceRequest.issue` | 随调用方事务 |
 | `08:1215-1216` | `invoice_doc.email_state` | queued→sent / failed | 订阅者 `billing.onMailResult` | 订阅者 |
 

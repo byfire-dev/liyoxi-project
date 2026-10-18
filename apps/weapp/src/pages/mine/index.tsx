@@ -19,15 +19,15 @@ import { accountError } from "@/lib/account-controller";
 import { gotoAccountLogin } from "@/lib/account-routing";
 import { account, useAccount } from "@/lib/account-runtime";
 import { useSessionStore } from "@/stores/session";
+import { useMessageBadge } from "@/stores/messages";
 
 import "./index.scss";
 
 export default function Mine() {
+  const unread = useMessageBadge();
   const state = useAccount();
   const token = useSessionStore((value) => value.accessToken);
   const [error, setError] = useState<string | null>(null);
-  const [logout, setLogout] = useState(false);
-  const [exiting, setExiting] = useState(false);
   const load = () => {
     setError(null);
     void account
@@ -140,44 +140,49 @@ export default function Mine() {
           ) : null}
           {data && accountEntries(data.viewerRole).length ? (
             <List>
-              {accountEntries(data.viewerRole).map((item) => (
-                <ListRow key={item.route} title={item.title} onClick={() => navigate(item.route)} />
-              ))}
+              <ListRow title="门店管理" onClick={() => navigate("sub/profile/stores/index")} />
+              {data.viewerRole === "clerk" ? (
+                <ListRow title="门店成员" onClick={() => navigate("sub/member/members/index")} />
+              ) : null}
+              {accountEntries(data.viewerRole)
+                .filter(
+                  (item) =>
+                    item.route !== "sub/profile/staff-profile/index" || data.viewerRole === "clerk",
+                )
+                .map((item) => (
+                  <ListRow
+                    key={item.route}
+                    title={item.title}
+                    badge={
+                      item.route === "sub/service/messages/index"
+                        ? (unread ?? undefined)
+                        : undefined
+                    }
+                    onClick={() => navigate(item.route)}
+                  />
+                ))}
             </List>
           ) : null}
-          <List>
-            <ListRow title="退出登录" onClick={() => setLogout(true)} />
-          </List>
+          {!data ? (
+            <List>
+              <ListRow
+                title="消息"
+                badge={unread ?? undefined}
+                onClick={() => navigate("sub/service/messages/index")}
+              />
+              <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+            </List>
+          ) : null}
         </>
       ) : (
         <Skeleton cards={2} />
       )}
+      {!token ? (
+        <List>
+          <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+        </List>
+      ) : null}
       <StoreSwitcher />
-      <Sheet
-        visible={logout}
-        title="退出登录？"
-        description="退出后可继续浏览，管理门店需要重新登录"
-        onClose={() => {
-          if (!exiting) setLogout(false);
-        }}
-        closeOnOverlayClick={!exiting}
-        footer={
-          <Button
-            variant="danger"
-            block
-            loading={exiting}
-            onClick={() => {
-              setExiting(true);
-              void account.logout().finally(() => {
-                setExiting(false);
-                setLogout(false);
-              });
-            }}
-          >
-            退出登录
-          </Button>
-        }
-      />
       <Sheet
         visible={Boolean(token && state.switchedFrom)}
         title="已切换登录账号"

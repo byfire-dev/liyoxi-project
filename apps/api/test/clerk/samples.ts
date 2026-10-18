@@ -1,12 +1,21 @@
 // 每个商家接口包在这里登记生产处理器的回放。样例用真实鉴权；测试直接建店员成员关系。
 import { mallClerkSamples } from "./mall-samples.js";
 import { orderClerkSamples } from "./order-samples.js";
+import { messageClerkSamples } from "./messages-samples.js";
+import { reportingClerkSamples } from "./reporting-samples.js";
+import { assetsClerkSamples } from "./assets-samples.js";
+import { createIdentityContext } from "@liyoxi/services";
+import { merchantServicesOf } from "../../src/merchant/services.js";
 import { uuidv7 } from "@liyoxi/services";
 import { createFactories } from "@liyoxi/services/testing";
 import type { FakeStorage } from "@liyoxi/services/testing";
 import { expect } from "vitest";
 import type { TestApi, TestRequestInit } from "../../src/testing/index.js";
-import { currentUserConsents, presetLoginCodes } from "../../src/testing/merchant.js";
+import {
+  currentUserConsents,
+  presetLoginCodes,
+  signInAsMerchant,
+} from "../../src/testing/merchant.js";
 import type { SignedInMerchant } from "../../src/testing/merchant.js";
 
 export interface ClerkSampleContext {
@@ -73,6 +82,39 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  {
+    operationId: "m.me.deletion.create",
+    expectedStatus: 400,
+    // 共享clerk必须留给后续回放；独立clerk成功由账号注销HTTP组覆盖。
+    play: (api, ctx) =>
+      api.request("/api/v1/m/me/deletion", {
+        method: "POST",
+        json: { hasConfirmed: false },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.smsCode.create",
+    expectedStatus: 503,
+    play: (api, ctx) =>
+      api.request("/api/v1/m/sms-codes", {
+        method: "POST",
+        json: { purpose: "phone_change" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.changePhone",
+    expectedStatus: 400,
+    play: (api, ctx) =>
+      api.request("/api/v1/m/me/change-phone", {
+        method: "POST",
+        json: { oldSmsCode: "000000", newPhoneCode: "fictional-not-issued" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  ...messageClerkSamples,
+  ...reportingClerkSamples,
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),
   ...(
     [
@@ -117,6 +159,57 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   },
   get("m.bootstrap.get", "/m/bootstrap"),
   get("m.me.get", "/m/me"),
+  {
+    operationId: "m.me.update",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/me", {
+        method: "PATCH",
+        json: { displayName: "店员本人称呼" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.userNotice.acknowledge",
+    play: async (api, ctx) => {
+      const notice = await api.runtime.tx.run((tx) =>
+        tx.merchantUserNotice.create({
+          data: {
+            id: uuidv7(),
+            merchantUserId: ctx.clerk.merchantUserId,
+            kind: "new_wechat_bound",
+            occurredAt: api.clock.now(),
+            createdAt: api.clock.now(),
+            updatedAt: api.clock.now(),
+          },
+        }),
+      );
+      return api.request(`/api/v1/m/me/user-notices/${notice.id}/acknowledge`, {
+        method: "POST",
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
+  {
+    operationId: "m.me.wechatIdentity.list",
+    play: async (api, ctx) =>
+      api.request("/api/v1/m/me/wechat-identities", { headers: ctx.clerk.headers }),
+  },
+  {
+    operationId: "m.me.wechatIdentity.delete",
+    play: async (api, ctx) => {
+      // 同一店员的新设备自行移除，保留后续回放使用的原会话。
+      const device = await signInAsMerchant(api, { phone: ctx.clerk.phone });
+      const identity = await api.runtime.tx.run((tx) =>
+        tx.wechatIdentity.findFirstOrThrow({
+          where: { merchantUserId: device.merchantUserId, openid: device.openid },
+        }),
+      );
+      return api.request(`/api/v1/m/me/wechat-identities/${identity.id}`, {
+        method: "DELETE",
+        headers: { ...device.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
   get("m.me.overview.get", "/m/me/overview"),
   {
     operationId: "m.session.create",
@@ -167,6 +260,34 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": "clerk-current-store" },
       }),
   },
+  {
+    operationId: "m.member.remove",
+    play: async (api, ctx) =>
+      api.request(`/api/v1/m/members/${uuidv7()}/remove`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.me.membership.leave",
+    play: async (api, ctx) => {
+      // 独立店员真实退出，保留其他既有回放使用的原店员成员关系。
+      const leaving = await signInAsMerchant(api);
+      await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        const make = createFactories({ db: tx, clock: api.clock });
+        const member = await make.entityMember({
+          entityId: store.entityId,
+          merchantUserId: leaving.merchantUserId,
+        });
+        await make.storeMember({ entityMemberId: member.id, storeId: ctx.storeId });
+      });
+      return api.request("/api/v1/m/me/membership/leave", {
+        method: "POST",
+        headers: { ...leaving.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
   get("m.dictItem.list", "/m/dict-items?typeKey=ticket_type"),
   {
     operationId: "m.file.create",
@@ -191,7 +312,12 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   get("m.wallet.get", "/m/wallet"),
   get("m.purchasePolicy.get", "/m/purchase-policy"),
   get("m.plan.list", "/m/plans"),
+  get("m.pointPack.list", "/m/point-packs"),
+  get("m.paymentOrder.list", "/m/payment-orders"),
+  get("m.paymentOrder.summary", "/m/payment-orders/summary"),
   get("m.paymentOrder.get", `/m/payment-orders/${uuidv7()}`),
+  get("m.invoiceRequest.list", "/m/invoice-requests"),
+  get("m.invoiceRequest.summary", "/m/invoice-requests/summary"),
   ...[
     { operationId: "m.plan.quote", path: "/m/plans/quote", json: { planId: uuidv7(), months: 1 } },
     {
@@ -209,6 +335,36 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       operationId: "m.paymentOrder.transferProof.create",
       path: `/m/payment-orders/${uuidv7()}/transfer-proofs`,
       json: { fileId: uuidv7() },
+    },
+    {
+      operationId: "m.paymentOrder.sync",
+      path: `/m/payment-orders/${uuidv7()}/sync`,
+      json: {},
+    },
+    {
+      operationId: "m.paymentOrder.cancel",
+      path: `/m/payment-orders/${uuidv7()}/cancel`,
+      json: {},
+    },
+    {
+      operationId: "m.paymentOrder.wechatPrepay",
+      path: `/m/payment-orders/${uuidv7()}/wechat-prepay`,
+      json: {},
+    },
+    {
+      operationId: "m.invoiceRequest.create",
+      path: "/m/invoice-requests",
+      json: {
+        paymentOrderId: uuidv7(),
+        invoiceType: "normal",
+        medium: "electronic",
+        recvEmail: "clerk-invoice@example.invalid",
+      },
+    },
+    {
+      operationId: "m.invoiceRequest.downloadUrls",
+      path: `/m/invoice-requests/${uuidv7()}/download-urls`,
+      json: { docKind: "blue" },
     },
   ].map(({ operationId, path, json }): Sample => ({
     operationId,
@@ -256,15 +412,20 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     },
   },
   get("m.storeProfile.qualification.get", "/m/store-profile/qualification"),
+  get("m.qualificationSubmission.list", "/m/qualification-submissions"),
   ...[
     ["m.storeProfile.basic.update", "PATCH", "/m/store-profile/basic"],
     ["m.storeProfile.media.update", "PATCH", "/m/store-profile/media"],
     ["m.storeProfile.service.update", "PATCH", "/m/store-profile/service"],
     ["m.storeProfile.qualification.update", "PATCH", "/m/store-profile/qualification"],
     ["m.storeProfile.contact.update", "PATCH", "/m/store-profile/contact"],
+    ["m.storeProfile.contactSmsCode.create", "POST", "/m/store-profile/contact/sms-codes"],
     ["m.storeProfile.qualification.submit", "POST", "/m/store-profile/qualification/submit"],
     ["m.qualificationDoc.create", "POST", "/m/qualification-docs"],
     ["m.qualificationDoc.update", "PATCH", `/m/qualification-docs/${uuidv7()}`],
+    ["m.qualificationDoc.downloadUrls", "POST", `/m/qualification-docs/${uuidv7()}/download-urls`],
+    ["m.qualificationDoc.remove", "POST", `/m/qualification-docs/${uuidv7()}/remove`],
+    ["m.storeProfile.qualification.discard", "POST", "/m/store-profile/qualification/discard"],
   ].map(([operationId, method, path]): Sample => ({
     operationId: operationId!,
     play: (api, ctx) =>
@@ -305,6 +466,114 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   })),
   ...mallClerkSamples,
   ...orderClerkSamples,
+  ...assetsClerkSamples,
+  get("m.member.list", "/m/members"),
+  {
+    operationId: "m.member.update",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/members/${uuidv7()}`, {
+        method: "PATCH",
+        json: { storeIds: [ctx.storeId] },
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  ...[
+    ["m.invitation.create", "/m/invitations", { clientRequestId: uuidv7() }],
+    ["m.invitation.markShared", `/m/invitations/${uuidv7()}/mark-shared`, {}],
+    ["m.invitation.revoke", `/m/invitations/${uuidv7()}/revoke`, { reason: "by_owner" }],
+  ].map(([operationId, path, body]): Sample => ({
+    operationId: String(operationId),
+    play: (api, ctx) =>
+      api.request(`/api/v1${String(path)}`, {
+        method: "POST",
+        json: body,
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  })),
+  {
+    operationId: "m.invitation.lookup",
+    play: async (api, ctx) => {
+      const owner = await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        return tx.entityMember.findFirstOrThrow({
+          where: { entityId: store.entityId, role: "owner", status: "active" },
+        });
+      });
+      const card = await merchantServicesOf(api.runtime).tenant.createInvitation(
+        createIdentityContext({
+          actor: { type: "merchant", id: owner.merchantUserId, client: "weapp" },
+          entityId: owner.entityId,
+          storeId: ctx.storeId,
+        }),
+        { clientRequestId: uuidv7() },
+      );
+      return api.request(`/api/v1/m/invitations/lookup?token=${card.token}`, {
+        headers: ctx.clerk.headers,
+      });
+    },
+  },
+  {
+    operationId: "m.invitation.accept",
+    play: async (api, ctx) => {
+      const owner = await api.runtime.tx.run(async (tx) => {
+        const store = await tx.store.findUniqueOrThrow({ where: { id: ctx.storeId } });
+        return tx.entityMember.findFirstOrThrow({
+          where: { entityId: store.entityId, role: "owner", status: "active" },
+        });
+      });
+      const card = await merchantServicesOf(api.runtime).tenant.createInvitation(
+        createIdentityContext({
+          actor: { type: "merchant", id: owner.merchantUserId, client: "weapp" },
+          entityId: owner.entityId,
+          storeId: ctx.storeId,
+        }),
+        { clientRequestId: uuidv7() },
+      );
+      return api.request(`/api/v1/m/invitations/${card.invitationId}/accept`, {
+        method: "POST",
+        json: { token: card.token, displayName: "既有店员" },
+        headers: { ...ctx.clerk.headers, "Idempotency-Key": uuidv7() },
+      });
+    },
+  },
+  {
+    operationId: "m.store.archive",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/stores/${ctx.storeId}/archive`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.store.restore",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/stores/${ctx.storeId}/restore`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.store.delete",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/stores/${ctx.storeId}/delete`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
+  {
+    operationId: "m.store.create",
+    play: (api, ctx) =>
+      api.request("/api/v1/m/stores", {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+        json: {
+          name: "公开新分店",
+          addressDetail: "公开测试路一号",
+          industryCode: "C900",
+          categoryCode: "C901",
+        },
+      }),
+  },
   // 退出会吊销当前凭据，放到这一份样例的最后。其它样例不得靠退出后的身份。
   {
     operationId: "m.session.current.delete",

@@ -1,7 +1,7 @@
 // 仅本域 Banner 使用。主干尚无共用 DeepLink 表；取 d6 2.4/2.10 与 m08 2.1 已明确的键与参数。
 import { IdSchema, DateSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
-const entry = <R extends string>(route: R, params: z.ZodType) =>
+const entry = <R extends string, P extends z.ZodType>(route: R, params: P) =>
   z.strictObject({ route: z.literal(route), params });
 const store = z.strictObject({ storeId: IdSchema });
 export const BannerPageJumpSchema = z.union([
@@ -36,3 +36,20 @@ export const BannerJumpSchema = z.discriminatedUnion("jumpKind", [
   z.strictObject({ jumpKind: z.literal("page"), jumpTarget: BannerPageJumpSchema }),
   z.strictObject({ jumpKind: z.literal("none"), jumpTarget: z.null() }),
 ]);
+
+/** Banner已登记页面的中文名称；未知路由不会借标签表获得访问许可。 */
+export const BANNER_PAGE_LABELS: Readonly<Record<string, string>> = {
+  "order.detail": "订购详情",
+  "delivery.sample": "样片确认",
+  "delivery.plan": "制作计划",
+  "publish.task": "上线任务",
+  "offline.task": "下架任务",
+  "ticket.detail": "工单详情",
+  "account.detail": "账号详情",
+  "asset.demand": "素材需求",
+  "wallet.home": "积分钱包",
+  "cart.list": "选剧单",
+  "ad.detail": "广告详情",
+  "profile.review": "门店资料",
+  "store.members": "门店成员",
+};

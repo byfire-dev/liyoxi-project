@@ -20,6 +20,7 @@ import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { orderApi } from "../private/api";
 import { useOrderResource } from "../private/resource";
+import { OrderReferenceRead } from "../private/reference-ui";
 import { deliveryEntry, deliveryItemEntries } from "../components/navigation";
 import "./index.scss";
 const timelineNames: Record<string, string> = {
@@ -200,6 +201,7 @@ function Detail({ id }: { id: string }) {
                 ]}
               />
             </Card>
+            <OrderReferenceRead ids={order.referenceStoreAssetIds} />
             <Card title="积分记录">
               {order.pointsEvents.length ? (
                 <Timeline

@@ -16,15 +16,32 @@ import { createNotices } from "../src/config/index.js";
 import { DemoSeedRefusedError, runDemoSeed } from "../src/demo-seed.js";
 import { EnvError, loadEnv, systemClock } from "../src/kernel/index.js";
 import { createRuntime } from "../src/runtime.js";
+import {
+  createDemoMasterInputPreparer,
+  parseDemoMasterArgs,
+  readDemoMasterInput,
+} from "../src/ops/index.js";
 import { loadKeyring, SecurityError } from "../src/security/index.js";
 
 async function main(): Promise<number> {
+  const args = parseDemoMasterArgs(process.argv.slice(2));
+  if (args === "help") {
+    console.log(
+      "pnpm db:seed:demo --video /absolute/legal-master.mp4 --probe-facts /absolute/manifest.json",
+    );
+    console.log(
+      "新增演示内容需合法原片及媒体工具配置；已有 ready/listed 内容重复运行可省略输入。prod 拒绝。",
+    );
+    return 0;
+  }
+  const masterInput = args ? await readDemoMasterInput(args) : undefined;
   let env;
   let keyring;
   try {
     env = loadEnv();
     if (env.APP_ENV === "prod") throw new DemoSeedRefusedError();
     keyring = loadKeyring(env);
+    if (masterInput && !env.MEDIA_PRODUCTION) throw new Error("演示原片需要完整媒体工具配置");
   } catch (error) {
     if (error instanceof DemoSeedRefusedError) {
       console.error(error.message);
@@ -43,6 +60,10 @@ async function main(): Promise<number> {
     version: "dev",
     clock: { now: () => new Date(seededAtMs) },
   });
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.once("SIGINT", abort);
+  process.once("SIGTERM", abort);
   try {
     const report = await runDemoSeed({
       tx: runtime.tx,
@@ -53,6 +74,9 @@ async function main(): Promise<number> {
       media: runtime.media,
       billing: { assembly: runtime.assembly, bizNo: runtime.bizNo },
       content: runtime.content,
+      prepareMasters: masterInput
+        ? createDemoMasterInputPreparer(runtime, masterInput, controller.signal)
+        : undefined,
       notices: createNotices({ clock: runtime.clock, events: runtime.events }),
     });
     for (const table of report.tables) {
@@ -74,6 +98,8 @@ async function main(): Promise<number> {
     }
     return 0;
   } finally {
+    process.removeListener("SIGINT", abort);
+    process.removeListener("SIGTERM", abort);
     await runtime.close().catch(() => undefined);
   }
 }

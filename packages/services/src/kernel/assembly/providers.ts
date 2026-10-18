@@ -5,6 +5,9 @@
 import { createProviders } from "../../providers/index.js";
 import type { CreateProvidersOptions, Providers } from "../../providers/index.js";
 import { guardProviderCall } from "../three-phase/index.js";
+import { createProductionMediaTools } from "../../providers/index.js";
+import type { ProductionMediaTools } from "../../providers/index.js";
+import type { StorageProvider } from "../../providers/types.js";
 
 /** 与 createProviders 的选项相同，只是没有 beforeCall：钩子固定是 guardProviderCall */
 export type AssembleProvidersOptions = Omit<CreateProvidersOptions, "beforeCall">;
@@ -12,4 +15,12 @@ export type AssembleProvidersOptions = Omit<CreateProvidersOptions, "beforeCall"
 /** 按环境与选项装配十二个 Provider（选哪个实现见 providers/index.ts），并接上“事务内不外呼”的钩子 */
 export function assembleProviders(options: AssembleProvidersOptions): Providers {
   return createProviders({ ...options, beforeCall: guardProviderCall });
+}
+/** Same fixed TX guard, owned media IO only; injected Storage remains borrowed. */
+export function assembleProductionMediaTools(options: {
+  workDir: string;
+  socketPath: string;
+  storage: StorageProvider;
+}): ProductionMediaTools {
+  return createProductionMediaTools({ ...options, beforeCall: guardProviderCall });
 }

@@ -4,10 +4,23 @@
 import { orNull } from "../../common/index.js";
 import type { DomainErrorSymbol } from "../../errors/index.js";
 import { z } from "../../zod.js";
+import { StoreBlockerSchema, StoreNotDraftReasonSchema } from "./tenant.schemas.js";
 
 export const M02_ERROR_DETAILS = {
   /** 调用者所在门店的名称（“您已是 XX 门店的店员”）；门店还没起名时为 null */
   ALREADY_IN_ENTITY: z.object({ storeName: orNull(z.string()) }),
+  STORE_HAS_OPEN_WORK: z.strictObject({ blockers: z.array(StoreBlockerSchema).nonempty() }),
+  STORE_NOT_DRAFT: z.strictObject({
+    reasons: z
+      .array(StoreNotDraftReasonSchema)
+      .nonempty()
+      .refine((v) => new Set(v).size === v.length),
+  }),
+  STORE_LIMIT_REACHED: z.strictObject({
+    storesUsed: z.int().nonnegative(),
+    storeLimit: z.int().nonnegative(),
+    limitReason: z.enum(["plan", "inactive"]),
+  }),
 } satisfies Partial<Record<DomainErrorSymbol, z.ZodType>>;
 
 export type AlreadyInEntityDetails = z.infer<(typeof M02_ERROR_DETAILS)["ALREADY_IN_ENTITY"]>;

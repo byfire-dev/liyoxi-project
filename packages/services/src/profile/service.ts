@@ -3,6 +3,7 @@ import type {
   QualificationDocCreateBody,
   QualificationDocPatch,
   QualificationDraftPatch,
+  QualificationDiscardBody,
   QualificationSubmitBody,
   StoreProfileBasicPatch,
   StoreProfileMediaPatch,
@@ -17,21 +18,19 @@ import { assignDeliveryManager } from "./assign-manager.js";
 import type { ProfileDeps, ProfileViewer, WriteOptions } from "./context.js";
 import { createDoc, docPrecheck, updateDoc } from "./documents.js";
 import { saveDraft } from "./draft.js";
+import { discardDraft, removeDocument } from "./draft-lifecycle.js";
 import { assertProfileComplete, industryOpen, storeGate, storeLocation } from "./gate.js";
 import { withQualificationCall } from "./qualification-kind.js";
-import { overview } from "./read.js";
+import { overview, assetOverviewActor } from "./read.js";
 import { snapshot } from "./repo.js";
 import { submitQualification } from "./submit.js";
 import { assertOwner, assertVersion, checkContent, validateBasics } from "./validate.js";
-import {
-  attachUrls,
-  basicView,
-  contactView,
-  mediaView,
-  qualificationView,
-  serviceView,
-} from "./views.js";
-import { saveBasic, saveContact, saveMedia, saveService } from "./write.js";
+import { attachUrls, basicView, mediaView, qualificationView, serviceView } from "./views.js";
+import { saveBasic, saveMedia, saveService } from "./write.js";
+import { createContactCode, updateContact } from "./contact.js";
+import { recognitionInput, recognitionIntent } from "./recognition.js";
+import { qualificationRecords, qualificationDocumentUrl } from "./qualification-read.js";
+import type { CursorQuerySchema, z } from "@liyoxi/contract";
 
 export function createProfile(deps: ProfileDeps) {
   const read = async <T>(
@@ -98,11 +97,21 @@ export function createProfile(deps: ProfileDeps) {
   }
   return {
     admin: createAdminProfile(deps),
-    get: (viewer: ProfileViewer) => deps.tx.run((tx) => overview(tx, deps, viewer)),
+    get: async (viewer: ProfileViewer) => {
+      const value = await deps.tx.run((tx) => overview(tx, deps, viewer));
+      if (!deps.media.assets) return value;
+      const recent = [];
+      for (const row of value.assets.recent)
+        recent.push(await deps.media.assets.decorate(assetOverviewActor(viewer), row));
+      return { ...value, assets: { ...value.assets, recent } };
+    },
     basic: (viewer: ProfileViewer) => read(viewer, basicView),
     media: (viewer: ProfileViewer) => read(viewer, mediaView),
     service: (viewer: ProfileViewer) => read(viewer, serviceView),
     qualification: (viewer: ProfileViewer) => deps.tx.run((tx) => qview(tx, viewer)),
+    qualificationHistory: (viewer: ProfileViewer, query: z.input<typeof CursorQuerySchema>) =>
+      deps.tx.run((tx) => qualificationRecords(tx, deps, viewer, query)),
+    documentUrl: (viewer: ProfileViewer, id: string) => qualificationDocumentUrl(deps, viewer, id),
     async updateBasic(
       viewer: ProfileViewer,
       input: StoreProfileBasicPatch,
@@ -161,19 +170,10 @@ export function createProfile(deps: ProfileDeps) {
         options,
       ),
     async updateContact(viewer: ProfileViewer, input: ContactPatch, options?: WriteOptions) {
-      return checkedWrite(
-        viewer,
-        input.lockVersion,
-        { name: input.name },
-        async (tx) =>
-          contactView(
-            tx,
-            await saveContact(tx, deps, viewer, input),
-            viewer.principal.merchantUserId,
-          ),
-        options,
-      );
+      return updateContact(deps, viewer, input, options);
     },
+    createContactCode: (viewer: ProfileViewer, phone: string, options?: WriteOptions) =>
+      createContactCode(deps, viewer, phone, options),
     submit: (viewer: ProfileViewer, input: QualificationSubmitBody, options?: WriteOptions) =>
       write(
         viewer,
@@ -191,13 +191,22 @@ export function createProfile(deps: ProfileDeps) {
       assertOwner(viewer);
       const raw = await createThreePhaseRunner(deps).run(
         {
-          claim: (tx) => docPrecheck(tx, viewer, input),
-          external: async () => undefined,
-          settle: (tx) => createDoc(tx, deps, viewer, input),
+          claim: async (tx) => {
+            await docPrecheck(tx, viewer, input);
+            return recognitionIntent(tx, deps, viewer, input);
+          },
+          external: async () =>
+            deps.media.ocr ? deps.media.ocr.recognize(recognitionInput(viewer, input)) : null,
+          settle: (tx, ocrResultId, intent) =>
+            createDoc(tx, deps, viewer, input, { ocrResultId, intent }),
         },
         options,
       );
-      return { ...raw, replayed: options.idem?.replayed ?? false };
+      return {
+        ...raw,
+        ...(options.idem?.replayed ? { recognized: null, submitted: null } : {}),
+        replayed: options.idem?.replayed ?? false,
+      };
     },
     updateDocument: (
       viewer: ProfileViewer,
@@ -205,6 +214,21 @@ export function createProfile(deps: ProfileDeps) {
       input: QualificationDocPatch,
       options?: WriteOptions,
     ) => write(viewer, (tx) => updateDoc(tx, deps, viewer, id, input), options),
+    removeDocument: (viewer: ProfileViewer, id: string, options?: WriteOptions) =>
+      write(viewer, (tx) => removeDocument(tx, deps, viewer, id), options),
+    discardQualification: (
+      viewer: ProfileViewer,
+      input: QualificationDiscardBody,
+      options?: WriteOptions,
+    ) =>
+      write(
+        viewer,
+        async (tx) => {
+          await discardDraft(tx, deps, viewer, input);
+          return qview(tx, viewer);
+        },
+        options,
+      ),
     storeGate: (storeId: string) => deps.tx.run((tx) => storeGate(tx, storeId)),
     assertProfileComplete: (storeId: string) =>
       deps.tx.run((tx) => assertProfileComplete(tx, storeId)),
@@ -230,20 +254,46 @@ export function createProfile(deps: ProfileDeps) {
         lockVersion: number;
         confirm: { roundNo: number };
         mode?: "normal" | "override";
+        overrideReason?: string;
         confirmChecks?: readonly string[];
       },
       options?: WriteOptions,
     ) =>
       deps.tx.run(async (tx) => {
         const round = await decisionRound(tx, id, input.staff);
-        return withQualificationCall(tx, deps, ctx, () =>
-          deps.approval.approve(tx, ctx, {
-            approvalId: round.approvalRequestId!,
-            staff: input.staff,
-            lockVersion: input.lockVersion,
-            confirmChecks: input.confirmChecks,
-            args: input,
-          }),
+        return withQualificationCall(
+          tx,
+          deps,
+          ctx,
+          () =>
+            deps.approval.approve(tx, ctx, {
+              approvalId: round.approvalRequestId!,
+              staff: input.staff,
+              lockVersion: input.lockVersion,
+              confirmChecks: input.confirmChecks,
+              note: input.mode === "override" ? input.overrideReason : undefined,
+              ...(input.mode === "override"
+                ? {
+                    audit: {
+                      stream: "activity" as const,
+                      category: "review" as const,
+                      action: "approval.request.approve",
+                      summary: "放行资质审核",
+                      target: { type: "approval_request", id: round.approvalRequestId! },
+                      entityId: round.entityId,
+                      storeId: round.storeId,
+                      reason: { code: "override", text: input.overrideReason },
+                      meta: {
+                        approvalStatus: "approved",
+                        approvalKind: "qualification",
+                        rule: "override",
+                      },
+                    },
+                  }
+                : {}),
+              args: input,
+            }),
+          input.staff,
         );
       }, options),
     reject: (
@@ -253,7 +303,12 @@ export function createProfile(deps: ProfileDeps) {
         staff?: StaffContext;
         reasonCodes: readonly string[];
         note: string;
-        confirm: { roundNo: number };
+        confirm?: {
+          roundNo?: number;
+          pendingStartOrderCount?: number;
+          pendingAssignAdCount?: number;
+          heldPoints?: number;
+        };
         rejectedDocIds?: readonly string[];
         isFinal?: boolean;
       },

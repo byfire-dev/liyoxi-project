@@ -15,6 +15,8 @@ import {
 } from "../features/auth/model";
 
 import { globalState, showApiNotice } from "./feedback";
+import { createAdminClientReporting, createAdminClientErrorSender } from "./client-reporting";
+import type { AdminClientReporting } from "./client-reporting";
 
 export const ACCESS_QUERY_KEY = ["admin", "access"] as const;
 
@@ -22,6 +24,7 @@ export interface AppServices {
   queryClient: QueryClient;
   stepUp: StepUpController;
   api: AdminApi<AdminPaths>;
+  clientReporting: AdminClientReporting;
   /**
    * 带类型的查询钩子（openapi-react-query）：query.useQuery("get", "/admin/…", { params })，
    * 路径、参数、响应都按契约推出。它用的就是 api.client，请求头与统一错误处置一样生效
@@ -96,6 +99,13 @@ export function createAppServices(): AppServices {
     queryClient,
     stepUp,
     api,
+    clientReporting: createAdminClientReporting({
+      dsn: import.meta.env.VITE_CLIENT_ERROR_DSN ?? "",
+      build: BUILD_NUMBER,
+      sender: createAdminClientErrorSender(api.client),
+      getUserId: () =>
+        queryClient.getQueryData<AccessSnapshot | null>(ACCESS_QUERY_KEY)?.staff.id ?? null,
+    }),
     query: createQueryHooks(api.client),
     setAccessSource(source) {
       accessSource = source;

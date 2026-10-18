@@ -1,3 +1,6 @@
+import { StoreAssetCardSchema } from "./store-assets.schemas.js";
+import { MediaFileViewSchema } from "./media-file.schemas.js";
+export { MediaFileViewSchema } from "./media-file.schemas.js";
 import { z } from "../../zod.js";
 import { DictRefSchema, IdSchema, InstantSchema, openEnum, orNull } from "../../common/index.js";
 import { QUALIFICATION_STATUS, STORE_PROFILE_MEDIA_MEDIA_GROUP } from "../../enums/index.js";
@@ -40,19 +43,6 @@ export const CompletenessSchema = z
       .length(4),
   })
   .openapi("Completeness");
-export const MediaFileViewSchema = z
-  .object({
-    fileId: IdSchema,
-    kind: openEnum(["image", "video", "audio", "document"]),
-    url: z.string().nullable(),
-    expiresAt: orNull(InstantSchema),
-    coverUrl: z.string().nullable(),
-    durationMs: z.int().nullable(),
-    displayWidth: z.int().nullable(),
-    displayHeight: z.int().nullable(),
-    moderationState: openEnum(["none", "pending", "pass", "review", "block"]),
-  })
-  .openapi("MediaFileView");
 export const AddressViewSchema = z
   .object({
     province: orNull(DictRefSchema),
@@ -83,6 +73,17 @@ export const BusinessHourSlotSchema = z
     end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   })
   .refine((slot) => slot.start !== slot.end, "营业时段的起止不能相同");
+export const PendingChangeSchema = z
+  .object({
+    qualificationSubmissionId: IdSchema,
+    phase: openEnum(["draft", "in_review", "closed"]),
+    storeName: z.string().nullable(),
+    industry: orNull(DictRefSchema),
+    category: orNull(DictRefSchema),
+    address: orNull(AddressViewSchema.omit({ zone: true })),
+    lockVersion: z.int().min(0),
+  })
+  .openapi("PendingChange");
 const basic = {
   brandName: z.string().nullable(),
   logo: orNull(MediaFileViewSchema),
@@ -102,7 +103,7 @@ const basic = {
 export const StoreProfileBasicOwnerSchema = z.object({
   viewerRole: z.literal("owner"),
   ...basic,
-  pendingChange: z.null(),
+  pendingChange: orNull(PendingChangeSchema),
   lockVersion: z.int(),
 });
 export const StoreProfileBasicClerkSchema = z.object({ viewerRole: z.literal("clerk"), ...basic });
@@ -270,7 +271,7 @@ const overview = {
   assets: z.object({
     total: z.int(),
     recent7dCount: z.int(),
-    recent: z.array(z.object({})).max(0),
+    recent: z.array(StoreAssetCardSchema).max(3),
   }),
 };
 export const StoreProfileOverviewClerkSchema = z.object({

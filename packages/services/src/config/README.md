@@ -37,7 +37,7 @@ const name = await config.dicts.label("industry", "C0101"); // 不看启用状�
 - 库里没有值的键用代码默认值；默认值是 `null` 的键读到 `null`，意思是“未配置”。
 - 库里没有的开关（还没播种）取登记的默认值。规则按序首条命中；上下文里缺的那一项当不满足。
 - 手里只有事务句柄、拿不到配置服务的地方（装配时静态登记的端口实现与处理器）用 `paramsAt(tx, ["work.start", "work.end"], 时刻)`：一次查询、不走缓存，取值的规矩同 `getAt`，读得到同一事务里刚写的值（W0-30a）。别处照旧用 `config.params`。
-- 写侧提交之后调 `config.cache.bump(命名空间)`：`dict`、`param`、`site`、`flag`、`checklist`。本进程立刻重读，别的进程 5 秒内重读。
+- 写侧提交之后调 `config.cache.bump(命名空间)`：`dict`、`param`、`site`、`flag`、`checklist`、`agreement`。协议信号供 W2-12 业务写入提交后使用；当前版本与同意的法律判断仍直接查库，bootstrap 保持实时版本指纹。本进程立刻重读，别的进程 5 秒内重读。
 
 ## 3. 缓存的口径
 
@@ -68,6 +68,21 @@ const name = await config.dicts.label("industry", "C0101"); // 不看启用状�
 
 ## 5. 跑用例
 
+门店核心卖点的标准种子提供“品质服务、环境舒适、位置便利、性价比高”四个全品类候选，供商家自行选择，不代填门店档案。新库直接播种；既有类型仅在全部候选为空、版本号与下一顺序号均为 1、编码规则仍为 `SP`/2 位时补齐，并推进版本与下一顺序号。已有选项（含停用）、曾运营后清空或修改编码规则的类型均保留原状。需要定点修补时，可在事务内调用 `seedMissingSellingPoints(tx, now)`，提交成功且有新增后调用 `config.cache.bump("dict")`，不必重跑全库种子。
+
+本地小程序省市区为空时，先导入地区调试数据。基础 `db:seed` 只登记行政区划类型，`db:seed:demo` 也不补地区；重复这两条命令不会产生省市区选项。后台普通新增不可新增国标地区。
+
+```sh
+# 默认只预览，不连库；可给 --province=510000 只取四川
+pnpm --filter @liyoxi/services exec tsx scripts/seed-regions.ts
+# 使用 CLAUDE.md 第 9 节的本机开发连接；不需要字段加密密钥
+APP_ENV=local DATABASE_URL='postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi' REDIS_URL='redis://localhost:6389/0' pnpm --filter @liyoxi/services exec tsx scripts/seed-regions.ts --apply
+```
+
+该命令只允许本机 local/test，stg/prod 拒绝。按[民政部2024年快照](https://www.mca.gov.cn/mzsj/xzqh/2025/202401xzqh.html)补缺项，不覆盖已有名称、启停和开通配置；已有层级/父码冲突则整批拒绝。仅为本地调试开放完整三级链，已有祖先关闭或停用时新增下级也不开通。提交后刷新 `dict` 缓存，退出“基础信息”再重新进入即可加载；不是2026实时区划，也不是生产开通方案。
+
+原表34省级、333地级、2846县级，补9个明确标注的选择器中间分组，共3222项。东莞、中山、儋州、嘉峪关无县级记录，港澳台缺下级数据，本地快照保留这些节点但不可选，不编造县区或将功能区当县区；这些地区须补独立数据/地址层级方案才能完成建档。
+
 ```sh
 pnpm --filter @liyoxi/services exec vitest run src/config/
 ```
@@ -91,3 +106,11 @@ pnpm --filter @liyoxi/services exec vitest run src/config/
 - 清单模板按 code 串行版本分配。新建为 draft，activate 同事务退役旧 active；discard 只允许 draft。它是配置生命周期，不写业务 status_transition；历史 version 查询继续可读。
 
 对应真库用例：`writes.db.test.ts`，API 全链在 `apps/api/test/system-config.test.ts`。无新增参数键、字典类型、开关键、DDL 或默认值。
+
+## 8. 站点配置、Banner 和规则公告（W3-11）
+
+`runtime.siteAdmin` 通过真实员工权限提供 mall/home_recommend 草稿整份替换、发布和历史。保存仅验结构，失效引用可留在草稿；发布先锁草稿比较 lockVersion，再锁 published 比较请求与草稿的 baseRevNo。同事务先归档再发布，成功提交后 bump site；草稿与幂等重放不 bump。读侧只消费已发布版本，当前字典与 content 的 CatalogRefPort 在发布时复核，失效置顶和商城 Banner 在商家读侧隐藏。
+
+Banner 创建、编辑和全量未结束集合排序共用 home_banner 事务咨询锁。容量扫描含未来的半开区间和已启用行；排序包括停用行但不增加业务 lockVersion。媒体归属、banner 分类、stored/非 block 由注入的 media 公口核验，换图先 link 新图再 release 旧图并保留180天。C50 在幂等事务中持久 imageUrl:null，第一次成功在事务外签名，重放明确 null/replayed。点击量由 analytics 公开聚合供给，五分钟有限缓存；config 不查询 analytics 私表。
+
+公告不新增 CMS。首页只取 announced、barEnabled 和正式时间窗内最新一条，老板按当前设备购买策略取摘要，clerk/guest 不返回公告。旧协议公告通过 docs.readAgreementNoticeLink 读取真实 key/siteNoticeId/status 后正规化为 agreement.view；错引用不伪造链接。notice-read 的 GET 不写业务状态。对应真实接口验证为 apps/api/test/site.test.ts；本地只使用隔离库与假存储，不执行真实运营发布。

@@ -5,6 +5,9 @@ import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { Guard, MachineBinding } from "../flow/index.js";
 import { implementKeyed } from "../kernel/index.js";
 import type { PortImplementation } from "../kernel/index.js";
+import { guardSelfDeletion } from "./account-deletion.js";
+import { guardAdminUserAction } from "./admin-user-actions.js";
+import { guardApprovedAccountRegistration } from "./account-change-apply.js";
 
 /** 注册那一行迁移随 args 带的事实 */
 export interface RegisterArgs {
@@ -17,6 +20,7 @@ export interface RegisterArgs {
  * 守卫自己回库核对这个账号确有不带单据的同意记录（登录、加入、重新同意写的那一类）。
  */
 const consentGiven: Guard = async (tx, facts) => {
+  if (await guardApprovedAccountRegistration(tx, facts)) return true;
   const { consentComplete } = (facts.args ?? {}) as Partial<RegisterArgs>;
   if (consentComplete !== true) return false;
   const rows = await tx.agreementConsent.count({
@@ -36,7 +40,14 @@ export const IDENTITY_MACHINE_BINDINGS: Readonly<Record<string, MachineBinding>>
       "phone_last4",
       "display_name",
     ],
-    guards: { [rowKey("02:125", "merchant_user.register")]: consentGiven },
+    guards: {
+      [rowKey("02:125", "merchant_user.register")]: consentGiven,
+      [rowKey("02:126", "merchant_user.disable")]: guardAdminUserAction,
+      [rowKey("02:127", "merchant_user.enable")]: guardAdminUserAction,
+      [rowKey("02:128", "merchant_user.delete")]: guardSelfDeletion,
+      [rowKey("02:129", "merchant_user.purge_empty")]: async (tx, facts) =>
+        (await tx.entityMember.count({ where: { merchantUserId: facts.subjectId } })) === 0,
+    },
   },
 };
 

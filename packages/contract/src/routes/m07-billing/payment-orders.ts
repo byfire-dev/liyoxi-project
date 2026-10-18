@@ -1,6 +1,7 @@
 import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
+  PaymentOrderWechatPrepayResultSchema,
   PaymentOrderCreateBodySchema,
   PaymentOrderCreateResultSchema,
   PaymentOrderDetailSchema,
@@ -9,9 +10,26 @@ import {
 } from "./purchase.schemas.js";
 // 商家端：套餐、积分、付款与发票 · payment-orders（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import {
+  PaymentOrderListQuerySchema,
+  PaymentOrderListSchema,
+  PaymentOrderSummaryQuerySchema,
+  PaymentOrderSummarySchema,
+} from "./channel-read.schemas.js";
+import { z } from "../../zod.js";
+export const PaymentOrderCancelResultSchema = z
+  .object({
+    outcome: z.enum(["cancelled", "paid", "cancelling"]),
+    paymentOrder: PaymentOrderDetailSchema,
+  })
+  .openapi("PaymentOrderCancelResult");
 
-export const mPaymentOrderList = merchantMeta({
+export const mPaymentOrderList = merchantRoute({
+  request: { query: PaymentOrderListQuerySchema },
+  responses: {
+    ...okResponse(PaymentOrderListSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
   method: "get",
   path: "/m/payment-orders",
   operationId: "m.paymentOrder.list",
@@ -46,7 +64,12 @@ export const mPaymentOrderCreate = merchantRoute({
     "结果脱敏（C50、A80）：bankAccount.accountNo 不进幂等记录，重放为 null 且 replayed = true",
 });
 
-export const mPaymentOrderSummary = merchantMeta({
+export const mPaymentOrderSummary = merchantRoute({
+  request: { query: PaymentOrderSummaryQuerySchema },
+  responses: {
+    ...okResponse(PaymentOrderSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
   method: "get",
   path: "/m/payment-orders/summary",
   operationId: "m.paymentOrder.summary",
@@ -72,7 +95,14 @@ export const mPaymentOrderGet = merchantRoute({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mPaymentOrderCancel = merchantMeta({
+export const mPaymentOrderCancel = merchantRoute({
+  "x-redact-on-replay": ["paymentOrder.bankAccount.accountNo"],
+  request: { params: PaymentOrderParamsSchema },
+  responses: {
+    ...okResponse(PaymentOrderCancelResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
+  "x-three-phase": true,
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/cancel",
   operationId: "m.paymentOrder.cancel",
@@ -84,7 +114,13 @@ export const mPaymentOrderCancel = merchantMeta({
   "x-idempotent-reason": "三段式用例（C51，先调外部）：微信先查单再关单，幂等记录随最后的事务写",
 });
 
-export const mPaymentOrderSync = merchantMeta({
+export const mPaymentOrderSync = merchantRoute({
+  request: { params: PaymentOrderParamsSchema },
+  responses: {
+    ...okResponse(PaymentOrderDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 503),
+  },
+  "x-three-phase": true,
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/sync",
   operationId: "m.paymentOrder.sync",
@@ -118,7 +154,14 @@ export const mPaymentOrderTransferProofCreate = merchantRoute({
   "x-idempotent": "required",
 });
 
-export const mPaymentOrderWechatPrepay = merchantMeta({
+export const mPaymentOrderWechatPrepay = merchantRoute({
+  request: { params: PaymentOrderParamsSchema },
+  responses: {
+    ...okResponse(PaymentOrderWechatPrepayResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503, 504),
+  },
+  "x-three-phase": true,
+  "x-redact-on-replay": ["payParams"],
   method: "post",
   path: "/m/payment-orders/{paymentOrderId}/wechat-prepay",
   operationId: "m.paymentOrder.wechatPrepay",

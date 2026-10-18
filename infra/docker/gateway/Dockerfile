@@ -34,13 +34,20 @@ COPY packages/contract/ packages/contract/
 COPY packages/shared/ packages/shared/
 COPY apps/admin/ apps/admin/
 COPY apps/portal/ apps/portal/
+COPY infra/deploy/source-maps.mjs infra/deploy/source-maps.mjs
 # 构建号写进入口页的 <meta name="lyx-build">、代码与 build.json。上下文里没有 .git，不给就是 dev。
 # 两个 build 脚本各自带产物检查：文件名带内容哈希、写入了构建号、是生产构建、不含夹具
 ARG LYX_BUILD=dev
 RUN set -eux; \
     export LYX_BUILD="${LYX_BUILD}"; \
     pnpm --filter @liyoxi/admin build; \
-    pnpm --filter @liyoxi/portal build
+    pnpm --filter @liyoxi/portal build; \
+    node infra/deploy/source-maps.mjs split admin /repo /private-source-maps "$LYX_BUILD"; \
+    node infra/deploy/source-maps.mjs split portal /repo /private-source-maps "$LYX_BUILD"
+
+# 只由固定bake私有local target导出；不进入公开gateway的任何layer。
+FROM scratch AS source-maps
+COPY --from=build /private-source-maps/ /
 
 
 # 基础镜像固定到摘要。多架构清单的摘要，amd64 与 arm64 共用；取自 Docker Hub 官方库（2026-10-06）：

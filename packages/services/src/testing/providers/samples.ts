@@ -11,7 +11,9 @@ import type {
 
 export type ProviderInputs = {
   [K in ProviderName]: {
-    [M in ProviderMethodName<Providers[K]>]: Providers[K][M] extends (input: infer I) => unknown
+    [M in ProviderMethodName<Providers[K]>]: NonNullable<Providers[K][M]> extends (
+      input: infer I,
+    ) => unknown
       ? I
       : never;
   };
@@ -37,6 +39,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     },
   },
   wechatPay: {
+    signMiniProgramPay: { prepayId: "sample-prepay" },
     createJsapiOrder: {
       outTradeNo: "FK-SAMPLE-0001",
       description: "样例套餐",
@@ -55,6 +58,19 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     fetchTradeBill: { billDate: "2026-10-01" },
   },
   sms: {
+    sendTemplate: {
+      phone: "13800138000",
+      template: {
+        templateKey: "account_notice",
+        kind: "notice",
+        status: "active",
+        providerTemplateId: "1234",
+        signName: "样例平台",
+        params: [],
+      },
+      params: {},
+    },
+    checkBalance: {},
     sendActivationCode: { phone: "13800138000", code: "246810" },
     sendSubscribeFallback: {
       phone: "13800138000",
@@ -68,6 +84,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     issueSts: { bucket: "media", keyPrefix: "incoming/sample/", durationSec: 900 },
     head: SAMPLE_REF,
     readPrefix: { ...SAMPLE_REF, bytes: 4096 },
+    readObject: { ...SAMPLE_REF, maxBytes: 20 * 1024 * 1024 },
     putObject: { ...SAMPLE_REF, body: new Uint8Array([1, 2, 3]), contentType: "application/pdf" },
     copy: {
       src: SAMPLE_REF,
@@ -76,7 +93,46 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       contentType: "video/mp4",
     },
     presignGet: { ...SAMPLE_REF, expiresSec: 900, disposition: "inline" },
+    presignVisionGet: { ...SAMPLE_REF, expiresSec: 900, source: { kind: "image" } },
     delete: SAMPLE_REF,
+    restoreVersions: { ...SAMPLE_REF, signal: new AbortController().signal },
+    eraseVersions: { ...SAMPLE_REF, signal: new AbortController().signal },
+    abortMultipart: SAMPLE_REF,
+    readTo: {
+      ...SAMPLE_REF,
+      expectedSize: 3,
+      maxBytes: 3,
+      ifMatchEtag: '"sample-etag"',
+      signal: new AbortController().signal,
+      sink: async () => undefined,
+    },
+    putStream: {
+      ...SAMPLE_REF,
+      body: async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      },
+      size: 3,
+      sha256: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+      contentIdentity: "1".repeat(64),
+      contentType: "video/mp4",
+      ifAbsent: true,
+      signal: new AbortController().signal,
+    },
+    putBackupStream: {
+      key: "daily/2026-10-14.dump.age",
+      maxBytes: 3,
+      signal: new AbortController().signal,
+      body: async function* () {
+        yield new Uint8Array([1, 2, 3]);
+      },
+    },
+    headBackup: { key: "daily/2026-10-14.dump.age", signal: new AbortController().signal },
+    copyBackup: {
+      srcKey: "daily/2026-10-14.dump.age",
+      dstKey: "monthly/2026-10-14.dump.age",
+      ifMatchEtag: '"sample-etag"',
+      signal: new AbortController().signal,
+    },
   },
   media: {
     probe: { src: SAMPLE_REF },
@@ -93,20 +149,47 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       userData: "sample-job:2",
     },
     audit: { src: SAMPLE_REF, scenes: ["porn", "politics"], userData: "sample-job:3" },
+    auditText: { bucket: "asset", text: "虚构审核文本", userData: "sample-job:3" },
+    auditVideo: { src: SAMPLE_REF, userData: "sample-job:3" },
+    describeAudit: { src: SAMPLE_REF, jobId: "fake-audit-1", userData: "sample-job:3" },
+    describe: { jobId: "fake-job-1", family: "media" },
+    find: {
+      family: "media",
+      tag: "Transcode",
+      userData: "sample-job:3",
+      createdAfter: new Date("2026-01-01T00:00:00Z"),
+      createdBefore: new Date("2026-01-02T00:00:00Z"),
+    },
+    cancel: { jobId: "fake-job-1", family: "media" },
   },
   ocr: {
+    recognizeBankReceipt: { fileUrl: "https://example.invalid/receipt.pdf" },
     recognizeBusinessLicense: { imageUrl: "https://example.invalid/license.jpg" },
     extractLicenseFields: {
       fileUrl: "https://example.invalid/permit.jpg",
       fieldNames: ["许可证编号", "有效期至"],
     },
   },
-  asr: { transcribe: { url: "https://example.invalid/voice.m4a" } },
+  asr: {
+    transcribe: { url: "https://example.invalid/voice.m4a" },
+    submit: { url: "https://example.invalid/voice.m4a" },
+    query: { taskId: "1" },
+  },
   llm: {
     tagAsset: { kind: "image", url: "https://example.invalid/dish.jpg" },
     extractKeyPoints: { text: "招牌菜是酸菜鱼。周末有优惠。门口可以停车。", maxPoints: 3 },
+    summarizeAsset: {
+      text: "公开虚构样例：门店菜单含牛肉面。",
+      vocabulary: {
+        content: [{ code: "menu", label: "菜单价目" }],
+        usage: [],
+        timeliness: [],
+      },
+    },
+    analyzeVision: { imageUrls: ["https://example.invalid/vision.jpg"] },
   },
   wecom: {
+    sendRobotMessage: { title: "样例告警", content: "有一项运行事实待处理", mentionAll: false },
     sendAppMessage: {
       toUser: "sample-staff",
       title: "新工单",

@@ -14,3 +14,8 @@ export * from "./auth-event.js";
 export { registration } from "./register.js";
 
 export { createAuditRead } from "./read.js";
+
+export { latestStaffWecomInviteKey } from "./read-staff-invite.js";
+
+export { readTargetActivity } from "./read-target-activity.js";
+export { readStoreActivity } from "./read-store-activity.js";

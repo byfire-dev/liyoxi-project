@@ -67,7 +67,7 @@
 | 小程序消息推送 | GET：原样返回查询参数 `echostr`（`text/plain`）；POST：HTTP 200，包体 `success`；客服消息（3.4）改为被动回复 `MsgType = transfer_customer_service`（安全模式下按平台要求加密，格式接入时核对）；5 秒内应答 | 401 / 500，空包体 | d6:2253；d4:1861 |
 | 企业微信 | GET：解密后的 `echostr` 明文（`text/plain`）；POST：HTTP 200，空包体 | 401 / 404 / 500，空包体 | d4:1862 |
 | 数据万象 | HTTP 200，空包体 | 401 / 400 / 500 | d5:1379 |
-| 语音识别 | HTTP 200，包体 `{ "code": 0, "message": "成功" }` | 401 / 400 / 404 / 500 | 接入时按官方格式核对 |
+| 语音识别 | HTTP 200，包体 `{ "code": 0, "message": "success" }` | 401 / 400 / 404 / 500，固定脱敏 JSON、code 非0 | [官方录音文件回调](https://cloud.tencent.com/document/product/1093/52632)，2026-10-11 核对；HTTP 映射为项目契约 |
 | 短信（腾讯云） | HTTP 200，包体 `{ "result": 0, "errmsg": "OK" }` | 401 / 400 / 500 | 接入时按官方格式核对 |
 
 应答格式以各平台现行文档为准，接入时核对。
@@ -82,7 +82,7 @@
 | 小程序消息推送 | `wechat` | 没有平台事件号：内容安全结果取 `sha256("wxa_media_check:" + trace_id)`；订阅消息事件取验签解密后明文的 sha256（十六进制） | 解密后的 `Event`：`wxa_media_check`、`subscribe_msg_sent_event`、`subscribe_msg_change_event`、`subscribe_msg_popup_event` | `inbox` | `WechatMessagePayload` | 到达 + 90 天 | 空 |
 | 企业微信 | `wecom` | 没有平台事件号：取 `sha256(ChangeType + ":" + UserID + ":" + ExternalUserID + ":" + CreateTime)` | `change_external_contact` | `inbox` | `WecomEventPayload` | 到达 + 90 天 | 空 |
 | 数据万象 | `ci` | `<mediaJobId>:<回调体里的 JobId>` | 回调体里的事件名，取不到写 `ci_callback` | `inline` | 空（不存） | 空 | 空 |
-| 语音识别 | `asr` | `<mediaJobId>:<回调体里的任务号>` | 固定 `asr_callback` | `inline` | 空（不存） | 空 | 空 |
+| 语音识别 | `asr` | `<mediaJobId>:<表单 requestId 对应的 TaskId>` | 固定 `asr_callback` | `inline` | 空（不存） | 空 | 空 |
 | 短信 | `sms` | 整个请求体的 sha256 | 固定 `sms_status_report` | `inline`（收件箱为备选，3.9） | `SmsStatusPayload` | 到达 + 90 天 | 空 |
 | 电子签 | `esign` | V1.1 定 | V1.1 定 | V1.1 定 | V1.1 定 | — | — |
 
@@ -661,7 +661,7 @@ d3:3232 的“暂停过久的工单数”是 P3 每日汇总，不进本端点�
 | --- | --- | --- | --- | --- | --- |
 | 路径 | `mediaJobId` | string(uuid) | 是 | — | `media_job.id`（`kind = asr`） |
 | 查询 | `sig` | string | 是 | base64url | 每任务签名；访问日志脱敏 |
-| 请求体 | — | 表单或 JSON（按官方格式） | 是 | — | 只读云端任务号（官方字段名接入时核对）；转写文本等其余字段不读、不存、不进日志 |
+| 请求体 | `requestId` | form-urlencoded string | 是 | canonical uint64 十进制，0..18446744073709551615 | 对应 CreateRecTask 的 TaskId，不是云 API 的 RequestId；只投影此字段，文本/状态/URL 不作结果、不存、不进日志 |
 
 **响应**：`HookAck`（2.2 语音识别一行）。
 
@@ -670,15 +670,18 @@ d3:3232 的“暂停过久的工单数”是 P3 每日汇总，不进本端点�
 | 错误码 | HTTP | 何时 |
 | --- | --- | --- |
 | `WEBHOOK_SIGNATURE_INVALID` | 401 | `sig` 不符或 `mediaJobId` 不是 uuid |
-| `WEBHOOK_PAYLOAD_INVALID` | 400 | 回调体取不到任务号 |
+| `WEBHOOK_PAYLOAD_INVALID` | 400 | 非 form-urlencoded、非法 UTF-8/百分号编码、重复解码键或缺失/非法 requestId |
 | `WEBHOOK_SOURCE_DISABLED` | 404 | 语音识别未配置 |
 | `WEBHOOK_PERSIST_FAILED` | 500 | 落不了库 |
 
-**副作用**：同 3.7（`webhook_event.process_state`：— → `processed` / `ignored`；只有 `submitted` 的任务把 `media_job.next_run_at` 置为当前时间，其余记 `ignored`）。
+**副作用**：同事务落收件；按素材370→任务400→文件410锁序核当前真实 ASR handler/provider、submitted、TaskId、代次/归属/指纹及 deadline，仅改 `next_run_at/updated_at`，其余记 `ignored`。提交后用既有队列唤醒；去重或 ignored 也可能发无害提醒，执行仍由原任务守卫决定。早到 ignored 的同 natural 不再处理，原轮询兜底。
 
 **说明**
 - d4:1858-1864 的来源表没有单列语音识别；它有查询接口，按 d4:1826“内联只用于有主动查询兜底的来源”定为内联，结果以回查为准（06-media.md:697）。
 - 草案路径 `/hooks/asr/{jobId}/{sig}`（d5:2121）按资源名补 `media-jobs`，`sig` 移到查询参数。语音识别的回调地址能否带查询参数，接入时核对；不支持时同 3.7 按 A126 处理。
+- [国内官方协议](https://cloud.tencent.com/document/product/1093/52632)为 POST `application/x-www-form-urlencoded`，最多2次总尝试；HTTP/ACK失败触发、间隔和超时未明确。[CreateRecTask](https://cloud.tencent.com/document/product/1093/37823)的 TaskId 有效24小时且跨日可重用，natural 必须同时含本地 UUID。query 保留，腾讯实际投递、DNS/证书与 E22 仍未联调；不以本地受控HTTP证明云已启用。
+- API/worker 仅在自有腾讯工厂消费完整冻结的 `ASR_TENCENT` 与 `ASR_CALLBACK` 时启用默认来源；发送与接收共享原 UTF8 32–256 字节 key，逐次提交只带当前真实 `mediaJob.id`。缺配置或借用整套 Provider 时自动来源关闭，显式 `webhookSources` 仍整表替换。构造不请求模型HTTP，不代表本地基础设施零IO。
+- 回调收件提交后仅提醒既有 submitted 任务回查原 TaskId，不信任回调文本/状态，不再扣提交槽或新建收费任务。API 无预算 transport 仍拒绝新提交；历史查询不读取新额度或要求冷账本初始化。原任务、来源、指纹、租约与期限守卫不变。
 
 ### 3.9 hooks.sms.statusReport.receive　短信状态回执
 `POST /hooks/sms/status-reports?token=`

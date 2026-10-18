@@ -1,0 +1,63 @@
+.lyx-access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lyx-space-12);
+  margin-block: var(--lyx-space-12);
+}
+.lyx-access-actions .ant-select {
+  min-width: 130px;
+  max-width: 100%;
+}
+.lyx-staff-command .ant-select {
+  width: 100%;
+}
+.lyx-access-list {
+  min-width: 0;
+  padding: var(--lyx-space-12);
+}
+.lyx-access-dict-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.lyx-access-dict-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lyx-space-12);
+  width: 100%;
+  padding: var(--lyx-space-12);
+  border: 0;
+  border-block-end: 1px solid var(--lyx-color-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.lyx-access-dict-item[aria-pressed="true"] {
+  background: var(--lyx-color-primary-bg-subtle);
+}
+.lyx-access-help {
+  display: block;
+  color: var(--lyx-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.lyx-permission-matrix {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lyx-permission-matrix th,
+.lyx-permission-matrix td {
+  padding: var(--lyx-space-12) var(--lyx-space-8);
+  text-align: start;
+  border-block-end: 1px solid var(--lyx-color-border);
+}
+.lyx-permission-matrix th {
+  width: 110px;
+}
+.lyx-permission-matrix .ant-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lyx-space-8);
+}

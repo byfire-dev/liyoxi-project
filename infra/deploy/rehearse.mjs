@@ -35,6 +35,14 @@ import net from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import {
+  buildRecoveryFixture,
+  holdRecoveryFixture,
+  LOG_ROTATION,
+  prepareRecoveryAdmin,
+  waitForRedisRecovery,
+} from "./redis-recovery.mjs";
+import { runObservability } from "./observability-rehearsal.mjs";
 
 import {
   assertDockerRunning,
@@ -74,14 +82,16 @@ function stg(/** @type {string} */ key) {
   return value.trim();
 }
 
-/** 密钥清单 */
+/** 基础演练只生成和检查必填九项，不读取或启用真实 Provider 文件。 */
 function manifest() {
-  /** @type {{ secrets: { file: string, uid: number, services: string }[] }} */
+  /** @type {{ secrets: { file: string, uid: number, required: boolean, services: string }[] }} */
   const parsed = JSON.parse(read("infra/deploy/secrets.manifest.json"));
-  return parsed.secrets.map((one) => ({
-    ...one,
-    services: one.services.split(" ").filter(Boolean),
-  }));
+  return parsed.secrets
+    .filter((one) => one.required)
+    .map((one) => ({
+      ...one,
+      services: one.services.split(" ").filter(Boolean),
+    }));
 }
 
 /** ADR-041 第 4.2 节的表：容器 → 内存上限（字节）；mediatool 另有内存加交换的合计 */
@@ -151,12 +161,13 @@ function freePort() {
  * @param {number} port
  * @param {string} host
  * @param {string} path
- * @param {{ method?: string, bodyBytes?: number, headers?: Record<string, string>, fresh?: boolean }} [options]
+ * @param {{ method?: string, bodyBytes?: number, body?: string, headers?: Record<string, string>, fresh?: boolean, timeoutMs?: number }} [options]
  * @returns {Promise<{ status: number, headers: http.IncomingHttpHeaders, body: string }>}
  */
 function request(port, host, path, options = {}) {
   return new Promise((resolve, reject) => {
-    const size = options.bodyBytes ?? 0;
+    const size =
+      options.body === undefined ? (options.bodyBytes ?? 0) : Buffer.byteLength(options.body);
     let answered = false;
     const req = http.request(
       {
@@ -168,10 +179,16 @@ function request(port, host, path, options = {}) {
           Host: host,
           ...options.headers,
           ...(size > 0
-            ? { "Content-Type": "application/octet-stream", "Content-Length": size }
+            ? {
+                ...(options.body === undefined
+                  ? { "Content-Type": "application/octet-stream" }
+                  : {}),
+                "Content-Length": size,
+              }
             : {}),
         },
-        timeout: 20_000,
+        timeout: options.timeoutMs ?? 20_000,
+        signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
         agent: options.fresh ? false : undefined,
       },
       (res) => {
@@ -194,7 +211,7 @@ function request(port, host, path, options = {}) {
     req.on("error", (error) => {
       if (!answered) reject(new StepError(`请求 ${host}${path} 没成：${error.message}`));
     });
-    if (size > 0) req.write(Buffer.alloc(size, 0x61));
+    if (size > 0) req.write(options.body ?? Buffer.alloc(size, 0x61));
     req.end();
   });
 }
@@ -208,14 +225,19 @@ await runMain(async () => {
       options: {
         keep: { type: "boolean", default: false },
         release: { type: "boolean", default: false },
+        "redis-flush": { type: "boolean", default: false },
+        errors: { type: "boolean", default: false },
+        alerts: { type: "boolean", default: false },
         "without-image-smoke": { type: "boolean", default: false },
       },
     }).values;
   } catch {
     throw new UsageError(
-      "用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke] [--release]",
+      "用法：node infra/deploy/rehearse.mjs [--keep] [--without-image-smoke] [--release] [--redis-flush] [--errors] [--alerts]",
     );
   }
+  if ((flags.errors || flags.alerts) && (flags.release || flags["redis-flush"]))
+    throw new UsageError("观测协议演练须与发布/Redis故障演练分轮执行");
   let config = readConfig();
   assertDockerRunning();
   const pgImage = stg("LYX_PG_IMAGE");
@@ -246,9 +268,10 @@ await runMain(async () => {
         ownedImages.push(image);
       }
   }
-  const evidence = flags.release
-    ? realpathSync(mkdtempSync(join(tmpdir(), "lyx-release-evidence-")))
-    : null;
+  const evidence =
+    flags.release || flags["redis-flush"]
+      ? realpathSync(mkdtempSync(join(tmpdir(), "lyx-release-evidence-")))
+      : null;
   const home = realpathSync(mkdtempSync(join(tmpdir(), "lyx-rehearse-")));
   const secretsDir = join(home, "secrets");
   const subnet = pickSubnet();
@@ -275,6 +298,9 @@ await runMain(async () => {
     LYX_GATEWAY_PORT: String(port),
     LYX_NODE_SUPERVISOR: "compose",
     LYX_IMAGE_PREFIX: "",
+    LYX_NODE_PROVIDERS: "",
+    LYX_REDIS_FLUSH_ENABLED: flags["redis-flush"] ? "true" : "false",
+    STG_FREEZE: "false",
     LYX_API_HOST: hosts.api,
     LYX_ADMIN_HOST: hosts.admin,
     LYX_PORTAL_HOST: hosts.portal,
@@ -289,7 +315,7 @@ await runMain(async () => {
    * @param {{ sudo?: boolean }} [options]
    */
   function script(path, args, options = {}) {
-    const keys = ["LYX_NODE_HOME", "LYX_SECRETS_DIR", "LYX_NODE_PREFIX"];
+    const keys = ["LYX_NODE_HOME", "LYX_SECRETS_DIR", "LYX_NODE_PREFIX", "LYX_NODE_PROJECT"];
     const command = options.sudo
       ? ["sudo", "-n", "env", ...keys.map((key) => `${key}=${env[key]}`), "bash"]
       : ["bash"];
@@ -466,6 +492,10 @@ await runMain(async () => {
         one,
       ]),
     );
+    check(
+      "六个常驻容器的日志轮转合计 390MiB",
+      SERVICES.reduce((sum, service) => sum + LOG_ROTATION[service].mib, 0) === 390,
+    );
     const leaked = [...needles].filter((needle) => inspected.includes(needle));
     check("docker inspect 的输出里搜不到任何密钥的值", leaked.length === 0, `${leaked.length} 处`);
     const limits = declaredMemory();
@@ -492,8 +522,8 @@ await runMain(async () => {
         host.RestartPolicy.Name === "no" &&
           info.get(service).Config.StopTimeout === 60 &&
           host.LogConfig.Type === "json-file" &&
-          Boolean(host.LogConfig.Config["max-size"]) &&
-          Boolean(host.LogConfig.Config["max-file"]),
+          host.LogConfig.Config["max-size"] === LOG_ROTATION[service].size &&
+          host.LogConfig.Config["max-file"] === LOG_ROTATION[service].files,
         { restart: host.RestartPolicy.Name, log: host.LogConfig },
       );
       const user = String(info.get(service).Config.User);
@@ -734,6 +764,157 @@ await runMain(async () => {
       tested.status === 0 && /test is successful/.test(tested.stderr),
       tested.stderr.trim().split("\n").slice(-3),
     );
+    if (flags.errors || flags.alerts) {
+      say("自有私网观测协议：默认未配→可选FILE→原生HTTPS收件与受控告警恢复");
+      await runObservability({
+        root,
+        home,
+        env,
+        config,
+        hosts,
+        flags,
+        request: (host, path, options) => request(port, host, path, options),
+        step: (...args) => step(...args),
+        run: docker,
+        bootstrap: prepareRecoveryAdmin,
+      });
+    }
+    if (flags["redis-flush"] && evidence) {
+      say("自有六容器 Redis 清空：原 worker 不重启，120 秒内恢复真实事件与周期任务");
+      prepareRecoveryAdmin(
+        [
+          "compose",
+          "-p",
+          prefix,
+          "--env-file",
+          join(root, "infra/compose/env/stg.env"),
+          "-f",
+          join(root, "infra/compose/node.yml"),
+        ],
+        { ...env, LYX_TAG: config.tag },
+      );
+      const bundle = join(home, "redis-recovery-fixture.mjs");
+      await buildRecoveryFixture(root, bundle);
+      const postgres = info.get("postgres");
+      const address = Object.values(postgres.NetworkSettings.Networks)[0]?.IPAddress;
+      if (!address) throw new StepError("本次演练 PostgreSQL 网络身份缺失");
+      // 配置、项目与网络都沿本次自有 Compose；仅额外挂一个只读临时 bundle。
+      const held = await holdRecoveryFixture(
+        [
+          "compose",
+          "-p",
+          prefix,
+          "--env-file",
+          join(root, "infra/compose/env/stg.env"),
+          "-f",
+          join(root, "infra/compose/node.yml"),
+          "run",
+          "--rm",
+          "-T",
+          "--no-deps",
+          "--pull",
+          "never",
+          "--name",
+          `${prefix}-recovery`,
+          "--volume",
+          `${bundle}:/app/apps/worker/dist/redis-recovery-fixture.mjs:ro`,
+          "--entrypoint",
+          "node",
+          "worker",
+          "/app/apps/worker/dist/redis-recovery-fixture.mjs",
+          prefix,
+          address,
+        ],
+        { ...env, LYX_TAG: config.tag },
+      );
+      const readRecovery = async (remainingMs = 10_000) => {
+        const deadline = Date.now() + remainingMs;
+        const boundedDocker = (/** @type {string[]} */ args) => {
+          const result = spawnSync("docker", args, {
+            env,
+            encoding: "utf8",
+            maxBuffer: 128 * 1024,
+            timeout: Math.max(1, Math.min(4_000, deadline - Date.now())),
+            killSignal: "SIGKILL",
+          });
+          if (result.error || result.status !== 0) throw new StepError("恢复证据读取失败或超时");
+          return result.stdout.trim();
+        };
+        const [worker] = JSON.parse(boundedDocker(["inspect", name("worker")]));
+        if (
+          worker.Config.Labels["com.docker.compose.project"] !== prefix ||
+          worker.Config.Labels["com.docker.compose.service"] !== "worker"
+        )
+          throw new StepError("worker 不属于本次自有项目");
+        const facts = JSON.parse(
+          boundedDocker([
+            "exec",
+            name("postgres"),
+            "psql",
+            "-X",
+            "-q",
+            "-At",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-U",
+            "postgres",
+            "-d",
+            stg("LYX_DB_NAME"),
+            "-c",
+            `SELECT json_build_object(
+          'lease', (SELECT json_build_object('holder',holder,'acquiredAt',acquired_at,'heartbeatAt',heartbeat_at,
+            'ageSeconds',extract(epoch FROM clock_timestamp()-heartbeat_at)) FROM worker_lease WHERE name='primary'),
+          'event', (SELECT json_build_object('publishedAt',published_at,'deliveries',
+            (SELECT coalesce(json_agg(json_build_object('subscriber',subscriber,'status',status,'consumedAt',consumed_at)), '[]'::json)
+             FROM outbox_delivery WHERE outbox_event_id='${held.eventId}'::uuid)) FROM outbox_event WHERE id='${held.eventId}'::uuid),
+          'timer', (SELECT json_build_object('status',status,'firedAt',fired_at,'result',result) FROM timer WHERE id='${held.timerId}'::uuid))`,
+          ]),
+        );
+        if (!facts.lease || !facts.event || !facts.timer) throw new StepError("恢复证据行缺失");
+        return {
+          ...facts,
+          container: {
+            id: worker.Id,
+            pid: worker.State.Pid,
+            restarts: worker.RestartCount,
+            startedAt: worker.State.StartedAt,
+            running: worker.State.Running,
+          },
+        };
+      };
+      try {
+        const before = await readRecovery();
+        const flushedAt = Date.now();
+        step("redis-flush", prefix);
+        // 两条事实在 flush 前已提交可见，只是在独立短事务里持锁；现在允许原 worker 正常领走。
+        await held.release();
+        const recovered = await waitForRedisRecovery({
+          before,
+          flushedAt,
+          subscribers: held.subscribers,
+          read: readRecovery,
+        });
+        writeFileSync(
+          join(evidence, "redis-recovery.json"),
+          JSON.stringify(
+            {
+              project: prefix,
+              flushedAt: new Date(flushedAt).toISOString(),
+              eventId: held.eventId,
+              timerId: held.timerId,
+              ...recovered,
+            },
+            null,
+            2,
+          ) + "\n",
+        );
+        check("120 秒内原 PID、同主租约续期、全部真实 delivery 与 timer fired", true);
+        console.log(`  恢复证据：${join(evidence, "redis-recovery.json")}`);
+      } finally {
+        await held.close();
+        docker(["rm", "-f", `${prefix}-recovery`], { capture: true });
+      }
+    }
     if (flags.release && evidence) {
       say("双版本发布与回滚：独立持续探测，摘要保留到临时证据目录");
       const probeConfig = join(evidence, "probe-config.json");
@@ -759,6 +940,9 @@ await runMain(async () => {
           process.execPath,
           [
             join(root, "infra/deploy/orchestrate.mjs"),
+            // Rehearsal-only injected precheck; not an actual mixed-version result.
+            "--compat-result",
+            "passed",
             "--local",
             ...args,
             "--summary",

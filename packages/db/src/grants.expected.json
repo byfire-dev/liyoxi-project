@@ -31,6 +31,7 @@
     "entity_member": "DELETE,INSERT,SELECT,UPDATE",
     "store_member": "DELETE,INSERT,SELECT,UPDATE",
     "invitation": "DELETE,INSERT,SELECT,UPDATE",
+    "invitation_request": "INSERT,SELECT",
     "referral_code": "DELETE,INSERT,SELECT,UPDATE",
     "portal_ticket": "DELETE,INSERT,SELECT,UPDATE",
     "staff": "DELETE,INSERT,SELECT,UPDATE",
@@ -150,6 +151,7 @@
     "sms_template": "DELETE,INSERT,SELECT,UPDATE",
     "notification": "DELETE,INSERT,SELECT,UPDATE",
     "notification_delivery": "DELETE,INSERT,SELECT,UPDATE",
+    "notification_fanout": "INSERT,SELECT,UPDATE",
     "merchant_message": "DELETE,INSERT,SELECT,UPDATE",
     "staff_message": "DELETE,INSERT,SELECT,UPDATE",
     "wx_subscribe_quota": "DELETE,INSERT,SELECT,UPDATE",
@@ -181,6 +183,7 @@
   "appendOnly": [
     "outbox_event",
     "status_transition",
+    "invitation_request",
     "assignment_history",
     "audit_log",
     "auth_event",
@@ -211,7 +214,10 @@
     "param_value": ["cancelled_at"]
   },
   "definerFunctions": {
-    "lyx_03_purge_auth_event": ["lyx_app"]
+    "lyx_03_purge_auth_event": ["lyx_app"],
+    "lyx_14_analytics_event_ensure_partition": ["lyx_app"],
+    "lyx_14_analytics_event_repartition_month": ["lyx_app"],
+    "lyx_14_analytics_event_retire_partition": ["lyx_app"]
   },
   "views": []
 }

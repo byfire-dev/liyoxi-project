@@ -18,24 +18,21 @@ import {
   scopeCovers,
 } from "../authz/index.js";
 import type { DataScope, StaffContext } from "../authz/index.js";
-import type { Config } from "../config/index.js";
-import type { Flow } from "../flow/index.js";
 import { AppError, isUniqueViolation, uuidv7 } from "../kernel/index.js";
-import type { Clock, IdentityContext, Tx, TxRunOptions, TxRunner } from "../kernel/index.js";
-import { sealPhone } from "../security/index.js";
-import type { Keyring } from "../security/index.js";
+import type { IdentityContext, Tx, TxRunOptions } from "../kernel/index.js";
+import { sealPhone, openField } from "../security/index.js";
 import { issueActivationCode } from "./activation.js";
 import { recommendedStaff, staffBriefs } from "./assignment.js";
 import type { AssignmentPool } from "./assignment.js";
 import { staffBriefOf } from "./me.js";
+import { createFullStaffManagement } from "./manage-full.js";
+import { createStaffLists } from "./manage-lists.js";
+import { createAssignmentContacts } from "./assignment-contact.js";
+import { createStoreManagerTransfers } from "./store-manager-transfer.js";
+import { workCounts, workSources } from "./work.js";
 
-export interface StaffManagementDeps {
-  tx: TxRunner;
-  clock: Clock;
-  flow: Pick<Flow, "transition">;
-  config: Pick<Config, "flags" | "dicts">;
-  keyring: () => Keyring;
-}
+export type { StaffManagementDeps } from "./management-deps.js";
+import type { StaffManagementDeps } from "./management-deps.js";
 const include = { staffRole: true, staffGroup: true, assignmentPoolMembers: true } as const;
 type Row = Prisma.StaffGetPayload<{ include: typeof include }>;
 const iso = (date: Date | null): string | null => date?.toISOString() ?? null;
@@ -60,13 +57,41 @@ async function listItem(
   row: Row,
   now: Date,
   viewerId: string,
-  options: { picker?: boolean; withLoad?: boolean; recommended?: string } = {},
+  options: {
+    picker?: boolean;
+    withLoad?: boolean;
+    recommended?: string;
+    ctx?: StaffContext;
+    deps?: StaffManagementDeps;
+  } = {},
 ): Promise<StaffListItem> {
   const [handover] = await staffBriefs(
     tx,
     row.handoverToStaffId === null ? [] : [row.handoverToStaffId],
   );
   const role = normalizeRoleConfig(row.staffRoleKey as StaffListItem["roleKey"], row.staffRole);
+  const workload = options.withLoad
+    ? await workSources(options.deps ?? {}).read(tx, { staffId: row.id, now })
+    : null;
+  const allowed = (p: "sys.staff.manage" | "sys.staff.secure_ops" | "sys.staff.wecom_bind") =>
+    options.ctx !== undefined && hasPermission(options.ctx, p);
+  const actions: StaffListItem["actions"] = [];
+  if (!options.picker) {
+    if (allowed("sys.staff.manage")) {
+      actions.push("update", "unlock");
+      if (row.status !== "active") actions.push("enable");
+      else {
+        actions.push("handover");
+        if (row.passwordHash === null) actions.push("reissue-activation-code");
+      }
+    }
+    if (allowed("sys.staff.secure_ops") && row.status === "active" && row.id !== viewerId)
+      actions.push("disable", "reset-password", "reset-mfa");
+    if (allowed("sys.staff.wecom_bind") && row.status !== "disabled") {
+      actions.push("bind-wecom");
+      if (row.status === "active" && row.wecomBindStatus !== "bound") actions.push("invite-wecom");
+    }
+  }
   return {
     ...staffBriefOf(row),
     phoneMask: options.picker ? null : row.phoneMask,
@@ -86,12 +111,19 @@ async function listItem(
     ),
     disabledReason: row.disabledReason as StaffListItem["disabledReason"],
     handoverTo: handover ?? null,
-    openWorkCount: options.withLoad ? 0 : null,
-    openWorkBySource: options.withLoad ? [] : null,
+    openWorkCount: workload === null ? null : workload.length,
+    openWorkBySource:
+      workload === null
+        ? null
+        : workCounts(workload).map(({ source, subjectType, count }) => ({
+            source,
+            subjectType,
+            count,
+          })),
     onDuty: row.assignmentPoolMembers.find((member) => member.pool === "cs")?.onDuty ?? null,
     isRecommended: options.recommended === row.id,
     isSelf: row.id === viewerId,
-    actions: [],
+    actions,
   };
 }
 async function detail(
@@ -100,6 +132,7 @@ async function detail(
   scope: DataScope,
   id: string,
   viewerId: string,
+  viewer?: StaffContext,
 ): Promise<StaffDetail> {
   if (!scopeCovers(scope, id)) throw new AppError("NOT_FOUND");
   const row = await tx.staff.findFirst({ where: { AND: [{ id }, staffWhere(scope)] }, include });
@@ -117,7 +150,11 @@ async function detail(
   );
   const ref = (id: string | null) => refs.find((staff) => staff.staffId === id) ?? null;
   return {
-    ...(await listItem(tx, row, now, viewerId)),
+    ...(await listItem(tx, row, now, viewerId, {
+      ctx: viewer,
+      deps,
+      withLoad: deps.workSources !== undefined,
+    })),
     displayName: row.displayName,
     servicePhone: row.servicePhone,
     wecom: {
@@ -174,6 +211,12 @@ async function detail(
 
 export function createStaffManagement(deps: StaffManagementDeps) {
   return {
+    ...createAssignmentContacts(deps),
+    ...createStoreManagerTransfers(deps),
+    ...createFullStaffManagement(deps, (tx, ctx, id) =>
+      detail(tx, deps, ctx.scope, id, ctx.staff.id, ctx),
+    ),
+    ...createStaffLists(deps, (tx, ctx, id) => detail(tx, deps, ctx.scope, id, ctx.staff.id, ctx)),
     async create(
       ctx: StaffContext,
       actor: IdentityContext,
@@ -184,6 +227,15 @@ export function createStaffManagement(deps: StaffManagementDeps) {
       const partnerEnabled =
         input.roleKey === "channel_ops" &&
         (await deps.config.flags.value("release.partner", { platform: "admin" })) === true;
+      let transient:
+        | {
+            id: string;
+            code: string;
+            activationId: string;
+            phoneEnc: string;
+            invitationCreatedAt?: Date;
+          }
+        | undefined;
       try {
         const result = await deps.tx.run(async (tx) => {
           const role = await tx.staffRole.findUnique({ where: { key: input.roleKey } });
@@ -262,8 +314,16 @@ export function createStaffManagement(deps: StaffManagementDeps) {
                 now,
               })
             : null;
+          if (issued)
+            transient = {
+              id: row.id,
+              code: issued.code,
+              activationId: issued.id,
+              phoneEnc: row.phoneEnc,
+              ...(input.inviteWecom ? { invitationCreatedAt: row.createdAt } : {}),
+            };
           return {
-            staff: await detail(tx, deps, ctx.scope, row.id, ctx.staff.id),
+            staff: await detail(tx, deps, ctx.scope, row.id, ctx.staff.id, ctx),
             activation:
               issued === null
                 ? null
@@ -271,16 +331,63 @@ export function createStaffManagement(deps: StaffManagementDeps) {
                     purpose: "activate" as const,
                     delivery: "manual" as const,
                     expiresAt: issued.expiresAt.toISOString(),
-                    activationCode: issued.code,
+                    activationCode: null,
                     replayed: false,
                   },
             replayed: false,
           };
         }, options);
+        if (result.replayed || !transient)
+          return {
+            ...result,
+            activation:
+              result.activation === null
+                ? null
+                : { ...result.activation, activationCode: null, replayed: result.replayed },
+          };
+        const created = transient;
+        let sent = false;
+        if (input.activationDelivery === "sms" && deps.sendActivation) {
+          try {
+            sent =
+              (
+                await deps.sendActivation({
+                  phone: openField(deps.keyring(), "staff.phone_enc", created.phoneEnc),
+                  code: created.code,
+                  activationId: created.activationId,
+                })
+              ).status === "sent";
+          } catch {
+            sent = false;
+          }
+        }
+        if (sent)
+          await deps.tx.run(async (tx) => {
+            await tx.staffActivation.updateMany({
+              where: { id: created.activationId, usedAt: null, revokedAt: null },
+              data: { delivery: "sms", updatedAt: deps.clock.now() },
+            });
+          });
+        if (created.invitationCreatedAt && deps.sendWecomInvite) {
+          try {
+            await deps.sendWecomInvite({
+              staffId: created.id,
+              createdAt: created.invitationCreatedAt,
+            });
+          } catch {
+            /* Staff stays invited; explicit invite retry can deliver the inbox reminder. */
+          }
+        }
         return {
           ...result,
           activation:
-            result.activation === null ? null : { ...result.activation, replayed: result.replayed },
+            result.activation === null
+              ? null
+              : {
+                  ...result.activation,
+                  delivery: sent ? ("sms" as const) : ("manual" as const),
+                  activationCode: sent ? null : created.code,
+                },
         };
       } catch (error) {
         if (isUniqueViolation(error, ["uq_staff_phone_bidx"]))
@@ -329,7 +436,7 @@ export function createStaffManagement(deps: StaffManagementDeps) {
             assignmentPoolMembers: { some: { pool: query.recommendPool } },
           });
         const where = { AND: clauses };
-        const rows = await tx.staff.findMany({
+        let rows = await tx.staff.findMany({
           where,
           include,
           orderBy:
@@ -338,19 +445,37 @@ export function createStaffManagement(deps: StaffManagementDeps) {
               : query.sort === "openWorkCount"
                 ? [{ id: "asc" }]
                 : [{ staffNo: "asc" }, { id: "asc" }],
-          skip: (query.page - 1) * query.pageSize,
-          take: query.pageSize,
+          ...(query.sort !== "openWorkCount"
+            ? { skip: (query.page - 1) * query.pageSize, take: query.pageSize }
+            : {}),
         });
+        if (query.sort === "openWorkCount") {
+          const loads = new Map<string, number>();
+          for (const row of rows)
+            loads.set(
+              row.id,
+              (await workSources(deps).read(tx, { staffId: row.id, now: deps.clock.now() })).length,
+            );
+          rows.sort(
+            (a, b) =>
+              loads.get(a.id)! - loads.get(b.id)! ||
+              a.staffNo - b.staffNo ||
+              a.id.localeCompare(b.id),
+          );
+          rows = rows.slice((query.page - 1) * query.pageSize, query.page * query.pageSize);
+        }
         const recommended =
           query.recommendPool === undefined
             ? null
-            : await recommendedStaff(tx, query.recommendPool);
+            : await recommendedStaff(tx, query.recommendPool, query.recommendCityCode ?? "all");
         return {
           items: await Promise.all(
             rows.map((row) =>
               listItem(tx, row, deps.clock.now(), ctx.staff.id, {
                 picker: !full,
                 withLoad: query.withLoad,
+                ctx,
+                deps,
                 ...(recommended === null ? {} : { recommended: recommended.staffId }),
               }),
             ),
@@ -361,8 +486,20 @@ export function createStaffManagement(deps: StaffManagementDeps) {
         };
       });
     },
-    get: (ctx: StaffContext, id: string) =>
-      deps.tx.run((tx) => detail(tx, deps, ctx.scope, id, ctx.staff.id)),
+    async get(ctx: StaffContext, id: string) {
+      const row = await deps.tx.run((tx) => detail(tx, deps, ctx.scope, id, ctx.staff.id, ctx));
+      if (row.wecom.qrFileId && deps.media) {
+        try {
+          row.wecom.qrUrl = await deps.media.signRead({
+            fileId: row.wecom.qrFileId,
+            audience: "staff",
+          });
+        } catch (error) {
+          if (!(error instanceof AppError) || error.error !== "FILE_NOT_AVAILABLE") throw error;
+        }
+      }
+      return row;
+    },
     roles: (ctx: StaffContext): Promise<{ items: RoleSummary[] }> =>
       deps.tx.run(async (tx) => {
         const roles = await tx.staffRole.findMany({ orderBy: { key: "asc" } });

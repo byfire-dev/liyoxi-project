@@ -7,12 +7,13 @@ import type { Env } from "./kernel/index.js";
 import { createLogger } from "./logger.js";
 import { createRuntime, DB_POOLS, runStartupChecks, StartupCheckError } from "./runtime.js";
 import type { RuntimeOptions } from "./runtime.js";
+import { boundOrder } from "./order/index.js";
 import {
   createFakeProviders,
   createClock,
   fakeKeyEnv,
   SAMPLE_PROVIDER_INPUTS,
-  useTestDatabase,
+  useSeededDatabase,
   useTestRedis,
 } from "./testing/index.js";
 
@@ -20,7 +21,7 @@ import { bindCalendarCoverage } from "./sla/index.js";
 import { armRecurringSlot, claimTimers, runTimer } from "./timers/index.js";
 import type { TimerRunDeps } from "./timers/index.js";
 
-const db = useTestDatabase("services");
+const db = useSeededDatabase("services");
 const redis = useTestRedis();
 const TIMEOUT = { timeout: 60_000 };
 
@@ -46,6 +47,30 @@ async function start(overrides: Partial<Env> = {}, options: Partial<RuntimeOptio
 }
 
 describe("createRuntime", () => {
+  it("order 关闭伴随绑定复用实际审批实例，close 恢复旧作用域", TIMEOUT, async () => {
+    let previous;
+    try {
+      previous = boundOrder();
+    } catch {
+      previous = undefined;
+    }
+    const { runtime } = await start();
+    try {
+      expect(boundOrder().cancel).toMatchObject({
+        clock: runtime.clock,
+        tx: runtime.tx,
+        approval: runtime.approval,
+        flow: runtime.flow,
+        events: runtime.events,
+        timers: runtime.timers,
+      });
+      expect(boundOrder().cancel?.approval).toBe(runtime.approval);
+    } finally {
+      await runtime.close();
+    }
+    if (previous) expect(boundOrder()).toBe(previous);
+    else expect(() => boundOrder()).toThrow(/尚未绑定/);
+  });
   it("coverage runtime 实际绑定，close 后恢复此前的公开绑定", TIMEOUT, async () => {
     const clock = createClock(new Date("2035-01-01T02:00:00Z"));
     let previousCalls = 0;
@@ -136,6 +161,7 @@ describe("createRuntime", () => {
         "flow.state_columns",
         // W1-01a：后台登录的三把密钥，只有 api 进程查
         "security.auth_keys",
+        "notify.templates",
       ]);
       expect(runtime.assembly.entry).toBe("api");
       expect(await runtime.config.params.get("work.start")).toBe("09:00");

@@ -13,17 +13,17 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 19 | 48 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 36 | 31 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 25 | 23 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 40 | 8 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 0 | 11 | 6 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 0 | 0 | 0 | 14 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 8 | 5 | 4 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 2 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -38,15 +38,15 @@
 | 模块 | 页面 | 地址 | 画板 | 骨架 | 进菜单 | 开关 | 里程碑 | 工作包 | 已实现 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 工作台 | 工作台 | `/` | Main | 仪表盘 | 是 | — | M7 | G7-B | 否 |
-| 短剧库 | 短剧列表 | `/dramas` | Dramas | 筛选表格 | 是 | — | M3 | G3-B | 否 |
-| 短剧库 | 编辑短剧 | `/dramas/$id` | DramaEdit | 详情页 | 否 | — | M3 | G3-B | 否 |
+| 短剧库 | 短剧列表 | `/dramas` | Dramas | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
+| 短剧库 | 编辑短剧 | `/dramas/$id` | DramaEdit | 详情页 | 否 | — | M3 | W3-12 | 是 |
 | 套餐与积分 | 套餐管理 | `/billing/plans` | Plans | 配置页 | 是 | — | M4 | G4-C | 否 |
 | 套餐与积分 | 积分包管理 | `/billing/point-packs` | PointPacks | 筛选表格 | 是 | — | M4 | G4-C | 否 |
 | 套餐与积分 | 积分价模板与参数 | `/billing/params` | Params | 配置页 | 是 | — | M4 | G4-C | 否 |
-| 套餐与积分 | 单剧积分价 | `/billing/pricing` | Pricing | 筛选表格 | 是 | — | M3 | G3-B | 否 |
+| 套餐与积分 | 单剧积分价 | `/billing/pricing` | Pricing | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
 | 套餐与积分 | 积分账户与流水 | `/billing/accounts` | PointAccounts | 筛选表格 | 是 | — | M4 | G4-C | 否 |
-| 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | G2-B | 否 |
-| 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | G2-B | 否 |
+| 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | W2-15 | 是 |
+| 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | W2-15 | 是 |
 | 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 是 |
 | 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 是 |
 | 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 是 |
@@ -78,15 +78,15 @@
 | 报表 | 广告制作 | `/reports/ads` | RptAds | — | 是 | `release.reports_v11` | V1.1 | — | 否 |
 | 报表 | 客服报表 | `/reports/service` | RptService | — | 是 | `release.reports_v11` | V1.1 | — | 否 |
 | 报表 | 服务商业绩 | `/reports/partners` | RptPartners | — | 是 | `release.partner` | V1.1 | — | 否 |
-| 运营 | 首页配置 | `/ops/home` | OpsHome | 配置页 | 是 | — | M3 | G3-B | 否 |
-| 运营 | 商城配置 | `/ops/mall` | OpsMall | 配置页 | 是 | — | M3 | G3-B | 否 |
-| 运营 | 协议管理 | `/ops/agreements` | OpsAgreements | 主从页 | 是 | — | M2 | G2-B | 否 |
+| 运营 | 首页配置 | `/ops/home` | OpsHome | 配置页 | 是 | — | M3 | W3-12 | 是 |
+| 运营 | 商城配置 | `/ops/mall` | OpsMall | 配置页 | 是 | — | M3 | W3-12 | 是 |
+| 运营 | 协议管理 | `/ops/agreements` | OpsAgreements | 主从页 | 是 | — | M2 | G2-B | 是 |
 | 运营 | 消息模板 | `/ops/templates` | OpsTemplates | 主从页 | 是 | — | M7 | G7-A | 否 |
 | 运营 | 公告与常见问题 | `/ops/notice` | OpsNotice | — | 是 | `release.notice_faq` | V1.1 | — | 否 |
 | 系统 | 员工账号 | `/sys/staff` | SysStaff | 筛选表格 | 是 | — | M1 | W1-02 | 是 |
-| 系统 | 角色权限 | `/sys/roles` | SysRoles | 主从页 | 是 | — | M2 | G2-A | 否 |
-| 系统 | 数据字典 | `/sys/dict` | SysDict | 主从页 | 是 | — | M2 | G2-A | 否 |
-| 系统 | 参数配置 | `/sys/params` | SysParams | 配置页 | 是 | — | M2 | G2-A | 否 |
+| 系统 | 角色权限 | `/sys/roles` | SysRoles | 主从页 | 是 | — | M2 | W2-06 | 是 |
+| 系统 | 数据字典 | `/sys/dict` | SysDict | 主从页 | 是 | — | M2 | W2-07 | 是 |
+| 系统 | 参数配置 | `/sys/params` | SysParams | 配置页 | 是 | — | M2 | W2-07 | 是 |
 | 系统 | 操作日志 | `/sys/logs` | SysLogs | 主从页 | 是 | — | M2 | W2-08 | 是 |
 | 渠道 | 服务商列表 | `/partners` | Partners | — | 是 | `release.partner` | V1.1 | — | 否 |
 | 渠道 | 入驻审核 | `/partners/review` | PartnerReview | — | 是 | `release.partner` | V1.1 | — | 否 |
@@ -100,18 +100,18 @@
 
 | 模块 | 页面 | 地址 | 骨架 | 入口 | 里程碑 | 工作包 | 已实现 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 工作台 | 我的待审批 | `/approvals` | 筛选表格 | 页面内 | M2 | G2-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来。M2 只含已落地的审批类型，M4、M5 各补一段 |
-| 商家 | 渠道码登记 | `/merchants/referral-codes` | 筛选表格 | 页面内 | M2 | G2-B | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
+| 工作台 | 我的待审批 | `/approvals` | 筛选表格 | 菜单 | M2 | W2-06 | 是 | W2-06 独立菜单；只含实际已登记审批类型，M4、M5 各补一段领域入口 |
+| 商家 | 渠道码登记 | `/merchants/referral-codes` | 筛选表格 | 页面内 | M2 | W2-15 | 是 | 从商家列表进入渠道码登记，沿用 merchant 模块范围与独立管理权限 |
 | 订单 | 线下开单 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 线下退款登记 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 红字发票 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 受控财务配置 | `/finance/settings` | 配置页 | 页面内 | M4 | G4-C | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
 | 运营 | 发送日志与重发 | `/ops/notify-logs` | 筛选表格 | 页面内 | M7 | G7-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
 | 运营 | 通道配置 | `/ops/channels` | 配置页 | 页面内 | M7 | G7-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 开关管理 | `/sys/flags` | 筛选表格 | 页面内 | M2 | G2-A | 否 | 无画板页：地址照 D7 第 5.2 节；是否进菜单文档没写，页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 清单模板管理 | `/sys/checklists` | 筛选表格 | 页面内 | M2 | G2-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
-| 系统 | 流程运维 | `/sys/flow-ops` | 筛选表格 | 页面内 | M2 | G2-D | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来。M3 的 G3-A 在本页接入媒体任务 |
-| 系统 | 文件清除放行 | `/sys/file-purges` | 筛选表格 | 页面内 | M3 | G3-A | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
+| 系统 | 开关管理 | `/sys/flags` | 筛选表格 | 页面内 | M2 | W2-07 | 是 | 独立配置页，保留参数页下级入口；权限满足后从参数配置进入 |
+| 系统 | 清单模板管理 | `/sys/checklists` | 筛选表格 | 页面内 | M2 | W2-07 | 是 | 独立配置页，保留参数页下级入口；权限满足后从参数配置进入 |
+| 系统 | 流程运维 | `/sys/flow-ops` | 筛选表格 | 菜单 | M2 | W2-23 | 是 | 无画板页：三个传输资源页签与W3-08媒体任务增量 |
+| 系统 | 文件清除放行 | `/sys/file-purges` | 筛选表格 | 菜单 | M3 | W3-08 | 是 | 无画板页：清除运行放行/驳回、候选联动、文件恢复与受限彻删 |
 | 系统 | 系统健康 | `/sys/health` | 筛选表格 | 页面内 | M7 | G7-B | 否 | 无画板页：地址照 D7 第 5.2 节；是否进菜单文档没写，页面包实现时定，并把 inMenu 改过来 |
 | — | 导出记录抽屉 | — | 弹层或抽屉 | 页面内 | M7 | G7-B | 否 |  |
 | — | 通知面板 | — | 弹层或抽屉 | 入口隐藏 | M7 | G7-B | 否 |  |
@@ -128,7 +128,7 @@
 | 基础页 | 再验证弹层 | — | M1 | W1-02 | 是 |  |
 | 基础页 | 没有访问权限 | `/403` | M1 | W1-02 | 是 | W1-02① 已实现 |
 | 基础页 | 页面不存在 | — | M1 | W1-02 | 是 | 匹配不到路由时显示；W1-02① 已实现 |
-| 外壳部件 | 用户菜单 | — | M1 | W1-02 | 是 | 属外壳；M1 仅退出登录，修改密码与动态口令设置待 G2-A（M2） |
+| 外壳部件 | 用户菜单 | — | M1 | W1-02 | 是 | 属外壳，M1 归属保留；W2-06 增加修改密码、动态口令与本人企业微信绑定 |
 
 ## 3. 电脑端下载页
 
@@ -163,7 +163,7 @@
 | 主包 | 我的 | `pages/mine/index` | Mine | M32 | W1-05 | M1 | 是 |  |
 | 主包 | 登录 | `pages/login/index` | Login | M01 | W1-05 | M1 | 是 |  |
 | 主包 | 协议正文 | `pages/agreement/index` | — | — | W1-05 | M1 | 是 | 新增页：登录前可读 |
-| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | G3-B | M3 | 否 |  |
+| `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | W3-13 | M3 | 是 |  |
 | `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 是 |  |
 | `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 是 |  |
@@ -182,27 +182,27 @@
 | `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |
 | `sub/billing` | 积分充值 | `sub/billing/topup/index` | TopUp | M45 | G4-C | M4 | 否 |  |
 | `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | G4-C | M4 | 否 |  |
-| `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | G4-C | M4 | 否 |  |
-| `sub/billing` | 合同 | `sub/billing/contracts/index` | Contracts | M34 | G4-C | M4 | 否 |  |
+| `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | W4-16 | M4 | 是 |  |
+| `sub/billing` | 合同 | `sub/billing/contracts/index` | Contracts | M34 | W4-16 | M4 | 是 |  |
 | `sub/profile` | 建档首页 | `sub/profile/profile/index` | Profile | M12 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 基础信息 | `sub/profile/basic/index` | ProfileBasic | M13 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 门店环境 | `sub/profile/store/index` | ProfileStore | M14 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 主推服务 | `sub/profile/service/index` | ProfileService | M15 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 证照 | `sub/profile/cert/index` | ProfileCert | M16 | W1-09 | M1 | 是 |  |
 | `sub/profile` | 审核进度 | `sub/profile/review/index` | ProfileReview | M17 | W1-09 | M1 | 是 |  |
-| `sub/profile` | 门店管理 | `sub/profile/stores/index` | Stores | M48 | G2-B | M2 | 否 |  |
-| `sub/profile` | 新增门店 | `sub/profile/store-add/index` | StoreAdd | M49 | G2-B | M2 | 否 |  |
-| `sub/profile` | 店员档案 | `sub/profile/staff-profile/index` | StaffProfile | M56 | G2-B | M2 | 否 | 仅店员 |
-| `sub/asset` | 素材库 | `sub/asset/lib/index` | AssetLib | M50 | G3-C | M3 | 否 |  |
-| `sub/asset` | 上传素材 | `sub/asset/upload/index` | AssetUpload | M51 | G3-C | M3 | 否 |  |
-| `sub/asset` | 素材详情 | `sub/asset/detail/index` | AssetDetail | M52 | G3-C | M3 | 否 |  |
-| `sub/asset` | 上传中心 | `sub/asset/uploader/index` | — | — | G3-C | M3 | 否 | 新增页：大文件上传 |
+| `sub/profile` | 门店管理 | `sub/profile/stores/index` | Stores | M48 | W2-14 | M2 | 是 |  |
+| `sub/profile` | 新增门店 | `sub/profile/store-add/index` | StoreAdd | M49 | W2-14 | M2 | 是 |  |
+| `sub/profile` | 店员档案 | `sub/profile/staff-profile/index` | StaffProfile | M56 | W2-14 | M2 | 是 | 仅店员 |
+| `sub/asset` | 素材库 | `sub/asset/lib/index` | AssetLib | M50 | W3-17 | M3 | 是 |  |
+| `sub/asset` | 上传素材 | `sub/asset/upload/index` | AssetUpload | M51 | W3-17 | M3 | 是 |  |
+| `sub/asset` | 素材详情 | `sub/asset/detail/index` | AssetDetail | M52 | W3-17 | M3 | 是 |  |
+| `sub/asset` | 上传中心 | `sub/asset/uploader/index` | — | — | W3-17 | M3 | 是 | 新增页：大文件上传 |
 | `sub/ad` | 广告 | `sub/ad/ads/index` | Ads | M18 | G5-B | M5 | 否 | 含 M42 弹层 |
 | `sub/ad` | 广告详情 | `sub/ad/ad-detail/index` | AdDetail | M19 | G5-B | M5 | 否 |  |
 | `sub/service` | 客服中心 | `sub/service/service/index` | Service | M29 | G7-A | M7 | 否 | 含 M30 弹层 |
 | `sub/service` | 工单 | `sub/service/ticket/index` | Ticket、TicketDone | M31 | G7-A | M7 | 否 | 一页两态 |
-| `sub/service` | 消息 | `sub/service/messages/index` | Messages | M36 | G2-C | M2 | 否 |  |
-| `sub/service` | 设置 | `sub/service/settings/index` | — | — | G2-B | M2 | 否 | 新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑 |
-| `sub/member` | 成员 | `sub/member/members/index` | Members | M53 | G2-B | M2 | 否 |  |
-| `sub/member` | 邀请店员 | `sub/member/invite/index` | Invite | M54 | G2-B | M2 | 否 |  |
-| `sub/member` | 加入门店 | `sub/member/join/index` | Join | M55 | G2-B | M2 | 否 | 游客可进 |
+| `sub/service` | 消息 | `sub/service/messages/index` | Messages | M36 | W2-19 | M2 | 是 |  |
+| `sub/service` | 设置 | `sub/service/settings/index` | — | — | W2-13 | M2 | 是 | 新增页：退出登录、注销、隐私协议、通知设置、已授权的电脑 |
+| `sub/member` | 成员 | `sub/member/members/index` | Members | M53 | W2-14 | M2 | 是 |  |
+| `sub/member` | 邀请店员 | `sub/member/invite/index` | Invite | M54 | W2-14 | M2 | 是 |  |
+| `sub/member` | 加入门店 | `sub/member/join/index` | Join | M55 | W2-14 | M2 | 是 | 游客可进 |

@@ -2,6 +2,14 @@
 
 写操作的地基（W0-07）：开事务的唯一入口、保存点、加锁顺序、时钟、主键、操作人。幂等、审计、事件、状态迁移、定时器都建在它上面。依据：[01](../../../../docs/01-architecture.md) 第 5、7.1 节；[06](../../../../docs/06-data-model.md) 第 3.1–3.3、5 节；ADR-005、ADR-011、ADR-012；保存点的结论见 [ADR](../../../../docs/adr/0046-事务内局部回滚用原生保存点-履约留在入账事务内.md)。
 
+## 跨事务会话互斥（W3-06 PR1）
+
+`runtime.sessionMutex.run("media:file:" + fileId, async scope => { ... })` 在专用物理pg连接持有同一session advisory锁，callback内仍用原`tx.run`做两次短事务，中间可事务外调用Provider；拿不到立即SessionMutexError(occupied)，实例2个会话占满为capacity。`scope.signal`给外部调用，`await scope.assertHeld()`真实复核持锁；不提供裸连接/SQL或第二事务入口，不允许嵌套mutex。key最多200字符，命名空间与资源ID由可信业务生成，恢复/彻删须使用同一键。
+
+连接事件或1秒探活观察失锁后abort；原TxState捕获mutex ALS，入口、句柄及惰性查询消费、提交前都核原scope，忽略abort的旧回调不能继续第二TX。对象与句柄不得传到异步兄弟借锁。业务TX内Provider外呼/嵌套TX禁令保持，普通无mutex事务不变。
+
+`close()`幂等、拒新、取消并等待已开始callback及连接收尾；回调须结构化await工作、把signal交真实Provider，任意不响应取消的JS不能被强制中止。失锁通知尚未到达的网络半断及最后检查到COMMIT之间仍有窗口，本机制不承诺撤销已发外部副作用。PR2必须复核并按领域规则补偿。当前只机制，无媒体删除/恢复业务，真实性质/真库定点由ROOT统一验收。
+
 ## 1. 这里有什么
 
 | 文件 | 内容 |
@@ -247,6 +255,17 @@ return tx.run(async (handle) => {
 - 表名、列名只写代码里的常量（会再过一遍小写蛇形的校验）；请求里的版本先由路由的 Zod 结构把关，传进来不是非负整数即抛 `TypeError`。
 
 ## 13. 队列（W0-23）
+
+W2-24只读伴随：真实`createQueueChannel`始终提供可选公口`observe(queue, at, scanLimit)`。
+独立observer Queue使用`skipMetasUpdate:true`，复用500ms producer命令时限且禁止TX内调用；
+不经入队Queue初始化meta，所有键由BullMQ的`toKey`生成。单次只读Lua原子读wait、legacy
+paused、prioritized、active及近10分钟failed；等待≤scanLimit（最高501）才扫描全部任务
+timestamp取min，超过或时间戳缺失明确`oldestWaitingComplete=false`/null，不制造最老值。
+全局暂停仅以meta为准，本地`Worker.pause`无此含义；事件逆读最多1000条，事件被裁剪或
+暂停时禁发事件而无法确定起点时，以本实例首次观测作为保守下界。只有实际窗口覆盖
+上次观测且没有其后resumed证据才延续；空历史、裁剪残余或新恢复证据均重置下界，
+不足1000条也不代表完整历史。不能把该值当作历史准确暂停时间。观察器/下界及在途
+调用由本通道实例拥有，close拒新观测、等有界在途后成对关闭，不影响其他实例。
 
 `queue/` 是全仓唯一引 BullMQ 的地方（兼容脚本除外）。BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租约都在数据库行上。
 

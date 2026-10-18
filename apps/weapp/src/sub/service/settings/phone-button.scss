@@ -1,0 +1,24 @@
+.settings-phone-button {
+  width: 100%;
+  min-height: 48px;
+  line-height: 48px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: $lyx-color-text-inverse;
+  background: $lyx-color-primary;
+  &::after {
+    border: 0;
+  }
+  &[disabled] {
+    color: $lyx-color-text-secondary;
+    background: $lyx-color-bg-subtle;
+  }
+}
+.settings-phone-error {
+  color: $lyx-color-danger;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 8px 0;
+}

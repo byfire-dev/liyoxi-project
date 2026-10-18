@@ -1,0 +1,20 @@
+# 独立服务端出口；两个常驻角色只消费各自component，check-env离线聚合校验。
+services:
+  api:
+    environment:
+      SERVER_ERRORS_FILE: /run/secrets/server-errors.json
+    secrets:
+      - server-errors.json
+  worker:
+    environment:
+      SERVER_ERRORS_FILE: /run/secrets/server-errors.json
+    secrets:
+      - server-errors.json
+  check-env:
+    environment:
+      SERVER_ERRORS_FILE: /run/secrets/server-errors.json
+    secrets:
+      - server-errors.json
+secrets:
+  server-errors.json:
+    file: ${LYX_SECRETS_DIR:?}/server-errors.json
