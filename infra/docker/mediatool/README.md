@@ -16,6 +16,8 @@
 
 调用端在 `packages/services/src/providers/mediatool/`（`client.ts`、`schema.ts`）。
 
+宿主类型检查先做根目录的冻结安装，再由 `tsconfig.json` 的 `paths` 读取 `packages/services` 已声明的同精确版本解析器官方类型；PDF.js 的 legacy 入口使用包的官方 `types/src/pdf.d.ts`。容器运行依赖仍由 `deps/` 的独立锁文件安装。
+
 ## 2. 怎么验
 
 ```sh
