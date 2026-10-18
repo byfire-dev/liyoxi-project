@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { ADMIN_MODULE_KEYS } from "@liyoxi/contract/authz";
 import { createSampleBackend, type SampleBackend } from "../../src/dev/sample-backend";
 
 async function serve(page: Page, backend: SampleBackend) {
@@ -116,4 +117,105 @@ test("绑定使用新票据有效期，旧票据到期后继续填写且字段�
   await page.clock.fastForward(900_000);
   await expect(page).toHaveURL(/\/login\?/);
   await expect(page.getByRole("heading", { name: "登录后台" })).toBeVisible();
+});
+
+test("本人重绑恢复码按钮不继承提交loading，保存确认前仍不可关闭", async ({ page }) => {
+  const backend = createSampleBackend();
+  const recoveryCodes = Array.from(
+    { length: 10 },
+    (_, index) => `AAAAA-${String(index).padStart(5, "0")}`,
+  );
+  let releaseConfirm!: () => void;
+  const confirmReady = new Promise<void>((resolve) => {
+    releaseConfirm = resolve;
+  });
+  let confirmations = 0;
+  await page.route("**/api/v1/admin/**", async (route) => {
+    const request = route.request(),
+      url = new URL(request.url());
+    let data: unknown;
+    if (url.pathname === "/api/v1/admin/auth/login")
+      data = {
+        next: "mfa",
+        ticket: "recovery-ui-probe",
+        ticketExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+        methods: ["totp", "recovery"],
+      };
+    else if (url.pathname === "/api/v1/admin/auth/verify-mfa")
+      data = {
+        staff: {
+          staffId: "recovery-ui-probe",
+          name: "恢复码探针",
+          roleKey: "editor",
+          isLead: false,
+        },
+        roleName: "剪辑师",
+        moduleLevels: Object.fromEntries(ADMIN_MODULE_KEYS.map((key) => [key, "e"])),
+        permissions: ["self.mfa.reset"],
+        dataScope: "all",
+        flags: {},
+      };
+    else if (url.pathname === "/api/v1/admin/auth/me/enroll-totp")
+      data = {
+        secret: "JBSWY3DPEHPK3PXP",
+        otpauthUri: "otpauth://totp/Liyoxi:probe?secret=JBSWY3DPEHPK3PXP&issuer=Liyoxi",
+        pendingExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+      };
+    else if (url.pathname === "/api/v1/admin/auth/me/confirm-totp") {
+      expect(request.method()).toBe("POST");
+      expect(request.postDataJSON()).toEqual({ code: "123456" });
+      confirmations++;
+      await confirmReady;
+      data = { recoveryCodes, recoveryCodesLeft: 10, replayed: false };
+    } else {
+      const result = backend.handle({
+        method: request.method(),
+        path: url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        headers: request.headers(),
+        body: request.postDataJSON() as unknown,
+      });
+      await route.fulfill({ status: result.status, json: result.body });
+      return;
+    }
+    await route.fulfill({ status: 200, json: { code: 0, message: "ok", data } });
+  });
+  await page.goto("/login?redirect=%2Fdev%2Ftable");
+  await page.getByRole("textbox", { name: "手机号", exact: true }).fill("13800138001");
+  await page.getByLabel("密码", { exact: true }).fill("Liyoxi-2026-probe");
+  await page.getByRole("button", { name: "下一步", exact: true }).click();
+  await page.getByRole("textbox", { name: "6 位动态口令", exact: true }).fill("123456");
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await expect(page.getByRole("button", { name: "用户菜单" })).toContainText("恢复码探针");
+  await page.getByRole("button", { name: "用户菜单" }).click();
+  await page.getByRole("menuitem", { name: "动态口令设置", exact: true }).click();
+  const mfa = page.getByRole("dialog", { name: "动态口令设置", exact: true });
+  await mfa.getByRole("button", { name: "生成新密钥", exact: true }).click();
+  await mfa.getByLabel("新动态口令", { exact: true }).fill("123456");
+  // 只在反例里延长图标退出动画，稳定暴露跨语义 Button 复用留下的 loading 可访问名。
+  // 原生产动画、Playwright 等候时限与 live 精确 locator 均保持原样。
+  await page.addStyleTag({
+    content: ".ant-btn-loading-icon-motion-leave-active { transition-duration: 60s !important; }",
+  });
+  await mfa.getByRole("button", { name: "确认绑定", exact: true }).click();
+  try {
+    await expect(mfa.getByRole("button", { name: "loading 确认绑定", exact: true })).toBeVisible();
+    await expect(mfa.locator(".ant-btn-loading-icon")).not.toHaveClass(/-motion/);
+    releaseConfirm();
+    await expect(mfa.getByLabel("本人恢复码", { exact: true }).locator("code")).toHaveCount(10);
+    const saved = mfa.getByRole("button", { name: "已保存，关闭", exact: true });
+    await expect(saved).toBeDisabled();
+    await expect(mfa.getByRole("img", { name: "loading", exact: true })).toHaveCount(0);
+    await expect(mfa.getByRole("button", { name: "关闭", exact: true })).toHaveCount(0);
+    await expect(mfa.locator(".ant-modal-close")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(mfa).toBeVisible();
+    await mfa.getByRole("checkbox", { name: "我已保存恢复码", exact: true }).check();
+    await expect(saved).toBeEnabled();
+    await saved.click();
+    await expect(mfa).toHaveCount(0);
+    expect(confirmations).toBe(1);
+  } finally {
+    releaseConfirm();
+  }
 });

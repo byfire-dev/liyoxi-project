@@ -272,11 +272,23 @@ export function SecurityDialog({
             </Button>
           ) : null}
           {recovery ? (
-            <Button size="large" type="primary" disabled={!saved} onClick={close}>
+            <Button
+              key="save-recovery"
+              size="large"
+              type="primary"
+              disabled={!saved}
+              onClick={close}
+            >
               已保存，关闭
             </Button>
           ) : mode !== "totp" || enrollment ? (
-            <Button size="large" type="primary" htmlType="submit" loading={pending}>
+            <Button
+              key="security-submit"
+              size="large"
+              type="primary"
+              htmlType="submit"
+              loading={pending}
+            >
               确认{mode === "password" ? "修改" : "绑定"}
             </Button>
           ) : null}
