@@ -304,6 +304,22 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
     phase = "queue-ack";
     const snapshot = await waitM1Worker(
       async () => {
+        // 审核可在先前 drain 结束后才发事件；队列瞬时为空不代表本轮 outbox 已消费。
+        const moderated = await support!.runtime.tx.run((tx) =>
+          tx.outboxEvent.findUnique({
+            where: { dedupeKey: `file.moderated:${fixture!.fileId}` },
+            select: {
+              publishedAt: true,
+              outboxDeliveries: {
+                where: { subscriber: "profile.onFileModerated" },
+                select: { status: true, dispatchNo: true, consumedAt: true },
+              },
+            },
+          }),
+        );
+        const delivery = moderated?.outboxDeliveries[0];
+        if (delivery?.status === "dead")
+          throw new Error("owned moderation event delivery reached dead letter");
         const current = await command("snapshot");
         if (
           current.errors ||
@@ -314,7 +330,11 @@ it("独立worker持真实租约与队列：timer屏障、邀请到期、promote/
           current.queues.some((queue) => queue.failed10Min > 0)
         )
           throw new Error("owned worker failed or lost its lease while waiting for queue ACK");
-        return current.queues.every((queue) => queue.waiting === 0 && queue.active === 0)
+        return moderated?.publishedAt &&
+          delivery?.status === "done" &&
+          delivery.dispatchNo > 0 &&
+          delivery.consumedAt &&
+          current.queues.every((queue) => queue.waiting === 0 && queue.active === 0)
           ? current
           : null;
       },
