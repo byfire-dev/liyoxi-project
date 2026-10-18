@@ -16,6 +16,14 @@ export class MixedFailure extends Error {
     if (operationId !== undefined) this.operationId = operationId;
   }
 }
+const rpcFailure = (code, pending, operationId) => {
+  const error = new MixedFailure(code, operationId);
+  if (pending) {
+    error.rpcMethod = pending.method;
+    error.rpcElapsedMs = Math.max(0, Math.round(performance.now() - pending.startedAt));
+  }
+  return error;
+};
 export const requireFact = (condition, code) => {
   if (!condition) throw new MixedFailure(code);
 };
@@ -140,8 +148,9 @@ export class RpcPeer {
         if (row.ok) pending.resolve(row.result);
         else
           pending.reject(
-            new MixedFailure(
+            rpcFailure(
               row.errorCode === "read_failed" ? "read-failed" : "rpc-remote",
+              pending,
               diagnosed ? row.operationId : undefined,
             ),
           );
@@ -154,7 +163,7 @@ export class RpcPeer {
   rejectPending(code) {
     if (!this.pending) return;
     clearTimeout(this.pending.timer);
-    this.pending.reject(new MixedFailure(code));
+    this.pending.reject(rpcFailure(code, this.pending));
     this.pending = undefined;
   }
   break(code) {
@@ -177,6 +186,8 @@ export class RpcPeer {
     return new Promise((resolve, reject) => {
       this.pending = {
         id,
+        method,
+        startedAt: performance.now(),
         resolve,
         reject,
         timer: setTimeout(() => this.break("rpc-timeout"), timeoutMs),
