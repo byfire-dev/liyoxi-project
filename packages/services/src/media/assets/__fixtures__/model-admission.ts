@@ -387,7 +387,8 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
           },
         });
       if (kind === "probe")
-        await h.tx.run((tx) => saveTechnical(tx, file.id, technical, null, h.clock.now()));
+        // 技术事实与其来源 probe 共用完成时刻，不依赖异步写入之间的冻结钟。
+        await h.tx.run((tx) => saveTechnical(tx, file.id, technical, null, data.finishedAt));
     }
     await h.tx.run(async (tx) => {
       await lockRows(tx, "store_asset", [asset.storeAssetId]);

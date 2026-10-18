@@ -27,7 +27,7 @@
 | MinIO | 继续使用[原公共包及固定摘要](../../infra/docker/minio-recovery.md) | 不随源码仓改名替换；未删除或重发原包 |
 | 节点镜像前缀 | 预期 `LYX_IMAGE_PREFIX=ghcr.io/byfire-dev/`，Compose 自行追加 `liyoxi/...` | 尚未读取或更改节点配置 |
 
-CLI 当前登录 byfire-dev，已有仓库权限，但缺少 `read:packages`；Packages 清单请求返回 403 后停止重试，等待只读权限授权。因此包是否存在、关联仓库、Actions 写入权限、每包公开状态仍待真实核验，不能把清单不可读写成“没有包”。四应用构建已有 OCI source/revision 标签；公开源码仓不自动证明包公开。
+首次核验时 CLI 缺少 `read:packages`，Packages 清单请求返回 403 后停止重试。业主完成授权后，已确认活跃账号为 byfire-dev 且包含该 scope；重新请求返回 200，完整清单中没有 `liyoxi/` 目标包，因此本轮不存在目标包名冲突。首次发布、关联仓库、Actions 实际写入及每包公开状态仍待验证。四应用构建已有 OCI source/revision 标签；公开源码仓不自动证明包公开。
 
 Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`，不需要向聊天提供个人令牌。只有确定包可写、公开配置读回正确、版本来源明确后再执行一次发布；发布后逐包核公开访问、摘要和来源。
 
@@ -35,16 +35,20 @@ Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`
 
 `745a6bd52f96111851374e4d71d0e73985ce1b4b` 的 [images](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755984) 与 [stack-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755976) 成功，尚不是镜像发布或节点部署证据。
 
-该提交的 [main-push CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115756008) 在后台真实登录验收失败：恢复码已出现后，测试未找到“已保存，关闭”按钮；55 项 live 用例中 54 项通过。其他实质检查通过，required 失败；原 PR 绿色不能替代该结果，原因仍在定位。
+该提交的 [main-push CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115756008) 在后台真实登录验收失败：恢复码已出现后，测试未找到精确名称为“已保存，关闭”的按钮；55 项 live 用例中 54 项通过。失败 DOM 和截图确认按钮实际存在且禁用，但提交按钮遗留的 loading 图标把可访问名称变成了“loading 已保存，关闭”。修复为两个阶段的按钮分配独立 React key，保留原精确定位、保存前禁用和关闭限制；专项用例已完成旧实现失败、新实现通过。其他实质检查通过，required 失败；仍待修复提交的 CI，原 PR 绿色不能替代该结果。
 
 该提交的 [mixed-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755947) 已成功构建两版镜像，以 `d5384a867c2f8abae3fb23adbac8f7e8957c1392` 为 first-parent-bootstrap。head-write、old-read-write 均完成 20 集业务链，各 123 项不变量零违规；随后在 head-read 阶段报 `rpc-timeout`。报告未细分该阶段的 start/read/drain/close，尚不能断言超时的具体 RPC。此次失败不是早先迁回提交的 `driver-missing`，必须按当前日志修复。发布仍要求同仓、main-push、同完整 SHA 的 images 与 mixed-smoke 成功。
 
-公网 Google DNS-over-HTTPS 查询以下三域均返回 `Status=0`、无 A 答案：
+首次公网查询以下三域没有 A 答案。业主补齐后，2026-10-18 19:15（北京时间）再次通过 Google DNS-over-HTTPS 独立核验：三域均返回 `Status=0`，A 记录全部为 `101.133.161.191`，DNS 已备齐：
 
 - `api.stg.liyoxi.timavia.com`
 - `admin.stg.liyoxi.timavia.com`
 - `portal.stg.liyoxi.timavia.com`
 
-本机解析器返回的 `198.18.x.x` 不作为公网配置完成证据。三个应用域的 A 记录需指向既定预发服务器；DNS 生效后再核 HTTP ACME 入口、签发证书并验 HTTPS。本轮未 SSH、签证书、启动应用、部署或使用真实云凭据。
+本机解析器返回的 `198.18.x.x` 不作为公网配置完成证据。2026-10-18 本轮已通过既有 SSH 入口核验节点，三个 ACME 站点的公网随机内容校验全部通过且临时文件已清理；复用既有 ACME 账号签得覆盖三域的一张 Let’s Encrypt SAN 证书，2027-01-16 到期。仅把三个预发站点切换为仓内模板的 HTTPS 配置，原文件已独立备份，`nginx -t` 与 reload 均成功；既有公司站点配置哈希未变。续签 timer 已运行，既有 service 包含成功续签后的 nginx reload，不另增重复定时任务。证书私钥未读回、未入库。
 
-真实 COS、微信、邮件与真机体验继续按[平台配置](platform-config.md)、[业主清单](owner-checklist.md)和[体验版清单](weapp-trial.md)核验。先从一位商家、一家门店验证最小真实交付链；正式容量验收另在合适环境执行，不用本机降量结果替代。
+安装后已从公网对三个域名分别完成可信 TLS 连接，信任链、SAN 与有效期校验通过，HTTP 均为 502：节点尚无应用容器，故 DNS 与 HTTPS 已备齐，应用仍未部署。公司原入口前后响应一致（主域 308、www 200、既有 api 502），未将既有 api 的 502 归因于本次变更。应用发布仍等待同 SHA 门禁与镜像交付。
+
+首次真实登录的微信节点接线见[可选 Provider 配置](../../infra/compose/providers/README.md)：显式选择 `wechat` 后才挂载 AppID 与三份完整成组文件；本地接线验证不代表真实凭据已录入或微信后台能力已开通。先从一位商家、一家门店的登录和普通上传开始，须核账号初始化、生效登录协议、微信合法域名/隐私声明/体验成员及 COS 分权/CORS；扩展至成片流程时再核 CI 模板、队列、回调与制作配置。
+
+真实平台与真机体验继续按[平台配置](platform-config.md)、[业主清单](owner-checklist.md)和[体验版清单](weapp-trial.md)核验。短信、OCR、模型、邮件、支付等按实际启用功能分别准备；正式容量验收另在合适环境执行，不用本机降量结果替代。

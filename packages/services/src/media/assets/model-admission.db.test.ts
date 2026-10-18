@@ -115,9 +115,15 @@ describe("三owner真实PG与Redis预算", () => {
 
   it("视频六帧只占一个原文件与三槽", async () => {
     const facts = await h.readyVideo();
-    expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
-      "ok",
-    );
+    const probe = await h.prisma.storeAssetInsight.findFirstOrThrow({
+      where: { storeAssetId: facts.assetId, fileId: facts.files[0]!.id, kind: "tech_spec" },
+      include: { mediaJob: true, file: { include: { mediaInfo: true } } },
+    });
+    expect(probe.mediaJob?.finishedAt).toBeInstanceOf(Date);
+    expect(probe.file?.mediaInfo?.probedAt).toEqual(probe.mediaJob?.finishedAt);
+    const output = structuredOutput(await h.visionStrategy().execute(facts.job, signal()));
+    expect(output.status, output.reason ?? undefined).toBe("ok");
+    expect(output.reason).toBeNull();
     expect(h.signing).toHaveBeenCalledTimes(6);
     expect(h.vision.mock.calls[0]![0].imageUrls).toHaveLength(6);
     expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual([facts.files[0]!.id]);
