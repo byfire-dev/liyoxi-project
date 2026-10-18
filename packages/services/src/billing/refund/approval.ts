@@ -101,8 +101,9 @@ export function refundApproval(current: () => RefundDeps) {
           where: { id: s.input.exceptionId },
         });
         if (
-          s.subjectType !== "payment_exception" ||
-          s.subjectId !== exception?.id ||
+          !exception ||
+          s.subjectType !== "payment_txn" ||
+          s.subjectId !== exception.paymentTxnId ||
           exception.entityId !== s.entityId ||
           (!s.entityId && s.input.staff.scope.kind !== "all")
         )

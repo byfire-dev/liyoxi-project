@@ -130,6 +130,13 @@ export async function applyRefundCash(
         ref: "08:177",
         entityId: state.order.entityId,
         set: { refunded_at: now },
+        audit: {
+          stream: "ops",
+          category: "refund",
+          action: "billing.order.refunded",
+          summary: "可信现金退款累计达到原实付",
+          target: { type: "billing_order", id: state.order.id },
+        },
         emit: {
           type: "billing_order.refunded",
           payload: {

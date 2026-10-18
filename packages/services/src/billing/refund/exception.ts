@@ -43,8 +43,8 @@ export async function submitExceptionRefund(
   );
   const approval = await approvalOf(deps).submit(tx, ctx, {
     kind: "plan_refund",
-    subjectType: "payment_exception",
-    subjectId: first.id,
+    subjectType: "payment_txn",
+    subjectId: first.paymentTxnId,
     ...(first.entityId ? { entityId: first.entityId } : {}),
     idempotencyKey,
     input: {

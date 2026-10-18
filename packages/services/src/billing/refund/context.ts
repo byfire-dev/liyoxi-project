@@ -54,7 +54,7 @@ export async function visible(tx: Tx, staff: StaffContext, id: string, requester
   const row = await tx.refundRequest.findFirst({
     where: {
       id,
-      ...(requester
+      ...(requester && staff.scope.kind !== "all"
         ? { OR: [byEntity(staff.scope), { approvalRequest: { requesterStaffId: staff.staff.id } }] }
         : byEntity(staff.scope)),
     },

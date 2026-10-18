@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { cancelInvoiceRed } from "../invoices/refund.js";
 import { PAYMENT_EXCEPTION_RESOLUTION } from "@liyoxi/contract/enums";
-import { Prisma } from "@liyoxi/db";
 import type { RefundRequest } from "@liyoxi/db";
 import { createIdentityContext } from "../../kernel/index.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
@@ -104,6 +103,13 @@ export async function restore(tx: Tx, deps: RefundDeps, ctx: IdentityContext, st
       machine: "payment_exception",
       stateField: "status",
       id: exception.id,
+      audit: {
+        stream: "ops",
+        category: "refund",
+        action: "finance.refund.reopen_exception",
+        summary: "退款未执行关闭后恢复真实差异待办",
+        target: { type: "payment_exception", id: exception.id },
+      },
       event: "payment_exception.reopen",
       ref: "08:764",
       ...(request.entityId ? { entityId: request.entityId } : {}),
@@ -170,7 +176,7 @@ export async function completed(tx: Tx, deps: RefundDeps, state: LockedRefund, o
     event: offline ? "refund.record_offline" : "refund.complete",
     ref: offline ? "08:528" : request.status === "executing" ? "08:531" : "08:529",
     action: "completed",
-    set: { done_at: now, closed_at: now, exec_error: Prisma.DbNull },
+    set: { done_at: now, closed_at: now, exec_error: null },
   });
   for (const invoice of state.invoices)
     if (invoice.heldByRefundRequestId === request.id)
@@ -184,6 +190,13 @@ export async function completed(tx: Tx, deps: RefundDeps, state: LockedRefund, o
         machine: "payment_exception",
         stateField: "status",
         id: exception.id,
+        audit: {
+          stream: "ops",
+          category: "refund",
+          action: "finance.refund.resolve_exception",
+          summary: "真实退款成功关闭关联差异",
+          target: { type: "payment_exception", id: exception.id },
+        },
         event: "payment_exception.complete_refund",
         ref: "08:763",
         ...(request.entityId ? { entityId: request.entityId } : {}),

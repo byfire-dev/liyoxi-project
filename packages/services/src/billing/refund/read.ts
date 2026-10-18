@@ -187,6 +187,12 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
   const approval = await approvalOf(deps).decisionView(tx, staff, r.approvalRequestId),
     open = r.refundTxns.find((t) => OPEN.includes(t.status));
   const canRetry = r.status === "executing" && open?.status === "created";
+  // 未入账的重复回单退款不冲减原付款单，也不要求红冲其已开发票。
+  const needsRedInvoice =
+    !!r.paymentTxn.appliedAt &&
+    r.billingOrder?.paidPaymentTxnId === r.paymentTxnId &&
+    !!invoice &&
+    ["issued", "red_pending"].includes(invoice.status);
   const canConfirm =
     canRetry &&
     !!open &&
@@ -194,9 +200,7 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
     !!open.lastSubmitAt &&
     deps.clock.now().getTime() - open.lastSubmitAt.getTime() >= 600_000;
   const allowedRoutes =
-    r.status === "pending_execution" &&
-    !open &&
-    !["issued", "red_pending"].includes(invoice?.status ?? "")
+    r.status === "pending_execution" && !open && !needsRedInvoice
       ? [...((await originalRoute(tx, deps, r.paymentTxn)) ? ["wechat_original"] : []), "offline"]
       : [];
   const actions: string[] = [
@@ -257,7 +261,7 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
       latest: invoice
         ? { invoiceRequestId: invoice.id, requestNo: invoice.requestNo, status: invoice.status }
         : null,
-      needsRedInvoice: !!invoice && ["issued", "red_pending"].includes(invoice.status),
+      needsRedInvoice,
     },
     entitlementRevokedAt: iso(r.entitlementRevokedAt),
     executedBy: await staffBrief(tx, r.executedByStaffId),
