@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { expect, vi } from "vitest";
 import type { Redis } from "ioredis";
 import type { PrismaClient, MediaJob, Prisma, FileObject } from "@liyoxi/db";
@@ -50,6 +51,26 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
   });
   const budget = { readPermit, reserve };
   const h = await createMediaAssetsHarness(prisma, { modelBudget: budget });
+  const frozenNow = h.clock.now,
+    set = h.clock.set,
+    advance = h.clock.advance;
+  let elapsedFrom: number | null = null;
+  // 真实 Redis TIME 消费窗口，SQL/调度耗时也必须反映在业务钟里。
+  // 同一对象供 ledger、策略和 runtime 使用；显式拨钟仍冻结，refresh 才恢复走时。
+  h.clock.now = () =>
+    new Date(
+      frozenNow().getTime() +
+        (elapsedFrom === null ? 0 : Math.floor(performance.now() - elapsedFrom)),
+    );
+  h.clock.set = (at) => {
+    set(at);
+    elapsedFrom = null;
+  };
+  h.clock.advance = (ms) => {
+    advance(ms);
+    set(h.clock.now());
+    elapsedFrom = null;
+  };
   const head = h.fake.storage.head;
   vi.spyOn(h.fake.storage, "head").mockImplementation(async (input) => {
     const result = await head(input),
@@ -77,6 +98,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
   async function refresh() {
     const [seconds, micros] = await client.time();
     h.clock.set(new Date(Number(seconds) * 1000 + Math.floor(Number(micros) / 1000)));
+    elapsedFrom = performance.now();
   }
   await refresh();
   const at = h.clock.now().getTime();
