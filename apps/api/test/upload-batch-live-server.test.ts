@@ -114,6 +114,27 @@ it("W312 cannot broaden the original current or legacy target contract", () => {
     }),
   ).toThrow();
 });
+it("the full live envelope accepts only the strict W318 extension and preserves delivery input", () => {
+  const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id };
+  const full = { ...original, w312: content, w318: assets };
+  expect(parseSharedManifest(full)).toEqual({ inputs: original, w312: scope });
+  expect(parseSharedManifest({ ...original, w318: assets })).toEqual({
+    inputs: original,
+    w312: undefined,
+  });
+  for (const w318 of [
+    undefined,
+    null,
+    { ...assets, staffId: "invalid" },
+    { ...assets, verified: true },
+  ])
+    expect(() => parseSharedManifest({ ...full, w318 })).toThrow();
+  expect(() => parseSharedManifest({ ...full, unexpected: true })).toThrow();
+  expect(() =>
+    parseSharedManifest({ ...full, legacy: { ...delivery, anotherTarget: id } }),
+  ).toThrow();
+  expect(() => parseSharedManifest({ ...full, video: { ...video, verified: true } })).toThrow();
+});
 it("W312 scope requires this exact local owned database, app role and Redis prefix", () => {
   const env = {
     APP_ENV: "test" as const,
