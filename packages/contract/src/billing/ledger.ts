@@ -77,8 +77,10 @@ export const LEDGER_TITLE_ARGS = {
   /** 手动调整。note 是给商家看的一句短说明 */
   adjust: z.strictObject({
     reasonCode: zodEnum(POINT_ADJUSTMENT_REQUEST_REASON_CODE),
-    note: z.string().max(64).optional(),
+    note: z.string().max(200).optional(),
   }),
+  /** 补偿到期复活，冲回原清零积分。 */
+  unexpire: z.strictObject({ days: z.int().min(1).max(90) }),
   /** 套餐过期，加购积分停用 */
   addon_suspend: z.strictObject({ termEndDate: DateSchema }),
   /** 续费后加购积分恢复 */
