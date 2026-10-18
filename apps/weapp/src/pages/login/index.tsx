@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "@tarojs/components";
 import { useDidShow } from "@tarojs/taro";
 
@@ -17,9 +17,25 @@ import "./index.scss";
 export default function Login() {
   const state = useAccount();
   const [error, setError] = useState<string | null>(null);
+  const loadRevision = useRef(0);
+  useEffect(
+    () => () => {
+      loadRevision.current++;
+    },
+    [],
+  );
   const load = () => {
+    const revision = ++loadRevision.current;
     setError(null);
-    void account.loadAgreements().catch((failure) => setError(accountError(failure)));
+    void account
+      .loadAgreements()
+      .then((agreements) => {
+        if (revision === loadRevision.current && !agreements.length)
+          setError("登录协议暂不可用，请稍后重试");
+      })
+      .catch((failure) => {
+        if (revision === loadRevision.current) setError(accountError(failure));
+      });
   };
   useDidShow(load);
   return (

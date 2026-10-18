@@ -7,6 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
+    "trial:check": "node scripts/trial-check.mjs",
     "build": "node scripts/build.mjs weapp",
     "build:h5": "node scripts/build.mjs h5",
     "dev": "node scripts/build.mjs weapp --watch",

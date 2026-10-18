@@ -66,6 +66,7 @@ function setup(token: string | null = "lyxm_old") {
     events.push(name);
   });
   const key = vi.fn(() => "store_switch:00000000-0000-4000-8000-000000000001");
+  const loginCode = vi.fn(async () => "local-code");
   const controller = createAccountController({
     api,
     clock: { now: () => local.now },
@@ -89,7 +90,7 @@ function setup(token: string | null = "lyxm_old") {
         events.push("local");
       }
     },
-    loginCode: async () => "local-code",
+    loginCode,
     attribution: () => ({ channelCode: "demo", inviteCode: "private-token" }),
     key,
     applyBootstrap,
@@ -100,6 +101,7 @@ function setup(token: string | null = "lyxm_old") {
   });
   return {
     controller,
+    loginCode,
     api,
     local,
     events,
@@ -198,7 +200,7 @@ describe("账户启动与登录", () => {
     expect(silentLogin).not.toHaveBeenCalled();
     expect(sent.every((request) => !request.header.Authorization)).toBe(true);
   });
-  it("首触连空来源也占位；固定本机码仅用于登录码取不到且不存号码", async () => {
+  it("首触连空来源也占位；来源不保存号码", () => {
     const storage = memory();
     expect(rememberFirstTouch(storage)).toEqual({});
     expect(rememberFirstTouch(storage, { scene: 1047, query: { inviteCode: "late" } })).toEqual({});
@@ -212,19 +214,19 @@ describe("账户启动与登录", () => {
     expect(rememberFirstTouch(source, { query: { channelCode: "later" } }).channelCode).toBe(
       "demo",
     );
-    const login = vi.fn(async () => {
-      throw new Error("unavailable");
-    });
-    expect(await accountLoginCode(source, login, () => "one")).toBe("local-one");
-    expect(await accountLoginCode(source, login, () => "two")).toBe("local-one");
-    expect(
-      await accountLoginCode(
-        source,
-        async () => "real",
-        () => "three",
-      ),
-    ).toBe("real");
     expect(JSON.stringify(source.get(StorageKey.attribution))).not.toContain("13800138000");
+  });
+  it("每次获取新登录码；平台失败、空白或超长码不生成本机替身", async () => {
+    const login = vi.fn().mockResolvedValueOnce("wx-first").mockResolvedValueOnce("wx-second");
+    expect(await accountLoginCode(login)).toBe("wx-first");
+    expect(await accountLoginCode(login)).toBe("wx-second");
+    for (const value of ["", " ", "x".repeat(129)])
+      await expect(accountLoginCode(async () => value)).rejects.toThrow("登录凭证");
+    await expect(
+      accountLoginCode(async () => {
+        throw Error("platform-private-detail");
+      }),
+    ).rejects.toThrow("无法获取登录凭证，请重新点击登录");
   });
   it("未勾选与无效凭证不请求；真实opaque码登录保协议、归因与回跳", async () => {
     const env = setup(null);
@@ -233,6 +235,7 @@ describe("账户启动与登录", () => {
       "请先阅读并勾选下方协议",
     );
     await expect(env.controller.phoneLogin("", true)).rejects.toThrow("授权凭证无效");
+    await expect(env.controller.phoneLogin("   ", true)).rejects.toThrow("授权凭证无效");
     await expect(env.controller.phoneLogin("c".repeat(129), true)).rejects.toThrow("授权凭证无效");
     expect(env.api.phone).not.toHaveBeenCalled();
     vi.mocked(env.api.phone).mockRejectedValueOnce(failure("AGREEMENT_VERSION_STALE"));
@@ -263,12 +266,39 @@ describe("账户启动与登录", () => {
     await env.controller.loadMine();
     expect(env.controller.snapshot().switchedFrom).toBeNull();
   });
+  it("平台取码失败不请求手机号登录、不建会话或回跳，重试重新取码", async () => {
+    const env = setup(null);
+    await env.controller.loadAgreements();
+    env.loginCode.mockRejectedValueOnce(Error("无法获取登录凭证，请重新点击登录"));
+    await expect(env.controller.phoneLogin("opaque-phone-code", true)).rejects.toThrow("登录凭证");
+    expect(env.api.phone).not.toHaveBeenCalled();
+    expect(env.local.token).toBeNull();
+    expect(env.returnPage).not.toHaveBeenCalled();
+    await env.controller.phoneLogin("next-opaque-phone-code", true);
+    expect(env.loginCode).toHaveBeenCalledTimes(2);
+    expect(env.api.phone).toHaveBeenCalledOnce();
+    expect(env.returnPage).toHaveBeenCalledOnce();
+  });
+  it("空登录协议不发取码/登录请求；重拉有生效协议后可继续", async () => {
+    const env = setup(null);
+    vi.mocked(env.api.agreements).mockResolvedValueOnce([]);
+    expect(await env.controller.loadAgreements()).toEqual([]);
+    await expect(env.controller.phoneLogin("opaque-phone-code", true)).rejects.toThrow(
+      "协议暂不可用",
+    );
+    expect(env.loginCode).not.toHaveBeenCalled();
+    expect(env.api.phone).not.toHaveBeenCalled();
+    await env.controller.loadAgreements();
+    await env.controller.phoneLogin("next-opaque-phone-code", true);
+    expect(env.api.phone).toHaveBeenCalledOnce();
+  });
   it.each([
     "ACCOUNT_DISABLED",
     "REVERIFY_REQUIRED",
     "WECHAT_UNAVAILABLE",
     "PHONE_REGION_UNSUPPORTED",
     "WECHAT_CODE_INVALID",
+    "NOT_CONFIGURED",
   ] as const)("%s 有说明且登录文案无禁词", (error) => {
     expect(accountError(failure(error))).not.toBe("暂时无法加载，请重试");
     expect(accountError(failure(error))).not.toContain("微信");

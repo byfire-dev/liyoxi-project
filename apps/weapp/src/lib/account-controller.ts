@@ -77,6 +77,8 @@ export function accountError(error: unknown): string {
         return "暂不支持该地区的手机号，请使用中国大陆号码";
       case "AGREEMENT_VERSION_STALE":
         return "协议已更新，请重新阅读并勾选";
+      case "NOT_CONFIGURED":
+        return "服务暂未配置，请联系管理员";
       case "NOT_A_MEMBER":
         return "门店权限已变化，请重新选择门店";
       default:
@@ -268,7 +270,8 @@ export function createAccountController(deps: AccountDeps) {
     showAgreement: (visible: boolean) => update({ agreementVisible: visible }),
     async phoneLogin(phoneCode: string, agreed: boolean) {
       if (!agreed) throw new Error("请先阅读并勾选下方协议");
-      if (!phoneCode || phoneCode.length > 128) throw new Error("号码授权凭证无效，请重新授权");
+      if (!phoneCode.trim() || phoneCode.length > 128)
+        throw new Error("号码授权凭证无效，请重新授权");
       const current = state.agreements.filter((item) => item.currentVersion !== null);
       if (!current.length || current.length > 2) throw new Error("协议暂不可用，请重新加载");
       const epoch = generation;
