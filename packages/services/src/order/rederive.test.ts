@@ -514,7 +514,7 @@ describe("真实方案确认账号差分与同TX", { timeout: 60000 }, () => {
         }),
       );
     };
-    const min = await h.tx.run((tx) => earliestLaunch(tx, o.o.submittedAt)),
+    const min = await h.tx.run((tx) => earliestLaunch(tx, h.core, o.o.submittedAt)),
       max = o.items[0]!.usageEndDate.toISOString().slice(0, 10);
     const old = await h.prisma.orderItemAccount.findUniqueOrThrow({
       where: { orderItemId_channelAccountId: { orderItemId: id, channelAccountId: o.b.accountId } },

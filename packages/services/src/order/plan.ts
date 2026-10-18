@@ -52,7 +52,7 @@ export async function applyConfirmedPlan(
     content.items.some((r) => !active.some((i) => i.id === r.orderItemId))
   )
     throw new AppError("NOT_FOUND");
-  const min = await earliestLaunch(tx, o.submittedAt),
+  const min = await earliestLaunch(tx, deps, o.submittedAt),
     now = deps.clock.now();
   // 全部校验在业务写之前；已确认的版本事实不再重验购买资格/账号状态（m05 §3.6）。
   for (const row of content.items) {
