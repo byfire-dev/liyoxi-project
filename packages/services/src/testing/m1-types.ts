@@ -103,6 +103,8 @@ export interface M1Support {
   }>;
   drainEvents(): Promise<{ readonly expanded: number; readonly consumed: number }>;
   promote(fileId: string): Promise<void>;
+  /** 仅 bridge-owned attach：complete 的短轮询期间消费真实已入队 promote，不改变生产轮询。 */
+  completeWithPromote?<T>(fileId: string, complete: () => Promise<T>): Promise<T>;
   installKnownMedia(fileId: string, scope: M1MediaScope): Promise<void>;
   finishProduction(fileId: string, scope: M1MediaScope): Promise<void>;
   fullInvariants(): Promise<InvariantRunResult>;

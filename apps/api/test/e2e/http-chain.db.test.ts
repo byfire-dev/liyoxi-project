@@ -47,6 +47,7 @@ it("M1 完整七段经真实HTTP与本轮MinIO：二十集交付上线、正式�
   let bridge: Awaited<ReturnType<typeof createM1HttpBridge>> | undefined;
   const ownedBuckets: string[] = [];
   const errors: unknown[] = [];
+  let chainSignal: AbortSignal | undefined;
   const cleanup = async (action: () => unknown | Promise<unknown>) => {
     try {
       await action();
@@ -71,9 +72,10 @@ it("M1 完整七段经真实HTTP与本轮MinIO：二十集交付上线、正式�
       throw new Error("M1 HTTP 本轮桶已存在，拒绝接管");
     }
     vi.stubEnv("APP_ENV", "local");
+    chainSignal = AbortSignal.timeout(150_000);
     bridge = await createM1HttpBridge({
       attach: { scope, chainId: "httpfull", version, storage },
-      signal: AbortSignal.timeout(150_000),
+      signal: chainSignal,
     });
     expect(bridge.support.runtime.providers.storage.uploadLocation).toEqual({
       region: storage.region,
@@ -83,7 +85,12 @@ it("M1 完整七段经真实HTTP与本轮MinIO：二十集交付上线、正式�
       sts: false,
       versioning: false,
     });
-    const result = await bridge.runChain();
+    const result = await bridge.runChain({
+      onStep: (phase) =>
+        process.stdout.write(
+          `M1HTTP阶段：${JSON.stringify({ ...phase, elapsedMsTotal: Math.round(performance.now() - started) })}\n`,
+        ),
+    });
     expect(result.initialization).toBe("bootstrap");
     expect(result.report.episodeCount).toBe(20);
     expect(result.report.final).toEqual({
@@ -102,6 +109,9 @@ it("M1 完整七段经真实HTTP与本轮MinIO：二十集交付上线、正式�
     expect(await bridge.drain()).toMatchObject({ consumed: expect.any(Number) });
     process.stdout.write(`M1HTTP主链：${JSON.stringify(result.report)}\n`);
   } catch (error) {
+    process.stdout.write(
+      `M1HTTP失败：${JSON.stringify({ elapsedMs: Math.round(performance.now() - started), chainAborted: chainSignal?.aborted ?? false, errorName: error instanceof Error ? error.name : "UnknownError" })}\n`,
+    );
     errors.push(error);
   } finally {
     await cleanup(() => bridge?.close());

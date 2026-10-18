@@ -241,7 +241,10 @@ export async function runM1Chain({
     const file = registrations.items[0];
     assert.ok(file);
     await upload(file, image);
-    await call("m.file.complete", headers, { body: {}, params: { fileId: file.fileId } });
+    const complete = () =>
+      call("m.file.complete", headers, { body: {}, params: { fileId: file.fileId } });
+    if (support.completeWithPromote) await support.completeWithPromote(file.fileId, complete);
+    else await complete();
     await support.promote(file.fileId);
     assert.equal(
       (await call("m.file.get", headers, { params: { fileId: file.fileId } })).status,
@@ -583,7 +586,10 @@ export async function runM1Chain({
       },
     });
     await upload(file, support.productionVideo.bytes);
-    await call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
+    const complete = () =>
+      call("admin.file.complete", admin, { body: {}, params: { fileId: file.fileId } });
+    if (support.completeWithPromote) await support.completeWithPromote(file.fileId, complete);
+    else await complete();
     if (finish) await finishProduction(file.fileId, category, episodeNo);
     return file.fileId;
   }
