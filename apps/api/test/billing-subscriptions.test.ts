@@ -10,6 +10,7 @@ import {
 import {
   createFactories,
   createLedgerHarness,
+  openTerm,
   signInAsStaff,
   snapshotTables,
 } from "@liyoxi/services/testing";
@@ -381,4 +382,111 @@ it("实际期限原语与HTTP提前续费并发后链无空档重叠，已发放
     await data(await request("admin.subscriptionTerm.get", admin.headers, current.id)),
   );
   expect(detail.nextTerm).toMatchObject({ startDate: "2026-03-29", endDate: "2026-04-28" });
+}, 30000);
+
+it("零积分折算月的HTTP报价与创建免收当月，零整单不建单并保留下期升级退路", async () => {
+  api.clock.set(new Date("2026-04-01T04:00:00Z"));
+  const quarterly = await buyer(),
+    monthly = await buyer(),
+    ledger = createLedgerHarness(db, { clock: api.clock });
+  await openTerm(ledger, { entityId: quarterly.entityId, planCode: "basic", months: 3 });
+  await openTerm(ledger, { entityId: monthly.entityId, planCode: "basic", months: 1 });
+  const pro = await db.plan.findUniqueOrThrow({ where: { code: "pro" } }),
+    original = await db.planRevision.findFirstOrThrow({
+      where: { planId: pro.id },
+      orderBy: { revisionNo: "desc" },
+    });
+  await db.planRevision.create({
+    data: {
+      id: uuidv7(),
+      planId: pro.id,
+      revisionNo: original.revisionNo + 1,
+      discountBp: original.discountBp,
+      productionModel: original.productionModel,
+      schedulePriority: original.schedulePriority,
+      maxStores: original.maxStores,
+      maxMembers: original.maxMembers,
+      hasMonthlyReport: original.hasMonthlyReport,
+      monthlyPoints: 3001,
+      monthlyFeeFen: 306000,
+      cyclePrices: { "1": 306000, "3": 918000, "12": 3672000 },
+      effectiveAt: api.clock.now(),
+      createdAt: api.clock.now(),
+    },
+  });
+  api.clock.set(new Date("2026-04-29T04:00:00Z"));
+  for (const b of [quarterly, monthly])
+    b.owner = await signInAsMerchant(api, {
+      phone: b.owner.phone,
+      openid: b.owner.openid,
+      headers: { "X-Client-Platform": "android" },
+    });
+  const quoted = PlanQuoteSchema.parse(
+    await data(
+      await post(
+        "/m/plans/quote",
+        { planId: pro.id },
+        quarterly.owner.withStore(quarterly.storeId),
+      ),
+    ),
+  );
+  expect(quoted).toMatchObject({
+    payFen: 12000,
+    upgrade: { remainingDays: 1, remainingFullMonths: 2, proratedFen: 0, topupPoints: 0 },
+  });
+  const create = (b: Buyer, expectAmountFen: number, key = uuidv7()) =>
+    post(
+      "/m/payment-orders",
+      { planId: pro.id, channel: "bank_transfer", expectAmountFen, agreementVersionIds: versions },
+      b.owner.withStore(b.storeId),
+      key,
+    );
+  await denied(await create(quarterly, 12200), 409, "QUOTE_CHANGED");
+  expect(
+    await db.billingOrder.count({ where: { entityId: quarterly.entityId, type: "plan_upgrade" } }),
+  ).toBe(0);
+  const key = uuidv7(),
+    created = PaymentOrderDetailSchema.parse(await data(await create(quarterly, 12000, key)));
+  expect(created.amountFen).toBe(12000);
+  expect(
+    await db.billingOrder.findUniqueOrThrow({ where: { id: created.paymentOrderId } }),
+  ).toMatchObject({
+    amountFen: 12000,
+    paidAmountFen: 0,
+    contentSnapshot: expect.objectContaining({ payFen: 12000, proratedFen: 0, topupPoints: 0 }),
+  });
+  const replay = await create(quarterly, 12000, key);
+  expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+  expect(await data(replay)).toEqual({
+    ...created,
+    bankAccount: { ...created.bankAccount, accountNo: null },
+    replayed: true,
+  });
+  expect(
+    await db.billingOrder.count({ where: { entityId: quarterly.entityId, type: "plan_upgrade" } }),
+  ).toBe(1);
+  for (const response of [
+    await post("/m/plans/quote", { planId: pro.id }, monthly.owner.withStore(monthly.storeId)),
+    await create(monthly, 200),
+  ]) {
+    await denied(response.clone(), 409, "UPGRADE_NOT_ALLOWED_TODAY");
+    expect(await response.json()).toMatchObject({ details: { suggest: "renew_next_term" } });
+  }
+  expect(
+    await db.billingOrder.count({ where: { entityId: monthly.entityId, type: "plan_upgrade" } }),
+  ).toBe(0);
+  const next = PlanQuoteSchema.parse(
+    await data(
+      await post(
+        "/m/plans/quote",
+        { planId: pro.id, months: 1, intent: "renew_next_term" },
+        monthly.owner.withStore(monthly.storeId),
+      ),
+    ),
+  );
+  expect(next).toMatchObject({
+    action: "renew_upgrade",
+    payFen: 306000,
+    effectiveMode: "next_term",
+  });
 }, 30000);

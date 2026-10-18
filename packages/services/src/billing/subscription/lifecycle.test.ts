@@ -257,6 +257,99 @@ it("十三个月真实周期开通、降级续费和下期升级按锚点接续�
   await invariant(h, entityId);
 }, 30000);
 
+it("月差60元与1积分的零折算月免收，跨月入账及后续整月成本与实付守恒", async () => {
+  const h = createPaymentHarness(await db.prisma());
+  h.clock.set(new Date("2026-04-01T04:00:00Z"));
+  const own = await h.make.merchant({ verified: true }),
+    id = own.entity.id;
+  const opening = await payQuote(h, id, await quote(h, id, "basic", { months: 3 }));
+  const pro = await h.prisma.plan.findUniqueOrThrow({ where: { code: "pro" } }),
+    original = await h.prisma.planRevision.findFirstOrThrow({
+      where: { planId: pro.id },
+      orderBy: { revisionNo: "desc" },
+    });
+  await h.prisma.planRevision.create({
+    data: {
+      id: uuidv7(),
+      planId: pro.id,
+      revisionNo: original.revisionNo + 1,
+      ...benefitsOf(original),
+      monthlyPoints: 3001,
+      monthlyFeeFen: 306000,
+      cyclePrices: { "1": 306000, "3": 918000, "12": 3672000 },
+      effectiveAt: h.clock.now(),
+      createdAt: h.clock.now(),
+    },
+  });
+  h.clock.set(new Date("2026-04-29T04:00:00Z"));
+  const upgraded = await quote(h, id, "pro");
+  expect(upgraded.quote).toMatchObject({
+    payFen: 12000,
+    upgrade: {
+      remainingDays: 1,
+      remainingFullMonths: 2,
+      feeDeltaPerMonthFen: 6000,
+      monthlyDeltaPoints: 1,
+      proratedFen: 0,
+      topupPoints: 0,
+    },
+  });
+  const submittedAt = h.clock.now();
+  h.clock.set(new Date("2026-05-02T04:00:00Z"));
+  const paid = await payQuote(h, id, upgraded, submittedAt);
+  expect(paid.outcome.result).toMatchObject({ status: "applied", fulfillment: { status: "done" } });
+  expect(
+    await h.prisma.billingOrder.findUniqueOrThrow({ where: { id: paid.order.id } }),
+  ).toMatchObject({
+    amountFen: 12000,
+    paidAmountFen: 12000,
+    contentSnapshot: expect.objectContaining({ proratedFen: 0, topupPoints: 0, payFen: 12000 }),
+  });
+  const term = await h.prisma.subscriptionTerm.findUniqueOrThrow({
+    where: { sourceBillingOrderId: opening.order.id },
+  });
+  expect(term).toMatchObject({ monthlyPoints: 3001, monthlyEquivFen: 306000 });
+  expect(
+    (
+      await h.prisma.pointLot.findMany({
+        where: { sourceType: "grant_upgrade", sourceId: paid.order.id },
+        orderBy: { sourceNo: "asc" },
+      })
+    ).map((lot) => [lot.sourceNo, lot.originalQty, lot.costBasisFen]),
+  ).toEqual([[1, 1, 6000]]);
+  const pending = await h.prisma.grantSchedule.findMany({
+    where: { entityId: id, status: "pending" },
+  });
+  expect(pending.map((row) => [row.monthNo, row.points, row.valueFen])).toEqual([
+    [2, 3001, 306000],
+  ]);
+  const event = await h.prisma.subscriptionEvent.findFirstOrThrow({
+    where: { billingOrderId: paid.order.id, type: "upgraded" },
+  });
+  expect(event.payload).toMatchObject({ proratedFen: 0, topupPoints: 0, payFen: 12000 });
+  const before = await snapshotTables(h.prisma, tables);
+  await applyReceipt(h, paid.receipt);
+  expect(await snapshotTables(h.prisma, tables)).toEqual(before);
+  await invariant(h, id);
+  h.clock.set(new Date("2026-05-03T04:00:00Z"));
+  await h.tx.run((tx) =>
+    createBillingDailyProjection({ ledger: h.ledger }).snapshot(tx, id, "2026-05-02"),
+  );
+  expect(
+    await h.prisma.billingEntityDaily.findUniqueOrThrow({
+      where: { bizDate_entityId: { entityId: id, bizDate: new Date("2026-05-02T00:00:00Z") } },
+    }),
+  ).toMatchObject({ liabilityPoints: 6001, liabilityValueFen: 606000, deferredPlanFeeFen: 306000 });
+  h.clock.set(pending[0]!.dueAt);
+  await h.tx.run((tx) => h.ledger.advance(tx, id));
+  const totals = await h.prisma.pointLot.aggregate({
+    where: { entityId: id },
+    _sum: { originalQty: true, costBasisFen: true },
+  });
+  expect(totals._sum).toEqual({ originalQty: 9002, costBasisFen: 912000 });
+  await invariant(h, id);
+}, 30000);
+
 it("升级按付款行为时刻接受跨月确认，补发与后续改写成本唯一且同入账键零重复", async () => {
   const h = createPaymentHarness(await db.prisma());
   h.clock.set(new Date("2026-01-31T04:00:00Z"));
