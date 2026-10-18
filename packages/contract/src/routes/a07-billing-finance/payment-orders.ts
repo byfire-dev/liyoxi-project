@@ -15,7 +15,12 @@ import { TransferProofDetailSchema } from "./purchase.schemas.js";
 import { PaymentOrderAdminDetailSchema } from "./purchase.schemas.js";
 // 后台：套餐积分与财务 · payment-orders（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import {
+  CashRefundQuoteSchema,
+  RefundQuoteBodySchema,
+  RefundRequestDetailSchema,
+  RefundCreateBodySchema,
+} from "./refund.schemas.js";
 
 export const adminPaymentOrderList = adminRoute({
   request: { query: AdminPaymentOrderListQuerySchema },
@@ -78,7 +83,12 @@ export const adminPaymentOrderGet = adminRoute({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminPaymentOrderRefundQuote = adminMeta({
+export const adminPaymentOrderRefundQuote = adminRoute({
+  request: {
+    params: PaymentOrderParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundQuoteBodySchema } } },
+  },
+  responses: { ...okResponse(CashRefundQuoteSchema), ...errorResponses(400, 401, 403, 404, 503) },
   method: "post",
   path: "/admin/payment-orders/{paymentOrderId}/refund-quote",
   operationId: "admin.paymentOrder.refundQuote",
@@ -88,7 +98,15 @@ export const adminPaymentOrderRefundQuote = adminMeta({
   "x-idempotent-reason": "试算（A20）",
 });
 
-export const adminPaymentOrderRefundRequestCreate = adminMeta({
+export const adminPaymentOrderRefundRequestCreate = adminRoute({
+  request: {
+    params: PaymentOrderParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/payment-orders/{paymentOrderId}/refund-requests",
   operationId: "admin.paymentOrder.refundRequest.create",

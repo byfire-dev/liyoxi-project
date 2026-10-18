@@ -1,3 +1,4 @@
+import { billingRefundHookHandlers } from "./billing-refund-hook.js";
 import { billingInvoiceHandlers } from "./billing-invoices.js";
 import { billingWechatHookHandlers } from "./billing-wechat-hooks.js";
 import { billingChannelReadHandlers } from "./billing-channel-read.js";
@@ -124,6 +125,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminBillingAdjustmentHandlers,
   ...billingLedgerHandlers,
   ...billingWechatHookHandlers,
+  ...billingRefundHookHandlers,
   ...billingHandlers,
   ...billingInvoiceHandlers,
   ...adminBillingHandlers,
