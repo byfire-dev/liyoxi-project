@@ -758,8 +758,9 @@ jobs:
   web:
     name: web
     runs-on: *runner
-    # 云端全量增长已触发 10 分钟超时；只延长执行上限，测试范围与并发不变。
-    timeout-minutes: 20
+    # 健康轮后台55项live结束时job已耗15m41；慢轮共同用例中位约1.47倍，后续还有674项单测与208个截图目标。
+    # 30分钟仅为完整CI链路留余量，不代表性能达标；单例超时、重试、测试数量与并发保持原值。
+    timeout-minutes: 30
     steps:
       - name: 检出（带完整历史：冒烟的受影响范围要与基线比）
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
