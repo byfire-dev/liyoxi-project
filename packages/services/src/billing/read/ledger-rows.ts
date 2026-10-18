@@ -45,7 +45,10 @@ const cursorSchema = z.strictObject({
   v: z.literal(1),
   hash: z.string(),
   at: z.iso.datetime(),
-  seq: z.string().regex(/^\d{1,20}$/),
+  seq: z
+    .string()
+    .regex(/^\d{1,19}$/)
+    .refine((seq) => BigInt(seq) <= 9223372036854775807n),
   lot: z.int().min(0).max(2),
 });
 const cursorError = () =>
@@ -304,6 +307,10 @@ async function renderLedgerTitle(
       title = "积分修正";
       break;
   }
+  if (r.refType === "approval_request" && r.refId)
+    refNo =
+      (await tx.approvalRequest.findUnique({ where: { id: r.refId }, select: { requestNo: true } }))
+        ?.requestNo ?? null;
   return { title, formula, remark, refNo };
 }
 
@@ -377,7 +384,7 @@ export async function merchantLedgerPage(
         storeName: r.storeName,
         refNo,
         itemCount: r.itemCount,
-        holdStatus: r.holdStatus,
+        holdStatus: r.opType === "hold" ? r.holdStatus : null,
       }),
     ),
     nextCursor: page.nextCursor,

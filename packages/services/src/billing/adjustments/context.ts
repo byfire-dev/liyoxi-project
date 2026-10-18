@@ -37,10 +37,11 @@ export function assertAdjustmentActor(
   deps: Pick<BillingAdjustmentDeps, "clock">,
   actor: AdjustmentActor,
   permission?: PermissionKey,
+  options: { skipStepUp?: boolean } = {},
 ) {
   if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== actor.staff.staff.id)
     throw new AppError("PERMISSION_DENIED");
-  if (permission) assertPermission(actor.staff, permission, deps.clock.now());
+  if (permission) assertPermission(actor.staff, permission, deps.clock.now(), options);
 }
 export async function adjustmentAccountInScope(tx: Tx, staff: StaffContext, entityId: string) {
   const account = await tx.billingAccount.findFirst({

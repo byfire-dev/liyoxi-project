@@ -65,6 +65,7 @@ import { billingAccountOpener, billingMerchantFacts } from "./ports.js";
 import { subscriptionInvariants } from "./subscription/invariants.js";
 import { unboundSubscriptionDaily } from "./sweep.js";
 import { unboundAdjustmentKinds } from "./adjustments/kinds.js";
+import { adjustmentInvariants } from "./adjustments/invariants.js";
 
 import { DramaPricePort } from "../content/index.js";
 import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
@@ -257,6 +258,7 @@ export const registration = defineRegistration("billing", {
   ],
   invariants: [
     ...billingInvariants,
+    ...adjustmentInvariants,
     ...subscriptionInvariants,
     ...paymentInvariants,
     ...purchaseInvariants,

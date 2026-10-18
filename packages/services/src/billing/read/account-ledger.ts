@@ -250,10 +250,10 @@ export function createBillingAccounts(deps: BillingAdjustmentDeps) {
             tx.refundRequest.findFirst({
               where: {
                 entityId,
-                status: { in: ["pending_approval", "pending_execution", "executing"] },
+                subscriptionTerms: { some: { entityId, status: { in: ["scheduled", "active"] } } },
               },
               include: { approvalRequest: true },
-              orderBy: { createdAt: "desc" },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
             }),
             tx.pointHold.findMany({
               where: {
@@ -341,7 +341,9 @@ export function createBillingAccounts(deps: BillingAdjustmentDeps) {
             })),
           },
           actions:
-            hasPermission(staff, "billing.adjust.request") && !base.hasPendingAdjustment
+            hasPermission(staff, "billing.adjust.request") &&
+            base.subscription.status === "active" &&
+            !base.hasPendingAdjustment
               ? ["create-point-adjustment-request"]
               : [],
         });

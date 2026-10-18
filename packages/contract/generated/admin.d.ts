@@ -2568,6 +2568,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/point-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分账户列表（主体）：套餐、套餐积分与清零时间、加购积分、可用与冻结；筛选套餐与账户状态 */
+        get: operations["admin.pointAccount.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-accounts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分账户页 KPI：积分余额（含冻结）、本月发放、本月消耗 */
+        get: operations["admin.pointAccount.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-accounts/{pointAccountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分账户详情：套餐、本期、可用 / 套餐 / 加购 / 冻结、在办退款与待审调整提示 */
+        get: operations["admin.pointAccount.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-accounts/{pointAccountId}/adjustment-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 积分调整影响预览：方向、类型、数量 → 可用 a → b */
+        post: operations["admin.pointAccount.adjustmentQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-accounts/{pointAccountId}/point-ledger-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分流水：分组（获得、使用、清零），时间倒序游标分页，每行带变动后可用余额 */
+        get: operations["admin.pointAccount.pointLedgerEntry.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-adjustment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发起积分调整（方向、积分类型、数量、原因、说明 5–200 字；可关联订购、广告）：同事务建审批单，提交不动账 */
+        post: operations["admin.pointAdjustmentRequest.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-adjustment-requests/{pointAdjustmentRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分调整单详情：方向、积分类型、数量、原因与说明、关联订购或广告、调整前后可用积分、入账结果与审批记录 */
+        get: operations["admin.pointAdjustmentRequest.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-adjustment-requests/{pointAdjustmentRequestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 通过积分调整（同一事务入账） */
+        post: operations["admin.pointAdjustmentRequest.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-adjustment-requests/{pointAdjustmentRequestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 驳回积分调整（原因可选，说明必填） */
+        post: operations["admin.pointAdjustmentRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/point-adjustment-requests/{pointAdjustmentRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤回待审的积分调整（提交人本人；发起人已停用时代撤） */
+        post: operations["admin.pointAdjustmentRequest.withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/point-packs": {
         parameters: {
             query?: never;
@@ -3698,6 +3868,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/subscription-terms/{subscriptionTermId}/extension-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 补偿延长影响预览：延长后周期、清零时间顺延、已排队周期后移 */
+        post: operations["admin.subscriptionTerm.extensionQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/subscription-terms/{subscriptionTermId}/remind": {
         parameters: {
             query?: never;
@@ -3709,6 +3896,91 @@ export interface paths {
         put?: never;
         /** 补发续费提醒（订阅消息 + 短信；按“主体 + 日期”每天一次） */
         post: operations["admin.subscriptionTerm.remind"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/term-extension-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发起补偿延长（3 / 7 / 15 / 30 天、原因、说明）：同事务建审批单，主管审批通过即顺延 */
+        post: operations["admin.termExtensionRequest.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/term-extension-requests/{termExtensionRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 补偿延长单详情：延长天数、原因与说明、延长前后的周期、清零时间的顺延、执行结果与审批记录 */
+        get: operations["admin.termExtensionRequest.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/term-extension-requests/{termExtensionRequestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 通过补偿延长（同一事务顺延有效期；已到期未续费则复活周期） */
+        post: operations["admin.termExtensionRequest.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/term-extension-requests/{termExtensionRequestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 驳回补偿延长（说明必填） */
+        post: operations["admin.termExtensionRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/term-extension-requests/{termExtensionRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤回待审的补偿延长（提交人本人；发起人已停用时代撤） */
+        post: operations["admin.termExtensionRequest.withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -23969,6 +24241,1304 @@ export interface operations {
             };
         };
     };
+    "admin.pointAccount.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                planId?: string;
+                subStatus?: "none" | "active" | "expired";
+                flag?: "has_held" | "expiring_7d" | "refund_pending";
+                page?: number;
+                pageSize?: number;
+                sort?: "-spendablePoints" | "planPointsExpireAt" | "-updatedAt";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                addonAvailablePoints: number;
+                                entity: {
+                                    /** Format: uuid */
+                                    entityId: string;
+                                    managerStaff: components["schemas"]["StaffBrief"] | null;
+                                    name: string;
+                                    /** Format: uuid */
+                                    primaryStoreId: string | null;
+                                    primaryStoreName: string | null;
+                                    storeCount: number;
+                                    verificationStatus: string;
+                                };
+                                hasPendingAdjustment: boolean;
+                                heldPoints: number;
+                                isAddonSuspended: boolean;
+                                isRefundPending: boolean;
+                                planAvailablePoints: number;
+                                /** Format: date-time */
+                                planPointsExpireAt: string | null;
+                                /** Format: uuid */
+                                pointAccountId: string;
+                                spendablePoints: number;
+                                subscription: {
+                                    /** Format: date */
+                                    endDate: string | null;
+                                    /** Format: date-time */
+                                    endsAt: string | null;
+                                    months: number | null;
+                                    plan: {
+                                        name: string;
+                                        /** Format: uuid */
+                                        planId: string;
+                                    } | null;
+                                    /** Format: date */
+                                    startDate: string | null;
+                                    /** @enum {string} */
+                                    status: "none" | "active" | "expired";
+                                    upgradedFrom: {
+                                        /** Format: date-time */
+                                        at: string;
+                                        planName: string;
+                                    } | null;
+                                };
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAccount.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                planId?: string;
+                subStatus?: "none" | "active" | "expired";
+                flag?: "has_held" | "expiring_7d" | "refund_pending";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            accountCount: number;
+                            activeAccountCount: number;
+                            balancePoints: number;
+                            consumedThisMonthPoints: number;
+                            grantedThisMonthPoints: number;
+                            heldPoints: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAccount.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: "create-point-adjustment-request"[];
+                            addonAvailablePoints: number;
+                            currentTerm: {
+                                benefits: {
+                                    discountBp: number;
+                                    maxMembers: number | null;
+                                    maxStores: number;
+                                    monthlyPoints: number;
+                                    productionModel: string;
+                                };
+                                /** Format: date */
+                                endDate: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                extendedDays: number;
+                                months: number;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                                termNo: number;
+                            } | null;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            hasPendingAdjustment: boolean;
+                            heldPoints: number;
+                            isAddonSuspended: boolean;
+                            isRefundPending: boolean;
+                            lastExpired: {
+                                /** Format: date-time */
+                                at: string;
+                                points: number;
+                            } | null;
+                            notices: {
+                                heldAwaitingQualification: {
+                                    groupRef: string | null;
+                                    /** Format: uuid */
+                                    pointHoldId: string;
+                                    qty: number;
+                                    store: {
+                                        name: string;
+                                        /** Format: uuid */
+                                        storeId: string;
+                                    };
+                                }[];
+                                pendingAdjustment: {
+                                    adjustPoints: number;
+                                    /** @enum {string} */
+                                    direction: "increase" | "decrease";
+                                    /** @enum {string} */
+                                    lotKind: "plan" | "addon";
+                                    /** Format: uuid */
+                                    pointAdjustmentRequestId: string;
+                                    requestNo: string | null;
+                                } | null;
+                                pendingCancels: {
+                                    /** Format: uuid */
+                                    cancelRequestId: string;
+                                    kind: string;
+                                    refundPoints: number;
+                                    requestNo: string | null;
+                                    status: string;
+                                    targetNo: string | null;
+                                }[];
+                                pendingExtension: {
+                                    days: number;
+                                    requestNo: string | null;
+                                    /** Format: uuid */
+                                    termExtensionRequestId: string;
+                                } | null;
+                                pendingRefund: {
+                                    /** Format: uuid */
+                                    refundRequestId: string;
+                                    requestNo: string | null;
+                                    status: string;
+                                } | null;
+                            };
+                            planAvailablePoints: number;
+                            planGrantedThisTerm: number;
+                            /** Format: date-time */
+                            planPointsExpireAt: string | null;
+                            /** Format: uuid */
+                            pointAccountId: string;
+                            scheduledTerms: {
+                                /** Format: date */
+                                endDate: string;
+                                months: number;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            }[];
+                            spendablePoints: number;
+                            subscription: {
+                                /** Format: date */
+                                endDate: string | null;
+                                /** Format: date-time */
+                                endsAt: string | null;
+                                months: number | null;
+                                plan: {
+                                    name: string;
+                                    /** Format: uuid */
+                                    planId: string;
+                                } | null;
+                                /** Format: date */
+                                startDate: string | null;
+                                /** @enum {string} */
+                                status: "none" | "active" | "expired";
+                                upgradedFrom: {
+                                    /** Format: date-time */
+                                    at: string;
+                                    planName: string;
+                                } | null;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAccount.adjustmentQuote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    adjustPoints: number;
+                    /** @enum {string} */
+                    direction: "increase" | "decrease";
+                    /** @enum {string} */
+                    lotKind: "plan" | "addon";
+                    /** Format: uuid */
+                    pointHoldId?: string;
+                    /** @enum {string} */
+                    reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            blockReasons: ("account_inactive" | "insufficient" | "hold_invalid" | "pending_exists")[];
+                            isAllowed: boolean;
+                            lotAvailableAfter: number;
+                            lotAvailableBefore: number;
+                            /** Format: date-time */
+                            planPointsExpireAt: string | null;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                qty: number;
+                                returnablePoints: number;
+                                status: string;
+                            } | null;
+                            spendableAfterPoints: number;
+                            spendableBeforePoints: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAccount.pointLedgerEntry.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                tab?: "all" | "gain" | "use" | "expire";
+                lotKind?: "plan" | "addon";
+                storeId?: string;
+                occurredFrom?: string;
+                occurredTo?: string;
+            };
+            header?: never;
+            path: {
+                pointAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: {
+                                actor: {
+                                    name: string;
+                                    type: string;
+                                };
+                                /** Format: date */
+                                bizDate: string;
+                                /** @enum {string} */
+                                category: "grant" | "purchase" | "hold" | "capture" | "return" | "expire" | "adjust" | "gate";
+                                deltaPoints: number;
+                                formula: string | null;
+                                heldAfterPoints: number;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** @enum {string|null} */
+                                lotKind: "plan" | "addon" | null;
+                                /** Format: date-time */
+                                occurredAt: string;
+                                opType: string;
+                                qty: number;
+                                refNo: string | null;
+                                rowKey: string;
+                                spendableAfterPoints: number;
+                                store: {
+                                    name: string;
+                                    /** Format: uuid */
+                                    storeId: string;
+                                } | null;
+                                title: string;
+                            }[];
+                            nextCursor: string | null;
+                            totalApprox: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAdjustmentRequest.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    adjustPoints: number;
+                    confirm: {
+                        spendableBeforePoints: number;
+                    };
+                    /** @enum {string} */
+                    direction: "increase" | "decrease";
+                    /** @enum {string} */
+                    lotKind: "plan" | "addon";
+                    note: string;
+                    /** Format: uuid */
+                    pointAccountId: string;
+                    /** Format: uuid */
+                    pointHoldId?: string;
+                    /** @enum {string} */
+                    reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                    /** Format: uuid */
+                    serviceTicketId?: string;
+                    /** Format: uuid */
+                    storeId?: string;
+                    /** Format: uuid */
+                    termExtensionRequestId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            adjustPoints: number;
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                spendableAfterPoints: number;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            currentSpendablePoints: number;
+                            /** @enum {string} */
+                            direction: "increase" | "decrease";
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            /** @enum {string} */
+                            lotKind: "plan" | "addon";
+                            note: string;
+                            /** Format: uuid */
+                            pointAdjustmentRequestId: string;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                purpose: string;
+                                qty: number;
+                                status: string;
+                            } | null;
+                            /** @enum {string} */
+                            reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                            relatedServiceTickets: {
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                ticketNo: string;
+                            }[];
+                            requestNo: string | null;
+                            signedPoints: number;
+                            spendableAfterPreviewPoints: number;
+                            spendableBeforePoints: number;
+                            termExtensionRequest: {
+                                requestNo: string | null;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAdjustmentRequest.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAdjustmentRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            adjustPoints: number;
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                spendableAfterPoints: number;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            currentSpendablePoints: number;
+                            /** @enum {string} */
+                            direction: "increase" | "decrease";
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            /** @enum {string} */
+                            lotKind: "plan" | "addon";
+                            note: string;
+                            /** Format: uuid */
+                            pointAdjustmentRequestId: string;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                purpose: string;
+                                qty: number;
+                                status: string;
+                            } | null;
+                            /** @enum {string} */
+                            reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                            relatedServiceTickets: {
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                ticketNo: string;
+                            }[];
+                            requestNo: string | null;
+                            signedPoints: number;
+                            spendableAfterPreviewPoints: number;
+                            spendableBeforePoints: number;
+                            termExtensionRequest: {
+                                requestNo: string | null;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAdjustmentRequest.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAdjustmentRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        adjustPoints: number;
+                        /** @enum {string} */
+                        direction: "increase" | "decrease";
+                        requestNo: string;
+                    };
+                    confirmChecks: "basis_checked"[];
+                    lockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            adjustPoints: number;
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                spendableAfterPoints: number;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            currentSpendablePoints: number;
+                            /** @enum {string} */
+                            direction: "increase" | "decrease";
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            /** @enum {string} */
+                            lotKind: "plan" | "addon";
+                            note: string;
+                            /** Format: uuid */
+                            pointAdjustmentRequestId: string;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                purpose: string;
+                                qty: number;
+                                status: string;
+                            } | null;
+                            /** @enum {string} */
+                            reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                            relatedServiceTickets: {
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                ticketNo: string;
+                            }[];
+                            requestNo: string | null;
+                            signedPoints: number;
+                            spendableAfterPreviewPoints: number;
+                            spendableBeforePoints: number;
+                            termExtensionRequest: {
+                                requestNo: string | null;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAdjustmentRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAdjustmentRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                    reasonCodes?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            adjustPoints: number;
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                spendableAfterPoints: number;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            currentSpendablePoints: number;
+                            /** @enum {string} */
+                            direction: "increase" | "decrease";
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            /** @enum {string} */
+                            lotKind: "plan" | "addon";
+                            note: string;
+                            /** Format: uuid */
+                            pointAdjustmentRequestId: string;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                purpose: string;
+                                qty: number;
+                                status: string;
+                            } | null;
+                            /** @enum {string} */
+                            reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                            relatedServiceTickets: {
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                ticketNo: string;
+                            }[];
+                            requestNo: string | null;
+                            signedPoints: number;
+                            spendableAfterPreviewPoints: number;
+                            spendableBeforePoints: number;
+                            termExtensionRequest: {
+                                requestNo: string | null;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.pointAdjustmentRequest.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pointAdjustmentRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            adjustPoints: number;
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                spendableAfterPoints: number;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            currentSpendablePoints: number;
+                            /** @enum {string} */
+                            direction: "increase" | "decrease";
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            /** @enum {string} */
+                            lotKind: "plan" | "addon";
+                            note: string;
+                            /** Format: uuid */
+                            pointAdjustmentRequestId: string;
+                            pointHold: {
+                                groupRef: string | null;
+                                /** Format: uuid */
+                                pointHoldId: string;
+                                purpose: string;
+                                qty: number;
+                                status: string;
+                            } | null;
+                            /** @enum {string} */
+                            reasonCode: "compensation" | "platform_refund" | "correction" | "campaign" | "other";
+                            relatedServiceTickets: {
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                ticketNo: string;
+                            }[];
+                            requestNo: string | null;
+                            signedPoints: number;
+                            spendableAfterPreviewPoints: number;
+                            spendableBeforePoints: number;
+                            termExtensionRequest: {
+                                requestNo: string | null;
+                                /** Format: uuid */
+                                termExtensionRequestId: string;
+                            } | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.pointPack.list": {
         parameters: {
             query?: {
@@ -30656,6 +32226,99 @@ export interface operations {
             };
         };
     };
+    "admin.subscriptionTerm.extensionQuote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscriptionTermId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    days: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                            days: number;
+                            isTargetDifferent: boolean;
+                            /** @enum {string} */
+                            mode: "extend" | "revive" | "not_applicable";
+                            /** Format: date */
+                            newEndDate: string | null;
+                            /** Format: date-time */
+                            newEndsAt: string | null;
+                            /** Format: date */
+                            prevEndDate: string | null;
+                            restorePoints: number;
+                            shiftedTerms: {
+                                /** Format: date */
+                                endDate: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            }[];
+                            /** Format: uuid */
+                            targetSubscriptionTermId: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.subscriptionTerm.remind": {
         parameters: {
             query?: never;
@@ -30683,6 +32346,818 @@ export interface operations {
                             manualReminderLogId: string;
                             /** @enum {boolean} */
                             remindedToday: true;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.termExtensionRequest.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        /** Format: date */
+                        endDate: string;
+                        /** Format: uuid */
+                        subscriptionTermId: string;
+                    };
+                    days: number;
+                    note: string;
+                    reasonCode: string;
+                    /** Format: uuid */
+                    subscriptionTermId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** @enum {string} */
+                                appliedMode: "extend" | "revive";
+                                /** Format: uuid */
+                                appliedSubscriptionTermId: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                prevEndDate: string;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            days: number;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            note: string;
+                            preview: {
+                                blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                                days: number;
+                                isTargetDifferent: boolean;
+                                /** @enum {string} */
+                                mode: "extend" | "revive" | "not_applicable";
+                                /** Format: date */
+                                newEndDate: string | null;
+                                /** Format: date-time */
+                                newEndsAt: string | null;
+                                /** Format: date */
+                                prevEndDate: string | null;
+                                restorePoints: number;
+                                shiftedTerms: {
+                                    /** Format: date */
+                                    endDate: string;
+                                    /** Format: date */
+                                    startDate: string;
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                }[];
+                                /** Format: uuid */
+                                targetSubscriptionTermId: string | null;
+                            } | null;
+                            reason: {
+                                code: string;
+                                name: string;
+                            };
+                            relatedAdjustments: {
+                                /** Format: uuid */
+                                pointAdjustmentRequestId: string;
+                                requestNo: string | null;
+                                status: string;
+                            }[];
+                            requestNo: string | null;
+                            subscriptionTerm: {
+                                /** Format: date */
+                                endDate: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            };
+                            /** Format: uuid */
+                            termExtensionRequestId: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.termExtensionRequest.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                termExtensionRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** @enum {string} */
+                                appliedMode: "extend" | "revive";
+                                /** Format: uuid */
+                                appliedSubscriptionTermId: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                prevEndDate: string;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            days: number;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            note: string;
+                            preview: {
+                                blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                                days: number;
+                                isTargetDifferent: boolean;
+                                /** @enum {string} */
+                                mode: "extend" | "revive" | "not_applicable";
+                                /** Format: date */
+                                newEndDate: string | null;
+                                /** Format: date-time */
+                                newEndsAt: string | null;
+                                /** Format: date */
+                                prevEndDate: string | null;
+                                restorePoints: number;
+                                shiftedTerms: {
+                                    /** Format: date */
+                                    endDate: string;
+                                    /** Format: date */
+                                    startDate: string;
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                }[];
+                                /** Format: uuid */
+                                targetSubscriptionTermId: string | null;
+                            } | null;
+                            reason: {
+                                code: string;
+                                name: string;
+                            };
+                            relatedAdjustments: {
+                                /** Format: uuid */
+                                pointAdjustmentRequestId: string;
+                                requestNo: string | null;
+                                status: string;
+                            }[];
+                            requestNo: string | null;
+                            subscriptionTerm: {
+                                /** Format: date */
+                                endDate: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            };
+                            /** Format: uuid */
+                            termExtensionRequestId: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.termExtensionRequest.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                termExtensionRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        days: number;
+                        requestNo: string;
+                    };
+                    confirmChecks: "effect_preview_checked"[];
+                    lockVersion: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** @enum {string} */
+                                appliedMode: "extend" | "revive";
+                                /** Format: uuid */
+                                appliedSubscriptionTermId: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                prevEndDate: string;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            days: number;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            note: string;
+                            preview: {
+                                blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                                days: number;
+                                isTargetDifferent: boolean;
+                                /** @enum {string} */
+                                mode: "extend" | "revive" | "not_applicable";
+                                /** Format: date */
+                                newEndDate: string | null;
+                                /** Format: date-time */
+                                newEndsAt: string | null;
+                                /** Format: date */
+                                prevEndDate: string | null;
+                                restorePoints: number;
+                                shiftedTerms: {
+                                    /** Format: date */
+                                    endDate: string;
+                                    /** Format: date */
+                                    startDate: string;
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                }[];
+                                /** Format: uuid */
+                                targetSubscriptionTermId: string | null;
+                            } | null;
+                            reason: {
+                                code: string;
+                                name: string;
+                            };
+                            relatedAdjustments: {
+                                /** Format: uuid */
+                                pointAdjustmentRequestId: string;
+                                requestNo: string | null;
+                                status: string;
+                            }[];
+                            requestNo: string | null;
+                            subscriptionTerm: {
+                                /** Format: date */
+                                endDate: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            };
+                            /** Format: uuid */
+                            termExtensionRequestId: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.termExtensionRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                termExtensionRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                    reasonCodes?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** @enum {string} */
+                                appliedMode: "extend" | "revive";
+                                /** Format: uuid */
+                                appliedSubscriptionTermId: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                prevEndDate: string;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            days: number;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            note: string;
+                            preview: {
+                                blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                                days: number;
+                                isTargetDifferent: boolean;
+                                /** @enum {string} */
+                                mode: "extend" | "revive" | "not_applicable";
+                                /** Format: date */
+                                newEndDate: string | null;
+                                /** Format: date-time */
+                                newEndsAt: string | null;
+                                /** Format: date */
+                                prevEndDate: string | null;
+                                restorePoints: number;
+                                shiftedTerms: {
+                                    /** Format: date */
+                                    endDate: string;
+                                    /** Format: date */
+                                    startDate: string;
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                }[];
+                                /** Format: uuid */
+                                targetSubscriptionTermId: string | null;
+                            } | null;
+                            reason: {
+                                code: string;
+                                name: string;
+                            };
+                            relatedAdjustments: {
+                                /** Format: uuid */
+                                pointAdjustmentRequestId: string;
+                                requestNo: string | null;
+                                status: string;
+                            }[];
+                            requestNo: string | null;
+                            subscriptionTerm: {
+                                /** Format: date */
+                                endDate: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            };
+                            /** Format: uuid */
+                            termExtensionRequestId: string;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.termExtensionRequest.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                termExtensionRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            actions: ("approve" | "reject" | "withdraw")[];
+                            applied: {
+                                /** Format: date-time */
+                                appliedAt: string;
+                                /** @enum {string} */
+                                appliedMode: "extend" | "revive";
+                                /** Format: uuid */
+                                appliedSubscriptionTermId: string;
+                                /** Format: uuid */
+                                ledgerOperationId: string;
+                                /** Format: date */
+                                newEndDate: string;
+                                /** Format: date */
+                                prevEndDate: string;
+                            } | null;
+                            approval: components["schemas"]["ApprovalDecisionView"] & {
+                                confirmChecks: string[];
+                                requestNo: string | null;
+                                requesterRoleName: string | null;
+                            };
+                            days: number;
+                            entity: {
+                                /** Format: uuid */
+                                entityId: string;
+                                managerStaff: components["schemas"]["StaffBrief"] | null;
+                                name: string;
+                                /** Format: uuid */
+                                primaryStoreId: string | null;
+                                primaryStoreName: string | null;
+                                storeCount: number;
+                                verificationStatus: string;
+                            };
+                            note: string;
+                            preview: {
+                                blockReasons: ("no_term" | "term_refunded" | "refund_in_progress" | "pending_exists")[];
+                                days: number;
+                                isTargetDifferent: boolean;
+                                /** @enum {string} */
+                                mode: "extend" | "revive" | "not_applicable";
+                                /** Format: date */
+                                newEndDate: string | null;
+                                /** Format: date-time */
+                                newEndsAt: string | null;
+                                /** Format: date */
+                                prevEndDate: string | null;
+                                restorePoints: number;
+                                shiftedTerms: {
+                                    /** Format: date */
+                                    endDate: string;
+                                    /** Format: date */
+                                    startDate: string;
+                                    /** Format: uuid */
+                                    subscriptionTermId: string;
+                                }[];
+                                /** Format: uuid */
+                                targetSubscriptionTermId: string | null;
+                            } | null;
+                            reason: {
+                                code: string;
+                                name: string;
+                            };
+                            relatedAdjustments: {
+                                /** Format: uuid */
+                                pointAdjustmentRequestId: string;
+                                requestNo: string | null;
+                                status: string;
+                            }[];
+                            requestNo: string | null;
+                            subscriptionTerm: {
+                                /** Format: date */
+                                endDate: string;
+                                planName: string;
+                                /** Format: date */
+                                startDate: string;
+                                /** Format: uuid */
+                                subscriptionTermId: string;
+                            };
+                            /** Format: uuid */
+                            termExtensionRequestId: string;
                         };
                         /** @enum {string} */
                         message: "ok";

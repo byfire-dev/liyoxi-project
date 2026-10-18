@@ -62,7 +62,7 @@ export const PendingBillingCancelSchema = z.object({
   cancelRequestId: IdSchema,
   requestNo: z.string().nullable(),
   kind: z.string(),
-  targetNo: z.string(),
+  targetNo: z.string().nullable(),
   refundPoints: count,
   status: z.string(),
 });

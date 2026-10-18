@@ -151,6 +151,21 @@ export async function extensionQuote(
   if (!target) blockReasons.push("no_term");
   else if (["refunded", "cancelled", "scheduled"].includes(target.status))
     blockReasons.push("term_refunded");
+  if (target && !entitlements.term && !blockReasons.length) {
+    const original = ownApprovalId
+      ? await tx.termExtensionRequest.findFirst({
+          where: { approvalRequestId: ownApprovalId, entityId, subscriptionTermId: originalTermId },
+          select: { createdAt: true },
+        })
+      : null;
+    if (
+      target.id !== originalTermId ||
+      !original ||
+      original.createdAt < target.startsAt ||
+      original.createdAt >= target.endsAt
+    )
+      blockReasons.push("no_term");
+  }
   if (entitlements.refundPending || target?.refundRequestId)
     blockReasons.push("refund_in_progress");
   if (

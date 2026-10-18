@@ -129,6 +129,8 @@ export async function reviveTerm(
     data: { expiresAt: newEndsAt, updatedAt: clock.now },
   });
   await reached(deps, "lot.update");
+  // writeOperation按当前周期归集planDelta；复活时先切本TX内存指针，数据库同操作原子写入。
+  account.currentSubscriptionTermId = term.id;
   const restored = await writeOperation(tx, deps, clock, account, {
     opKey: `unexpire:${input.requestNo}`,
     opType: "unexpire",

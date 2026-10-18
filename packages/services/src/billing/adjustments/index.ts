@@ -6,6 +6,8 @@ import type {
   BillingAdjustmentRejectBody,
   BillingAdjustmentWithdrawBody,
   PointAdjustmentInput,
+  PointAdjustmentRequestDetailSchema,
+  TermExtensionRequestDetailSchema,
 } from "@liyoxi/contract";
 import type { ApprovalRequest } from "@liyoxi/db";
 import { AppError, uuidv7 } from "../../kernel/index.js";
@@ -22,6 +24,11 @@ export { createAdjustmentAssembly } from "./assembly.js";
 type Options = { readonly idem?: IdempotencyContext };
 type Kind = "points_adjust" | "subscription_extend";
 type Event = "approve" | "reject" | "withdraw";
+type DecisionBody =
+  | PointAdjustmentApproveBody
+  | TermExtensionApproveBody
+  | BillingAdjustmentRejectBody
+  | BillingAdjustmentWithdrawBody;
 function audit(
   kind: Kind,
   action: "submit" | Event,
@@ -81,6 +88,22 @@ export function createBillingAdjustments(deps: BillingAdjustmentDeps) {
   }
   async function decide(
     actor: AdjustmentActor,
+    kind: "points_adjust",
+    id: string,
+    event: Event,
+    body: DecisionBody,
+    options: Options,
+  ): Promise<ReturnType<typeof PointAdjustmentRequestDetailSchema.parse>>;
+  async function decide(
+    actor: AdjustmentActor,
+    kind: "subscription_extend",
+    id: string,
+    event: Event,
+    body: DecisionBody,
+    options: Options,
+  ): Promise<ReturnType<typeof TermExtensionRequestDetailSchema.parse>>;
+  async function decide(
+    actor: AdjustmentActor,
     kind: Kind,
     id: string,
     event: Event,
@@ -91,7 +114,9 @@ export function createBillingAdjustments(deps: BillingAdjustmentDeps) {
       | BillingAdjustmentWithdrawBody,
     options: Options,
   ) {
-    assertAdjustmentActor(deps, actor, event === "withdraw" ? undefined : decidePermission(kind));
+    assertAdjustmentActor(deps, actor, event === "withdraw" ? undefined : decidePermission(kind), {
+      skipStepUp: event === "reject",
+    });
     // 权限/动态再验证在required幂等查找之前执行，撤回成功后的原键仍可重放。
     await deps.tx.run(async (tx) => {
       await enabled(tx, actor);

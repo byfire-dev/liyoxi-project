@@ -23,11 +23,22 @@ import { createEvents } from "../events/index.js";
 import type { Events } from "../events/index.js";
 import { createIdentityContext, createTxRunner, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx, TxRunner } from "../kernel/index.js";
+import type { Clock } from "../kernel/index.js";
+import { readBillingPendingCancels } from "../order/index.js";
+import { createBillingApprovalRefs } from "../support/index.js";
 import { assembleForTest } from "./assembly.js";
 import { createClock } from "./clock.js";
 import type { AdjustableClock } from "./clock.js";
 import { createFactories } from "./data/factories/index.js";
 import type { Factories } from "./data/factories/index.js";
+
+/** 真实跨域事实的测试组合根，领域夹具仍只依赖测试出口，不反向导入L3。 */
+export function billingAdjustmentPortsForTest(clock: Clock) {
+  return {
+    refs: createBillingApprovalRefs({ clock }),
+    pendingCancels: readBillingPendingCancels,
+  };
+}
 
 /** 库里的 date 列与“哪一天”互转：Prisma 把 date 读成 UTC 零点的 Date */
 const toDateColumn = (date: LocalDate): Date => new Date(`${date}T00:00:00.000Z`);

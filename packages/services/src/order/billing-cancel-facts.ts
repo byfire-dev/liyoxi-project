@@ -17,7 +17,6 @@ export async function readBillingPendingCancels(
       approvalRequest: { select: { requestNo: true } },
       dramaOrder: { select: { orderNo: true } },
       ad: { select: { adNo: true } },
-      store: { select: { name: true } },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 100,
@@ -25,9 +24,10 @@ export async function readBillingPendingCancels(
   return rows.map((row) => {
     const targetNo =
       row.kind === "qualification_cancel"
-        ? row.store.name
-        : (row.dramaOrder?.orderNo ?? row.ad?.adNo);
-    if (!targetNo) throw new AppError("INTERNAL", { message: "取消申请缺少真实目标" });
+        ? null
+        : (row.dramaOrder?.orderNo ?? row.ad?.adNo ?? null);
+    if (row.kind !== "qualification_cancel" && !targetNo)
+      throw new AppError("INTERNAL", { message: "取消申请缺少真实目标" });
     return {
       cancelRequestId: row.id,
       requestNo: row.approvalRequest.requestNo,
