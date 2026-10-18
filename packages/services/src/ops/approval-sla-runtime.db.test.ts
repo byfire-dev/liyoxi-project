@@ -171,6 +171,7 @@ async function imported(one = worker, day?: string) {
   const refs = eventRefs.filter((ref) => ref.eventId === event.id);
   expect(refs.map((ref) => ref.subscriber).sort()).toEqual([
     "approval.onCalendarImported",
+    "billing.onCalendarImported",
     "media.onCalendarImported",
     "staff.onCalendarImported",
   ]);
@@ -179,7 +180,7 @@ async function imported(one = worker, day?: string) {
 async function consumeBoth(one: ReturnType<typeof buildWorkerServices>, refs: DeliveryRef[]) {
   for (const ref of refs) expect(await one.consume(ref)).toBe("done");
   const rows = await prisma.outboxDelivery.findMany({ where: { outboxEventId: refs[0]!.eventId } });
-  expect(rows).toHaveLength(3);
+  expect(rows).toHaveLength(4);
   expect(rows.every((row) => row.status === "done" && row.consumedAt !== null)).toBe(true);
 }
 async function realQualification(afterApprovalSubmit?: (tx: Tx, id: string) => Promise<void>) {
@@ -356,7 +357,7 @@ async function realAssignment() {
   }
 }
 describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
-  it("只建buildWorkerServices，真实导入的同一event两订阅者done，重复投递/导入零副作用", async () => {
+  it("只建buildWorkerServices，真实导入的同一event四订阅者done，重复投递/导入零副作用", async () => {
     // This runs before any createApproval; there is no API runtime/SLA binding in this file.
     const { refs } = await imported();
     await consumeBoth(worker, refs);
@@ -475,7 +476,7 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
       }),
     ).toMatchObject({ status: "retry", attempts: 1, consumedAt: null });
   });
-  it("两个真实worker不同clock，关闭一个不借另实例；存活实例仍两subscriber done", async () => {
+  it("两个真实worker不同clock，关闭一个不借另实例；存活实例仍四subscriber done", async () => {
     const other = build(createClock(new Date("2026-01-05T05:00:00Z")));
     const event: DeliveredEvent = {
       id: actor.staff.staff.id,
@@ -505,11 +506,13 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
   it("I1使用真实kind领域关联而非恒零；I3和关闭后的两校验均绑定本实例", async () => {
     const kinds = approvalKindsOf(worker.assembly);
     expect([...kinds.keys()].sort()).toEqual([
+      "account_change",
       "ad_cancel",
       "channel_account",
       "finance_config_change",
       "launch_link",
       "qualification",
+      "transfer_confirm",
     ]);
     expect(kinds.get("ad_cancel")).toMatchObject({
       domain: { table: "cancel_request", column: "approval_request_id" },
