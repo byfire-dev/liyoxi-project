@@ -5098,6 +5098,12 @@
    "via": "随调用方事务"
   },
   {
+   "ref": "08-billing-payment.md:1133",
+   "column": "invoice_request.status",
+   "transition": "pending→pending（sla.recalculated）",
+   "via": "订阅者 billing.onCalendarImported"
+  },
+  {
    "ref": "08-billing-payment.md:1213-1214",
    "column": "invoice_doc.email_state",
    "transition": "none→queued / skipped",
