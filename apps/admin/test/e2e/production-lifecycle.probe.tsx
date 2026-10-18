@@ -405,7 +405,12 @@ const api = {
             fileId,
             mode: "post",
             status: "pending",
-            post: { url: "/__production_post", fields: { policy: "public-component-probe" } },
+            expiresAt: "2099-01-01T00:00:00Z",
+            uploadExpiresAt: "2099-01-01T00:00:00Z",
+            post: {
+              url: new URL("/__production_post", location.origin).href,
+              fields: { policy: "public-component-probe" },
+            },
           }),
       });
     }),
