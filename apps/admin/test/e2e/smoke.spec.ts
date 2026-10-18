@@ -302,7 +302,8 @@ test("外壳 → 筛选表格 → 审核工作台 → 详情页", async ({ page 
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await test.step("打开外壳：菜单、面包屑、用户区；V1.1 的菜单与两个隐藏的入口不出现", async () => {
-    await page.goto("/merchants");
+    // 使用固定样例，避免业务页面接入后把页内搜索误当成外壳入口。
+    await page.goto("/dev/table");
     const nav = page.getByRole("navigation", { name: "主菜单" });
     await expect(nav.getByRole("menuitem", { name: "工作台" })).toBeVisible();
     for (const title of [
@@ -332,10 +333,15 @@ test("外壳 → 筛选表格 → 审核工作台 → 详情页", async ({ page 
     await expect(page.getByTestId("shell-user")).toContainText("周航");
     await expect(page.getByTestId("shell-user")).toContainText("超级管理员");
     // 全局搜索与通知入口隐藏（规范 第 14 节第 12 项）
-    await expect(page.getByRole("searchbox")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /通知/ })).toHaveCount(0);
-    // 还没实现的页面显示“页面建设中”
-    await expect(page.getByRole("heading", { name: "页面建设中" })).toBeVisible();
+    const header = page.getByRole("banner");
+    await expect(header.getByRole("searchbox")).toHaveCount(0);
+    await expect(header.getByRole("button", { name: /通知/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "商家列表", exact: true })).toBeVisible();
+    await expect(
+      page
+        .getByRole("region", { name: "商家列表" })
+        .getByRole("searchbox", { name: "商家、主体名称" }),
+    ).toBeVisible();
     await shot(page, "01-shell");
 
     // 同一时刻只展开当前所在的分组：点开“订单”，“商家”收起
@@ -352,10 +358,10 @@ test("外壳 → 筛选表格 → 审核工作台 → 详情页", async ({ page 
   });
 
   await test.step("内容区的直接子项不被压缩：不经样例页那层容器，区块再高也滚得到底", async () => {
-    // 还没实现的页面：页头与卡片直接就是内容区的子项（三个样例页最外层另包了一层 display: contents 的容器，
-    // 外壳那条“直接子项不压缩”落在那层容器上，量不到）
-    await page.goto("/merchants");
-    await expect(page.getByRole("heading", { name: "页面建设中" })).toBeVisible();
+    // 整页说明直接位于内容区，不依赖业务页面是否已实现；样例页还有一层 display: contents 的容器，
+    // 外壳那条“直接子项不压缩”落在那层容器上，量不到。
+    await page.goto("/no/such/page");
+    await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible();
     // 往内容区里直接放一个裁圆角的高区块：设了 overflow 的弹性子项最小高度按 0 算，正是会被压进可见高度的那一种
     await page.getByTestId("shell-content").evaluate((content) => {
       const block = document.createElement("section");
