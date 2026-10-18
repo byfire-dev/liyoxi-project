@@ -9,12 +9,12 @@ import {
   financeContext,
   fulfillOrder,
   paidPlanOrder,
+  prepareClosedBillingDays,
   snapshotTables,
   topUp,
   useSeededDatabase,
 } from "../../testing/index.js";
 import type { FulfillHarness } from "../../testing/index.js";
-import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import { billingInvariants } from "../invariants.js";
 import { LedgerError } from "../ledger/index.js";
 import { subscriptionInvariants } from "./invariants.js";

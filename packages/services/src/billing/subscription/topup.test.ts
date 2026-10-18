@@ -7,13 +7,13 @@ import {
   createPaymentHarness,
   useSeededDatabase,
   pendingPlanOrder,
+  prepareClosedBillingDays,
   transferReceipt,
   applyReceipt,
   sampleStaffContext,
   snapshotTables,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
-import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import type { BillingOrder } from "@liyoxi/db";
 import { createPointPacks } from "../catalog/point-packs.js";
 import { billingInvariants } from "../invariants.js";

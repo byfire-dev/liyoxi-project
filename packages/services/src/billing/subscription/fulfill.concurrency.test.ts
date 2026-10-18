@@ -6,10 +6,10 @@ import {
   fulfillOrder,
   joinFulfillment,
   paidPlanOrder,
+  prepareClosedBillingDays,
   useSeededDatabase,
 } from "../../testing/index.js";
 import type { FulfillHarness } from "../../testing/index.js";
-import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "./invariants.js";
 
