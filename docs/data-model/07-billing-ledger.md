@@ -1625,7 +1625,7 @@ d1 第 9 节的检查项在 `billing/invariants.ts` 登记为 `InvariantCheck`�
 | `billing.I15` | 每个套餐、每个参数键至多一条待生效修订 | P2 | `plan_revision` 或 `billing_param` | 多出的那条待生效行 id | 不带（全局） |
 | `billing.I16` | 流水顺序与业务日 | P2 | `billing_account` | `entity_id` | 同对象 |
 | `billing.I17` | 提醒项：退款处理中超过 7 天、延长单待审超过 7 天 | — | 不写 `invariant_violation`，后台列表直接查询 | — | — |
-| `billing.I18` | 积分调整/延长审批已通过 ⇔ 已执行；账本同主体、审批引用、类型与执行时刻一致；延长历史结果符合 extend/revive 日期公式 | P1 | `point_adjustment_request` 或 `term_extension_request` | 请求 id；日期只核请求历史结果，不与后续可变周期止日比较 | 请求的 `entity_id` |
+| `billing.I18` | 积分调整/延长审批已通过 ⇔ 已执行；账本同主体、审批引用、类型与执行时刻一致；延长原因编码存在、历史结果符合 extend/revive 日期公式 | P1 | `point_adjustment_request` 或 `term_extension_request` | 请求 id；日期只核请求历史结果，不与后续可变周期止日比较 | 请求的 `entity_id` |
 
 ## 6. 待确认
 

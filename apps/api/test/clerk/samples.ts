@@ -310,6 +310,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   playClerkFile("m.file.complete", "complete"),
   playClerkFile("m.file.cancel", "cancel"),
   get("m.wallet.get", "/m/wallet"),
+  get("m.pointLedgerEntry.list", "/m/point-ledger-entries"),
   get("m.purchasePolicy.get", "/m/purchase-policy"),
   get("m.plan.list", "/m/plans"),
   get("m.pointPack.list", "/m/point-packs"),

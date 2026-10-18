@@ -535,6 +535,23 @@ it("billing.I18识别未执行approved/错误账本引用/时间/延长公式，
     data: { newEndDate: ext.newEndDate },
   });
   expect(await check()).toEqual([]);
+  await h.prisma.dictItem.update({
+    where: { dictTypeKey_code: { dictTypeKey: "extend_reason", code: ext.reasonCode } },
+    data: { isEnabled: false },
+  });
+  expect(await check()).toEqual([]);
+  await h.prisma.termExtensionRequest.update({
+    where: { id: ext.id },
+    data: { reasonCode: "EX_UNKNOWN" },
+  });
+  expect(await check()).toMatchObject([
+    { subject: { type: "term_extension_request", id: ext.id } },
+  ]);
+  await h.prisma.termExtensionRequest.update({
+    where: { id: ext.id },
+    data: { reasonCode: ext.reasonCode },
+  });
+  expect(await check()).toEqual([]);
 }, 60000);
 
 it("完整清零复活冲回600000分真实成本，历史日投影与I1-I18适用检查保持守恒", async () => {
@@ -612,6 +629,12 @@ it("完整清零复活冲回600000分真实成本，历史日投影与I1-I18适�
     "billing.I7",
     "billing.I8",
     "billing.I9",
+    "payment.I1",
+    "payment.I12",
+    "payment.I14",
+    "payment.I15",
+    "payment.I2",
+    "payment.I4",
   ]);
 }, 60000);
 

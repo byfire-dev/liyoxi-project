@@ -27,6 +27,7 @@ export const adjustmentInvariants = [
     LEFT JOIN ledger_operation o ON o.id=r.ledger_operation_id
     LEFT JOIN subscription_term t ON t.id=r.applied_subscription_term_id
   WHERE a.kind<>'subscription_extend' OR a.entity_id IS DISTINCT FROM r.entity_id
+    OR NOT EXISTS (SELECT 1 FROM dict_item d WHERE d.dict_type_key='extend_reason' AND d.code=r.reason_code)
     OR (a.status='approved') IS DISTINCT FROM (r.applied_at IS NOT NULL)
     OR (r.applied_at IS NOT NULL AND (
       o.id IS NULL OR o.entity_id IS DISTINCT FROM r.entity_id
