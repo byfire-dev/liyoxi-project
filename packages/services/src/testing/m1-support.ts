@@ -341,7 +341,8 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     };
     const promotions = new Map<string, Promise<void>>();
     const promote: M1Support["promote"] = (fileId) => {
-      if (!attach || observer) return runPromote(fileId);
+      // 没有常驻worker的本地支架与attach共用单次消费；complete后的显式promote可安全重入。
+      if (observer) return runPromote(fileId);
       assertOwned();
       const existing = promotions.get(fileId);
       if (existing) return existing;
@@ -445,7 +446,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       },
       ...transport,
       promote,
-      ...(attach && !observer ? { completeWithPromote } : {}),
+      ...(!observer ? { completeWithPromote } : {}),
       installKnownMedia(fileId, scope) {
         assertOwned();
         if (attach) throw new Error("M1 HTTP 模式不接手手填技术事实");
