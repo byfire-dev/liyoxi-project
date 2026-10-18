@@ -210,6 +210,7 @@ function fromWire(
     amountFen: amount.total,
     payerOpenid: (r.payer as { openid?: string } | undefined)?.openid,
     attach: r.attach,
+    bankType: typeof r.bank_type === "string" && r.bank_type !== "" ? r.bank_type : undefined,
     successAt: typeof r.success_time === "string" ? new Date(r.success_time) : undefined,
   };
   return { kind: "transaction", id, transaction: transaction as WechatPayTransaction };
@@ -238,6 +239,7 @@ function transactionOf(order: FakeWechatPayOrder): WechatPayTransaction {
     amountFen: order.amountFen,
     payerOpenid: order.payerOpenid,
     attach: order.attach,
+    bankType: "OTHERS",
     successAt: order.successAt,
   };
 }

@@ -120,9 +120,11 @@ it.each(["service", "contact"] as const)("%s 成功同键重放也不再次内�
           { lockVersion: 0, name: "测试联系人", phoneSource: "login" },
           { idem: idem() },
         );
-  await run();
+  const first = await run();
   const count = h.fake.wechat.callsOf("checkText").length;
-  expect(await run()).toMatchObject({ replayed: true });
+  const replay = await run();
+  if (kind === "contact") expect(replay).toEqual(first);
+  else expect(replay).toMatchObject({ replayed: true });
   expect(h.fake.wechat.callsOf("checkText")).toHaveLength(count);
 });
 it("基础信息必填守卫先于清空门店名称的 tenant 写入口", async () => {

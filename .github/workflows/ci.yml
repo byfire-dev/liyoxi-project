@@ -344,7 +344,8 @@ jobs:
   test-2:
     name: test-2
     runs-on: *runner
-    timeout-minutes: 10
+    # 与其他两片统一任务预算；完整用例、单例超时和执行并发保持原值。
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17-trixie

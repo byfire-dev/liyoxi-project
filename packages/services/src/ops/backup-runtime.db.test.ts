@@ -192,8 +192,11 @@ describe("备份真实worker、原定时器与只读陈旧探针", { timeout: 60
     const unconfigured = build(noProcess, false).worker;
     await expect(
       unconfigured.assembly.recurringJob(job.kind)!.run({ scheduledFor: clock.now() }),
-    ).rejects.toThrow("备份任务未配置");
+    ).rejects.toThrow("备份任务失败或已取消");
     expect(noProcess).not.toHaveBeenCalled();
+    expect(
+      await prisma.alertEvent.findFirstOrThrow({ where: { rule: "backup.failed" } }),
+    ).toMatchObject({ severity: "P1", lastValue: { reason: "unconfigured" } });
     const closing = unconfigured.closeBackups!();
     expect(unconfigured.closeBackups!()).toBe(closing);
     await closing;
