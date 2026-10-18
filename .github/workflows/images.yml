@@ -302,13 +302,13 @@ jobs:
           set -eu
           mkdir -p "$RUNNER_TEMP/minio-recovery"
           target=ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z
-          # 非官方缓存只作传输；Docker 按已与本机缓存交叉核验的摘要检查清单与每层内容。
+          # 原生 GHCR 恢复源；Docker 按已与本机缓存交叉核验的摘要检查清单与每层内容。
           for arch in amd64 arm64; do
             case "$arch" in
               amd64) digest=sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2 ;;
               arm64) digest=sha256:9966a92a734f9411e32f4f41d7d9d826fcdc0f68c4e20b70295bd4e7c11f8a2f ;;
             esac
-            source="ghcr.linkos.org/ghcr.io/byfire-dev/minio@$digest"
+            source="ghcr.io/byfire-dev/minio@$digest"
             docker pull --platform "linux/$arch" "$source"
             test "$(docker image inspect "$source" --format '{{.Architecture}}')" = "$arch"
             test "$(docker image inspect "$source" --format '{{index .Config.Labels "version"}}')" = RELEASE.2025-09-07T16-13-09Z
