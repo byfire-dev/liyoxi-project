@@ -91,6 +91,8 @@ export interface M1Support {
   seedDemo(): Promise<DemoSeedReport>;
   checklist(code: ChecklistCode): Promise<ChecklistTemplateView>;
   readState(ids: M1StateIds): ReturnType<typeof readM1State>;
+  /** 只读本轮隔离库的已消费步；HTTP 仍须通过真实口令/MFA，不能改步号或签发会话。 */
+  readStaffTotpStep(staffId: string): Promise<number | null>;
   orderTimer(scope: M1OrderScope): Promise<{ readonly timerId: string; readonly fireAt: Date }>;
   runDueTimer(
     scope: M1OrderScope,

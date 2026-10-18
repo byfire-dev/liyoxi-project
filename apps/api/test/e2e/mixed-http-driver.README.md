@@ -68,6 +68,10 @@ old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路
 原pure聚合逐项校验现有canonical query，并精确比较全部operationId集合，不用旧固定数量漏读。
 邀请经正式创建，读取后正式撤回；不是SQL假行。未来新增未知必填输入直接失败，
 不省略接口。真实跨版admin口令/MFA、商家phoneLogin重登；不复用上版headers。
+HTTP重登仅在当前TOTP步已由正式认证消费时等待真实下一步；由受保护隔离支架只读
+staff.totp_last_step，未消费则使用当前真实码。不试错登录、不改步号、不预用未来码。
+30秒read RPC预算保持。
+旧镜像仍运行自己的驱动；此修正与本机桥接回归不能代替双SHA四步验证。
 本轮7个ID映射可用详情，并复读已成功observedReads对应的真实详情；
 没有对应GET的merchantUserId/sampleId不捏造路径，样片沿orderItemId读取。
 所有计划读均要求200；5xx、404、未知路径或未完成失败，不能把权限拒绝记授权成功。
