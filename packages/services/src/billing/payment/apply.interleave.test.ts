@@ -9,6 +9,7 @@ import {
   useSeededDatabase,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
+import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "../subscription/invariants.js";
 import { advanceDueAccounts } from "../sweep.js";
@@ -64,6 +65,7 @@ it(
       expect(
         await prisma.ledgerOperation.count({ where: { entityId: entity.id, opType: "expire" } }),
       ).toBe(1);
+      await prepareClosedBillingDays(h, entity.id);
       for (const check of [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants]) {
         expect(
           await h.tx.run((tx) =>

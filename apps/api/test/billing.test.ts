@@ -350,11 +350,19 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
         where: { subjectId: o.paymentOrderId, kind: "po.transfer_ttl", status: "scheduled" },
       }),
     ).toBe(0);
-    await error(
-      await post("/m/plans/quote", { planId: q.planId, months: 1 }, b.owner.withStore(b.storeId)),
-      409,
-      "STATE_NOT_ALLOWED",
-    );
+    const operationsBeforeRenewQuote = await db.ledgerOperation.count();
+    expect(
+      await data(
+        await post("/m/plans/quote", { planId: q.planId, months: 1 }, b.owner.withStore(b.storeId)),
+      ),
+    ).toMatchObject({
+      action: "renew",
+      orderType: "plan_renew",
+      effectiveMode: "next_term",
+      payFen: q.payFen,
+      newTerm: { startDate: "2026-02-05", endDate: "2026-03-04" },
+    });
+    expect(await db.ledgerOperation.count()).toBe(operationsBeforeRenewQuote);
   });
   it("驳回重放、顺延有效期、替换历史与文件引用永久保留", async () => {
     const b = await buyer(),

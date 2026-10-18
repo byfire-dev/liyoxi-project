@@ -9,6 +9,7 @@ import {
   useSeededDatabase,
 } from "../../testing/index.js";
 import type { FulfillHarness } from "../../testing/index.js";
+import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "./invariants.js";
 
@@ -46,6 +47,7 @@ afterAll(async () => {
 const h = (): FulfillHarness => sides[0] as FulfillHarness;
 
 async function expectClean(entityId: string): Promise<void> {
+  await prepareClosedBillingDays(h(), entityId);
   for (const check of [...billingInvariants, ...subscriptionInvariants]) {
     const run = check.run;
     if (run === undefined) throw new Error(`没有登记 ${check.code} 的检查函数`);

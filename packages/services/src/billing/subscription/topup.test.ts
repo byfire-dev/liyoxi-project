@@ -13,6 +13,7 @@ import {
   snapshotTables,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
+import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import type { BillingOrder } from "@liyoxi/db";
 import { createPointPacks } from "../catalog/point-packs.js";
 import { billingInvariants } from "../invariants.js";
@@ -58,6 +59,7 @@ async function topup(
   });
 }
 async function invariant(h: PaymentHarness, id: string) {
+  await prepareClosedBillingDays(h, id);
   for (const rule of [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants])
     expect(
       await h.tx.run((tx) => rule.run!(tx, { entityIds: [id] }, { now: h.clock.now() })),

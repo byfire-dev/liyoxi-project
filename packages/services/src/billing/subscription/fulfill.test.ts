@@ -14,6 +14,7 @@ import {
   useSeededDatabase,
 } from "../../testing/index.js";
 import type { FulfillHarness } from "../../testing/index.js";
+import { prepareClosedBillingDays } from "../../testing/billing-daily.js";
 import { billingInvariants } from "../invariants.js";
 import { LedgerError } from "../ledger/index.js";
 import { subscriptionInvariants } from "./invariants.js";
@@ -62,6 +63,7 @@ const day = (value: Date): string => value.toISOString().slice(0, 10);
 
 /** 两组不变量在这个主体上都 0 违规 */
 async function expectClean(entityId: string): Promise<void> {
+  await prepareClosedBillingDays(h, entityId);
   for (const check of [...billingInvariants, ...subscriptionInvariants]) {
     const run = check.run;
     if (run === undefined) throw new Error(`没有登记 ${check.code} 的检查函数`);

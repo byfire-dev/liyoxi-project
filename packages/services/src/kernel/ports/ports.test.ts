@@ -193,7 +193,15 @@ describe("登记了样例实现：由它接管", () => {
         expect(await reminders.revalidate(handle, "R7", { dramaId: "d1" })).toEqual({
           valid: true,
         });
-        expect(await reminders.targets(handle, "R1", {})).toEqual([]);
+        const sampleOnly = remindersOf(
+          assembleForTest({
+            entry: "worker",
+            withoutRealPorts: [remindersPort],
+            extra: [ports.registration],
+          }),
+        );
+        expect(sampleOnly.has("R1")).toBe(false);
+        expect(await sampleOnly.targets(handle, "R1", {})).toEqual([]);
       });
     },
     SLOW,
