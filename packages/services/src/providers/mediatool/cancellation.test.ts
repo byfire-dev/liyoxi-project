@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, realpath, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFakeStorage } from "../../testing/index.js";
+import { createFakeStorage } from "../../testing/providers/storage.js";
 import { createMediaToolClient } from "./client.js";
 import { createProductionMediaTools } from "./production.js";
 import type { ProductionMediaTools, ProbeReport } from "../types.js";
