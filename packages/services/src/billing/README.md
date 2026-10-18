@@ -198,8 +198,8 @@ previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局
 实现细节见[定价README](pricing/README.md)；新增六组DB与两组正式HTTP、类型/依赖与
 官方契约/登记/审计/权限/挂载定点已ROOT验收通过，唯一生产独审无P1/P2。
 
-W4-05/06已合流，`billingPlansAdmin.quote`补最后一条`admin.plan.quote`（源码已落地，
-目标验证见W4-07状态）。带主体时按canonical主体scope复用真实`quotePlan`，权限为billing或
+W4-05/06已合流，`billingPlansAdmin.quote`补最后一条`admin.plan.quote`（八个唯一DB/HTTP目标及类型/依赖已通过，
+细节见W4-07状态）。带主体时按canonical主体scope复用真实`quotePlan`，权限为billing或
 order任一查看；renewal缺省下期，显式intent仍由共同算法决定。后台policy只展示价格、
 无购买提示/渠道，不代表线下开单能力。通用试算读两个当前有效价目，来源可已下架，
 目标必须可购；升级沿shared.quoteUpgrade保留零积分月免收，剩余天数超真实基数明确400。

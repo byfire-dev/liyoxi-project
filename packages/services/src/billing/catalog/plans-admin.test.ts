@@ -234,8 +234,10 @@ it("通用报价拒绝反向rank、非法折算基数/周期及未生效/下架�
 });
 
 it("预约上限仅挡新续费报价；立即升级及已接受付款的冻结履约不受软上限截断", async () => {
-  const h = await world(),
-    who = await h.make.merchant({ verified: true }),
+  const h = await world();
+  // 后面的无当期反例也必须晚于模板种子的生效时刻。
+  h.clock.advance(86400000);
+  const who = await h.make.merchant({ verified: true }),
     id = who.entity.id;
   const first = await paid(h, id);
   await paid(h, id, true);

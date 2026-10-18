@@ -202,11 +202,13 @@ it("主体试算复用商家真实升级/续费报价；renewal缺省下期、�
   // 合法的既有待退款事实输入；本包不冒称实现退款发起流程。
   const now = api.clock.now(),
     approvalId = uuidv7(),
-    refundId = uuidv7();
+    refundId = uuidv7(),
+    requestNo = await api.runtime.tx.run((tx) => api.runtime.bizNo.next(tx, "TK"));
   await db.approvalRequest.create({
     data: {
       id: approvalId,
       kind: "plan_refund",
+      requestNo,
       category: "approval",
       subjectType: "billing_order",
       subjectId: who.order.id,
