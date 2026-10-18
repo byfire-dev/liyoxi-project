@@ -429,11 +429,26 @@ export function offlineProfile(scene: string) {
       q.openRound!.claimedEntityType = "individual";
     },
     submitElsewhere() {
-      q.openRound!.phase = "in_review";
-      q.openRound!.lockVersion++;
+      const round = q.openRound,
+        contact = q.contact;
+      if (!round || !contact.name || !contact.phoneMask || !contact.phoneVerifyState)
+        throw new Error("送审演练缺少当前轮次或联系人");
+      round.phase = "in_review";
+      round.lockVersion++;
+      round.submittedAt = NOW;
+      round.dueAt = LATER;
+      round.roundNo = 1;
+      round.declarationConfirmedAt = NOW;
+      round.declarationVersion = q.declaration.currentVersion;
+      round.contactSnapshot = {
+        name: contact.name,
+        phoneMask: contact.phoneMask,
+        phoneVerifyState: contact.phoneVerifyState,
+      };
       q.storeQualificationStatus = "pending";
       q.actions = [];
     },
+    qualificationState: () => structuredClone(q),
     conflict: (path: string) => conflicts.add(path),
     replay: (path: string) => replays.add(path),
     failNext: (path: string) => failures.add(path),
