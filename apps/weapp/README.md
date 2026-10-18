@@ -26,6 +26,7 @@ Taro 4.2.1（Vite 编译器）+ React 18 + NutUI React Taro。依据：[D7](../.
 | `WEAPP_VERSION` | 小程序版本号，随请求头 `X-Client-Version` 带出 | `0.1.0` |
 | `WEAPP_SENTRY_DSN` | 错误上报的 DSN（公开部分，不是密钥） | 空：错误上报不发请求 |
 | `WEAPP_GALLERY` | 组件陈列分包进不进构建：`1` 带，`0` 不带 | 不给：H5 与开发构建带，生产的小程序包不带 |
+| `WEAPP_TRIAL` | `1` 在写产物前检查 AppID 格式、HTTPS API 域名根地址及生产构建模式，不带组件陈列 | 不给：保留开发构建方式 |
 
 用微信开发者工具看：先 `pnpm weapp:build`，再导入 `apps/weapp` 目录（`project.config.json` 是生成物，不入库，不手改 appid）。
 
@@ -124,17 +125,19 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 ## 账户流程（W1-05②）
 
-`src/lib/account-controller.ts` 只编排生成 DTO 与可注入端口；`account-runtime.ts` 装配三个既有 store 与五个 server 调用。冷启动首触来源先到先得（空来源同样占位），引导后有令牌取 me，无令牌静默登录，needPhone 保持游客。accessToken 沿 C3 与既有 persistence 落盘，用户概要不落盘；首触来源和本机替身码不保存号码。登录页的 PhoneForm 是 M1 替身：11位号码作为 phoneCode，取不到平台登录码时才用本机固定串；真实凭证组件在 G2-B 替换此表单。
+`src/lib/account-controller.ts` 只编排生成 DTO 与可注入端口；`account-runtime.ts` 装配三个既有 store 与五个 server 调用。冷启动首触来源先到先得（空来源同样占位），引导后有令牌取 me，无令牌静默登录，needPhone 保持游客。accessToken 沿 C3 与既有 persistence 落盘，用户概要不落盘，首触来源不保存号码。PhoneForm 已使用 W2-13 原生手机号组件：先经隐私授权与协议同意，再消费一次 opaque phoneCode；token/contextRev 变化或卸载废弃旧回调。每次另取新的平台登录码，失败、空白或超长码均结束本次登录，不生成、保存或复用本机替身码。普通 H5 明示不支持号码验证，不接受手填手机号。
+
+协议为空显示可重试错误，缺 API 配置显示受控提示，不以骨架屏或假凭证表示登录成功。体验版参数检查、公开接口只读探测与真机清单见 [试用清单](../../docs/plan/weapp-trial.md)；参数格式与 H5 通过不能代替 V19/V03 外部验证。
 
 登录成功恢复原页面；非标签页恢复编码后的查询参数，标签页用原生 switchTab。协议版本过期重拉版本并清空表单勾选。me 与五个并发428共用阻断式协议层；同意回执确认没有 pending 即释放等待，由服务端重放时再次校验，后续 me 只刷新概要，刷新失败不挂起原请求。仍有未签协议时保持可见且可操作的阻断层；只可不同意并退出，30秒内不重复弹。正文页可阅读，返回后仍阻断。切店先改本地/清聚合，再重拉、记住选择、埋点和提示；保存失败不回滚、同一意图重试保留幂等键。generation、令牌和 contextRev 丢弃旧账号、旧门店迟到响应。协议生效日复用 shared/format/datetime 的北京时间显示，不截UTC日期。
 
 我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录已随W2-13迁入账号设置页。
 
-登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，替身表单不调用隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
+登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，号码组件沿既有隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
 ## 账户八态离线样张
 
-固定 DTO 在 `shots/account-fixtures.ts`，场景清单在 `shots/account-scenes.ts`。截图脚本用路由参数 `lyxShot` 标明场景并在加载前显式注入同名 H5 标记；H5 接线经 connectServer 与可注入调用喂数据。小程序构建不包含此分支，生产仍中央 request。每图独立浏览器上下文；场景外发网络一律失败，严格检查页面异常与 console.error。这些是固定离线界面截图，不能作为真实接口证据。
+固定 DTO 在 `shots/account-fixtures.ts`，场景清单在 `shots/account-scenes.ts`。原八态全部保留，另加 `login-empty` 与 `login-unavailable` 验证错误及重新加载。截图脚本用路由参数 `lyxShot` 标明场景并在加载前显式注入同名 H5 标记；H5 接线经 connectServer 与可注入调用喂数据。小程序构建不包含此分支，生产仍中央 request。每图独立浏览器上下文；场景外发网络一律失败，严格检查页面异常与 console.error。这些是固定离线界面截图，不能作为真实接口证据。
 
 运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene login-unchecked --scene login-checked --scene agreement --scene mine-owner --scene mine-clerk --scene mine-guest --scene store-switch --scene reconsent`，产物 `shots/dist/png/account__<场景>.png`。不带参数会自动附上八态；`--scene` 可多次，`--no-build` 只用于源码未变时复用产物。未勾选图实际点击登录触发提示，已勾选图实际切换复选框，门店图实际点开切换层。
 

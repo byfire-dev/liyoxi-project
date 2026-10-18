@@ -640,7 +640,10 @@ async function shoot(target) {
                                   : "#messages-ready"
                                 : target.kind === "delivery"
                                   ? "#delivery-ready"
-                                  : "#account-ready",
+                                  : target.scene === "login-empty" ||
+                                      target.scene === "login-unavailable"
+                                    ? ".account-login .lyx-empty"
+                                    : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "billing" && target.scene.startsWith("invoice-"))
@@ -878,7 +881,16 @@ async function shoot(target) {
         await page.waitForTimeout(500);
       }
       if (target.scene.startsWith("login")) {
-        if (target.scene === "login-checked")
+        if (target.scene === "login-empty" || target.scene === "login-unavailable") {
+          const message =
+            target.scene === "login-empty"
+              ? "登录协议暂不可用，请稍后重试"
+              : "暂时无法加载，请重试";
+          await expect(page.getByText(message, { exact: true })).toBeVisible();
+          await expect(page.locator(".lyx-skeleton")).toHaveCount(0);
+          await page.locator(".account-login .lyx-empty .lyx-button").click();
+          await expect(page.getByText(message, { exact: true })).toBeVisible();
+        } else if (target.scene === "login-checked")
           await page.getByText("我已阅读并同意", { exact: true }).click();
         else await page.locator(".lyx-button").filter({ hasText: "手机号快捷登录" }).click();
       }

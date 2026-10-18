@@ -22,21 +22,13 @@ export function rememberFirstTouch(
   return value;
 }
 
-/** M1 本机替身，真实登录码取得不到时才使用；不保存手机号。 */
-export async function accountLoginCode(
-  storage: KeyValueStorage,
-  login: () => Promise<string>,
-  uuid: () => string,
-): Promise<string> {
+/** 每次获取一次性登录码；平台失败不生成本机凭证，也不复用上一次的码。 */
+export async function accountLoginCode(login: () => Promise<string>): Promise<string> {
   try {
     const code = await login();
-    if (code) return code;
+    if (typeof code === "string" && code.trim() && code.length <= 128) return code;
   } catch {
-    /* M1 替身形态的默认兜底 */
+    // 不向页面暴露平台原始错误或临时凭证。
   }
-  const saved = storage.get<string>(StorageKey.localLoginCode);
-  if (typeof saved === "string" && saved.length > 0) return saved;
-  const code = `local-${uuid()}`;
-  storage.set(StorageKey.localLoginCode, code);
-  return code;
+  throw new Error("无法获取登录凭证，请重新点击登录");
 }

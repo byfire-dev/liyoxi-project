@@ -18,6 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { cleanup, init, split } from "../../../infra/deploy/source-maps.mjs";
+import { trialConfigErrors } from "./trial-config.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [type, ...flags] = process.argv.slice(2);
@@ -27,6 +28,14 @@ if (type !== "weapp" && type !== "h5") {
 }
 const watch = flags.includes("--watch");
 const outDir = type === "weapp" ? "dist" : "shots/dist/h5";
+if (process.env.WEAPP_TRIAL === "1") {
+  const errors = trialConfigErrors(process.env);
+  if (type !== "weapp" || watch) errors.push("体验版必须使用 weapp 生产构建");
+  if (errors.length) {
+    errors.forEach((message) => console.error(message));
+    process.exit(2);
+  }
+}
 
 function run(command, args, env = {}) {
   const result = spawnSync(command, args, {

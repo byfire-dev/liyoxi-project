@@ -2,6 +2,8 @@
 export const ACCOUNT_SCENES = [
   { name: "login-unchecked", route: "pages/login/index" },
   { name: "login-checked", route: "pages/login/index" },
+  { name: "login-empty", route: "pages/login/index" },
+  { name: "login-unavailable", route: "pages/login/index" },
   { name: "agreement", route: "pages/agreement/index?id=00000000-0000-4000-8000-000000000001" },
   { name: "mine-owner", route: "pages/mine/index" },
   { name: "mine-clerk", route: "pages/mine/index" },
