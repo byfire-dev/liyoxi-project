@@ -211,6 +211,15 @@ export async function quotePlan(
     });
   if (!params.enabledCycles.includes(input.months))
     throw new AppError("CYCLE_NOT_AVAILABLE", { details: { enabledCycles: params.enabledCycles } });
+  // 仅限制新报价；已付款订单仍按冻结快照履约，不反查这个软上限。
+  // 到点但尚未advance的scheduled已是当期，不计为未来预约。
+  const scheduled = await tx.subscriptionTerm.count({
+    where: { entityId, status: "scheduled", startsAt: { gt: at } },
+  });
+  if ((current !== null || scheduled > 0) && scheduled >= params.maxScheduledTerms)
+    throw new AppError("SCHEDULED_TERM_LIMIT", {
+      details: { maxScheduledTerms: params.maxScheduledTerms },
+    });
   let priced = revision,
     promo: null | {
       type: "previous_revision";

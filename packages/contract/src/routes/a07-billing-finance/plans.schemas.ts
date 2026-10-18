@@ -6,6 +6,7 @@ import {
   PageQuerySchema,
   openEnum,
 } from "../../common/index.js";
+import { PlanQuoteSchema } from "../m07-billing/purchase.schemas.js";
 import { adminPage, StaffBriefSchema } from "../a01-system/structures.js";
 import { PLAN_SCOPE } from "../../enums/billing.js";
 import { PRODUCTION_MODEL, SCHEDULE_PRIORITY } from "../../enums/shared.js";
@@ -176,3 +177,52 @@ export type PlanAdminListQuery = z.infer<typeof PlanAdminListQuerySchema>;
 export type PlanNameUpdateBody = z.infer<typeof PlanNameUpdateBodySchema>;
 export type PlanRevisionCreateBody = z.infer<typeof PlanRevisionCreateBodySchema>;
 export type PlanRevisionListQuery = z.infer<typeof PlanRevisionListQuerySchema>;
+
+export const PlanAdminQuoteBodySchema = z
+  .strictObject({
+    kind: z.enum(["upgrade", "renewal"]),
+    planId: IdSchema,
+    pointAccountId: IdSchema.optional(),
+    months: z.int().positive().optional(),
+    intent: z.enum(["upgrade_now", "renew_next_term"]).optional(),
+    fromPlanId: IdSchema.optional(),
+    remainingDays: z.int().min(1).max(30).optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.kind === "renewal" && body.months === undefined)
+      ctx.addIssue({ code: "custom", path: ["months"], message: "请选择购买周期" });
+    if (body.kind === "upgrade" && body.pointAccountId === undefined) {
+      if (body.fromPlanId === undefined)
+        ctx.addIssue({ code: "custom", path: ["fromPlanId"], message: "请选择当前版本" });
+      if (body.remainingDays === undefined)
+        ctx.addIssue({ code: "custom", path: ["remainingDays"], message: "请填写本月剩余天数" });
+    }
+  })
+  .openapi("PlanAdminQuoteBody");
+const genericUpgrade = z.object({
+  feeDeltaPerMonthFen: count,
+  monthlyDeltaPoints: count,
+  remainingDays: z.int().positive(),
+  baseDays: z.int().positive(),
+  proratedFen: count,
+  topupPoints: count,
+  formulaText: z.string(),
+});
+const genericRenewal = z.object({
+  cyclePriceFen: z.int().positive(),
+  monthlyPoints: count,
+  months: z.int().positive(),
+  formulaText: z.string(),
+});
+export const PlanAdminQuoteSchema = z
+  .discriminatedUnion("scope", [
+    z.object({ scope: z.literal("entity"), quote: PlanQuoteSchema, generic: z.null() }),
+    z.object({
+      scope: z.literal("generic"),
+      quote: z.null(),
+      generic: z.union([genericUpgrade, genericRenewal]),
+    }),
+  ])
+  .openapi("PlanAdminQuote");
+export type PlanAdminQuoteBody = z.infer<typeof PlanAdminQuoteBodySchema>;
+export type PlanAdminQuote = z.infer<typeof PlanAdminQuoteSchema>;
