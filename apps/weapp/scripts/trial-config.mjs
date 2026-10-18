@@ -14,6 +14,7 @@ export function trialConfigErrors(env) {
       url.search ||
       url.hash ||
       url.pathname !== "/" ||
+      url.hostname.endsWith(".") ||
       !url.hostname.includes(".") ||
       /(^|\.)(localhost|local|invalid|test|example|example\.com|example\.org|example\.net)$/.test(
         url.hostname,
