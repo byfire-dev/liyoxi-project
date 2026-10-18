@@ -19,8 +19,12 @@ function fixture(lastStep: number | null) {
     waitUntil = vi.fn(async (at: Date) => clock.set(at)),
     waitForNextMfaStep = vi.fn(async () => clock.advance(30_000)),
     requests: { path: string; init: M1RequestInit | undefined }[] = [];
+  const support: Pick<M1Api["support"], "clock" | "readStaffTotpStep"> = {
+    clock,
+    readStaffTotpStep,
+  };
   const api: M1Api = {
-    support: { clock, readStaffTotpStep } as M1Api["support"],
+    support: support as M1Api["support"],
     waitUntil,
     waitForNextMfaStep,
     async request(path, init) {
