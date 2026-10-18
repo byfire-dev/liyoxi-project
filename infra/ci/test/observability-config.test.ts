@@ -36,6 +36,7 @@ const IDS = [
   "client-errors",
   "alerts",
   "server-errors",
+  "wechat",
 ];
 const OPTIONAL = [
   "cos-signer-keys.json",
@@ -52,6 +53,9 @@ const OPTIONAL = [
   "client-error-projects.json",
   "alerts.json",
   "server-errors.json",
+  "wechat-secret",
+  "wechat-message-token",
+  "wechat-message-aes-key",
 ];
 const CORE = [
   "postgres-password",
