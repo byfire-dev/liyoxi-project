@@ -55,7 +55,7 @@ const attachBase = {
     ),
   },
 };
-function fakeBackend(failAt = "") {
+function fakeBackend(failAt = "", failure = new MixedFailure("rpc-remote")) {
   const calls: string[] = [];
   const backend = {
     runId,
@@ -77,7 +77,7 @@ function fakeBackend(failAt = "") {
         started: { protocol: PROTOCOL, source, apiPid: 10, worker: worker(source) },
         call: async (method: string, params: Record<string, unknown>) => {
           calls.push(`${phase}:${method}`);
-          if (`${phase}:${method}` === failAt) throw new MixedFailure("rpc-remote");
+          if (`${phase}:${method}` === failAt) throw failure;
           if (method === "phase.drain") return { worker: worker(source), drain: { consumed: 1 } };
           if (method === "phase.read") {
             expect(params.previousAccess).toMatchObject({ admin: { password: privateValue } });
@@ -105,6 +105,7 @@ function fakeBackend(failAt = "") {
               episodeCount: 20,
               final: { order: "live", item: "live", ticket: "in_service", isLive: true },
               invariants: { status: "succeeded", checksRun: 123, errors: 0, violationsFound: 0 },
+              elapsedMs: 80_000,
               unsafe: privateValue,
             },
             initialization: phase === "head-write" ? "bootstrap" : "existing-login",
@@ -218,6 +219,25 @@ it("W228 controller：固定CLI、真实prev定义与driver能力拒绝，严格
   });
   expect(failedHead).toMatchObject({ status: "failed", failure: "rpc-remote" });
   expect(headFailure.calls.at(-1)).toBe("cleanup");
+  const timed = fakeBackend(
+    "head-read:phase.read",
+    Object.assign(new MixedFailure("rpc-timeout"), {
+      rpcMethod: "phase.read",
+      rpcElapsedMs: 30_000,
+      privateContext: privateValue,
+    }),
+  );
+  const timedReport = await fourSteps({ versions, backend: timed.backend, budget: deadline() });
+  expect(timedReport).toMatchObject({
+    status: "failed",
+    stage: "head-read",
+    failure: "rpc-timeout",
+    rpc: { method: "phase.read", elapsedMs: 30_000 },
+  });
+  expect(
+    timedReport.steps.map((step: { chain: { elapsedMs: number } }) => step.chain.elapsedMs),
+  ).toEqual([80_000, 80_000]);
+  expect(JSON.stringify(timedReport)).not.toContain(privateValue);
   const cleanupFailure = fakeBackend();
   cleanupFailure.backend.cleanup = async () => {
     throw new MixedFailure("cleanup");
@@ -284,7 +304,11 @@ it("W228 controller：私有JSONL限长/单请求/同id/固定方法与取消，
   const timedChild = new Child(),
     timed = new RpcPeer(timedChild, "owner");
   const pending = timed.call("owner.init", {}, 50),
-    timedRejection = expect(pending).rejects.toThrow("rpc-timeout");
+    timedRejection = expect(pending).rejects.toMatchObject({
+      code: "rpc-timeout",
+      rpcMethod: "owner.init",
+      rpcElapsedMs: 50,
+    });
   await vi.advanceTimersByTimeAsync(50);
   await timedRejection;
   const noisyChild = new Child(),
@@ -299,6 +323,8 @@ it("W228 controller：私有JSONL限长/单请求/同id/固定方法与取消，
     readRejected = expect(read).rejects.toMatchObject({
       code: "read-failed",
       operationId: "m.me.get",
+      rpcMethod: "phase.read",
+      rpcElapsedMs: expect.any(Number),
     });
   readChild.stdout.write(
     JSON.stringify({
