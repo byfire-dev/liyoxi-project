@@ -12,6 +12,7 @@ import { Redis } from "ioredis";
 import { createNotices } from "../config/index.js";
 import { runDemoSeed } from "../demo-seed.js";
 import { createLogger } from "../logger.js";
+import { MEDIA_LOCAL_CONCURRENCY } from "../media/index.js";
 import { createLocalWechat } from "../providers/index.js";
 import {
   assertM1SharedScope,
@@ -340,12 +341,19 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         throw new Error("M1 文件实际入库未完成");
     };
     const promotions = new Map<string, Promise<void>>();
+    // HTTP上传仍可四路并发；只把实际消费排到执行器原有的两个槽，避免饱和时run未认领即返回。
+    const promotionSlots = Array.from({ length: MEDIA_LOCAL_CONCURRENCY }, () => Promise.resolve());
+    let nextPromotionSlot = 0;
     const promote: M1Support["promote"] = (fileId) => {
-      if (!attach || observer) return runPromote(fileId);
+      // 没有常驻worker的本地支架与attach共用单次消费；complete后的显式promote可安全重入。
+      if (observer) return runPromote(fileId);
       assertOwned();
       const existing = promotions.get(fileId);
       if (existing) return existing;
-      const pending = runPromote(fileId);
+      const slot = nextPromotionSlot;
+      nextPromotionSlot = (nextPromotionSlot + 1) % promotionSlots.length;
+      const pending = promotionSlots[slot]!.then(() => runPromote(fileId));
+      promotionSlots[slot] = pending.catch(() => undefined);
       promotions.set(fileId, pending);
       return pending;
     };
@@ -445,7 +453,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       },
       ...transport,
       promote,
-      ...(attach && !observer ? { completeWithPromote } : {}),
+      ...(!observer ? { completeWithPromote } : {}),
       installKnownMedia(fileId, scope) {
         assertOwned();
         if (attach) throw new Error("M1 HTTP 模式不接手手填技术事实");

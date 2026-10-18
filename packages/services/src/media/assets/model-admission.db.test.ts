@@ -36,10 +36,26 @@ const spent = async () => {
 };
 
 describe("三owner真实PG与Redis预算", () => {
-  it("准备耗时超过250ms后真实走时，许可仍从当前读时刻起算且不扩大窗口", async () => {
+  it("准备真实耗时超过250ms后，许可仍从当前读时刻起算且不扩大窗口", async () => {
     const facts = await h.readyImage(),
       preparedAt = h.clock.now().getTime();
     await new Promise((resolve) => setTimeout(resolve, 350));
+    // 准备阶段真实走时；此后固定注入钟，只验许可起点和原250ms窗口，不量CI调度。
+    // 紧邻的许可过期用例仍真实等待350ms，并断言零Redis/模型调用。
+    h.clock.set(h.clock.now());
+    const evaluate = h.evalCall.getMockImplementation()!;
+    h.evalCall.mockImplementation((script, keys, argv) => {
+      const now = h.clock.now().getTime();
+      expect(script).toContain("redis.call('TIME')");
+      return evaluate(
+        script.replaceAll(
+          "redis.call('TIME')",
+          `{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`,
+        ),
+        keys,
+        argv,
+      );
+    });
     expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
       "ok",
     );

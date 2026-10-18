@@ -44,7 +44,12 @@ export type { WechatImageResultInput } from "./wechat-image-audit.js";
 
 export { createMediaJobs } from "./jobs/runner.js";
 export { createRemoteMediaHandler } from "./jobs/remote.js";
-export { MEDIA_JOB_BUDGETS, jobBudget, MEDIA_SCAN_INTERVAL_MS } from "./jobs/policy.js";
+export {
+  MEDIA_JOB_BUDGETS,
+  jobBudget,
+  MEDIA_SCAN_INTERVAL_MS,
+  MEDIA_LOCAL_CONCURRENCY,
+} from "./jobs/policy.js";
 export type {
   MediaJobHandler,
   MediaConvergenceHandler,
