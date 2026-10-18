@@ -332,7 +332,7 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
     ).toMatchObject({
       subscription: { status: "active" },
       points: { spendablePoints: q.benefits.monthlyPoints },
-      topUp: { canTopUp: false, blockReason: "not_offered" },
+      topUp: { canTopUp: true, blockReason: null },
     });
     const txn = await db.paymentTxn.findFirstOrThrow({ where: { transferProofId: pid } });
     expect(txn.channelTxnNo).toBe("ABC123");
@@ -695,11 +695,11 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
       await db.plan.update({ where: { id: q.planId }, data: { name: q.planName } });
     }
   });
-  it("大额复核桩拒绝不留交易；不同银行同流水须精确回显，同银行仍拒绝", async () => {
-    const b = await buyer(),
-      o = await order(b),
-      p = await proof(b, o),
-      id = p.latestTransferProof!.transferProofId;
+  it("大额确认进入复核不留交易；不同银行同流水须精确回显，同银行仍拒绝", async () => {
+    const reviewBuyer = await buyer(),
+      reviewOrder = await order(reviewBuyer),
+      reviewProof = await proof(reviewBuyer, reviewOrder),
+      reviewId = reviewProof.latestTransferProof!.transferProofId;
     await approveConfig("controls", {
       adminCreateOrder: false,
       wechatSingleLimitFen: 0,
@@ -707,20 +707,36 @@ describe("对公付款真实 API 链", { timeout: 90_000 }, () => {
       receiptSecondReviewFen: 1,
       shippingReport: false,
     });
-    await error(
-      await post(`/admin/transfer-proofs/${id}/confirm`, confirm(o), finance.headers),
-      409,
-      "STATE_NOT_ALLOWED",
-    );
-    expect(await db.paymentTxn.count({ where: { billingOrderId: o.paymentOrderId } })).toBe(0);
-    expect(await getProof(id)).toMatchObject({ reviewStatus: "pending", lockVersion: 0 });
-    await approveConfig("controls", {
-      adminCreateOrder: false,
-      wechatSingleLimitFen: 0,
-      wechatDailyLimitFen: 0,
-      receiptSecondReviewFen: null,
-      shippingReport: false,
-    });
+    try {
+      expect(
+        await data(
+          await post(
+            `/admin/transfer-proofs/${reviewId}/confirm`,
+            confirm(reviewOrder),
+            finance.headers,
+          ),
+        ),
+      ).toMatchObject({ outcome: "review_pending", reviewStatus: "pending", lockVersion: 1 });
+      expect(
+        await db.paymentTxn.count({ where: { billingOrderId: reviewOrder.paymentOrderId } }),
+      ).toBe(0);
+      expect(await getProof(reviewId)).toMatchObject({ reviewStatus: "pending", lockVersion: 1 });
+      expect(
+        await db.billingOrder.findUniqueOrThrow({ where: { id: reviewOrder.paymentOrderId } }),
+      ).toMatchObject({ status: "pending_confirmation", transferState: "confirm_review" });
+    } finally {
+      await approveConfig("controls", {
+        adminCreateOrder: false,
+        wechatSingleLimitFen: 0,
+        wechatDailyLimitFen: 0,
+        receiptSecondReviewFen: null,
+        shippingReport: false,
+      });
+    }
+    const b = await buyer(),
+      o = await order(b),
+      p = await proof(b, o),
+      id = p.latestTransferProof!.transferProofId;
     const now = api.clock.now();
     for (const [code, name] of [
       ["W111B_A", "测试甲银行"],

@@ -56,7 +56,7 @@ it("备份未知长度源只读一次，分块串行背压并核最终HEAD、实
   });
   expect([opened, closed]).toEqual([1, 1]);
   expect(parts.map((part) => part.length)).toEqual([BACKUP_PART_BYTES, 2]);
-  expect(parts[0]).toEqual(new Uint8Array(BACKUP_PART_BYTES).fill(7));
+  expect(Buffer.compare(parts[0]!, new Uint8Array(BACKUP_PART_BYTES).fill(7))).toBe(0);
   expect(parts[1]).toEqual(tail);
   expect(wire.complete.mock.calls[0]?.[0].parts).toEqual([
     { partNumber: 1, etag: '"part-1"' },

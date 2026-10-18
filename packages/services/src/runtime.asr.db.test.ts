@@ -136,9 +136,19 @@ describe("API真实ASR工厂与本实例所有权", { timeout: SLOW }, () => {
       expect(fetch).not.toHaveBeenCalled();
     },
   );
-  it("默认不配置ASR无需生命周期口，LLM配置也不由API消费", async () => {
+  it("默认不配置ASR和LLM无需生命周期口", async () => {
     const { runtime, models } = await build(
       { modelDrivers: undefined },
+      { ASR_TENCENT: undefined },
+    );
+    expect(runtime.providers.asr.status).toBe("unconfigured");
+    expect(runtime.providers.llm.status).toBe("unconfigured");
+    expect(models.registerClose).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("仅配置LLM由API消费并登记本实例关闭，不开启ASR", async () => {
+    const { runtime, models } = await build(
+      {},
       {
         ASR_TENCENT: undefined,
         LLM_DOMESTIC: {
@@ -148,14 +158,19 @@ describe("API真实ASR工厂与本实例所有权", { timeout: SLOW }, () => {
           },
           vision: {
             primary: { vendor: "ark", model: "public-vision", apiKey: "PUBLIC_VISION" },
-            backup: { vendor: "bailian", model: "public-image", apiKey: "PUBLIC_IMAGE" },
+            backup: {
+              vendor: "bailian",
+              model: "public-image",
+              apiKey: "PUBLIC_IMAGE",
+              workspaceId: "public-workspace",
+            },
           },
         },
       },
     );
     expect(runtime.providers.asr.status).toBe("unconfigured");
-    expect(runtime.providers.llm.status).toBe("unconfigured");
-    expect(models.registerClose).not.toHaveBeenCalled();
+    expect(runtime.providers.llm.status).toBe("domestic-llm");
+    expect(models.registerClose).toHaveBeenCalledOnce();
     expect(fetch).not.toHaveBeenCalled();
   });
   it.each(["missing", "register", "close"] as const)(

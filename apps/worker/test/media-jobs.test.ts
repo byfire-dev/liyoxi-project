@@ -256,6 +256,9 @@ describe("W303真实worker媒体装配与恢复", () => {
 });
 
 it("W306真实worker绑定10分钟清扫：过期、每日一次、取消零写与关闭隔离", async () => {
+  // 本例会把时钟从默认一月拨到十月，不能把前例的无引用文件变成本例清除候选。
+  await handle.reset();
+  prisma = await handle.prisma();
   clock.set(new Date("2026-10-14T20:10:00.000Z"));
   const fake = createFakeProviders({ clock });
   const ownedDatabase = connectWorkerDatabase(await handle.url());
