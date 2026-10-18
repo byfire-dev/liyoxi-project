@@ -24,6 +24,8 @@ import { createEvents } from "../../events/index.js";
 import { createFlow } from "../../flow/index.js";
 import { createTimers } from "../../timers/index.js";
 import { createSla } from "../../sla/index.js";
+import { createMedia } from "../../media/index.js";
+import { createMediaAssembly } from "../media-runtime.js";
 import { createStaffAssembly } from "../../staff/index.js";
 import { createInvitationExpiry, createTenant } from "../../tenant/index.js";
 import { createApproval } from "../../approval/index.js";
@@ -114,11 +116,20 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
   const invitationScope = createInvitationAssembly(staffScope.assembly);
   const profileScope = createProfileConsistencyAssembly(invitationScope.assembly);
   let profileCommits: ReturnType<typeof createProfileConsistencyTransactions>;
-  const assembly = profileScope.assembly;
+  const mediaScope = createMediaAssembly(profileScope.assembly);
+  const assembly = mediaScope.assembly;
   beforeAll(async () => {
     const config = createConfig({ db: prisma, clock, redis: null });
     const events = createEvents({ tx, clock, assembly });
     const flow = createFlow({ assembly, clock, events });
+    const media = createMedia({
+      tx,
+      clock,
+      assembly,
+      events,
+      storage: createFakeProviders({ clock }).storage,
+    });
+    mediaScope.attach(media.jobs, media.retention);
     profileCommits = createProfileConsistencyTransactions(tx, () => {});
     profileScope.attach(
       createProfileQualificationConsistency({
@@ -175,6 +186,7 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
     });
   });
   afterAll(async () => {
+    mediaScope.close();
     await profileScope.close();
     invitationScope.close();
     return Promise.all([staffScope.close(), notifyScope.close()]);
