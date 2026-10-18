@@ -1,0 +1,39 @@
+# 仅由固定选择器显式启用；loadEnv 要求小程序与消息接收地址的四项完整成组。
+services:
+  api:
+    environment:
+      WECHAT_APPID: ${WECHAT_APPID:?}
+      WECHAT_SECRET_FILE: /run/secrets/wechat-secret
+      WECHAT_MESSAGE_TOKEN_FILE: /run/secrets/wechat-message-token
+      WECHAT_MESSAGE_AES_KEY_FILE: /run/secrets/wechat-message-aes-key
+    secrets:
+      - wechat-secret
+      - wechat-message-token
+      - wechat-message-aes-key
+  worker:
+    environment:
+      WECHAT_APPID: ${WECHAT_APPID:?}
+      WECHAT_SECRET_FILE: /run/secrets/wechat-secret
+      WECHAT_MESSAGE_TOKEN_FILE: /run/secrets/wechat-message-token
+      WECHAT_MESSAGE_AES_KEY_FILE: /run/secrets/wechat-message-aes-key
+    secrets:
+      - wechat-secret
+      - wechat-message-token
+      - wechat-message-aes-key
+  check-env:
+    environment:
+      WECHAT_APPID: ${WECHAT_APPID:?}
+      WECHAT_SECRET_FILE: /run/secrets/wechat-secret
+      WECHAT_MESSAGE_TOKEN_FILE: /run/secrets/wechat-message-token
+      WECHAT_MESSAGE_AES_KEY_FILE: /run/secrets/wechat-message-aes-key
+    secrets:
+      - wechat-secret
+      - wechat-message-token
+      - wechat-message-aes-key
+secrets:
+  wechat-secret:
+    file: ${LYX_SECRETS_DIR:?}/wechat-secret
+  wechat-message-token:
+    file: ${LYX_SECRETS_DIR:?}/wechat-message-token
+  wechat-message-aes-key:
+    file: ${LYX_SECRETS_DIR:?}/wechat-message-aes-key

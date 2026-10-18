@@ -10,7 +10,7 @@
 LYX_NODE_PROVIDERS=asr ocr
 ```
 
-可选名字为 `cos ci asr asr-callback ocr mail llm media-production client-errors alerts server-errors`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
+可选名字为 `cos ci asr asr-callback ocr mail llm media-production client-errors alerts server-errors wechat`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
 
 选择顺序是进程环境、节点 `node.env`、仓库 `stg.env`。进程环境显式为空会关闭本次调用的所有可选能力；永久启用必须写在节点 `node.env`，确保 systemd 重启时仍使用同一配置。删除某一名字后，后续重建容器不再挂载该组；修改配置本身不会重建已经运行的容器，需按现有发布步骤生效。
 
@@ -35,8 +35,24 @@ LYX_NODE_PROVIDERS=asr ocr
 | `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
 | `alerts` | `alerts.json` → `ALERTS_FILE` | worker |
 | `server-errors` | `server-errors.json` → `SERVER_ERRORS_FILE` | API、worker |
+| `wechat` | `wechat-secret` → `WECHAT_SECRET_FILE`；`wechat-message-token` → `WECHAT_MESSAGE_TOKEN_FILE`；`wechat-message-aes-key` → `WECHAT_MESSAGE_AES_KEY_FILE` | API、worker |
 
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
+
+### 微信小程序与唯一消息接收地址
+
+仅在明确启用微信时，在节点 `node.env` 的原有选择列表加入 `wechat`，并单独填写非敏感的 `WECHAT_APPID`。例如以下仅展示占位结构，不可用作真实验收：
+
+```dotenv
+LYX_NODE_PROVIDERS=wechat
+WECHAT_APPID=replace-with-authorized-appid
+```
+
+业主另将三份原始 UTF8 文件写入密钥目录：`wechat-secret` 为 AppSecret（1–256 个可见 ASCII 字符），`wechat-message-token` 为唯一消息接收地址的 Token（1–128 个可见 ASCII 字符），`wechat-message-aes-key` 为 EncodingAESKey（规范的 43 字符 base64，解码后 32 字节）。文件权限与属主遵循上文，不将内容写入 `node.env`、argv 或日志；末尾换行由现有解析器处理。
+
+选中后 Compose 要求非空 `WECHAT_APPID`，密钥检查要求三个文件齐备；发布的 `check-env` 再用既有 `loadEnv` 离线验证完整四项与格式。API 用于登录换取和唯一消息回调，worker 用于微信令牌及异步能力；两者共用同一个完整成组解析，因此三份文件均交给这两个进程和 `check-env`，不交给其他容器。基础配置不透传这些键；未选择 `wechat` 时，即使节点已有文件或 APPID 也不挂载、不自动启用。
+
+本接线不含微信支付配置，不更改登录、隐私、回调验签或消息路由规则。配置齐备与离线检查通过不代表已验证真实微信请求、平台唯一回调配置、体验成员、隐私声明或真机登录；这些仍按 V19/V03 和预发台账单独验收。
 
 OCR 的 API 角色用于同步证照识别，worker 角色用于 W4-04 的异步银行回单识别；只有明确选中 `ocr` 才挂载同一份可选配置。该接线依赖回单 OCR 运行时前置，不代表云端权限、识别准确率或预发部署已经验证。
 

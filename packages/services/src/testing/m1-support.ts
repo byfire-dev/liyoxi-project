@@ -434,6 +434,15 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         assertOwned();
         return readM1State(readDb, ids);
       },
+      async readStaffTotpStep(staffId) {
+        assertOwned();
+        const row = await readDb.staff.findUniqueOrThrow({
+          where: { id: staffId },
+          select: { totpLastStep: true },
+        });
+        assertOwned();
+        return row.totpLastStep;
+      },
       ...transport,
       promote,
       ...(attach && !observer ? { completeWithPromote } : {}),

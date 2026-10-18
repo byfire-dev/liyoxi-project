@@ -114,7 +114,13 @@ export async function loginM1Staff(
     }),
     "已初始化员工登录",
   );
-  if (api.waitForNextMfaStep) await api.waitForNextMfaStep();
+  if (api.waitUntil) {
+    // 前一轮主链通常已跨步。只等待实际已消费的步，避免读冒烟先空等近 30 秒。
+    // 不试错登录、不预用未来码、不修改 totp_last_step；生产校验仍拒绝重放。
+    const lastStep = await api.support.readStaffTotpStep(input.staffId);
+    if (lastStep !== null && staff.totpStep(api.support.clock.now()) <= lastStep)
+      await api.waitUntil(new Date((lastStep + 1) * 30_000));
+  } else if (api.waitForNextMfaStep) await api.waitForNextMfaStep();
   else api.support.clock.advance(30_000);
   const verified = await api.request("/api/v1/admin/auth/verify-mfa", {
     method: "POST",
