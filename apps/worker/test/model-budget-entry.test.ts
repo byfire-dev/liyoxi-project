@@ -12,7 +12,12 @@ const ports = vi.hoisted(() => {
       disconnect: ReturnType<typeof vi.fn>;
     }>,
     logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    database: { prisma: {}, close: vi.fn(async () => undefined) },
+    database: {
+      prisma: {},
+      sessionMutex: { close: vi.fn(async () => undefined) },
+      close: vi.fn(async () => undefined),
+    },
+    probeDatabase: { prisma: {}, close: vi.fn(async () => undefined) },
     channel: { close: vi.fn(async () => undefined) },
     lease: { holder: "公开虚构worker", close: vi.fn(async () => undefined) },
     runtime: { start: vi.fn(), stop: vi.fn<() => Promise<void>>(async () => undefined) },
@@ -49,16 +54,21 @@ vi.mock("@liyoxi/services", () => ({
   }),
   assembleServices: () => ({ modules: [], subscribers: [], timerHandlers: [] }),
   connectWorkerDatabase: () => ports.database,
+  connectProbeDatabase: () => ports.probeDatabase,
   createQueueChannel: () => ports.channel,
   createWorkerLease: () => ports.lease,
   buildWorkerServices: ports.build,
   bullPrefix: () => "lyx:test:bull",
   setPortLogger: vi.fn(),
   EnvError: class EnvError extends Error {},
+  drainServerErrors: vi.fn(async () => undefined),
 }));
 vi.mock("../src/log.js", () => ({ createLogger: () => ports.logger }));
 vi.mock("../src/recurring.js", () => ({ recurringTable: () => [] }));
-vi.mock("../src/runtime.js", () => ({ createWorkerRuntime: ports.createRuntime }));
+vi.mock("../src/runtime.js", () => ({
+  createWorkerRuntime: ports.createRuntime,
+  QUEUE_CONCURRENCY: { outbox_delivery: 4, timer_run: 4, media_job: 10, promote: 2, notify: 4 },
+}));
 import { main } from "../src/index.js";
 
 let services: Record<string, ReturnType<typeof vi.fn> | null>;
@@ -105,6 +115,12 @@ function budgetTransport() {
 async function stopped() {
   signals.get("SIGTERM")!();
   await vi.waitFor(() => expect(exit).toHaveBeenCalledOnce());
+  expectDatabaseCleanup(true);
+}
+function expectDatabaseCleanup(probe: boolean) {
+  expect(ports.database.sessionMutex.close).toHaveBeenCalledOnce();
+  expect(ports.database.close).toHaveBeenCalledOnce();
+  expect(ports.probeDatabase.close).toHaveBeenCalledTimes(probe ? 1 : 0);
 }
 
 describe("真实worker main入口，外部连接替身", () => {
@@ -115,7 +131,7 @@ describe("真实worker main入口，外部连接替身", () => {
     expect(services.selfCheck).toHaveBeenCalledOnce();
     expect(services.closeModelBudget).toHaveBeenCalledOnce();
     expect(services.closeAlertFacts).toHaveBeenCalledOnce();
-    expect(ports.database.close).toHaveBeenCalledOnce();
+    expectDatabaseCleanup(false);
     expect(ports.createRuntime).not.toHaveBeenCalled();
     expect(exit).not.toHaveBeenCalled();
   });
@@ -126,7 +142,7 @@ describe("真实worker main入口，外部连接替身", () => {
     await expect(main(["--check"])).rejects.toBe(failure);
     expect(ports.clients).toHaveLength(0);
     expect(services.closeAlertFacts).toHaveBeenCalledOnce();
-    expect(ports.database.close).toHaveBeenCalledOnce();
+    expectDatabaseCleanup(false);
   });
 
   it("正常入口只构造专用lazy连接，不使用queue连接或重复keyPrefix", async () => {
@@ -190,7 +206,7 @@ describe("真实worker main入口，外部连接替身", () => {
       release();
       await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
       expect(client.quit).toHaveBeenCalledOnce();
-      expect(ports.database.close).toHaveBeenCalledOnce();
+      expectDatabaseCleanup(true);
     } finally {
       release();
     }
@@ -218,7 +234,7 @@ describe("真实worker main入口，外部连接替身", () => {
       const client = ports.clients[0]!;
       expect(client.disconnect).toHaveBeenCalledOnce();
       expect(ports.channel.close).toHaveBeenCalledOnce();
-      expect(ports.database.close).toHaveBeenCalledOnce();
+      expectDatabaseCleanup(true);
       if (where !== "build") {
         expect(services.closeModelBudget).toHaveBeenCalledOnce();
         expect(services.closeAlertFacts).toHaveBeenCalledOnce();
@@ -244,7 +260,7 @@ describe("真实worker main入口，外部连接替身", () => {
       expect(client.disconnect).toHaveBeenCalledOnce();
       expect(ports.channel.close).toHaveBeenCalledOnce();
       expect(ports.lease.close).toHaveBeenCalledOnce();
-      expect(ports.database.close).toHaveBeenCalledOnce();
+      expectDatabaseCleanup(true);
       if (stopFails)
         expect(ports.logger.error).toHaveBeenCalledWith({ err: failure }, "任务关停失败");
     },

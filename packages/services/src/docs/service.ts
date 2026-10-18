@@ -38,6 +38,12 @@ export interface DocsDeps {
   readonly clock: Clock;
   /** 仅TX外现签；未配置真实能力时受控失败，不返回占位地址。 */
   readonly signPdf?: (input: { fileId: string }) => Promise<AgreementVersionDetail["pdf"]>;
+  /** 同一只读事务内由上层绑定 billing 的主体批量读口；默认保持安全 null。 */
+  readonly describePaymentOrders?: (
+    tx: Tx,
+    entityId: string,
+    orderNos: readonly string[],
+  ) => Promise<readonly { orderNo: string; title: string }[]>;
 }
 
 /** 重新同意（m.agreementConsent.create）的入参：场景固定 reconsent、方式固定勾选 */
@@ -84,6 +90,7 @@ export interface Docs {
 export function createDocs(deps: DocsDeps): Docs {
   const now = (): Date => deps.clock.now();
   const read = <T>(fn: (tx: Tx) => Promise<T>): Promise<T> => deps.tx.run(fn);
+  const describeOrders = deps.describePaymentOrders;
   return {
     listAgreements: (query) => read((tx) => listAgreements(tx, now(), query)),
     getAgreementVersion: async (id) => {
@@ -106,7 +113,17 @@ export function createDocs(deps: DocsDeps): Docs {
         return { consents: result.consents, pendingConsents: result.pendingConsents };
       }, options),
     listSignedAgreements: (viewer, query) =>
-      read((tx) => listSignedAgreements(tx, now(), viewer, query)),
+      read((tx) =>
+        listSignedAgreements(
+          tx,
+          now(),
+          viewer,
+          query,
+          describeOrders
+            ? (entityId, orderNos) => describeOrders(tx, entityId, orderNos)
+            : undefined,
+        ),
+      ),
     countSignedAgreements: (viewer, filter) =>
       read((tx) => countSignedAgreements(tx, now(), viewer, filter)),
     currentVersions: (db) => currentVersions(db, now()),

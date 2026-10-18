@@ -1,8 +1,25 @@
+import {
+  AdminInvoiceFilterSchema,
+  AdminInvoiceListQuerySchema,
+  AdminInvoiceSummarySchema,
+  InvoiceIssueBodySchema,
+  InvoiceIssueRedBodySchema,
+  InvoiceRejectBodySchema,
+  InvoiceRequestAdminDetailSchema,
+  InvoiceRequestAdminPageSchema,
+} from "./invoices.schemas.js";
+import { InvoiceRequestParamsSchema } from "../m07-billing/invoices.schemas.js";
 // 后台：套餐积分与财务 · invoice-requests（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
 
-export const adminInvoiceRequestList = adminMeta({
+export const adminInvoiceRequestList = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: AdminInvoiceListQuerySchema },
   method: "get",
   path: "/admin/invoice-requests",
   operationId: "admin.invoiceRequest.list",
@@ -11,7 +28,12 @@ export const adminInvoiceRequestList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminInvoiceRequestSummary = adminMeta({
+export const adminInvoiceRequestSummary = adminRoute({
+  responses: {
+    ...okResponse(AdminInvoiceSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: AdminInvoiceFilterSchema },
   method: "get",
   path: "/admin/invoice-requests/summary",
   operationId: "admin.invoiceRequest.summary",
@@ -20,7 +42,12 @@ export const adminInvoiceRequestSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminInvoiceRequestGet = adminMeta({
+export const adminInvoiceRequestGet = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { params: InvoiceRequestParamsSchema },
   method: "get",
   path: "/admin/invoice-requests/{invoiceRequestId}",
   operationId: "admin.invoiceRequest.get",
@@ -29,7 +56,15 @@ export const adminInvoiceRequestGet = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminInvoiceRequestIssue = adminMeta({
+export const adminInvoiceRequestIssue = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: InvoiceRequestParamsSchema,
+    body: { required: true, content: { "application/json": { schema: InvoiceIssueBodySchema } } },
+  },
   method: "post",
   path: "/admin/invoice-requests/{invoiceRequestId}/issue",
   operationId: "admin.invoiceRequest.issue",
@@ -39,7 +74,18 @@ export const adminInvoiceRequestIssue = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminInvoiceRequestIssueRed = adminMeta({
+export const adminInvoiceRequestIssueRed = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: InvoiceRequestParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvoiceIssueRedBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/invoice-requests/{invoiceRequestId}/issue-red",
   operationId: "admin.invoiceRequest.issueRed",
@@ -48,7 +94,15 @@ export const adminInvoiceRequestIssueRed = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminInvoiceRequestReject = adminMeta({
+export const adminInvoiceRequestReject = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: InvoiceRequestParamsSchema,
+    body: { required: true, content: { "application/json": { schema: InvoiceRejectBodySchema } } },
+  },
   method: "post",
   path: "/admin/invoice-requests/{invoiceRequestId}/reject",
   operationId: "admin.invoiceRequest.reject",
@@ -57,7 +111,12 @@ export const adminInvoiceRequestReject = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminInvoiceRequestResend = adminMeta({
+export const adminInvoiceRequestResend = adminRoute({
+  responses: {
+    ...okResponse(InvoiceRequestAdminDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { params: InvoiceRequestParamsSchema },
   method: "post",
   path: "/admin/invoice-requests/{invoiceRequestId}/resend",
   operationId: "admin.invoiceRequest.resend",

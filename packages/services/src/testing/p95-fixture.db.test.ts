@@ -219,7 +219,6 @@ it("P95报告：seed回调保存真实invariantRun ID，未查询历史未解决
   const fixture = await createP95Fixture({
     scale: 0.002,
     seed: 42,
-    runId: "w224rptseed",
     dataset: (dataset) => seen.push(dataset),
   });
   try {
@@ -253,7 +252,6 @@ it("P95报告：真实缓存漂移按持久化未解决code计数，重复run仍
   const fixture = await createP95Fixture({
     scale: 0.002,
     seed: 42,
-    runId: "w224rptfail",
     dataset: (dataset) => seen.push(dataset),
   });
   const { runtime } = fixture.support;

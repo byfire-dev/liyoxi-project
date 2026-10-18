@@ -201,3 +201,6 @@ previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局
 后台试算暂未挂载：现有`quotePlanPurchase`只支持首次开通，active/scheduled周期明确
 拒绝，真实续费/升级待W4-05/06公口，不以通用试算冒称完整。W4-07整包继续进行中，
 不代表M4、远端CI或真实支付验证完成。
+
+
+W4-13 当前实现发票与受控财务配置（验收中）：发票申请保存已认证抬头/重加密税号与全额快照，四个 item_name 参数未配时拒绝申请；开具/红票/退款所属公口按 order290→invoice330 串行，文件走 stored/link。财务配置仍用 finance_config_change，不同人决定、bank+24h、其它即时。电子邮件经原 notify 任务、真实附件与最新 delivery 结果回写；queued/受理 sent/未配 skipped 分开，E20 真实到达/OFD兼容未验。退款接口尚待 W4-10，既有 refundRequests 桩不整体关闭。

@@ -7211,6 +7211,259 @@
         ],
         "type": "object"
       },
+      "InvoiceDocView": {
+        "properties": {
+          "amountFen": {
+            "type": "integer"
+          },
+          "docKind": {
+            "enum": [
+              "blue",
+              "red"
+            ],
+            "type": "string"
+          },
+          "emailState": {
+            "enum": [
+              "none",
+              "queued",
+              "sent",
+              "failed",
+              "skipped"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "expressCompany": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileFormat": {
+            "enum": [
+              "pdf",
+              "ofd",
+              "xml",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasFile": {
+            "type": "boolean"
+          },
+          "invoiceCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoiceNo": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "shippedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trackingNo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "docKind",
+          "invoiceNo",
+          "invoiceCode",
+          "amountFen",
+          "issuedAt",
+          "hasFile",
+          "fileFormat",
+          "expressCompany",
+          "trackingNo",
+          "shippedAt",
+          "emailState"
+        ],
+        "type": "object"
+      },
+      "InvoiceRequestCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "amountFen": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "appliedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "docs": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceDocView"
+            },
+            "type": "array"
+          },
+          "invoiceRequestId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "invoiceType": {
+            "enum": [
+              "normal",
+              "special"
+            ],
+            "type": "string"
+          },
+          "isHeldByRefund": {
+            "type": "boolean"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "mailToMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "medium": {
+            "enum": [
+              "electronic",
+              "paper"
+            ],
+            "type": "string"
+          },
+          "paymentOrderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "paymentOrderNo": {
+            "type": "string"
+          },
+          "paymentOrderTitle": {
+            "type": "string"
+          },
+          "progressNote": {
+            "type": "string"
+          },
+          "recvEmailMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reject": {
+            "anyOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "manual",
+                      "order_refunded"
+                    ],
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rejectedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason",
+                  "note",
+                  "rejectedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requestNo": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "issued",
+              "rejected",
+              "red_pending",
+              "red_issued"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "taxNoMask": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoiceRequestId",
+          "requestNo",
+          "paymentOrderId",
+          "paymentOrderNo",
+          "paymentOrderTitle",
+          "invoiceType",
+          "medium",
+          "itemName",
+          "status",
+          "amountFen",
+          "title",
+          "taxNoMask",
+          "recvEmailMask",
+          "mailToMask",
+          "appliedAt",
+          "isHeldByRefund",
+          "reject",
+          "progressNote",
+          "docs",
+          "actions"
+        ],
+        "type": "object"
+      },
       "LaunchSubmissionView": {
         "additionalProperties": false,
         "properties": {
@@ -23113,6 +23366,788 @@
         "x-idempotent": "required"
       }
     },
+    "/api/v1/m/invoice-requests": {
+      "get": {
+        "operationId": "m.invoiceRequest.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paymentOrderId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2000,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/InvoiceRequestCard"
+                          },
+                          "type": "array"
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "开票记录：类型、介质、项目、状态（开票中/已开具/已驳回/红冲中/已红冲）、金额、申请单号、付款单号、申请与开具时间、发票号码、进度说明",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      },
+      "post": {
+        "operationId": "m.invoiceRequest.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "addrTel": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "bankAccount": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "invoiceType": {
+                    "enum": [
+                      "normal",
+                      "special"
+                    ],
+                    "type": "string"
+                  },
+                  "mailTo": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "address": {
+                        "maxLength": 120,
+                        "minLength": 5,
+                        "type": "string"
+                      },
+                      "phone": {
+                        "pattern": "^(?:1\\d{10}|0\\d{2,3}-?\\d{7,8})$",
+                        "type": "string"
+                      },
+                      "phoneSource": {
+                        "enum": [
+                          "login",
+                          "store_contact",
+                          "input"
+                        ],
+                        "type": "string"
+                      },
+                      "recipientName": {
+                        "maxLength": 20,
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "recipientName",
+                      "phoneSource",
+                      "address"
+                    ],
+                    "type": "object"
+                  },
+                  "medium": {
+                    "enum": [
+                      "electronic",
+                      "paper"
+                    ],
+                    "type": "string"
+                  },
+                  "paymentOrderId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "recvEmail": {
+                    "format": "email",
+                    "maxLength": 100,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "paymentOrderId",
+                  "invoiceType",
+                  "medium"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/InvoiceRequestCard"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "按付款单申请开票：{paymentOrderId, invoiceType, medium, 专票地址电话与开户行账号, 接收邮箱, 邮寄信息（收件电话用 phoneSource）}；抬头与税号取认证主体，不接收",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "required"
+      }
+    },
+    "/api/v1/m/invoice-requests/summary": {
+      "get": {
+        "operationId": "m.invoiceRequest.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paymentOrderId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "no",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "byStatus": {
+                          "properties": {
+                            "issued": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "pending": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "red_issued": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "red_pending": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "rejected": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "pending",
+                            "issued",
+                            "rejected",
+                            "red_pending",
+                            "red_issued"
+                          ],
+                          "type": "object"
+                        },
+                        "context": {
+                          "properties": {
+                            "applyDefaults": {
+                              "properties": {
+                                "addrTel": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "address": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "contactPhoneMask": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "loginPhoneMask": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "recipientName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "recipientName",
+                                "contactPhoneMask",
+                                "loginPhoneMask",
+                                "address",
+                                "addrTel"
+                              ],
+                              "type": "object"
+                            },
+                            "invoiceTitle": {
+                              "properties": {
+                                "entityName": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "isVerified": {
+                                  "type": "boolean"
+                                },
+                                "taxNoMask": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "entityName",
+                                "taxNoMask",
+                                "isVerified"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "invoiceTitle",
+                            "applyDefaults"
+                          ],
+                          "type": "object"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "total",
+                        "byStatus",
+                        "context"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "开票页“开票记录 · N”计数、各状态计数，以及开票页上下文（抬头卡、申请弹层默认值）",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
+    "/api/v1/m/invoice-requests/{invoiceRequestId}/download-urls": {
+      "post": {
+        "operationId": "m.invoiceRequest.downloadUrls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoiceRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "docKind": {
+                    "default": "blue",
+                    "enum": [
+                      "blue",
+                      "red"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "fileFormat": {
+                          "enum": [
+                            "pdf",
+                            "ofd",
+                            "xml"
+                          ],
+                          "type": "string"
+                        },
+                        "fileName": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt",
+                        "fileFormat",
+                        "fileName"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "签发发票文件的 5 分钟读地址（请求体指明哪一张：蓝字或红字），每次写访问审计",
+        "x-auth": "member",
+        "x-capability": "invoice.*",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）"
+      }
+    },
     "/api/v1/m/launch-tasks": {
       "get": {
         "operationId": "m.launchTask.list",
@@ -25837,6 +26872,36 @@
                                       "route": {
                                         "enum": [
                                           "store.members"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "route",
+                                      "params"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "params": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "invoiceRequestId": {
+                                            "format": "uuid",
+                                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "invoiceRequestId"
+                                        ],
+                                        "type": "object"
+                                      },
+                                      "route": {
+                                        "enum": [
+                                          "invoice.detail"
                                         ],
                                         "type": "string"
                                       }

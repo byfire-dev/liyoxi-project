@@ -8,7 +8,7 @@ import {
   REFUND_REQUEST_STATUS,
 } from "@liyoxi/contract/enums";
 
-import { NO_GUARD, chain } from "./define.js";
+import { NO_GUARD, SAME, chain } from "./define.js";
 
 /** billing_order.status：docs/data-model/08-billing-payment.md */
 export const billingOrder = chain("billing_order", "status", BILLING_ORDER_STATUS, [
@@ -69,4 +69,5 @@ export const invoiceRequest = chain("invoice_request", "status", INVOICE_REQUEST
   ["08:1115", ["issued"], "invoice.request_red", ["red_pending"], NO_GUARD],
   ["08:1116", ["red_pending"], "invoice.issue_red", ["red_issued"]],
   ["08:1117", ["red_pending"], "invoice.cancel_red", ["issued"]],
+  ["08:1133", ["pending"], "sla.recalculated", SAME],
 ]);

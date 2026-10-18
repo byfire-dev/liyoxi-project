@@ -562,17 +562,89 @@ export async function profileMissingRegression(page, scene) {
         await expect(
           page.locator(".lyx-checkbox:visible").filter({ hasText: "个体工商户" }),
         ).toHaveClass(/lyx-checkbox--checked/);
-      if (advance === "submitElsewhere")
+      if (advance === "submitElsewhere") {
         await expect(
-          page.getByText("当前资料只读。审核进度与结果请到审核进度页查看", { exact: true }),
+          page.getByText("当前证照与声明只读，联系人仍可保存。审核进度与结果请到审核进度页查看", {
+            exact: true,
+          }),
         ).toBeVisible();
+        await expect(declaration(page)).toHaveCount(0);
+        await expect(button(page, "提交资质审核")).toHaveCount(0);
+        await expect(button(page, "核对并填写信息")).toHaveCount(0);
+        await expect(button(page, "从本轮移除")).toHaveCount(0);
+        await expect(page.locator(".lyx-upload-grid:visible")).toHaveCount(0);
+        for (const label of ["企业", "个体工商户"])
+          await expect(
+            page.locator(".profile-pair .lyx-checkbox:visible").filter({ hasText: label }),
+          ).toHaveClass(/lyx-checkbox--disabled/);
+        expect(await writes()).toHaveLength(count + 1);
+      }
     };
     await checkLatest();
     await page.evaluate((path) => globalThis.__LYX_PROFILE_CONTROL__.release(path), path);
     await expect(page.locator(".lyx-button--loading:visible")).toHaveCount(0);
     await checkLatest();
-    if (advance === "submitElsewhere") await expect(button(page, "提交资质审核")).toHaveCount(0);
-    else {
+    if (advance === "submitElsewhere") {
+      // 联系人独立于在审轮次；旧声明回包不能恢复证照写入口，保存联系人也不改审核快照。
+      const beforeContact = await page.evaluate(() => ({
+        state: globalThis.__LYX_PROFILE_CONTROL__.qualificationState(),
+        calls: globalThis.__LYX_PROFILE_CALLS__.length,
+      }));
+      expect(beforeContact.state.storeQualificationStatus).toBe("pending");
+      expect(beforeContact.state.openRound.phase).toBe("in_review");
+      expect(beforeContact.state.openRound.contactSnapshot).toEqual({
+        name: beforeContact.state.contact.name,
+        phoneMask: beforeContact.state.contact.phoneMask,
+        phoneVerifyState: beforeContact.state.contact.phoneVerifyState,
+      });
+      await expect(field(page, "联系人姓名")).toBeEnabled();
+      await field(page, "联系人姓名").fill("审核中更新联系人");
+      const save = button(page, "保存联系人");
+      await expect(save).not.toHaveClass(/lyx-button--disabled/);
+      await save.click();
+      await expect(save).not.toHaveClass(/lyx-button--loading/);
+      await expect(field(page, "联系人姓名")).toHaveValue("审核中更新联系人");
+      await expect
+        .poll(() =>
+          page.evaluate(
+            (from) =>
+              globalThis.__LYX_PROFILE_CALLS__
+                .slice(from)
+                .some(
+                  (call) => call.path === "/m/store-profile/qualification" && call.method === "GET",
+                ),
+            beforeContact.calls,
+          ),
+        )
+        .toBe(true);
+      await profilePageReady(page, "cert");
+      const afterContact = await page.evaluate(
+        (from) => ({
+          state: globalThis.__LYX_PROFILE_CONTROL__.qualificationState(),
+          calls: globalThis.__LYX_PROFILE_CALLS__.slice(from),
+        }),
+        beforeContact.calls,
+      );
+      expect(afterContact.calls.filter((call) => call.method !== "GET")).toEqual([
+        {
+          path: "/m/store-profile/contact",
+          method: "PATCH",
+          data: {
+            lockVersion: beforeContact.state.contact.lockVersion,
+            name: "审核中更新联系人",
+            phoneSource: "login",
+          },
+          idempotencyKey: expect.any(String),
+        },
+      ]);
+      expect(afterContact.calls.some((call) => call.path === path && call.method === "GET")).toBe(
+        true,
+      );
+      expect(afterContact.state.contact.name).toBe("审核中更新联系人");
+      expect(afterContact.state.openRound).toEqual(beforeContact.state.openRound);
+      expect(afterContact.state.storeQualificationStatus).toBe("pending");
+      await checkLatest();
+    } else {
       await expect(declaration(page)).not.toHaveClass(/lyx-checkbox--checked/);
       await expect(button(page, "提交资质审核")).toHaveClass(/lyx-button--disabled/);
     }

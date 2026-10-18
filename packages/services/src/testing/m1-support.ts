@@ -32,7 +32,8 @@ import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
-import { m1WorkerObserver } from "./m1-observe.js";
+import { m1WorkerObserver, waitM1Worker } from "./m1-observe.js";
+import { completeWithQueuedPromote } from "./m1-upload.js";
 import { M1_LOCAL_WECHAT } from "./m1-wechat.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
 import {
@@ -309,6 +310,76 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       observer ??
       m1Transport(jobRuntime, assertOwned, startedAt, attach ? { realTime: true } : undefined);
     const video = await m1Video();
+    const runPromote: M1Support["promote"] = async (fileId) => {
+      assertOwned();
+      if (observer) return observer.promote(fileId);
+      const job = await apiRuntime.tx.run((tx) =>
+        tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${fileId}` } }),
+      );
+      if (
+        job.subjectId !== fileId ||
+        job.subjectType !== "file_object" ||
+        job.kind !== "promote" ||
+        job.state !== "queued"
+      )
+        throw new Error("M1 文件缺本轮待执行 promote");
+      await jobRuntime.media.promote({ jobId: job.id });
+      const file = await readDb.fileObject.findUniqueOrThrow({ where: { id: fileId } });
+      const bucket = file.bucket;
+      if (bucket !== "secure" && bucket !== "asset" && bucket !== "media" && bucket !== "pub")
+        throw new Error("M1 文件桶不合法");
+      const exists = httpStorage
+        ? await httpStorage.storage.head({ bucket, key: file.objectKey })
+        : null;
+      if (
+        file.status !== "stored" ||
+        (httpStorage
+          ? !exists?.ok || !exists.value.exists
+          : !providers.storage.objects.has(`${file.bucket}/${file.objectKey}`))
+      )
+        throw new Error("M1 文件实际入库未完成");
+    };
+    const promotions = new Map<string, Promise<void>>();
+    const promote: M1Support["promote"] = (fileId) => {
+      if (!attach || observer) return runPromote(fileId);
+      assertOwned();
+      const existing = promotions.get(fileId);
+      if (existing) return existing;
+      const pending = runPromote(fileId);
+      promotions.set(fileId, pending);
+      return pending;
+    };
+    const completeWithPromote = <T>(fileId: string, complete: () => Promise<T>): Promise<T> => {
+      assertOwned();
+      return completeWithQueuedPromote({
+        complete,
+        promote: async (signal) => {
+          await waitM1Worker(
+            async () => {
+              const job = await apiRuntime.tx.run((tx) =>
+                tx.mediaJob.findUnique({ where: { dedupeKey: `promote:${fileId}` } }),
+              );
+              if (promotions.has(fileId)) return fileId;
+              if (!job) return null;
+              if (
+                job.subjectId !== fileId ||
+                job.subjectType !== "file_object" ||
+                job.kind !== "promote" ||
+                job.state !== "queued"
+              )
+                throw new Error("M1 complete 未提供本轮 queued promote");
+              return job.id;
+            },
+            assertOwned,
+            signal,
+          );
+          signal.throwIfAborted();
+          await promote(fileId);
+        },
+        cancel: () => jobRuntime.media.jobs.pause(),
+        signal: options.signal,
+      });
+    };
     return {
       runId,
       databaseName,
@@ -363,39 +434,18 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         assertOwned();
         return readM1State(readDb, ids);
       },
-      ...transport,
-      async promote(fileId) {
+      async readStaffTotpStep(staffId) {
         assertOwned();
-        if (observer) return observer.promote(fileId);
-        const job = await apiRuntime.tx.run((tx) =>
-          tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey: `promote:${fileId}` } }),
-        );
-        if (
-          job.subjectId !== fileId ||
-          job.subjectType !== "file_object" ||
-          job.kind !== "promote" ||
-          job.state !== "queued"
-        )
-          throw new Error("M1 文件缺本轮待执行 promote");
-        await jobRuntime.media.promote({ jobId: job.id });
-        const file = await readDb.fileObject.findUniqueOrThrow({ where: { id: fileId } });
-        const bucket = file.bucket;
-        if (bucket !== "secure" && bucket !== "asset" && bucket !== "media" && bucket !== "pub")
-          throw new Error("M1 文件桶不合法");
-        const exists = httpStorage
-          ? await httpStorage.storage.head({
-              bucket,
-              key: file.objectKey,
-            })
-          : null;
-        if (
-          file.status !== "stored" ||
-          (httpStorage
-            ? !exists?.ok || !exists.value.exists
-            : !providers.storage.objects.has(`${file.bucket}/${file.objectKey}`))
-        )
-          throw new Error("M1 文件实际入库未完成");
+        const row = await readDb.staff.findUniqueOrThrow({
+          where: { id: staffId },
+          select: { totpLastStep: true },
+        });
+        assertOwned();
+        return row.totpLastStep;
       },
+      ...transport,
+      promote,
+      ...(attach && !observer ? { completeWithPromote } : {}),
       installKnownMedia(fileId, scope) {
         assertOwned();
         if (attach) throw new Error("M1 HTTP 模式不接手手填技术事实");

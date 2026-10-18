@@ -236,7 +236,7 @@ export async function quote(
       })),
     ),
     ads: [],
-    earliestLaunchDate: await earliestLaunch(tx, at),
+    earliestLaunchDate: await earliestLaunch(tx, deps, at),
     agreement: {
       agreementKey: "custom_license",
       name: (await tx.agreement.findUniqueOrThrow({ where: { key: "custom_license" } })).name,

@@ -9,6 +9,18 @@
 import { bool, enumOf, int, intList, json, slaPolicy, timeHm } from "./define.js";
 import type { ParamDef } from "./define.js";
 
+// 项目名由财务显式配置；未配置不猜税务名称，不发起开票申请。
+function invoiceItem<const K extends string>(key: K): ParamDef<K, string, null> {
+  return {
+    key,
+    type: "text",
+    label: "开票项目名称",
+    unit: null,
+    default: null,
+    snapshotOn: "create",
+    maxLength: 100,
+  };
+}
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const isPositiveInt = (value: unknown): value is number =>
@@ -351,6 +363,10 @@ export const PARAM_DEFS = [
   }),
   bool("refund.points.auto_approve_before_production", "开工前取消免审批", { default: false }),
   bool("refund.require_distinct_executor", "退款执行人不得是审批人", { default: false }),
+  invoiceItem("invoice.item_name.plan_new"),
+  invoiceItem("invoice.item_name.plan_renew"),
+  invoiceItem("invoice.item_name.plan_upgrade"),
+  invoiceItem("invoice.item_name.topup"),
   int("invoice.apply_within_days", "开票申请时限", {
     default: null,
     unit: "天",

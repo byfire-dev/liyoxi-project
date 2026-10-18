@@ -201,6 +201,9 @@ function chainEvidence(result) {
     final: { order: "live", item: "live", ticket: "in_service", isLive: true },
     invariants: { checksRun: row.invariants.checksRun, errors: 0, violationsFound: 0 },
     initialization: result.initialization,
+    ...(Number.isSafeInteger(row.elapsedMs) && row.elapsedMs >= 0
+      ? { elapsedMs: row.elapsedMs }
+      : {}),
   };
 }
 function readEvidence(row) {
@@ -401,6 +404,8 @@ export async function fourSteps({
   } catch (error) {
     report.failure = error instanceof MixedFailure ? error.code : "controller";
     if (error instanceof MixedFailure && error.operationId) report.operationId = error.operationId;
+    if (error instanceof MixedFailure && error.rpcMethod)
+      report.rpc = { method: error.rpcMethod, elapsedMs: error.rpcElapsedMs };
   } finally {
     try {
       report.cleanup = await backend.cleanup();

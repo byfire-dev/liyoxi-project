@@ -1,4 +1,5 @@
 import { countActiveMerchantUsers } from "../identity/index.js";
+import { describePaymentOrders } from "../billing/index.js";
 import {
   createDocs,
   createDocsAdmin,
@@ -103,7 +104,12 @@ export function createRuntimeDocs(deps: {
     countActiveUsers: countActiveMerchantUsers,
   };
   return {
-    docs: createDocs({ tx: deps.tx, clock: deps.clock, signPdf: files.signPdf }),
+    docs: createDocs({
+      tx: deps.tx,
+      clock: deps.clock,
+      signPdf: files.signPdf,
+      describePaymentOrders,
+    }),
     admin: createDocsAdmin({
       tx: deps.tx,
       clock: deps.clock,

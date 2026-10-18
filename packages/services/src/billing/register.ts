@@ -1,3 +1,5 @@
+import { invoiceMachineBinding, invoiceMachineKey } from "./invoices/binding.js";
+import { unboundInvoiceMailResult } from "./invoices/assembly.js";
 import {
   applyPaymentFallback,
   expirePayment,
@@ -24,6 +26,10 @@ import {
   transferForNotify,
   paymentExceptionForNotify,
   renewalForNotify,
+  invoiceRequestForNotify,
+  invoiceDocForNotify,
+  invoiceParentForNotify,
+  financeConfigForNotify,
 } from "./notify-facts.js";
 import { remindersPort } from "../kernel/index.js";
 import { listTermsDueForReminder, revalidateRenewal } from "./subscription/reminders.js";
@@ -121,6 +127,39 @@ export const registration = defineRegistration("billing", {
       );
       return readSubscribePlan(tx, { purchaseMode: policy.mode });
     }),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "invoiceRequestForNotify",
+      invoiceRequestForNotify,
+    ),
+    notifyReaderImplementation(currentNotifyReadPort, "invoiceDocForNotify", invoiceDocForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "invoiceParentForNotify",
+      invoiceParentForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "financeConfigForNotify",
+      financeConfigForNotify,
+    ),
+    implementKeyed(machinePort, invoiceMachineKey, invoiceMachineBinding),
+    implementKeyed(fileRefTypePort, "invoice_doc", {
+      inUse: async (tx, fileId) =>
+        (await tx.invoiceDoc.findMany({ where: { fileId }, select: { id: true } })).map((d) => ({
+          fileId,
+          refId: d.id,
+          role: "main",
+        })),
+      roles: { main: { categories: ["invoice"], retentionDays: null } },
+      readColumns: async (tx) =>
+        (
+          await tx.invoiceDoc.findMany({
+            where: { fileId: { not: null } },
+            select: { id: true, fileId: true },
+          })
+        ).map((d) => ({ fileId: d.fileId!, refId: d.id, role: "main" })),
+    }),
     ...billingPiiFields,
     implementKeyed(approvalKindPort, "finance_config_change", financeConfigApproval),
     implementKeyed(approvalKindPort, "transfer_confirm", unboundTransferConfirm),
@@ -147,6 +186,11 @@ export const registration = defineRegistration("billing", {
     ...purchaseMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
   ],
   subscribers: [
+    {
+      name: "billing.onMailResult",
+      events: ["notify.mail_delivered", "notify.mail_failed"],
+      handle: unboundInvoiceMailResult,
+    },
     {
       name: "billing.onOcrCompleted",
       events: ["media.ocr.completed"],

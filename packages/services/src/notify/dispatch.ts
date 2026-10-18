@@ -4,7 +4,7 @@ import {
   eventPayloadSchema,
   EVENT_PAYLOAD_SCHEMAS,
 } from "@liyoxi/contract";
-import { createConfig } from "../config/index.js";
+import { createConfig, paramsAt } from "../config/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
 import { notifyReadOf, remindersOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
@@ -153,7 +153,7 @@ export async function currentNotificationFact(
   // 已发出的旧SLA事件可能晚于日历修正才消费，必须按当前截止复核。
   if (
     spec.sceneKey === "s.finance_overdue" &&
-    (fact.bizType !== "transfer_proof" ||
+    (!["transfer_proof", "invoice_request"].includes(fact.bizType) ||
       fact.status !== "pending" ||
       !fact.occurredAt ||
       new Date(fact.occurredAt) > deps.clock.now())
@@ -164,6 +164,18 @@ export async function currentNotificationFact(
       (await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
         roleKey: "finance",
       })) ?? [];
+  if (spec.sceneKey === "s.finance_config")
+    fact.staffIds = [
+      ...new Set(
+        (
+          await Promise.all(
+            ["finance", "super_admin"].map((roleKey) =>
+              notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", { roleKey }),
+            ),
+          )
+        ).flatMap((ids) => ids ?? []),
+      ),
+    ];
   if (spec.sceneKey === "s.work_ticket_assigned" && !fact.staffIds?.length)
     fact.staffIds =
       (await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
@@ -288,8 +300,10 @@ export async function dispatchFact(
       })) ?? [];
   }
   const now = deps.clock.now();
-  const start = await deps.params.get("notify.window.start");
-  const end = await deps.params.get("notify.window.end");
+  // A subscriber already owns this transaction; a cold global Params cache needs another connection.
+  const window = await paramsAt(tx, ["notify.window.start", "notify.window.end"], now);
+  const start = window["notify.window.start"];
+  const end = window["notify.window.end"];
   let made = 0;
   for (const recipient of recipients) {
     const entityId = recipient.entityId;
@@ -370,6 +384,21 @@ export async function dispatchFact(
         source.event?.type === "merchant_user.phone_changed")
     )
       continue;
+    if (
+      spec.sceneKey === "m.invoice_issued" &&
+      fact.bizType === "invoice_doc" &&
+      fact.detail === "email" &&
+      !(await tx.notificationDelivery.count({
+        where: { channel: "mail", notification: { bizType: "invoice_doc", bizId: fact.bizId } },
+      }))
+    )
+      await addDelivery(tx, {
+        notificationId: id,
+        channel: "mail",
+        now,
+        dueAt: notificationDueAt(now, id, cfg.sendWindow === "window", start, end),
+      });
+    if (spec.sceneKey === "m.invoice_issued") continue;
     const wx =
       cfg.wxTemplateSlotKey !== null && externalAllowed(spec.sceneKey, "wx_subscribe", mode);
     const dueAt = notificationDueAt(now, id, cfg.sendWindow === "window", start, end);
@@ -473,7 +502,9 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       throw new TypeError("成员范围事件与当前归属不符");
     if (spec.sceneKey === "m.rule_change_notice" || spec.sceneKey === "m.rule_change_withdrawn") {
       if (spec.pendingStatus && !spec.pendingStatus.includes(fact.status)) continue;
-      const batch = await deps.params.get("notify.fanout.batch");
+      const batch = (await paramsAt(tx, ["notify.fanout.batch"], deps.clock.now()))[
+        "notify.fanout.batch"
+      ];
       const recipients = await notifyReadOf(deps.assembly).read<NoticeRecipient[]>(
         tx,
         "noticeRecipientsPageForNotify",

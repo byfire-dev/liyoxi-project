@@ -11,7 +11,8 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 | `pnpm --filter @liyoxi/admin dev` | 本地开发，端口 5183。带样例页与夹具；样例接口由开发服务器自己应答，不用起 api。设了 `LYX_API_ORIGIN` 时把 `/api` 转给它 |
 | `pnpm --filter @liyoxi/admin test` | 单测（Vitest，Node 环境）。配置就在 `vite.config.ts` 里，与构建共用一份 |
 | `pnpm admin:build` | 生产构建到 `apps/admin/dist/app`，随后跑 `scripts/check-build.mjs`：文件名带内容哈希、写入了构建号、不含夹具 |
-| `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm admin:e2e` | 冒烟：带样例页构建（`dist/e2e-app`），验证外壳、陈列页与鉴权样例，随后运行独立封面上传场景。截图在 `dist/e2e-shots`，失败现场在 `dist/e2e-results` |
+| `pnpm --filter @liyoxi/admin e2e:cover` | 只验封面替换与重试、非法文件、上架校验阻断三场景；独立 Vite 夹具端口 5184，截图和失败 trace 在 `dist/e2e-results/cover-upload`，使用替身上传与保存接口 |
 | `pnpm admin:e2e:live` | 真实 API + 生产后台：独立测试库与假密钥，激活、绑定、恢复码登录与登录态复用，员工筛选分页、新增及一次性激活码；截图在 `dist/e2e-shots`，失败 trace 在 `dist/e2e-live-results` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由菜单登记表重新生成 `docs/plan/pages.md` 的后台部分 |
 

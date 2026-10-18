@@ -11,6 +11,7 @@
 | `storage/minio.ts` | 本地 MinIO 驱动（S3 兼容）。AWS SDK 只在这里引入 |
 | `sms/console.ts` | 控制台短信：旧三方法把内容打进日志；新投递/余额方法不造成功 |
 | `sms/tencent.ts`、`sms/http.ts`、`sms/sign.ts` | 腾讯云短信、10s单次HTTP、TC3签名，零新依赖 |
+| `mail/` | worker独立Tencent SES模板邮件HTTP、TC3签名/附件与取消生命周期，见[邮件README](mail/README.md) |
 | `index.ts` | 工厂 `createProviders`、生效状态汇总与启动打印 |
 | `../testing/providers/` | 十二个测试替身，一接口一文件，经 `@liyoxi/services/testing` 导出 |
 
@@ -69,6 +70,10 @@ W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带�
 W2-22 已经把短信 `SMS_SECRET_ID_FILE`、`SMS_SECRET_KEY_FILE`、`SMS_SDK_APP_ID`、`SMS_REGION` 接入唯一 `loadEnv`、`.env.example` 与 api/真实worker组合根。FILE-only、成组半配拒绝，未配保留原降级；env-example 门禁现按键集合核验，不再是早期固定6键的阻塞。短信初始化、九模板变量、保活、官方激活码偏差与外部未验见 [notify README](../notify/README.md)。短信 `unavailable` 的受理不明结果禁止自动重发；本Provider内部所有方法只请求一次。
 
 真实驱动的变量名由带来驱动的包登记，前缀按 D7 第 2.5 节（`WXPAY_*`、`COS_*`、`CI_*`、`WECOM_*`、`OCR_*`）；D7 没给前缀的用接口名大写（`SMS_*`、`MAIL_*` 等）。密钥类变量在任何环境只认 `*_FILE`；成组变量半配即启动失败（往 `kernel/env.ts` 的 `ENV_GROUPS` 里加组）。
+
+W4-13邮件前置：`MAIL_TENCENT_FILE`完整JSON只由worker装配，API不授发送driver；
+缺配保持unconfigured，SendEmail仅模板`{text}`与真实附件字节，服务商MessageId不代表邮箱到达。
+FILE/模板/附件与未验边界见[邮件README](mail/README.md)；部署角色接线/门禁伴随后继，不在驱动片修改。
 
 ## 5. 本地 MinIO
 

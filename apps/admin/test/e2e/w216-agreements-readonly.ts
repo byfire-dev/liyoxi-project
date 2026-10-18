@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { writeFileSync } from "node:fs";
 import { expect, test, type Page, type Response } from "@playwright/test";
 import type { components } from "@liyoxi/contract/types/admin";
 import { createAdminApi } from "../../src/lib/api";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
+import { ensureLiveStepUp } from "./live-step-up";
 import { api, shot, totp, write } from "./w206-helpers";
 
 // 仅真实编辑一例（含自建 context）关闭会注入空 sandbox 的 trace DOM/network 快照。
@@ -20,32 +20,9 @@ const roleBody = (role: Role) => ({
   lockVersion: role.lockVersion,
 });
 
-async function stepUpAdministrator(page: Page) {
-  const { stepUpRecoveryCode, ...context } = liveContext();
-  if (!stepUpRecoveryCode || !/^[A-Z0-9]{5}-[A-Z0-9]{5}$/.test(stepUpRecoveryCode))
-    throw new Error("本轮管理员缺少未用的再验证恢复码");
-  // 先移除交接值，失败也不重用；凭据仅经原native fetch模式，不进入Playwright追踪。
-  writeFileSync(process.env.LYX_ADMIN_LIVE_CONTEXT!, `${JSON.stringify(context)}\n`, {
-    mode: 0o600,
-  });
-  const cookies = (await page.context().cookies(context.origin))
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ");
-  const response = await fetch(`${context.origin}/api/v1/admin/auth/step-up`, {
-    method: "POST",
-    headers: {
-      Origin: context.origin,
-      "Content-Type": "application/json",
-      "X-LYX-Admin": "1",
-      Cookie: cookies,
-    },
-    body: JSON.stringify({ method: "recovery", code: stepUpRecoveryCode }),
-  });
-  expect(response.status).toBe(200);
-}
-
 // These fictional credentials travel through native fetch, outside Playwright traces/screenshots.
 async function createIdentity(page: Page, roleKey: "publisher" | "editor", index: number) {
+  await ensureLiveStepUp(page);
   const origin = liveContext().origin;
   // Same trusted-loopback source mechanism as W206; each owned identity keeps its own auth budget.
   const clientSource = `192.0.2.${216 + index}`;
@@ -217,7 +194,7 @@ export function registerAgreementPermissionsTest() {
     browser,
     page: administrator,
   }) => {
-    await stepUpAdministrator(administrator);
+    await ensureLiveStepUp(administrator, true);
     const original = await api<Role>(administrator, "/roles/publisher");
     let context: Awaited<ReturnType<typeof browser.newContext>> | undefined;
     try {

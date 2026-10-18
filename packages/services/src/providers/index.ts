@@ -25,6 +25,8 @@ import { createDomesticLlm } from "./llm/driver.js";
 import type { DomesticLlmConfig, DomesticLlmOptions } from "./llm/driver.js";
 import { createTencentOcr } from "./ocr/tencent.js";
 import type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";
+import { createTencentMail } from "./mail/tencent.js";
+import type { TencentMailConfig, TencentMailOptions } from "./mail/tencent.js";
 import { createWecomRobot } from "./wecom/robot.js";
 import type { WecomRobotConfig, WecomRobotOptions } from "./wecom/robot.js";
 import { guardProviders, PROVIDER_NAMES } from "./types.js";
@@ -64,6 +66,8 @@ export type { BackupTransport } from "./storage/backup-stream.js";
 export { createTencentAsr } from "./asr/tencent.js";
 export { createTencentOcr } from "./ocr/tencent.js";
 export type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";
+export { createTencentMail } from "./mail/tencent.js";
+export type { TencentMailConfig, TencentMailOptions } from "./mail/tencent.js";
 export { createDomesticLlm } from "./llm/driver.js";
 export type { DomesticLlmConfig, DomesticLlmOptions, LlmEndpoint } from "./llm/driver.js";
 export type { TencentAsrConfig, TencentAsrOptions } from "./asr/tencent.js";
@@ -93,6 +97,7 @@ export interface ProviderSettings {
   media?: { ci: CiConfig };
   asr?: TencentAsrConfig;
   ocr?: TencentOcrConfig;
+  mail?: TencentMailConfig;
   llm?: DomesticLlmConfig;
   sms?: {
     /** 显式选控制台短信。不写时：local、test 用控制台输出，stg、prod 为未配置 */
@@ -121,6 +126,7 @@ export interface CreateProvidersOptions {
   wechatPay?: WechatPayDriverDeps;
   asr?: TencentAsrOptions & { registerClose: (close: () => Promise<void>) => void };
   ocr?: TencentOcrOptions & { registerClose: (close: () => Promise<void>) => void };
+  mail?: TencentMailOptions & { registerClose: (close: () => Promise<void>) => void };
   llm?: DomesticLlmOptions & { registerClose: (close: () => Promise<void>) => void };
   wecomRobot?: WecomRobotOptions & { registerClose: (close: () => Promise<void>) => void };
   media?: {
@@ -273,6 +279,13 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     throw new ProviderConfigError("asr", "完整配置与自有生命周期须同时提供");
   if ((settings.ocr === undefined) !== (options.ocr === undefined))
     throw new ProviderConfigError("ocr", "完整配置与自有生命周期须同时提供");
+  if ((settings.mail === undefined) !== (options.mail === undefined))
+    throw new ProviderConfigError("mail", "邮件配置与自有生命周期须同时提供");
+  if (
+    options.mail !== undefined &&
+    (typeof options.mail.now !== "function" || typeof options.mail.registerClose !== "function")
+  )
+    throw new ProviderConfigError("mail", "邮件须提供时钟与关闭登记函数");
   if (options.ocr !== undefined && typeof options.ocr.registerClose !== "function")
     throw new ProviderConfigError("ocr", "须提供关闭登记函数");
   if (
@@ -298,7 +311,7 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     storage: selectStorage(appEnv, settings),
     media: local ? createLocalMedia() : unconfiguredProviders.media,
     esign: selectEsign(appEnv, settings, logger),
-    // wecom（除机器人）、mail（G4-B）、invoice（V1.1）：
+    // wecom（除机器人）、invoice（V1.1）：
     // 真实驱动没到之前一律未配置
   };
 
@@ -341,6 +354,11 @@ export function createProviders(options: CreateProvidersOptions): Providers {
     const driver = createTencentOcr(settings.ocr, options.ocr);
     options.ocr.registerClose(driver.close);
     chosen.ocr = driver.provider;
+  }
+  if (settings.mail !== undefined && options.mail !== undefined) {
+    const driver = createTencentMail(settings.mail, options.mail);
+    options.mail.registerClose(driver.close);
+    chosen.mail = driver.provider;
   }
   if (settings.llm !== undefined && options.llm !== undefined) {
     const driver = createDomesticLlm(settings.llm, options.llm);

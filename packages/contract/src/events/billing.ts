@@ -210,6 +210,12 @@ export const dramaPriceChangedPayload = z.strictObject({
   cause: z.enum(["revision", "tier_change", "tier_template"]),
   effectiveAt: InstantSchema,
 });
+const invoiceTransition = {
+  fromState: z.enum(["pending", "issued", "rejected", "red_pending", "red_issued"]).nullable(),
+  toState: z.enum(["pending", "issued", "rejected", "red_pending", "red_issued"]),
+  transition: z.string(),
+};
+const invoiceRef = { v: z.literal(1), invoiceRequestId: IdSchema };
 export const payloads = {
   "manual_reminder.sent": z.strictObject({
     v: z.literal(1),
@@ -234,6 +240,51 @@ export const payloads = {
       "renewal",
     ]),
     bizDate: DateSchema,
+  }),
+  "invoice.requested": z.strictObject({
+    ...invoiceRef,
+    billingOrderId: IdSchema,
+    entityId: IdSchema,
+    dueAt: InstantSchema.optional(),
+    ...invoiceTransition,
+  }),
+  "invoice.issued": z.strictObject({
+    ...invoiceRef,
+    invoiceDocId: IdSchema,
+    entityId: IdSchema,
+    medium: z.enum(["electronic", "paper"]),
+    needsEmail: z.boolean(),
+    ...invoiceTransition,
+  }),
+  "invoice.rejected": z.strictObject({
+    ...invoiceRef,
+    entityId: IdSchema,
+    rejectKind: z.enum(["manual", "order_refunded"]),
+    ...invoiceTransition,
+  }),
+  "invoice.red_requested": z.strictObject({
+    ...invoiceRef,
+    refundRequestId: IdSchema.optional(),
+    ...invoiceTransition,
+  }),
+  "invoice.red_issued": z.strictObject({
+    ...invoiceRef,
+    invoiceDocId: IdSchema,
+    ...invoiceTransition,
+  }),
+  "invoice.red_cancelled": z.strictObject({ ...invoiceRef, ...invoiceTransition }),
+  "invoice.sla_breached": z.strictObject({ ...invoiceRef, dueAt: InstantSchema }),
+  "finance_config.proposed": z.strictObject({
+    v: z.literal(1),
+    financeConfigRevisionId: IdSchema,
+    configKey: z.enum(["bank_account", "purchase_policy", "controls"]),
+    approvalRequestId: IdSchema,
+  }),
+  "finance_config.approved": z.strictObject({
+    v: z.literal(1),
+    financeConfigRevisionId: IdSchema,
+    configKey: z.enum(["bank_account", "purchase_policy", "controls"]),
+    effectiveAt: InstantSchema,
   }),
   "payment_txn.succeeded": z.strictObject({
     v: z.literal(1),

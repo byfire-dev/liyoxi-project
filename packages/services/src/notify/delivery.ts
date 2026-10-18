@@ -1,3 +1,4 @@
+import { mailSend, invoiceMailResult } from "./mail/index.js";
 import { ownerOnlyFor } from "./registry.js";
 import { assertNotInTransaction, lockRows, notifyReadOf, isUuid } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
@@ -19,6 +20,7 @@ interface Prepared {
   slot: string | null;
   acceptedAt: Date | null;
   startedAt: Date;
+  timeoutMs: number;
   send(signal: AbortSignal): Promise<NotificationProviderResult<unknown>>;
 }
 class LostClaim extends Error {}
@@ -112,6 +114,16 @@ async function anchors(tx: Tx, deps: NotifyDispatchDeps, d: Delivery, identity?:
     if (type === "delivery_release") await lockRows(tx, "delivery_release", [bizId], "share");
     if (type === "launch_task") await lockRows(tx, "launch_task", [bizId], "share");
     if (type === "sample") await lockRows(tx, "sample", [bizId], "share");
+    if (type === "invoice_doc" || type === "invoice_request") {
+      const parent = await notifyReadOf(deps.assembly).read<{
+        billingOrderId: string;
+        invoiceRequestId: string;
+      }>(tx, "invoiceParentForNotify", { type, id: bizId });
+      if (parent) {
+        await lockRows(tx, "billing_order", [parent.billingOrderId], "share");
+        await lockRows(tx, "invoice_request", [parent.invoiceRequestId], "share");
+      }
+    }
     if (type === "billing_order") await lockRows(tx, "billing_order", [bizId], "share");
     if (type === "transfer_proof") await lockRows(tx, "transfer_proof", [bizId], "share");
     if (type === "payment_exception") await lockRows(tx, "payment_exception", [bizId], "share");
@@ -119,20 +131,23 @@ async function anchors(tx: Tx, deps: NotifyDispatchDeps, d: Delivery, identity?:
     if (type === "billing_account") await lockRows(tx, "billing_account", [bizId], "share");
   }
   // The fallback template is acquired before the primary delivery, never during fallback after it.
-  const keys = [
-    ...new Set(
-      ["verify_code", cfg?.smsTemplateKey, d.smsTemplateKey].filter(
-        (key): key is string => typeof key === "string",
-      ),
-    ),
-  ].sort();
+  const keys =
+    d.channel === "mail"
+      ? []
+      : [
+          ...new Set(
+            ["verify_code", cfg?.smsTemplateKey, d.smsTemplateKey].filter(
+              (key): key is string => typeof key === "string",
+            ),
+          ),
+        ].sort();
   let available = true;
   for (const key of keys) {
     const rows = await tx.$queryRaw<{ templateKey: string }[]>`SELECT template_key AS "templateKey"
       FROM sms_template WHERE template_key = ${key} FOR UPDATE`;
     if (!rows.length) available = false;
   }
-  if (cfg?.wxTemplateSlotKey) {
+  if (d.channel !== "mail" && cfg?.wxTemplateSlotKey) {
     const slots = await tx.$queryRaw`SELECT slot_key FROM wx_template_slot
       WHERE slot_key = ${cfg.wxTemplateSlotKey} FOR UPDATE`;
     if (!Array.isArray(slots) || !slots.length) available = false;
@@ -197,7 +212,11 @@ async function terminal(
     },
     data: { status, reason, leaseUntil: null, finishedAt: now, updatedAt: now },
   });
-  if (changed.count && status !== "cancelled") await fallback(tx, deps, d, reason);
+  if (changed.count) {
+    const updated = await tx.notificationDelivery.findUniqueOrThrow({ where: { id: d.id } });
+    await invoiceMailResult(tx, deps, updated, d.notification);
+    if (status !== "cancelled") await fallback(tx, deps, d, reason);
+  }
   return changed.count;
 }
 
@@ -283,7 +302,24 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
   let ref: string;
   let mask: string | null = null;
   let templateId: string | null = null;
-  if (d.channel === "wx_subscribe") {
+  if (d.channel === "mail") {
+    if (!deps.providers.mail.configured) {
+      await terminal(tx, deps, d, "skipped", "unconfigured");
+      return null;
+    }
+    if (n.bizType !== "invoice_doc" || !n.bizId || !deps.invoiceMail) {
+      await terminal(tx, deps, d, "failed", "guard_invalid");
+      return null;
+    }
+    const source = await deps.invoiceMail(tx, n.bizId);
+    if (!source || source.entityId !== n.entityId) {
+      await terminal(tx, deps, d, "failed", "guard_invalid");
+      return null;
+    }
+    ref = source.targetRef;
+    mask = source.toMask;
+    send = mailSend(deps, source);
+  } else if (d.channel === "wx_subscribe") {
     slot = cfg.wxTemplateSlotKey;
     const template = slot ? await tx.wxTemplateSlot.findUnique({ where: { slotKey: slot } }) : null;
     if (
@@ -494,7 +530,7 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     },
     data: {
       callStartedAt: startedAt,
-      leaseUntil: new Date(startedAt.getTime() + 30_000),
+      leaseUntil: new Date(startedAt.getTime() + (d.channel === "mail" ? 90_000 : 30_000)),
       targetRef: ref,
       targetMasked: mask,
       providerTemplateId: templateId,
@@ -502,7 +538,16 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     },
   });
   if (!started.count) throw new LostClaim(); // Whole T2 rolls quota deduction back.
-  return { id, attempt: d.attemptNo, identityId, slot, acceptedAt, startedAt, send };
+  return {
+    id,
+    attempt: d.attemptNo,
+    identityId,
+    slot,
+    acceptedAt,
+    startedAt,
+    send,
+    timeoutMs: d.channel === "mail" ? 60_000 : 10_000,
+  };
 }
 
 async function settle(
@@ -539,6 +584,13 @@ async function settle(
     },
   });
   if (!changed.count) return;
+  if (!retry)
+    await invoiceMailResult(
+      tx,
+      deps,
+      await tx.notificationDelivery.findUniqueOrThrow({ where: { id: d.id } }),
+      d.notification,
+    );
   if (
     prepared.identityId &&
     prepared.slot &&
@@ -654,7 +706,7 @@ export function deliveryRunner(deps: NotifyDispatchDeps) {
     if (!prepared) return;
     const controller = new AbortController();
     if (closed) controller.abort();
-    const timer = setTimeout(() => controller.abort(), 10_000);
+    const timer = setTimeout(() => controller.abort(), prepared.timeoutMs);
     const call = { controller, done: Promise.resolve() };
     call.done = (async () => {
       let result: NotificationProviderResult<unknown>;

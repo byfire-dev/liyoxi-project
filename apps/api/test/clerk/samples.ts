@@ -312,7 +312,12 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   get("m.wallet.get", "/m/wallet"),
   get("m.purchasePolicy.get", "/m/purchase-policy"),
   get("m.plan.list", "/m/plans"),
+  get("m.pointPack.list", "/m/point-packs"),
+  get("m.paymentOrder.list", "/m/payment-orders"),
+  get("m.paymentOrder.summary", "/m/payment-orders/summary"),
   get("m.paymentOrder.get", `/m/payment-orders/${uuidv7()}`),
+  get("m.invoiceRequest.list", "/m/invoice-requests"),
+  get("m.invoiceRequest.summary", "/m/invoice-requests/summary"),
   ...[
     { operationId: "m.plan.quote", path: "/m/plans/quote", json: { planId: uuidv7(), months: 1 } },
     {
@@ -330,6 +335,36 @@ export const CLERK_SAMPLES: readonly Sample[] = [
       operationId: "m.paymentOrder.transferProof.create",
       path: `/m/payment-orders/${uuidv7()}/transfer-proofs`,
       json: { fileId: uuidv7() },
+    },
+    {
+      operationId: "m.paymentOrder.sync",
+      path: `/m/payment-orders/${uuidv7()}/sync`,
+      json: {},
+    },
+    {
+      operationId: "m.paymentOrder.cancel",
+      path: `/m/payment-orders/${uuidv7()}/cancel`,
+      json: {},
+    },
+    {
+      operationId: "m.paymentOrder.wechatPrepay",
+      path: `/m/payment-orders/${uuidv7()}/wechat-prepay`,
+      json: {},
+    },
+    {
+      operationId: "m.invoiceRequest.create",
+      path: "/m/invoice-requests",
+      json: {
+        paymentOrderId: uuidv7(),
+        invoiceType: "normal",
+        medium: "electronic",
+        recvEmail: "clerk-invoice@example.invalid",
+      },
+    },
+    {
+      operationId: "m.invoiceRequest.downloadUrls",
+      path: `/m/invoice-requests/${uuidv7()}/download-urls`,
+      json: { docKind: "blue" },
     },
   ].map(({ operationId, path, json }): Sample => ({
     operationId,

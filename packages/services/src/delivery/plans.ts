@@ -196,17 +196,14 @@ export async function pushPlan(
     issues.push({ orderItemId: null, field: "items", reason: "item_missing" });
   if (p.dramaOrder.deliveryTickets.some((t) => t.step === "assigning"))
     issues.push({ orderItemId: null, field: "tickets", reason: "ticket_unassigned" });
-  const min = calendarDate(
-    (
-      await deps.sla.dueAt(tx, {
-        policy: "plan.launch_min",
-        amount: 7,
-        unit: "work_days",
-        from: p.dramaOrder.submittedAt,
-        workHours: await workHoursAt(tx, deps.clock.now()),
-      })
-    ).dueAt,
-  );
+  const min = (
+    await deps.sla.nthWorkdayAfter(tx, {
+      policy: "plan.launch_min",
+      amount: 7,
+      from: calendarDate(p.dramaOrder.submittedAt),
+      workHours: await workHoursAt(tx, deps.clock.now()),
+    })
+  ).date;
   for (const row of content.items) {
     const item = items.find((r) => r.id === row.orderItemId);
     if (!item) continue;

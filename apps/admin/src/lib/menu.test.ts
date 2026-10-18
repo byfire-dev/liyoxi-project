@@ -268,21 +268,17 @@ describe("菜单、守卫与面包屑", () => {
     expect(visibleMenu(null)).toEqual([]);
   });
 
-  it("默认菜单保留38个V1.0画板，新增已落地的流程运维和我的审批两项无画板入口", () => {
+  it("默认菜单保留38个V1.0画板和三项已落地的无画板入口", () => {
     const shown = visibleMenu(superAdmin()).flatMap((group) => group.items.map((item) => item.key));
     const expected = boards
       .filter((page) => page.milestone !== "V1.1" && page.inMenu)
       .map((page) => page.key);
+    const noBoardMenuKeys = ["approval.mine", "system.flow_ops", "system.file_purges"];
     expect(expected).toHaveLength(38);
-    expect(
-      shown.filter((key) => key !== "system.flow_ops" && key !== "approval.mine").sort(),
-    ).toEqual(expected.sort());
-    expect(shown.sort()).toEqual([...expected, "system.flow_ops", "approval.mine"].sort());
-    expect(shown).toHaveLength(40);
-    expect(noBoards.filter((page) => page.inMenu).map((page) => page.key)).toEqual([
-      "approval.mine",
-      "system.flow_ops",
-    ]);
+    expect(shown.filter((key) => !noBoardMenuKeys.includes(key)).sort()).toEqual(expected.sort());
+    expect(shown.sort()).toEqual([...expected, ...noBoardMenuKeys].sort());
+    expect(shown).toHaveLength(41);
+    expect(noBoards.filter((page) => page.inMenu).map((page) => page.key)).toEqual(noBoardMenuKeys);
   });
 
   it("流程运维独立菜单与面包屑，权限点不扩张共享system菜单过滤", () => {

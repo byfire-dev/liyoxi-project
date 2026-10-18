@@ -498,6 +498,18 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
     const allRoles = roles.join(" ");
     const groups = [
       {
+        id: "wechat",
+        secrets: [
+          { file: "wechat-secret", env: "WECHAT_SECRET_FILE", services: allRoles },
+          { file: "wechat-message-token", env: "WECHAT_MESSAGE_TOKEN_FILE", services: allRoles },
+          {
+            file: "wechat-message-aes-key",
+            env: "WECHAT_MESSAGE_AES_KEY_FILE",
+            services: allRoles,
+          },
+        ],
+      },
+      {
         id: "cos",
         secrets: [
           { file: "cos-signer-keys.json", env: "COS_SIGNER_KEYS_FILE", services: "api check-env" },
@@ -531,6 +543,12 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
       {
         id: "ocr",
         secrets: [{ file: "ocr-tencent.json", env: "OCR_TENCENT_FILE", services: allRoles }],
+      },
+      {
+        id: "mail",
+        secrets: [
+          { file: "mail-tencent.json", env: "MAIL_TENCENT_FILE", services: "worker check-env" },
+        ],
       },
       {
         id: "llm",
@@ -804,6 +822,96 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
       expect(callback.lines.at(-1)).toContain(
         `-f ${join(source, "infra/compose/providers/asr-callback.yml")} -f ${join(source, "infra/compose/providers/asr.yml")} run --rm --no-deps -T seed`,
       );
+    });
+
+    it("wechat overlay 仅向两个常驻角色和离线检查透传完整四项，APPID 必填且不读取 env_file", () => {
+      const source = read("infra/compose/providers/wechat.yml");
+      for (const role of roles) {
+        expect(serviceBlock(role, source)).toContain("      WECHAT_APPID: ${WECHAT_APPID:?}\n");
+        expect(serviceBlock(role, source)).not.toMatch(
+          /env_file:|WECHAT_SECRET:|WECHAT_MESSAGE_TOKEN:|WECHAT_MESSAGE_AES_KEY:/,
+        );
+      }
+      expect(nodeYml).not.toMatch(/WECHAT_/);
+      expect(stgEnv).toMatch(/^LYX_NODE_PROVIDERS=$/m);
+    });
+
+    it("wechat 显式节点选择沿用固定 overlay，APPID 来自非敏感 node.env，显式关闭不挂文件", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({ LYX_SECRETS_DIR: dir, LYX_SECRETS_SKIP_OWNER: "1" });
+      writeFileSync(
+        join(env.LYX_NODE_HOME, "node.env"),
+        "LYX_NODE_PROVIDERS=wechat\nWECHAT_APPID=fixture-appid\n",
+      );
+      for (const file of ["wechat-secret", "wechat-message-token", "wechat-message-aes-key"])
+        optionalFile(dir, file);
+      const checked = sh(STEP, ["check-env", "t-wechat"], { env, fakes: ["docker"] });
+      expect(checked.status, checked.output).toBe(0);
+      expect(checked.calls).toEqual([
+        {
+          tag: "t-wechat",
+          line: `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} --env-file ${join(env.LYX_NODE_HOME, "node.env")} -f ${join(repoRoot, "infra/compose/node.yml")} -f ${join(repoRoot, "infra/compose/providers/wechat.yml")} run --rm --no-deps -T check-env`,
+        },
+      ]);
+      const disabled = sh(STEP, ["check-env", "t-wechat"], {
+        env: { ...env, LYX_NODE_PROVIDERS: "" },
+        fakes: ["docker"],
+      });
+      expect(disabled.status, disabled.output).toBe(0);
+      expect(disabled.lines).toHaveLength(1);
+      expect(disabled.lines[0]).not.toContain("/compose/providers/");
+      expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
+    });
+
+    it("wechat 三文件缺任意一项即拒绝且不调用 Docker，未知或重复选择仍拒绝", () => {
+      for (const missing of ["wechat-secret", "wechat-message-token", "wechat-message-aes-key"]) {
+        const dir = generatedSecrets();
+        const env = nodeEnv({
+          LYX_SECRETS_DIR: dir,
+          LYX_SECRETS_SKIP_OWNER: "1",
+          LYX_NODE_PROVIDERS: "wechat",
+          WECHAT_APPID: "fixture-appid",
+        });
+        for (const file of ["wechat-secret", "wechat-message-token", "wechat-message-aes-key"])
+          if (file !== missing) optionalFile(dir, file);
+        const result = sh(STEP, ["check-env", "t-wechat"], { env, fakes: ["docker"] });
+        expect(result.status, result.output).toBe(1);
+        expect(result.output).toContain(`${missing}：没有这个文件`);
+        expect(result.output).not.toContain("fixture-only-not-a-real-secret");
+        expect(result.calls).toEqual([]);
+      }
+      for (const selection of ["wechat wechat", "wechat-pay", "wechat ../wechat"]) {
+        const env = nodeEnv({ LYX_NODE_PROVIDERS: selection });
+        const result = sh(STEP, ["up", "t-wechat"], { env, fakes: ["docker", "systemctl"] });
+        expect(result.status, selection).toBe(2);
+        expect(result.calls).toEqual([]);
+        expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
+      }
+    });
+
+    it("mail 选择仅要求 worker 密钥且离线检查复用固定 overlay", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({
+        LYX_SECRETS_DIR: dir,
+        LYX_SECRETS_SKIP_OWNER: "1",
+        LYX_NODE_PROVIDERS: "mail",
+      });
+      const check = (role: string) => sh(CHECK, ["--skip-owner", "--service", role], { env });
+      expect(check("api").status).toBe(0);
+      const missing = check("worker");
+      expect(missing.status).toBe(1);
+      expect(missing.output).toContain("mail-tencent.json：没有这个文件");
+      optionalFile(dir, "mail-tencent.json");
+      expect(check("worker").status).toBe(0);
+      const checked = sh(STEP, ["check-env", "t-mail"], { env, fakes: ["docker", "systemctl"] });
+      expect(checked.status, checked.output).toBe(0);
+      expect(checked.calls).toEqual([
+        {
+          tag: "t-mail",
+          line: `docker compose -p lyxt --env-file ${join(repoRoot, "infra/compose/env/stg.env")} -f ${join(repoRoot, "infra/compose/node.yml")} -f ${join(repoRoot, "infra/compose/providers/mail.yml")} run --rm --no-deps -T check-env`,
+        },
+      ]);
+      expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
     });
 
     it("check-env 先拒缺选中文件，再用同一 overlay 单次运行离线格式检查", () => {

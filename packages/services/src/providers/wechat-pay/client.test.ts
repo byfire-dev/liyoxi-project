@@ -236,6 +236,7 @@ describe("查单 queryByOutTradeNo", () => {
         amountFen: 19900,
         payerOpenid: "o-test-openid-0001",
         attach: "v1.e.o.N.r.12",
+        bankType: "OTHERS",
         successAt: new Date("2026-10-04T02:00:00.000Z"),
       },
     });
@@ -411,7 +412,12 @@ describe("关单 closeOrder：已关、已支付、可重试三态", () => {
   it("关单被拒、回查是已关闭：已关", async () => {
     replies.push(
       refused(400, "ORDER_CLOSED"),
-      signed(200, { out_trade_no: NO, trade_state: "CLOSED" }),
+      signed(200, {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
+        out_trade_no: NO,
+        trade_state: "CLOSED",
+      }),
     );
     expect(await close()).toEqual({ ok: true, value: { outcome: "closed" } });
   });
@@ -419,7 +425,12 @@ describe("关单 closeOrder：已关、已支付、可重试三态", () => {
   it("关单被拒、回查仍未支付：照关单接口的拒绝返回", async () => {
     replies.push(
       refused(400, "PARAM_ERROR"),
-      signed(200, { out_trade_no: NO, trade_state: "NOTPAY" }),
+      signed(200, {
+        appid: "wx0000000000000000",
+        mchid: "1900000109",
+        out_trade_no: NO,
+        trade_state: "NOTPAY",
+      }),
     );
     expect(await close()).toMatchObject({ ok: false, reason: "rejected", code: "PARAM_ERROR" });
   });

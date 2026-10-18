@@ -1,3 +1,4 @@
+import { resendInvoiceMail } from "./mail/index.js";
 import { AppError } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import { sendQuotaExceeded } from "./entitlement.js";
@@ -84,6 +85,12 @@ export function createNotifyDispatcher(deps: NotifyDispatchDeps) {
   }
   return {
     ...runner,
+    invoiceMailEnabled: async (tx: Parameters<typeof resendInvoiceMail>[0]) => {
+      const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: "m.invoice_issued" } });
+      return cfg?.sceneEnabled === true && cfg.extEnabled === true;
+    },
+    resendInvoiceMail: (tx: Parameters<typeof resendInvoiceMail>[0], id: string) =>
+      resendInvoiceMail(tx, deps, id),
     deliver: (ref: NotifyQueueRef) =>
       "fanoutId" in ref ? fanout.deliver(ref) : runner.deliver(ref),
     scan: async (enqueue: (ref: NotifyQueueTask) => Promise<void>) =>

@@ -37,6 +37,8 @@ import { homeAssetsRegression } from "../shots/asset-home-regressions.mjs";
 import { assetUploadRegression } from "../shots/asset-upload-regressions.mjs";
 import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
+import { runInvoiceRegression } from "../shots/invoice-regressions.mjs";
+import { runContractsRegression } from "../shots/contracts-regressions.mjs";
 import { tenantRegression } from "../shots/tenant-regressions.mjs";
 import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
@@ -81,9 +83,16 @@ const { ACCOUNT_SCENES } = await import(
 const { PROFILE_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/profile-scenes.ts")).href
 );
-const { BILLING_SCENES } = await import(
+const { BILLING_SCENES: LEGACY_BILLING_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/billing-scenes.ts")).href
 );
+const { INVOICE_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/invoice-scenes.ts")).href
+);
+const { CONTRACT_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/contracts-scenes.ts")).href
+);
+const BILLING_SCENES = [...LEGACY_BILLING_SCENES, ...INVOICE_SCENES, ...CONTRACT_SCENES];
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
@@ -563,7 +572,11 @@ async function shoot(target) {
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
-          if (kind === "billing") globalThis.__LYX_BILLING_SHOT__ = scene;
+          if (kind === "billing") {
+            globalThis.__LYX_BILLING_SHOT__ = scene;
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "contracts-clerk" ? "mine-clerk" : "mine-owner";
+          }
           if (kind === "message") {
             globalThis.__LYX_ACCOUNT_SHOT__ =
               scene === "messages-no-store"
@@ -596,7 +609,11 @@ async function shoot(target) {
             : target.kind === "profile" || target.kind === "tenant"
               ? "#profile-ready"
               : target.kind === "billing"
-                ? "#billing-ready"
+                ? target.scene.startsWith("invoice-")
+                  ? "#invoices-ready"
+                  : target.scene.startsWith("contracts-")
+                    ? "#contracts-ready"
+                    : "#billing-ready"
                 : target.kind === "publish"
                   ? "#publish-ready"
                   : target.kind === "order" || target.kind === "order-reference"
@@ -623,9 +640,16 @@ async function shoot(target) {
                                   : "#messages-ready"
                                 : target.kind === "delivery"
                                   ? "#delivery-ready"
-                                  : "#account-ready",
+                                  : target.scene === "login-empty" ||
+                                      target.scene === "login-unavailable"
+                                    ? ".account-login .lyx-empty"
+                                    : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
+      if (target.kind === "billing" && target.scene.startsWith("invoice-"))
+        await runInvoiceRegression(page, target.scene);
+      if (target.kind === "billing" && target.scene.startsWith("contracts-"))
+        await runContractsRegression(page, target.scene);
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);
       if (target.kind === "tenant") await tenantRegression(page, target.scene);
@@ -857,7 +881,16 @@ async function shoot(target) {
         await page.waitForTimeout(500);
       }
       if (target.scene.startsWith("login")) {
-        if (target.scene === "login-checked")
+        if (target.scene === "login-empty" || target.scene === "login-unavailable") {
+          const message =
+            target.scene === "login-empty"
+              ? "登录协议暂不可用，请稍后重试"
+              : "暂时无法加载，请重试";
+          await expect(page.getByText(message, { exact: true })).toBeVisible();
+          await expect(page.locator(".lyx-skeleton")).toHaveCount(0);
+          await page.locator(".account-login .lyx-empty .lyx-button").click();
+          await expect(page.getByText(message, { exact: true })).toBeVisible();
+        } else if (target.scene === "login-checked")
           await page.getByText("我已阅读并同意", { exact: true }).click();
         else await page.locator(".lyx-button").filter({ hasText: "手机号快捷登录" }).click();
       }

@@ -122,6 +122,8 @@ export type {
   PaymentExceptionKind,
 } from "./payment/index.js";
 export { createBillingPurchase } from "./payment/purchase.js";
+export { describePaymentOrders } from "./payment/describe.js";
+export type { PaymentOrderDescription } from "./payment/describe.js";
 export { createPointPacks } from "./catalog/point-packs.js";
 export { createBillingSubscriptions } from "./subscription/read.js";
 export { listTermsDueForReminder } from "./subscription/reminders.js";
@@ -160,3 +162,15 @@ export {
   createBillingDailyProjection,
 } from "./reporting/daily.js";
 export type { BillingDailyReader, EntityDailyComputation } from "./reporting/daily.js";
+
+export { createInvoices } from "./invoices/service.js";
+export { createInvoiceAssembly } from "./invoices/assembly.js";
+export { readInvoiceMail } from "./invoices/mail.js";
+export type { InvoiceDeps, InvoiceRuntimeDeps } from "./invoices/context.js";
+export { createFinanceConfigService } from "./finance-config/service.js";
+export {
+  readInvoiceRefundGuard,
+  markInvoiceRedPending,
+  cancelInvoiceRed,
+  rejectInvoiceAfterRefund,
+} from "./invoices/refund.js";

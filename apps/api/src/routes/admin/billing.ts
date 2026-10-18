@@ -1,3 +1,5 @@
+import { adminBillingInvoiceHandlers } from "./billing-invoices.js";
+import { adminBillingFinanceConfigHandlers } from "./billing-finance-config.js";
 import {
   adminPaymentOrderGet,
   adminTransferProofList,
@@ -12,6 +14,8 @@ import { defineAdminHandler } from "../../routing/admin.js";
 import { adminBillingTransferReviewHandlers } from "./billing-transfer-review.js";
 export const adminBillingHandlers = [
   ...adminBillingTransferReviewHandlers,
+  ...adminBillingInvoiceHandlers,
+  ...adminBillingFinanceConfigHandlers,
   defineAdminHandler(adminPaymentOrderGet, { module: "order", need: "view" }, async (c, s) =>
     ok(c, await c.var.runtime.billing.getAdminOrder(s.ctx, c.req.valid("param").paymentOrderId)),
   ),

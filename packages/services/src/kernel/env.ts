@@ -83,6 +83,7 @@ export const ENV_KEYS: readonly string[] = [
   "MEDIA_PRODUCTION_FILE",
   "ASR_TENCENT_FILE",
   "OCR_TENCENT_FILE",
+  "MAIL_TENCENT_FILE",
   "LLM_DOMESTIC_FILE",
   "ASR_CALLBACK_ORIGIN",
   "ASR_CALLBACK_KEY_FILE",
@@ -149,6 +150,7 @@ export interface AlertsEnvConfig {
 
 export type AsrTencentEnvConfig = z.infer<typeof AsrTencentEnvSchema>;
 export type OcrTencentEnvConfig = z.infer<typeof OcrTencentEnvSchema>;
+export type MailTencentEnvConfig = z.infer<typeof MailTencentEnvSchema>;
 export type LlmDomesticEnvConfig = z.infer<typeof LlmDomesticEnvSchema>;
 
 export interface WechatPayEnvConfig {
@@ -194,6 +196,8 @@ export interface Env {
   readonly ASR_TENCENT?: AsrTencentEnvConfig;
   /** 同步证照识别独立配置；只由 API 组合根消费。 */
   readonly OCR_TENCENT?: OcrTencentEnvConfig;
+  /** 独立邮件FILE；只允许worker装配发送，API/check-env不获得发送driver。 */
+  readonly MAIL_TENCENT?: MailTencentEnvConfig;
   readonly LLM_DOMESTIC?: LlmDomesticEnvConfig;
   /** 独立可选回调；密钥保留 FILE 的原始 UTF8 字节，只解析、不装配。 */
   readonly ASR_CALLBACK?: Readonly<{ origin: string; key: string }>;
@@ -701,6 +705,27 @@ const OcrTencentEnvSchema = z
   })
   .strict()
   .readonly();
+const MailTencentEnvSchema = z
+  .strictObject({
+    secretId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+    secretKey: z.string().regex(/^[\x21-\x7e]{1,256}$/),
+    region: z.enum(["ap-guangzhou", "ap-hongkong"]),
+    fromAddress: z.email().max(254),
+    templateId: z.int().positive(),
+  })
+  .readonly();
+function readMailFile(source: EnvSource, issues: EnvIssue[]): MailTencentEnvConfig | undefined {
+  const text = readWechatFile(source, "MAIL_TENCENT", issues, true);
+  if (text === undefined) return undefined;
+  try {
+    const parsed = MailTencentEnvSchema.safeParse(JSON.parse(text) as unknown);
+    if (parsed.success) return parsed.data;
+  } catch {
+    /* 不回显配置值、路径或JSON错误。 */
+  }
+  issues.push({ key: "MAIL_TENCENT_FILE", reason: "须为完整合法的邮件JSON配置" });
+  return undefined;
+}
 const LlmEndpointEnvSchema = z
   .object({
     vendor: z.enum(["ark", "bailian", "deepseek"]),
@@ -1313,6 +1338,7 @@ export function loadEnv(
   const ci = readCi(source, issues);
   const asrTencent = readModelFile(source, "ASR_TENCENT", issues, AsrTencentEnvSchema);
   const ocrTencent = readModelFile(source, "OCR_TENCENT", issues, OcrTencentEnvSchema);
+  const mailTencent = readMailFile(source, issues);
   const llmDomestic = readModelFile(source, "LLM_DOMESTIC", issues, LlmDomesticEnvSchema);
   const asrCallback = readAsrCallback(source, asrTencent, issues);
   const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
@@ -1361,6 +1387,7 @@ export function loadEnv(
     ...(mediaProduction ? { MEDIA_PRODUCTION: mediaProduction } : {}),
     ...(asrTencent ? { ASR_TENCENT: asrTencent } : {}),
     ...(ocrTencent ? { OCR_TENCENT: ocrTencent } : {}),
+    ...(mailTencent ? { MAIL_TENCENT: mailTencent } : {}),
     ...(llmDomestic ? { LLM_DOMESTIC: llmDomestic } : {}),
     ...(asrCallback ? { ASR_CALLBACK: asrCallback } : {}),
     ...(dataKeys && bidxKeys ? { DATA_KEYS: dataKeys, BIDX_KEYS: bidxKeys } : {}),

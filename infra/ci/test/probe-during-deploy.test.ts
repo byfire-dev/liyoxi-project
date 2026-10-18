@@ -148,6 +148,8 @@ esac
         join(repoRoot, "infra/deploy/orchestrate.mjs"),
         "--tag",
         "sha-222222222222",
+        "--compat-result",
+        "passed",
         "--node",
         "deploy@fixture.invalid",
         "--probe-config",
@@ -168,6 +170,7 @@ esac
     expect(exit).toBe(1);
     const report = JSON.parse(readFileSync(summary, "utf8"));
     expect(report).toMatchObject({
+      compatibility: "passed",
       failedStep: "api-start",
       onlineTouched: true,
       recordError: "",

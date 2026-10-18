@@ -131,3 +131,67 @@ export async function billingConsentFacts(tx: Tx): Promise<TransactionConsentFac
     agreementKeys: row.type === "topup" ? ["points"] : ["member", "points"],
   }));
 }
+
+export async function invoiceRequestForNotify(tx: Tx, id: string) {
+  const row = await tx.invoiceRequest.findUnique({ where: { id } });
+  return row
+    ? {
+        bizType: "invoice_request",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: row.status,
+        version: row.lockVersion,
+        name: row.requestNo,
+        ...(row.dueAt ? { occurredAt: row.dueAt.toISOString() } : {}),
+      }
+    : null;
+}
+export async function invoiceDocForNotify(tx: Tx, id: string) {
+  const row = await tx.invoiceDoc.findUnique({ where: { id }, include: { invoiceRequest: true } });
+  return row && row.docKind === "blue"
+    ? {
+        bizType: "invoice_doc",
+        bizId: row.id,
+        entityId: row.entityId,
+        storeId: null,
+        status: "issued",
+        version: 0,
+        name: row.invoiceRequest.requestNo,
+        guardBizType: "invoice_request",
+        guardBizId: row.invoiceRequestId,
+        ...(row.invoiceRequest.medium === "electronic" && row.invoiceRequest.recvEmailEnc
+          ? { detail: "email" }
+          : {}),
+      }
+    : null;
+}
+export async function invoiceParentForNotify(tx: Tx, input: { type: string; id: string }) {
+  const request =
+    input.type === "invoice_doc"
+      ? (
+          await tx.invoiceDoc.findUnique({
+            where: { id: input.id },
+            select: { invoiceRequest: true },
+          })
+        )?.invoiceRequest
+      : await tx.invoiceRequest.findUnique({ where: { id: input.id } });
+  return request ? { billingOrderId: request.billingOrderId, invoiceRequestId: request.id } : null;
+}
+export async function financeConfigForNotify(tx: Tx, id: string) {
+  const row = await tx.financeConfigRevision.findUnique({
+    where: { id },
+    include: { approvalRequest: true },
+  });
+  return row
+    ? {
+        bizType: "finance_config_revision",
+        bizId: row.id,
+        entityId: null,
+        storeId: null,
+        status: row.approvalRequest.status,
+        version: row.approvalRequest.lockVersion,
+        name: "受控财务配置变更",
+      }
+    : null;
+}

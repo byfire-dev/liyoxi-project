@@ -40,7 +40,7 @@ describe("十二个接口", () => {
     ]);
   });
 
-  it("方法按 01 第 9 节“用途”及必要原语登记，一共 64 个", () => {
+  it("方法按 01 第 9 节“用途”及必要原语登记，一共 65 个", () => {
     expect(
       Object.fromEntries(PROVIDER_NAMES.map((name) => [name, PROVIDER_METHODS[name].length])),
     ).toEqual({
@@ -49,7 +49,7 @@ describe("十二个接口", () => {
       sms: 5, // 员工激活码、订阅消息的补发、值班告警
       storage: 18, // 签名、临时密钥、四桶对象/版本操作、有界流与三项备份专用能力
       media: 10, // 体检、转码、打包、审核以及任务查询、按UserData查找、取消
-      ocr: 2, // 营业执照识别、行业许可证字段抽取
+      ocr: 3, // 营业执照识别、行业许可证字段抽取、转账凭证识别
       asr: 3, // 保旧录音转写，只增异步提交和查询
       llm: 4, // 素材识别打标、要点提炼、完整结构化摘要建议
       wecom: 6, // 员工通知、“联系我”二维码、加好友回调、微信客服、后台扫码、告警机器人
@@ -57,7 +57,7 @@ describe("十二个接口", () => {
       invoice: 1, // 自动开票
       mail: 1, // 电子发票发送
     });
-    expect(ALL_PROVIDER_METHODS).toHaveLength(64);
+    expect(ALL_PROVIDER_METHODS).toHaveLength(65);
     expect(PROVIDER_METHODS.asr).toEqual(["transcribe", "submit", "query"]);
   });
 

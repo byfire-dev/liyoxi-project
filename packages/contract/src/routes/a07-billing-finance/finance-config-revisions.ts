@@ -1,8 +1,24 @@
+import {
+  FinanceConfigApproveBodySchema,
+  FinanceConfigCreateBodySchema,
+  FinanceConfigListQuerySchema,
+  FinanceConfigListSchema,
+  FinanceConfigParamsSchema,
+  FinanceConfigRejectBodySchema,
+  FinanceConfigViewSchema,
+  FinanceConfigWithdrawBodySchema,
+} from "./finance-config.schemas.js";
 // 后台：套餐积分与财务 · finance-config-revisions（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
 
-export const adminFinanceConfigRevisionList = adminMeta({
+export const adminFinanceConfigRevisionList = adminRoute({
+  responses: {
+    ...okResponse(FinanceConfigListSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: FinanceConfigListQuerySchema },
   method: "get",
   path: "/admin/finance-config-revisions",
   operationId: "admin.financeConfigRevision.list",
@@ -12,7 +28,17 @@ export const adminFinanceConfigRevisionList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminFinanceConfigRevisionCreate = adminMeta({
+export const adminFinanceConfigRevisionCreate = adminRoute({
+  responses: {
+    ...okResponse(FinanceConfigViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: FinanceConfigCreateBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/finance-config-revisions",
   operationId: "admin.financeConfigRevision.create",
@@ -21,7 +47,18 @@ export const adminFinanceConfigRevisionCreate = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminFinanceConfigRevisionApprove = adminMeta({
+export const adminFinanceConfigRevisionApprove = adminRoute({
+  responses: {
+    ...okResponse(FinanceConfigViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: FinanceConfigParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: FinanceConfigApproveBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/finance-config-revisions/{financeConfigRevisionId}/approve",
   operationId: "admin.financeConfigRevision.approve",
@@ -30,7 +67,18 @@ export const adminFinanceConfigRevisionApprove = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminFinanceConfigRevisionReject = adminMeta({
+export const adminFinanceConfigRevisionReject = adminRoute({
+  responses: {
+    ...okResponse(FinanceConfigViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: FinanceConfigParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: FinanceConfigRejectBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/finance-config-revisions/{financeConfigRevisionId}/reject",
   operationId: "admin.financeConfigRevision.reject",
@@ -40,7 +88,18 @@ export const adminFinanceConfigRevisionReject = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminFinanceConfigRevisionWithdraw = adminMeta({
+export const adminFinanceConfigRevisionWithdraw = adminRoute({
+  responses: {
+    ...okResponse(FinanceConfigViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: FinanceConfigParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: FinanceConfigWithdrawBodySchema } },
+    },
+  },
   method: "post",
   path: "/admin/finance-config-revisions/{financeConfigRevisionId}/withdraw",
   operationId: "admin.financeConfigRevision.withdraw",

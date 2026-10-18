@@ -91,6 +91,8 @@ export interface M1Support {
   seedDemo(): Promise<DemoSeedReport>;
   checklist(code: ChecklistCode): Promise<ChecklistTemplateView>;
   readState(ids: M1StateIds): ReturnType<typeof readM1State>;
+  /** 只读本轮隔离库的已消费步；HTTP 仍须通过真实口令/MFA，不能改步号或签发会话。 */
+  readStaffTotpStep(staffId: string): Promise<number | null>;
   orderTimer(scope: M1OrderScope): Promise<{ readonly timerId: string; readonly fireAt: Date }>;
   runDueTimer(
     scope: M1OrderScope,
@@ -103,6 +105,8 @@ export interface M1Support {
   }>;
   drainEvents(): Promise<{ readonly expanded: number; readonly consumed: number }>;
   promote(fileId: string): Promise<void>;
+  /** 仅 bridge-owned attach：complete 的短轮询期间消费真实已入队 promote，不改变生产轮询。 */
+  completeWithPromote?<T>(fileId: string, complete: () => Promise<T>): Promise<T>;
   installKnownMedia(fileId: string, scope: M1MediaScope): Promise<void>;
   finishProduction(fileId: string, scope: M1MediaScope): Promise<void>;
   fullInvariants(): Promise<InvariantRunResult>;

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, type Page, type Response } from "@playwright/test";
 import { liveContext, noHorizontalScroll } from "./live-context";
+import { ensureLiveStepUp, writeWithLiveStepUp } from "./live-step-up";
 
 interface Staff {
   id: string;
@@ -72,15 +73,14 @@ export async function write<T>(
   method: "POST" | "PUT" | "PATCH",
   data: unknown,
 ): Promise<T> {
-  const response = await page.request.fetch(`/api/v1/admin${path}`, {
-    method,
-    data,
-    headers: {
-      Origin: liveContext().origin,
-      "X-LYX-Admin": "1",
-      "Idempotency-Key": `w206:${crypto.randomUUID()}`,
-    },
-  });
+  const headers = {
+    Origin: liveContext().origin,
+    "X-LYX-Admin": "1",
+    "Idempotency-Key": `w206:${crypto.randomUUID()}`,
+  };
+  const response = await writeWithLiveStepUp(page, () =>
+    page.request.fetch(`/api/v1/admin${path}`, { method, data, headers }),
+  );
   expect(response.status()).toBe(200);
   return ((await response.json()) as { data: T }).data;
 }
@@ -104,6 +104,7 @@ export async function confirm(page: Page, title: string, staffNo?: number) {
     await dialog
       .getByRole("textbox", { name: "请输入员工工号确认", exact: true })
       .fill(String(staffNo));
+  await ensureLiveStepUp(page);
   await dialog.getByRole("button", { name: "确认", exact: true }).click();
   await expect(dialog).toHaveCount(0);
 }

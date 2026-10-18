@@ -5,6 +5,7 @@ import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
 import type { Runtime } from "../../runtime.js";
 import type { AdminLiveFixture } from "./context.js";
 import { assertDeliveryLiveEnvironment } from "./delivery-known-media.js";
+import { MerchantAssetLiveScopeSchema } from "./merchant-assets-upload.js";
 import { OutputBatchLiveInputSchema } from "./w302.fixture.js";
 
 /** Scope only. No ready files, masters, checks, listed state or terminal jobs are seeded. */
@@ -30,6 +31,12 @@ const contentManifestSchema = z.strictObject({
 });
 /** Independent optional fixture: the original W302 schema remains strict. */
 export function parseOutputBatchLiveManifest(raw: unknown) {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w318" in raw) {
+    const { w318, ...original } = raw;
+    // 与私有 API 的素材上传前置使用同一严格结构；不能把其余未知键一起忽略。
+    MerchantAssetLiveScopeSchema.parse(w318);
+    raw = original;
+  }
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w312" in raw) {
     const { w312, ...original } = raw;
     return {

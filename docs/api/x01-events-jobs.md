@@ -809,6 +809,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `08:1114` | `invoice_request.status` | pending→rejected（order_refunded） | 随付款单退款成功（08:177：回调、`rf.poll`、`bill.download`，含 08:529 回调晚到） | 回调处理 |
 | `08:1115` | `invoice_request.status` | issued→red_pending | 随 `admin.refundRequest.approve`、`admin.paymentException.resolve` | 随调用方事务 |
 | `08:1117` | `invoice_request.status` | red_pending→issued | 随 `admin.refundRequest.void`（驳回、撤回发生在审批通过之前，那时还没有 red_pending） | 随调用方事务 |
+| `08:1133` | `invoice_request.status` | pending→pending（sla.recalculated） | 订阅者 `billing.onCalendarImported`：申请计算窗口内日历更正后，在同一事务经 flow 重算时限与日历快照、记录同态历史及审计，取消旧批次定时器并重设 | 订阅者 |
 | `08:1213-1214` | `invoice_doc.email_state` | none→queued / skipped | 随 `admin.invoiceRequest.issue` | 随调用方事务 |
 | `08:1215-1216` | `invoice_doc.email_state` | queued→sent / failed | 订阅者 `billing.onMailResult` | 订阅者 |
 

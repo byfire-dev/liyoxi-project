@@ -1130,7 +1130,7 @@ stateDiagram-v2
 
 发起入账收款的退款时，该付款单 `pending` 的开票申请置上 `held_by_refund_request_id`；退款申请结束时清除。它只影响队列展示，不是守卫。
 
-工作日历修正后重算 `pending` 申请的 `due_at`（连同 `sla_snapshot`）时写一行 `from_state = to_state` 的状态历史（01 文档 2.6）。
+工作日历修正后重算 `pending` 申请的 `due_at`（连同 `sla_snapshot`）时，以 `sla.recalculated` 写一行 `from_state = to_state` 的状态历史（01 文档 2.6；迁移引用 `08:1133`）。
 
 **不变量**（每日校验）
 

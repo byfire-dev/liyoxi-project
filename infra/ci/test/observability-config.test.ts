@@ -30,11 +30,13 @@ const IDS = [
   "asr",
   "asr-callback",
   "ocr",
+  "mail",
   "llm",
   "media-production",
   "client-errors",
   "alerts",
   "server-errors",
+  "wechat",
 ];
 const OPTIONAL = [
   "cos-signer-keys.json",
@@ -45,11 +47,15 @@ const OPTIONAL = [
   "asr-tencent.json",
   "asr-callback-key",
   "ocr-tencent.json",
+  "mail-tencent.json",
   "llm-domestic.json",
   "media-production.json",
   "client-error-projects.json",
   "alerts.json",
   "server-errors.json",
+  "wechat-secret",
+  "wechat-message-token",
+  "wechat-message-aes-key",
 ];
 const CORE = [
   "postgres-password",
@@ -124,7 +130,7 @@ function optional(w: ReturnType<typeof world>, file: string, value = marker) {
 }
 
 describe("W2-27b1 固定观测FILE接线", () => {
-  it("完整十组与十三optional精确登记，三观测组最小角色/FILE挂载且base不借用", () => {
+  it("完整provider与optional精确登记，三观测组最小角色/FILE挂载且base不借用", () => {
     const w = world();
     expect(
       readdirSync(join(repoRoot, "infra/compose/providers"))

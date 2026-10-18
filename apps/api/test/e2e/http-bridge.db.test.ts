@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { DeleteBucketCommand, DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { expect, it, vi } from "vitest";
+import { staff } from "@liyoxi/services";
 import { createM1RealClock, createM1Support } from "@liyoxi/services/testing";
 import type { M1Attachment } from "@liyoxi/services/testing";
 import { createM1HttpBridge } from "./http-bridge.js";
@@ -98,9 +99,23 @@ it("同源码两次真实HTTP装配保留同库与MinIO，错归属拒绝且每�
     second = await createM1HttpBridge({
       attach: { ...attach, chainId: "secondround", version: "selected-source-b" },
     });
+    const usedStep = await second.support.readStaffTotpStep(admin.staffId);
+    expect(usedStep).not.toBeNull();
+    // 真实跨过已消费步后，新 HTTP 登录不应再无条件空等一个周期。
+    await second.api.waitUntil!(new Date((usedStep! + 1) * 30_000));
+    const waits = vi.spyOn(second.api, "waitUntil");
     const signedIn = await loginM1Staff(second.api, admin);
+    expect(waits).not.toHaveBeenCalled();
     expect(signedIn.staffId).toBe(admin.staffId);
     expect(signedIn.headers.cookie).not.toBe(admin.headers.cookie);
+    const currentStep = await second.support.readStaffTotpStep(admin.staffId);
+    expect(currentStep).toBe(staff.totpStep(second.support.clock.now()));
+    expect(currentStep!).toBeGreaterThan(usedStep!);
+    // 同一步再重登必须等真实下一步；仍由正式 verify-mfa 消费，不改库或复用会话。
+    const sameStep = await loginM1Staff(second.api, admin);
+    expect(waits).toHaveBeenCalledExactlyOnceWith(new Date((currentStep! + 1) * 30_000));
+    expect(sameStep.headers.cookie).not.toBe(signedIn.headers.cookie);
+    expect(await second.support.readStaffTotpStep(admin.staffId)).toBeGreaterThan(currentStep!);
     const reread = await createM1Caller(second.api)("admin.staff.get", signedIn.headers, {
       params: { staffId: admin.staffId },
     });

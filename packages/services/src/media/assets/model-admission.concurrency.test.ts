@@ -341,11 +341,26 @@ describe("真实短事务、竞争和不可退款边界", { timeout: SLOW }, () 
     const first = await h.readyImage(),
       second = await h.readyImage();
     h.caps.dailyCallCap = 3;
+    // 本例验证两个真实客户端的原子配额竞争，不把 PG 准备/CI 调度耗时算作许可过期。
+    // 仅统一两客户端 Lua TIME 与注入钟；其他真实 TIME/250ms 边界用例保持不变。
+    const withFixtureTime = (script: string) => {
+      const now = h.clock.now().getTime();
+      expect(script).toContain("redis.call('TIME')");
+      return script.replaceAll(
+        "redis.call('TIME')",
+        `{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`,
+      );
+    };
+    const evaluate = h.evalCall.getMockImplementation()!;
+    h.evalCall.mockImplementation((script, keys, argv) =>
+      evaluate(withFixtureTime(script), keys, argv),
+    );
     const ledger = createModelBudgetLedger({
       clock: h.clock,
       prefix: h.key.slice(0, -"model_budget:v1".length),
       transport: {
-        eval: async (script, keys, argv) => other.eval(script, keys.length, ...keys, ...argv),
+        eval: async (script, keys, argv) =>
+          other.eval(withFixtureTime(script), keys.length, ...keys, ...argv),
       },
     });
     const d = h.deps();
@@ -362,12 +377,22 @@ describe("真实短事务、竞争和不可退款边界", { timeout: SLOW }, () 
       h.visionStrategy().execute(first.job, signal()),
       pair.execute(second.job, signal()),
     ]);
+    expect(h.budget.reserve).toHaveBeenCalledTimes(1);
+    expect(otherReserve).toHaveBeenCalledTimes(1);
+    const decisions = await Promise.all([
+      h.budget.reserve.mock.results[0]!.value,
+      otherReserve.mock.results[0]!.value,
+    ]);
+    expect(decisions.filter((decision) => decision.status === "reserved")).toEqual([
+      { status: "reserved", units: 3, newFiles: 1 },
+    ]);
+    expect(decisions.filter((decision) => decision.status === "denied")).toEqual([
+      { status: "denied", reason: "quota_global" },
+    ]);
     const outputs = results.map(structuredOutput);
     expect(outputs.map((result) => result.status).sort()).toEqual(["ok", "skipped"]);
     expect(outputs.find((result) => result.status === "skipped")?.reason).toBe("budget_exhausted");
     expect(h.vision).toHaveBeenCalledTimes(1);
-    expect(h.budget.reserve).toHaveBeenCalledTimes(1);
-    expect(otherReserve).toHaveBeenCalledTimes(1);
     const all = await h.snapshot();
     expect(
       Object.entries(all)

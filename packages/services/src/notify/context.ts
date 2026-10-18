@@ -1,3 +1,4 @@
+import type { Events } from "../events/index.js";
 import type { MessageItem } from "@liyoxi/contract";
 import type { Params } from "../config/index.js";
 import type {
@@ -11,6 +12,19 @@ import type {
   TxRunner,
 } from "../kernel/index.js";
 import type { Providers, ProviderLogger } from "../providers/types.js";
+
+export interface InvoiceMailSource {
+  invoiceDocId: string;
+  invoiceRequestId: string;
+  billingOrderId: string;
+  entityId: string;
+  to: string;
+  toMask: string;
+  targetRef: string;
+  subject: string;
+  text: string;
+  file: { bucket: "secure"; key: string; etag: string; size: number; ext: string; mime: string };
+}
 
 export interface NotifyFact {
   bizType: string;
@@ -40,6 +54,7 @@ export interface NotifyFact {
     | "launch_task"
     | "sample"
     | "billing_order"
+    | "invoice_request"
     | "store_asset"
     | "billing_account";
   guardBizId?: string;
@@ -71,6 +86,8 @@ export interface NotifyTarget {
 
 export interface NotifyDispatchDeps {
   appEnv: AppEnv;
+  events?: Pick<Events, "emit">;
+  invoiceMail?: (tx: Tx, id: string) => Promise<InvoiceMailSource | null>;
   tx: TxRunner;
   clock: Clock;
   assembly: Assembly;

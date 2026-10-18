@@ -12,13 +12,18 @@ export async function onTransferCalendarImported(
   tx: Tx,
   deps: TransferSlaDeps,
   event: DeliveredEvent,
+  candidateIds?: readonly string[],
 ) {
   if (event.type !== "calendar.imported") return;
   const payload = EVENT_PAYLOAD_SCHEMAS["calendar.imported"].parse(event.payload);
   await lockCalendarImport(tx);
   if (payload.calendarVersion !== (await currentCalendarVersion(tx))) return;
   const candidates = await tx.transferProof.findMany({
-    where: { reviewStatus: "pending", dueAt: { not: null } },
+    where: {
+      reviewStatus: "pending",
+      dueAt: { not: null },
+      ...(candidateIds ? { id: { in: [...candidateIds] } } : {}),
+    },
     select: { id: true, billingOrderId: true },
     orderBy: { id: "asc" },
   });

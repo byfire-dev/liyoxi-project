@@ -4,7 +4,15 @@
 
 V1.0 交付商家端微信小程序、运营管理后台与商家电脑端下载页。
 
-## 当前状态
+## 当前仓库与开发入口
+
+2026-10-18，代码已迁回 [byfire-dev/liyoxi-project](https://github.com/byfire-dev/liyoxi-project)：[PR #138](https://github.com/byfire-dev/liyoxi-project/pull/138) 普通合并，实际主干 `9ffd93b3125c73e6743a5e33328909dcb690218e` 的 [main-push CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/39108004039) 中 11 项实质检查及 `required` 全部成功，原保护已恢复。本轮 32 个整合/修复分支已进入主干，本地 origin、main upstream、默认推送及 gh 默认仓库已切回 byfire-dev。
+
+继续开发先读 [CLAUDE.md](CLAUDE.md)、[迁回状态与保留工作](docs/plan/repository-return.md)及[本机验证与 GitHub 请求规则](docs/plan/local-development-validation.md)。未完成分支与脏工作目录继续保留；Packages、节点与发布配置仍待核对，同提交 mixed-smoke、正式 P95、Node26 及真实交付均未因此完成。ROOT 统一串行访问 GitHub，代码稳定后再推送。
+
+## 开发与里程碑记录
+
+以下保留各次开发、里程碑及验证时点；其中旧的“远端未验”“待合流”等描述不作为本次迁回的当前状态，当前仓库和验证范围见上面的统一入口，不替代各工作包的独立退出条件。
 
 技术架构、设计规范、数据模型与接口契约已完成，开发计划已确认并执行。按 2026-10-07 核对的 main（`36000659`，PR #124），M0 的 37 个工作包及 W0-30a 已全部合入，M1 已完成商家与后台骨架、20 集短剧订购到交付上线的自动化合流。官方计数确认 M0 3 个、M1 130 个接口全部落地，两里程碑的接口、留桩、页面与后台任务待落地数均为零。[M1 最终 CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37622067946)与 Node 26、镜像和全栈检查均通过；[实际主分支十轮验证](https://github.com/byfire-dev/liyoxi-project/actions/runs/37624700220)10/10 成功、零失败和跳过、无重试。M0 业主看样和 M1 演示点 A/B 真机反馈仍未闭环，自动化结果不代替整体退出；见 [M0 退出条件](docs/plan/m0-exit.md)和 [M1 回顾](docs/plan/retro/m1.md)。
 
@@ -51,7 +59,8 @@ W3-15 的 ASR、vision、文档抽取、digest 四策略及回调、预算和运
 | [docs/08-development-plan.md](docs/08-development-plan.md) | 开发计划（已确认，执行中；进度见 docs/plan/） |
 | [docs/plan/](docs/plan/README.md) | 开发计划的执行台账：任务书、工作包状态、留桩、计划变更、外部验证、业主清单、三份运维文档 |
 | [W2-27 日志入口边界](docs/plan/changes/W2-27-log-tools-first.md) | a 内先交受限日志查询与统计；轮转、Redis恢复与真实接通仍待交 |
-| [W2-28 阶段边界](docs/plan/changes/W2-28-compat-before-mixed.md) | 本地四步混跑已通过，工作流与同提交发布阻断已实现；远端 main 工作流未验，整包进行中 |
+| [迁回状态与保留工作](docs/plan/repository-return.md) | 当前仓库、实际合流与 CI、保留分支、发布及验收待办 |
+| [W2-28 阶段边界](docs/plan/changes/W2-28-compat-before-mixed.md) | 本地四步混跑已有通过记录；本次远端 main 预检报 driver-missing，尚未完成两版业务验收，仍阻断同提交部署，见迁回状态页 |
 | [CLAUDE.md](CLAUDE.md) | 会话开工须知：每个开发会话开工前必读的总纲与出处 |
 | [docs/appendix/](docs/appendix/README.md) | 子系统设计草案、外部事实核实记录、调研记录 |
 

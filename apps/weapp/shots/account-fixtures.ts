@@ -219,8 +219,10 @@ export function offlineAccountRequest(scene: string): RequestLayer["request"] {
             token: "lyxm_offline",
             me: me(),
           };
-    else if (path.startsWith("/m/agreements?")) data = agreements;
-    else if (path.startsWith("/m/agreement-versions/")) data = agreement;
+    else if (path.startsWith("/m/agreements?")) {
+      if (scene === "login-unavailable") throw new Error("offline agreement unavailable");
+      data = scene === "login-empty" ? { ...agreements, items: [] } : agreements;
+    } else if (path.startsWith("/m/agreement-versions/")) data = agreement;
     else if (path === "/m/me") data = me();
     else if (path === "/m/me/overview") data = noStore ? null : makeOverview(clerk, second);
     else if (path === "/m/stores")

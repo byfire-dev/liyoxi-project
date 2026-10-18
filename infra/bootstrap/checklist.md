@@ -2,6 +2,8 @@
 
 首次起环境（[README.md](README.md)）之前逐项勾完。这里只记“办了没有、谁办的、哪天”，不记任何密钥、口令与它们所在的路径。业主的决定与原话以[业主清单](../../docs/plan/owner-checklist.md)为准，办完回填[平台配置核对表](../../docs/plan/platform-config.md) 第 2.5 节。
 
+2026-10-18：当前代码仓为 byfire-dev，主干迁回、原保护恢复及实际 main-push required 已完成；详见[迁回状态页](../../docs/plan/repository-return.md)。这些结果不勾掉本表的 Packages、节点、凭据、DNS、发布部署或真实验收事项；第 1 行保留旧仓历史，第 1a 行记当前待核范围。
+
 W2-27a补充：六常驻容器的json-file轮转须实际核为api/worker/gateway各20MiB×5，postgres/redis/mediatool各10MiB×3，合计390MiB；现有容器须按获准发布流程更新后再inspect，不因YAML已改即记节点已配。Redis演练默认关闭，须明确本项目Compose身份、`LYX_REDIS_FLUSH_ENABLED=true`及`STG_FREEZE=false`，只使用受限`node-step.sh redis-flush <本节点项目>`，结束关闭开关。2026-10-15本机自有六容器已验证原worker不重启、同PID续租及8.875秒内三实际投递/单周期任务完成；前两轮清空前的准备失败保留。真实预发仍未执行，不能用本机结果勾掉本表真实节点事项，见[D6-09](../../docs/plan/external-verification/d6-09-redis-flush-self-heal.md)。
 
 W2-27b1补充（仅本地配置接线）：两组按获准运维选择client-errors/alerts，文件分别为client-error-projects.json（仅api/check-env）与alerts.json（仅worker/check-env）；默认空，选中缺文件拒绝，0400普通非空文件/UID1000由原检查执行。详细格式及启闭见[配置说明](../compose/providers/README.md#两组观测-filew2-27b1)。当前没有真实FILE或预发部署事实，群/值班人/SaaS、假收件演练及源码映射仍待办，不把配置源码和纯检查通过记成节点已配。
@@ -10,7 +12,8 @@ W2-27b1补充（仅本地配置接线）：两组按获准运维选择client-err
 
 | # | 事项 | 谁办 | 卡哪一步 | 状态 |
 | --- | --- | --- | --- | --- |
-| 1 | 2026-10-14 已定本项目 GHCR；候选四镜像见 README 第 12 节。公开 vars 已设置，推送开关未开启；首次发布、包可见性及节点拉取凭证未验。节点前缀候选 `ghcr.io/sanqianyuejia/`；GHCR 三叶已本地验收合 main，[PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1) 的 Actions 已运行，四镜像构建成功，旧 MinIO 拉取 denied、旧 infra 三项断言及历史密钥扫描测试夹具误报仍阻塞 required；门禁分类已重跑通过 | 业主 | 第 3 步起 | 待核 |
+| 1 | 2026-10-14 历史登记（当前状态见 1a）：已定本项目 GHCR；候选四镜像见 README 第 12 节。公开 vars 已设置，推送开关未开启；首次发布、包可见性及节点拉取凭证未验。节点前缀候选 `ghcr.io/sanqianyuejia/`；GHCR 三叶已本地验收合 main，[PR #1](https://github.com/sanqianyuejia/liyoxi-project/pull/1) 的 Actions 已运行，四镜像构建成功，旧 MinIO 拉取 denied、旧 infra 三项断言及历史密钥扫描测试夹具误报仍阻塞 required；门禁分类已重跑通过 | 业主 | 第 3 步起 | 待核 |
+| 1a | 2026-10-18 当前源码已迁回 byfire-dev，原保护与实际 main-push required 已核；Packages namespace/关联/权限/可见性、目标仓 vars 与节点前缀仍待核。同提交 mixed-smoke 因 driver-missing 未执行两版业务链，尚不能放行部署；旧公共 MinIO 固定摘要继续保留，详见迁回状态页 | 业主/调度会话按授权逐项核对 | 镜像发布与首次部署前 | 待核 |
 | 2 | 补 3：接替之后 AppSecret 与代码上传密钥要不要重置 | 业主定 | 写第三方密钥时（现在的九项里没有它们） | 未办 |
 | 3 | 补 4：2026-10-14 本轮授权下 root SSH 已成功；长期登录口径、节点初始化和 CI 受限发布角色仍未配 | 业主定 | 第 1 步 | 待核 |
 | 4 | 三个应用预发域名 DNS 指向 `101.133.161.191`：`api/admin/portal.stg.liyoxi.timavia.com`。2026-10-14 Google DoH 查询 A 无记录，待用户配置 | 业主 | 第 5 步 | 未办 |

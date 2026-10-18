@@ -162,3 +162,6 @@ SmsPackagesStatistics 确实存在，但 BeginTime/EndTime 是套餐**创建**�
 
 `sendQuotaExceeded(tx,event)` 是由 ops typed callback 连接 tenant 的专用入口，回读所属 `tenantQuotaForNotify` 与当前老板接收人。唯一场景 `m.quota_exceeded` 按真实 outbox id + 当前老板去重，不同接续/到期发生各提醒；只写立即站内消息与 inbox，不排外部发送。只列非零的门店/店员与有效待接受邀请超额数，CTA“查看套餐”指向原 `wallet.home`。
 场景目录、a09 与13分组同步补登；默认 seed binding 不变。两个原 billing 事件仍只由 `tenant.onEntitlementChanged` 消费，不另加 notify.onEvent。所有通知写入与原消费状态共用 caller Tx；SOURCE 静态检查不代表类型、真实数据库或完整回归已验收。
+
+
+W4-13 mail 沿原 delivery claim/T2/外呼/T3、收回租约与人工 resendNo；不开第二发送循环。电子发票由 billing 所属读取闭包解密地址、读真实附件，notification.vars/投递日志无邮箱明文、附件或 URL；原始附件最多 4MiB。mail 外呼预算 60s、已发起租约 90s，既有其它通道保持 10s/30s。服务商未知受理不自动重发，手工重发仍过原场景/守卫。兼容 mail_delivered/sent 只代表 Provider 受理；真实邮箱到达未验。

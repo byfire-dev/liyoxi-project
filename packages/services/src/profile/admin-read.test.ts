@@ -1,36 +1,62 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { defineRegistration } from "../kernel/index.js";
+import { defineRegistration, implement } from "../kernel/index.js";
 import { sampleStaffContext, useSeededDatabase } from "../testing/index.js";
 import { harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 import { implementAdminProfileFacts } from "./admin-ports.js";
+import type { AdminFacts } from "./admin-ports.js";
+import { adminStoreListBillingPort } from "./admin-list-ports.js";
 const db = useSeededDatabase("services");
 let h: Harness;
+function billingFacts(entityId: string): AdminFacts["billing"] {
+  return {
+    subscription: {
+      status: "active",
+      plan: { planId: entityId, code: "TEST", name: "测试套餐" },
+      months: 1,
+      startDate: "2026-10-01",
+      endDate: "2026-10-31",
+      hasScheduledTerm: false,
+      isRefundPending: false,
+      latestPaymentOrder: null,
+    },
+    points: {
+      spendablePoints: 120,
+      planAvailablePoints: 100,
+      addonAvailablePoints: 20,
+      heldPoints: 5,
+      isAddonSuspended: false,
+    },
+    paid: { totalPaidFen: 10000, paidOrderCount: 1, planOrderCount: 1, topupOrderCount: 0 },
+    pendingPointAdjustment: null,
+    relatedOrders: [],
+  };
+}
 beforeAll(async () => {
   h = harness(await db.prisma(), [
     defineRegistration("lyxtest_admin_profile_facts", {
       portImplementations: [
-        implementAdminProfileFacts("billing", async (_tx, q) => ({
-          subscription: {
-            status: "active",
-            plan: { planId: q.entityId, code: "TEST", name: "测试套餐" },
-            months: 1,
-            startDate: "2026-10-01",
-            endDate: "2026-10-31",
-            hasScheduledTerm: false,
-            isRefundPending: false,
-            latestPaymentOrder: null,
-          },
-          points: {
-            spendablePoints: 120,
-            planAvailablePoints: 100,
-            addonAvailablePoints: 20,
-            heldPoints: 5,
-            isAddonSuspended: false,
-          },
-          paid: { totalPaidFen: 10000, paidOrderCount: 1, planOrderCount: 1, topupOrderCount: 0 },
-          pendingPointAdjustment: null,
-          relatedOrders: [],
+        implementAdminProfileFacts("billing", async (_tx, q) => billingFacts(q.entityId)),
+        implement(adminStoreListBillingPort, async (_tx, { entityIds }) => ({
+          facts: new Map(
+            entityIds.map((entityId) => [
+              entityId,
+              {
+                status: "active" as const,
+                activePlanId: entityId,
+                remainingDays: 30,
+                totalPaidFen: billingFacts(entityId).paid.totalPaidFen,
+                hasPaidOrder: true,
+              },
+            ]),
+          ),
+          readRows: async (_tx, ids) =>
+            new Map(
+              ids.map((entityId) => {
+                const { subscription, points } = billingFacts(entityId);
+                return [entityId, { subscription, points }];
+              }),
+            ),
         })),
         implementAdminProfileFacts("order", async () => ({
           lastOrderAt: "2026-10-01T00:00:00.000Z",

@@ -34,6 +34,7 @@ export const NotifyFactSchema = z.strictObject({
       "launch_task",
       "sample",
       "billing_order",
+      "invoice_request",
       "store_asset",
       "billing_account",
       "invitation",
@@ -98,7 +99,9 @@ const staffSpec = (
         ? { approvalRequestId: fact.bizId }
         : route === "merchant.detail"
           ? { entityId: fact.entityId! }
-          : route === "order.receipts" || route === "finance.reconcile"
+          : route === "order.receipts" ||
+              route === "finance.reconcile" ||
+              route === "finance.invoices"
             ? {}
             : { deliveryTicketId: fact.deliveryTicketId ?? fact.bizId },
   }),
@@ -226,6 +229,43 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
       "ticketEditorForNotify",
       "deliveryTicketId",
       "delivery.ticket_detail",
+    ),
+  ],
+  "invoice.issued": [
+    spec("m.invoice_issued", "invoiceDocForNotify", "invoiceDocId", "order", (v) => ({
+      route: "invoice.detail",
+      params: { invoiceRequestId: v.guardBizId! },
+    })),
+  ],
+  "invoice.rejected": [
+    spec("m.invoice_rejected", "invoiceRequestForNotify", "invoiceRequestId", "order", (v) => ({
+      route: "invoice.detail",
+      params: { invoiceRequestId: v.bizId },
+    })),
+  ],
+  "invoice.sla_breached": [
+    staffSpec(
+      "s.finance_overdue",
+      "invoiceRequestForNotify",
+      "invoiceRequestId",
+      "finance.invoices",
+      ["pending"],
+    ),
+  ],
+  "finance_config.proposed": [
+    staffSpec(
+      "s.finance_config",
+      "financeConfigForNotify",
+      "financeConfigRevisionId",
+      "finance.reconcile",
+    ),
+  ],
+  "finance_config.approved": [
+    staffSpec(
+      "s.finance_config",
+      "financeConfigForNotify",
+      "financeConfigRevisionId",
+      "finance.reconcile",
     ),
   ],
   "transfer.proof_submitted": [

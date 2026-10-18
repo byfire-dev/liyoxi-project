@@ -1,8 +1,25 @@
+import {
+  InvoiceDownloadBodySchema,
+  InvoiceDownloadSchema,
+  InvoiceRequestCardSchema,
+  InvoiceRequestCreateBodySchema,
+  InvoiceRequestFilterSchema,
+  InvoiceRequestListQuerySchema,
+  InvoiceRequestListSchema,
+  InvoiceRequestParamsSchema,
+  InvoiceRequestSummarySchema,
+} from "./invoices.schemas.js";
 // 商家端：套餐、积分、付款与发票 · invoice-requests（docs/api/m07-billing.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
 
-export const mInvoiceRequestList = merchantMeta({
+export const mInvoiceRequestList = merchantRoute({
+  responses: {
+    ...okResponse(InvoiceRequestListSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: InvoiceRequestListQuerySchema },
   method: "get",
   path: "/m/invoice-requests",
   operationId: "m.invoiceRequest.list",
@@ -13,7 +30,17 @@ export const mInvoiceRequestList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mInvoiceRequestCreate = merchantMeta({
+export const mInvoiceRequestCreate = merchantRoute({
+  responses: {
+    ...okResponse(InvoiceRequestCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvoiceRequestCreateBodySchema } },
+    },
+  },
   method: "post",
   path: "/m/invoice-requests",
   operationId: "m.invoiceRequest.create",
@@ -24,7 +51,12 @@ export const mInvoiceRequestCreate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mInvoiceRequestSummary = merchantMeta({
+export const mInvoiceRequestSummary = merchantRoute({
+  responses: {
+    ...okResponse(InvoiceRequestSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: { query: InvoiceRequestFilterSchema },
   method: "get",
   path: "/m/invoice-requests/summary",
   operationId: "m.invoiceRequest.summary",
@@ -34,7 +66,18 @@ export const mInvoiceRequestSummary = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mInvoiceRequestDownloadUrls = merchantMeta({
+export const mInvoiceRequestDownloadUrls = merchantRoute({
+  responses: {
+    ...okResponse(InvoiceDownloadSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
+  request: {
+    params: InvoiceRequestParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: InvoiceDownloadBodySchema } },
+    },
+  },
   method: "post",
   path: "/m/invoice-requests/{invoiceRequestId}/download-urls",
   operationId: "m.invoiceRequest.downloadUrls",

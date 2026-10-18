@@ -1,0 +1,28 @@
+.billing-contracts {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__count {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__version,
+  &__effective {
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+  }
+  &__record {
+    margin: 16px 0;
+  }
+  &__record-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  &__summary {
+    margin: 12px 0;
+    line-height: 1.6;
+  }
+  &__error {
+    margin: 12px 0;
+    color: $lyx-color-text-secondary;
+  }
+}

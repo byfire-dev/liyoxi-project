@@ -1,6 +1,7 @@
 import {
   AdPricingSnapshotSchema,
   DramaPricingSnapshotSchema,
+  DramaSnapshotSchema,
   ReturnBreakdownSchema,
 } from "@liyoxi/contract";
 import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
@@ -25,6 +26,31 @@ export async function impactFixture(h: Harness, viewer: ProfileViewer) {
   async function order() {
     const id = uuidv7(),
       drama = await prepareOrderDrama(ledger, 120);
+    const copyright = await h.prisma.dramaCopyright.findUniqueOrThrow({
+      where: { dramaId: drama.id },
+    });
+    if (!copyright.licenseEndDate)
+      throw new Error("Order drama fixture requires a license end date");
+    const permits = await h.prisma.dramaPermit.findMany({
+      where: { dramaId: drama.id, status: "active" },
+      orderBy: { id: "asc" },
+    });
+    const snapshot = DramaSnapshotSchema.parse({
+      dramaId: drama.id,
+      title: drama.title,
+      totalEpisodes: drama.totalEpisodes,
+      dramaClass: drama.dramaClass,
+      genreCodes: drama.genreCodes,
+      permits: permits.map((permit) => ({
+        platform: permit.platform,
+        kind: permit.permitKind,
+        number: permit.permitNo,
+      })),
+      licenseEndDate: copyright.licenseEndDate.toISOString().slice(0, 10),
+      posterFileId: drama.posterFileId,
+      allowedPlacements: drama.allowedPlacements,
+      isAiGenerated: drama.isAiGenerated,
+    });
     const held = await h.tx.run((tx) =>
       ledger.ledger.hold(tx, {
         entityId,
@@ -61,7 +87,7 @@ export async function impactFixture(h: Harness, viewer: ProfileViewer) {
       chargePoints: held.points,
       listPricePoints: pricing.P,
       pricingSnapshot: held.snapshot,
-      dramaSnapshot: { dramaId: drama.id, title: drama.title },
+      dramaSnapshot: snapshot,
     });
     return { row, item, points: held.points };
   }

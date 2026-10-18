@@ -33,6 +33,7 @@ export const THREE_PHASE_OPERATIONS = {
   "m.storeProfile.basic.update": "external-first",
   "m.storeProfile.service.update": "external-first",
   "m.storeProfile.contact.update": "external-first",
+  "admin.store.profile.update": "external-first",
   "m.invitation.create": "external-first",
   "m.invitation.accept": "external-first",
   "m.store.create": "external-first",

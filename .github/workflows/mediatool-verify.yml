@@ -53,7 +53,7 @@ jobs:
           LYX_MEDIATOOL_OUT: ${{ runner.temp }}/mediatool-out
         run: pnpm mediatool:verify
       - name: 第 7 条：调用端不信任输出
-        run: pnpm exec vitest run packages/services/src/providers/mediatool
+        run: pnpm exec vitest run --config packages/services/src/providers/mediatool/vitest.config.ts
       - name: 第 8 条：耗时
         env:
           LYX_MEDIATOOL_OUT: ${{ runner.temp }}/mediatool-out

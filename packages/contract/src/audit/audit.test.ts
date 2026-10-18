@@ -172,8 +172,13 @@ it("W310 单剧调价审计正式目标已登记", () => {
   expect(isAuditTargetType("drama_price_revision")).toBe(true);
 });
 
-it("W3-14仅末尾追加素材与需求两个真实审计对象", () => {
-  expect(AUDIT_TARGET_TYPES.slice(-6, -4)).toEqual(["store_asset", "store_asset_demand"]);
+it("W3-14 素材与需求两个审计对象仍按原顺序登记", () => {
+  const assetIndex = AUDIT_TARGET_TYPES.indexOf("store_asset");
+  expect(assetIndex).toBeGreaterThanOrEqual(0);
+  expect(AUDIT_TARGET_TYPES.slice(assetIndex, assetIndex + 2)).toEqual([
+    "store_asset",
+    "store_asset_demand",
+  ]);
   expect(isAuditTargetType("store_asset")).toBe(true);
   expect(isAuditTargetType("store_asset_demand")).toBe(true);
 });

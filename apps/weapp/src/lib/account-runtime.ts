@@ -7,7 +7,7 @@ import { createAccountApi, type Data } from "./account-api";
 import { createAccountController } from "./account-controller";
 import { browseAsGuest, returnFromLogin } from "./account-routing";
 import { accountLoginCode, rememberFirstTouch } from "./account-source";
-import { systemClock, uuid } from "./platform";
+import { systemClock } from "./platform";
 import { loginCode, storage } from "./platform.taro";
 import type { RequestLayer } from "./request";
 import { newIdempotencyKey, request, startApp, track } from "./runtime";
@@ -57,7 +57,7 @@ export const account = createAccountController({
   store: () => useContextStore.getState(),
   setStore: (id) => useContextStore.getState().switchStore(id),
   loginCode: () =>
-    offline ? Promise.resolve("local-offline-account") : accountLoginCode(storage, loginCode, uuid),
+    offline ? Promise.resolve("local-offline-account") : accountLoginCode(loginCode),
   attribution: () => rememberFirstTouch(storage),
   key: () => newIdempotencyKey("store_switch"),
   applyBootstrap: (value) =>

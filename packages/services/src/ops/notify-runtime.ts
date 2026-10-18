@@ -4,7 +4,7 @@ import {
   approvalKindsOf,
   approvalRecipientsForNotify,
 } from "../approval/index.js";
-import { getNotifyPurchaseMode } from "../billing/index.js";
+import { getNotifyPurchaseMode, readInvoiceMail } from "../billing/index.js";
 import type { Params } from "../config/index.js";
 import { createConfig } from "../config/index.js";
 import { merchantTargetForNotify, wechatTargetForNotify } from "../identity/index.js";
@@ -132,6 +132,7 @@ export function createRuntimeNotify(input: {
   keys?: Parameters<typeof loadKeyring>[0];
   keyring?: Keyring;
   appid?: string;
+  events?: NotifyDispatchDeps["events"];
 }) {
   const { tx, clock, assembly } = input;
   let keyring = input.keyring;
@@ -144,6 +145,11 @@ export function createRuntimeNotify(input: {
   const reads = createApprovalReads({ kinds: approvalKindsOf(assembly), clock });
   return createNotifyDispatcher({
     appEnv: input.appEnv,
+    events: input.events,
+    invoiceMail: (t, id) => {
+      const current = keys();
+      return current ? readInvoiceMail(t, current, id) : Promise.resolve(null);
+    },
     tx,
     clock,
     assembly,

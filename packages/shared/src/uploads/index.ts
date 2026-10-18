@@ -34,8 +34,8 @@ const category = (
 export const UPLOAD_CATEGORIES = {
   kyc_license: category("secure", "entity", image, { merchant: true }),
   kyc_permit: category("secure", "store", image, { merchant: true }),
-  pay_receipt: category("secure", "entity", [...image, "pdf"], { merchant: true }),
-  invoice: category("secure", "entity", ["pdf", "ofd", "xml"]),
+  pay_receipt: category("secure", "entity", [...image, "pdf"], { merchant: true, admin: true }),
+  invoice: category("secure", "entity", ["pdf", "ofd", "xml"], { admin: true }),
   legal_doc: category("secure", "platform", documentExts, { admin: true, system: true }),
   seal_image: category("secure", "platform", ["png"]),
   consent_digest: category("secure", "platform", ["txt"]),

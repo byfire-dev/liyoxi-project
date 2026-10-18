@@ -206,11 +206,10 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       tx.deliveryTicket.findUniqueOrThrow({ where: { id: ticketId } }),
     );
   const launch = await runtime.tx.run(async (tx) =>
-    createSla(runtime).dueAt(tx, {
+    createSla(runtime).nthWorkdayAfter(tx, {
       policy: "plan.launch_min",
       amount: 7,
-      unit: "work_days",
-      from: order.submittedAt,
+      from: calendarDate(order.submittedAt),
       workHours: await workHoursAt(tx, runtime.clock.now()),
     }),
   );
@@ -236,7 +235,7 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       "X-Store-Id": merchant.store.id,
       "X-Client-Version": "1.0.0",
     },
-    launchDate: calendarDate(launch.dueAt),
+    launchDate: launch.date,
     deliveryDate: addDays(calendarDate(runtime.clock.now()), 3),
   };
 };

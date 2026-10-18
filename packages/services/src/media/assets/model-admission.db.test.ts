@@ -36,6 +36,37 @@ const spent = async () => {
 };
 
 describe("三owner真实PG与Redis预算", () => {
+  it("准备耗时超过250ms后真实走时，许可仍从当前读时刻起算且不扩大窗口", async () => {
+    const facts = await h.readyImage(),
+      preparedAt = h.clock.now().getTime();
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
+      "ok",
+    );
+    expect(h.budget.reserve).toHaveBeenCalledTimes(1);
+    const permit = h.budget.reserve.mock.calls[0]![0];
+    expect(permit.readAtMs).toBeGreaterThan(preparedAt + 250);
+    expect(permit.admitUntilMs).toBe(permit.readAtMs + 250);
+    expect(await h.budget.reserve.mock.results[0]!.value).toMatchObject({ status: "reserved" });
+    expect(h.vision).toHaveBeenCalledTimes(1);
+  });
+
+  it("许可读出后真实等待超过250ms仍取消，不刷新重授或调用Redis与模型", async () => {
+    const facts = await h.readyImage(),
+      read = h.budget.readPermit.getMockImplementation()!;
+    h.budget.readPermit.mockImplementationOnce(async (tx, input) => {
+      const permit = await read(tx, input);
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      return permit;
+    });
+    expect(await h.visionStrategy().execute(facts.job, signal())).toEqual({ state: "canceled" });
+    expect(h.budget.readPermit).toHaveBeenCalledTimes(1);
+    expect(h.budget.reserve).not.toHaveBeenCalled();
+    expect(h.evalCall).not.toHaveBeenCalled();
+    expect(h.vision).not.toHaveBeenCalled();
+    expect(await spent()).toBe(0);
+  });
+
   it.each(["asr", "vision", "digest"] as const)(
     "%s真实许可读两次、预留一次且计原文件/槽",
     async (kind) => {
@@ -84,9 +115,15 @@ describe("三owner真实PG与Redis预算", () => {
 
   it("视频六帧只占一个原文件与三槽", async () => {
     const facts = await h.readyVideo();
-    expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
-      "ok",
-    );
+    const probe = await h.prisma.storeAssetInsight.findFirstOrThrow({
+      where: { storeAssetId: facts.assetId, fileId: facts.files[0]!.id, kind: "tech_spec" },
+      include: { mediaJob: true, file: { include: { mediaInfo: true } } },
+    });
+    expect(probe.mediaJob?.finishedAt).toBeInstanceOf(Date);
+    expect(probe.file?.mediaInfo?.probedAt).toEqual(probe.mediaJob?.finishedAt);
+    const output = structuredOutput(await h.visionStrategy().execute(facts.job, signal()));
+    expect(output.status, output.reason ?? undefined).toBe("ok");
+    expect(output.reason).toBeNull();
     expect(h.signing).toHaveBeenCalledTimes(6);
     expect(h.vision.mock.calls[0]![0].imageUrls).toHaveLength(6);
     expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual([facts.files[0]!.id]);
