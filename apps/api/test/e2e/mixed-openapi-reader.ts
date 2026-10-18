@@ -114,6 +114,7 @@ export function mixedReadPlan(
     "admin.calendarDay.list": { year: String(input.year) },
     "admin.followUp.list": { entityId: input.access.ids.entityId },
     "admin.storeAsset.list": { storeId: input.access.ids.storeId },
+    "admin.subscriptionTerm.list": { tab: "expiring" },
   };
   for (const row of operations) {
     if (row.path.includes("{")) continue;

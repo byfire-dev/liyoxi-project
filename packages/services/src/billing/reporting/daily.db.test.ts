@@ -202,6 +202,11 @@ it("真实流水与周期快照重建历史日：预约隔离、发放/冻结/�
   h.clock.set(old.term.endsAt);
   await h.tx.run(async (tx) => {
     await h.ledger.advance(tx, legacy.entity.id);
+    expect(
+      await tx.subscriptionEvent.findFirstOrThrow({
+        where: { subscriptionTermId: old.term.id, type: "expired" },
+      }),
+    ).toMatchObject({ payload: { dailySnapshot: { termId: old.term.id, status: "ended" } } });
     await expect(
       savepoint(tx, () =>
         projection.snapshot(tx, legacy.entity.id, calendarDate(old.term.endDate)),

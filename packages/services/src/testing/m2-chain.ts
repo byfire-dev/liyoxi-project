@@ -8,6 +8,7 @@ import { createClock } from "./clock.js";
 import type { M1SupportOptions } from "./m1-types.js";
 import { createM2Transport } from "./m2-transport.js";
 import { createM2Background } from "./m2-background.js";
+import { prepareClosedBillingDays } from "./billing-daily.js";
 
 export interface M2FactScope {
   entityId: string;
@@ -29,6 +30,12 @@ export async function createM2Support(options: Pick<M1SupportOptions, "runId" | 
     ...base,
     ...createM2Transport(base, startedAt, owned),
     drainBackground: createM2Background(base, startedAt, owned),
+    async fullInvariants() {
+      owned();
+      // 邀请到期等运输会跨日：正式日投影完成后，仍运行原全域零违规断言。
+      await prepareClosedBillingDays(base.runtime);
+      return base.fullInvariants();
+    },
     startedAt,
     alerts: alertsOf(base.runtime.assembly),
     async configureSms(staffId: string) {
