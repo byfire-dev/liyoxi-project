@@ -206,6 +206,7 @@
 | `REDIS_COMPAT_URL=<连接串> pnpm redis:compat` | 托管 Redis 与队列库的兼容脚本（验证项 V1）：七项逐项给结论并出一份 JSON 报告，连接串只从这个环境变量读、不落盘不打印。参数见 [脚本](apps/worker/src/cli/redis-compat.ts) 开头的注释；业主怎么跑见 [v01-managed-redis.md](docs/plan/external-verification/v01-managed-redis.md) |
 | `pnpm admin:build`、`pnpm portal:build` | 后台、下载页的生产构建（产物在各自的 `dist/app`），随后查产物：文件名带内容哈希、写入了构建号、不含夹具。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e` | 后台 Playwright 样例冒烟：外壳、三种骨架、陈列页与鉴权样例，截图在 `apps/admin/dist/e2e-shots`。浏览器怎么备见 [README](apps/admin/README.md) |
+| `pnpm --filter @liyoxi/admin e2e:cover` | 后台独立封面上传三场景：替换与失败重试、非法文件、上架校验阻断；使用替身上传与保存接口，截图和失败 trace 在 `apps/admin/dist/e2e-results/cover-upload`。见 [README](apps/admin/README.md) |
 | `pnpm admin:e2e:live` | 后台真实 API 与生产构建验收：独立测试库/Redis 前缀、现造假密钥、首次激活与绑定、恢复码登录、复用登录态；全程无控制台错误。需本地 PostgreSQL/Redis；用法与造数登记见 [后台 README](apps/admin/README.md) |
 | `pnpm --filter @liyoxi/admin test`、`pnpm --filter @liyoxi/portal test` | 后台、下载页的单测。根上的 `pnpm test` 不含这两个应用：它们的单测与构建共用各自的 `vite.config.ts` |
 | `node infra/ci/pages/generate.mjs`（加 `--check` 只比对） | 由后台菜单登记表与下载页页面清单重新生成 `docs/plan/pages.md`。用法见 [脚本](infra/ci/pages/generate.mjs) 开头的注释 |
