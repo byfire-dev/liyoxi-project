@@ -1,7 +1,12 @@
 import { PlanCardSchema, PlanQuoteSchema } from "@liyoxi/contract";
-import type { PlanQuoteBody, PurchasePolicy } from "@liyoxi/contract";
-import { termDates } from "@liyoxi/shared/period";
+import type { BillingOrderContent, PlanQuoteBody, PurchasePolicy } from "@liyoxi/contract";
+import { termDates, upgradePosition } from "@liyoxi/shared/period";
 import { calendarDate } from "@liyoxi/shared/time";
+import { quoteUpgrade } from "@liyoxi/shared/pricing";
+import { splitEvenly } from "@liyoxi/shared/alloc";
+import { paramsAt as configParamsAt } from "../../config/index.js";
+import { renewalDates } from "../subscription/terms.js";
+import { fromDateColumn } from "../ledger/context.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
 import { AppError } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
@@ -90,15 +95,116 @@ export async function quotePlan(
 ) {
   const e = await getEntitlements(tx, entityId, at);
   if (e.refundPending) throw new AppError("PLAN_REFUND_IN_PROGRESS");
-  if (
-    e.subStatus === "active" ||
-    (await tx.subscriptionTerm.count({
-      where: { entityId, status: "scheduled", endsAt: { gt: at } },
-    })) > 0
-  )
-    throw new AppError("STATE_NOT_ALLOWED");
   const { plan, revision } = await planAt(tx, input.planId, at),
-    params = await paramsAt(tx, at);
+    params = await paramsAt(tx, at),
+    current = e.term
+      ? await tx.subscriptionTerm.findUniqueOrThrow({ where: { id: e.term.termId } })
+      : null,
+    from = current ? await tx.plan.findUniqueOrThrow({ where: { id: current.planId } }) : null;
+  const action = !current
+    ? "subscribe"
+    : plan.rank > from!.rank
+      ? input.intent === "renew_next_term"
+        ? "renew_upgrade"
+        : "upgrade"
+      : plan.rank < from!.rank
+        ? "downgrade"
+        : "renew";
+  if (action === "upgrade") {
+    const position = upgradePosition(
+      {
+        startDate: fromDateColumn(current!.startDate),
+        endDate: fromDateColumn(current!.endDate),
+        anchorDay: current!.anchorDay,
+        months: current!.months,
+      },
+      calendarDate(at),
+      params.prorationBaseDays,
+    );
+    const targetCyclePriceFen = (revision.cyclePrices as Record<string, number>)[
+      String(current!.months)
+    ];
+    if (targetCyclePriceFen === undefined) throw new AppError("PLAN_NOT_AVAILABLE");
+    const feeDeltaPerMonthFen =
+        splitEvenly(targetCyclePriceFen, current!.months)[0]! - current!.monthlyEquivFen,
+      pointsDeltaPerMonth = revision.monthlyPoints - current!.monthlyPoints;
+    if (feeDeltaPerMonthFen <= 0 || pointsDeltaPerMonth <= 0)
+      throw new AppError("UPGRADE_NOT_ALLOWED_TODAY", { details: { suggest: "renew_next_term" } });
+    const result = quoteUpgrade({
+      ...position,
+      feeDeltaPerMonthFen,
+      pointsDeltaPerMonth,
+      baseDays: params.prorationBaseDays,
+    });
+    if (result.payFen <= 0 || (result.topupPoints === 0 && position.remainingFullMonths === 0))
+      throw new AppError("UPGRADE_NOT_ALLOWED_TODAY", { details: { suggest: "renew_next_term" } });
+    const hours = await configParamsAt(tx, ["billing.upgrade_quote_valid_hours"], at),
+      validUntil = new Date(
+        Math.min(
+          current!.endsAt.getTime(),
+          at.getTime() + hours["billing.upgrade_quote_valid_hours"] * 3600000,
+        ),
+      ).toISOString(),
+      p = await policy("plan_upgrade", result.payFen);
+    if (p.mode !== "in_app")
+      throw new AppError("PURCHASE_NOT_OFFERED", { details: { mode: p.mode } });
+    const content = {
+      v: 1,
+      kind: "upgrade",
+      termId: current!.id,
+      fromPlanRevisionId: current!.planRevisionId,
+      toPlanRevisionId: revision.id,
+      quotedAt: at.toISOString(),
+      quotedOn: calendarDate(at),
+      ...position,
+      baseDays: params.prorationBaseDays,
+      feeDeltaPerMonthFen,
+      pointsDeltaPerMonth,
+      ...result,
+      validUntil,
+    } satisfies BillingOrderContent;
+    return {
+      content,
+      quote: PlanQuoteSchema.parse({
+        action,
+        orderType: "plan_upgrade",
+        planId: plan.id,
+        planRevisionId: revision.id,
+        planName: plan.name,
+        fromPlanName: from!.name,
+        months: null,
+        payFen: result.payFen,
+        formula: {
+          code: "plan_upgrade",
+          args: {
+            feeDeltaPerMonthFen,
+            remainingDays: position.remainingDays,
+            baseDays: params.prorationBaseDays,
+            remainingFullMonths: position.remainingFullMonths,
+            payFen: result.payFen,
+          },
+          text: `升级补差 ${formatMoney(result.payFen)}`,
+        },
+        effectiveMode: "immediate",
+        newTerm: null,
+        firstGrantDate: null,
+        benefits: benefitsOf(revision),
+        upgrade: {
+          currentTermEndDate: fromDateColumn(current!.endDate),
+          ...position,
+          baseDays: params.prorationBaseDays,
+          feeDeltaPerMonthFen,
+          monthlyDeltaPoints: pointsDeltaPerMonth,
+          ...result,
+        },
+        downgradeImpact: null,
+        promo: null,
+        validUntil,
+        quotedAt: at.toISOString(),
+        policy: p,
+      }),
+    };
+  }
   if (input.months === undefined)
     throw new AppError("VALIDATION_FAILED", {
       details: { fieldErrors: [{ path: "months", message: "请选择购买周期" }] },
@@ -112,6 +218,7 @@ export async function quotePlan(
       claimRevisionId: string;
     } = null;
   if (
+    action === "subscribe" &&
     (revision.legacyPromo as { type?: string } | null)?.type === "previous_revision" &&
     !(await tx.planPromoClaim.findUnique({
       where: { entityId_planRevisionId: { entityId, planRevisionId: revision.id } },
@@ -134,26 +241,51 @@ export async function quotePlan(
     payFen =
       (priced.cyclePrices as Record<string, number>)[String(months)] ??
       priced.monthlyFeeFen * months,
-    p = await policy("plan_new", payFen);
+    p = await policy(current ? "plan_renew" : "plan_new", payFen);
   if (p.mode !== "in_app")
     throw new AppError("PURCHASE_NOT_OFFERED", { details: { mode: p.mode } });
-  const term = termDates(calendarDate(at), months);
+  const tail = current
+    ? await tx.subscriptionTerm.findFirst({
+        where: { entityId, status: { in: ["active", "scheduled"] }, endsAt: { gt: at } },
+        orderBy: [{ endsAt: "desc" }, { id: "desc" }],
+      })
+    : null;
+  const term = tail ? renewalDates(tail, months) : termDates(calendarDate(at), months);
+  const downgradeImpact =
+    action === "downgrade"
+      ? {
+          storesToRemove: Math.max(
+            0,
+            (await tx.store.count({ where: { entityId, lifecycle: "active" } })) -
+              revision.maxStores,
+          ),
+          membersToRemove:
+            revision.maxMembers === null
+              ? 0
+              : Math.max(
+                  0,
+                  (await tx.entityMember.count({
+                    where: { entityId, role: "clerk", status: "active" },
+                  })) - revision.maxMembers,
+                ),
+        }
+      : null;
   const quote = PlanQuoteSchema.parse({
-    action: "subscribe",
-    orderType: "plan_new",
+    action,
+    orderType: current ? "plan_renew" : "plan_new",
     planId: plan.id,
     planRevisionId: revision.id,
     planName: plan.name,
-    fromPlanName: null,
+    fromPlanName: from?.name ?? null,
     months,
     payFen,
     formula: formulaOf(priced.monthlyFeeFen, payFen, months),
-    effectiveMode: "immediate",
+    effectiveMode: current ? "next_term" : "immediate",
     newTerm: { startDate: term.startDate, endDate: term.endDate },
     firstGrantDate: term.startDate,
     benefits: benefitsOf(revision),
     upgrade: null,
-    downgradeImpact: null,
+    downgradeImpact,
     promo: promo ? { type: promo.type, appliedRevisionId: promo.appliedRevisionId } : null,
     validUntil: null,
     quotedAt: at.toISOString(),
@@ -174,6 +306,6 @@ export async function quotePlan(
       discountBp: revision.discountBp,
       promo,
       quotedAt: at.toISOString(),
-    },
+    } satisfies BillingOrderContent,
   };
 }

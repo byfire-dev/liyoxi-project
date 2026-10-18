@@ -82,7 +82,13 @@ import { createCertAssembly } from "./cert-runtime.js";
 import { createBackupAssembly } from "./backup-runtime.js";
 import { createAlertDispatcher } from "./alert-delivery.js";
 import type { ModelBudgetTransport, PromoteRef } from "../media/index.js";
-import { advanceDueAccounts, createLedger, bindBillingTimers } from "../billing/index.js";
+import {
+  advanceDueAccounts,
+  createLedger,
+  bindBillingTimers,
+  createBillingDailyAssembly,
+  createBillingDailyProjection,
+} from "../billing/index.js";
 import { createFlow } from "../flow/index.js";
 import type { AdvanceSweepOptions, AdvanceSweepResult } from "../billing/index.js";
 import { consumeDelivery, createEvents, dispatchDue, EXPAND_BATCH_SIZE } from "../events/index.js";
@@ -371,7 +377,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     storage: () => providers.storage,
   });
   const notifyScope = createNotifyAssembly(analyticsScope.assembly);
-  const mediaScope = createMediaAssembly(notifyScope.assembly);
+  const billingDailyScope = createBillingDailyAssembly(notifyScope.assembly);
+  const mediaScope = createMediaAssembly(billingDailyScope.assembly);
   const mediaAssetsScope = createMediaAssetsAssembly(mediaScope.assembly);
   const staffScope = createStaffAssembly(mediaAssetsScope.assembly);
   const transferReviewScope = createTransferReviewAssembly(staffScope.assembly);
@@ -728,6 +735,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   };
   // 账本（W1-10）：每分钟扫描用它推进到点的主体
   const ledger = createLedger({ clock, events });
+  billingDailyScope.attach({ ledger, ...createBillingDailyProjection({ ledger }) });
   const approval = createApproval({
     assembly,
     clock,
@@ -969,6 +977,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       closeDerive();
     },
     closeBillingTimers: () => {
+      billingDailyScope.close();
       closeBillingTimers();
       closePaymentChannel();
     },

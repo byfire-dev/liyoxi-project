@@ -61,11 +61,35 @@ describe("付款单内容快照与履约结果（W1-11a）", () => {
     );
   });
 
-  it("订阅事件细节：续接带名额，开通与续费预约没有细节", () => {
+  it("订阅事件细节：续接带名额，旧空细节兼容，新日快照必须合法且无额外字段", () => {
     const rolled = { maxStores: 3, maxMembers: null };
     expect(SUBSCRIPTION_EVENT_PAYLOADS.rolled_over.parse(rolled)).toEqual(rolled);
     expect(SUBSCRIPTION_EVENT_PAYLOADS.activated.parse(null)).toBeNull();
-    expect(SUBSCRIPTION_EVENT_PAYLOADS.renewal_scheduled.safeParse({}).success).toBe(false);
+    expect(SUBSCRIPTION_EVENT_PAYLOADS.renewal_scheduled.parse(null)).toBeNull();
+    expect(SUBSCRIPTION_EVENT_PAYLOADS.renewal_scheduled.parse({})).toEqual({});
+    const dailySnapshot = {
+      v: 1,
+      termId: ID,
+      status: "scheduled",
+      planId: ID,
+      planRevisionId: OTHER,
+      months: 1,
+      monthlyEquivFen: 300_000,
+      startsAt: "2026-02-04T16:00:00.000Z",
+      endsAt: "2026-03-04T16:00:00.000Z",
+      activatedAt: null,
+      pendingGrants: [],
+    };
+    expect(SUBSCRIPTION_EVENT_PAYLOADS.renewal_scheduled.parse({ dailySnapshot })).toEqual({
+      dailySnapshot,
+    });
+    for (const invalid of [
+      { extra: true },
+      { dailySnapshot: { ...dailySnapshot, extra: true } },
+      { dailySnapshot: { ...dailySnapshot, status: "active" } },
+      { dailySnapshot: { ...dailySnapshot, endsAt: dailySnapshot.startsAt } },
+    ])
+      expect(SUBSCRIPTION_EVENT_PAYLOADS.renewal_scheduled.safeParse(invalid).success).toBe(false);
   });
 
   it("履约发的三个事件各有 schema：开通六个键齐全，时刻要带毫秒，多一个键不过", () => {

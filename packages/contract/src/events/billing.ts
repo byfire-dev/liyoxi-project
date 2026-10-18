@@ -2,7 +2,7 @@
 // 载荷规则见 x01 第 2.3 节 P1–P7：{ v: 数字, … }，只放 id、业务日期、关键数字与枚举；不放 P5 列的内容。
 // 这里交的是账本内核发的九个：七个 billing.points.*，两个由 advance 发的 billing.subscription.*。
 // 其余 billing 事件（开通、续费预约、升级、退款、付款单等）由发它们的包来交。
-import { IdSchema, InstantSchema, orNull, PointsSchema } from "../common/scalars.js";
+import { DateSchema, IdSchema, InstantSchema, orNull, PointsSchema } from "../common/scalars.js";
 import {
   BILLING_ORDER_TYPE,
   BILLING_ORDER_STATUS,
@@ -217,6 +217,30 @@ const invoiceTransition = {
 };
 const invoiceRef = { v: z.literal(1), invoiceRequestId: IdSchema };
 export const payloads = {
+  "manual_reminder.sent": z.strictObject({
+    v: z.literal(1),
+    manualReminderLogId: IdSchema,
+    subjectType: z.enum([
+      "delivery_ticket",
+      "ad",
+      "order_item",
+      "takedown_task",
+      "patrol_task",
+      "subscription_term",
+    ]),
+    subjectId: IdSchema,
+    scene: z.enum([
+      "confirm_plan",
+      "confirm_ad",
+      "confirm_sample",
+      "golive",
+      "takedown",
+      "breach",
+      "patrol_fix",
+      "renewal",
+    ]),
+    bizDate: DateSchema,
+  }),
   "invoice.requested": z.strictObject({
     ...invoiceRef,
     billingOrderId: IdSchema,
@@ -304,6 +328,13 @@ export const payloads = {
   "billing.subscription.expired": subscriptionExpiredPayload,
   "billing.subscription.activated": subscriptionActivatedPayload,
   "billing.subscription.renewal_scheduled": subscriptionRenewalScheduledPayload,
+  "billing.subscription.upgraded": z.strictObject({
+    v: z.literal(1),
+    termId: IdSchema,
+    entityId: IdSchema,
+    fromPlanId: IdSchema,
+    toPlanId: IdSchema,
+  }),
   "billing.order_fulfilled": orderFulfilledPayload,
   "billing_order.paid": billingOrderPaidPayload,
   "billing_order.cancelled": billingOrderCancelledPayload,

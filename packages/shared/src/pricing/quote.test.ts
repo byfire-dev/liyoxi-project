@@ -96,6 +96,27 @@ describe("广告报价：quoteAd", () => {
 });
 
 describe("升级补差报价：quoteUpgrade", () => {
+  it.each([
+    { remainingDays: 1, remainingFullMonths: 0, payFen: 0, proratedFen: 0, topupPoints: 0 },
+    { remainingDays: 1, remainingFullMonths: 2, payFen: 12000, proratedFen: 0, topupPoints: 0 },
+    { remainingDays: 14, remainingFullMonths: 1, payFen: 6000, proratedFen: 0, topupPoints: 0 },
+    { remainingDays: 15, remainingFullMonths: 1, payFen: 9000, proratedFen: 3000, topupPoints: 1 },
+  ])("月差60元/1积分，剩$remainingDays天及$remainingFullMonths整月时零积分月份免收", (input) => {
+    expect(
+      quoteUpgrade({
+        feeDeltaPerMonthFen: 6000,
+        pointsDeltaPerMonth: 1,
+        baseDays: 30,
+        remainingDays: input.remainingDays,
+        remainingFullMonths: input.remainingFullMonths,
+      }),
+    ).toEqual({
+      payFen: input.payFen,
+      proratedFen: input.proratedFen,
+      topupPoints: input.topupPoints,
+    });
+  });
+
   it("原型算例：基础版升专业版剩 20 天，补交 2,000 元、补发 2,400 积分", () => {
     expect(
       quoteUpgrade({
@@ -229,12 +250,14 @@ describe("计价性质（D7 第 10.2 节 P2；D1 第 13.1 节）", () => {
           baseDays,
           remainingFullMonths: m,
         });
-        const prorated = referenceRound(BigInt(feeDelta) * BigInt(remainingDays), BigInt(baseDays));
+        const topup = referenceRound(BigInt(pointsDelta) * BigInt(remainingDays), BigInt(baseDays));
+        const prorated =
+          topup === 0
+            ? 0
+            : referenceRound(BigInt(feeDelta) * BigInt(remainingDays), BigInt(baseDays));
         expect(quote.proratedFen).toBe(prorated);
         expect(quote.payFen).toBe(prorated + feeDelta * m);
-        expect(quote.topupPoints).toBe(
-          referenceRound(BigInt(pointsDelta) * BigInt(remainingDays), BigInt(baseDays)),
-        );
+        expect(quote.topupPoints).toBe(topup);
         expect(quote.payFen).toBeGreaterThanOrEqual(0);
         expect(quote.topupPoints).toBeGreaterThanOrEqual(0);
       }),

@@ -18,6 +18,7 @@ import type { AccountState, OperationTitle, WrittenOperation } from "./operation
 import { selfCheck } from "./self-check.js";
 import { LedgerError } from "./types.js";
 import type { LedgerDeps } from "./types.js";
+import { captureSubscriptionDailySnapshot } from "../reporting/snapshot.js";
 
 /** 推进时的操作人：系统动作，任务名进事件信封与幂等的 actor_key */
 export const ADVANCE_JOB = "billing.advance";
@@ -188,6 +189,19 @@ async function expireTerm(
     // 有预约周期接着生效，闸门不关；没有的话订阅就此过期
     gateOpen: hasNext && !(await isRefundPending(tx, account.entityId)),
   });
+  // 每个实际结束的周期都需保留终态；有预约接续也不能只留下旧active历史。
+  await tx.subscriptionEvent.create({
+    data: {
+      ...subscriptionEvent(clock, term, "expired", {
+        occurredAt: term.endsAt,
+        bizDate: term.endDate,
+      }),
+      payload: {
+        dailySnapshot: await captureSubscriptionDailySnapshot(tx, account.entityId, term.id),
+      },
+    },
+  });
+  await reached(deps, "subscription_event.insert");
   if (expiredQty > 0) {
     await deps.events.emit(tx, ctx, {
       type: "billing.points.expired",
@@ -238,7 +252,11 @@ async function activateTerm(
       toPlanId: next.planId,
       fromPlanRevisionId: prev.planRevisionId,
       toPlanRevisionId: next.planRevisionId,
-      payload: { maxStores: next.maxStores, maxMembers: next.maxMembers },
+      payload: {
+        maxStores: next.maxStores,
+        maxMembers: next.maxMembers,
+        dailySnapshot: await captureSubscriptionDailySnapshot(tx, account.entityId, next.id),
+      },
     },
   });
   await reached(deps, "subscription_event.insert");
@@ -274,13 +292,6 @@ async function suspend(
     accountPatch: { subStatus: "expired", currentSubscriptionTermId: null },
     gateOpen: false,
   });
-  await tx.subscriptionEvent.create({
-    data: subscriptionEvent(clock, term, "expired", {
-      occurredAt: term.endsAt,
-      bizDate: term.endDate,
-    }),
-  });
-  await reached(deps, "subscription_event.insert");
   await deps.events.emit(tx, ctx, {
     type: "billing.subscription.expired",
     aggregate: { type: "subscription_term", id: term.id },

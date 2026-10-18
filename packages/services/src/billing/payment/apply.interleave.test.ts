@@ -5,6 +5,7 @@ import {
   createPaymentHarness,
   joinPayment,
   pendingPlanOrder,
+  prepareClosedBillingDays,
   transferReceipt,
   useSeededDatabase,
 } from "../../testing/index.js";
@@ -64,6 +65,7 @@ it(
       expect(
         await prisma.ledgerOperation.count({ where: { entityId: entity.id, opType: "expire" } }),
       ).toBe(1);
+      await prepareClosedBillingDays(h, entity.id);
       for (const check of [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants]) {
         expect(
           await h.tx.run((tx) =>

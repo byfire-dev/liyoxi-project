@@ -64,7 +64,17 @@ export async function computeEntityDaily(
       throw new Error("BILLING_DAILY_HISTORY_SCOPE_INVALID");
     return { event, snapshot };
   });
-  const known = new Set(history.map(({ snapshot }) => snapshot.termId));
+  // 终态/升级快照不能证明此前的生效或预约事实；缺创建历史时仍须按旧史不足隔离。
+  const known = new Set(
+    history
+      .filter(
+        ({ event, snapshot }) =>
+          (event.type === "activated" && snapshot.status === "active") ||
+          (["renewal_scheduled", "downgrade_scheduled"].includes(event.type) &&
+            snapshot.status === "scheduled"),
+      )
+      .map(({ snapshot }) => snapshot.termId),
+  );
   if (terms.some((term) => term.createdAt < endOfDay(through) && !known.has(term.id)))
     throw new BillingDailyHistoryMissingError();
   const lots = await db.pointLot.findMany({ where: { entityId } });

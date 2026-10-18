@@ -25,6 +25,13 @@ export const LEDGER_TITLE_ARGS = {
   grant_term: z.strictObject({ planName: short, ...term }),
   /** 季付、年付其后各月发放 */
   grant_monthly: z.strictObject({ planName: short, monthNo: z.int().positive() }),
+  grant_upgrade: z.strictObject({
+    toMonthlyPoints: positivePoints,
+    fromMonthlyPoints: positivePoints,
+    remainingDays: z.int().nonnegative(),
+    baseDays: z.int().positive(),
+    billingOrderNo: short,
+  }),
   /** 加购入账 */
   topup: z.strictObject({
     billingOrderNo: short,

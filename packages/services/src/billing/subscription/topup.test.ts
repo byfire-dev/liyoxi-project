@@ -7,6 +7,7 @@ import {
   createPaymentHarness,
   useSeededDatabase,
   pendingPlanOrder,
+  prepareClosedBillingDays,
   transferReceipt,
   applyReceipt,
   sampleStaffContext,
@@ -58,6 +59,7 @@ async function topup(
   });
 }
 async function invariant(h: PaymentHarness, id: string) {
+  await prepareClosedBillingDays(h, id);
   for (const rule of [...billingInvariants, ...subscriptionInvariants, ...paymentInvariants])
     expect(
       await h.tx.run((tx) => rule.run!(tx, { entityIds: [id] }, { now: h.clock.now() })),

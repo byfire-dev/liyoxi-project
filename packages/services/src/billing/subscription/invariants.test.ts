@@ -12,6 +12,8 @@ import {
 } from "../../testing/index.js";
 import type { FulfillHarness } from "../../testing/index.js";
 import { subscriptionInvariants } from "./invariants.js";
+import { createBillingDailyProjection } from "../reporting/daily.js";
+import { addDays, calendarDate } from "@liyoxi/shared/time";
 
 // 验收 11（订阅一侧的三条）：billing.I9、I10、I12 各造一条违规都能查出；空库加种子、正常履约之后 0 违规。
 // I10 的“重叠”要先去掉排他约束才造得出来，在 overlap.test.ts；这里造“首尾不相接”。
@@ -48,7 +50,14 @@ const runAll = async (entityId?: string): Promise<Record<string, number>> => {
   }
   return counts;
 };
-const CLEAN = { "billing.I9": 0, "billing.I10": 0, "billing.I12": 0 };
+const CLEAN = {
+  "billing.I9": 0,
+  "billing.I10": 0,
+  "billing.I11": 0,
+  "billing.I12": 0,
+  "billing.I13": 0,
+  "billing.I15": 0,
+};
 
 /** 履约一张套餐付款单，并像入账函数那样把付款单写成履约完成 */
 async function subscribe(entityId: string, input: { months?: number; renew?: boolean } = {}) {
@@ -68,14 +77,17 @@ async function subscribe(entityId: string, input: { months?: number; renew?: boo
   return { order, term };
 }
 
-describe("billing 的不变量：订阅一侧的三条（验收 11）", () => {
-  it("登记的是 I9、I10、I12：都只在 full 里跑、不自愈；钱与权益对应的 P1，其余 P2", () => {
+describe("billing 的不变量：订阅与日投影（验收 11）", () => {
+  it("登记的是 I9–I13与I15：都只在full里跑、不自愈，财务守恒P1与状态排期P2", () => {
     expect(
       subscriptionInvariants.map((check) => [check.code, check.severity, check.modes, check.heal]),
     ).toEqual([
       ["billing.I9", "P2", ["full"], "none"],
       ["billing.I10", "P2", ["full"], "none"],
+      ["billing.I11", "P1", ["full"], "none"],
       ["billing.I12", "P1", ["full"], "none"],
+      ["billing.I13", "P1", ["full"], "none"],
+      ["billing.I15", "P2", ["full"], "none"],
     ]);
     const registered = assembleForTest({ entry: "worker" }).invariants.map((check) => check.code);
     expect(registered).toEqual(expect.arrayContaining(Object.keys(CLEAN)));
@@ -95,10 +107,24 @@ describe("billing 的不变量：订阅一侧的三条（验收 11）", () => {
       for (const moment of ["2026-04-05T00:01:00", "2026-05-05T00:01:00"]) {
         h.clock.set(at(moment));
         await h.tx.run((tx) => h.ledger.advance(tx, entity.id));
+        await h.tx.run((tx) =>
+          createBillingDailyProjection({ ledger: h.ledger }).snapshot(
+            tx,
+            entity.id,
+            addDays(calendarDate(h.clock.now()), -1),
+          ),
+        );
         expect(await runAll(), moment).toEqual(CLEAN);
       }
       h.clock.set(at("2026-06-01T09:00:00"));
       await subscribe(entity.id, { renew: true });
+      await h.tx.run((tx) =>
+        createBillingDailyProjection({ ledger: h.ledger }).snapshot(
+          tx,
+          entity.id,
+          addDays(calendarDate(h.clock.now()), -1),
+        ),
+      );
       expect(await runAll()).toEqual(CLEAN);
     },
     SLOW,

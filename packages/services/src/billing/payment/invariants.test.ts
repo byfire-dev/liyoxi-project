@@ -40,7 +40,7 @@ async function run(code: string, entityId?: string, now = h.clock.now()) {
 
 describe("付款的每日不变量（验收 11）", () => {
   it(
-    "三条 P1、只每日 full、不自愈；空库加种子十五条全量为零，真实入账后仍为零",
+    "三条 P1、只每日 full、不自愈；空库加种子十八条全量为零，真实入账后仍为零",
     async () => {
       expect(
         paymentInvariants.map((check) => [check.code, check.severity, check.modes, check.heal]),
@@ -53,7 +53,27 @@ describe("付款的每日不变量（验收 11）", () => {
       const registered = assembleForTest({ entry: "worker" }).invariants;
       expect(
         registered.filter((check) => full.some((item) => item.code === check.code)),
-      ).toHaveLength(15);
+      ).toHaveLength(18);
+      expect(full.map((check) => check.code).sort()).toEqual([
+        "billing.I1",
+        "billing.I10",
+        "billing.I11",
+        "billing.I12",
+        "billing.I13",
+        "billing.I15",
+        "billing.I16",
+        "billing.I2",
+        "billing.I3",
+        "billing.I4",
+        "billing.I5",
+        "billing.I6",
+        "billing.I7",
+        "billing.I8",
+        "billing.I9",
+        "payment.I1",
+        "payment.I2",
+        "payment.I4",
+      ]);
       for (const check of full)
         expect(
           await h.tx.run((tx) => check.run!(tx, {}, { now: h.clock.now() })),

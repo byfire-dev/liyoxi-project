@@ -91,9 +91,10 @@ describe("推进的并发（验收 8）", () => {
         expect(count("expire")).toBe(2);
         expect(count("addon_suspend")).toBe(1);
         expect(state.schedules.map((row) => row.status)).toEqual(Array(4).fill("granted"));
-        expect(state.subscriptionEvents.map((event) => event.type)).toEqual([
-          "rolled_over",
-          "expired",
+        expect(state.subscriptionEvents.map((event) => [event.type, event.termNo])).toEqual([
+          ["expired", 1],
+          ["rolled_over", 2],
+          ["expired", 2],
         ]);
         expect(state.account).toMatchObject({ subStatus: "expired", planAvailableQty: 0 });
         expect(state.lots.filter((lot) => lot.kind === "plan")).toHaveLength(4);
