@@ -30,3 +30,4 @@ export * from "./point-packs.js";
 
 export * from "./invoices.schemas.js";
 export * from "./invoice-requests.js";
+export * from "./channel-read.schemas.js";

@@ -162,6 +162,13 @@ describe("参数键清单（14 分组 第 2.3 节“参数键的归属”）", (
   const NOT_KEYS = new Set(["sod.refund.distinct_executor"]);
   /** 表里写成“`notify.window.start` / `end`”的另一半 */
   const EXPANDED = new Set(["notify.window.end"]);
+  // W4-13 已按开票类型落实归属表的 invoice.item_name.*，只允许这四个完整键。
+  const invoiceItemKeys = [
+    "invoice.item_name.plan_new",
+    "invoice.item_name.plan_renew",
+    "invoice.item_name.plan_upgrade",
+    "invoice.item_name.topup",
+  ];
   /** 07 第 7 节待回写的参数：不在归属表里 */
   const pending = pendingRows("参数").map((row) => row.key);
 
@@ -200,14 +207,18 @@ describe("参数键清单（14 分组 第 2.3 节“参数键的归属”）", (
     });
   });
 
-  it("带通配的键不猜：不登记它们名下的任何键", () => {
+  it("带通配的键只登记已落实的开票四项，支付描述仍不猜", () => {
     const wildcards = rows
       .flatMap((cells) => quoted(cells[1]!))
       .filter((token) => token.endsWith(".*"))
       .map((token) => token.slice(0, -1));
     expect(wildcards.sort()).toEqual(["invoice.item_name.", "payment.description_template."]);
     for (const prefix of wildcards) {
-      expect(PARAM_KEYS.filter((item) => item.key.startsWith(prefix))).toEqual([]);
+      expect(PARAM_KEYS.filter((item) => item.key.startsWith(prefix))).toEqual(
+        prefix === "invoice.item_name."
+          ? invoiceItemKeys.map((key) => ({ key, group: "invoice" }))
+          : [],
+      );
     }
   });
 
