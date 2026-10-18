@@ -1,6 +1,6 @@
 // W1-02①：一次真实激活与两步登录，保存浏览器登录态供 live 项目及后续页面包复用。
 import { createHmac } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 
@@ -96,10 +96,11 @@ test("激活设密 → 绑定口令 → 保存恢复码 → 菜单 → 退出 �
   await noHorizontalScroll(page, "恢复码登录后");
   expect(errors).toEqual([]);
   await page.context().storageState({ path: context.storageState });
-  // 整轮可能超过再验证的十分钟；只交接一枚未用的本轮假账号恢复码。
+  // 整轮可能超过十分钟；登录已消费第 0 枚，其余仅交接给同一管理员的真实再验证。
+  chmodSync(process.env.LYX_ADMIN_LIVE_CONTEXT!, 0o600);
   writeFileSync(
     process.env.LYX_ADMIN_LIVE_CONTEXT!,
-    `${JSON.stringify({ ...context, stepUpRecoveryCode: recoveryCodes[1]! })}\n`,
+    `${JSON.stringify({ ...context, stepUp: { staffId: me.staff.staffId, recoveryCodes: recoveryCodes.slice(1) } })}\n`,
     { mode: 0o600 },
   );
 });

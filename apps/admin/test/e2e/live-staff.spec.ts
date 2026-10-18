@@ -2,6 +2,7 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
+import { ensureLiveStepUp } from "./live-step-up";
 
 interface StaffFixture {
   staff: { id: string; name: string; roleKey: string; status: string; phoneLast4: string }[];
@@ -94,6 +95,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       creates++;
   });
   // 两次同一事件循环的真实表单提交，验证React渲染禁用按钮前的同步锁。
+  await ensureLiveStepUp(page);
   await form.evaluate((element) => {
     (element as HTMLFormElement).requestSubmit();
     (element as HTMLFormElement).requestSubmit();
