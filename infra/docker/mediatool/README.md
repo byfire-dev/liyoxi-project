@@ -23,7 +23,7 @@
 ```sh
 pnpm mediatool:verify   # 构建镜像 → 起容器 → 造测试片 → 跑 verify/cases/ → docker inspect 核对 → 拆掉。约半分钟
 pnpm mediatool:bench    # 同样的流程，另造一条约 200MB 的片子，量“体检 + 封面”与加标的耗时
-pnpm exec vitest run packages/services/src/providers/mediatool   # 调用端的用例，不起容器
+pnpm exec vitest run --config packages/services/src/providers/mediatool/vitest.config.ts   # 调用端的用例，不起容器或数据库
 ```
 
 - 本机要有 Docker。两条命令跑完都会把容器与卷删掉，不留测试片。
