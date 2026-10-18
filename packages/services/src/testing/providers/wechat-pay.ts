@@ -470,6 +470,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
       const refund = refunds.get(outRefundNo);
       if (!refund) throw new Error(`假微信支付：没有退款单号 ${outRefundNo}`);
       refund.status = plan.status ?? "SUCCESS";
+      if (refund.status === "SUCCESS") refund.successAt = clock.now();
       const notification: WechatPayNotification = {
         kind: "refund",
         id: next("fake-notify"),
@@ -664,6 +665,14 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
         refunds.set(input.outRefundNo, refund);
         order.tradeState = "REFUND";
         return ok({ ...refund });
+      }),
+
+    queryRefund: (input) =>
+      run("queryRefund", input, () => {
+        const refund = refunds.get(input.outRefundNo);
+        return refund
+          ? ok({ ...refund })
+          : { ...failed("rejected", "替身：退款单不存在"), refundNotFound: true as const };
       }),
 
     fetchTradeBill: (input) =>
