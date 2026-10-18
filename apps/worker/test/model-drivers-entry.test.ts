@@ -13,7 +13,12 @@ const ports = vi.hoisted(() => {
       disconnect: ReturnType<typeof vi.fn>;
     }>,
     logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    database: { prisma: {}, close: vi.fn<() => Promise<void>>() },
+    database: {
+      prisma: {},
+      sessionMutex: { close: vi.fn<() => Promise<void>>() },
+      close: vi.fn<() => Promise<void>>(),
+    },
+    probeDatabase: { prisma: {}, close: vi.fn<() => Promise<void>>() },
     channel: { close: vi.fn<() => Promise<void>>() },
     lease: { holder: "public-worker-fixture", close: vi.fn<() => Promise<void>>() },
     runtime: { start: vi.fn(), stop: vi.fn<() => Promise<void>>() },
@@ -41,6 +46,7 @@ const ports = vi.hoisted(() => {
     ...state,
     Redis,
     connect: vi.fn((_url: string) => state.database),
+    connectProbe: vi.fn((_url: string) => state.probeDatabase),
     queue: vi.fn((_options: unknown) => state.channel),
     createLease: vi.fn((_options: unknown) => state.lease),
   };
@@ -50,16 +56,21 @@ vi.mock("@liyoxi/services", () => ({
   loadEnv: ports.env,
   assembleServices: ports.assemble,
   connectWorkerDatabase: ports.connect,
+  connectProbeDatabase: ports.connectProbe,
   createQueueChannel: ports.queue,
   createWorkerLease: ports.createLease,
   buildWorkerServices: ports.build,
   bullPrefix: () => "lyx:test:bull",
   setPortLogger: vi.fn(),
   EnvError: class EnvError extends Error {},
+  drainServerErrors: vi.fn(async () => undefined),
 }));
 vi.mock("../src/log.js", () => ({ createLogger: () => ports.logger }));
 vi.mock("../src/recurring.js", () => ({ recurringTable: () => [] }));
-vi.mock("../src/runtime.js", () => ({ createWorkerRuntime: ports.createRuntime }));
+vi.mock("../src/runtime.js", () => ({
+  createWorkerRuntime: ports.createRuntime,
+  QUEUE_CONCURRENCY: { outbox_delivery: 4, timer_run: 4, media_job: 10, promote: 2, notify: 4 },
+}));
 import { main } from "../src/index.js";
 
 const asr: NonNullable<Env["ASR_TENCENT"]> = {
@@ -114,7 +125,9 @@ async function exited(code: number) {
   await vi.waitFor(() => expect(exit).toHaveBeenCalledExactlyOnceWith(code));
 }
 function infrastructureClosed() {
+  expect(ports.database.sessionMutex.close).toHaveBeenCalledOnce();
   expect(ports.database.close).toHaveBeenCalledOnce();
+  expect(ports.probeDatabase.close).toHaveBeenCalledOnce();
   expect(ports.channel.close).toHaveBeenCalledOnce();
   expect(ports.clients[0]!.disconnect).toHaveBeenCalledOnce();
 }
@@ -126,10 +139,13 @@ beforeEach(() => {
   ports.env.mockReturnValue(configured());
   ports.assemble.mockReturnValue({ modules: [], subscribers: [], timerHandlers: [] });
   ports.connect.mockReturnValue(ports.database);
+  ports.connectProbe.mockReturnValue(ports.probeDatabase);
   ports.queue.mockReturnValue(ports.channel);
   ports.createLease.mockReturnValue(ports.lease);
   for (const close of [
+    ports.database.sessionMutex.close,
     ports.database.close,
+    ports.probeDatabase.close,
     ports.channel.close,
     ports.lease.close,
     ports.asrClose,
@@ -194,6 +210,8 @@ describe("模型驱动的真实 worker main 入口所有权", () => {
     expect(ports.clients).toHaveLength(0);
     expect(ports.createLease).not.toHaveBeenCalled();
     expect(ports.createRuntime).not.toHaveBeenCalled();
+    expect(ports.connectProbe).not.toHaveBeenCalled();
+    expect(ports.probeDatabase.close).not.toHaveBeenCalled();
     expect(services.closeModelBudget).toHaveBeenCalledOnce();
     expect(services.closeAlertFacts).toHaveBeenCalledOnce();
     expect(ports.database.close).toHaveBeenCalledOnce();

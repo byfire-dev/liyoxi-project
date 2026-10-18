@@ -27,6 +27,7 @@ vi.mock("@liyoxi/services", () => ({
   loadEnv: ports.env,
   createRuntime: ports.create,
   runStartupChecks: ports.checks,
+  drainServerErrors: vi.fn(async () => undefined),
 }));
 vi.mock("@hono/node-server", () => ({ serve: ports.serve }));
 vi.mock("../src/app.js", () => ({ createApp: ports.createApp }));
