@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { LEDGER_TITLE_CODES, parseLedgerTitleArgs } from "./ledger.js";
 
 describe("账本操作的展示文案码（W1-10；m07 第 4.5 节）", () => {
-  it("登记了 M1 十种操作用到的十四个码", () => {
+  it("登记了 M1 十四个文案码与 M4 升级补发码", () => {
     expect([...LEDGER_TITLE_CODES].sort()).toEqual(
       [
         "ad_hold",
@@ -15,6 +15,7 @@ describe("账本操作的展示文案码（W1-10；m07 第 4.5 节）", () => {
         "grant_monthly",
         "grant_open",
         "grant_term",
+        "grant_upgrade",
         "order_hold",
         "refund",
         "release",
