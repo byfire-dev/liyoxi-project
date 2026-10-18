@@ -39,13 +39,13 @@ Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`
 
 该提交的 [mixed-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755947) 已成功构建两版镜像，以 `d5384a867c2f8abae3fb23adbac8f7e8957c1392` 为 first-parent-bootstrap。head-write、old-read-write 均完成 20 集业务链，各 123 项不变量零违规；随后在 head-read 阶段报 `rpc-timeout`。报告未细分该阶段的 start/read/drain/close，尚不能断言超时的具体 RPC。此次失败不是早先迁回提交的 `driver-missing`，必须按当前日志修复。发布仍要求同仓、main-push、同完整 SHA 的 images 与 mixed-smoke 成功。
 
-公网 Google DNS-over-HTTPS 查询以下三域均返回 `Status=0`、无 A 答案：
+首次公网查询以下三域没有 A 答案。业主补齐后，2026-10-18 19:15（北京时间）再次通过 Google DNS-over-HTTPS 独立核验：三域均返回 `Status=0`，A 记录全部为 `101.133.161.191`，DNS 已备齐：
 
 - `api.stg.liyoxi.timavia.com`
 - `admin.stg.liyoxi.timavia.com`
 - `portal.stg.liyoxi.timavia.com`
 
-本机解析器返回的 `198.18.x.x` 不作为公网配置完成证据。三个应用域的 A 记录需指向既定预发服务器；DNS 生效后再核 HTTP ACME 入口、签发证书并验 HTTPS。本轮未 SSH、签证书、启动应用、部署或使用真实云凭据。
+本机解析器返回的 `198.18.x.x` 不作为公网配置完成证据。接下来仍需核 HTTP ACME 入口、签发证书并验 HTTPS；DNS 生效不代表证书或部署已完成。本轮未 SSH、签证书、启动应用、部署或使用真实云凭据。
 
 首次真实登录的微信节点接线见[可选 Provider 配置](../../infra/compose/providers/README.md)：显式选择 `wechat` 后才挂载 AppID 与三份完整成组文件；本地接线验证不代表真实凭据已录入或微信后台能力已开通。先从一位商家、一家门店的登录和普通上传开始，须核账号初始化、生效登录协议、微信合法域名/隐私声明/体验成员及 COS 分权/CORS；扩展至成片流程时再核 CI 模板、队列、回调与制作配置。
 

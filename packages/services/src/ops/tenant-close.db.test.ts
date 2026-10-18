@@ -1310,7 +1310,12 @@ describe("真实广告取消 owner 及并发", () => {
         >`
           SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
           FROM pg_stat_activity WHERE pid = ${waiterPid}`;
-        if (backend?.waiting) {
+        // SQL 文本与实时等待/阻塞者可能跨越相邻语句；等同一 staff 锁观察完整再释放。
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "staff"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "staff"');
           blocked = true;
