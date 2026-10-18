@@ -222,19 +222,15 @@ it("十四入口实际挂载；鉴权/required/版本/回显/stepup失败零业�
     403,
     "PERMISSION_DENIED",
   );
-  await db.staffSession.update({
-    where: { id: executor.sessionId },
-    data: { stepupAt: new Date(api.clock.now().getTime() - 600_001) },
+  const oldStepUp = await signInAsStaff(db, {
+    roleKey: "finance",
+    now: new Date(api.clock.now().getTime() - 600_001),
   });
   await error(
-    await request("admin.refundRequest.execute", executor, { id, body: executeBody }),
+    await request("admin.refundRequest.execute", oldStepUp, { id, body: executeBody }),
     403,
     "STEP_UP_REQUIRED",
   );
-  await db.staffSession.update({
-    where: { id: executor.sessionId },
-    data: { stepupAt: api.clock.now() },
-  });
   const wrong = {
     ...executeBody,
     confirm: { ...executeBody.confirm, amountFen: r.created.amountFen + 1 },
@@ -280,7 +276,7 @@ it("十四入口实际挂载；鉴权/required/版本/回显/stepup失败零业�
   await error(
     await request("admin.refundRequest.confirmNotAccepted", executor, { id, body: retry }),
     409,
-    "REFUND_NOT_ACCEPTED_UNCONFIRMED",
+    "STATE_NOT_ALLOWED",
   );
   const invalid = { ...wire.headers, "wechatpay-signature": "not-a-signature" };
   expect(
@@ -325,6 +321,7 @@ it("驳回/撤回/作废及线下登记均穿真实handler到DB，不能改已�
       scopeType: "entity",
       entityId: r.entity.id,
       uploadActorType: "staff",
+      uploadClient: "admin",
       uploadActorId: executor.staff.id,
       moderationState: "pass",
     }),

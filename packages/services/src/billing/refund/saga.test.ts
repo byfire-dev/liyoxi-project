@@ -33,6 +33,8 @@ const financial = [
   "approval_request",
   "status_transition",
   "outbox_event",
+  "invoice_request",
+  "invoice_doc",
 ];
 async function zero(entityId: string) {
   for (const rule of refundInvariants)
@@ -44,7 +46,7 @@ async function zero(entityId: string) {
 const current = (id: string) =>
   h.prisma.refundTxn.findFirstOrThrow({
     where: { refundRequestId: id },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 it("E1拒绝与意图内中断零半写；提交后外呼/E2中断恢复沿原单号且权益只一次", async () => {
   const r = await h.approved(),
@@ -207,7 +209,7 @@ it("未执行驳回/撤回/作废恢复闸门，余额不丢；超窗只限发�
         refundIdem(r.approver.ctx, "admin.refundRequest.void", v),
       );
     } else if (action === "reject") {
-      const b = { note: "核对后驳回该退款申请", reasonCodes: ["other"] };
+      const b = { note: "核对后驳回该退款申请" };
       await h.service.reject(
         r.approver.ctx,
         r.approver.staff,
@@ -392,6 +394,8 @@ it("真实未入账重复收款转申请：服务端核额，经审批退款只�
     finance = await h.staff(),
     approver = await h.staff(),
     executor = await h.staff();
+  const blue = await h.issueBlue(own, finance);
+  const invoiceBefore = await snapshotTables(h.prisma, ["invoice_request", "invoice_doc"]);
   // 第二笔同付款单支付由渠道成功事实+正式applyPayment分类成duplicate_receipt，非伪造退款状态。
   const { pendingWechatReceipt } = await import("../../testing/index.js");
   const { recordChannelSuccess } = await import("../payment/channel-success.js");
@@ -448,6 +452,11 @@ it("真实未入账重复收款转申请：服务端核额，经审批退款只�
     body,
     refundIdem(approver.ctx, "admin.refundRequest.approve", body),
   );
+  const dto = await h.service.get(executor.staff, created.refundRequestId);
+  expect(dto.invoice).toMatchObject({ latest: { status: "issued" }, needsRedInvoice: false });
+  expect(dto.allowedRoutes).toEqual(["wechat_original", "offline"]);
+  expect(dto.actions).toEqual(expect.arrayContaining(["execute", "record-offline"]));
+  expect(blue.issued.status).toBe("issued");
   const execute = {
     confirm: {
       requestNo: created.requestNo,
@@ -478,6 +487,7 @@ it("真实未入账重复收款转申请：服务端核额，经审批退款只�
   expect(
     await h.prisma.paymentException.findUniqueOrThrow({ where: { id: exception.id } }),
   ).toMatchObject({ status: "resolved", refundRequestId: created.refundRequestId });
+  expect(await snapshotTables(h.prisma, ["invoice_request", "invoice_doc"])).toEqual(invoiceBefore);
   await zero(own.entity.id);
 });
 
@@ -510,6 +520,7 @@ it("线下登记使用真实media规则与唯一流水，失败零写、成功�
     scopeType: "entity",
     entityId: r.entity.id,
     uploadActorType: "staff",
+    uploadClient: "admin",
     uploadActorId: r.executor.row.id,
     status: "stored",
     moderationState: "pass",
@@ -567,7 +578,7 @@ it("双人放弃只允许异常交易：真实会话认证，同人/过期/错�
   expect(await snapshotTables(h.prisma, financial)).toEqual(before);
   await h.prisma.staffSession.update({
     where: { id: second.session.id },
-    data: { revokedAt: h.clock.now() },
+    data: { revokedAt: h.clock.now(), revokeReason: "admin" },
   });
   await expect(
     h.service.abandon({ finance: first, administrator: second }, body),
@@ -580,6 +591,7 @@ it("双人放弃只允许异常交易：真实会话认证，同人/过期/错�
     scopeType: "entity",
     entityId: r.entity.id,
     uploadActorType: "staff",
+    uploadClient: "admin",
     uploadActorId: finance.staff.id,
     status: "stored",
     moderationState: "pass",
@@ -611,6 +623,7 @@ it("预约退款前移后续周期以根取消事件保存真实快照，daily�
   const { computeEntityDaily } = await import("../reporting/daily.js");
   const { calendarDate } = await import("@liyoxi/shared/time");
   // 合法参数没有上限1：本例显式配置3个预约名额，只构造两笔真实后续已收款周期。
+  h.clock.advance(1);
   await h.prisma.billingParam.create({
     data: {
       id: uuidv7(),
@@ -764,7 +777,7 @@ it("日历更新只重算未执行待办，旧timer取消/同状态历史原子�
   await h.tx.run((tx) =>
     onRefundCalendarImported(tx, h.deps, {
       ...event,
-      payload: { ...event.payload, calendarVersion: 0 },
+      payload: { ...event.payload, calendarVersion: Number(event.payload.calendarVersion) + 1 },
     }),
   );
   expect(
@@ -804,4 +817,248 @@ it("日历更新只重算未执行待办，旧timer取消/同状态历史原子�
       },
     }),
   ).toBe(0);
+});
+
+async function submitOwn(
+  own: Awaited<ReturnType<RefundHarness["paid"]>>,
+  ruleCode: "window" | "qualification_failed" | "override" = "window",
+) {
+  const creator = await h.staff("super_admin"),
+    approver = await h.staff(),
+    executor = await h.staff();
+  const reason = await h.refundReason();
+  const body = {
+    ruleCode,
+    reasonCode: reason.code,
+    note: "真实规则边界退款核验",
+    confirm: { orderNo: own.order.orderNo, amountFen: own.order.paidAmountFen },
+  };
+  const created = await h.service.create(
+    creator.ctx,
+    creator.staff,
+    own.order.id,
+    body,
+    refundIdem(creator.ctx, "admin.paymentOrder.refundRequest.create", body),
+  );
+  const approval = {
+    lockVersion: 0,
+    confirm: { requestNo: created.requestNo, amountFen: created.amountFen },
+    confirmChecks: ["rule_amount_checked"],
+  };
+  const approved = await h.service.approve(
+    approver.ctx,
+    approver.staff,
+    created.refundRequestId,
+    approval,
+    refundIdem(approver.ctx, "admin.refundRequest.approve", approval),
+  );
+  return { ...own, creator, approver, executor, created, approved };
+}
+
+it("真实蓝票经批准红冲：未完成红票执行零写，红冲完成才允许原路退款", async () => {
+  const own = await h.paid(),
+    issuer = await h.staff(),
+    blue = await h.issueBlue(own, issuer);
+  const r = await submitOwn(own);
+  const blocked = await h.service.get(r.executor.staff, r.created.refundRequestId);
+  expect(blocked.invoice).toMatchObject({
+    latest: { status: "red_pending" },
+    needsRedInvoice: true,
+  });
+  expect(blocked.allowedRoutes).toEqual([]);
+  expect(blocked.actions).not.toContain("execute");
+  expect(blocked.actions).not.toContain("record-offline");
+  const before = await snapshotTables(h.prisma, financial);
+  await expect(h.execute(r)).rejects.toMatchObject({ error: "RED_INVOICE_REQUIRED" });
+  expect(await snapshotTables(h.prisma, financial)).toEqual(before);
+  const file = await h.invoiceFile(own.entity.id, issuer.row.id);
+  const red = await h.invoices.issueRed(issuer.ctx, issuer.staff, blue.request.invoiceRequestId, {
+    invoiceNo: "20260000000000000002",
+    fileId: file.id,
+    redReason: "已批准退款真实红冲",
+    confirm: {
+      requestNo: blue.request.requestNo,
+      blueInvoiceNo: blue.issued.docs[0]!.invoiceNo,
+      amountFen: own.order.paidAmountFen,
+    },
+  });
+  expect(red.status).toBe("red_issued");
+  expect((await h.service.get(r.executor.staff, r.created.refundRequestId)).allowedRoutes).toEqual([
+    "wechat_original",
+    "offline",
+  ]);
+  await h.execute(r);
+  await h.result((await current(r.created.refundRequestId)).id);
+  expect((await h.service.get(r.executor.staff, r.created.refundRequestId)).status).toBe("done");
+  await zero(own.entity.id);
+});
+
+it("资格未终审与积分已用拒绝零写；升级先退款来源，后仅override现金且不二次回收", async () => {
+  const own = await h.paid(),
+    creator = await h.staff("super_admin"),
+    reason = await h.refundReason();
+  const reject = async (order: typeof own.order, ruleCode: "window" | "qualification_failed") => {
+    const body = {
+      ruleCode,
+      reasonCode: reason.code,
+      confirm: { orderNo: order.orderNo, amountFen: order.paidAmountFen },
+    };
+    const before = await snapshotTables(h.prisma, financial);
+    await expect(
+      h.service.create(
+        creator.ctx,
+        creator.staff,
+        order.id,
+        body,
+        refundIdem(creator.ctx, "admin.paymentOrder.refundRequest.create", body),
+      ),
+    ).rejects.toMatchObject({ error: "PLAN_REFUND_NOT_ELIGIBLE" });
+    expect(await snapshotTables(h.prisma, financial)).toEqual(before);
+  };
+  expect(
+    (await h.service.quote(creator.staff, own.order.id)).rules.find(
+      (r) => r.rule === "qualification_failed",
+    ),
+  ).toMatchObject({ eligible: false, reasons: expect.arrayContaining(["qualification_not_dead"]) });
+  await reject(own.order, "qualification_failed");
+  const { holdDrama, priceDrama } = await import("../../testing/index.js");
+  const drama = await h.make.drama();
+  await priceDrama(h, { dramaId: drama.id, points: 100, staffId: creator.row.id });
+  await holdDrama(h, { entityId: own.entity.id, storeId: own.store.id, dramaId: drama.id });
+  expect(
+    (await h.service.quote(creator.staff, own.order.id)).rules.find((r) => r.rule === "window"),
+  ).toMatchObject({ eligible: false, reasons: expect.arrayContaining(["points_used"]) });
+  await reject(own.order, "window");
+
+  const source = await h.paid(),
+    upgrade = await h.paid(source, { planCode: "flagship" });
+  expect(upgrade.order.type).toBe("plan_upgrade");
+  const sourceQuote = await h.service.quote(creator.staff, source.order.id);
+  for (const rule of sourceQuote.rules.filter((r) => r.rule !== "override"))
+    expect(rule).toMatchObject({
+      eligible: false,
+      reasons: expect.arrayContaining(["term_upgraded"]),
+    });
+  await reject(source.order, "window");
+  await reject(source.order, "qualification_failed");
+  expect(await h.service.quote(creator.staff, upgrade.order.id)).toMatchObject({
+    supported: false,
+    unsupportedReason: "upgrade_refund_source_first",
+  });
+  await expect(submitOwn(upgrade, "override")).rejects.toMatchObject({
+    error: "REFUND_NOT_SUPPORTED",
+  });
+  const root = await submitOwn(source, "override");
+  await h.execute(root);
+  await h.result((await current(root.created.refundRequestId)).id);
+  const revoked = await snapshotTables(h.prisma, [
+    "point_lot",
+    "point_ledger_entry",
+    "ledger_operation",
+    "subscription_term",
+    "grant_schedule",
+  ]);
+  const cashQuote = await h.service.quote(creator.staff, upgrade.order.id);
+  expect(cashQuote).toMatchObject({
+    supported: true,
+    sideEffects: { revokePoints: 0, cancelSchedules: 0 },
+  });
+  expect(cashQuote.rules.filter((r) => r.eligible).map((r) => r.rule)).toEqual(["override"]);
+  await reject(upgrade.order, "window");
+  const cash = await submitOwn(upgrade, "override");
+  expect(cash.created.breakdown).toMatchObject({ rule: "override", cashOnly: true });
+  expect(cash.created.breakdown).not.toHaveProperty("termId");
+  await h.execute(cash);
+  await h.result((await current(cash.created.refundRequestId)).id);
+  expect(
+    await snapshotTables(h.prisma, [
+      "point_lot",
+      "point_ledger_entry",
+      "ledger_operation",
+      "subscription_term",
+      "grant_schedule",
+    ]),
+  ).toEqual(revoked);
+  await zero(source.entity.id);
+});
+
+it("真实订阅者与rf.poll：补提交有界到二次后仍查单，人工沿原号继续且成功取消轮询", async () => {
+  const { claimTimers, runTimer } = await import("../../timers/index.js");
+  const { noopAlerts } = await import("../../kernel/index.js");
+  const r = await h.approved();
+  h.provider.wechatPay.failNext("createRefund", { reason: "unavailable", times: 2 });
+  const submit = vi.spyOn(h.provider.wechatPay, "createRefund");
+  const query = vi.spyOn(h.provider.wechatPay, "queryRefund");
+  await h.execute(r);
+  const txn = await current(r.created.refundRequestId),
+    event = await h.prisma.outboxEvent.findFirstOrThrow({
+      where: { eventType: "refund_txn.created", aggregateId: txn.id },
+    });
+  const subscriber = h.assembly.subscriber("billing.submitRefundTxn")!;
+  const delivered = {
+    id: event.id,
+    type: event.eventType,
+    payload: event.payload as Record<string, unknown>,
+  };
+  await h.tx.run((tx) => subscriber.handle(tx, delivered));
+  await h.tx.run((tx) => subscriber.handle(tx, delivered));
+  async function tick() {
+    const timer = await h.prisma.timer.findFirstOrThrow({
+      where: { kind: "rf.poll", subjectId: txn.id, status: "scheduled" },
+      orderBy: { fireAt: "asc" },
+    });
+    h.clock.set(timer.fireAt);
+    const claimed = await h.tx.run((tx) => claimTimers(tx, h.deps.timers.registry, h.clock.now()));
+    const ref = claimed.claimed.find((ref) => ref.timerId === timer.id)!;
+    expect(ref).toBeDefined();
+    return runTimer(
+      {
+        tx: h.tx,
+        clock: h.clock,
+        assembly: h.assembly,
+        registry: h.deps.timers.registry,
+        alerts: noopAlerts,
+        beforeRun: h.service.saga.preparePoll,
+      },
+      ref,
+    );
+  }
+  expect(await tick()).toBe("fired");
+  expect(await current(r.created.refundRequestId)).toMatchObject({
+    outRefundNo: txn.outRefundNo,
+    submitCount: 2,
+    isRetryHalted: true,
+    status: "created",
+  });
+  expect(submit).toHaveBeenCalledTimes(2);
+  expect(await tick()).toBe("fired");
+  expect(submit).toHaveBeenCalledTimes(2);
+  expect(query).toHaveBeenCalledTimes(2);
+  r.executor.staff = { ...r.executor.staff, stepUpAt: h.clock.now() };
+  const body = { confirm: { requestNo: r.created.requestNo, outRefundNo: txn.outRefundNo } };
+  await h.service.retry(
+    r.executor.ctx,
+    r.executor.staff,
+    r.created.refundRequestId,
+    body,
+    refundIdem(r.executor.ctx, "admin.refundRequest.retry", body),
+  );
+  expect(submit).toHaveBeenCalledTimes(3);
+  expect(submit.mock.calls.map(([i]) => i.outRefundNo)).toEqual([
+    txn.outRefundNo,
+    txn.outRefundNo,
+    txn.outRefundNo,
+  ]);
+  h.provider.wechatPay.completeRefund(txn.outRefundNo, { status: "SUCCESS" });
+  expect(await tick()).toBe("stale");
+  expect(await current(r.created.refundRequestId)).toMatchObject({
+    status: "succeeded",
+    submitCount: 3,
+  });
+  expect(
+    await h.prisma.timer.count({
+      where: { kind: "rf.poll", subjectId: txn.id, status: { in: ["scheduled", "dispatched"] } },
+    }),
+  ).toBe(0);
+  await zero(r.entity.id);
 });

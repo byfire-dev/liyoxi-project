@@ -157,3 +157,10 @@ export {
   assertCurrentSession as assertCurrentSessionForTest,
   currentSessionOpenid as currentSessionOpenidForTest,
 } from "../identity/index.js";
+
+// W4-10：worker CLI只经公开测试入口消费真实退款机制，不跨模块导入私有fixture。
+export {
+  createRefundHarness as createRefundHarnessForTest,
+  refundIdem as refundIdempotencyForTest,
+} from "./billing-refund.js";
+export type { RefundHarness as RefundHarnessForTest } from "./billing-refund.js";

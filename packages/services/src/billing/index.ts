@@ -184,7 +184,13 @@ export {
 export { createTermRefund } from "./subscription/index.js";
 export type { PlanRefundRule, PlanRefundPreview, RevokeTermResult } from "./subscription/index.js";
 
-export { createRefunds, createRefundAssembly, createWechatRefundSource } from "./refund/index.js";
+export {
+  createRefunds,
+  createRefundAssembly,
+  createWechatRefundSource,
+  recordRefundResult,
+} from "./refund/index.js";
+export { quotePlan } from "./catalog/index.js";
 export type { Refunds, RefundDeps } from "./refund/index.js";
 
 export { submitExceptionRefund } from "./refund/index.js";
