@@ -25,11 +25,14 @@ import {
   billingConsentFacts,
   transferForNotify,
   paymentExceptionForNotify,
+  renewalForNotify,
   invoiceRequestForNotify,
   invoiceDocForNotify,
   invoiceParentForNotify,
   financeConfigForNotify,
 } from "./notify-facts.js";
+import { remindersPort } from "../kernel/index.js";
+import { listTermsDueForReminder, revalidateRenewal } from "./subscription/reminders.js";
 import { getPurchasePolicy } from "@liyoxi/shared/purchase-policy";
 import { readSubscribePlan } from "../notify/index.js";
 import { billingPiiFields } from "./pii-fields.js";
@@ -60,12 +63,18 @@ import { billingAccountPort } from "../tenant/index.js";
 import { billingInvariants } from "./invariants.js";
 import { billingAccountOpener, billingMerchantFacts } from "./ports.js";
 import { subscriptionInvariants } from "./subscription/invariants.js";
+import { unboundSubscriptionDaily } from "./sweep.js";
 
 import { DramaPricePort } from "../content/index.js";
 import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implementKeyed(remindersPort, "R1", {
+      targets: listTermsDueForReminder,
+      revalidate: revalidateRenewal,
+    }),
+    notifyReaderImplementation(currentNotifyReadPort, "renewalForNotify", renewalForNotify),
     implementAdminProfileFacts("billing", readProfileAdminBillingFacts),
     implementStoreList(adminStoreListBillingPort, readProfileStoreListBilling),
     implementTenantCloseFacts(billingCloseFactsPort, { deletionGuard }),
@@ -210,6 +219,17 @@ export const registration = defineRegistration("billing", {
     },
   ],
   recurringJobs: [
+    {
+      kind: "billing.sweep.daily",
+      schedule: { every: "day", at: "00:00" },
+      mode: "job",
+      leaseSec: 300,
+      maxAttempts: 3,
+      deadlineMin: 60,
+      missSeverity: "P1",
+      catchUp: true,
+      run: unboundSubscriptionDaily,
+    },
     {
       kind: "tx.unapplied_scan",
       run: scanUnapplied,

@@ -11,9 +11,9 @@
 import type { PlanOrderContent } from "@liyoxi/contract";
 import type { BillingOrder, GrantSchedule, SubscriptionTerm } from "@liyoxi/db";
 import { splitEvenly } from "@liyoxi/shared/alloc";
-import { grantSchedule, renewTerm, termDates } from "@liyoxi/shared/period";
+import { boundary, grantSchedule, termDates } from "@liyoxi/shared/period";
 import type { TermDates } from "@liyoxi/shared/period";
-import { endOfDay, startOfDay } from "@liyoxi/shared/time";
+import { addDays, endOfDay, startOfDay } from "@liyoxi/shared/time";
 
 import { uuidv7 } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
@@ -42,6 +42,19 @@ const span = (term: Pick<SubscriptionTerm, "id" | "status" | "startsAt" | "endsA
   startsAt: term.startsAt.toISOString(),
   endsAt: term.endsAt.toISOString(),
 });
+
+/** 补偿后的接续起点仍为链尾止日次日；落在原锚定日时保留，否则以真实新起日重锚。 */
+export function renewalDates(
+  previous: Pick<SubscriptionTerm, "endDate" | "anchorDay">,
+  months: number,
+): TermDates {
+  const start = addDays(fromDateColumn(previous.endDate), 1);
+  return termDates(
+    start,
+    months,
+    boundary(start, previous.anchorDay, 0) === start ? previous.anchorDay : Number(start.slice(8)),
+  );
+}
 
 /**
  * 按付款单的内容快照建一个周期与它的发放计划；没有生效周期时同时把账户置为生效。
@@ -91,17 +104,9 @@ export async function buildTerm(
     dates =
       previous === null
         ? termDates(clock.today, content.months)
-        : renewTerm(
-            {
-              startDate: fromDateColumn(previous.startDate),
-              endDate: fromDateColumn(previous.endDate),
-              anchorDay: previous.anchorDay,
-              months: previous.months,
-            },
-            content.months,
-          );
+        : renewalDates(previous, content.months);
   } catch (error) {
-    // 链尾被延长过、止日的次日不在锚定日上：规则没有定义（M4 做延长时定），不猜
+    // 非法周期数据不能推进或猜测起止。
     throw new FulfillBlockedError("UNEXPECTED", {
       problem: "term_dates",
       message: error instanceof Error ? error.message : String(error),

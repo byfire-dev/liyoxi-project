@@ -184,7 +184,28 @@ export async function createOrder(
           args: { points: packQuote.pack.points, priceFen: packQuote.pack.priceFen },
         }
       : quoted!.quote.formula,
-    orderType = topup ? "topup" : "plan_new";
+    orderType = topup ? "topup" : quoted!.quote.orderType;
+  const impact = quoted?.quote.downgradeImpact;
+  if (impact && (impact.storesToRemove > 0 || impact.membersToRemove > 0)) {
+    if (!input.acknowledgedDowngradeImpact)
+      throw new AppError("VALIDATION_FAILED", {
+        details: {
+          fieldErrors: [
+            {
+              path: "acknowledgedDowngradeImpact",
+              message: "请确认版本生效前需调整的门店和成员数量",
+            },
+          ],
+        },
+      });
+    if (
+      impact.storesToRemove !== input.acknowledgedDowngradeImpact.storesToRemove ||
+      impact.membersToRemove !== input.acknowledgedDowngradeImpact.membersToRemove
+    )
+      throw new AppError("QUOTE_CHANGED", {
+        details: { kind: "plan", amountFen: payFen, quote: quoted!.quote },
+      });
+  }
   if (payFen !== input.expectAmountFen)
     throw new AppError("QUOTE_CHANGED", {
       details: packQuote
@@ -202,7 +223,13 @@ export async function createOrder(
   if (!purchasePolicy.channels.find((c) => c.code === input.channel)?.isEnabled)
     throw new AppError("CHANNEL_NOT_ALLOWED", { details: { channels: purchasePolicy.channels } });
   const quoteHash = createHash("sha256")
-    .update(JSON.stringify({ ...content, quotedAt: undefined }))
+    .update(
+      JSON.stringify({
+        ...content,
+        quotedAt: undefined,
+        ...(content.kind === "upgrade" ? { validUntil: undefined } : {}),
+      }),
+    )
     .digest("hex");
   if (open && (!topup || (open.quoteHash === quoteHash && open.channel === input.channel))) {
     if (open.quoteHash !== quoteHash || open.channel !== input.channel)
@@ -252,6 +279,14 @@ export async function createOrder(
           ? params["billing.payment.order_timeout_minutes"] * 60_000
           : params["billing.payment.transfer_valid_days"] * 86_400_000),
     );
+  if (content.kind === "upgrade") {
+    const validUntil = new Date(content.validUntil).getTime();
+    expiresAt.setTime(
+      Math.min(expiresAt.getTime(), validUntil - (input.channel === "wechat_jsapi" ? 120_000 : 0)),
+    );
+    if (input.channel === "wechat_jsapi" && expiresAt.getTime() - createdAt.getTime() < 180_000)
+      throw new AppError("UPGRADE_NOT_ALLOWED_TODAY", { details: { suggest: "renew_next_term" } });
+  }
   const order = await tx.billingOrder.create({
     data: {
       id,
@@ -292,7 +327,12 @@ export async function createOrder(
       action: "billing.order.create",
       summary: input.channel === "bank_transfer" ? "创建对公付款单" : "创建微信付款单",
       target: { type: "billing_order", id },
-      meta: input.channel === "bank_transfer" ? { collectionRevisionId: finance.bank!.id } : {},
+      meta: {
+        ...(input.channel === "bank_transfer" ? { collectionRevisionId: finance.bank!.id } : {}),
+        ...(quoted?.quote.action === "downgrade"
+          ? { acknowledgedDowngradeImpact: input.acknowledgedDowngradeImpact }
+          : {}),
+      },
     },
     emit: {
       type: "billing_order.created",

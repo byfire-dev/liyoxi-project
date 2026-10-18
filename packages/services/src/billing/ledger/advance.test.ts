@@ -345,6 +345,12 @@ describe("advance：到点的事只在这里发生（验收 7）", () => {
       ]);
       expect(state.subscriptionEvents).toEqual([
         {
+          type: "expired",
+          termNo: 1,
+          occurredAt: "2026-02-04T16:00:00.000Z",
+          bizDate: "2026-02-04",
+        },
+        {
           type: "rolled_over",
           termNo: 2,
           occurredAt: "2026-02-04T16:00:00.000Z",

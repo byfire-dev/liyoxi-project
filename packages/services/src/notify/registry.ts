@@ -114,6 +114,14 @@ export const QUOTA_EXCEEDED_SPEC = spec(
   "store",
   wallet,
 );
+export const RENEWAL_SPEC = spec(
+  "m.plan_expiring",
+  "renewalForNotify",
+  "subjectId",
+  "plan_points",
+  wallet,
+  ["active", "ended"],
+);
 export const ASSET_DEMAND_SPEC = spec(
   "m.asset_feedback",
   "assetDemandForNotify",
@@ -342,6 +350,10 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   "billing.subscription.renewal_scheduled": [
     spec("m.plan_renewed", "termForNotify", "termId", "plan_points", wallet),
   ],
+  "billing.subscription.upgraded": [
+    spec("m.plan_upgraded", "termForNotify", "termId", "plan_points", wallet),
+  ],
+  "manual_reminder.sent": [RENEWAL_SPEC],
   "billing.points.granted": [
     spec("m.points_changed", "billingAccountForNotify", "entityId", "plan_points", points),
   ],

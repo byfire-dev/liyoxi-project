@@ -53,6 +53,7 @@ export * from "./billing-params.js";
 export * from "./pricing-changes.js";
 export * from "./transfer-review.schemas.js";
 export * from "./point-packs.js";
+export * from "./subscription-terms.js";
 
 export * from "./invoices.schemas.js";
 export * from "./finance-config.schemas.js";

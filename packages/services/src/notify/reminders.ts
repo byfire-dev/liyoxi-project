@@ -4,7 +4,7 @@ import { notifyReadOf, remindersOf } from "../kernel/index.js";
 import type { RecurringRunContext, Tx } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import { currentNotificationFact, dispatchFact } from "./dispatch.js";
-import { EVENT_SCENES, FOLLOWUP_SPEC, COPYRIGHT_SPEC } from "./registry.js";
+import { EVENT_SCENES, FOLLOWUP_SPEC, COPYRIGHT_SPEC, RENEWAL_SPEC } from "./registry.js";
 
 /** Real R4/R7 and staff facts; no placeholder future business scanners. */
 export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRunContext) {
@@ -24,6 +24,26 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
       : [];
   let targets = 0;
   let notifications = 0;
+  if (reminders.has("R1")) {
+    const shape = z.strictObject({
+      termId: IdSchema,
+      node: z.string().regex(/^T-\d+$/),
+      date: DateSchema,
+    });
+    const rows = (await run((tx) => reminders.targets(tx, "R1", { now }))).map((value) =>
+      shape.parse(value),
+    );
+    for (const target of rows) {
+      if (context.signal?.aborted) break;
+      notifications += await run(async (tx) => {
+        if (!(await reminders.revalidate(tx, "R1", { ...target, now })).valid) return 0;
+        const fact = await currentNotificationFact(tx, deps, RENEWAL_SPEC, target.termId);
+        if (!fact) return 0;
+        targets++;
+        return dispatchFact(tx, deps, RENEWAL_SPEC, fact, { node: target.node, rule: "R1" });
+      });
+    }
+  }
   for (const item of samples) {
     if (context.signal?.aborted) break;
     notifications += await run(async (tx) => {

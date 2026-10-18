@@ -13,6 +13,7 @@ import {
   PointsSchema,
 } from "../common/scalars.js";
 import { z } from "../zod.js";
+import { SubscriptionDailySnapshotSchema } from "./subscription-snapshot.js";
 
 const months = z.int().positive();
 const payFen = FenSchema.positive();
@@ -135,11 +136,39 @@ export const SUBSCRIPTION_EVENT_PAYLOADS = {
   rolled_over: z.strictObject({
     maxStores: z.int().positive(),
     maxMembers: orNull(z.int().nonnegative()),
+    dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
   }),
-  activated: z.null(),
-  renewal_scheduled: z.null(),
-  downgrade_scheduled: z.null(),
-  expired: z.null(),
+  activated: z
+    .strictObject({ dailySnapshot: SubscriptionDailySnapshotSchema.optional() })
+    .nullable(),
+  renewal_scheduled: z
+    .strictObject({ dailySnapshot: SubscriptionDailySnapshotSchema.optional() })
+    .nullable(),
+  downgrade_scheduled: z
+    .strictObject({ dailySnapshot: SubscriptionDailySnapshotSchema.optional() })
+    .nullable(),
+  expired: z.strictObject({ dailySnapshot: SubscriptionDailySnapshotSchema.optional() }).nullable(),
+  upgraded: z.strictObject({
+    monthIndex: z.int().nonnegative(),
+    remainingDays: z.int().nonnegative(),
+    baseDays: z.int().positive(),
+    remainingFullMonths: z.int().nonnegative(),
+    feeDeltaPerMonthFen: FenSchema.nonnegative(),
+    pointsDeltaPerMonth: PointsSchema.nonnegative(),
+    proratedFen: FenSchema.nonnegative(),
+    payFen: FenSchema.positive(),
+    topupPoints: PointsSchema.nonnegative(),
+    dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
+  }),
+  extended: z.strictObject({
+    requestNo: z.string().min(1).max(64),
+    days: z.int().min(1).max(90),
+    appliedSubscriptionTermId: IdSchema,
+    appliedMode: z.literal("extend"),
+    prevEndDate: DateSchema,
+    newEndDate: DateSchema,
+    dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
+  }),
 } as const satisfies Record<string, z.ZodType>;
 export type SubscriptionEventPayloadType = keyof typeof SUBSCRIPTION_EVENT_PAYLOADS;
 export type SubscriptionEventPayload<

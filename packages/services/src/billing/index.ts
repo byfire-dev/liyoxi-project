@@ -23,6 +23,8 @@ export {
 } from "./ledger/index.js";
 export type {
   AcquireOptions,
+  ApplyExtensionInput,
+  ApplyExtensionResult,
   AdvanceSummary,
   Db as BillingDb,
   GrantInput,
@@ -46,7 +48,12 @@ export type {
   TermBenefits,
   WalletView,
 } from "./read/index.js";
-export { ADVANCE_SWEEP_LIMIT, advanceDueAccounts } from "./sweep.js";
+export {
+  ADVANCE_SWEEP_LIMIT,
+  advanceDueAccounts,
+  createBillingDailyAssembly,
+  sweepSubscriptionDaily,
+} from "./sweep.js";
 export type { AdvanceSweepDeps, AdvanceSweepOptions, AdvanceSweepResult } from "./sweep.js";
 export { billingInvariants } from "./invariants.js";
 export { registration } from "./register.js";
@@ -118,6 +125,8 @@ export { createBillingPurchase } from "./payment/purchase.js";
 export { describePaymentOrders } from "./payment/describe.js";
 export type { PaymentOrderDescription } from "./payment/describe.js";
 export { createPointPacks } from "./catalog/point-packs.js";
+export { createBillingSubscriptions } from "./subscription/read.js";
+export { listTermsDueForReminder } from "./subscription/reminders.js";
 export type { PointPackActor } from "./catalog/point-packs.js";
 export type { BillingPurchase, BillingPurchaseDeps, PurchaseActor } from "./payment/purchase.js";
 export {

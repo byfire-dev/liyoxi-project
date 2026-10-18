@@ -125,7 +125,7 @@ export interface UpgradeQuoteInput {
 export interface UpgradeQuote {
   /** 应补交 = 本月折算差价 + 每月差价 × 其后已预付的整月数 */
   payFen: number;
-  /** 本月折算差价 = round(每月差价 × 剩余天数 ÷ 基准天数) */
+  /** 本月折算差价；折算积分为0则免收，否则为 round(每月差价 × 剩余天数 ÷ 基准天数) */
   proratedFen: number;
   /** 立即补发的套餐积分 = round(每月积分差 × 剩余天数 ÷ 基准天数) */
   topupPoints: number;
@@ -149,12 +149,13 @@ export function quoteUpgrade(input: UpgradeQuoteInput): UpgradeQuote {
     throw new RangeError(`计价：剩余天数 ${remainingDays} 超过基准天数 ${baseDays}`);
   }
 
-  const proratedFen = divRoundHalfUp([feeDelta, remainingDays], [baseDays]);
+  const topupPoints = divRoundHalfUp([pointsDelta, remainingDays], [baseDays]);
+  const proratedFen = topupPoints === 0 ? 0 : divRoundHalfUp([feeDelta, remainingDays], [baseDays]);
   const payFen = proratedFen + feeDelta * fullMonths;
   if (!Number.isSafeInteger(payFen)) throw new RangeError("计价：应补交金额超出安全整数范围");
   return {
     payFen,
     proratedFen,
-    topupPoints: divRoundHalfUp([pointsDelta, remainingDays], [baseDays]),
+    topupPoints,
   };
 }

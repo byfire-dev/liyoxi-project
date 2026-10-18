@@ -88,7 +88,7 @@ const extras: MachineBinding = {
         o.placedByUserId === f.ctx.actor.id &&
         o.entityId === f.ctx.entityId &&
         ["verified", "pending"].includes(o.entity.verificationStatus) &&
-        ["plan_new", "topup"].includes(o.type) &&
+        ["plan_new", "plan_renew", "plan_upgrade", "topup"].includes(o.type) &&
         ((o.channel === "bank_transfer" &&
           o.transferState === "awaiting_proof" &&
           o.bankAccountFinanceConfigRevisionId !== null) ||

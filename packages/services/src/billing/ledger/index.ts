@@ -37,8 +37,11 @@ import {
 import { selfCheck } from "./self-check.js";
 import { LedgerError } from "./types.js";
 import type { LedgerDeps } from "./types.js";
+import { applyExtension } from "./subscription-operations.js";
+import type { ApplyExtensionInput, ApplyExtensionResult } from "./subscription-operations.js";
 
 export type { AdjustInput, AdjustResult, ResumeAddonInput, ResumeAddonResult } from "./adjust.js";
+export type { ApplyExtensionInput, ApplyExtensionResult } from "./subscription-operations.js";
 export { ADVANCE_JOB } from "./advance.js";
 export type { AdvanceSummary } from "./advance.js";
 export { ACCOUNT_LOCK_WAIT_MS } from "./context.js";
@@ -126,6 +129,8 @@ export interface Ledger {
   refund(tx: Tx, input: RefundInput): Promise<ReturnResult>;
   /** 手动调整入账（增、减）。套餐未生效 SUBSCRIPTION_INACTIVE；扣减时不够 PRECONDITION_CHANGED，不入账 */
   adjust(tx: Tx, input: AdjustInput): Promise<AdjustResult>;
+  /** 当前生效周期的期限原语；审批与到期复活/unexpire由W408执行器负责。 */
+  applyExtension(tx: Tx, input: ApplyExtensionInput): Promise<ApplyExtensionResult>;
   /** 过期后重新开通：记一行加购积分恢复。履约建好周期、发完首月之后调 */
   resumeAddon(tx: Tx, input: ResumeAddonInput): Promise<ResumeAddonResult>;
 }
@@ -290,6 +295,9 @@ export function createLedger(deps: LedgerDeps): Ledger {
       refund(tx, deps, await enter(tx, await holdEntity(tx, input.pointHoldId)), input),
 
     adjust: async (tx, input) => adjust(tx, deps, await enter(tx, input.entityId), input),
+
+    applyExtension: async (tx, input) =>
+      applyExtension(tx, deps, await enter(tx, input.entityId), input),
 
     async resumeAddon(tx, input) {
       const term = await tx.subscriptionTerm.findUnique({
