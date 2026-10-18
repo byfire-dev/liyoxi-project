@@ -93,6 +93,7 @@ const checks = (key: string) =>
     .array(z.string())
     .min(1)
     .max(10)
+    .refine((values) => new Set(values).size === values.length, "确认项不得重复")
     .refine((values) => values.includes(key), `请核对${key}`);
 export const RefundCreateBodySchema = z
   .object({

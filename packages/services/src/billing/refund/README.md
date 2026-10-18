@@ -14,4 +14,4 @@
 
 `refund-abandon-txn` 只从stdin读取JSON。调用者分别提供一名财务及另一名超级管理员的有效opaque会话，双方回显同一TK单号/商户退款号；先经既有 `staffAuth.authenticate`，事务内再读现时角色、权限、会话有效期与stepup。只准放弃abnormal。`pay_receipt` 凭证须真实stored、分类/主体/上传人合法，永久media引用与含双方身份的审计同TX写入；凭证、会话均不进argv或输出。命令示例字段：`financeSession`、`administratorSession`、`refundTxnId`、`evidenceFileId`、`note`、`financeConfirm: {requestNo,outRefundNo}`、`administratorConfirm: {requestNo,outRefundNo}`。部署执行前仍需独立运维授权。
 
-本机只用公开替身与隔离PG/Redis，不调用真实支付，不代表预发小额退款已验收。新增机制验证与当前状态见 `docs/plan/status/W4-10.md`。
+本机只用公开替身与隔离PG/Redis，不调用真实支付，不代表预发小额退款已验收；E2/E13真实条件及预发资金动作仍需业主授权并先满足W4-09三保护。新增机制验证与当前状态见 `docs/plan/status/W4-10.md`。
