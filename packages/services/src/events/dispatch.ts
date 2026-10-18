@@ -176,6 +176,17 @@ async function recordFailure(
   return row.status;
 }
 
+/** 调用方已持有投递行锁；独立语句取DB当前时间，避免锁等待前的目标表达式过时。 */
+async function liveLease(tx: Tx, ref: DeliveryRef): Promise<boolean> {
+  const [row] = await tx.$queryRawUnsafe<Array<{ valid: boolean }>>(
+    `SELECT lease_until>clock_timestamp() AS valid FROM outbox_delivery
+      WHERE outbox_event_id=$1::uuid AND subscriber=$2::text`,
+    ref.eventId,
+    ref.subscriber,
+  );
+  return row?.valid === true;
+}
+
 /**
  * 消费一次派发：队列的处理器与派发循环的进程内执行走同一个函数。
  * 订阅者抛错不往外抛：记一次失败后返回 retry 或 dead。只有数据库本身出问题才抛（那时由租约到期兜底）。
@@ -187,14 +198,14 @@ export async function consumeDelivery(
   try {
     if (deps.beforeConsume) {
       const prepared = await deps.tx.run(async (tx) => {
-        const [row] = await tx.$queryRawUnsafe<Array<{ valid: boolean }>>(
-          `SELECT status='leased' AND dispatch_no=$3::int AND lease_until>clock_timestamp() AS valid
+        const [row] = await tx.$queryRawUnsafe<Array<{ status: string; dispatchNo: number }>>(
+          `SELECT status,dispatch_no::int AS "dispatchNo"
              FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text FOR UPDATE`,
           ref.eventId,
           ref.subscriber,
-          ref.dispatchNo,
         );
-        if (!row?.valid) return null;
+        if (row?.status !== "leased" || row.dispatchNo !== ref.dispatchNo) return null;
+        if (!(await liveLease(tx, ref))) return null;
         const [event] = await tx.$queryRawUnsafe<
           Array<{ type: string; payload: Readonly<Record<string, unknown>> }>
         >(`SELECT event_type AS type, payload FROM outbox_event WHERE id=$1::uuid`, ref.eventId);
@@ -207,16 +218,14 @@ export async function consumeDelivery(
       if (prepared !== undefined) await deps.beforeConsume(ref, prepared);
     }
     return await deps.tx.run(async (tx): Promise<ConsumeOutcome> => {
-      const [row] = await tx.$queryRawUnsafe<
-        Array<{ status: string; dispatchNo: number; validLease: boolean }>
-      >(
-        `SELECT status, dispatch_no::int AS "dispatchNo", lease_until>clock_timestamp() AS "validLease" FROM outbox_delivery
+      const [row] = await tx.$queryRawUnsafe<Array<{ status: string; dispatchNo: number }>>(
+        `SELECT status, dispatch_no::int AS "dispatchNo" FROM outbox_delivery
           WHERE outbox_event_id = $1::uuid AND subscriber = $2::text FOR UPDATE`,
         ref.eventId,
         ref.subscriber,
       );
       if (row?.status !== "leased" || row.dispatchNo !== ref.dispatchNo) return "stale";
-      if (deps.beforeConsume && !row.validLease) return "stale";
+      if (deps.beforeConsume && !(await liveLease(tx, ref))) return "stale";
       const [event] = await tx.$queryRawUnsafe<
         Array<{ type: string; payload: Readonly<Record<string, unknown>> }>
       >(`SELECT event_type AS type, payload FROM outbox_event WHERE id = $1::uuid`, ref.eventId);

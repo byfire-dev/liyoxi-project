@@ -132,6 +132,91 @@ const counts = () => workerSampleCounts(prisma);
 
 describe("可选事务外消费准备", () => {
   it(
+    "行锁等待跨过租约期限后按锁后DB时间拒绝，零事务外准备",
+    async () => {
+      const eventId = await emitPlaced();
+      const ref = pick((await claim()).claimed, eventId, plain);
+      const before = (await counts())[plain];
+      await prisma.$executeRawUnsafe(
+        "UPDATE outbox_delivery SET lease_until=clock_timestamp()+interval '2 seconds' WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+        eventId,
+        plain,
+      );
+      let entered!: (pid: number) => void;
+      const waiting = new Promise<number>((resolve) => {
+        entered = resolve;
+      });
+      let called = 0;
+      const prepared: DispatchDeps = {
+        ...deps,
+        tx: {
+          run: (fn, options) =>
+            deps.tx.run(async (tx) => {
+              const [backend] = await tx.$queryRawUnsafe<{ pid: number }[]>(
+                "SELECT pg_backend_pid() AS pid",
+              );
+              entered(backend!.pid);
+              return fn(tx);
+            }, options),
+        },
+        beforeConsume: async () => {
+          called++;
+        },
+      };
+      let held!: () => void;
+      const holding = new Promise<void>((resolve) => {
+        held = resolve;
+      });
+      const keeper = createTxRunner({ prisma: other, appEnv: "test" }).run(async (lock) => {
+        await lock.$queryRawUnsafe(
+          "SELECT subscriber FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text FOR UPDATE",
+          eventId,
+          plain,
+        );
+        held();
+        const pid = await waiting;
+        let blocked = false;
+        for (let n = 0; n < 200 && !blocked; n++) {
+          const [probe] = await lock.$queryRawUnsafe<{ blocked: boolean }[]>(
+            "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1::int AND NOT granted) AS blocked",
+            pid,
+          );
+          blocked = probe!.blocked;
+          if (!blocked) await lock.$queryRawUnsafe("SELECT pg_sleep(0.005)::text");
+        }
+        expect(blocked).toBe(true);
+        const [live] = await lock.$queryRawUnsafe<{ valid: boolean }[]>(
+          "SELECT lease_until>clock_timestamp() AS valid FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+          eventId,
+          plain,
+        );
+        expect(live!.valid).toBe(true);
+        await lock.$queryRawUnsafe(
+          "SELECT pg_sleep(GREATEST(0,EXTRACT(EPOCH FROM lease_until-clock_timestamp()))::double precision+0.01)::text FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+          eventId,
+          plain,
+        );
+      });
+      await Promise.race([holding, keeper]);
+      const consuming = consumeDelivery(prepared, ref);
+      try {
+        await keeper;
+      } finally {
+        await consuming;
+      }
+      expect(await consuming).toBe("stale");
+      expect(called).toBe(0);
+      expect((await counts())[plain]).toBe(before);
+      expect(await row(eventId, plain)).toMatchObject({
+        status: "leased",
+        attempts: 0,
+        dispatchNo: ref.dispatchNo,
+      });
+    },
+    SLOW,
+  );
+
+  it(
     "同一有效派发可准备多次，准备在事务外，最终业务仍只提交一次",
     async () => {
       const eventId = await emitPlaced();
