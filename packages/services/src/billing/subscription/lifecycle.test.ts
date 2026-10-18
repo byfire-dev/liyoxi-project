@@ -123,6 +123,7 @@ it("十三个月真实周期开通、降级续费和下期升级按锚点接续�
     data: {
       id: uuidv7(),
       key: "maxScheduledTerms",
+      changeId: uuidv7(),
       value: 5,
       effectiveAt: h.clock.now(),
       createdAt: h.clock.now(),

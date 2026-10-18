@@ -1060,17 +1060,17 @@
 | `planId` | string(uuid) | 是 | | 目标版本 |
 | `pointAccountId` | string(uuid) | 否 | | 带上时按该主体的真实周期报价（与商家端 `m.plan.quote` 同一实现 `billing.quotePlanPurchase`，d1:849-864）；不带时为通用试算 |
 | `months` | integer | `renewal` 必填 | 参数 `enabledCycles` 之一 | 续费周期 |
-| `intent` | enum | 否 | `upgrade_now` / `renew_next_term`（同 m07） | 带 `pointAccountId` 时有效 |
+| `intent` | enum | 否 | `upgrade_now` / `renew_next_term`（同 m07） | 带 `pointAccountId` 时有效；缺省按 `kind`：`upgrade` 立即、`renewal` 下期；显式值优先 |
 | `fromPlanId` | string(uuid) | 通用 `upgrade` 必填 | rank 低于目标 | 当前版本（A:Plans 的下拉） |
-| `remainingDays` | integer | 通用 `upgrade` 必填 | 1–30 | 本月剩余天数（A:Plans 的输入） |
+| `remainingDays` | integer | 通用 `upgrade` 必填 | 1–30，且不超过当前 `prorationBaseDays` | 本月剩余天数（A:Plans 的输入） |
 
 **响应**：
 
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | `scope` | enum | 是 | `entity`（带主体）/ `generic` | 请求 |
-| `quote` | object \| null | 是 | `scope = entity` 时为 m07 的 `PlanQuote`（动作、应付、算式、新周期、每月积分、升降级说明） | `billing.quotePlanPurchase` |
-| `generic` | object \| null | 是 | `scope = generic` 时：升级 `{ feeDeltaPerMonthFen, monthlyDeltaPoints, remainingDays, baseDays, proratedFen, topupPoints, formulaText }`（补差 = 差价 × 天数 ÷ `prorationBaseDays`，积分同理；字段名与 m07 `PlanQuote.upgrade` 一致，付款单快照里的键名 `pointsDeltaPerMonth` 按 C32 改名）；续费 `{ cyclePriceFen, monthlyPoints, months, formulaText }` | 两个版本的当前价目（`plan_revision`）与参数 `prorationBaseDays` |
+| `quote` | object \| null | 是 | `scope = entity` 时为 m07 的 `PlanQuote`（动作、应付、算式、新周期、每月积分、升降级说明）；后台试算的 `policy` 只展示价格，不提示购买且 `channels = []`，不授予开单能力 | `billing.quotePlanPurchase` |
+| `generic` | object \| null | 是 | `scope = generic` 时：升级 `{ feeDeltaPerMonthFen, monthlyDeltaPoints, remainingDays, baseDays, proratedFen, topupPoints, formulaText }`（补差 = 差价 × 天数 ÷ `prorationBaseDays`，积分同理；折算积分为 0 时免当月差价，保留 0 积分；字段名与 m07 `PlanQuote.upgrade` 一致，付款单快照里的键名 `pointsDeltaPerMonth` 按 C32 改名）；续费 `{ cyclePriceFen, monthlyPoints, months, formulaText }` | 两个版本的当前价目（`plan_revision`）与参数 `prorationBaseDays` |
 
 **错误**：
 
