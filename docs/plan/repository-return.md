@@ -2,6 +2,8 @@
 
 更新时间：2026-10-18。当前源码仓库为 [byfire-dev/liyoxi-project](https://github.com/byfire-dev/liyoxi-project)。本页记录本次代码迁回完成时点；工作包进度仍以各自台账为准，后续提交不能沿用本次 SHA 的验收结论。
 
+后续发布准备见[镜像与预发核验](ghcr-return-readiness.md)：目标仓公开构建配置已补回；Packages 权限、首次发布及节点配置继续待核。`745a6bd5` 的混跑已进入两版业务链，失败推进到 head-read 的 RPC 超时；下文 `9ffd93b3` 的 driver-missing 是历史结果，不能作为新提交的失败原因。
+
 ## 已完成的代码迁回
 
 [PR #138](https://github.com/byfire-dev/liyoxi-project/pull/138) 已普通合并，实际主干为 `9ffd93b3125c73e6743a5e33328909dcb690218e`。固定候选 `43866e2dc493002b35ff0f1a9974b0118660cc7f` 的本轮 32 个整合与修复分支均已进入该主干，包括首页 Banner、短剧封面及后续 CI 修复。
