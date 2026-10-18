@@ -126,7 +126,7 @@ function optional(w: ReturnType<typeof world>, file: string, value = marker) {
 }
 
 describe("W2-27b1 固定观测FILE接线", () => {
-  it("完整十一组与十四optional精确登记，三观测组最小角色/FILE挂载且base不借用", () => {
+  it("完整provider与optional精确登记，三观测组最小角色/FILE挂载且base不借用", () => {
     const w = world();
     expect(
       readdirSync(join(repoRoot, "infra/compose/providers"))
