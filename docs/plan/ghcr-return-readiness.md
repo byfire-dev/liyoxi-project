@@ -35,7 +35,7 @@ Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`
 
 `745a6bd52f96111851374e4d71d0e73985ce1b4b` 的 [images](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755984) 与 [stack-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755976) 成功，尚不是镜像发布或节点部署证据。
 
-该提交的 [main-push CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115756008) 在后台真实登录验收失败：恢复码已出现后，测试未找到“已保存，关闭”按钮；55 项 live 用例中 54 项通过。其他实质检查通过，required 失败；原 PR 绿色不能替代该结果，原因仍在定位。
+该提交的 [main-push CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115756008) 在后台真实登录验收失败：恢复码已出现后，测试未找到精确名称为“已保存，关闭”的按钮；55 项 live 用例中 54 项通过。失败 DOM 和截图确认按钮实际存在且禁用，但提交按钮遗留的 loading 图标把可访问名称变成了“loading 已保存，关闭”。修复为两个阶段的按钮分配独立 React key，保留原精确定位、保存前禁用和关闭限制；专项用例已完成旧实现失败、新实现通过。其他实质检查通过，required 失败；仍待修复提交的 CI，原 PR 绿色不能替代该结果。
 
 该提交的 [mixed-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755947) 已成功构建两版镜像，以 `d5384a867c2f8abae3fb23adbac8f7e8957c1392` 为 first-parent-bootstrap。head-write、old-read-write 均完成 20 集业务链，各 123 项不变量零违规；随后在 head-read 阶段报 `rpc-timeout`。报告未细分该阶段的 start/read/drain/close，尚不能断言超时的具体 RPC。此次失败不是早先迁回提交的 `driver-missing`，必须按当前日志修复。发布仍要求同仓、main-push、同完整 SHA 的 images 与 mixed-smoke 成功。
 
