@@ -905,7 +905,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 
 说明：
 
-- “可空”的 `store_id` 在从门店上下文发起时填写（如在商家详情里发起积分调整），供数据范围与门店活动流使用。
+- “可空”的 `store_id` 在从门店上下文发起时填写（如在商家详情里发起积分调整），供数据范围与门店活动流使用。`points_adjust`、`subscription_extend` 的授权按主体范围（a07 第 2.0 节），有门店上下文也不缩窄为单店范围。
 - `billing_account` 的主键就是 `entity_id`，所以积分调整的 `subject_id = entity_id`。
 - 有执行步的四类不填 `dedupe_key`（CHECK 保证），在途唯一由 `cancel_request`、`refund_request` 上 `WHERE closed_at IS NULL` 的部分唯一索引表达（M12）。
 - 其余 8 类必填 `dedupe_key`（CHECK 保证），由归属模块在登记处理器时给出取法，格式 `kind:对象`。各处理器的约定：

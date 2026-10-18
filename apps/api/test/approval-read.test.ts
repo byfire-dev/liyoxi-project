@@ -85,6 +85,97 @@ const dataOf = async <T>(response: Response): Promise<T> => {
 };
 
 describe("admin.approval.list", () => {
+  it.each(["points_adjust", "subscription_extend"] as const)(
+    "%s：主体范围贯通列表、计数、详情与待办，门店筛选仍使用发起上下文",
+    SLOW,
+    async (kind) => {
+      const w = await world();
+      await w.prisma.staffRole.update({
+        where: { key: "finance" },
+        data: { dataScope: "own" },
+      });
+      const reviewer = await signInAsStaff(
+        w.prisma,
+        kind === "points_adjust"
+          ? { roleKey: "finance" }
+          : {
+              roleKey: "delivery_manager",
+              isLead: true,
+              staffGroupId: w.staff.staff.staffGroupId,
+            },
+      );
+      await w.prisma.store.update({
+        where: { id: w.merchant.store.id },
+        data: { deliveryManagerId: w.outsider.staff.id },
+      });
+      const otherStore = await w.make.store({
+        entityId: w.merchant.entity.id,
+        deliveryManagerId: reviewer.staff.id,
+      });
+      const foreign = await w.make.merchant();
+      await w.prisma.store.update({
+        where: { id: foreign.store.id },
+        data: { deliveryManagerId: w.outsider.staff.id },
+      });
+      const insert = (merchant: typeof w.merchant) =>
+        w.insert({
+          kind,
+          category: "approval",
+          subjectType: kind === "points_adjust" ? "billing_account" : "subscription_term",
+          subjectId: kind === "points_adjust" ? merchant.entity.id : uuidv7(),
+          entityId: merchant.entity.id,
+          storeId: merchant.store.id,
+          status: "pending",
+          requestNo: `${kind === "points_adjust" ? "TZ" : "YQ"}20260105${uuidv7().slice(-8)}`,
+          summarySnapshot: { title: "主体范围申请" },
+          submitActorType: "staff",
+          submitActorId: w.staff.staff.id,
+          submitClient: "admin",
+          requesterStaffId: w.staff.staff.id,
+          requesterStaffGroupId: w.staff.staff.staffGroupId,
+          dedupeKey: `${kind}:${merchant.entity.id}`,
+        });
+      const visible = await insert(w.merchant);
+      const hidden = await insert(foreign);
+      const list = async (storeId?: string) =>
+        dataOf<AdminPage<ApprovalItem>>(
+          await w.request(
+            `/api/v1/admin/approvals?kind=${kind}&tab=todo${storeId === undefined ? "" : `&storeId=${storeId}`}`,
+            { headers: reviewer.headers },
+          ),
+        );
+      const rows = await list();
+      expect(rows.total).toBe(1);
+      expect(rows.items.map((item) => item.approvalId)).toEqual([visible.id]);
+      expect(rows.items[0]).toMatchObject({
+        storeId: w.merchant.store.id,
+        entityId: w.merchant.entity.id,
+        actions: ["approve", "reject"],
+      });
+      expect((await list(w.merchant.store.id)).total).toBe(1);
+      expect((await list(otherStore.id)).total).toBe(0);
+      const summary = await dataOf<ApprovalCounts>(
+        await w.request(`/api/v1/admin/approvals/summary?kind=${kind}`, {
+          headers: reviewer.headers,
+        }),
+      );
+      expect(summary.total.todo).toBe(1);
+      expect(summary.items[0]).toMatchObject({ kind, todo: 1, all: 1 });
+      const detail = await dataOf<ApprovalDetail>(
+        await w.request(`/api/v1/admin/approvals/${visible.id}`, { headers: reviewer.headers }),
+      );
+      expect(detail.actions).toEqual(rows.items[0]!.actions);
+      expect(
+        (await w.request(`/api/v1/admin/approvals/${hidden.id}`, { headers: reviewer.headers }))
+          .status,
+      ).toBe(404);
+      const context = await sampleStaffContext(w.prisma, reviewer.staff.id);
+      expect(
+        await w.runtime.tx.run((tx) => w.runtime.approval.countTodo(tx, context, { kind: [kind] })),
+      ).toBe(summary.total.todo);
+    },
+  );
+
   it("本人、本组、全部范围；详情范围外404，发起人自读不会获得决定动作", SLOW, async () => {
     const w = await world();
     const own = await w.qualification(w.staff.staff.id);

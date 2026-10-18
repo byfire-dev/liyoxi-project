@@ -69,6 +69,7 @@ export const registration = defineRegistration("profile", {
 - 六个处理器都在审批单迁移的同一个事务里调。次序：守卫 → `revalidate`（只在通过时）→ 改状态、写状态历史 → `onApproved` / `onRejected` / `onWithdrawn` → 审计 → 事件。任何一步抛错，调用方的事务回滚，审批单保持原状。
 - 摘要按契约的 `ApprovalSummary` 校验（`title` 必有；不收登记之外的键）：不放证照号、银行账号等明文。
 - 没登记的 `kind` 调 `submit` 抛 `ApprovalError`。本模块不登记任何真实类型：`qualification` 归 profile，`channel_account`、`launch_link` 归 publish，其余随各自的里程碑。
+- `points_adjust`、`subscription_extend` 按主体数据范围授权：主体下任一门店可见即可；`storeId` 保留发起门店上下文与筛选、活动流用途，不缩窄为单店范围，缺 `entityId` 时拒绝。单行决定和批量读队列共用仓储的范围目标选择；其余类型仍按当前处理人、门店、主体依次判定，角色队列规则保持。
 
 ## 4. 四个写函数
 
