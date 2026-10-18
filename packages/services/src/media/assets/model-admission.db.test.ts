@@ -263,13 +263,31 @@ describe("三owner真实PG与Redis预算", () => {
   it.each(["zero", "lost", "exhausted"])(
     "原TaskId的ASR查询在%s预算下零新授权/签发/提交",
     async (mode) => {
-      const facts = await h.readyAudio(),
-        submitted = await h.asrStrategy().execute(facts.job, signal());
-      if (submitted.state !== "submitted") throw new Error("ASR未提交");
+      const facts = await h.readyAudio();
+      // 查询从已接收的历史任务开始；新提交和真实250ms许可另有原样保留的专项。
+      const taskId = "9007199254740993";
+      h.fake.asr.tasks.set(taskId, { taskId, requestId: "fake-asr", state: "waiting" });
       const job = await h.prisma.mediaJob.update({
         where: { id: facts.job.id },
-        data: { externalJobId: submitted.externalJobId },
+        data: { externalJobId: taskId },
       });
+      const day = Math.floor((h.clock.now().getTime() + 28800000) / 86400000);
+      const deadline = job.deadlineAt.getTime();
+      const file = facts.files[0]!;
+      const entries = [
+        ["g", day, `g:${day}`, "1"],
+        ["s", day, `s:${day}:${h.merchant.store.id}`, "1"],
+        ["f", day, `f:${day}:${h.merchant.store.id}:${file.id}`, "1"],
+        ["t", deadline, `t:${job.id}:${job.attemptNo}:asr`, String(deadline)],
+      ] as const;
+      const history: Record<string, string> = { head: "1", next: "5", cursor: "1" };
+      for (const [index, [kind, stamp, target, value]] of entries.entries()) {
+        const expiry = kind === "t" ? stamp + 5000 : (stamp + 2) * 86400000 - 28800000;
+        history[target] = value;
+        history[`q:${index + 1}`] = JSON.stringify([kind, String(stamp), String(expiry), target]);
+      }
+      await client.hset(h.key, history);
+      expect(await spent()).toBe(1);
       if (mode === "zero") h.caps.dailyCallCap = 0;
       if (mode === "lost") await client.unlink(h.key);
       if (mode === "exhausted") h.caps.dailyCallCap = 1;
@@ -282,8 +300,8 @@ describe("三owner真实PG与Redis预算", () => {
       expect(await h.asrStrategy().poll(job, signal())).toEqual({ state: "pending" });
       expect(await h.asrStrategy().recover(job, signal())).toEqual({ state: "pending" });
       expect(h.fake.asr.callsOf("query").map((call) => call.input)).toEqual([
-        { taskId: submitted.externalJobId, signal: expect.any(AbortSignal) },
-        { taskId: submitted.externalJobId, signal: expect.any(AbortSignal) },
+        { taskId, signal: expect.any(AbortSignal) },
+        { taskId, signal: expect.any(AbortSignal) },
       ]);
       expect(h.budget.readPermit).not.toHaveBeenCalled();
       expect(h.budget.reserve).not.toHaveBeenCalled();
