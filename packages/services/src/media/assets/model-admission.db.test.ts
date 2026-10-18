@@ -388,12 +388,13 @@ describe("三owner真实PG与Redis预算", () => {
   });
 
   it.each(["false", "throws", "true"])("ASR查询显式legacy %s保持一次原语义", async (mode) => {
-    const facts = await h.readyAudio(),
-      submitted = await h.asrStrategy().execute(facts.job, signal());
-    if (submitted.state !== "submitted") throw new Error("ASR未提交");
+    const facts = await h.readyAudio();
+    // legacy查询从已接收任务开始；不以新提交的250ms许可作为查询准备。
+    const taskId = "9007199254740993";
+    h.fake.asr.tasks.set(taskId, { taskId, requestId: "fake-asr", state: "waiting" });
     const job = await h.prisma.mediaJob.update({
       where: { id: facts.job.id },
-      data: { externalJobId: submitted.externalJobId },
+      data: { externalJobId: taskId },
     });
     const legacy = vi.fn(async () => {
       if (mode === "throws") throw new Error("原守卫错误");

@@ -74,6 +74,22 @@ describe("真实短事务、竞争和不可退款边界", { timeout: SLOW }, () 
         : kind === "vision"
           ? await h.readyImage()
           : await h.readyText();
+    h.clock.set(h.clock.now());
+    const evaluate = h.evalCall.getMockImplementation()!;
+    h.evalCall.mockImplementation((script, keys, argv) => {
+      // 本组验真实事务提交前的零IO，不量门闩与CI调度耗时；保留真实Redis和原预算逻辑。
+      // 仅令Lua TIME与本组注入钟一致，组外真实TIME/250ms边界用例不变。
+      const now = h.clock.now().getTime();
+      expect(script).toContain("redis.call('TIME')");
+      return evaluate(
+        script.replaceAll(
+          "redis.call('TIME')",
+          `{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`,
+        ),
+        keys,
+        argv,
+      );
+    });
     const entered = gate(),
       release = gate(),
       permits = new WeakMap<Tx, number>();
