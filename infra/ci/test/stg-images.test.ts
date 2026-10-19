@@ -144,7 +144,7 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain(
       "sha256:9966a92a734f9411e32f4f41d7d9d826fcdc0f68c4e20b70295bd4e7c11f8a2f",
     );
-    expect(body).toContain('source="ghcr.linkos.org/ghcr.io/byfire-dev/minio@$digest"');
+    expect(body).toContain('source="ghcr.io/byfire-dev/minio@$digest"');
     expect(body).toContain('docker pull --platform "linux/$arch" "$source"');
     expect(body.indexOf("docker image inspect")).toBeLessThan(body.indexOf("docker login"));
     expect(body).toContain("for arch in amd64 arm64");
