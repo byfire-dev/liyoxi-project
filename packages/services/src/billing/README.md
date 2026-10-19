@@ -204,3 +204,43 @@ previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局
 
 
 W4-13 当前实现发票与受控财务配置（验收中）：发票申请保存已认证抬头/重加密税号与全额快照，四个 item_name 参数未配时拒绝申请；开具/红票/退款所属公口按 order290→invoice330 串行，文件走 stored/link。财务配置仍用 finance_config_change，不同人决定、bank+24h、其它即时。电子邮件经原 notify 任务、真实附件与最新 delivery 结果回写；queued/受理 sent/未配 skipped 分开，E20 真实到达/OFD兼容未验。退款接口尚待 W4-10，既有 refundRequests 桩不整体关闭。
+
+## W4-08 调整、补偿延长与账户流水
+
+`runtime.billing.adjustments` 提供两个审批资源及只读报价；
+`runtime.billing.accounts` 提供后台账户列表/汇总/详情/流水与商家流水。
+17 个 typed 接口按 a07/m07 的权限与真实范围接入，写入口接公共 required 幂等上下文；
+积分调整详情按 billing/finance 任一查看等级，延长详情按 order/billing 任一查看等级。
+带动作权限的写回显不额外要求模块查看等级；查看接口仍独立检查模块与主体范围。
+
+- `points_adjust` 和 `subscription_extend` 均无额外执行步。提交只写审批/领域单及服务端摘要；
+  通过在员工20、审批30之后，最后进入唯一账户420，再复核当前余额、期限与退款闸门。
+  领域 `appliedAt`、账本操作、审批状态、审计和事件同事务提交；任一步失败回到原待审事实。
+- 普通积分增减复用 `ledger.adjust`；`platform_refund` 只接受本主体已扣冻结的可退数量，
+  复用真实 `ledger.refund` 和原快照去向，过期套餐可转加购；它不产生现金退款。
+  原因说明仅入领域单/文案参数，不放进自由文本事件。
+- 未到期顺延复用 W4-05 `applyExtension`，发起后已经续接则作用新周期，不恢复旧期积分。
+  需要补偿旧积分时另提关联调整单，由不同员工独立审批。
+  到期且未续费、未退款的原待审申请可走 `reviveTerm`：按
+  `max(原止日, 审批当日−1)+days` 复活，且只以最近真实 expire 的
+  `available→expired` 来源冲回 `expired→available`，不恢复其他 forfeit。
+  W4-05 的期限原语及零积分月免收口径不变。
+- 客服依据由 support 的 `createBillingApprovalRefs({clock})` 注入：
+  `prepare(tx,{serviceTicketId,entityId})` 在 submit.validate 中预锁票据270，
+  `attach(tx,{serviceTicketId,entityId,approvalRequestId})` 只追加引用，
+  `list(tx,{entityId,approvalRequestId})` 仅读同主体，最多100条。
+  为后继退款预留的 kind 为 `plan_refund`，不意味着本包实现现金退款。
+  账户在途取消摘要由 order 的 `readBillingPendingCancels` 同样只读注入。
+- GET 与报价不拿账户锁、不推进、不写历史或派生表。余额从真实批次/周期现算；
+  流水先按“操作×积分类型”分行再分页，游标绑定主体和筛选并包含积分类型位置。
+  商家同次冻结只在非空 requestId、同账本时刻、操作人、groupRef 一致时合并，空 requestId 不猜合并；
+  后台 capture 单列，商家只更新冻结行状态。所有公式和说明使用历史文案参数。
+- `billing.I18`（P1/full/heal:none）检查两表 approved 与 applied 双向一致、
+  账本主体/审批引用/操作类型/执行时刻，以及 extend/revive 历史日期公式。
+  延长原因编码须存在；历史原因停用仍合法。
+  它检查请求保存的历史前后日期，不把后续再次延长后的当前周期止日当作首次结果。
+  `billing.I17` 保持原提醒语义。估值/日快照仍走既有 policy1 和历史事件快照公口。
+
+本包定点：`src/billing/adjustments/approval.test.ts`、`read.test.ts` 与
+`apps/api/test/billing-adjustments.test.ts`；只用公开合成配置、真实本机测试库和已有替身。
+真实员工操作、真机、真实付款或退款均不由这些测试替代。

@@ -59,7 +59,9 @@ import {
   bindOrderStart,
   readUnassignedStoreOrderIds,
   syncUnassignedStoreOrders,
+  readBillingPendingCancels,
 } from "./order/index.js";
+import { createBillingApprovalRefs } from "./support/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
 import type { OrderService } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
@@ -100,6 +102,9 @@ import {
   getNotifyPurchaseMode,
   createBillingDailyAssembly,
   createBillingDailyProjection,
+  createAdjustmentAssembly,
+  createBillingAdjustments,
+  createBillingAccounts,
 } from "./billing/index.js";
 import type { BillingPurchase, BillingPurchaseDeps } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
@@ -279,6 +284,8 @@ export interface Runtime {
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
     financeConfig: ReturnType<typeof createFinanceConfigService>;
+    adjustments: ReturnType<typeof createBillingAdjustments>;
+    accounts: ReturnType<typeof createBillingAccounts>;
   };
   readonly billingPlansAdmin: ReturnType<typeof createPlanAdmin>;
   readonly billingParameters: ReturnType<typeof createParameterChanges>;
@@ -465,7 +472,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
-  const assembly = invoiceScope.assembly;
+  const adjustmentScope = createAdjustmentAssembly(invoiceScope.assembly);
+  const assembly = adjustmentScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -951,10 +959,22 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     invoiceMailEnabled: notify.invoiceMailEnabled,
     resendMail: notify.resendInvoiceMail,
   };
+  const adjustmentDeps = {
+    tx,
+    clock,
+    events,
+    ledger,
+    approval,
+    refs: createBillingApprovalRefs({ clock }),
+    pendingCancels: readBillingPendingCancels,
+  };
+  adjustmentScope.attach(adjustmentDeps);
   const billing = {
     ...createBillingPurchase(purchaseDeps),
     invoices: createInvoices(invoiceDeps),
     financeConfig: createFinanceConfigService(purchaseDeps),
+    adjustments: createBillingAdjustments(adjustmentDeps),
+    accounts: createBillingAccounts(adjustmentDeps),
   };
   invoiceScope.attach(invoiceDeps);
   transferReviewScope.attach(purchaseDeps);
@@ -1131,6 +1151,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([() => modelBudget?.close()]);
         await settle([
           () => invoiceScope.close(),
+          () => adjustmentScope.close(),
           () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),
           () => profileConsistencyScope.close(),

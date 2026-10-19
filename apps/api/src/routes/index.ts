@@ -4,6 +4,8 @@ import { billingChannelReadHandlers } from "./billing-channel-read.js";
 import { billingPointPackHandlers } from "./billing-point-packs.js";
 import { adminBillingPointPackHandlers } from "./admin/billing-point-packs.js";
 import { adminBillingSubscriptionHandlers } from "./admin/billing-subscriptions.js";
+import { adminBillingAdjustmentHandlers } from "./admin/billing-adjustments.js";
+import { billingLedgerHandlers } from "./billing-ledger.js";
 import { adminAgreementHandlers } from "./admin/agreements.js";
 import { adminDramaHandlers } from "./admin/dramas.js";
 import { adminDramaPricingHandlers } from "./admin/drama-pricing.js";
@@ -119,6 +121,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...billingPointPackHandlers,
   ...adminBillingPointPackHandlers,
   ...adminBillingSubscriptionHandlers,
+  ...adminBillingAdjustmentHandlers,
+  ...billingLedgerHandlers,
   ...billingWechatHookHandlers,
   ...billingHandlers,
   ...billingInvoiceHandlers,

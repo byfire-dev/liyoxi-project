@@ -31,7 +31,7 @@
 | 修订行 | `plan_revision`、`drama_price_revision`、`billing_param`：插入后只允许在生效前写一次 `cancelled_at`。三张表都不设撤销人列，撤销人看审计日志 | M14；M75；d1:223-227 |
 | 写入顺序 | 外键都是立即检查的，只增表与修订行插入后不能回填，所以被引用的行先建：账本操作的插入顺序见 2.15；价目修订与参数变更先建公告再插行，见 2.2、2.7 | 复核意见；d1:1185；d6:1723 |
 | 多态取值 | `ref_type` 一律用最终表名；账本幂等键里的类型段同样用最终表名。`point_hold.ref_type`、`ledger_operation.ref_type` 取值少且只由本模块写入，逐值写 CHECK。不是表名或不是主键的多态取值（M45 登记的例外）：`point_lot.source_type`（第 3.2 节）；`site_notice.ref_id` 在 `kind = billing_param` 时存的是 `billing_param.change_id` 而不是主键（列在 14 分组，按 14 的请求在此登记） | M19；M45；M52 |
-| 不变量编号 | 登记到 ops 时写成 `billing.I1` … `billing.I17`，级别与对象见第 5.6 节；各表“不变量”一节用同样的编号 | 15 分组的请求；M30 |
+| 不变量编号 | 登记到 ops 时写成 `billing.I1` … `billing.I18`，级别与对象见第 5.6 节；各表“不变量”一节用同样的编号 | 15 分组的请求；M30 |
 
 本分组不建的表：`billing_month_close`（M10：上线时不建，首个月结前补；补建时主键用 uuid `id`，供 14 分组的 `report_month_close.billing_month_close_id` 只存 id 引用，并增加事件 `billing.month_closed`，d1:1720、d6:2114）；`billing_invariant_run`、`billing_invariant_violation`（并入 ops 的 `invariant_run`、`invariant_violation`，decisions #14；本分组只登记检查项，见各表的“不变量”）；`payment_allocation`（分摊台账只留 `grant_schedule` 与批次成本，d1:387）；`renewal_reminder_log`（提醒去重在通知模块，d1:1137）。
 
@@ -1625,6 +1625,7 @@ d1 第 9 节的检查项在 `billing/invariants.ts` 登记为 `InvariantCheck`�
 | `billing.I15` | 每个套餐、每个参数键至多一条待生效修订 | P2 | `plan_revision` 或 `billing_param` | 多出的那条待生效行 id | 不带（全局） |
 | `billing.I16` | 流水顺序与业务日 | P2 | `billing_account` | `entity_id` | 同对象 |
 | `billing.I17` | 提醒项：退款处理中超过 7 天、延长单待审超过 7 天 | — | 不写 `invariant_violation`，后台列表直接查询 | — | — |
+| `billing.I18` | 积分调整/延长审批已通过 ⇔ 已执行；账本同主体、审批引用、类型与执行时刻一致；延长原因编码存在、历史结果符合 extend/revive 日期公式 | P1 | `point_adjustment_request` 或 `term_extension_request` | 请求 id；日期只核请求历史结果，不与后续可变周期止日比较 | 请求的 `entity_id` |
 
 ## 6. 待确认
 

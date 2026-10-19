@@ -169,6 +169,16 @@ export const SUBSCRIPTION_EVENT_PAYLOADS = {
     newEndDate: DateSchema,
     dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
   }),
+  resumed: z.strictObject({
+    requestNo: z.string().min(1).max(64),
+    days: z.int().min(1).max(90),
+    gapDays: z.int().nonnegative(),
+    appliedSubscriptionTermId: IdSchema,
+    appliedMode: z.literal("revive"),
+    prevEndDate: DateSchema,
+    newEndDate: DateSchema,
+    dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
+  }),
 } as const satisfies Record<string, z.ZodType>;
 export type SubscriptionEventPayloadType = keyof typeof SUBSCRIPTION_EVENT_PAYLOADS;
 export type SubscriptionEventPayload<

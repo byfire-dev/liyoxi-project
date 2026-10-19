@@ -1,6 +1,5 @@
 // 后台：套餐积分与财务 · subscription-terms（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { z } from "../../zod.js";
 import {
@@ -146,6 +145,24 @@ export const SubscriptionTermReminderSchema = z.object({
 });
 export type SubscriptionTermListQuery = z.infer<typeof SubscriptionTermListQuerySchema>;
 export type SubscriptionTermSummaryQuery = z.infer<typeof SubscriptionTermSummaryQuerySchema>;
+export const ExtensionQuoteBodySchema = z.strictObject({ days: z.int().min(1).max(90) });
+export const ExtensionQuoteSchema = z.object({
+  mode: z.enum(["extend", "revive", "not_applicable"]),
+  targetSubscriptionTermId: IdSchema.nullable(),
+  isTargetDifferent: z.boolean(),
+  days: z.int().min(1).max(90),
+  prevEndDate: DateSchema.nullable(),
+  newEndDate: DateSchema.nullable(),
+  newEndsAt: InstantSchema.nullable(),
+  restorePoints: count,
+  shiftedTerms: z.array(
+    z.object({ subscriptionTermId: IdSchema, startDate: DateSchema, endDate: DateSchema }),
+  ),
+  blockReasons: z.array(
+    z.enum(["no_term", "term_refunded", "refund_in_progress", "pending_exists"]),
+  ),
+});
+export type ExtensionQuote = z.infer<typeof ExtensionQuoteSchema>;
 
 export const adminSubscriptionTermList = adminRoute({
   request: { query: SubscriptionTermListQuerySchema },
@@ -184,7 +201,12 @@ export const adminSubscriptionTermGet = adminRoute({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminSubscriptionTermExtensionQuote = adminMeta({
+export const adminSubscriptionTermExtensionQuote = adminRoute({
+  request: {
+    params: SubscriptionTermParamsSchema,
+    body: { required: true, content: { "application/json": { schema: ExtensionQuoteBodySchema } } },
+  },
+  responses: { ...okResponse(ExtensionQuoteSchema), ...errorResponses(400, 401, 403, 404) },
   method: "post",
   path: "/admin/subscription-terms/{subscriptionTermId}/extension-quote",
   operationId: "admin.subscriptionTerm.extensionQuote",

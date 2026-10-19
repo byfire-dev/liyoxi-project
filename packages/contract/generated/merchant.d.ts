@@ -1286,6 +1286,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/point-ledger-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 积分明细（?tab=all|gain|use|expire&month=YYYY-MM，默认当月，逐月加载）：标题、积分来源、时间、门店与关联单号、计算式备注、数量；响应带 prevMonth 与 firstEntryAt */
+        get: operations["m.pointLedgerEntry.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/point-packs": {
         parameters: {
             query?: never;
@@ -12132,6 +12149,100 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.pointLedgerEntry.list": {
+        parameters: {
+            query?: {
+                tab?: "all" | "gain" | "use" | "expire";
+                month?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            /** Format: date-time */
+                            firstEntryAt: string | null;
+                            hasMore: boolean;
+                            items: {
+                                /** Format: date */
+                                bizDate: string;
+                                /** @enum {string} */
+                                category: "gain" | "use" | "expire" | "other";
+                                deltaPoints: number;
+                                formula: string | null;
+                                holdStatus: string | null;
+                                itemCount: number;
+                                /** @enum {string|null} */
+                                lotKind: "plan" | "addon" | null;
+                                /** Format: date-time */
+                                occurredAt: string;
+                                opType: string;
+                                refNo: string | null;
+                                remark: string | null;
+                                rowKey: string;
+                                storeName: string | null;
+                                title: string;
+                            }[];
+                            month: string;
+                            nextCursor: string | null;
+                            prevMonth: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
