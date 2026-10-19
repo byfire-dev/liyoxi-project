@@ -511,7 +511,9 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
       "channel_account",
       "finance_config_change",
       "launch_link",
+      "points_adjust",
       "qualification",
+      "subscription_extend",
       "transfer_confirm",
     ]);
     expect(kinds.get("ad_cancel")).toMatchObject({
