@@ -21,8 +21,21 @@ describe("账本操作的展示文案码（W1-10；m07 第 4.5 节）", () => {
         "release",
         "term_expire",
         "topup",
+        "unexpire",
       ].sort(),
     );
+  });
+
+  it("调整说明保留正式200字边界，复活只接受1至90天", () => {
+    expect(
+      parseLedgerTitleArgs("adjust", { reasonCode: "other", note: "补".repeat(200) }).note,
+    ).toHaveLength(200);
+    expect(() =>
+      parseLedgerTitleArgs("adjust", { reasonCode: "other", note: "补".repeat(201) }),
+    ).toThrow();
+    expect(parseLedgerTitleArgs("unexpire", { days: 90 })).toEqual({ days: 90 });
+    expect(() => parseLedgerTitleArgs("unexpire", { days: 0 })).toThrow();
+    expect(() => parseLedgerTitleArgs("unexpire", { days: 91 })).toThrow();
   });
 
   it("参数按码校验：合格的原样返回；多一个键、码不在登记里都抛错", () => {

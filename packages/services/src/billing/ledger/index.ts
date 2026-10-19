@@ -39,9 +39,12 @@ import { LedgerError } from "./types.js";
 import type { LedgerDeps } from "./types.js";
 import { applyExtension } from "./subscription-operations.js";
 import type { ApplyExtensionInput, ApplyExtensionResult } from "./subscription-operations.js";
+import { reviveTerm } from "./extension.js";
+import type { ReviveTermInput, ReviveTermResult } from "./extension.js";
 
 export type { AdjustInput, AdjustResult, ResumeAddonInput, ResumeAddonResult } from "./adjust.js";
 export type { ApplyExtensionInput, ApplyExtensionResult } from "./subscription-operations.js";
+export type { ReviveTermInput, ReviveTermResult } from "./extension.js";
 export { ADVANCE_JOB } from "./advance.js";
 export type { AdvanceSummary } from "./advance.js";
 export { ACCOUNT_LOCK_WAIT_MS } from "./context.js";
@@ -131,6 +134,8 @@ export interface Ledger {
   adjust(tx: Tx, input: AdjustInput): Promise<AdjustResult>;
   /** 当前生效周期的期限原语；审批与到期复活/unexpire由W408执行器负责。 */
   applyExtension(tx: Tx, input: ApplyExtensionInput): Promise<ApplyExtensionResult>;
+  /** 补偿申请在原期有效时提交且未续费：到期后同审批事务复活并冲回真实清零。 */
+  reviveTerm(tx: Tx, input: ReviveTermInput): Promise<ReviveTermResult>;
   /** 过期后重新开通：记一行加购积分恢复。履约建好周期、发完首月之后调 */
   resumeAddon(tx: Tx, input: ResumeAddonInput): Promise<ResumeAddonResult>;
 }
@@ -298,6 +303,8 @@ export function createLedger(deps: LedgerDeps): Ledger {
 
     applyExtension: async (tx, input) =>
       applyExtension(tx, deps, await enter(tx, input.entityId), input),
+
+    reviveTerm: async (tx, input) => reviveTerm(tx, deps, await enter(tx, input.entityId), input),
 
     async resumeAddon(tx, input) {
       const term = await tx.subscriptionTerm.findUnique({

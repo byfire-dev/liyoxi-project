@@ -30451,6 +30451,272 @@
         "x-idempotent-reason": "试算，不写库、不缓存、不拿账户锁、不 advance（A18、A20、C13）"
       }
     },
+    "/api/v1/m/point-ledger-entries": {
+      "get": {
+        "operationId": "m.pointLedgerEntry.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "gain",
+                "use",
+                "expire"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "firstEntryAt": {
+                          "format": "date-time",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "bizDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "category": {
+                                "enum": [
+                                  "gain",
+                                  "use",
+                                  "expire",
+                                  "other"
+                                ],
+                                "type": "string"
+                              },
+                              "deltaPoints": {
+                                "type": "integer"
+                              },
+                              "formula": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "holdStatus": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "itemCount": {
+                                "exclusiveMinimum": 0,
+                                "type": "integer"
+                              },
+                              "lotKind": {
+                                "enum": [
+                                  "plan",
+                                  "addon",
+                                  null
+                                ],
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "occurredAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "opType": {
+                                "type": "string"
+                              },
+                              "refNo": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "remark": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "rowKey": {
+                                "type": "string"
+                              },
+                              "storeName": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "rowKey",
+                              "category",
+                              "opType",
+                              "lotKind",
+                              "deltaPoints",
+                              "occurredAt",
+                              "bizDate",
+                              "title",
+                              "remark",
+                              "formula",
+                              "storeName",
+                              "refNo",
+                              "itemCount",
+                              "holdStatus"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "month": {
+                          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                          "type": "string"
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "prevMonth": {
+                          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor",
+                        "hasMore",
+                        "month",
+                        "prevMonth",
+                        "firstEntryAt"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "积分明细（?tab=all|gain|use|expire&month=YYYY-MM，默认当月，逐月加载）：标题、积分来源、时间、门店与关联单号、计算式备注、数量；响应带 prevMonth 与 firstEntryAt",
+        "x-auth": "member",
+        "x-capability": "ledger.read",
+        "x-clerk-view": "none",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）"
+      }
+    },
     "/api/v1/m/point-packs": {
       "get": {
         "operationId": "m.pointPack.list",

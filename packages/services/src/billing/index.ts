@@ -168,6 +168,13 @@ export { createInvoiceAssembly } from "./invoices/assembly.js";
 export { readInvoiceMail } from "./invoices/mail.js";
 export type { InvoiceDeps, InvoiceRuntimeDeps } from "./invoices/context.js";
 export { createFinanceConfigService } from "./finance-config/service.js";
+export { createBillingAdjustments, createAdjustmentAssembly } from "./adjustments/index.js";
+export type {
+  BillingAdjustmentDeps,
+  BillingApprovalRefs,
+  AdjustmentActor,
+} from "./adjustments/index.js";
+export { createBillingAccounts } from "./read/account-ledger.js";
 export {
   readInvoiceRefundGuard,
   markInvoiceRedPending,

@@ -60,3 +60,6 @@ export * from "./finance-config.schemas.js";
 export * from "./invoice-requests.js";
 export * from "./finance-config-revisions.js";
 export * from "./channel-read.schemas.js";
+export * from "./point-accounts.js";
+export * from "./point-adjustment-requests.js";
+export * from "./term-extension-requests.js";
