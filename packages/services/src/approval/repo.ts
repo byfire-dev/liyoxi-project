@@ -182,42 +182,54 @@ export async function staffFactsOf(
   return new Map(rows.map(({ id, ...facts }) => [id, facts]));
 }
 
-/**
- * 对象在不在这名员工的数据范围内。有当前处理人的类型（链接核验）看处理人；否则按门店、再按主体；
- * 平台级的类型（受控财务配置）没有归属，不套范围。
- */
+type ApprovalScopeTarget =
+  | { readonly kind: "handler" | "store" | "entity"; readonly id: string }
+  | { readonly kind: "global" | "missing" };
+
+/** 调整、延长按主体授权，storeId 只保留发起上下文；其余类型保持处理人 → 门店 → 主体。 */
+function scopeTarget(row: ApprovalRow, handlerId: string | null): ApprovalScopeTarget {
+  if (row.kind === "points_adjust" || row.kind === "subscription_extend") {
+    return row.entityId === null ? { kind: "missing" } : { kind: "entity", id: row.entityId };
+  }
+  if (handlerId !== null) return { kind: "handler", id: handlerId };
+  if (row.storeId !== null) return { kind: "store", id: row.storeId };
+  if (row.entityId !== null) return { kind: "entity", id: row.entityId };
+  return { kind: "global" };
+}
+
+/** 单行决定与批量读队列共享范围目标；平台级的类型没有归属，不套范围。 */
 export async function inScope(
   tx: Tx,
   scope: DataScope,
   row: ApprovalRow,
   kind: Pick<ApprovalKindRegistration, "handlerOf">,
 ): Promise<boolean> {
+  if (scopeTarget(row, null).kind === "missing") return false;
   if (scope.kind === "all") return true;
-  const handler = (await kind.handlerOf?.(tx, row)) ?? null;
-  if (handler !== null) return scopeCovers(scope, handler);
-  if (row.storeId !== null) {
+  const target = scopeTarget(row, (await kind.handlerOf?.(tx, row)) ?? null);
+  if (target.kind === "handler") return scopeCovers(scope, target.id);
+  if (target.kind === "store") {
     const store = await tx.store.findFirst({
-      where: { AND: [{ id: row.storeId }, storeScope(scope)] },
+      where: { AND: [{ id: target.id }, storeScope(scope)] },
       select: { id: true },
     });
     return store !== null;
   }
-  if (row.entityId !== null) {
+  if (target.kind === "entity") {
     const entity = await tx.entity.findFirst({
-      where: { AND: [{ id: row.entityId }, entityScope(scope)] },
+      where: { AND: [{ id: target.id }, entityScope(scope)] },
       select: { id: true },
     });
     return entity !== null;
   }
-  return true;
+  return target.kind === "global";
 }
 
 /** 读列表批量套同一套 authz 谓词，避免每张审批单各查一次门店与主体。 */
 export async function approvalScopes(tx: Tx, scope: DataScope, rows: readonly ApprovalRow[]) {
-  const stores = rows.flatMap((row) => (row.storeId === null ? [] : [row.storeId]));
-  const entities = rows.flatMap((row) =>
-    row.storeId === null && row.entityId !== null ? [row.entityId] : [],
-  );
+  const targets = rows.map((row) => scopeTarget(row, null));
+  const stores = targets.flatMap((target) => (target.kind === "store" ? [target.id] : []));
+  const entities = targets.flatMap((target) => (target.kind === "entity" ? [target.id] : []));
   const [storeRows, entityRows] = await Promise.all([
     tx.store.findMany({
       where: { AND: [{ id: { in: [...new Set(stores)] } }, storeScope(scope)] },
@@ -230,15 +242,15 @@ export async function approvalScopes(tx: Tx, scope: DataScope, rows: readonly Ap
   ]);
   const storeIds = new Set(storeRows.map((row) => row.id));
   const entityIds = new Set(entityRows.map((row) => row.id));
-  return (row: ApprovalRow, handlerId: string | null): boolean =>
-    scope.kind === "all" ||
-    (handlerId !== null
-      ? scopeCovers(scope, handlerId)
-      : row.storeId !== null
-        ? storeIds.has(row.storeId)
-        : row.entityId !== null
-          ? entityIds.has(row.entityId)
-          : true);
+  return (row: ApprovalRow, handlerId: string | null): boolean => {
+    const target = scopeTarget(row, handlerId);
+    if (target.kind === "missing") return false;
+    if (scope.kind === "all") return true;
+    if (target.kind === "handler") return scopeCovers(scope, target.id);
+    if (target.kind === "store") return storeIds.has(target.id);
+    if (target.kind === "entity") return entityIds.has(target.id);
+    return true;
+  };
 }
 
 /** codes 里不是字典 reject_reason 启用项的那些 */
