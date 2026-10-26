@@ -118,6 +118,17 @@ async function invariant(h: PaymentHarness, id: string) {
 it("十三个月真实周期开通、降级续费和下期升级按锚点接续，逐月积分与尾差保持手算", async () => {
   const h = createPaymentHarness(await db.prisma());
   h.clock.set(new Date("2026-01-31T04:00:00Z"));
+  // 本例刻意验证五期合法链；新报价仍按正式参数限制未来预约数量。
+  await h.prisma.billingParam.create({
+    data: {
+      id: uuidv7(),
+      key: "maxScheduledTerms",
+      changeId: uuidv7(),
+      value: 5,
+      effectiveAt: h.clock.now(),
+      createdAt: h.clock.now(),
+    },
+  });
   const owner = await h.make.merchant({ verified: true }),
     entityId = owner.entity.id;
   const first = await payQuote(h, entityId, await quote(h, entityId, "pro", { months: 3 }));

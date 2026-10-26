@@ -1,6 +1,5 @@
 // 后台：套餐积分与财务 · plans（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { errorResponses, okResponse } from "../../common/index.js";
 import {
@@ -13,6 +12,8 @@ import {
   PlanRevisionCreateBodySchema,
   PlanRevisionViewSchema,
   PlanSummarySchema,
+  PlanAdminQuoteBodySchema,
+  PlanAdminQuoteSchema,
 } from "./plans.schemas.js";
 
 export const adminPlanList = adminRoute({
@@ -39,7 +40,7 @@ export const adminPlanCreate = adminRoute({
   responses: { ...okResponse(PlanAdminColumnSchema), ...errorResponses(400, 401, 403, 409, 429) },
 });
 
-export const adminPlanQuote = adminMeta({
+export const adminPlanQuote = adminRoute({
   method: "post",
   path: "/admin/plans/quote",
   operationId: "admin.plan.quote",
@@ -48,6 +49,13 @@ export const adminPlanQuote = adminMeta({
   "x-permission": "assert-in-handler",
   "x-idempotent": "none",
   "x-idempotent-reason": "试算（A20）",
+  request: {
+    body: { required: true, content: { "application/json": { schema: PlanAdminQuoteBodySchema } } },
+  },
+  responses: {
+    ...okResponse(PlanAdminQuoteSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429),
+  },
 });
 
 export const adminPlanSummary = adminRoute({

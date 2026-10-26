@@ -198,9 +198,14 @@ previous_revision读取规则。KPI与套餐列复用同一事实筛选，全局
 实现细节见[定价README](pricing/README.md)；新增六组DB与两组正式HTTP、类型/依赖与
 官方契约/登记/审计/权限/挂载定点已ROOT验收通过，唯一生产独审无P1/P2。
 
-后台试算暂未挂载：现有`quotePlanPurchase`只支持首次开通，active/scheduled周期明确
-拒绝，真实续费/升级待W4-05/06公口，不以通用试算冒称完整。W4-07整包继续进行中，
-不代表M4、远端CI或真实支付验证完成。
+W4-05/06已合流，`billingPlansAdmin.quote`补最后一条`admin.plan.quote`（八个唯一DB/HTTP目标及类型/依赖已通过，
+细节见W4-07状态）。带主体时按canonical主体scope复用真实`quotePlan`，权限为billing或
+order任一查看；renewal缺省下期，显式intent仍由共同算法决定。后台policy只展示价格、
+无购买提示/渠道，不代表线下开单能力。通用试算读两个当前有效价目，来源可已下架，
+目标必须可购；升级沿shared.quoteUpgrade保留零积分月免收，剩余天数超真实基数明确400。
+报价不拿账户锁、不advance、不缓存或写业务。共同报价源仅在新增非立即升级报价限制
+未来未生效的预约数，到点未advance的周期不占未来名额；已付款冻结履约不反查软上限。
+本机替身验证不代表M4、远端CI或真实支付验收完成。
 
 
 W4-13 当前实现发票与受控财务配置（验收中）：发票申请保存已认证抬头/重加密税号与全额快照，四个 item_name 参数未配时拒绝申请；开具/红票/退款所属公口按 order290→invoice330 串行，文件走 stored/link。财务配置仍用 finance_config_change，不同人决定、bank+24h、其它即时。电子邮件经原 notify 任务、真实附件与最新 delivery 结果回写；queued/受理 sent/未配 skipped 分开，E20 真实到达/OFD兼容未验。退款接口尚待 W4-10，既有 refundRequests 桩不整体关闭。

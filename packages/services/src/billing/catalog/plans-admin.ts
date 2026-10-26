@@ -1,6 +1,8 @@
 import {
   BILLING_PARAM_VALUES,
   PlanAdminColumnSchema,
+  PlanAdminQuoteBodySchema,
+  PlanAdminQuoteSchema,
   PlanAdminListSchema,
   PlanNameUpdateBodySchema,
   PlanCreateBodySchema,
@@ -16,11 +18,12 @@ import type {
   PlanRevisionCreateBody,
   PlanRevisionListQuery,
   StaffBrief,
+  PurchasePolicy,
 } from "@liyoxi/contract";
 import type { Plan, Prisma } from "@liyoxi/db";
 import { addDays, calendarDate, dayRange } from "@liyoxi/shared/time";
 import { record } from "../../audit/index.js";
-import { assertAccess, hasPermission } from "../../authz/index.js";
+import { assertAccess, byEntity, hasPermission, satisfiesLevel } from "../../authz/index.js";
 import type { StaffContext } from "../../authz/index.js";
 import { AppError, uuidv7 } from "../../kernel/index.js";
 import type {
@@ -34,6 +37,17 @@ import { paramsAt } from "../pricing/index.js";
 import type { Notices } from "../../config/index.js";
 import type { Events } from "../../events/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
+import { quoteUpgrade } from "@liyoxi/shared/pricing";
+import { formulaOf, planAt, quotePlan } from "./index.js";
+
+// 仅给只读试算器展示价格；无购买提示或可用付款渠道，不代表开单授权。
+const adminQuotePolicy = async (): Promise<PurchasePolicy> => ({
+  mode: "in_app",
+  isPriceShown: true,
+  isPurchasePromptAllowed: false,
+  channels: [],
+  copy: { planNounKey: "", pointsNounKey: "", agreementKeys: [], payButtonKey: "" },
+});
 
 export interface PlanAdminActor {
   readonly identity: IdentityContext;
@@ -498,6 +512,106 @@ export function createPlanAdmin(deps: {
     }, options);
   }
   return {
+    quote(staff: StaffContext, raw: unknown) {
+      if (
+        !satisfiesLevel(staff.moduleLevels.billing, "view") &&
+        !satisfiesLevel(staff.moduleLevels.order, "view")
+      )
+        throw new AppError("PERMISSION_DENIED");
+      const parsed = PlanAdminQuoteBodySchema.safeParse(raw);
+      if (!parsed.success) throw new AppError("VALIDATION_FAILED");
+      const body = parsed.data;
+      return deps.tx.run(async (tx) => {
+        const at = deps.clock.now();
+        if (body.pointAccountId !== undefined) {
+          const account = await tx.billingAccount.findFirst({
+            where: { entityId: body.pointAccountId, ...byEntity(staff.scope) },
+          });
+          if (!account) throw new AppError("NOT_FOUND");
+          const result = await quotePlan(
+            tx,
+            account.entityId,
+            at,
+            {
+              planId: body.planId,
+              ...(body.months === undefined ? {} : { months: body.months }),
+              intent: body.intent ?? (body.kind === "renewal" ? "renew_next_term" : "upgrade_now"),
+            },
+            adminQuotePolicy,
+          );
+          return PlanAdminQuoteSchema.parse({
+            scope: "entity",
+            quote: result.quote,
+            generic: null,
+          });
+        }
+        const target = await planAt(tx, body.planId, at),
+          params = await paramsAt(tx, at);
+        if (body.kind === "renewal") {
+          const months = body.months!;
+          if (!params.enabledCycles.includes(months))
+            throw new AppError("CYCLE_NOT_AVAILABLE", {
+              details: { enabledCycles: params.enabledCycles },
+            });
+          const cyclePriceFen =
+            (target.revision.cyclePrices as Record<string, number>)[String(months)] ??
+            target.revision.monthlyFeeFen * months;
+          return PlanAdminQuoteSchema.parse({
+            scope: "generic",
+            quote: null,
+            generic: {
+              cyclePriceFen,
+              monthlyPoints: target.revision.monthlyPoints,
+              months,
+              formulaText: formulaOf(target.revision.monthlyFeeFen, cyclePriceFen, months).text,
+            },
+          });
+        }
+        // 来源可以已下架：它只提供当前价目作比较，不授予该版本新购资格。
+        const source = await tx.plan.findUnique({
+          where: { id: body.fromPlanId! },
+          include: {
+            planRevisions: {
+              where: { effectiveAt: { lte: at }, cancelledAt: null },
+              orderBy: [{ effectiveAt: "desc" }, { revisionNo: "desc" }],
+              take: 1,
+            },
+          },
+        });
+        if (!source) throw new AppError("NOT_FOUND");
+        const sourceRevision = source.planRevisions[0],
+          remainingDays = body.remainingDays!;
+        if (!sourceRevision) throw new AppError("PLAN_NOT_AVAILABLE");
+        if (source.rank >= target.plan.rank || remainingDays > params.prorationBaseDays)
+          throw new AppError("VALIDATION_FAILED");
+        const feeDeltaPerMonthFen = target.revision.monthlyFeeFen - sourceRevision.monthlyFeeFen,
+          monthlyDeltaPoints = target.revision.monthlyPoints - sourceRevision.monthlyPoints;
+        if (feeDeltaPerMonthFen <= 0 || monthlyDeltaPoints <= 0)
+          throw new AppError("UPGRADE_NOT_ALLOWED_TODAY", {
+            details: { suggest: "renew_next_term" },
+          });
+        const result = quoteUpgrade({
+          feeDeltaPerMonthFen,
+          pointsDeltaPerMonth: monthlyDeltaPoints,
+          remainingDays,
+          baseDays: params.prorationBaseDays,
+          remainingFullMonths: 0,
+        });
+        return PlanAdminQuoteSchema.parse({
+          scope: "generic",
+          quote: null,
+          generic: {
+            feeDeltaPerMonthFen,
+            monthlyDeltaPoints,
+            remainingDays,
+            baseDays: params.prorationBaseDays,
+            proratedFen: result.proratedFen,
+            topupPoints: result.topupPoints,
+            formulaText: `${formatMoney(feeDeltaPerMonthFen)} × ${remainingDays} ÷ ${params.prorationBaseDays} ＝ ${formatMoney(result.proratedFen)}${result.topupPoints === 0 ? "（折算积分为0，当月免收）" : ""}`,
+          },
+        });
+      });
+    },
     create(actor: PlanAdminActor, raw: unknown, options: { idem?: IdempotencyContext } = {}) {
       writeAccess(actor);
       const body = PlanCreateBodySchema.safeParse(raw);

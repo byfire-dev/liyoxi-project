@@ -21186,6 +21186,170 @@
         ],
         "type": "object"
       },
+      "PlanAdminQuote": {
+        "oneOf": [
+          {
+            "properties": {
+              "generic": {
+                "type": "null"
+              },
+              "quote": {
+                "$ref": "#/components/schemas/PlanQuote"
+              },
+              "scope": {
+                "enum": [
+                  "entity"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "scope",
+              "quote",
+              "generic"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "generic": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "baseDays": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      "feeDeltaPerMonthFen": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "formulaText": {
+                        "type": "string"
+                      },
+                      "monthlyDeltaPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "proratedFen": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "remainingDays": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      "topupPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "feeDeltaPerMonthFen",
+                      "monthlyDeltaPoints",
+                      "remainingDays",
+                      "baseDays",
+                      "proratedFen",
+                      "topupPoints",
+                      "formulaText"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "cyclePriceFen": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      "formulaText": {
+                        "type": "string"
+                      },
+                      "monthlyPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "months": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "cyclePriceFen",
+                      "monthlyPoints",
+                      "months",
+                      "formulaText"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "quote": {
+                "type": "null"
+              },
+              "scope": {
+                "enum": [
+                  "generic"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "scope",
+              "quote",
+              "generic"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlanAdminQuoteBody": {
+        "additionalProperties": false,
+        "properties": {
+          "fromPlanId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "intent": {
+            "enum": [
+              "upgrade_now",
+              "renew_next_term"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "upgrade",
+              "renewal"
+            ],
+            "type": "string"
+          },
+          "months": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "pointAccountId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "remainingDays": {
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "planId"
+        ],
+        "type": "object"
+      },
       "PlanContentInput": {
         "additionalProperties": false,
         "properties": {
@@ -21518,6 +21682,307 @@
           "planName",
           "discountBp",
           "discountedPoints"
+        ],
+        "type": "object"
+      },
+      "PlanQuote": {
+        "properties": {
+          "action": {
+            "enum": [
+              "subscribe",
+              "renew",
+              "downgrade",
+              "renew_upgrade",
+              "upgrade"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "benefits": {
+            "properties": {
+              "discountBp": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "hasMonthlyReport": {
+                "type": "boolean"
+              },
+              "maxMembers": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "maxStores": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "monthlyPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "schedulePriority": {
+                "enum": [
+                  "standard",
+                  "priority",
+                  "rush"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "monthlyPoints",
+              "discountBp",
+              "productionModel",
+              "schedulePriority",
+              "maxStores",
+              "maxMembers",
+              "hasMonthlyReport"
+            ],
+            "type": "object"
+          },
+          "downgradeImpact": {
+            "properties": {
+              "membersToRemove": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "storesToRemove": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "storesToRemove",
+              "membersToRemove"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "effectiveMode": {
+            "enum": [
+              "immediate",
+              "next_term"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "firstGrantDate": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "formula": {
+            "properties": {
+              "args": {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              "code": {
+                "enum": [
+                  "plan_monthly",
+                  "plan_cycle",
+                  "plan_upgrade",
+                  "topup"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "args",
+              "text"
+            ],
+            "type": "object"
+          },
+          "fromPlanName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "months": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "newTerm": {
+            "properties": {
+              "endDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "startDate": {
+                "format": "date",
+                "type": "string"
+              }
+            },
+            "required": [
+              "startDate",
+              "endDate"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "orderType": {
+            "enum": [
+              "plan_new",
+              "plan_renew",
+              "plan_upgrade"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "payFen": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "planId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "planRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/PurchasePolicy"
+          },
+          "promo": {
+            "properties": {
+              "appliedRevisionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "previous_revision"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "appliedRevisionId"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "quotedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upgrade": {
+            "properties": {
+              "baseDays": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currentTermEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "feeDeltaPerMonthFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "monthlyDeltaPoints": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "proratedFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "remainingDays": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "remainingFullMonths": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "topupPoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "currentTermEndDate",
+              "remainingDays",
+              "baseDays",
+              "remainingFullMonths",
+              "feeDeltaPerMonthFen",
+              "monthlyDeltaPoints",
+              "proratedFen",
+              "topupPoints"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "validUntil": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "orderType",
+          "planId",
+          "planRevisionId",
+          "planName",
+          "fromPlanName",
+          "months",
+          "payFen",
+          "formula",
+          "effectiveMode",
+          "newTerm",
+          "firstGrantDate",
+          "benefits",
+          "upgrade",
+          "downgradeImpact",
+          "promo",
+          "validUntil",
+          "quotedAt",
+          "policy"
         ],
         "type": "object"
       },
@@ -23321,6 +23786,93 @@
             "type": "object"
           }
         ]
+      },
+      "PurchasePolicy": {
+        "properties": {
+          "channels": {
+            "items": {
+              "properties": {
+                "code": {
+                  "enum": [
+                    "wechat_jsapi",
+                    "bank_transfer"
+                  ],
+                  "type": "string",
+                  "x-open-enum": true
+                },
+                "hintKey": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "isEnabled": {
+                  "type": "boolean"
+                },
+                "isRecommended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "isEnabled",
+                "isRecommended",
+                "hintKey"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "copy": {
+            "properties": {
+              "agreementKeys": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "payButtonKey": {
+                "type": "string"
+              },
+              "planNounKey": {
+                "type": "string"
+              },
+              "pointsNounKey": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "planNounKey",
+              "pointsNounKey",
+              "agreementKeys",
+              "payButtonKey"
+            ],
+            "type": "object"
+          },
+          "isPriceShown": {
+            "type": "boolean"
+          },
+          "isPurchasePromptAllowed": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "in_app",
+              "offline_contract",
+              "hidden"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          }
+        },
+        "required": [
+          "mode",
+          "isPriceShown",
+          "isPurchasePromptAllowed",
+          "channels",
+          "copy"
+        ],
+        "type": "object"
       },
       "PurgeApproveBody": {
         "additionalProperties": false,
@@ -55447,6 +55999,120 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "billing.plan.edit"
+      }
+    },
+    "/api/v1/admin/plans/quote": {
+      "post": {
+        "operationId": "admin.plan.quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanAdminQuoteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PlanAdminQuote"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "升级补差或续费试算（请求体区分升级与续费；与商家端选择套餐同一实现）：版本、周期 → 算式、新周期、每月积分、应付金额",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "试算（A20）",
+        "x-permission": "assert-in-handler"
       }
     },
     "/api/v1/admin/plans/summary": {

@@ -2483,6 +2483,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/plans/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 升级补差或续费试算（请求体区分升级与续费；与商家端选择套餐同一实现）：版本、周期 → 算式、新周期、每月积分、应付金额 */
+        post: operations["admin.plan.quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plans/summary": {
         parameters: {
             query?: never;
@@ -8286,6 +8303,44 @@ export interface components {
             };
             items: components["schemas"]["PlanAdminColumn"][];
         };
+        PlanAdminQuote: {
+            generic: null;
+            quote: components["schemas"]["PlanQuote"];
+            /** @enum {string} */
+            scope: "entity";
+        } | {
+            generic: {
+                baseDays: number;
+                feeDeltaPerMonthFen: number;
+                formulaText: string;
+                monthlyDeltaPoints: number;
+                proratedFen: number;
+                remainingDays: number;
+                topupPoints: number;
+            } | {
+                cyclePriceFen: number;
+                formulaText: string;
+                monthlyPoints: number;
+                months: number;
+            };
+            quote: null;
+            /** @enum {string} */
+            scope: "generic";
+        };
+        PlanAdminQuoteBody: {
+            /** Format: uuid */
+            fromPlanId?: string;
+            /** @enum {string} */
+            intent?: "upgrade_now" | "renew_next_term";
+            /** @enum {string} */
+            kind: "upgrade" | "renewal";
+            months?: number;
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            pointAccountId?: string;
+            remainingDays?: number;
+        };
         PlanContentInput: {
             focusCodes: string[];
             items: {
@@ -8344,6 +8399,75 @@ export interface components {
             /** Format: uuid */
             planId: string;
             planName: string;
+        };
+        PlanQuote: {
+            /** @enum {string} */
+            action: "subscribe" | "renew" | "downgrade" | "renew_upgrade" | "upgrade" | (string & {});
+            benefits: {
+                discountBp: number;
+                hasMonthlyReport: boolean;
+                maxMembers: number | null;
+                maxStores: number;
+                monthlyPoints: number;
+                /** @enum {string} */
+                productionModel: "standard" | "advanced" | "top" | (string & {});
+                /** @enum {string} */
+                schedulePriority: "standard" | "priority" | "rush" | (string & {});
+            };
+            downgradeImpact: {
+                membersToRemove: number;
+                storesToRemove: number;
+            } | null;
+            /** @enum {string} */
+            effectiveMode: "immediate" | "next_term" | (string & {});
+            /** Format: date */
+            firstGrantDate: string | null;
+            formula: {
+                args: {
+                    [key: string]: number;
+                };
+                /** @enum {string} */
+                code: "plan_monthly" | "plan_cycle" | "plan_upgrade" | "topup" | (string & {});
+                text: string;
+            };
+            fromPlanName: string | null;
+            months: number | null;
+            newTerm: {
+                /** Format: date */
+                endDate: string;
+                /** Format: date */
+                startDate: string;
+            } | null;
+            /** @enum {string} */
+            orderType: "plan_new" | "plan_renew" | "plan_upgrade" | (string & {});
+            payFen: number;
+            /** Format: uuid */
+            planId: string;
+            planName: string;
+            /** Format: uuid */
+            planRevisionId: string;
+            policy: components["schemas"]["PurchasePolicy"];
+            promo: {
+                /** Format: uuid */
+                appliedRevisionId: string;
+                /** @enum {string} */
+                type: "previous_revision";
+            } | null;
+            /** Format: date-time */
+            quotedAt: string;
+            upgrade: {
+                baseDays: number;
+                /** Format: date */
+                currentTermEndDate: string;
+                feeDeltaPerMonthFen: number;
+                monthlyDeltaPoints: number;
+                proratedFen: number;
+                remainingDays: number;
+                remainingFullMonths: number;
+                topupPoints: number;
+            } | null;
+            /** Format: date-time */
+            validUntil: string | null;
         };
         PlanRevisionCreateBody: {
             cyclePrices?: {
@@ -8718,6 +8842,25 @@ export interface components {
                 actorType: "staff" | "merchant" | "system" | "partner";
                 label: string;
             };
+        };
+        PurchasePolicy: {
+            channels: {
+                /** @enum {string} */
+                code: "wechat_jsapi" | "bank_transfer" | (string & {});
+                hintKey: string | null;
+                isEnabled: boolean;
+                isRecommended: boolean;
+            }[];
+            copy: {
+                agreementKeys: string[];
+                payButtonKey: string;
+                planNounKey: string;
+                pointsNounKey: string;
+            };
+            isPriceShown: boolean;
+            isPurchasePromptAllowed: boolean;
+            /** @enum {string} */
+            mode: "in_app" | "offline_contract" | "hidden" | (string & {});
         };
         PurgeApproveBody: {
             confirm: {
@@ -23816,6 +23959,90 @@ export interface operations {
             };
             /** @description 已登录但无权 */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.plan.quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanAdminQuoteBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PlanAdminQuote"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

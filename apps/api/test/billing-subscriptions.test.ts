@@ -321,6 +321,17 @@ it("四个周期HTTP资源同scope读持久事实且零写，手动R1同日去�
 
 it("实际期限原语与HTTP提前续费并发后链无空档重叠，已发放不改且同审批键零重复", async () => {
   api.clock.set(new Date("2026-02-22T04:00:00Z"));
+  // 本例需要两个未来名额以验证三期并发期限链；新报价照正式参数限制。
+  await db.billingParam.create({
+    data: {
+      id: uuidv7(),
+      changeId: uuidv7(),
+      key: "maxScheduledTerms",
+      value: 2,
+      effectiveAt: api.clock.now(),
+      createdAt: api.clock.now(),
+    },
+  });
   finance = await signInAsStaff(db, { roleKey: "finance", now: api.clock.now() });
   const admin = await signInAsStaff(db, { roleKey: "super_admin", now: api.clock.now() }),
     b = await buyer(),

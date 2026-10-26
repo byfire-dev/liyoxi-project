@@ -1,5 +1,6 @@
 import {
   adminPlanList,
+  adminPlanQuote,
   adminPlanUpdate,
   adminPlanShelve,
   adminPlanDelist,
@@ -19,6 +20,10 @@ import { defineAdminHandler } from "../../routing/admin.js";
 
 const view = { module: "billing", need: "view" } as const;
 export const adminBillingCatalogHandlers = [
+  defineAdminHandler(adminPlanQuote, null, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
+    return ok(c, await c.get("runtime").billingPlansAdmin.quote(staff.ctx, c.req.valid("json")));
+  }),
   defineAdminHandler(adminBillingParamList, view, async (c, staff) => {
     c.header("Cache-Control", "no-store");
     return ok(c, await c.var.runtime.billingParameters.list(staff.ctx));
