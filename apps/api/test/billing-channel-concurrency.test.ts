@@ -343,6 +343,46 @@ describe("W4-03 多入口真实HTTP行锁竞争", { timeout: 90_000 }, () => {
         }
       }
       const responses = await Promise.all(requests);
+      if (responses.some((response) => response.status !== 200)) {
+        const statuses = responses.map((response, index) => {
+          const requestId = response.headers.get("X-Request-Id");
+          return {
+            entry: ["callback", "sync", "cancel"][index],
+            status: response.status,
+            requestId: requestId && /^[0-9a-f-]{36}$/i.test(requestId) ? requestId : null,
+          };
+        });
+        const errors = api.logs
+          .filter(
+            (log) => log.evt === "http.error" && statuses.some((s) => s.requestId === log.reqId),
+          )
+          .map((log) => {
+            const err = log.err;
+            // Pino折叠cause至message；只提取固定码/类别，不输出原message、stack或err。
+            const message =
+              err && typeof err === "object" && "message" in err && typeof err.message === "string"
+                ? err.message
+                : "";
+            return {
+              requestId: log.reqId,
+              error:
+                typeof log.error === "string" && /^[A-Z][A-Z0-9_]{0,100}$/.test(log.error)
+                  ? log.error
+                  : null,
+              codes: [
+                ...new Set(message.match(/\b(?:P\d{4}|40P01|40001|55P03|57014|25P02)\b/g) ?? []),
+              ],
+              deadlock: /deadlock detected/i.test(message),
+              transactionClosed: /transaction already closed/i.test(message),
+              transactionStartTimeout: /unable to start a transaction in the given time/i.test(
+                message,
+              ),
+            };
+          });
+        console.warn(
+          JSON.stringify({ event: "w403.response-failure", round: round + 1, statuses, errors }),
+        );
+      }
       expect(responses[0]!.status).toBe(200);
       expect(await responses[0]!.text()).toBe("");
       expect(PaymentOrderDetailSchema.parse(await data(responses[1]!))).toMatchObject({

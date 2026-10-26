@@ -51,7 +51,7 @@ export function createWechatChannel(deps: WechatChannelDeps) {
       actor.ctx.entityId !== actor.membership.entityId
     )
       throw new AppError("ROLE_FORBIDDEN");
-    if (locked) await lockRows(tx, "entity", [actor.membership.entityId]);
+    if (locked) await lockRows(tx, "entity", [actor.membership.entityId], "share");
     const current = await deps.tenant.resolveMembership(tx, {
       merchantUserId: actor.ctx.actor.id,
       storeId: actor.membership.storeId,
