@@ -164,3 +164,6 @@ export {
   refundIdem as refundIdempotencyForTest,
 } from "./billing-refund.js";
 export type { RefundHarness as RefundHarnessForTest } from "./billing-refund.js";
+
+// 仅公开运行时生成的假X509身份，供FILE配置边界测试复用，不导入真实证书。
+export { merchantCertificateForTest } from "./wechatpay-certificate.js";
