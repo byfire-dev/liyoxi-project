@@ -1,0 +1,9 @@
+.billing-topup {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+  &__packs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
