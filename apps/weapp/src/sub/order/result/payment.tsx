@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View } from "@tarojs/components";
-import Taro, { usePullDownRefresh } from "@tarojs/taro";
+import Taro, { useDidHide, useDidShow, usePullDownRefresh } from "@tarojs/taro";
 import { formatInteger, formatMoney } from "@liyoxi/shared/format/money";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -10,53 +10,135 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Skeleton } from "@/components/Skeleton";
 import { StatusTag, merchantStatusByEnum } from "@/components/StatusTag";
-import { account } from "@/lib/account-runtime";
+import { account, useAccount } from "@/lib/account-runtime";
+import type { Data } from "@/lib/account-api";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { createPurchaseApi } from "../../billing/plan-pick/api";
 import { paymentView, type Payment } from "../../billing/plan-pick/model";
 import { ReceiptPicker } from "../../billing/plan-pick/receipt";
 import { billingRequest } from "../../billing/wallet/runtime";
+import { purchaseVisible } from "../../billing/wallet/model";
+import { currentPurchaseContext, paymentIntent } from "../../billing/topup/runtime";
 import "./index.scss";
 const api = createPurchaseApi(billingRequest);
 export function PaymentResult({ id }: { id: string }) {
+  useAccount();
   const rev = useContextStore((v) => v.contextRev),
     token = useSessionStore((v) => v.accessToken);
-  return <PaymentContent key={`${id}:${rev}:${token ?? "guest"}`} id={id} />;
+  return (
+    <PaymentContent
+      key={`${id}:${rev}:${token ?? "guest"}:${currentPurchaseContext("plan.purchase").key}`}
+      id={id}
+    />
+  );
 }
 function PaymentContent({ id }: { id: string }) {
   const [order, setOrder] = useState<Payment | null>(null),
     [error, setError] = useState<string | null>(null),
     [refresh, setRefresh] = useState(0);
-  const generation = useRef(0);
+  const generation = useRef(0),
+    active = useRef(true);
+  const scope = currentPurchaseContext("plan.purchase").key;
+  const current = useCallback(
+    () =>
+      active.current &&
+      scope === currentPurchaseContext("plan.purchase").key &&
+      currentPurchaseContext("plan.purchase").allowed,
+    [scope],
+  );
+  const pay = useMemo(
+    () =>
+      paymentIntent(
+        () =>
+          scope === currentPurchaseContext("plan.purchase").key &&
+          currentPurchaseContext("plan.purchase").allowed,
+      ),
+    [scope],
+  );
+  const [policy, setPolicy] = useState<Data<"m.purchasePolicy.get"> | null>(null);
+  const [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState<string | null>(null);
+  useDidHide(() => {
+    active.current = false;
+    generation.current++;
+    pay.invalidate();
+    setBusy(false);
+  });
+  useDidShow(() => {
+    if (!active.current) {
+      active.current = true;
+      setRefresh((v) => v + 1);
+    }
+  });
   useEffect(() => {
     const own = ++generation.current,
       rev = useContextStore.getState().contextRev,
       token = useSessionStore.getState().accessToken;
-    const current = () =>
+    const valid = () =>
+      active.current &&
+      current() &&
       own === generation.current &&
       rev === useContextStore.getState().contextRev &&
       token === useSessionStore.getState().accessToken;
     void account
       .start()
-      .then(() => api.detail(id))
+      .then(() => {
+        if (!valid()) return null;
+        return Promise.all([api.detail(id), api.policy()]);
+      })
       .then((v) => {
-        if (current()) {
-          setOrder(v);
+        if (v && valid()) {
+          setOrder(v[0]);
+          setPolicy(v[1]);
           setError(null);
         }
       })
       .catch((e) => {
-        if (current()) setError(e instanceof Error ? e.message : "暂未取得付款结果");
+        if (valid()) setError(e instanceof Error ? e.message : "暂未取得付款结果");
       })
       .finally(() => {
-        if (current()) void Taro.stopPullDownRefresh();
+        if (valid()) void Taro.stopPullDownRefresh();
       });
     return () => {
       generation.current = own + 1;
+      pay.invalidate();
     };
-  }, [id, refresh]);
-  usePullDownRefresh(() => setRefresh((v) => v + 1));
+  }, [id, refresh, current, pay]);
+  useEffect(
+    () => () => {
+      active.current = false;
+      pay.invalidate();
+    },
+    [pay],
+  );
+  usePullDownRefresh(() => {
+    if (!pay.pending) setRefresh((v) => v + 1);
+  });
+  async function action(kind: "pay" | "sync" | "cancel") {
+    if (pay.pending || !current()) return;
+    const own = generation.current;
+    const valid = () => current() && own === generation.current;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await pay[kind](id);
+      if (result && valid()) {
+        setOrder(result.order);
+        setNotice(result.notice);
+      }
+    } catch {
+      if (valid()) setNotice("暂未确认付款结果，付款单已保留，请稍后查询");
+    } finally {
+      if (valid()) setBusy(false);
+    }
+  }
+  if (!currentPurchaseContext("plan.purchase").allowed)
+    return (
+      <PageBody>
+        <Note>当前身份无法查看付款单，请使用有权限的老板账号。</Note>
+      </PageBody>
+    );
   if (error)
     return (
       <PageBody>
@@ -98,7 +180,7 @@ function PaymentContent({ id }: { id: string }) {
           />
         </Card>
         {order.fulfillment ? (
-          <Card title="开通结果">
+          <Card title="履约结果">
             <DescList
               items={[
                 {
@@ -138,8 +220,53 @@ function PaymentContent({ id }: { id: string }) {
                 { label: "转账备注", value: order.bankAccount?.transferRemark ?? order.orderNo },
               ]}
             />
-            <ReceiptPicker payment={order} api={api} onSubmitted={setOrder} />
+            <ReceiptPicker
+              payment={order}
+              api={api}
+              onSubmitted={(value) => {
+                if (current()) setOrder(value);
+              }}
+            />
           </Card>
+        ) : null}
+        {notice ? <Note>{notice}</Note> : null}
+        {order.actions.includes("wechat-prepay") &&
+        policy &&
+        purchaseVisible(policy) &&
+        policy.channels.some((channel) => channel.code === "wechat_jsapi" && channel.isEnabled) ? (
+          <Button
+            block
+            loading={busy}
+            onClick={() => {
+              void action("pay");
+            }}
+          >
+            继续微信支付
+          </Button>
+        ) : null}
+        {order.actions.includes("sync") ? (
+          <Button
+            block
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              void action("sync");
+            }}
+          >
+            查询付款结果
+          </Button>
+        ) : null}
+        {order.actions.includes("cancel") ? (
+          <Button
+            block
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              void action("cancel");
+            }}
+          >
+            取消付款单
+          </Button>
         ) : null}
         <Button
           variant="outline"

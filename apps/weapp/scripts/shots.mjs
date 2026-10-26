@@ -92,7 +92,15 @@ const { INVOICE_SCENES } = await import(
 const { CONTRACT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/contracts-scenes.ts")).href
 );
-const BILLING_SCENES = [...LEGACY_BILLING_SCENES, ...INVOICE_SCENES, ...CONTRACT_SCENES];
+const { TOPUP_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/topup-scenes.ts")).href
+);
+const BILLING_SCENES = [
+  ...LEGACY_BILLING_SCENES,
+  ...INVOICE_SCENES,
+  ...CONTRACT_SCENES,
+  ...TOPUP_SCENES,
+];
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
@@ -575,7 +583,7 @@ async function shoot(target) {
           if (kind === "billing") {
             globalThis.__LYX_BILLING_SHOT__ = scene;
             globalThis.__LYX_ACCOUNT_SHOT__ =
-              scene === "contracts-clerk" ? "mine-clerk" : "mine-owner";
+              scene === "contracts-clerk" || scene === "topup-clerk" ? "mine-clerk" : "mine-owner";
           }
           if (kind === "message") {
             globalThis.__LYX_ACCOUNT_SHOT__ =
@@ -613,7 +621,9 @@ async function shoot(target) {
                   ? "#invoices-ready"
                   : target.scene.startsWith("contracts-")
                     ? "#contracts-ready"
-                    : "#billing-ready"
+                    : target.scene.startsWith("topup-")
+                      ? "#topup-ready"
+                      : "#billing-ready"
                 : target.kind === "publish"
                   ? "#publish-ready"
                   : target.kind === "order" || target.kind === "order-reference"
