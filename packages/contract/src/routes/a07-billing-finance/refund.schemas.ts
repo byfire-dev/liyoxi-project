@@ -146,7 +146,7 @@ export const RefundFilterSchema = z.object({
   entityId: IdSchema.optional(),
   storeId: IdSchema.optional(),
   ruleCode: CashRefundRuleSchema.optional(),
-  source: z.enum(["customer_service", "exception"]).optional(),
+  source: z.enum(["customer_service", "exception", "staging_probe"]).optional(),
   overdueOnly: z
     .enum(["true", "false"])
     .transform((v) => v === "true")
@@ -161,7 +161,7 @@ export const RefundListQuerySchema = RefundFilterSchema.extend({
 export const RefundRequestRowSchema = z.object({
   refundRequestId: IdSchema,
   requestNo: z.string(),
-  source: z.enum(["customer_service", "exception"]),
+  source: z.enum(["customer_service", "exception", "staging_probe"]),
   entity: PaymentOrderAdminDetailSchema.shape.entity.nullable(),
   paymentOrder: z
     .object({ paymentOrderId: IdSchema, orderNo: z.string(), type: z.string(), title: z.string() })
@@ -283,6 +283,7 @@ export const RefundRequestDetailSchema = RefundRequestRowSchema.extend({
   }),
   entitlementRevokedAt: InstantSchema.nullable(),
   executedBy: StaffBriefSchema.nullable(),
+  isExecutedBySystem: z.boolean().default(false),
   executedAt: InstantSchema.nullable(),
   voidedBy: StaffBriefSchema.nullable(),
   closeNote: z.string().nullable(),

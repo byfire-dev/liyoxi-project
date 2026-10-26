@@ -5761,7 +5761,7 @@ export interface components {
                 };
                 doneToday: number;
                 /** @enum {string} */
-                kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
+                kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "staging_pay_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
                 overdue: number;
                 rejectedThisMonth: number;
                 submitted: number;
@@ -5787,7 +5787,7 @@ export interface components {
             dueAt: string | null;
             isDecidedBySystem: boolean;
             /** @enum {string} */
-            kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
+            kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "staging_pay_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
             lockVersion: number;
             reasons: components["schemas"]["DictRef"][];
             requester: components["schemas"]["StaffBrief"] | null;
@@ -5858,7 +5858,7 @@ export interface components {
             handler: components["schemas"]["StaffBrief"] | null;
             isDecidedBySystem: boolean;
             /** @enum {string} */
-            kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
+            kind: "qualification" | "channel_account" | "launch_link" | "order_cancel" | "ad_cancel" | "qualification_cancel" | "plan_refund" | "staging_pay_refund" | "points_adjust" | "subscription_extend" | "finance_config_change" | "account_change" | "transfer_confirm";
             lockVersion: number;
             reasons: components["schemas"]["DictRef"][];
             requestNo: string | null;
@@ -9457,6 +9457,8 @@ export interface components {
                 needsRedInvoice: boolean;
             };
             isExecOverdue: boolean;
+            /** @default false */
+            isExecutedBySystem: boolean;
             isOverride: boolean;
             logs: {
                 action: string;
@@ -9569,7 +9571,7 @@ export interface components {
             ruleCode: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
             ruleText: string;
             /** @enum {string} */
-            source: "customer_service" | "exception";
+            source: "customer_service" | "exception" | "staging_probe";
             stageNote: string;
             /** @enum {string} */
             status: "pending_approval" | "pending_execution" | "executing" | "done" | "not_executed";
@@ -28180,7 +28182,7 @@ export interface operations {
                 entityId?: string;
                 storeId?: string;
                 ruleCode?: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
-                source?: "customer_service" | "exception";
+                source?: "customer_service" | "exception" | "staging_probe";
                 overdueOnly?: "true" | "false";
                 page?: number;
                 pageSize?: number;
@@ -28246,7 +28248,7 @@ export interface operations {
                                 ruleCode: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
                                 ruleText: string;
                                 /** @enum {string} */
-                                source: "customer_service" | "exception";
+                                source: "customer_service" | "exception" | "staging_probe";
                                 /** @enum {string} */
                                 status: "pending_approval" | "pending_execution" | "executing" | "done" | "not_executed";
                             }[];
@@ -28304,7 +28306,7 @@ export interface operations {
                 entityId?: string;
                 storeId?: string;
                 ruleCode?: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
-                source?: "customer_service" | "exception";
+                source?: "customer_service" | "exception" | "staging_probe";
                 overdueOnly?: "true" | "false";
             };
             header?: never;
