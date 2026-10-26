@@ -198,6 +198,7 @@ function fromWire(
       refundId: r.refund_id,
       status: r.refund_status,
       refundFen: amount.refund,
+      ...(typeof r.success_time === "string" ? { successAt: new Date(r.success_time) } : {}),
     };
     return { kind: "refund", id, refund: refund as WechatPayRefund };
   }
