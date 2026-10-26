@@ -192,6 +192,7 @@ erDiagram
 | `s.delivery_progress` | staff | 交付进度 | — |
 | `s.publish_progress` | staff | 发布待办 | — |
 | `s.merchant_changed` | staff | 商家变动 | — |
+| `s.receipt_daily_digest` | staff | 对公确认日摘要 | W4-12；默认 `ext_enabled = false`，始终只发站内；当前在职超级管理员按业务日/员工去重；安全清单保存在通知变量，页面消费待 W4-18 |
 | `s.wecom_invite` | staff | 企业微信绑定邀请 | W2-03 必要补登；active+invited 当前员工，站内-only，真实邀请审计 ID 去重 |
 | `s.followup_due` | staff | 跟进到期提醒 | W2-17 按既有跟进提醒请求补登；到期日 09:00、当前负责人、仍待跟进 |
 
@@ -1128,6 +1129,7 @@ erDiagram
 | `biz_type` | 用到它的场景 | 出处 |
 | --- | --- | --- |
 | `billing_order` | 付款成功、对公收款驳回 | d6:233、253；08 分组 5.2 |
+| `recon_day` | 对公确认日摘要 | W4-12；x01 `receipt.daily_digest`，真实 bank 对账日作为业务引用 |
 | `refund_request` | 退款结果 | d6:249 |
 | `invoice_doc`、`invoice_request` | 发票已开具（含邮件与重发）、发票驳回 | d6:244、253、953 |
 | `drama_order` | 订购成功 | d6:234 |

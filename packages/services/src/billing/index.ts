@@ -1,5 +1,8 @@
 // W0-21 种子：套餐与首版价目、积分包、等级模板价、计费参数、估值口径
 export { seed } from "./seed.js";
+export { createReconciliation } from "./reconciliation/index.js";
+export type { Reconciliation, ReconciliationDeps } from "./reconciliation/index.js";
+export { createReconciliationAssembly } from "./reconciliation/assembly.js";
 export { createPlanAdmin, planActivityCounts } from "./catalog/plans-admin.js";
 export type { PlanAdminActor } from "./catalog/plans-admin.js";
 export { createParameterChanges } from "./pricing/parameter-changes.js";

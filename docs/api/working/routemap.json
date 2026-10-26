@@ -12496,7 +12496,7 @@
   "clerkView": null,
   "xIdempotent": "required",
   "idempotentBy": null,
-  "idempotentNote": null,
+  "idempotentNote": "C51多事务：按商户号和账单日持会话锁串行，逐主体补记后同末TX保存日汇总与幂等响应",
   "screens": [
    "A:Reconcile"
   ],

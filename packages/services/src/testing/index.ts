@@ -164,3 +164,8 @@ export {
   refundIdem as refundIdempotencyForTest,
 } from "./billing-refund.js";
 export type { RefundHarness as RefundHarnessForTest } from "./billing-refund.js";
+
+export { createReconciliationHarness } from "./bill-reconciliation.js";
+export type { ReconciliationHarness } from "./bill-reconciliation.js";
+export { sourceBill } from "./bill-source.js";
+export type { SourceBillRow } from "./bill-source.js";
