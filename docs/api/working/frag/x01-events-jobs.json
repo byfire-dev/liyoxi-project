@@ -4996,6 +4996,12 @@
    "via": "回调处理"
   },
   {
+   "ref": "08-billing-payment.md:533",
+   "column": "refund_request.status",
+   "transition": "pending_execution→pending_execution（sla.recalculated）",
+   "via": "订阅者 billing.onCalendarImported"
+  },
+  {
    "ref": "08-billing-payment.md:663",
    "column": "refund_txn.status",
    "transition": "created→processing",

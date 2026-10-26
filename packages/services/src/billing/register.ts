@@ -1,3 +1,7 @@
+import { refundInvariants } from "./refund/invariants.js";
+import { refundFileRefs } from "./refund/file-refs.js";
+import { refundMachineBinding, refundMachineKey, withRefundBinding } from "./refund/binding.js";
+import { unboundRefundApproval, unboundRefundHandler } from "./refund/assembly.js";
 import { invoiceMachineBinding, invoiceMachineKey } from "./invoices/binding.js";
 import { unboundInvoiceMailResult } from "./invoices/assembly.js";
 import {
@@ -147,6 +151,9 @@ export const registration = defineRegistration("billing", {
       "financeConfigForNotify",
       financeConfigForNotify,
     ),
+    implementKeyed(machinePort, refundMachineKey, refundMachineBinding),
+    implementKeyed(approvalKindPort, "plan_refund", unboundRefundApproval),
+    implementKeyed(fileRefTypePort, "refund_txn", refundFileRefs),
     implementKeyed(machinePort, invoiceMachineKey, invoiceMachineBinding),
     implementKeyed(fileRefTypePort, "invoice_doc", {
       inUse: async (tx, fileId) =>
@@ -187,9 +194,16 @@ export const registration = defineRegistration("billing", {
     implement(DramaPricePort, dramaPriceAdapter),
     implement(billingAccountPort, billingAccountOpener),
     implementMerchantFacts("billing", billingMerchantFacts),
-    ...purchaseMachineBindings.map(({ key, binding }) => implementKeyed(machinePort, key, binding)),
+    ...purchaseMachineBindings.map(({ key, binding }) =>
+      implementKeyed(machinePort, key, withRefundBinding(key, binding)),
+    ),
   ],
   subscribers: [
+    {
+      name: "billing.submitRefundTxn",
+      events: ["refund_txn.created"],
+      handle: unboundRefundHandler,
+    },
     {
       name: "billing.onMailResult",
       events: ["notify.mail_delivered", "notify.mail_failed"],
@@ -247,6 +261,7 @@ export const registration = defineRegistration("billing", {
     },
   ],
   timerHandlers: [
+    { kind: "rf.poll", handle: unboundRefundHandler },
     { kind: "po.expire", critical: true, handle: expirePayment },
     { kind: "po.transfer_ttl", handle: handleTransferTtl },
     {
@@ -257,6 +272,7 @@ export const registration = defineRegistration("billing", {
     },
   ],
   invariants: [
+    ...refundInvariants,
     ...billingInvariants,
     ...adjustmentInvariants,
     ...subscriptionInvariants,

@@ -792,6 +792,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `08:529` | `refund_request.status` | pending_execution→done（退款回调晚到，A102） | 回调 `hooks.wechatpay.refund.notify`；周期任务 `bill.download`（与 08:531 同一段退款结果处理代码；`rf.poll` 在交易到达失败终态时已取消，正常走不到这一行）；同事务取消执行时限定时器（若仍在） | 回调处理 |
 | `08:531` | `refund_request.status` | executing→done | 回调 `hooks.wechatpay.refund.notify`；定时器 `rf.poll`；周期任务 `bill.download` | 回调处理 |
 | `08:532` | `refund_request.status` | executing→pending_execution | 回调 `hooks.wechatpay.refund.notify`；定时器 `rf.poll`；命令行 `refund:abandon-txn`；`admin.refundRequest.confirmNotAccepted` 由接口承担 | 回调处理 |
+| `08:533` | `refund_request.status` | pending_execution→pending_execution（sla.recalculated） | 订阅者 `billing.onCalendarImported`：仅首次执行前，批准计算窗口内日历更正后，同事务取消旧执行timer并更新时限、日历快照、同态历史及审计；不恢复已取消的执行时限 | 订阅者 |
 | `08:663` | `refund_txn.status` | created→processing | `admin.refundRequest.execute` 三段式第 ③ 步；内联失败时订阅者 `billing.submitRefundTxn`；定时器 `rf.poll`；结果先于提交结果落库的竞态由回调 `hooks.wechatpay.refund.notify` 先按“微信受理”补这一步（h01 3.2） | 订阅者 |
 | `08:664` | `refund_txn.status` | created→created（记 fail_code，同单号重试） | 订阅者 `billing.submitRefundTxn`；`admin.refundRequest.retry` 由接口承担 | 订阅者 |
 | `08:666-667` | `refund_txn.status` | processing→closed / abnormal | 回调 `hooks.wechatpay.refund.notify`；定时器 `rf.poll` | 回调处理 |

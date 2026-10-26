@@ -10,7 +10,10 @@ import { fromDateColumn, toDateColumn } from "../ledger/context.js";
 import { computeEntityValuation } from "./valuation.js";
 import type { BillingValuationReader } from "./valuation.js";
 
-const payload = z.object({ dailySnapshot: z.unknown().optional() });
+const payload = z.object({
+  dailySnapshot: z.unknown().optional(),
+  affectedTerms: z.array(z.unknown()).optional(),
+});
 /** 仅此旧史缺失可由sweep保存点隔离；损坏快照/归属/估值错误仍抛出。 */
 export class BillingDailyHistoryMissingError extends Error {
   constructor() {
@@ -50,11 +53,12 @@ export async function computeEntityDaily(
   if (through < first) return { days: [], valuations: [] };
   const terms = await db.subscriptionTerm.findMany({ where: { entityId } });
   const termIds = new Set(terms.map((term) => term.id));
+  const byTerm = new Map(terms.map((term) => [term.id, term]));
   const events = await db.subscriptionEvent.findMany({
     where: { entityId, bizDate: { lte: toDateColumn(through) } },
     orderBy: [{ bizDate: "asc" }, { seq: "asc" }],
   });
-  const history = events.map((event) => {
+  const history = events.flatMap((event) => {
     if (event.payload === null) throw new BillingDailyHistoryMissingError();
     const parsed = payload.safeParse(event.payload);
     if (!parsed.success) throw new Error("BILLING_DAILY_HISTORY_PAYLOAD_INVALID");
@@ -62,7 +66,23 @@ export async function computeEntityDaily(
     const snapshot = SubscriptionDailySnapshotSchema.parse(parsed.data.dailySnapshot);
     if (!termIds.has(event.subscriptionTermId) || snapshot.termId !== event.subscriptionTermId)
       throw new Error("BILLING_DAILY_HISTORY_SCOPE_INVALID");
-    return { event, snapshot };
+    const affected = parsed.data.affectedTerms ?? [];
+    if (parsed.data.affectedTerms !== undefined && !["refunded", "cancelled"].includes(event.type))
+      throw new Error("BILLING_DAILY_HISTORY_SCOPE_INVALID");
+    const ids = new Set([snapshot.termId]);
+    const extra = affected.map((raw) => {
+      const item = SubscriptionDailySnapshotSchema.parse(raw);
+      if (
+        item.status !== "scheduled" ||
+        !termIds.has(item.termId) ||
+        ids.has(item.termId) ||
+        byTerm.get(item.termId)!.createdAt > event.occurredAt
+      )
+        throw new Error("BILLING_DAILY_HISTORY_SCOPE_INVALID");
+      ids.add(item.termId);
+      return { event, snapshot: item };
+    });
+    return [{ event, snapshot }, ...extra];
   });
   // 终态/升级快照不能证明此前的生效或预约事实；缺创建历史时仍须按旧史不足隔离。
   const known = new Set(
