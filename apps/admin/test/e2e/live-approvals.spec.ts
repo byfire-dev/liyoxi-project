@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { recordErrors } from "./live-context";
 import { api, shot, w206 } from "./w206-helpers";
+import { kindLabels } from "../../src/features/approval/model";
 import type {
   ApprovalCounts,
   ApprovalDetail,
@@ -18,9 +19,34 @@ test("我的审批只显示真实登记类型，摘要同筛选、分页URL与�
       exact: true,
     }),
   ).toBeVisible();
-  await page.getByRole("combobox", { name: "全部已登记类型", exact: true }).click();
-  const options = page.locator(".ant-select-dropdown:visible .ant-select-item-option");
-  await expect(options).toHaveCount(counts.items.length);
+  const kindFilter = page.getByRole("combobox", { name: "全部已登记类型", exact: true });
+  await kindFilter.click();
+  await expect(kindFilter).toHaveAttribute("aria-activedescendant", /.+/);
+  const firstActiveId = (await kindFilter.getAttribute("aria-activedescendant"))!;
+  const expectedKinds = counts.items.map((item) => item.kind);
+  const actualKinds: string[] = [];
+  // 虚拟列表只渲染窗口；沿真实键盘焦点遍历，逐项核原始 kind 与可见标签。
+  for (let index = 0; index < counts.items.length; index += 1) {
+    const activeId = (await kindFilter.getAttribute("aria-activedescendant"))!;
+    const option = page.locator(`[id=${JSON.stringify(activeId)}]`);
+    await expect(option).toHaveAttribute("role", "option");
+    const kind = (await option.textContent())!.trim();
+    expect(actualKinds).not.toContain(kind);
+    expect(expectedKinds).toContain(kind);
+    await expect(
+      page.locator(
+        ".ant-select-dropdown:visible .ant-select-item-option-active .ant-select-item-option-content",
+      ),
+    ).toHaveText(kindLabels[kind] ?? kind);
+    actualKinds.push(kind);
+    await kindFilter.press("ArrowDown");
+    if (counts.items.length > 1)
+      await expect(kindFilter).not.toHaveAttribute("aria-activedescendant", activeId);
+  }
+  // 完整一圈必须回到起点，额外选项同样不能漏过。
+  await expect(kindFilter).toHaveAttribute("aria-activedescendant", firstActiveId);
+  expect(actualKinds).toHaveLength(counts.items.length);
+  expect([...actualKinds].sort()).toEqual([...expectedKinds].sort());
   await page.keyboard.press("Escape");
   for (const tab of ["todo", "done_today"]) {
     await page.goto(`/approvals?tab=${tab}`);
