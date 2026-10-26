@@ -157,3 +157,5 @@ export {
   assertCurrentSession as assertCurrentSessionForTest,
   currentSessionOpenid as currentSessionOpenidForTest,
 } from "../identity/index.js";
+
+export { findBillingLiveUploadJobIds } from "./admin-live/billing-upload.js";
