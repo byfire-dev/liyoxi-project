@@ -26,6 +26,23 @@ export function createPurchaseApi(call: RequestLayer["request"]) {
       }),
     detail: (id: string) =>
       call<Data<"m.paymentOrder.get">>(`/m/payment-orders/${encodeURIComponent(id)}`),
+    prepay: (id: string, key: string) =>
+      call<Data<"m.paymentOrder.wechatPrepay">>(
+        `/m/payment-orders/${encodeURIComponent(id)}/wechat-prepay`,
+        {
+          method: "POST",
+          idempotencyKey: key,
+        },
+      ),
+    sync: (id: string) =>
+      call<Data<"m.paymentOrder.sync">>(`/m/payment-orders/${encodeURIComponent(id)}/sync`, {
+        method: "POST",
+      }),
+    cancel: (id: string, key: string) =>
+      call<Data<"m.paymentOrder.cancel">>(`/m/payment-orders/${encodeURIComponent(id)}/cancel`, {
+        method: "POST",
+        idempotencyKey: key,
+      }),
     proof: (id: string, fileId: string, key: string) =>
       call<Data<"m.paymentOrder.transferProof.create">>(
         `/m/payment-orders/${encodeURIComponent(id)}/transfer-proofs`,

@@ -2,8 +2,15 @@
 // 用例不引本文件。H5（只给截图命令用）下取不到的值都有兜底，不抛错。
 import Taro from "@tarojs/taro";
 
-import type { ClientInfo, ClientPlatform, EnvVersion, KeyValueStorage, SendFn } from "./platform";
-import { saveVideoUrl as saveToAlbum } from "./platform";
+import type {
+  ClientInfo,
+  ClientPlatform,
+  EnvVersion,
+  KeyValueStorage,
+  SendFn,
+  PaymentParams,
+} from "./platform";
+import { saveVideoUrl as saveToAlbum, executePayment } from "./platform";
 
 export const send: SendFn = async (request) => {
   const response = await Taro.request({
@@ -134,4 +141,22 @@ export async function saveVideoUrl(url: string): Promise<void> {
         Taro.getFileSystemManager().unlink({ filePath, success: resolve, fail: reject }),
       ),
   });
+}
+
+/** H5 样张不调用支付平台；客户端成功不代表后端已收款或履约。 */
+export function requestPayment(params: PaymentParams, onSuccess: () => void) {
+  return executePayment(
+    params,
+    {
+      supported: process.env.TARO_ENV === "weapp",
+      request(value, callbacks) {
+        void Taro.requestPayment({
+          ...value,
+          success: callbacks.success,
+          fail: (failure) => callbacks.fail(failure.errMsg),
+        }).catch(() => undefined);
+      },
+    },
+    onSuccess,
+  );
 }

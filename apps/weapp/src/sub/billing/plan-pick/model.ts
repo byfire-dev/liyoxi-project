@@ -1,6 +1,7 @@
 import type { Agreement, Body, Data } from "@/lib/account-api";
 import { ApiError } from "@/lib/request";
 import type { PurchaseApi } from "./api";
+import { purchaseVisible } from "../wallet/model";
 export type Quote = Data<"m.plan.quote">;
 export type Payment = Data<"m.paymentOrder.get">;
 const models: Readonly<Record<string, string>> = {
@@ -27,6 +28,51 @@ export function purchaseAgreements(policy: Quote["policy"], items: readonly Agre
     .filter((v): v is Agreement & { currentVersion: NonNullable<Agreement["currentVersion"]> } =>
       Boolean(v?.currentVersion),
     );
+}
+export const quoteConfirmationKey = (quote: Quote) =>
+  JSON.stringify({ ...quote, quotedAt: null, validUntil: null });
+export const planActionLabel = (action: string) =>
+  ({
+    subscribe: "开通",
+    renew: "续费",
+    downgrade: "下期降级",
+    renew_upgrade: "下期升级",
+    upgrade: "立即升级",
+  })[action] ?? "套餐变更";
+export function quoteTermLabel(quote: Quote): string {
+  if (quote.upgrade) return `沿用当前周期至 ${quote.upgrade.currentTermEndDate}`;
+  return quote.newTerm
+    ? `${quote.newTerm.startDate} 至 ${quote.newTerm.endDate}`
+    : "以付款结果为准";
+}
+export function planPurchaseBody(
+  quote: Quote,
+  selection: Body<"m.plan.quote">,
+  agreements: readonly Agreement[],
+  channel: string,
+  acknowledged: boolean,
+): Body<"m.paymentOrder.create"> | null {
+  const docs = purchaseAgreements(quote.policy, agreements);
+  if (
+    !purchaseVisible(quote.policy) ||
+    !["subscribe", "renew", "downgrade", "renew_upgrade", "upgrade"].includes(quote.action) ||
+    quote.planId !== selection.planId ||
+    !["bank_transfer", "wechat_jsapi"].includes(channel) ||
+    !enabledChannels(quote.policy).some((c) => c.code === channel) ||
+    !docs.length ||
+    docs.length !== quote.policy.copy.agreementKeys.length ||
+    (quote.downgradeImpact !== null && !acknowledged)
+  )
+    return null;
+  return {
+    planId: quote.planId,
+    ...(selection.intent ? { intent: selection.intent } : {}),
+    ...(quote.months === null ? {} : { months: quote.months }),
+    channel: channel as "bank_transfer" | "wechat_jsapi",
+    expectAmountFen: quote.payFen,
+    agreementVersionIds: docs.map((d) => d.currentVersion.agreementVersionId),
+    ...(quote.downgradeImpact ? { acknowledgedDowngradeImpact: quote.downgradeImpact } : {}),
+  };
 }
 /** 一次确认固定请求体和键；建单重放脱敏时只补读该单，不再生成交易。 */
 export function createPurchaseIntent(
@@ -171,7 +217,18 @@ export function paymentView(order: Payment): {
       canUpload: false,
     };
   if (order.status === "paid" && order.fulfillmentStatus === "done")
-    return { title: "套餐已开通", description: "有效期与已到账积分如下", canUpload: false };
+    return {
+      title:
+        order.type === "topup"
+          ? "积分已到账"
+          : order.type === "plan_upgrade"
+            ? "套餐已升级"
+            : order.type === "plan_renew"
+              ? "续费已完成"
+              : "套餐已开通",
+      description: "有效期与已到账积分如下",
+      canUpload: false,
+    };
   if (order.status === "paid" || order.isProcessingReceipt)
     return {
       title: "已收到付款，正在处理",
@@ -190,6 +247,12 @@ export function paymentView(order: Payment): {
     order.status === "pending_confirmation"
   )
     return { title: "待财务确认", description: "凭证已收到，财务核对到账后开通", canUpload: false };
+  if (order.channel === "wechat_jsapi")
+    return {
+      title: order.isConfirmingResult ? "正在确认付款结果" : "待微信支付",
+      description: "到账与履约以后台查询结果为准，可查询或继续支付",
+      canUpload: false,
+    };
   return {
     title: "待上传转账凭证",
     description: "请按收款账户转账，备注付款单号并上传凭证",
