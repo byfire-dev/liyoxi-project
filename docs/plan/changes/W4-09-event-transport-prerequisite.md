@@ -4,6 +4,7 @@
 | --- | --- |
 | 改了什么 | events派发依赖新增可选beforeConsume；有效已知投递先短事务预检、事务外准备，再由原消费事务fence并提交 |
 | 原因 | W4-09发货协议需要真实事务外HTTP，现subscriber.handle只在事务内运行，不能绕过Provider守卫 |
+| 影响的包 | W4-09；独立运输前置供发货消费，旧无hook路径保持，发货与资金验收仍归原包 |
 | 基线 | actual main `2fa686c087ebbe4e572ffb9ddb5c1139805cbc98`，原W4-09源码分支保留 |
 | 范围 | dispatch.ts、其真实DB定点测试、events README与本说明；无DDL、契约、kernel、依赖或门禁改动 |
 | 类别 | 调度批准的独立通用窄前置，不与资金/证书结构混包 |
