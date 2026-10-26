@@ -23,6 +23,13 @@ const SAMPLE_REF = { bucket: "media", key: "incoming/sample/video.mp4" } as cons
 
 export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
   wechat: {
+    uploadShippingInfo: {
+      transactionId: "4200000000000001",
+      payerOpenid: "sample-openid",
+      itemDescription: "样例套餐服务",
+      uploadedAt: new Date("2026-10-01T00:00:00.000Z"),
+    },
+    queryShippingInfo: { transactionId: "4200000000000001" },
     code2Session: { code: "sample-code" },
     getPhoneNumber: { code: "sample-phone-code" },
     sendSubscribeMessage: {

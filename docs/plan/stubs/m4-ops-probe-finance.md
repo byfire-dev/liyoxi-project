@@ -3,9 +3,9 @@
 | 项 | 内容 |
 | --- | --- |
 | 状态 | 留桩中 |
-| 留桩内容 | `GET /internal/health/finance` 只出框架，没有取数。登记键 `hooks.internalHealth.finance.get` |
-| 骨架里的做法 | 路由已挂（`apps/api/src/probes.ts`，标了 `frame`，不进已挂载清单）；`packages/services/src/ops/health.ts` 的 `finance()` 返回 h01 第 2.5 节 `FinanceHealth` 的结构，各指标一律 `null` 并计入 `breaches`，`status` 为 `degraded`，HTTP 503 |
+| 留桩内容 | W4-09健康组件已回补真实只读资金/计费取数及商户证书事实装配；整包的发货领域、自动退款与剩余验收仍未完成。登记键 `hooks.internalHealth.finance.get` |
+| 当前做法 | 路由已去frame并await独立逐项取数；每项1.5秒超时、沿5秒缓存，缺事实为null+breach，真实空队列为0。保留原内网网络隔离。商户API证书仅消费已校验X509派生期限，未知仍null，不从serial猜测日期；实际FILE配置经真实PG/Hono验证HTTP200与GET零业务写。健康与发货Provider可独立交付，未将协议组件等同领域发货或自动退款完成 |
 | 登记的工作包 | W0-22 |
 | 回补里程碑 | M4 |
-| 回补的工作包 | 待拆包后填 |
+| 回补的工作包 | W4-09（进行中，见状态页） |
 | 依据 | 计划 第 7.2 节 W0-22 一行；h01 第 2.5、3.14 节；约定 C1 |

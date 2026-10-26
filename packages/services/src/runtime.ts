@@ -425,6 +425,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     redis,
     clock,
     version,
+    financeCertificates: async () => {
+      const expiresAt = env.WECHAT_PAY?.merchantCertificateExpiresAt;
+      return expiresAt === undefined
+        ? []
+        : [{ kind: "merchant_api_cert", expiresAt: new Date(expiresAt) }];
+    },
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
   const notifyMessages = createNotifyMessages({

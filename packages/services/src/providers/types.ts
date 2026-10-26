@@ -173,7 +173,40 @@ export interface ContentCheckOutcome {
   traceId?: string;
 }
 
+export interface WechatShippingInput {
+  transactionId: string;
+  payerOpenid: string;
+  itemDescription: string;
+  uploadedAt: Date;
+  signal?: AbortSignal;
+}
+export interface WechatShippingOrder {
+  transactionId: string;
+  outTradeNo: string;
+  mchid: string;
+  payerOpenid: string;
+  amountFen: number;
+  state: number;
+  shipping: {
+    logisticsType: number;
+    deliveryMode: number;
+    finished: boolean;
+    items: { description: string | null; uploadedAtSec: number }[];
+  } | null;
+}
+export interface WechatShippingFailure extends ProviderFailure {
+  /** 缺失也只表示受理未知；不得据通用reason盲重送。 */
+  readonly acceptance?: "not_accepted" | "unknown";
+}
+export type WechatShippingUploadResult = ProviderSuccess<void> | WechatShippingFailure;
+
 export interface WechatProvider extends ProviderBase {
+  /** 小程序access_token端口；旧Provider可无此能力。 */
+  uploadShippingInfo?(input: WechatShippingInput): Promise<WechatShippingUploadResult>;
+  queryShippingInfo?(input: {
+    transactionId: string;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<WechatShippingOrder>>;
   /** 登录：用小程序端 wx.login 给的 code 换 openid */
   code2Session(input: { code: string }): Promise<ProviderResult<WechatSession>>;
   /** 手机号：用手机号组件给的 code 换手机号 */
@@ -1155,6 +1188,8 @@ export const PROVIDER_METHODS = {
     "createMiniProgramCode",
     "checkText",
     "checkImage",
+    "uploadShippingInfo",
+    "queryShippingInfo",
   ],
   wechatPay: [
     "signMiniProgramPay",
