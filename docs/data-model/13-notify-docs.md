@@ -147,8 +147,7 @@ erDiagram
 | `m.ticket_reply` | `service_ticket.submitter_user_id`；后台登记、没有提交人的工单发给该门店的老板 | d6:243；12 分组的请求 |
 | `m.asset_feedback` | 订阅 06 分组的三个出站事件（前两个只在 `store_asset.upload_actor_type = merchant` 时发，员工代传的素材没有商家接收人）：`asset.adopted`（素材被采用）发给上传人；`asset.reviewed` 只在复核结论 `usability` 为 `need_reshoot`（需重拍）或 `need_portrait_auth`（需补肖像授权）时提醒上传人，其余结论不发；`asset.demand_created`（素材需求发起）按 `store_asset_demand.notify_scope` 取 `owner_and_clerks`（老板与门店店员）或 `owner_only` | d6:248；06 分组的请求 |
 
-`m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。
-其他分组已提出、要随注册表补的场景（不改表结构）：
+`m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。 其他分组已提出、要随注册表补的场景（不改表结构）：
 
 - 证照到期提醒与 `store.qualification_change.*`、`store.profile.changed` 的接入（d9:703-704、725；catalogue notes）。
 - 员工的跟进到期提醒与待审批提醒（03 分组 2.9、请求）：纯提醒，由通知规则派生（`source_rule` 非空），用 `notification.dedupe_key` 去重，不登记定时器行；取数经 03 注册的查询端口，分别用 `follow_up` 的部分索引 `ix_follow_up_next_follow_at`（提醒对象 `owner_staff_id`，`biz_type = follow_up`）与 `approval_request` 的 `pending` 行（`biz_type = approval_request`）。
