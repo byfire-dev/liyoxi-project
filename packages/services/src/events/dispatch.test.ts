@@ -402,6 +402,8 @@ describe("退避与死信（验收 7）", () => {
   it(
     "失败后按 5 秒、15 秒、1 分、5 分、15 分、30 分、之后每小时后移；第 10 次进死信并告警一次",
     async () => {
+      // 样例计数在文件内累计；本次失败消费的每一轮都必须零新增。
+      const before = (await counts())[plain];
       workers.control.failing.add(plain);
       const eventId = await emitPlaced();
       const backoffs: number[] = [];
@@ -413,6 +415,7 @@ describe("退避与死信（验收 7）", () => {
         const after = await row(eventId, plain);
         expect(after).toMatchObject({ attempts: n, leased: false });
         expect(after.lastError).toContain("按用例的安排失败");
+        expect((await counts())[plain]).toBe(before);
         if (n < DELIVERY_MAX_ATTEMPTS) {
           expect([outcome, after.status]).toEqual(["retry", "retry"]);
           backoffs.push(after.backoffSec);
@@ -432,7 +435,7 @@ describe("退避与死信（验收 7）", () => {
       // 死信不再自动重试；失败的订阅者没有留下业务写
       await hasten(eventId);
       expect((await claim()).claimed.filter((one) => one.subscriber === plain)).toEqual([]);
-      expect((await counts())[plain]).toBe(0);
+      expect((await counts())[plain] - before).toBe(0);
     },
     SLOW,
   );
