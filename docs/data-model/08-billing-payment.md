@@ -175,9 +175,9 @@ erDiagram
 | `pending_payment`（`awaiting_proof` / `proof_rejected`） | 到期或老板取消（`billing_order.cancel`） | `cancelled` | 没有待确认的凭证；凭证待财务确认期间不可取消、不自动关闭 | 系统 / 商家 |
 | `cancelled` | 差异单“补单”（`billing_order.restore`） | `paid` | 唯一入口；存在该单未入账的成功收款；实时查单仍为成功且金额相等；回显 + 再次验证身份 + 说明 | 财务 |
 | `paid` | 入账收款的退款成功且累计退款 ≥ 实付（`billing_order.refund`） | `refunded` | 由 `refund_txn` 成功驱动；只算入账收款（`paid_payment_txn_id`）上的退款，未入账收款的退回不动本单 | 系统 |
+| — | 差异单灾备重建（`billing_order.rebuild`） | `paid` | 财务处理未关联付款单的 `bill_only`；事务外可信实时查单成功，原 `attach` 限开通/续费/加购，主体存在且应付等于实收；保存原商户单号 `rebuilt_from`、财务创建人、收款与入账事实，同事务履约（a07 3.79、d2 9.5） | 财务 |
 
 商家创建付款单的事务里先由 `biz_sequence` 取得 `order_no`，再随 `ref { type: 'billing_order', id, no }` 调 `agreements.assertConsents`（场景 `plan_purchase` / `topup`），同意记录的 `biz_no` 即本单号（13 分组；`ck_agreement_consent_biz_no` 要求 `FK` 前缀）。后台线下代建的付款单凭合同号，不调。
-
 ```mermaid
 stateDiagram-v2
   [*] --> pending_payment: 创建
@@ -530,7 +530,7 @@ stateDiagram-v2
 | `pending_execution` | 作废（`refund.void`） | `not_executed`（`voided`） | `entitlement_revoked_at` 为空；名下没有成功或未到终态的退款交易；说明必填 | 套餐规则：`resumeTermFromRefund`；同驳回的恢复动作；`red_pending` 的开票申请恢复为 `issued`（已回填红票的保持 `red_issued`）；写 `voided_by_staff_id`、`close_note`、`closed_at`；取消执行时限的定时器；审批单保持 `approved` | 财务 |
 | `executing` | 退款交易成功（`refund.complete`） | `done` | — | 收款交易累加 `refunded_fen`。入账收款：付款单累加已退，累计 ≥ 实付则 → `refunded`，`pending` 的开票申请自动驳回（`reject_kind = order_refunded`）。未入账收款：不动付款单。差异单 → `resolved`。写 `done_at`、`closed_at` | 系统（回调、查询） |
 | `executing` | 退款交易到达失败终态（`refund.fail`；`closed` / `not_accepted` / `abandoned`） | `pending_execution` | — | 写 `exec_error`；权益可能已回收，不可作废；执行时限不重新计时（失败由 `exec_error` 与退款告警跟进） | 系统 |
-| `pending_execution` | 日历修正（`sla.recalculated`） | 同状态 | 尚未执行（`executed_at` 为空）；新日历批次晚于快照且影响原时限窗口 | 同事务取消旧执行定时器，按审批通过时刻及原策略重算 `exec_due_at`、`sla_snapshot`，写同状态历史并登记新执行定时器；已执行、重复和乱序事件不重启时限 | 系统（`calendar.imported`） |
+| `pending_execution` | 日历修正（`sla.recalculated`） | 不变 | 尚未执行（`executed_at` 为空）；新日历批次晚于快照且影响原时限窗口 | 同事务取消旧执行定时器，按审批通过时刻及原策略重算 `exec_due_at`、`sla_snapshot`，写同状态历史并登记新执行定时器；已执行、重复和乱序事件不重启时限 | 系统（`calendar.imported`） |
 ```mermaid
 stateDiagram-v2
   [*] --> pending_approval: 发起（套餐规则 suspend）

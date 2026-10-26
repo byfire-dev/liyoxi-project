@@ -2913,7 +2913,7 @@
 | operationId | `admin.paymentException.resolve`（d2:1475） |
 | 鉴权 | `staff`；`finance.recon.resolve`（A46 标再验证）；`resolution = written_off` 时处理器另要求 `sys.super_admin`（A45），不足 403 `PERMISSION_DENIED` |
 | 回显 | 要求 `confirm`：`{ exceptionNo, amountFen }` |
-| 幂等 | required；三段式，先外调（A84、C51）：`restore`、`record_channel_refund` 先占用、事务外查微信，再开事务落结果并写幂等记录；其余处理方式不外调，直接一个事务 |
+| 幂等 | required；三段式，先外调（A84、C51）：`restore`、`rebuild_order`、`record_channel_refund` 先占用、事务外查微信，再开事务落结果并写幂等记录；其余处理方式不外调，直接一个事务 |
 | 乐观锁 | 带差异单 `lockVersion`（人工处理带锁版本，08-billing-payment.md:798） |
 | 对应画板 | A:Reconcile 处理弹层（处理方式单选 + 说明必填 ≤200 字） |
 

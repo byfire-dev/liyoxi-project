@@ -1,4 +1,5 @@
 import { refundInvariants } from "./refund/invariants.js";
+import { withPaymentExceptionBinding } from "./payment/exceptions/binding.js";
 import { refundFileRefs } from "./refund/file-refs.js";
 import { refundMachineBinding, refundMachineKey, withRefundBinding } from "./refund/binding.js";
 import { unboundRefundApproval, unboundRefundHandler } from "./refund/assembly.js";
@@ -195,7 +196,11 @@ export const registration = defineRegistration("billing", {
     implement(billingAccountPort, billingAccountOpener),
     implementMerchantFacts("billing", billingMerchantFacts),
     ...purchaseMachineBindings.map(({ key, binding }) =>
-      implementKeyed(machinePort, key, withRefundBinding(key, binding)),
+      implementKeyed(
+        machinePort,
+        key,
+        withPaymentExceptionBinding(key, withRefundBinding(key, binding)),
+      ),
     ),
   ],
   subscribers: [
