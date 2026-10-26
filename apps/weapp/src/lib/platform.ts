@@ -88,3 +88,43 @@ export async function saveVideoUrl(url: string, boundary: VideoAlbumBoundary): P
     if (path) await boundary.unlink(path).catch(() => undefined);
   }
 }
+
+/** 仅当次调用持有渠道签名；调用者不得记录或持久化这些参数。 */
+export interface PaymentParams {
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: "RSA";
+  paySign: string;
+}
+export type PaymentOutcome = "success" | "cancelled" | "failed" | "unsupported";
+export interface PaymentBoundary {
+  supported: boolean;
+  request(params: PaymentParams, callbacks: { success(): void; fail(message: string): void }): void;
+}
+export function executePayment(
+  params: PaymentParams,
+  boundary: PaymentBoundary,
+  onSuccess: () => void,
+): Promise<PaymentOutcome> {
+  if (!boundary.supported) return Promise.resolve("unsupported");
+  return new Promise((resolve) => {
+    try {
+      boundary.request(params, {
+        success() {
+          // 保持在原生 success 的同步调用栈，供 pay_success 订阅点位使用。
+          try {
+            onSuccess();
+          } finally {
+            resolve("success");
+          }
+        },
+        fail(message) {
+          resolve(/:fail cancel\b/i.test(message) ? "cancelled" : "failed");
+        },
+      });
+    } catch {
+      resolve("failed");
+    }
+  });
+}
