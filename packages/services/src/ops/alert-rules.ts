@@ -14,6 +14,7 @@ export const EVENT_ALERT_RULES = [
   "order.pending_start_missing",
   "webhook.dead",
   "webhook.failing",
+  "billing.callback_failed",
   "pii.reveal_limit",
   "ops.unknown_rule",
   "ops.channel_heartbeat",
