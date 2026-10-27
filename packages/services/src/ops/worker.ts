@@ -24,10 +24,11 @@ import {
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
-import { createProbe } from "./probe.js";
+import { createProbe, PROBE_QUERY_MS } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
 import { financialProbeRules } from "./financial-probe-rules.js";
+import { readPaymentExceptionAlertFacts } from "../billing/index.js";
 import { queueProbeRules } from "./queue-probe-rules.js";
 import { backupProbeRules } from "./backup-probe-rules.js";
 import type { QueueId } from "@liyoxi/contract/registry";
@@ -410,7 +411,12 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         logger,
         rules: [
           ...sqlProbeRules(options.probe.db),
-          ...financialProbeRules(options.probe.db),
+          ...financialProbeRules(options.probe.db, (at) =>
+            tx.run((t) => readPaymentExceptionAlertFacts(t, at), {
+              timeoutMs: PROBE_QUERY_MS,
+              maxWaitMs: PROBE_QUERY_MS,
+            }),
+          ),
           ...queueProbeRules(options.probe.queues ?? [], channel.observe?.bind(channel)),
           ...backupProbeRules(options.probe.db),
           ...operationalProbeRules(
