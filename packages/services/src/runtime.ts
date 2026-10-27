@@ -99,6 +99,8 @@ import {
   createRefunds,
   createPaymentExceptions,
   createRefundAssembly,
+  createReconciliation,
+  createReconciliationAssembly,
   createWechatRefundSource,
   createFinanceConfigService,
   createLedger,
@@ -166,6 +168,7 @@ import {
   createTenantEntitlementAssembly,
   createRuntimeTenantEntitlement,
   createAlertFactsAssembly,
+  createBillMissingObserver,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers, ProductionMediaTools } from "./providers/types.js";
@@ -290,6 +293,7 @@ export interface Runtime {
     invoices: ReturnType<typeof createInvoices>;
     refunds: ReturnType<typeof createRefunds>;
     paymentExceptions: ReturnType<typeof createPaymentExceptions>;
+    reconciliation: ReturnType<typeof createReconciliation>;
     financeConfig: ReturnType<typeof createFinanceConfigService>;
     adjustments: ReturnType<typeof createBillingAdjustments>;
     accounts: ReturnType<typeof createBillingAccounts>;
@@ -427,6 +431,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     redis,
     clock,
     version,
+    financeCertificates: async () => {
+      const expiresAt = env.WECHAT_PAY?.merchantCertificateExpiresAt;
+      return expiresAt === undefined
+        ? []
+        : [{ kind: "merchant_api_cert", expiresAt: new Date(expiresAt) }];
+    },
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
   const notifyMessages = createNotifyMessages({
@@ -481,7 +491,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
   const adjustmentScope = createAdjustmentAssembly(invoiceScope.assembly);
   const refundScope = createRefundAssembly(adjustmentScope.assembly);
-  const assembly = refundScope.assembly;
+  const reconciliationScope = createReconciliationAssembly(refundScope.assembly);
+  const assembly = reconciliationScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -989,11 +1000,20 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     approvalRefs: createBillingApprovalRefs({ clock }),
   };
   refundScope.attach(refundDeps);
+  const reconciliationDeps: Parameters<typeof createReconciliation>[0] = {
+    ...refundDeps,
+    sessionMutex,
+    systemFiles: media,
+    orderPrefix: env.APP_ENV === "stg" ? "TFK" : "FK",
+    observeBillMissing: createBillMissingObserver({ tx, clock }),
+  };
+  reconciliationScope.attach(reconciliationDeps);
   const billing = {
     ...createBillingPurchase(purchaseDeps),
     invoices: createInvoices(invoiceDeps),
     refunds: createRefunds(refundDeps),
     paymentExceptions: createPaymentExceptions({ ...refundDeps, fulfillment }),
+    reconciliation: createReconciliation(reconciliationDeps),
     financeConfig: createFinanceConfigService(purchaseDeps),
     adjustments: createBillingAdjustments(adjustmentDeps),
     accounts: createBillingAccounts(adjustmentDeps),
@@ -1174,6 +1194,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([
           () => invoiceScope.close(),
           () => refundScope.close(),
+          () => reconciliationScope.close(),
           () => adjustmentScope.close(),
           () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),

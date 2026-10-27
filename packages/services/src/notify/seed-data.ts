@@ -2,7 +2,7 @@
 // 场景的键、受众、显示名不在这里：取契约的 NOTIFY_SCENES。出处：13 分组 第 2.1–2.3 节；D6 第 2.2、2.9.1、2.10 节。
 import type {
   EnumValue,
-  MerchantSceneKey,
+  NotifySceneKey,
   NOTIFY_SCENE_SEND_WINDOW,
   NOTIFY_SCENE_SMS_POLICY,
   SMS_TEMPLATE_KIND,
@@ -88,11 +88,12 @@ function bound(
 }
 
 /**
- * 带外部通道的商家场景（13 分组 第 2.1 节“播种”与“短信的播种口径”；发送时段与默认策略取 D6 第 2.2.1 节）。
- * 没列在这里的场景（m.rule_change_notice、接口阶段补登的 31 个、全部员工场景）用 DEFAULT_SCENE_BINDING。
+ * 带外部通道的商家场景与显式仅站内场景（13 分组 第 2.1 节；发送时段与默认策略取 D6 第 2.2.1 节）。
+ * 没列在这里的场景用 DEFAULT_SCENE_BINDING；对公确认日摘要显式保留立即站内绑定。
  * 转交付经理的开关（manager_escalation_enabled）文档没有逐场景给默认值，都按列默认 false。
  */
-export const SCENE_BINDINGS: Partial<Readonly<Record<MerchantSceneKey, SceneBinding>>> = {
+export const SCENE_BINDINGS: Partial<Readonly<Record<NotifySceneKey, SceneBinding>>> = {
+  "s.receipt_daily_digest": DEFAULT_SCENE_BINDING,
   "m.pay_success": bound("pay_result", "immediate"),
   "m.order_submitted": bound("order_result", "immediate"),
   "m.plan_pending": bound("service_progress", "window"),

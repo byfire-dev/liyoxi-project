@@ -3,6 +3,7 @@
 // 要账本自洽的数据，经账本的服务函数造（W1-10）。
 import { termDates } from "@liyoxi/shared/period";
 import { endOfDay } from "@liyoxi/shared/time";
+import { planOrderContentSchema } from "@liyoxi/contract";
 
 import { dateOnly, defined, fakeBizNo, seedMissing, sha256Hex } from "./context.js";
 import type { FactoryContext } from "./context.js";
@@ -161,6 +162,33 @@ export function billingFactories(ctx: FactoryContext, make: Factories): BillingF
       const dates = termDates(ctx.today(), months);
       const priceTotalFen = input.priceTotalFen ?? revision.monthlyFeeFen * months;
       const status = input.status ?? "active";
+      const sourceBillingOrderId =
+        input.sourceBillingOrderId ??
+        (
+          await make.billingOrder({
+            entityId,
+            amountFen: priceTotalFen,
+            contentSnapshot: planOrderContentSchema.parse({
+              v: 1,
+              kind: "plan",
+              planId: revision.planId,
+              planName: (
+                await ctx.db.plan.findUniqueOrThrow({
+                  where: { id: revision.planId },
+                  select: { name: true },
+                })
+              ).name,
+              planRevisionId: revision.id,
+              months,
+              cyclePriceFen: priceTotalFen,
+              payFen: priceTotalFen,
+              monthlyPoints: revision.monthlyPoints,
+              discountBp: revision.discountBp,
+              promo: null,
+              quotedAt: now.toISOString(),
+            }),
+          })
+        ).id;
       return ctx.db.subscriptionTerm.create({
         data: {
           id: ctx.id(),
@@ -184,9 +212,7 @@ export function billingFactories(ctx: FactoryContext, make: Factories): BillingF
           endsAt: endOfDay(dates.endDate),
           ...(status === "scheduled" || status === "cancelled" ? {} : { activatedAt: now }),
           ...(status === "refunded" || status === "cancelled" ? { refundedAt: now } : {}),
-          sourceBillingOrderId:
-            input.sourceBillingOrderId ??
-            (await make.billingOrder({ entityId, amountFen: priceTotalFen })).id,
+          sourceBillingOrderId,
           createdAt: now,
           updatedAt: now,
           ...defined(input),

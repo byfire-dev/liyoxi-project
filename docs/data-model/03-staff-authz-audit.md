@@ -720,15 +720,14 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 ### 2.12 `approval_request` 统一审批单
 
 单级审批单，只记录“批没批”：谁提交、谁决定、结论、原因、时限与决定时的留痕。内容与执行状态在一对一的领域表里（R3、ADR-019）。范围：员工发起的审批全部进入；商家提交的审核只有资质审核、账号核验、链接核验进入；开票申请、对公收款确认、素材复核不进（M22）。
-
 归属：门店维度，但 `entity_id`、`store_id` 都可空，按 `kind` 约束（M13、M39）。主键：`id`（uuid）。不是只增表；提交时确定的列创建后不可改（触发器）。业务状态机（`status`）。`lock_rank = 30`：审批、撤回与领域执行事务的入口，`FOR NO KEY UPDATE`（领域表插入行时对本表做外键检查要取 `FOR KEY SHARE`，`FOR UPDATE` 会挡住它；本表的迁移不改唯一键列）。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
 | `id` | uuid | 否 | — | 主键 | d3:2249 |
 | `request_no` | text | 可 | — | 业务单号，唯一：`TK`（四类取消与退款）、`TZ`（积分调整）、`YQ`（补偿延长）、`ZH`（账号变更）+ yyyyMMdd + 3 位流水。其余类型为空。领域表不重复存单号 | d3:2250；d4:1463；约定“业务单号” |
-| `kind` | text | 否 | — | 审批类型，12 个取值，见第 3 节 | d3:2251；enums_shared `approval_kind` |
-| `category` | text | 否 | — | 大类：`review` 商家提交的审核（资质审核、账号核验、链接核验）、`approval` 员工发起的审批（其余 9 类） | d3:2252、2421 |
+| `kind` | text | 否 | — | 审批类型，13 个取值（新增预发系统专用类型），见第 3 节 | d3:2251；enums_shared `approval_kind` |
+| `category` | text | 否 | — | 大类：`review` 商家提交的审核（资质审核、账号核验、链接核验）、`approval` 员工发起及预发系统审批（其余10类） | d3:2252、2421 |
 | `subject_type` | text | 否 | — | 对象类型（最终表名），按 `kind` 固定，见第 3 节 | d3:2253；M19 |
 | `subject_id` | uuid | 否 | — | 对象 id；多态，不建外键 | d3:2254 |
 | `entity_id` | uuid | 可 | — | 所属主体；哪些类型必填见第 3 节 | d3:2255；M13 |
@@ -772,24 +771,25 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 | 约束名 | 规则 |
 | --- | --- |
 | `reason_codes`、`confirm_checks` 的 NOT NULL | `ALTER COLUMN … SET NOT NULL`。Prisma 的标量数组列建表时不带 NOT NULL，由 SQL 文件补 |
-| `ck_approval_request_kind` | `kind` 在 12 个取值之内 |
+| `ck_approval_request_kind` | `kind` 在13个取值之内，新增 `staging_pay_refund` |
 | `ck_approval_request_category` | `category IN ('review','approval')`；`review` ⇔ `kind` 是资质审核、账号核验、链接核验 |
 | `ck_approval_request_status` | `status IN ('pending','approved','rejected','withdrawn')` |
 | `ck_approval_request_round_no` | `round_no >= 1` |
 | `ck_approval_request_subject_type` | 对象类型按 `kind` 固定（第 3 节的对照表） |
 | `ck_approval_request_tenant` | 归属列按 `kind` 必填（第 3 节的对照表）；有 `store_id` 时必有 `entity_id` |
 | `ck_approval_request_subject_tenant` | 对象是门店时 `subject_id = store_id`；对象是主体或计费账户时 `subject_id = entity_id` |
-| `ck_approval_request_request_no` | 有单号 ⇔ `kind` 是四类取消与退款、积分调整、补偿延长、账号变更 |
+| `ck_approval_request_request_no` | 有单号 ⇔ `kind` 是原取消/人工退款、预发系统退款、积分调整、补偿延长、账号变更 |
 | `ck_approval_request_submit_actor_type` | `submit_actor_type` 在四个取值之内 |
 | `ck_approval_request_submit_client` | `submit_client` 为空或在 `weapp`、`portal`、`admin` 之内 |
-| `ck_approval_request_submitter` | `system` ⇔ `submit_actor_id` 为空；`system` 时 `submit_client` 为空；提交人是员工时 `submit_client = 'admin'` 且 `submit_actor_id = requester_staff_id`；提交人是商家时 `submit_client` 为 `weapp` 或 `portal`；`category = 'approval'` 时 `requester_staff_id` 必填；有 `requester_staff_group_id` 时必有 `requester_staff_id` |
+| `ck_approval_request_submitter` | `system` ⇔ `submit_actor_id` 为空；`system` 时 `submit_client` 为空；提交人是员工时 `submit_client = 'admin'` 且 `submit_actor_id = requester_staff_id`；提交人是商家时 `submit_client` 为 `weapp` 或 `portal`；`category = 'approval'` 时 `requester_staff_id` 必填，唯 `staging_pay_refund` 由专属系统约束要求发起员工为空；有 `requester_staff_group_id` 时必有 `requester_staff_id` |
 | `ck_approval_request_decider_not_requester` | 发起人 ≠ 审批人：`decided_by_staff_id`、`requester_staff_id` 都非空时不相等 |
 | `ck_approval_request_decision` | `pending` ⇔ `decided_at` 为空；`pending` 时不是系统决定；只有通过、驳回有审批人；通过、驳回时“有审批人”与“系统决定”恰有其一；驳回必有 `decision_note`；`decided_at >= submitted_at` |
 | `ck_approval_request_reject_reasons` | 审核类（`category = 'review'`）由员工驳回时 `reason_codes` 至少 1 项；系统驳回（如同信用代码自动驳回）不要求 |
 | `ck_approval_request_checklist` | `checklist_code` 与 `checklist_version_no` 同有同无；有清单结论时必有清单编码 |
 | `ck_approval_request_sla` | `due_at` 与 `sla_snapshot` 同有同无 |
 | `ck_approval_request_summary_snapshot` | `summary_snapshot` 是 JSON 对象且有 `title` |
-| `ck_approval_request_dedupe_key` | `dedupe_key` 为空 ⇔ `kind` 是有执行步的四类 |
+| `ck_approval_request_dedupe_key` | `dedupe_key` 为空 ⇔ `kind` 是有执行步的五类（包含预发系统退款） |
+| `ck_approval_request_staging_system` | 仅新 `staging_pay_refund`：system提交，无提交员工/客户端/发起员工/组/决定员工；通过或驳回时系统决定位必须为true，pending仍按原decision约束为false |
 | `ck_approval_request_delivery_ticket` | `kind = 'launch_link'` 时 `delivery_ticket_id` 非空 |
 | `uq_approval_request_dedupe_key_pending` | 部分唯一索引 `(dedupe_key) WHERE status = 'pending' AND dedupe_key IS NOT NULL` |
 | `uq_approval_request_requester_idempotency_key` | 部分唯一索引 `(requester_staff_id, idempotency_key) WHERE idempotency_key IS NOT NULL` |
@@ -808,7 +808,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 | `pending` | `sla.recalculated` | 不变（`pending`） | 日历修正与原决定窗口有交集；保留提交时策略与工时，更新批次快照并重设决定定时器 | 系统（`approval.onCalendarImported`） |
 | 终态（`approved`、`rejected`、`withdrawn`） | 任何 | 不变 | 返回 `409 APPROVAL_NOT_PENDING` | — |
 
-没有执行步的类型在 `approve` 的同一事务里生效（处理器 `kind.onApproved`）。有执行步的四类（`order_cancel`、`ad_cancel`、`qualification_cancel`、`plan_refund`）在提交时即建领域行（`cancel_request`、`refund_request`），领域行的 `status` 按 M54 走 `pending_approval` → `pending_execution` → `executing`（只有现金退款）→ `done`，或以 `not_executed` 关闭（`close_reason` 为 `rejected`、`withdrawn`、`voided`）；审批单停在 `approved`。审批通过后、执行前作废，只记领域行 `not_executed` + `voided`，审批单保持 `approved`（M54，回复 09 分组的确认请求）。执行时限（`exec_due_at` 与 `sla_snapshot`）由审批通过的事务写在领域行上，执行时限的 `sla.breach` 定时器主体是本审批单（M71）。
+没有执行步的类型在 `approve` 的同一事务里生效（处理器 `kind.onApproved`）。有执行步的五类（`order_cancel`、`ad_cancel`、`qualification_cancel`、`plan_refund`、`staging_pay_refund`）在提交时即建领域行（`cancel_request`、`refund_request`），领域行的 `status` 按 M54 走 `pending_approval` → `pending_execution` → `executing`（只有现金退款）→ `done`，或以 `not_executed` 关闭（`close_reason` 为 `rejected`、`withdrawn`、`voided`）；审批单停在 `approved`。审批通过后、执行前作废，只记领域行 `not_executed` + `voided`，审批单保持 `approved`（M54，回复 09 分组的确认请求）。执行时限（`exec_due_at` 与 `sla_snapshot`）由审批通过的事务写在领域行上，执行时限的 `sla.breach` 定时器主体是本审批单（M71）。
 
 撤销已通过的核验（链接核验，账号核验同理）：原审批单保持 `approved` 不动，原领域行停在 `revoked`；为重开的领域行（`round_no + 1`）另建一张新审批单（M73）。
 
@@ -826,10 +826,10 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 
 **不变量**（每日校验；编码按 15 分组的登记规则，P2）
 
-- `approval.I1` 有领域表的类型，每张审批单恰有一行领域行指向它（`approval_request_id` 唯一外键在领域表上）；领域行不指向别的 `kind`；有执行步的四类，领域行状态与审批单对应（审批单 `pending` ⇔ 领域行 `pending_approval`；`rejected`、`withdrawn` ⇒ 领域行 `not_executed`；`approved` ⇒ 领域行 `pending_execution`、`executing`、`done`，或 `not_executed` + `voided`）。
+- `approval.I1` 有领域表的类型，每张审批单恰有一行领域行指向它（`approval_request_id` 唯一外键在领域表上）；领域行不指向别的 `kind`；有执行步的五类，领域行状态与审批单对应（审批单 `pending` ⇔ 领域行 `pending_approval`；`rejected`、`withdrawn` ⇒ 领域行 `not_executed`；`approved` ⇒ 领域行 `pending_execution`、`executing`、`done`，或 `not_executed` + `voided`）。
 - `transfer_confirm` 的 I1 历史轮按 08 分组的“仅保存最近一次”核对：当前轮仍有唯一凭证反指并且是同对象最大轮号；旧轮只有 `rejected`、同对象/主体/门店且存在更高的真实当前轮时，通过原 `subject_id` 关联该凭证。旧 `pending`/`approved`、缺凭证、错归属、指针退回和重复反指仍报错；其他审批类型不变。
 - `approval.I2` 审批人 ≠ 发起人（CHECK 已保证，d4:1996 的 I12）；同一对象至多一张在途的同类申请（去重索引与领域表索引，I13）。
-- `approval.I3` 定时器（`timer.subject_type = 'approval_request'`）有两种用途：决定时限——`pending` 且 `due_at` 非空的行恰有一条未触发、未取消的决定时限定时器；执行时限——有执行步的四类，领域行处于 `pending_execution`、还没有执行过（没建过退款交易）且执行时限未过时，恰有一条未触发、未取消的执行时限定时器；执行时（进入 `executing` 或直接 `done`）、作废时、退款回调晚到直接 `done` 时同事务取消。已到点触发的、执行失败回到 `pending_execution` 的（不重新计时，08-billing-payment.md 2.4“退款交易到达失败终态”一行）、`executing` 及之后的行都没有执行时限定时器（与 08-billing-payment.md 2.4 `refund_request` 状态机的“执行”行一致：建退款交易时取消执行时限的定时器；x01 4.1 按 08）。其余行没有未触发、未取消的定时器。两种定时器的 `dedupe_key` 须带用途后缀区分（如 `…:decision`、`…:execution`），否则会被 `timer` 的在用唯一键挡住。
+- `approval.I3` 定时器（`timer.subject_type = 'approval_request'`）有两种用途：决定时限——`pending` 且 `due_at` 非空的行恰有一条未触发、未取消的决定时限定时器；执行时限——有执行步的五类，领域行处于 `pending_execution`、还没有执行过（没建过退款交易）且执行时限未过时，恰有一条未触发、未取消的执行时限定时器；执行时（进入 `executing` 或直接 `done`）、作废时、退款回调晚到直接 `done` 时同事务取消。已到点触发的、执行失败回到 `pending_execution` 的（不重新计时，08-billing-payment.md 2.4“退款交易到达失败终态”一行）、`executing` 及之后的行都没有执行时限定时器（与 08-billing-payment.md 2.4 `refund_request` 状态机的“执行”行一致：建退款交易时取消执行时限的定时器；x01 4.1 按 08）。其余行没有未触发、未取消的定时器。两种定时器的 `dedupe_key` 须带用途后缀区分（如 `…:decision`、`…:execution`），否则会被 `timer` 的在用唯一键挡住。
 - `approval.I4` `reason_codes` 里的编码都存在于字典 `reject_reason`；`checklist_code`、`checklist_version_no` 指向存在的清单模板版本。
 - `approval.I5` 超过 `approval.escalate_workdays` 仍 `pending` 的行进入“待审批超期”清单（d4:1978）。
 
@@ -897,6 +897,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 | `ad_cancel` | 广告取消 | approval | `ad` | 必填 | 必填 | TK | 有 | `cancel_request` |
 | `qualification_cancel` | 资质相关取消 | approval | `store` | 必填 | 必填 | TK | 有 | `cancel_request` |
 | `plan_refund` | 套餐退款（现金） | approval | `billing_order`；孤儿收款为 `payment_txn` | 必填；孤儿收款可空 | 可空 | TK | 有 | `refund_request` |
+| `staging_pay_refund` | 预发系统退款 | approval | `billing_order` | 必填 | 必为空 | TK | 有 | `refund_request`（仅 `source = staging_probe`；实际handler由后继W4-09在stg登记） |
 | `points_adjust` | 积分调整 | approval | `billing_account` | 必填 | 可空 | TZ | 无 | `point_adjustment_request` |
 | `subscription_extend` | 补偿延长 | approval | `subscription_term` | 必填 | 可空 | YQ | 无 | `term_extension_request` |
 | `finance_config_change` | 受控财务配置变更 | approval | `finance_config_revision` | 必为空 | 必为空 | — | 无 | `finance_config_revision` |
@@ -907,7 +908,7 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 
 - “可空”的 `store_id` 在从门店上下文发起时填写（如在商家详情里发起积分调整），供数据范围与门店活动流使用。`points_adjust`、`subscription_extend` 的授权按主体范围（a07 第 2.0 节），有门店上下文也不缩窄为单店范围。
 - `billing_account` 的主键就是 `entity_id`，所以积分调整的 `subject_id = entity_id`。
-- 有执行步的四类不填 `dedupe_key`（CHECK 保证），在途唯一由 `cancel_request`、`refund_request` 上 `WHERE closed_at IS NULL` 的部分唯一索引表达（M12）。
+- 有执行步的五类不填 `dedupe_key`（CHECK 保证），在途唯一由 `cancel_request`、`refund_request` 上 `WHERE closed_at IS NULL` 的部分唯一索引表达（M12）。
 - 其余 8 类必填 `dedupe_key`（CHECK 保证），由归属模块在登记处理器时给出取法，格式 `kind:对象`。各处理器的约定：
 
 | `kind` | `dedupe_key` | `round_no` | `delivery_ticket_id` | 依据 |
@@ -1082,3 +1083,5 @@ CHECK 只加在由类型化代码写入的列上：`stream`、`actor_type`、`cl
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A95、A96、A105、A127、A143）改了本文少量说明；表结构未变。A127：2.12 驳回一行写明靠 `x-step-up: skip` 免再验证；A143：2.12 `lock_version` 列说明登记“只升锁版本”（资质审核修正识别字段）。 第二批（接口第三轮之后）：第 3 节 `audit_log.category` 补 A107 的 8 个与 A155 的 10 个类别（共 35 个；不写 CHECK，constraints 不变）；2.12 `approval.I3` 的执行时限定时器改为只在领域行 `pending_execution`、未执行过且时限未过时存在，执行时取消，执行失败回到待执行的不重新计时（与 08 2.4 一致，x01 4.1）。 2.12 驳回一行的原因字典场景补 `cancel_refund`（A156）。
 
 W2-22 补登审计对象 `sms_template`（13 分组）：自然主键 `template_key` 写入 `audit_log.target_key`；短信初始化使用 ops/notify_config、动作 `notify.sms.init`，不记录签名正文、手机号或密钥。
+
+W4-09独立结构前置：`staging_pay_refund`只声明真实系统意图，保留审批外键、TK编号与领域执行状态；不新增任务或人工操作。新类型不伪造staff，旧12类约束与职责分离保持；实际stg handler/Saga与生产双侧不存在守卫由后继W4-09交付。

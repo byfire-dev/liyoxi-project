@@ -23,6 +23,7 @@ import {
   assertContentAdminLiveTargets,
   findContentAdminLiveJobIds,
   findAgreementLiveUploadJobIds,
+  findBillingLiveUploadJobIds,
   createMerchantAssetLiveUploadPump,
   finishW120LiveFixture,
 } from "@liyoxi/services/testing";
@@ -97,6 +98,8 @@ export async function startOutputBatchLiveServer(options: {
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
   let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
   let cloud: ReturnType<typeof attachOutputBatchLiveCloud> | undefined;
+  const receiptFiles = new Map<string, { staffId: string; entityId: string }>();
+  const receiptPending = new Set<Promise<void>>();
   const agreementFiles = new Map<string, string>();
   const agreementPending = new Set<Promise<void>>();
   let closing = false;
@@ -122,6 +125,8 @@ export async function startOutputBatchLiveServer(options: {
       );
       const pumpResults = await Promise.allSettled([pending]);
       const agreementResults = await Promise.allSettled([...agreementPending]);
+      const receiptResults = await Promise.allSettled([...receiptPending]);
+      receiptFiles.clear();
       agreementFiles.clear();
       contentFiles.clear();
       const servers = [apiServer, cosServer].filter((server) => server !== undefined);
@@ -157,6 +162,7 @@ export async function startOutputBatchLiveServer(options: {
           ...jobResults,
           ...pumpResults,
           ...agreementResults,
+          ...receiptResults,
           ...serverResults,
           ...merchantUploadResults,
           ...inputResults,
@@ -262,14 +268,44 @@ export async function startOutputBatchLiveServer(options: {
         request.method === "POST"
           ? /^\/api\/v1\/admin\/files\/([0-9a-f-]{36})\/complete$/.exec(path)?.[1]
           : undefined;
+      const cancelling =
+        request.method === "POST"
+          ? /^\/api\/v1\/admin\/files\/([0-9a-f-]{36})\/cancel$/.exec(path)?.[1]
+          : undefined;
       const response = await batchApi.app.fetch(request, env);
-      if (!response.ok || closing || (!registering && !completing)) return response;
+      if (!response.ok || closing || (!registering && !completing && !cancelling)) return response;
+      if (cancelling && receiptFiles.has(cancelling)) {
+        const owned = receiptFiles.get(cancelling)!;
+        const me = StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"));
+        if (me.staff.staffId !== owned.staffId) throw new Error("本轮凭证取消归属不符");
+        receiptFiles.delete(cancelling);
+        return response;
+      }
       if (registering) {
         const body = (await response.clone().json()) as { data: unknown };
         const registration = FileRegistrationSchema.parse(body.data);
         const file = AdminFileViewSchema.parse(
           await readAgreementData(request, `/api/v1/admin/files/${registration.fileId}`),
         );
+        if (
+          file.category === "pay_receipt" &&
+          file.scopeType === "entity" &&
+          file.entityId &&
+          file.uploader.actorType === "staff" &&
+          file.uploader.client === "admin" &&
+          ["jpg", "jpeg", "png", "pdf"].includes(file.ext)
+        ) {
+          const me = StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"));
+          if (file.uploader.actorId !== me.staff.staffId) throw new Error("本轮凭证上传归属不符");
+          if (receiptFiles.size >= 1 && !receiptFiles.has(registration.fileId))
+            throw new Error("本轮凭证上传执行范围已满");
+          if (!closing)
+            receiptFiles.set(registration.fileId, {
+              staffId: me.staff.staffId,
+              entityId: file.entityId,
+            });
+          return response;
+        }
         if (
           file.category !== "legal_doc" ||
           file.scopeType !== "platform" ||
@@ -285,6 +321,30 @@ export async function startOutputBatchLiveServer(options: {
         if (agreementFiles.size >= 8 && !agreementFiles.has(registration.fileId))
           throw new Error("本轮协议上传执行范围已满");
         if (!closing) agreementFiles.set(registration.fileId, me.staff.staffId);
+      } else if (completing && receiptFiles.has(completing)) {
+        const owned = receiptFiles.get(completing)!;
+        const work = (async () => {
+          const me = StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"));
+          if (me.staff.staffId !== owned.staffId) throw new Error("本轮凭证上传完成归属不符");
+          const ids = await findBillingLiveUploadJobIds(batch, { ...owned, fileIds: [completing] });
+          for (const jobId of ids) {
+            if (closing) break;
+            await batch.media.promote({ jobId });
+          }
+          if (!closing) {
+            const file = AdminFileViewSchema.parse(
+              await readAgreementData(request, `/api/v1/admin/files/${completing}`),
+            );
+            if (["stored", "rejected", "expired", "deleting", "deleted"].includes(file.status))
+              receiptFiles.delete(completing);
+          }
+        })();
+        receiptPending.add(work);
+        try {
+          await work;
+        } finally {
+          receiptPending.delete(work);
+        }
       } else if (completing && agreementFiles.has(completing)) {
         const expectedStaffId = agreementFiles.get(completing)!;
         const work = (async () => {

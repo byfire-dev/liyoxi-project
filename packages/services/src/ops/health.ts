@@ -5,13 +5,15 @@
 //   2. worker 与探针的新鲜度用数据库时间比：租约是基础设施，续约写的是 clock_timestamp()。
 //      flow 的几项比的是业务时间（事件发生、定时器到点），用注入的时钟。
 //   3. flow 只做 P1 判定（四项）。明细数值与 P2 在 /internal/health/flow，那一条现在只有框架。
-//   4. 两条内网探活只出框架：结构照 h01 第 2.5 节，各指标一律 null 并计入 breaches，status 为 degraded。
-//      回补：finance 在 M4，flow 在 M7（docs/plan/stubs/）。
+//   4. finance逐指标只读取数（M4）；flow仍为M7框架，失败/null事实均按契约降级。
 // 探活不进 OpenAPI，契约里没有这几个结构，类型写在这里。
 import { TIMERS } from "@liyoxi/contract/registry";
 import type { PrismaClient } from "@liyoxi/db";
 
 import type { Clock } from "../kernel/index.js";
+import { createFinanceHealth } from "./finance-health.js";
+import type { FinanceHealth, FinanceCertificateFact } from "./finance-health.js";
+export type { FinanceHealth } from "./finance-health.js";
 
 /** 每项探测的时限 */
 export const HEALTH_PROBE_TIMEOUT_MS = 1_500;
@@ -44,25 +46,6 @@ export interface HealthSummary {
   flow: OkDegraded;
 }
 
-/** GET /internal/health/finance（h01 第 2.5 节 FinanceHealth）。框架：各项恒为 null */
-export interface FinanceHealth {
-  status: OkDegraded;
-  time: string;
-  breaches: string[];
-  unappliedReceipt: null;
-  workerHeartbeatAgeSec: null;
-  timerLagSec: null;
-  webhookBacklog: null;
-  certificates: null;
-  billing: {
-    sweepLagSec: null;
-    invariantRunAgeSec: null;
-    openViolationCount: null;
-    valuationAgeSec: null;
-    oldestBlockedFulfillmentSec: null;
-  };
-}
-
 /** GET /internal/health/flow（h01 第 2.5 节 FlowHealth）。框架：各项恒为 null */
 export interface FlowHealth {
   status: OkDegraded;
@@ -78,20 +61,6 @@ export interface FlowHealth {
   stuckTicketCount: null;
 }
 
-const FINANCE_METRICS = [
-  "unappliedReceipt",
-  "workerHeartbeatAgeSec",
-  "timerLagSec",
-  "webhookBacklog",
-  "certificates",
-] as const;
-const BILLING_METRICS = [
-  "sweepLagSec",
-  "invariantRunAgeSec",
-  "openViolationCount",
-  "valuationAgeSec",
-  "oldestBlockedFulfillmentSec",
-] as const;
 const FLOW_METRICS = [
   "oldestUnpublishedEventAgeSec",
   "oldestDueDeliveryAgeSec",
@@ -117,13 +86,15 @@ export interface HealthOptions {
   version: string;
   /** /health 的结果缓存多久，缺省 HEALTH_CACHE_MS；用例里给 0 */
   cacheMs?: number;
+  /** 本地配置的证书期限事实；缺失时finance明确报null，不从序列号猜测。 */
+  financeCertificates?: () => Promise<readonly FinanceCertificateFact[]>;
 }
 
 export interface Health {
   /** /health：聚合状态。status 为 degraded 时路由回 503，响应体不变 */
   summary(): Promise<HealthSummary>;
-  /** /internal/health/finance：框架 */
-  finance(): FinanceHealth;
+  /** /internal/health/finance：独立只读指标，单项失败为null。 */
+  finance(): Promise<FinanceHealth>;
   /** /internal/health/flow：框架 */
   flow(): FlowHealth;
 }
@@ -150,6 +121,13 @@ const ageSec = (now: Date, at: Date | null): number =>
 export function createHealth(options: HealthOptions): Health {
   const { db, redis, clock, version, cacheMs = HEALTH_CACHE_MS } = options;
   let cached: { at: number; value: Promise<HealthSummary> } | undefined;
+  const finance = createFinanceHealth({
+    db,
+    clock,
+    cacheMs,
+    timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+    certificates: options.financeCertificates,
+  });
 
   const probeDb = async (): Promise<UpDown> => {
     await within(db.$queryRaw`SELECT 1`);
@@ -241,15 +219,7 @@ export function createHealth(options: HealthOptions): Health {
       }
       return cached.value;
     },
-    finance() {
-      return {
-        status: "degraded",
-        time: clock.now().toISOString(),
-        breaches: [...FINANCE_METRICS, ...BILLING_METRICS.map((key) => `billing.${key}`)],
-        ...nullsOf(FINANCE_METRICS),
-        billing: nullsOf(BILLING_METRICS),
-      };
-    },
+    finance,
     flow() {
       return {
         status: "degraded",

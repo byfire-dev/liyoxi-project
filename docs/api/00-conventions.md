@@ -578,6 +578,7 @@ V1.0 登记的（A50、A84、A139；按 operationId；路由标 `x-three-phase`�
 | `admin.refundRequest.retry` | 先外调 | 退款重试（A50） |
 | `admin.refundRequest.confirmNotAccepted` | 先外调 | 先查退款结果再确认未受理（A84） |
 | `admin.paymentException.resolve` | 先外调 | 处理方式为补单（`restore`）、补记渠道退款（`record_channel_refund`）时先查微信（A84） |
+| `admin.reconciliation.rerun` | 多事务 | 按当前商户号/账单日持既有会话咨询锁，逐主体资金补记各自单TX，日汇总与required幂等结果同末TX提交；每TX仍取原日事务咨询锁（W4-12真实kernel禁止嵌套TX/事务内外呼） |
 | `m.me.changePhone` | 先外调 | 事务前调手机号组件换号，`phoneCode` 一次性（A84） |
 | `m.smsCode.create`、`m.storeProfile.contactSmsCode.create` | 先落库 | 先落验证码行并提交，提交后直发短信，发送失败删行（A84） |
 | `m.file.complete` | 多事务 | 对象存储调用在事务之间，幂等记录随第二个事务写；拒收时已提交的技术状态不回滚（A84） |

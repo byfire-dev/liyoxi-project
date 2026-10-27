@@ -25,6 +25,7 @@ import { currentPurchaseContext } from "../topup/runtime";
 import { createWalletApi } from "./api";
 import { billingRequest } from "./runtime";
 import { billingCopy, purchaseVisible, walletPurchaseLabel } from "./model";
+import { ledgerContext } from "../ledger/model";
 
 import "./index.scss";
 
@@ -252,7 +253,34 @@ function WalletContent() {
                 {pointsNoun}
               </Note>
             ) : null}
-            <Card title={`可用${pointsNoun}`}>
+            <Card
+              title={`可用${pointsNoun}`}
+              extra={
+                ledgerContext({
+                  token: useSessionStore.getState().accessToken,
+                  storeId,
+                  contextRev: useContextStore.getState().contextRev,
+                  me,
+                }).allowed && accountPageImplemented("sub/billing/ledger/index") ? (
+                  <TextButton
+                    arrow
+                    onClick={() => {
+                      if (
+                        ledgerContext({
+                          token: useSessionStore.getState().accessToken,
+                          storeId: useContextStore.getState().currentStoreId,
+                          contextRev: useContextStore.getState().contextRev,
+                          me: account.snapshot().me,
+                        }).allowed
+                      )
+                        void Taro.navigateTo({ url: "/sub/billing/ledger/index" });
+                    }}
+                  >
+                    积分明细
+                  </TextButton>
+                ) : undefined
+              }
+            >
               <View className="billing-wallet__balance">
                 {formatInteger(wallet.points.spendablePoints)}
               </View>

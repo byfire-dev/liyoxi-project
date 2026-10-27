@@ -71,7 +71,7 @@ export const UPLOAD_CATEGORIES = {
   trailer_out: category("pub", "platform", ["mp4"]),
   poster: category("pub", "platform", image, { admin: true, system: true }),
   banner: category("pub", "platform", image, { admin: true }),
-  pay_bill: category("secure", "platform", ["csv", "txt"]),
+  pay_bill: category("secure", "platform", ["csv", "txt"], { system: true }),
   wecom_qr: category("asset", "platform", image),
   account_proof: category("secure", "entity", [...image, "pdf"], { admin: true }),
   portrait_auth: category("secure", "store", [...image, "pdf"], {
