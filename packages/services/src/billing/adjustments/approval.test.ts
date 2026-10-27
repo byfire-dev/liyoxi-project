@@ -640,6 +640,8 @@ it("完整清零复活冲回600000分真实成本，历史日投影与I1-I18适�
     "payment.I4",
     "payment.I5",
     "payment.I6",
+    "payment.I7",
+    "payment.I8",
   ]);
 }, 60000);
 
