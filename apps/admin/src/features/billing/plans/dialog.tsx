@@ -77,6 +77,7 @@ export function BillingDialog({
         <Button
           size="large"
           type="primary"
+          aria-label={submitText}
           loading={pending}
           disabled={disabled || conflict}
           onClick={() => void save()}
