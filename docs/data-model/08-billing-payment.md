@@ -175,9 +175,9 @@ erDiagram
 | `pending_payment`（`awaiting_proof` / `proof_rejected`） | 到期或老板取消（`billing_order.cancel`） | `cancelled` | 没有待确认的凭证；凭证待财务确认期间不可取消、不自动关闭 | 系统 / 商家 |
 | `cancelled` | 差异单“补单”（`billing_order.restore`） | `paid` | 唯一入口；存在该单未入账的成功收款；实时查单仍为成功且金额相等；回显 + 再次验证身份 + 说明 | 财务 |
 | `paid` | 入账收款的退款成功且累计退款 ≥ 实付（`billing_order.refund`） | `refunded` | 由 `refund_txn` 成功驱动；只算入账收款（`paid_payment_txn_id`）上的退款，未入账收款的退回不动本单 | 系统 |
+| — | 差异单灾备重建（`billing_order.rebuild`） | `paid` | 财务处理未关联付款单的 `bill_only`；事务外可信实时查单成功，原 `attach` 限开通/续费/加购，主体存在且应付等于实收；保存原商户单号 `rebuilt_from`、财务创建人、收款与入账事实，同事务履约（a07 3.79、d2 9.5） | 财务 |
 
 商家创建付款单的事务里先由 `biz_sequence` 取得 `order_no`，再随 `ref { type: 'billing_order', id, no }` 调 `agreements.assertConsents`（场景 `plan_purchase` / `topup`），同意记录的 `biz_no` 即本单号（13 分组；`ck_agreement_consent_biz_no` 要求 `FK` 前缀）。后台线下代建的付款单凭合同号，不调。
-
 ```mermaid
 stateDiagram-v2
   [*] --> pending_payment: 创建
@@ -229,9 +229,7 @@ stateDiagram-v2
 
 ### 2.2 `payment_txn` 收款交易
 
-渠道侧一次收款尝试，成功的即“收款流水”。保存渠道实收金额、付款人、回传数据、对账状态。对公到账与孤儿到账也落在本表。银行流水号与付款行在本表，不在凭证表。
-
-归属：主体维度（`entity_id`）；孤儿到账（没有对应付款单）时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：300。
+渠道侧一次收款尝试，成功的即“收款流水”。保存渠道实收金额、付款人、回传数据、对账状态。对公到账与孤儿到账也落在本表。银行流水号与付款行在本表，不在凭证表。 归属：主体维度（`entity_id`）；孤儿到账（没有对应付款单）时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：300。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
@@ -266,6 +264,12 @@ stateDiagram-v2
 | `recon_bill_date` | date | 可 | — | 对平所依据的账单日 | d2:258 |
 | `last_queried_at` | timestamptz | 可 | — | 最近一次主动查单时间（节流） | d2:259 |
 | `query_count` | integer | 否 | `0` | 主动查单次数 | d2:259 |
+| `shipping_report_state` | text | 可 | — | 发货受理事实：空为未认领；`unknown` 是否受理未知；`not_accepted` 明确未受理；`confirmed` 已确认受理 | [W4-09发货结构前置](#payment-txn-shipping-report) |
+| `shipping_report_appid` | text | 可 | — | 固化发货调用所用AppID；query不返回，恢复时须核当前调用配置一致 | W4-09发货结构前置 |
+| `shipping_report_mchid` | text | 可 | — | 固化收款商户号；恢复时与渠道收款身份匹配 | W4-09发货结构前置 |
+| `shipping_report_item_desc` | text | 可 | — | 固化虚拟发货描述，非空、最多120个Unicode字符 | W4-09发货结构前置 |
+| `shipping_report_upload_time` | timestamptz | 可 | — | 注入时钟给出的拟发送报文时间，保留毫秒；不代表已送达，query秒级时间按floor(ms/1000)匹配 | W4-09发货结构前置 |
+| `shipping_report_confirmed_at` | timestamptz | 可 | — | 注入时钟给出的真实确认观察时间；仅confirmed非空且不早于upload_time | W4-09发货结构前置 |
 | `created_at` | timestamptz | 否 | — | 创建时间 | d2:190 |
 | `updated_at` | timestamptz | 否 | — | 更新时间 | d2:190 |
 
@@ -274,12 +278,11 @@ stateDiagram-v2
 - 主键：`id`（`pk_payment_txn`）。
 - 外键：`entity_id` → `entity.id`（RESTRICT）；`billing_order_id` → `billing_order.id`（RESTRICT）；`transfer_proof_id` → `transfer_proof.id`（RESTRICT）；`confirmed_by_staff_id` → `staff.id`（RESTRICT）；`reviewed_by_staff_id` → `staff.id`（RESTRICT）。
 - 唯一约束：`uq_payment_txn_out_trade_no`（`out_trade_no`）；`uq_payment_txn_transfer_proof_id`（`transfer_proof_id`）。部分唯一索引、表达式唯一索引见“手写约束”。
-- 普通索引：
+- 普通索引：部分索引见“手写约束”。
   - `ix_payment_txn_billing_order_attempt`（`billing_order_id`, `attempt_no`）：取一张付款单名下的全部尝试。
   - `ix_payment_txn_status_success`（`status`, `channel_success_at`）：收款流水列表与汇总；按成功时间做反向对账。
   - `ix_payment_txn_recon_success`（`recon_state`, `channel_success_at`）：按对账状态筛选收款流水。
   - `ix_payment_txn_entity_success`（`entity_id`, `channel_success_at`）：按主体查收款。
-- 部分索引见“手写约束”。
 
 **手写约束**
 
@@ -300,15 +303,16 @@ stateDiagram-v2
 | `ck_payment_txn_bank_fields` | CHECK | 对公专有列只在对公渠道有值 |
 | `ck_payment_txn_bank_confirmed` | CHECK | 对公交易在财务确认时才建行：必为成功，且有原始流水号与确认人 |
 | `ck_payment_txn_reviewer` | CHECK | 复核人不得是确认人 |
+| `ck_payment_txn_shipping_report_state` | CHECK | 发货受理状态限于unknown、not_accepted、confirmed；空值表示未认领 |
+| `ck_payment_txn_shipping_report_intent` | CHECK | 未认领时六列全空；认领后AppID/商户号/描述/报文时间完整，且是有主体、付款单、入账时刻、渠道流水号、实收额及实际付款身份的成功微信收款 |
+| `ck_payment_txn_shipping_report_confirmation` | CHECK | confirmed当且仅当确认观察时间非空，且确认时间不早于报文意图时间 |
 | `uq_payment_txn_channel_txn_no` | 部分唯一索引 | `(channel, channel_txn_no, COALESCE(payer_bank, '')) WHERE channel_txn_no IS NOT NULL`：同一微信交易号、同一银行流水号（加付款行）只能入库一次 |
 | `uq_payment_txn_open_attempt` | 部分唯一索引 | `(billing_order_id) WHERE status IN ('created','prepaid')`：一张付款单至多一个进行中的尝试 |
 | `uq_payment_txn_applied` | 部分唯一索引 | `(billing_order_id) WHERE applied_at IS NOT NULL`：一张付款单至多入账一笔（V1.0 不支持分笔付款） |
 | `ix_payment_txn_payer_success` | 部分索引 | `(payer_openid, channel_success_at) WHERE status = 'succeeded'`：付款人当日累计已付（判断微信渠道是否可用） |
 | `ix_payment_txn_unapplied` | 部分索引 | `(channel_success_at) WHERE status = 'succeeded' AND applied_at IS NULL`：未入账收款扫描（`tx.unapplied_scan`）与“成功未入账超过 10 分钟”告警 |
 
-**状态列（不写状态历史）**
-
-`status` 记录渠道事实，不写 `status_transition`；用带原状态条件的 UPDATE。
+**状态列（不写状态历史）** `status` 记录渠道事实，不写 `status_transition`；用带原状态条件的 UPDATE。
 
 | 当前状态 | 事件 | 新状态 | 说明 |
 | --- | --- | --- | --- |
@@ -340,9 +344,7 @@ stateDiagram-v2
 
 ### 2.3 `transfer_proof` 对公转账凭证
 
-商家或员工上传的对公转账回单：文件、识别结果引用、系统比对结论、财务审核结论。启用二人复核时暂存第一名财务的确认内容。它是“对公收款确认”这条处理队列的待办对象，不进审批单。
-
-归属：主体维度（`entity_id`）。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：310。
+商家或员工上传的对公转账回单：文件、识别结果引用、系统比对结论、财务审核结论。启用二人复核时暂存第一名财务的确认内容。它是“对公收款确认”这条处理队列的待办对象，不进审批单。 归属：主体维度（`entity_id`）。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：310。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
@@ -394,9 +396,7 @@ stateDiagram-v2
 | `uq_transfer_proof_pending` | 部分唯一索引 | `(billing_order_id) WHERE review_status = 'pending'`：一张付款单同一时刻至多一张待确认的凭证 |
 | `ix_transfer_proof_pending_due` | 部分索引 | `(due_at) WHERE review_status = 'pending'`：超时预警与工作台待办的派生查询 |
 
-**状态列（不写状态历史）**
-
-`review_status` 是处理队列的结论，不写 `status_transition`，不进审批单（M22）；用带原状态条件的 UPDATE，后台操作带 `expectedVersion`。
+**状态列（不写状态历史）** `review_status` 是处理队列的结论，不写 `status_transition`，不进审批单（M22）；用带原状态条件的 UPDATE，后台操作带 `expectedVersion`。
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
@@ -434,15 +434,13 @@ stateDiagram-v2
 
 ### 2.4 `refund_request` 现金退款申请
 
-现金退款的领域单据：规则核算快照与执行状态。与审批单一对一（`kind = plan_refund`，单号 `TK…` 存在审批单上）。提交时即建行。订购与广告取消退回积分不在本表，在 order 模块的 `cancel_request`；两表的执行状态取值相同（M54）。
-
-归属：主体维度（`entity_id`）；孤儿收款退款时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：70（领域申请单，紧跟审批单之后）。
+现金退款的领域单据：规则核算快照与执行状态。与审批单一对一（`kind = plan_refund`，单号 `TK…` 存在审批单上）。提交时即建行。订购与广告取消退回积分不在本表，在 order 模块的 `cancel_request`；两表的执行状态取值相同（M54）。 归属：主体维度（`entity_id`）；孤儿收款退款时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：70（领域申请单，紧跟审批单之后）。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
 | `id` | uuid | 否 | — | 主键，UUID v7，应用生成 | R1 |
 | `approval_request_id` | uuid | 否 | — | 审批单 → `approval_request.id`，一对一；单号 `TK…` 取 `approval_request.request_no` | d2:289；R3 |
-| `source` | text | 否 | — | 申请来源。取值：`customer_service` 客服在付款单详情发起；`exception` 差异单或履约受阻转入 | d2:291 |
+| `source` | text | 否 | — | 申请来源。取值：`customer_service` 客服；`exception` 差异或履约受阻；`staging_probe` 预发系统退款（仅window/1..100分/原路） | d2:291 |
 | `entity_id` | uuid | 可 | — | 所属主体 → `entity.id`；孤儿收款退款时为空 | d2:292；M13 |
 | `billing_order_id` | uuid | 可 | — | 被退收款所属的付款单 → `billing_order.id`；孤儿收款为空。规则为 `unapplied_receipt` 时它可能是一张已支付的单（重复付款），被退的不是它的入账交易 | d2:293、1105 |
 | `payment_txn_id` | uuid | 否 | — | 被退的那一笔收款交易 → `payment_txn.id`。除 `unapplied_receipt` 外都等于付款单的 `paid_payment_txn_id` | d2:294 |
@@ -462,6 +460,7 @@ stateDiagram-v2
 | `sla_snapshot` | jsonb | 可 | — | 执行时限的参数快照 `SlaSnapshot`（`policy = review.refund_execute`）；与 `exec_due_at` 同有同无 | d3:3052；M60；03 分组请求 |
 | `entitlement_revoked_at` | timestamptz | 可 | — | 套餐权益已回收（`revokeTerm` 成功）的时刻；非空后申请单不可作废 | d2:306；d1:1114 |
 | `executed_by_staff_id` | uuid | 可 | — | 最近一次执行的财务 → `staff.id` | d2:309 |
+| `is_executed_by_system` | boolean | 否 | `false` | 明确由预发系统执行；旧人工来源恒false，与真实执行员工互斥；不能由空员工推断 | W4-09独立结构前置 |
 | `executed_at` | timestamptz | 可 | — | 最近一次执行的时间 | d2:309 |
 | `done_at` | timestamptz | 可 | — | 退款完成时间 | d2:309 |
 | `voided_by_staff_id` | uuid | 可 | — | 审批通过后作废的财务 → `staff.id`；仅 `close_reason = voided` 时有值 | d2:310；M54 |
@@ -490,19 +489,20 @@ stateDiagram-v2
 
 | 约束名 | 种类 | 规则 |
 | --- | --- | --- |
-| `ck_refund_request_source` | CHECK | `source` 的取值限于：`customer_service`、`exception` |
+| `ck_refund_request_source` | CHECK | `source` 的取值限于：`customer_service`、`exception`、`staging_probe` |
 | `ck_refund_request_rule_code` | CHECK | `rule_code` 的取值限于：`window`、`qualification_failed`、`override`、`fulfillment_blocked`、`unapplied_receipt` |
 | `ck_refund_request_status` | CHECK | `status` 的取值限于：`pending_approval`、`pending_execution`、`executing`、`done`、`not_executed` |
 | `ck_refund_request_exec_route` | CHECK | `exec_route` 的取值限于：`wechat_original`、`offline` |
 | `ck_refund_request_close_reason` | CHECK | `close_reason` 的取值限于：`rejected`、`withdrawn`、`voided` |
 | `ck_refund_request_amount` | CHECK | 退款金额 = 基数 − 扣除，且大于 0；扣除不为负 |
-| `ck_refund_request_rule_source` | CHECK | 差异转入的申请只用履约受阻、未入账收款两条规则；客服发起的只用套餐三条规则 |
+| `ck_refund_request_rule_source` | CHECK | 差异转入只用履约受阻/未入账两条；客服只用套餐三条；预发系统另受window专属约束 |
 | `ck_refund_request_override` | CHECK | 规则外标记与 `override` 规则一一对应 |
-| `ck_refund_request_reason` | CHECK | 客服发起必有申请原因；差异转入不填 |
+| `ck_refund_request_reason` | CHECK | 客服发起必有申请原因；差异转入及预发系统不填 |
 | `ck_refund_request_subject` | CHECK | 只有未入账收款退回可以没有付款单；只有没有付款单的申请可以没有主体 |
 | `ck_refund_request_closed` | CHECK | 已退款、未执行即关闭 ⇔ 有结束时间；关闭原因只在 `not_executed` 时非空（M54） |
 | `ck_refund_request_voided` | CHECK | 作废 ⇔ 有作废人与作废说明；驳回、撤回不填这两列 |
-| `ck_refund_request_executed` | CHECK | 执行中、已退款必有路由、执行人、执行时间 |
+| `ck_refund_request_executed` | CHECK | 执行中/已退款必有路由和时间；旧来源仍必有真实执行员工且系统位false；仅预发系统可无员工且系统位true |
+| `ck_refund_request_staging_system` | CHECK | 旧来源系统位恒false；新来源仅window、非override、1..100分、有主体及付款单、无原因/员工、仅原路；系统位与真实执行时刻同有同无，审批中不得先置执行位 |
 | `ck_refund_request_executing_route` | CHECK | 只有微信原路退有“执行中” |
 | `ck_refund_request_done` | CHECK | 已退款 ⇔ 有完成时间 |
 | `ck_refund_request_revoked` | CHECK | 只有套餐规则会回收权益；权益已回收的申请不可作废，也不会停在待审批 |
@@ -819,7 +819,7 @@ stateDiagram-v2
 | `sha1` | text | 可 | — | 微信返回的文件摘要值 | d2:354 |
 | `is_hash_verified` | boolean | 否 | `false` | 下载内容的摘要是否校验通过 | d2:354；约定“命名规则” |
 | `line_count` | integer | 可 | — | 解析出的明细行数 | d2:354 |
-| `summary` | jsonb | 可 | — | 文件尾部汇总行（解析后与明细核对） | d2:354、1047 |
+| `summary` | jsonb | 可 | — | 文件尾部汇总行（解析后与明细核对）；当前ALL资金路径另存 `refundApplications = { v: 1, sha1, amounts: { [lineNo]: 申请退款金额整数分 } }`，只从同一已核摘要原件派生并绑定文件/行；原尾汇总保留原名。退款匹配使用申请全额，`wx_bill_line.refund_amount_fen`仍保留官方结算字段，派生证据缺失/不一致受控失败，不回退结算额 | d2:354、1047；W4-12官方当前ALL协议核实 |
 | `attempt_count` | integer | 否 | `0` | 下载尝试次数 | d2:354 |
 | `last_error` | text | 可 | — | 最近一次失败原因 | d2:354 |
 | `downloaded_at` | timestamptz | 可 | — | 下载完成时间 | d2:354 |
@@ -859,7 +859,7 @@ stateDiagram-v2
 **不变量**（每日校验）
 
 - `parsed` 的文件：`line_count` = 名下 `wx_bill_line` 的行数，且与 `summary` 的总笔数一致。
-- 最近 90 天内每个已过 D+1 14:00 的账单日都有一行，状态为 `parsed` 或 `empty`（否则告警）。
+- 最近 90 天内每个已过 D+1 14:00 的账单日都有一行，状态为 `parsed` 或 `empty`（否则告警）。 W4-12实施裁决：按[本包任务书](../plan/tasks/W4-12.md)第1、5节的明确资金安全边界，当前实现收紧上述`NO_STATEMENT_EXIST → empty`分支：即使本库暂未见成功现金，可信missing也只保留pending与对账wait，未配置/超时仍为失败/等待，不以此证明渠道无交易、不写空ok或清缺账告警。上表`empty`历史术语与既有枚举保留，读取下载进度兼容历史empty，不由本实现新写；真实无账单/零交易仍属E5/E13/V13授权外部核验。
 
 **相对草案的改动**
 
@@ -968,7 +968,7 @@ stateDiagram-v2
 | `platform_pay_fen` | bigint | 否 | `0` | 平台侧收款金额（分） | d2:358；M15 |
 | `bill_pay_count` | integer | 否 | `0` | 账单侧收款笔数 | d2:358 |
 | `bill_pay_fen` | bigint | 否 | `0` | 账单侧收款金额（分） | d2:358；M15 |
-| `platform_refund_count` | integer | 否 | `0` | 平台侧退款笔数（按成功日） | d2:358 |
+| `platform_refund_count` | integer | 否 | `0` | 平台侧退款笔数（按成功日，归原收款 `payment_txn.channel`；原微信收款的人工线下退仍属于微信，对公收款的线下退不混入微信） | d2:358；W4-12按本表收款渠道口径核实 |
 | `platform_refund_fen` | bigint | 否 | `0` | 平台侧退款金额（分） | d2:358；M15 |
 | `bill_refund_count` | integer | 否 | `0` | 账单侧退款笔数（按受理日） | d2:358 |
 | `bill_refund_fen` | bigint | 否 | `0` | 账单侧退款金额（分） | d2:358；M15 |
@@ -1314,9 +1314,10 @@ stateDiagram-v2
 | `billing_order.proxy_client` | `weapp` 小程序；`portal` 电脑端下载页；`admin` 运营管理后台 | 见 catalogue enums_shared：client |
 | `payment_txn.channel` | `wechat_jsapi` 微信支付 JSAPI；`bank_transfer` 对公转账 | 见 catalogue enums_shared：pay_channel |
 | `payment_txn.status` | `created` 已建（预下单在途或失败）；`prepaid` 已拿到 prepay_id，等用户付款；`succeeded` 收款成功；`closed` 已关闭 | 本分组 |
+| `payment_txn.shipping_report_state` | `unknown` 是否受理未知；`not_accepted` 明确未受理；`confirmed` 已确认受理；NULL为未认领 | W4-09发货结构前置 |
 | `payment_txn.recon_state` | `pending` 待对账（账单未到）；`matched` 已对平；`diff` 有差异（关联着未决差异单）；`resolved` 差异已处理 | 本分组 |
 | `transfer_proof.review_status` | `pending` 待财务确认；`accepted` 已采纳（确认到账）；`rejected` 已驳回；`superseded` 被新凭证替换 | 本分组 |
-| `refund_request.source` | `customer_service` 客服在付款单详情发起；`exception` 差异单或履约受阻转入 | 本分组 |
+| `refund_request.source` | `customer_service` 客服；`exception` 差异或履约受阻；`staging_probe` 预发系统退款 | 本分组；W4-09独立结构前置 |
 | `refund_request.rule_code` | `window` 套餐：开通或续费 7 天内且未使用积分；`qualification_failed` 套餐：资质终审不通过，免窗口；`override` 套餐：规则外退款（免窗口，仅超级管理员）；`fulfillment_blocked` 履约受阻，全额退；`unapplied_receipt` 未入账收款退回 | 本分组 |
 | `refund_request.status` | `pending_approval` 已提交、待审批；`pending_execution` 已批准、待执行；`executing` 执行中（微信原路退在途）；`done` 已退款；`not_executed` 未执行即关闭（驳回、撤回、作废） | 本分组 |
 | `refund_request.exec_route` | `wechat_original` 微信原路退；`offline` 线下退款登记 | 本分组 |
@@ -1622,3 +1623,13 @@ stateDiagram-v2
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A3、A15、A32、A37、A41、A46、A102（退款回调晚到））改了本文少量说明；表结构未变。
 第二批（2026-10-03）：按 h01 的请求（h01-hooks.md 2.6），2.6 `payment_exception.dedupe_key` 补回调与入账函数实时开单的键（`{kind}:{out_trade_no}`、`refund_over:{out_refund_no}`、`status_mismatch:refund:{out_refund_no}`、`refund_amount_mismatch:{out_refund_no}`），写明查单与对账共用；迟到成功（未超额）的 `kind` 待财务确认，不加新取值。表结构与约束未变。
+
+W4-09独立结构前置：`payment.I11`只按（原两个人工source、plan_refund）或（staging_probe、staging_pay_refund）精确配对，并核新类型真实系统提交/决定及同对象主体。新系统执行位必须有本申请同主体/同收款的真实system原路退款意图；未执行不预标，失败回待执行不清掉已发生的执行者事实。余额、权益、发票及原人工三人分离规则未放宽；本片不装配新写者，实际stg三保护与Saga由后继W4-09完成。
+
+<a id="payment-txn-shipping-report"></a>
+
+**发货受理事实（W4-09独立结构前置）**
+
+六个专用列声明发货意图及受理事实，旧行保持全空。`unknown` 必须在首次事务外POST之前提交；它不代表已送达，也不能在通用幂等24小时清理、投递重试或人工redrive时清除。只有Provider明确 `acceptance=not_accepted` 才可记未受理并按原有界退避重新认领；超时、取消、5xx、缺失受理标记、查询失败/无发货/字段缺失一律保持未知，禁止据此盲目重报。可信成功响应或完整匹配原收款和固化意图的query才可确认，confirmed不再自动重报。
+
+query无AppID字段，后继writer先核此次调用配置与固化AppID一致，再核商户号、渠道/商户单号、实际付款身份、实收额、虚拟物流类型、统一发货模式、完成标记、描述及秒级上传时间。`upload_time` 保留毫秒意图，以floor(ms/1000)与query匹配；`confirmed_at` 取注入Clock真实观察值，时钟倒退则保unknown，不能用max伪造确认时刻。行内CHECK不替代同主体、付款单反向指针或调用配置校验；后继writer沿原 `billing_order(290)→payment_txn(300)` 与SessionMutex、带固化意图的条件更新实现恢复。本片仅结构声明，无writer/job、真实发货或开关启用，见 [前置边界](../plan/changes/W4-09-shipping-state-prerequisite.md)。

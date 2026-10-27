@@ -42,6 +42,7 @@ import { bindAgreementNoticeLink } from "./config/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import {
   currentSessionOpenid,
+  createIdentity,
   findWechatIdentityId,
   recentWechatOpenid,
 } from "./identity/index.js";
@@ -93,11 +94,17 @@ import type { Approval } from "./approval/index.js";
 import {
   bindBillingTimers,
   createBillingPurchase,
+  createStagingPayEntry,
   createTransferReviewAssembly,
   createInvoiceAssembly,
   createInvoices,
   createRefunds,
+  createPaymentExceptions,
   createRefundAssembly,
+  createStagingPayAssembly,
+  createReconciliation,
+  createReconciliationAssembly,
+  createShippingAssembly,
   createWechatRefundSource,
   createFinanceConfigService,
   createLedger,
@@ -165,6 +172,7 @@ import {
   createTenantEntitlementAssembly,
   createRuntimeTenantEntitlement,
   createAlertFactsAssembly,
+  createBillMissingObserver,
 } from "./ops/index.js";
 import type { Health, StartupCheck } from "./ops/index.js";
 import type { Providers, ProductionMediaTools } from "./providers/types.js";
@@ -285,9 +293,12 @@ export interface Runtime {
   readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
+  readonly stagingPay: ReturnType<typeof createStagingPayEntry>;
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
     refunds: ReturnType<typeof createRefunds>;
+    paymentExceptions: ReturnType<typeof createPaymentExceptions>;
+    reconciliation: ReturnType<typeof createReconciliation>;
     financeConfig: ReturnType<typeof createFinanceConfigService>;
     adjustments: ReturnType<typeof createBillingAdjustments>;
     accounts: ReturnType<typeof createBillingAccounts>;
@@ -425,6 +436,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     redis,
     clock,
     version,
+    financeCertificates: async () => {
+      const expiresAt = env.WECHAT_PAY?.merchantCertificateExpiresAt;
+      return expiresAt === undefined
+        ? []
+        : [{ kind: "merchant_api_cert", expiresAt: new Date(expiresAt) }];
+    },
     ...(options.healthCacheMs === undefined ? {} : { cacheMs: options.healthCacheMs }),
   });
   const notifyMessages = createNotifyMessages({
@@ -479,7 +496,10 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
   const adjustmentScope = createAdjustmentAssembly(invoiceScope.assembly);
   const refundScope = createRefundAssembly(adjustmentScope.assembly);
-  const assembly = refundScope.assembly;
+  const stagingPayScope = createStagingPayAssembly(refundScope.assembly);
+  const reconciliationScope = createReconciliationAssembly(stagingPayScope.assembly);
+  const shippingScope = createShippingAssembly(reconciliationScope.assembly);
+  const assembly = shippingScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -929,6 +949,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
   });
   let billingKeys = options.billingKeyring;
+  const fulfillment = createFulfillment({ clock, events });
   const purchaseDeps: BillingPurchaseDeps = {
     ...(env.WECHAT_PAY
       ? {
@@ -956,7 +977,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       flow,
       timers,
       bizNo,
-      fulfillment: createFulfillment({ clock, events }),
+      fulfillment,
     }),
     approval,
     docs: docsServices.docs,
@@ -982,18 +1003,65 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   adjustmentScope.attach(adjustmentDeps);
   const refundDeps = {
     ...purchaseDeps,
+    stagingPay: {
+      APP_ENV: env.APP_ENV,
+      ...(env.STAGING_PAY ? { STAGING_PAY: env.STAGING_PAY } : {}),
+    },
     isQualificationDead,
     approvalRefs: createBillingApprovalRefs({ clock }),
   };
   refundScope.attach(refundDeps);
+  stagingPayScope.attach(refundDeps);
+  const reconciliationDeps: Parameters<typeof createReconciliation>[0] = {
+    ...refundDeps,
+    sessionMutex,
+    systemFiles: media,
+    orderPrefix: env.APP_ENV === "stg" ? "TFK" : "FK",
+    observeBillMissing: createBillMissingObserver({ tx, clock }),
+  };
+  reconciliationScope.attach(reconciliationDeps);
+  shippingScope.attach({
+    tx,
+    clock,
+    sessionMutex,
+    provider: providers.wechat,
+    appid: env.WECHAT?.appid,
+    paymentAppid: env.WECHAT_PAY?.appid,
+    mchid: env.WECHAT_PAY?.mchid,
+  });
   const billing = {
     ...createBillingPurchase(purchaseDeps),
     invoices: createInvoices(invoiceDeps),
     refunds: createRefunds(refundDeps),
+    paymentExceptions: createPaymentExceptions({ ...refundDeps, fulfillment }),
+    reconciliation: createReconciliation(reconciliationDeps),
     financeConfig: createFinanceConfigService(purchaseDeps),
     adjustments: createBillingAdjustments(adjustmentDeps),
     accounts: createBillingAccounts(adjustmentDeps),
   };
+  // CLI 身份仍由正式商家会话/协议公口核验；不把主体ID当认证凭证。
+  let stagingIdentity: ReturnType<typeof createIdentity> | undefined;
+  const stagingPay = createStagingPayEntry({
+    env,
+    purchaseDeps,
+    purchase: billing,
+    wechat: providers.wechat,
+    wechatPayConfigured: providers.wechatPay.configured,
+    identity: () =>
+      (stagingIdentity ??= createIdentity({
+        tx,
+        clock,
+        flow,
+        assembly,
+        events,
+        config,
+        tenant,
+        docs: docsServices.docs,
+        keyring: () => (billingKeys ??= loadKeyring(env)),
+        appid: env.WECHAT!.appid,
+        wechat: providers.wechat,
+      })),
+  });
   invoiceScope.attach(invoiceDeps);
   transferReviewScope.attach(purchaseDeps);
   const unbindPaymentChannel = bindPaymentChannel(billing.wechatChannel);
@@ -1095,6 +1163,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     billing,
+    stagingPay,
     billingParameters: createParameterChanges({
       tx,
       clock,
@@ -1170,6 +1239,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([
           () => invoiceScope.close(),
           () => refundScope.close(),
+          () => stagingPayScope.close(),
+          () => reconciliationScope.close(),
+          () => shippingScope.close(),
           () => adjustmentScope.close(),
           () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),

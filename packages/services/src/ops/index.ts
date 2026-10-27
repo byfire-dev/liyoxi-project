@@ -79,6 +79,7 @@ export { createRuntimeMediaProduction } from "./media-production-runtime.js";
 
 export { createDocsAssembly, createRuntimeDocs } from "./docs-runtime.js";
 export { createAlertFacts } from "./alert-facts.js";
+export { createBillMissingObserver } from "./bill-missing.js";
 export type { AlertFacts, AlertFactsDeps } from "./alert-facts.js";
 export { createAlertFactsAssembly } from "./alert-facts-runtime.js";
 

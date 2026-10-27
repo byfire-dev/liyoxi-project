@@ -51,6 +51,7 @@ const options = {
     "sms-init": "src/cli/sms-init.ts",
     "alerts-ack": "src/cli/alerts-ack.ts",
     "refund-abandon-txn": "src/cli/refund-abandon-txn.ts",
+    "staging-pay-qr": "src/cli/staging-pay-qr.ts",
     "analytics-repartition": "src/cli/analytics-repartition.ts",
   },
   outdir,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AlertInput } from "../kernel/index.js";
 import type { SqlRunner } from "./binding.js";
 import type { ProbeRule } from "./probe-rules.js";
+import type { PaymentExceptionAlertFacts } from "../billing/index.js";
 
 const count = z.number().int().nonnegative();
 const facts = z.object({
@@ -13,7 +14,10 @@ const facts = z.object({
 });
 
 /** D7 §9.4 第3–5项及D2 §16：只取持久资金事实，不查渠道、不入账或驱动退款。 */
-export function financialProbeRules(db: SqlRunner): readonly ProbeRule[] {
+export function financialProbeRules(
+  db: SqlRunner,
+  exceptions?: (at: Date) => Promise<PaymentExceptionAlertFacts>,
+): readonly ProbeRule[] {
   return [
     {
       key: "billing",
@@ -71,5 +75,51 @@ export function financialProbeRules(db: SqlRunner): readonly ProbeRule[] {
         return result;
       },
     },
+    ...(exceptions
+      ? [
+          {
+            key: "payment_exceptions",
+            targets: ["open", "critical", "overdue"].map((dimension) => ({
+              rule: "billing.payment_exception",
+              dimension,
+            })),
+            async sample(at: Date): Promise<AlertInput[]> {
+              const facts = await exceptions(at);
+              return [
+                ...(facts.unresolved
+                  ? [
+                      {
+                        rule: "billing.payment_exception",
+                        dimension: "open",
+                        severity: "P1" as const,
+                        detail: { unresolved: facts.unresolved },
+                      },
+                    ]
+                  : []),
+                ...(facts.critical
+                  ? [
+                      {
+                        rule: "billing.payment_exception",
+                        dimension: "critical",
+                        severity: "P1" as const,
+                        detail: { critical: facts.critical },
+                      },
+                    ]
+                  : []),
+                ...(facts.overdue
+                  ? [
+                      {
+                        rule: "billing.payment_exception",
+                        dimension: "overdue",
+                        severity: "P1" as const,
+                        detail: { oldestDueAt: facts.oldestDueAt, escalated: true },
+                      },
+                    ]
+                  : []),
+              ];
+            },
+          },
+        ]
+      : []),
   ];
 }

@@ -1,4 +1,11 @@
+import { unboundStagingRefundApproval } from "./staging-pay/kind.js";
+import { unboundShipping } from "./payment/shipping-assembly.js";
 import { refundInvariants } from "./refund/invariants.js";
+import { reconciliationInvariants } from "./reconciliation/invariants.js";
+import { withReconciliationBinding } from "./reconciliation/binding.js";
+import { billFileRefs } from "./reconciliation/file-refs.js";
+import { unboundReconciliationJob } from "./reconciliation/assembly.js";
+import { withPaymentExceptionBinding } from "./payment/exceptions/binding.js";
 import { refundFileRefs } from "./refund/file-refs.js";
 import { refundMachineBinding, refundMachineKey, withRefundBinding } from "./refund/binding.js";
 import { unboundRefundApproval, unboundRefundHandler } from "./refund/assembly.js";
@@ -76,6 +83,7 @@ import { dramaPriceAdapter } from "./pricing/drama-price-port.js";
 
 export const registration = defineRegistration("billing", {
   portImplementations: [
+    implementKeyed(fileRefTypePort, "wx_bill_file", billFileRefs),
     implementKeyed(approvalKindPort, "points_adjust", unboundAdjustmentKinds.points),
     implementKeyed(approvalKindPort, "subscription_extend", unboundAdjustmentKinds.extension),
     implementKeyed(remindersPort, "R1", {
@@ -153,6 +161,9 @@ export const registration = defineRegistration("billing", {
     ),
     implementKeyed(machinePort, refundMachineKey, refundMachineBinding),
     implementKeyed(approvalKindPort, "plan_refund", unboundRefundApproval),
+    implementKeyed(approvalKindPort, "staging_pay_refund", unboundStagingRefundApproval, {
+      envs: ["stg"],
+    }),
     implementKeyed(fileRefTypePort, "refund_txn", refundFileRefs),
     implementKeyed(machinePort, invoiceMachineKey, invoiceMachineBinding),
     implementKeyed(fileRefTypePort, "invoice_doc", {
@@ -195,10 +206,22 @@ export const registration = defineRegistration("billing", {
     implement(billingAccountPort, billingAccountOpener),
     implementMerchantFacts("billing", billingMerchantFacts),
     ...purchaseMachineBindings.map(({ key, binding }) =>
-      implementKeyed(machinePort, key, withRefundBinding(key, binding)),
+      implementKeyed(
+        machinePort,
+        key,
+        withReconciliationBinding(
+          key,
+          withPaymentExceptionBinding(key, withRefundBinding(key, binding)),
+        ),
+      ),
     ),
   ],
   subscribers: [
+    {
+      name: "billing.uploadShippingInfo",
+      events: ["billing_order.paid"],
+      handle: unboundShipping,
+    },
     {
       name: "billing.submitRefundTxn",
       events: ["refund_txn.created"],
@@ -238,6 +261,28 @@ export const registration = defineRegistration("billing", {
   ],
   recurringJobs: [
     {
+      kind: "bill.download",
+      schedule: { every: "minutes", minutes: 30 },
+      mode: "job",
+      leaseSec: 300,
+      maxAttempts: 3,
+      deadlineMin: 30,
+      missSeverity: "P1",
+      catchUp: true,
+      run: unboundReconciliationJob,
+    },
+    {
+      kind: "receipt.daily_digest",
+      schedule: { every: "day", at: "18:00" },
+      mode: "job",
+      leaseSec: 300,
+      maxAttempts: 3,
+      deadlineMin: 60,
+      missSeverity: "P3",
+      catchUp: true,
+      run: unboundReconciliationJob,
+    },
+    {
       kind: "billing.sweep.daily",
       schedule: { every: "day", at: "00:00" },
       mode: "job",
@@ -272,6 +317,7 @@ export const registration = defineRegistration("billing", {
     },
   ],
   invariants: [
+    ...reconciliationInvariants,
     ...refundInvariants,
     ...billingInvariants,
     ...adjustmentInvariants,

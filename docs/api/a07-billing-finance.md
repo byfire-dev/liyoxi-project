@@ -656,6 +656,7 @@
 | `invoice` | object | 是 | `{ latest: { invoiceRequestId, requestNo, status } \| null, needsRedInvoice }`（“已开票的付款须先开具红字发票，再执行退款”） | `invoice_request`（本付款单最新一张） |
 | `entitlementRevokedAt` | string(date-time) \| null | 是 | 权益已回收的时刻（非空后不可作废） | `refund_request.entitlement_revoked_at` |
 | `executedBy`、`executedAt` | `StaffBrief`、string(date-time) \| null | 是 | 最近一次执行 | `refund_request.executed_by_staff_id`、`refund_request.executed_at` |
+| `isExecutedBySystem` | boolean | 是 | 是否真实由预发系统执行；默认false保留旧调用方兼容，不能由executedBy=null推断；新来源所有人工actions关闭 | `refund_request.is_executed_by_system` |
 | `voidedBy`、`closeNote` | `StaffBrief`、string \| null | 是 | 作废人与说明 | `refund_request.voided_by_staff_id`、`refund_request.close_note` |
 | `execError` | object \| null | 是 | 最近一次执行失败 `{ at, refundTxnId, code, message }` | `refund_request.exec_error` |
 | `refundTxns` | array<`RefundTxnView`> | 是 | 历次退款交易 | `refund_txn`（`refund_request_id` = 本单） |
@@ -2336,7 +2337,7 @@
 | `q` | string | 否 | `TK` 单号、`FK` 单号、商家名 |
 | `entityId`、`storeId` | string(uuid) | 否 | `storeId` 按付款单的下单门店 |
 | `ruleCode` | enum | 否 | |
-| `source` | enum | 否 | `customer_service` / `exception` |
+| `source` | enum | 否 | `customer_service` / `exception` / `staging_probe` |
 | `overdueOnly` | boolean | 否 | 只看超时的待审批（`approval_request.due_at` 已过）与待执行（`exec_due_at` 已过），同 a05 |
 | `page`、`pageSize` | integer | 否 | C43 |
 
@@ -2816,7 +2817,7 @@
 | 鉴权 | `staff`；`finance.recon.resolve`（A46 标再验证） |
 | 回显 | 要求 `confirm`：`{ billDate }` |
 | 幂等 | required |
-| 乐观锁 | 无（整个对账按账单日幂等，事务级咨询锁串行化） |
+| 乐观锁 | 无（整个对账按当前商户号/账单日持既有会话咨询锁串行；逐主体资金事务仍取同日事务咨询锁） |
 | 对应画板 | A:Reconcile（原型未画；有差异或账单补到时在日行上给“重新对账”） |
 
 **请求**：路径 `reconciliationId`（`recon_day.id`，微信渠道行）。请求体：`confirm`。
@@ -2832,6 +2833,8 @@
 | `CONFIRM_MISMATCH` | 409 | |
 
 **副作用**（同步执行匹配步骤，d2:1056-1082）：重写该日 `wx_bill_line.match_state`；按差异单 `dedupe_key` 开新的差异单（`payment_exception.status`：（新建）→ `open` 或 `auto_healed`），`platform_only` 在账单补到后 `open → auto_healed`；更新 `payment_txn.recon_state`、`payment_txn.fee_fen` 回填与 `refund_txn.recon_state`；`recon_day` 重算汇总与 `status`，`run_count + 1`、`last_run_at`；出站事件 `payment_exception.opened`（新开时）、`payment_exception.auto_healed`（自愈时）、`recon.day_closed`（x01 这两个差异单事件的发出方还没有登记本接口，cross_doc）；审计（`category = recon`）。
+
+实际运行沿C51 required多事务：框架禁止嵌套事务/事务内外呼，故先取得整个账单日的既有SessionMutex，再占用幂等意图；每笔主体现金独立TX经收款/退款公口补记，最后日汇总/审计/幂等响应同TX提交。中断可用相同键恢复，原件/渠道号/已入账事实不重复；占用/容量不足或会话锁丢失按既有BUSY边界失败，不无锁继续。账单退款匹配与日行退款累计用原件申请全额（08 summary的v1行号证据），原退款结算汇总保持原字段名；微信日行的平台退款按原收款payment_txn.channel归属，微信原收款的人工offline退仍计微信，对公原收款的offline退不混入微信。
 
 ### 3.76 admin.paymentException.list　差异单列表
 `GET /admin/payment-exceptions`
@@ -2913,7 +2916,7 @@
 | operationId | `admin.paymentException.resolve`（d2:1475） |
 | 鉴权 | `staff`；`finance.recon.resolve`（A46 标再验证）；`resolution = written_off` 时处理器另要求 `sys.super_admin`（A45），不足 403 `PERMISSION_DENIED` |
 | 回显 | 要求 `confirm`：`{ exceptionNo, amountFen }` |
-| 幂等 | required；三段式，先外调（A84、C51）：`restore`、`record_channel_refund` 先占用、事务外查微信，再开事务落结果并写幂等记录；其余处理方式不外调，直接一个事务 |
+| 幂等 | required；三段式，先外调（A84、C51）：`restore`、`rebuild_order`、`record_channel_refund` 先占用、事务外查微信，再开事务落结果并写幂等记录；其余处理方式不外调，直接一个事务 |
 | 乐观锁 | 带差异单 `lockVersion`（人工处理带锁版本，08-billing-payment.md:798） |
 | 对应画板 | A:Reconcile 处理弹层（处理方式单选 + 说明必填 ≤200 字） |
 
@@ -3324,3 +3327,5 @@ C12 没有对应词的编辑与嵌套新建，按 operationId 的动作写：`up
 不采纳：整体核对提示 `TransferProofListQuery` 与 a09 `NotifySceneListQuery` 同构（`page`、`pageSize`、`q`、`tab`），两者 `tab` 取值与语义不同，不合并。
 
 **第四轮（2026-10-03，按裁决 A151–A156 收尾）**：3.62 的 C51 登记已改“多事务”（A154），删去待办说明；补记渠道退款遇闸门按 A156 定稿（3.79 说明改写），第 6 节第 5、6 项关闭，3.60 退款驳回原因改按 A156 的新场景；单值字典字段按 A151 / C85：请求 `payerBank` → `payerBankCode`（3.48、3.78）、`expressCompany` → `expressCompanyCode`（3.70），响应 `firstConfirm.payerBank` 与 `BANK_SERIAL_DUPLICATE.details.conflicts[].payerBank` 改为 `DictRef | null`；驳回原因响应第三轮已是 `DictRef`，系统枚举 `reasonCode`、`ruleCode` 不变。m07 的六个同名结构：第三轮已加 `Admin` 前缀、分页改用 `AdminPage<T>`，无需再改。
+
+W4-09结构/读兼容：退款来源增加staging_probe（预发系统退款），其审批kind仅staging_pay_refund；详情新增显式isExecutedBySystem，原executedBy保持nullable员工结构，原人工来源动作/权限/step-up不变。新来源的allowedRoutes/actions为空、canRetry/canConfirmNotAccepted为false，不通过原人工端点赋予系统操作能力。实际系统handler和10分钟自动退款由后继W4-09交付，本片不创建新值或任务。

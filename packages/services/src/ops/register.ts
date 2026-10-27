@@ -4,6 +4,7 @@
 //   invariant.quick  每 10 分钟，job，完成期限 30 分钟，漏跑 P2；出错不重试，下一期 10 分钟后就到。
 //   ops.retention    每小时整点，tx，漏跑 P3；补最近一期（停机跨过 0 点、1 点前恢复时每日项还轮得到）。
 // ops.cert_check与backup.pgdump由worker逐实例装配；探针同worker实例，发送通道继续随G2-D。
+import { unboundStagingAutorefundJob } from "../billing/index.js";
 import { alertsPort, defineRegistration, implement, invariantsPort } from "../kernel/index.js";
 import { unboundAlertFacts } from "./alert-facts.js";
 import { reportingInvariants } from "./invariants/report.js";
@@ -14,6 +15,15 @@ import { profileAdminStaffFacts } from "./profile-admin-facts.js";
 
 export const registration = defineRegistration("ops", {
   recurringJobs: [
+    {
+      kind: "stg.pay.autorefund",
+      envs: ["stg"],
+      schedule: { every: "minutes", minutes: 5 },
+      mode: "job",
+      leaseSec: 120,
+      maxAttempts: 1,
+      run: unboundStagingAutorefundJob,
+    },
     {
       kind: "backup.pgdump",
       schedule: { every: "day", at: "03:10" },

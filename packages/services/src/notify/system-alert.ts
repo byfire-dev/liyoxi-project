@@ -42,9 +42,21 @@ export async function sendSystemAlert(
   if (!scene || scene.audience !== "staff")
     throw new AppError("INTERNAL", { message: "系统告警场景尚未正确登记" });
   if (!scene.sceneEnabled) return { status: "disabled", recipients: 0, created: 0 };
-  const found = await notifyReadOf(assembly).read<string[]>(tx, "activeStaffForNotify", {
-    roleKey: "super_admin",
-  });
+  // 仅付款差异与精确账单日缺账规则增加财务；研发/运维走既有机器人与oncall通道。
+  const paymentException = /^billing\.payment_exception:(open|critical|overdue)$/.test(
+    input.fingerprint,
+  );
+  const billMissing = /^billing\.bill_missing:\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(
+    input.fingerprint,
+  );
+  const roles = paymentException || billMissing ? ["super_admin", "finance"] : ["super_admin"];
+  const found = (
+    await Promise.all(
+      roles.map((roleKey) =>
+        notifyReadOf(assembly).read<string[]>(tx, "activeStaffForNotify", { roleKey }),
+      ),
+    )
+  ).flat();
   const recipients = [...new Set(z.array(IdSchema).parse(found))].sort();
   if (!recipients.length) return { status: "no_recipients", recipients: 0, created: 0 };
   let created = 0;
@@ -80,7 +92,10 @@ export async function sendSystemAlert(
         kind: "alert",
         title: input.recovered ? "系统告警已恢复" : `系统告警 ${input.severity}`,
         body: `${input.recovered ? "已恢复" : "待处理"}：${input.fingerprint}`.slice(0, 200),
-        link: { route: "/sys/health", params: { alertId: input.alertId } },
+        link: {
+          route: paymentException ? "/finance/reconcile" : "/sys/health",
+          params: { alertId: input.alertId },
+        },
         createdAt: input.at,
         updatedAt: input.at,
       },

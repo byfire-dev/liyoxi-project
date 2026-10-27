@@ -49,3 +49,5 @@ export { sendStaffWecomInvite } from "./staff-invite.js";
 export { sendQuotaExceeded } from "./entitlement.js";
 
 export type { InvoiceMailSource } from "./context.js";
+
+export { sendReceiptDailyDigest } from "./receipt-digest.js";

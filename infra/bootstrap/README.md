@@ -46,6 +46,9 @@ cd ~/lyx-src && sudo bash infra/bootstrap/node-init.sh --dry-run --deploy-key ~/
 - `--nginx-oom` 单列：另装一份 systemd 覆盖文件，让内存见底时别先杀宿主机 nginx。这是动别人的服务，业主同意才带；nginx 下次重启后生效，脚本不重启它。撤掉：`sudo rm /etc/systemd/system/nginx.service.d/lyx-oom.conf && sudo systemctl daemon-reload`。
 - 误报参考工程的进程（命令行里恰好带参考工程名、又与它无关）：确认之后设 `LYX_REF_NAME=<不会命中的名字>` 重跑，并把这件事记下来。
 - 以后脚本有更新：重新传一遍、重跑 `node-init.sh`（不带 `--registry` 时 `node.env` 不动）。
+
+预发小额候选主体的非敏感配置可在节点`node.env`显式填写`STAGING_PAY_ENTITY_IDS=<小写UUIDv7列表>`，逗号分隔，最多100个且非空输入总长不超过4096字符；不接受重复主体、空项、大写或其他UUID版本。默认留空，不从购买策略、CLI参数或其他名单推断。仅worker及无网络的check-env接收该值，其他容器不传；唯一loadEnv在stg以外拒绝非空值，空配置保持旧输出。实体标识不是密钥，不放进secrets清单。此独立配置前置只解析明确候选集合，不启用任务、审批、退款或发货；后继runtime仍须完成生产登记/handler双排除及金额、前缀、白名单保护。当前不执行节点配置或资金操作。
+
 - **回退**（这一步之后还没有密钥与数据）：`sudo userdel -r lyx-deploy; sudo rm -f /etc/sudoers.d/lyx-deploy /etc/systemd/system/lyx-*.service; sudo systemctl daemon-reload; sudo rm -rf /opt/liyoxi`。
 
 ## 3. 第 2 步：密钥文件（只有业主做）

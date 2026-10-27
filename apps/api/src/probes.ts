@@ -3,7 +3,7 @@
 //   /healthz                   进程能应答即 200
 //   /readyz                    启动完成且未在排空才 200，否则 503；之后不看数据库与 Redis
 //   /health                    聚合状态；degraded 回 503，响应体不变
-//   /internal/health/finance   只有框架（留桩，M4 回补）：各指标为 null，回 503
+//   /internal/health/finance   逐指标只读资金事实，失败/null按h01降级
 //   /internal/health/flow      只有框架（留桩，M7 回补）：同上
 // 契约里登记了而这里没有处理器的条目，建应用时即报错。
 import { allRegistryOnly } from "@liyoxi/contract";
@@ -48,8 +48,10 @@ const PROBES: Readonly<Record<string, Probe>> = {
     },
   },
   "hooks.internalHealth.finance.get": {
-    frame: true,
-    handle: (c, { runtime }) => reply(c, runtime.health.finance(), false),
+    handle: async (c, { runtime }) => {
+      const finance = await runtime.health.finance();
+      return reply(c, finance, finance.status === "ok");
+    },
   },
   "hooks.internalHealth.flow.get": {
     frame: true,

@@ -8,7 +8,10 @@ const guard: Guard = async (tx, facts) => {
   });
   if (
     !request ||
-    request.approvalRequest.kind !== "plan_refund" ||
+    !(request.source === "staging_probe"
+      ? request.approvalRequest.kind === "staging_pay_refund"
+      : ["customer_service", "exception"].includes(request.source) &&
+        request.approvalRequest.kind === "plan_refund") ||
     request.entityId !== request.paymentTxn.entityId ||
     request.billingOrderId !== request.paymentTxn.billingOrderId
   )
@@ -77,6 +80,7 @@ export const refundMachineBinding: MachineBinding = {
     "sla_snapshot",
     "entitlement_revoked_at",
     "executed_by_staff_id",
+    "is_executed_by_system",
     "executed_at",
     "done_at",
     "closed_at",

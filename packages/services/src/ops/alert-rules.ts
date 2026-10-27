@@ -14,6 +14,7 @@ export const EVENT_ALERT_RULES = [
   "order.pending_start_missing",
   "webhook.dead",
   "webhook.failing",
+  "billing.callback_failed",
   "pii.reveal_limit",
   "ops.unknown_rule",
   "ops.channel_heartbeat",
@@ -33,6 +34,8 @@ export const EVENT_ALERT_RULES = [
   "evidence.consent_digest_unavailable",
 ] as const;
 export const PROBE_ALERT_RULES = [
+  "billing.bill_missing",
+  "billing.payment_exception",
   "outbox.unpublished",
   "outbox.delivery_lag",
   "outbox.dead",
