@@ -126,6 +126,7 @@ export const unconfiguredWechatPay: WechatPayProvider = {
   queryByOutTradeNo: wechatPayOff,
   closeOrder: wechatPayOff,
   createRefund: wechatPayOff,
+  queryRefund: wechatPayOff,
   fetchTradeBill: wechatPayOff,
 };
 

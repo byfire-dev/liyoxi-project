@@ -1463,7 +1463,7 @@ billing.I11：估值守恒——每个批次“净确认收入 + 转出 + 剩余
 | `extended` | `days`、`approvalRequestId`、`requestNo`（审批单号）、`revived`（是否为到期后补批）、`gapDays`（过期到复活之间的空档天数）、`prevEndDate`、`newEndDate` | d1:366、1032 |
 | `rolled_over` | `maxStores`、`maxMembers`（新周期的名额；新旧版本在行上的 `from_*`、`to_*` 列）。事件里没有“是否超限” | d1:1002 |
 | `refund_suspended`、`refund_resumed` | `refundRequestId`、`rule` | d1:1101-1112 |
-| `refunded`、`cancelled` | `refundRequestId`（补记渠道退款时为空，改填 `paymentExceptionId`）、`rule`、`revokedPoints`、`cancelledSchedules`、`billingOrderIds`（该周期权益对应的付款单：来源付款单；周期升级过时另含各升级补差付款单，只可能出现在 `override` 与补记渠道退款，M98）；补记渠道退款另有 `unrecoveredPoints`（含义见 2.9；遇闸门不回收时周期不迁移、不写这条周期事件，原 `closedRefundRequestId` 按 A156 删去） | d1:1126；d2:1114；M98；M100；A156 |
+| `refunded`、`cancelled` | `refundRequestId`（补记渠道退款时为空，改填 `paymentExceptionId`）、`rule`、`revokedPoints`、`cancelledSchedules`、`billingOrderIds`（该周期权益对应的付款单：来源付款单；周期升级过时另含各升级补差付款单，只可能出现在 `override` 与补记渠道退款，M98）；补记渠道退款另有 `unrecoveredPoints`（含义见 2.9；遇闸门不回收时周期不迁移、不写这条周期事件，原 `closedRefundRequestId` 按 A156 删去）；退款导致后续预约周期前移时，`affectedTerms` 保存同事务变更后仍为 `scheduled` 的各周期 `SubscriptionDailySnapshot`，与根事件同 seq 生效，须同主体、去重且不含根周期；它不证明周期创建史。无新增业务条数上限，仅保存真实受影响集合，沿已有快照数组边界 | d1:1126；d2:1114；M98；M100；A156 |
 | `activated`、`renewal_scheduled`、`downgrade_scheduled`、`expired`、`resumed` | 草案没有给出内容，默认为空；需要时在契约里按 `type` 增补 | — |
 
 ### 4.5 `point_hold.pricing_snapshot`（`PricingSnapshot`）

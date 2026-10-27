@@ -241,7 +241,13 @@ export interface WechatPayRefund {
   refundId: string;
   status: WechatPayRefundStatus;
   refundFen: number;
+  successAt?: Date;
+  userReceivedAccount?: string;
 }
+
+/** 查询专用可信不存在证明；普通HTTP错误码、网络404与超时均不得给出此标记。 */
+export type WechatPayRefundQueryResult =
+  ProviderSuccess<WechatPayRefund> | (ProviderFailure & { readonly refundNotFound?: true });
 
 /** 验签并解密之后的回调内容。id 是通知编号，同一条通知重复投递时不变 */
 export type WechatPayNotification =
@@ -357,6 +363,7 @@ export interface WechatPayProvider extends ProviderBase {
     totalFen: number;
     reason?: string;
   }): Promise<ProviderResult<WechatPayRefund>>;
+  queryRefund(input: { outRefundNo: string }): Promise<WechatPayRefundQueryResult>;
   /** 账单：申请并取回某一天的交易账单原文。billDate 写 YYYY-MM-DD（北京时间） */
   fetchTradeBill(input: {
     billDate: string;
@@ -1156,6 +1163,7 @@ export const PROVIDER_METHODS = {
     "queryByOutTradeNo",
     "closeOrder",
     "createRefund",
+    "queryRefund",
     "fetchTradeBill",
   ],
   sms: [

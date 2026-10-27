@@ -11,6 +11,7 @@ import {
   PAYMENT_EXCEPTION_KIND,
   PAYMENT_EXCEPTION_STATUS,
   POINT_HOLD_PURPOSE,
+  PAYMENT_EXCEPTION_RESOLUTION,
 } from "../enums/index.js";
 import { zodEnum } from "../enums/zod.js";
 import { z } from "../zod.js";
@@ -216,7 +217,106 @@ const invoiceTransition = {
   transition: z.string(),
 };
 const invoiceRef = { v: z.literal(1), invoiceRequestId: IdSchema };
+const refundTransition = {
+  fromState: z
+    .enum(["pending_approval", "pending_execution", "executing", "done", "not_executed"])
+    .nullable(),
+  toState: z.enum(["pending_approval", "pending_execution", "executing", "done", "not_executed"]),
+  transition: z.string(),
+};
+const refundRef = { v: z.literal(1), refundRequestId: IdSchema, ...refundTransition };
 export const payloads = {
+  "refund_txn.created": z.strictObject({
+    v: z.literal(1),
+    refundTxnId: IdSchema,
+    refundRequestId: IdSchema.nullable(),
+    amountFen: z.int().positive(),
+  }),
+  "refund.submitted": z.strictObject({
+    ...refundRef,
+    approvalRequestId: IdSchema,
+    ruleCode: z.enum([
+      "window",
+      "qualification_failed",
+      "override",
+      "fulfillment_blocked",
+      "unapplied_receipt",
+    ]),
+    amountFen: z.int().positive(),
+    billingOrderId: IdSchema.nullable(),
+  }),
+  "refund.approved": z.strictObject({ ...refundRef, execDueAt: InstantSchema }),
+  "refund.rejected": z.strictObject({
+    ...refundRef,
+    billingOrderId: IdSchema.nullable(),
+    entityId: IdSchema.nullable(),
+  }),
+  "refund.withdrawn": z.strictObject(refundRef),
+  "refund.voided": z.strictObject(refundRef),
+  "refund.execution_started": z.strictObject({ ...refundRef, refundTxnId: IdSchema }),
+  "refund.completed": z.strictObject({
+    ...refundRef,
+    billingOrderId: IdSchema.nullable(),
+    entityId: IdSchema.nullable(),
+    amountFen: z.int().positive(),
+  }),
+  "refund.execution_failed": z.strictObject({
+    ...refundRef,
+    refundTxnId: IdSchema,
+    txnStatus: z.enum(["closed", "not_accepted", "abandoned"]),
+  }),
+  "billing_order.refunded": z.strictObject({
+    v: z.literal(1),
+    billingOrderId: IdSchema,
+    entityId: IdSchema,
+    refundedFen: z.int().nonnegative(),
+    fromState: z.enum(BILLING_ORDER_STATUS.values).nullable(),
+    toState: z.enum(BILLING_ORDER_STATUS.values),
+    transition: z.string(),
+  }),
+  "billing.subscription.refund_suspended": z.strictObject({
+    v: z.literal(1),
+    termId: IdSchema,
+    entityId: IdSchema,
+    refundRequestId: IdSchema,
+  }),
+  "billing.subscription.refund_resumed": z.strictObject({
+    v: z.literal(1),
+    termId: IdSchema,
+    entityId: IdSchema,
+    refundRequestId: IdSchema,
+  }),
+  "billing.subscription.refunded": z.strictObject({
+    v: z.literal(1),
+    termId: IdSchema,
+    entityId: IdSchema,
+    termStatus: z.enum(["refunded", "cancelled"]),
+    refundRequestId: IdSchema.optional(),
+    paymentExceptionId: IdSchema.optional(),
+  }),
+  "payment_exception.refund_requested": z.strictObject({
+    v: z.literal(1),
+    paymentExceptionId: IdSchema,
+    refundRequestId: IdSchema,
+    fromState: z.enum(PAYMENT_EXCEPTION_STATUS.values).nullable(),
+    toState: z.enum(PAYMENT_EXCEPTION_STATUS.values),
+    transition: z.string(),
+  }),
+  "payment_exception.reopened": z.strictObject({
+    v: z.literal(1),
+    paymentExceptionId: IdSchema,
+    fromState: z.enum(PAYMENT_EXCEPTION_STATUS.values).nullable(),
+    toState: z.enum(PAYMENT_EXCEPTION_STATUS.values),
+    transition: z.string(),
+  }),
+  "payment_exception.resolved": z.strictObject({
+    v: z.literal(1),
+    paymentExceptionId: IdSchema,
+    resolution: z.enum(PAYMENT_EXCEPTION_RESOLUTION.values),
+    fromState: z.enum(PAYMENT_EXCEPTION_STATUS.values).nullable(),
+    toState: z.enum(PAYMENT_EXCEPTION_STATUS.values),
+    transition: z.string(),
+  }),
   "manual_reminder.sent": z.strictObject({
     v: z.literal(1),
     manualReminderLogId: IdSchema,
