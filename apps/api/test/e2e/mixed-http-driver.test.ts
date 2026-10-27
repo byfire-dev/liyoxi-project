@@ -150,7 +150,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
       .map((row) => row.operationId)
       .sort(),
   );
-  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(9);
+  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(10);
   for (const row of plan.operations) {
     const route = allRoutes.find((one) => one.operationId === row.operationId);
     expect(route, row.operationId).toBeDefined();
@@ -177,6 +177,9 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   expect(
     plan.operations.find((row) => row.operationId === "admin.subscriptionTerm.list")?.path,
   ).toBe("/api/v1/admin/subscription-terms?tab=expiring");
+  expect(plan.operations.find((row) => row.operationId === "admin.reconciliation.list")?.path).toBe(
+    "/api/v1/admin/reconciliations?month=2026-01",
+  );
   expect(
     plan.details.some((row) => row.operationId === "admin.deliveryTicket.episodeOutput.list"),
   ).toBe(true);
