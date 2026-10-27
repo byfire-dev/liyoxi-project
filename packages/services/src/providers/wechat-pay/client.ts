@@ -61,6 +61,8 @@ export interface RequestSpec {
   body?: Json;
   /** 应答不带签名（账单下载）：跳过验签 */
   unsigned?: boolean;
+  /** 仅退款查询：不存在证明也必须验签；其他旧调用的错误归一保持原样。 */
+  verifyError?: boolean;
 }
 
 export type HttpOutcome =
@@ -72,6 +74,7 @@ export type HttpOutcome =
       /** 微信的错误码 */
       code?: string;
       message: string;
+      verifiedError?: true;
     };
 
 export interface WechatPayClient {
@@ -146,13 +149,29 @@ export function createClient(config: ClientConfig, deps: ClientDeps): WechatPayC
     }
     const { status } = response;
     const requestId = REQUEST_ID.exec(response.headers.get("Request-ID") ?? "")?.[0];
+    if (spec.verifyError && (status < 200 || status >= 300)) {
+      const stamp = response.headers.get("Wechatpay-Timestamp") ?? "";
+      const identity = deps.verifiers.lookup(response.headers.get("Wechatpay-Serial") ?? "");
+      const signed = responseSignMessage(
+        stamp,
+        response.headers.get("Wechatpay-Nonce") ?? "",
+        bytes,
+      );
+      if (
+        !identity ||
+        !rsaVerify(signed, response.headers.get("Wechatpay-Signature") ?? "", identity.publicKey) ||
+        !withinSkew(stamp, now())
+      )
+        return failure("unavailable", "的应答验签失败，应答已丢弃", status, undefined, requestId);
+    }
     if (status < 200 || status >= 300) {
       const raw = text(parseObject(bytes.toString("utf8"))?.code) ?? "";
       const code = ERROR_CODE.test(raw) ? raw : undefined;
       const retryable = status >= 500 || status === 429;
-      return retryable
+      const result = retryable
         ? failure("unavailable", "暂时不可用", status, code, requestId)
         : failure("rejected", "拒绝了请求", status, code, requestId);
+      return { ...result, ...(spec.verifyError ? { verifiedError: true as const } : {}) };
     }
     if (!spec.unsigned) {
       const stamp = response.headers.get("Wechatpay-Timestamp") ?? "";

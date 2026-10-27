@@ -511,6 +511,7 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
       "channel_account",
       "finance_config_change",
       "launch_link",
+      "plan_refund",
       "points_adjust",
       "qualification",
       "subscription_extend",

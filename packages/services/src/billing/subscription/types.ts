@@ -3,6 +3,34 @@ import type { Events } from "../../events/index.js";
 import type { Clock } from "../../kernel/index.js";
 import type { LedgerStep } from "../ledger/types.js";
 
+export type PlanRefundRule = "window" | "qualification_failed" | "override";
+export interface PlanRefundPreview {
+  readonly termId: string;
+  readonly entityId: string;
+  readonly termStatus: string;
+  readonly termStartsAt: string;
+  readonly termEndsAt: string;
+  readonly windowDeadline: string | null;
+  readonly withinWindow: boolean;
+  readonly unused: boolean;
+  readonly upgraded: boolean;
+  readonly refundableFen: number;
+  readonly billingOrderIds: readonly string[];
+  readonly addonAvailable: number;
+  readonly usage: { readonly heldOrUsedHolds: number; readonly lotsTouched: number };
+  readonly sideEffects: {
+    readonly revokePoints: number;
+    readonly cancelSchedules: number;
+    readonly addonWillSuspend: number;
+    readonly nextTermWillStartNow: boolean;
+  };
+}
+export interface RevokeTermResult {
+  readonly revokedPoints: number;
+  readonly cancelledSchedules: number;
+  readonly billingOrderIds: readonly string[];
+}
+
 /** 履约自己的写步骤 */
 export const FULFILL_OWN_STEPS = ["term.insert", "schedule.insert", "promo.insert"] as const;
 export type FulfillStep = LedgerStep | (typeof FULFILL_OWN_STEPS)[number];

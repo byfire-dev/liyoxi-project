@@ -593,7 +593,7 @@
 | `rules` | array<object> | 是 | 三条套餐规则逐条结论 `{ rule, eligible, reasons }`；`reasons` 取 `outside_window`、`points_used`、`term_upgraded`、`qualification_not_dead`、`term_not_refundable` | `billing.previewPlanRefund`（d1:1070-1074）；`qualification_failed` 另看 `profile.isQualificationDead`（08-billing-payment.md:575） |
 | `suggestedRule` | enum \| null | 是 | 按 `window` → `qualification_failed` 的次序取第一条成立的；`override` 只在请求显式指定且观察者持 `refund.override.request` 时给出 | 计算 |
 | `refundableFen` | integer(分) | 是 | 可退金额（V1.0 全额 = 该笔收款实收 − 已退） | `payment_txn.channel_amount_fen` − `payment_txn.refunded_fen` |
-| `paymentTxn` | `PaymentTxnView` | 是 | 被退的收款（付款单的入账交易） | `billing_order.paid_payment_txn_id` |
+| `paymentTxn` | `PaymentTxnView` \| null | 是 | 被退的收款（付款单的入账交易）；仅不支持且尚无入账交易时为空 | `billing_order.paid_payment_txn_id` |
 | `term` | object \| null | 是 | 被退周期 `{ subscriptionTermId, planName, status, startsAt, endsAt, upgraded }`（“本期 09-10 至 10-09”） | `billing_order.fulfillment_result.termId` → `subscription_term` |
 | `windowDeadline` | string(date-time) \| null | 是 | 窗口截止 = 周期 `starts_at` + `planRefundWindowHours`；预约周期为 null | 计算 |
 | `withinWindow`、`unused` | boolean | 是 | 窗口内、未使用积分（含冻结） | `previewPlanRefund` |
@@ -2567,7 +2567,7 @@
 
 **错误**：`STATE_NOT_ALLOWED`（409：申请不是 `executing`，或当前退款交易不是 `created`——`processing` 等回调、`abnormal` 只能在商户平台处理）；`CONFIRM_MISMATCH`（409）；`IDEMPOTENCY_IN_PROGRESS`（409）；`STEP_UP_REQUIRED`（403）。
 
-**副作用**：以原 `out_refund_no` 再次提交微信（`pay-5`：重试必须用原单号）；`refund_txn.submit_count + 1`、`last_submit_at`；结果：受理（含同步返回已成功）→ `refund_txn.status`：`created → processing`，登记 `rf.poll`（首轮立即查询），成功与完成动作由回调与 `rf.poll` 落（同 3.62）；仍失败 → 保持 `created`，覆盖 `fail_code`、`fail_message`（路线图“`created → created`”）。无出站事件。审计（`category = refund`）。
+**副作用**：自动恢复默认是正常内联提交一次、同号补提交最多一次；每次外调前持久预约次数/最后提交时刻，补提交预约即停止自动提交，之后 `rf.poll` 继续查询；明确的人工 `retry` 才再提交，不在409中隐式持久停止。以原 `out_refund_no` 再次提交微信（`pay-5`：重试必须用原单号）；`refund_txn.submit_count + 1`、`last_submit_at`；结果：受理（含同步返回已成功）→ `refund_txn.status`：`created → processing`，登记 `rf.poll`（首轮立即查询），成功与完成动作由回调与 `rf.poll` 落（同 3.62）；仍失败 → 保持 `created`，覆盖 `fail_code`、`fail_message`（路线图“`created → created`”）。无出站事件。审计（`category = refund`）。
 
 ### 3.65 admin.refundRequest.confirmNotAccepted　确认微信未受理
 `POST /admin/refund-requests/{refundRequestId}/confirm-not-accepted`

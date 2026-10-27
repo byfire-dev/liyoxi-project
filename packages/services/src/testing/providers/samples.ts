@@ -55,6 +55,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
       refundFen: 100,
       totalFen: 19900,
     },
+    queryRefund: { outRefundNo: "TK-SAMPLE-0001" },
     fetchTradeBill: { billDate: "2026-10-01" },
   },
   sms: {
