@@ -13,6 +13,8 @@ import type { WechatHttpFailure } from "./client.js";
 
 export type WechatMethod = Exclude<keyof WechatProvider, "status" | "configured">;
 const REJECTIONS: Record<WechatMethod, readonly number[]> = {
+  uploadShippingInfo: [], // 受理分类由发货方法独立投影，不把通用reason当作重送证明。
+  queryShippingInfo: [10060001, 268485195],
   code2Session: [40029, 40226],
   getPhoneNumber: [40013, 40029],
   sendSubscribeMessage: [40003, 40037, 43101, 43107, 45168, 47003],
