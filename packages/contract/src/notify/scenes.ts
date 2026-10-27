@@ -83,6 +83,7 @@ export const NOTIFY_SCENES = [
   scene("s.approval_pending", "待审批"),
   scene("s.approval_decided", "审批结果"),
   scene("s.receipt_pending", "对公凭证待确认"),
+  scene("s.receipt_daily_digest", "对公确认日摘要"),
   scene("s.merchant_unreached", "商家未触达"),
   scene("s.export_ready", "导出完成"),
   scene("s.system_alert", "系统告警"),
