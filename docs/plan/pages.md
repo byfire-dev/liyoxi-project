@@ -13,17 +13,17 @@
 
 | 端 | 登记 | V1.0 应实现 | 已实现 | 未实现 | V1.1 只登记 | 入口隐藏 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 80 | 67 | 36 | 31 | 13 | 2 |
+| 运营管理后台 | 80 | 67 | 42 | 25 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 41 | 7 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 42 | 6 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
 | 端 | M1 | M2 | M3 | M4 | M5 | M6 | M7 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 运营管理后台 | 0 | 0 | 0 | 14 | 1 | 4 | 12 |
+| 运营管理后台 | 0 | 0 | 0 | 8 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 0 | 0 | 1 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 0 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -40,18 +40,18 @@
 | 工作台 | 工作台 | `/` | Main | 仪表盘 | 是 | — | M7 | G7-B | 否 |
 | 短剧库 | 短剧列表 | `/dramas` | Dramas | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
 | 短剧库 | 编辑短剧 | `/dramas/$id` | DramaEdit | 详情页 | 否 | — | M3 | W3-12 | 是 |
-| 套餐与积分 | 套餐管理 | `/billing/plans` | Plans | 配置页 | 是 | — | M4 | G4-C | 否 |
-| 套餐与积分 | 积分包管理 | `/billing/point-packs` | PointPacks | 筛选表格 | 是 | — | M4 | G4-C | 否 |
-| 套餐与积分 | 积分价模板与参数 | `/billing/params` | Params | 配置页 | 是 | — | M4 | G4-C | 否 |
+| 套餐与积分 | 套餐管理 | `/billing/plans` | Plans | 配置页 | 是 | — | M4 | G4-C | 是 |
+| 套餐与积分 | 积分包管理 | `/billing/point-packs` | PointPacks | 筛选表格 | 是 | — | M4 | G4-C | 是 |
+| 套餐与积分 | 积分价模板与参数 | `/billing/params` | Params | 配置页 | 是 | — | M4 | G4-C | 是 |
 | 套餐与积分 | 单剧积分价 | `/billing/pricing` | Pricing | 筛选表格 | 是 | — | M3 | W3-12 | 是 |
-| 套餐与积分 | 积分账户与流水 | `/billing/accounts` | PointAccounts | 筛选表格 | 是 | — | M4 | G4-C | 否 |
+| 套餐与积分 | 积分账户与流水 | `/billing/accounts` | PointAccounts | 筛选表格 | 是 | — | M4 | G4-C | 是 |
 | 商家 | 商家列表 | `/merchants` | Merchants | 筛选表格 | 是 | — | M2 | W2-15 | 是 |
 | 商家 | 商家详情 | `/merchants/$storeId` | MerchantDetail | 详情页 | 否 | — | M2 | W2-15 | 是 |
 | 商家 | 资质审核 | `/merchants/review` | Review | 审核工作台 | 是 | — | M1 | W1-09 | 是 |
 | 订单 | 订购单与付款单 | `/orders` | Orders | 筛选表格 | 是 | — | M1 | W1-19 | 是 |
 | 订单 | 订单详情 | `/orders/$orderNo` | OrderDetail | 详情页 | 否 | — | M1 | W1-19 | 是 |
 | 订单 | 对公收款确认 | `/orders/receipts` | Receipts | 审核工作台 | 是 | — | M1 | W1-12 | 是 |
-| 订单 | 套餐到期 | `/orders/renewals` | Renewals | 主从页 | 是 | — | M4 | G4-C | 否 |
+| 订单 | 套餐到期 | `/orders/renewals` | Renewals | 主从页 | 是 | — | M4 | G4-C | 是 |
 | 交付 | 工单池 | `/delivery/tickets` | Tickets | 筛选表格 | 是 | — | M1 | W1-19 | 是 |
 | 交付 | 工单详情 | `/delivery/tickets/$ticketNo` | TicketDetail | 详情页 | 否 | — | M1 | W1-19 | 是 |
 | 交付 | 广告制作任务 | `/delivery/ad-tasks` | AdTasks | 审核工作台 | 是 | — | M5 | G5-C | 否 |
@@ -102,7 +102,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 工作台 | 我的待审批 | `/approvals` | 筛选表格 | 菜单 | M2 | W2-06 | 是 | W2-06 独立菜单；只含实际已登记审批类型，M4、M5 各补一段领域入口 |
 | 商家 | 渠道码登记 | `/merchants/referral-codes` | 筛选表格 | 页面内 | M2 | W2-15 | 是 | 从商家列表进入渠道码登记，沿用 merchant 模块范围与独立管理权限 |
-| 订单 | 线下开单 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
+| 订单 | 线下开单 | — | 表单弹层 | 页面内 | M4 | G4-C | 是 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 线下退款登记 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 红字发票 | — | 表单弹层 | 页面内 | M4 | G4-C | 否 | 无画板页：按表单弹层登记，没有独立地址；页面包实现时定 |
 | 财务 | 受控财务配置 | `/finance/settings` | 配置页 | 页面内 | M4 | G4-C | 否 | 无画板页：地址与是否进菜单文档没写，先按登记值；页面包实现时定，并把 inMenu 改过来 |
@@ -181,7 +181,7 @@
 | `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
 | `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |
 | `sub/billing` | 积分充值 | `sub/billing/topup/index` | TopUp | M45 | W4-14 | M4 | 是 |  |
-| `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | G4-C | M4 | 否 |  |
+| `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | W4-15 | M4 | 是 |  |
 | `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | W4-16 | M4 | 是 |  |
 | `sub/billing` | 合同 | `sub/billing/contracts/index` | Contracts | M34 | W4-16 | M4 | 是 |  |
 | `sub/profile` | 建档首页 | `sub/profile/profile/index` | Profile | M12 | W1-09 | M1 | 是 |  |

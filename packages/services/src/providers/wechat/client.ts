@@ -15,6 +15,8 @@ const PATHS = [
   "/wxa/getwxacodeunlimit",
   "/wxa/msg_sec_check",
   "/wxa/media_check_async",
+  "/wxa/sec/order/upload_shipping_info",
+  "/wxa/sec/order/get_order",
 ] as const;
 export type WechatPath = (typeof PATHS)[number];
 export interface WechatRequest {

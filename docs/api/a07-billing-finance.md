@@ -656,6 +656,7 @@
 | `invoice` | object | 是 | `{ latest: { invoiceRequestId, requestNo, status } \| null, needsRedInvoice }`（“已开票的付款须先开具红字发票，再执行退款”） | `invoice_request`（本付款单最新一张） |
 | `entitlementRevokedAt` | string(date-time) \| null | 是 | 权益已回收的时刻（非空后不可作废） | `refund_request.entitlement_revoked_at` |
 | `executedBy`、`executedAt` | `StaffBrief`、string(date-time) \| null | 是 | 最近一次执行 | `refund_request.executed_by_staff_id`、`refund_request.executed_at` |
+| `isExecutedBySystem` | boolean | 是 | 是否真实由预发系统执行；默认false保留旧调用方兼容，不能由executedBy=null推断；新来源所有人工actions关闭 | `refund_request.is_executed_by_system` |
 | `voidedBy`、`closeNote` | `StaffBrief`、string \| null | 是 | 作废人与说明 | `refund_request.voided_by_staff_id`、`refund_request.close_note` |
 | `execError` | object \| null | 是 | 最近一次执行失败 `{ at, refundTxnId, code, message }` | `refund_request.exec_error` |
 | `refundTxns` | array<`RefundTxnView`> | 是 | 历次退款交易 | `refund_txn`（`refund_request_id` = 本单） |
@@ -2336,7 +2337,7 @@
 | `q` | string | 否 | `TK` 单号、`FK` 单号、商家名 |
 | `entityId`、`storeId` | string(uuid) | 否 | `storeId` 按付款单的下单门店 |
 | `ruleCode` | enum | 否 | |
-| `source` | enum | 否 | `customer_service` / `exception` |
+| `source` | enum | 否 | `customer_service` / `exception` / `staging_probe` |
 | `overdueOnly` | boolean | 否 | 只看超时的待审批（`approval_request.due_at` 已过）与待执行（`exec_due_at` 已过），同 a05 |
 | `page`、`pageSize` | integer | 否 | C43 |
 
@@ -3326,3 +3327,5 @@ C12 没有对应词的编辑与嵌套新建，按 operationId 的动作写：`up
 不采纳：整体核对提示 `TransferProofListQuery` 与 a09 `NotifySceneListQuery` 同构（`page`、`pageSize`、`q`、`tab`），两者 `tab` 取值与语义不同，不合并。
 
 **第四轮（2026-10-03，按裁决 A151–A156 收尾）**：3.62 的 C51 登记已改“多事务”（A154），删去待办说明；补记渠道退款遇闸门按 A156 定稿（3.79 说明改写），第 6 节第 5、6 项关闭，3.60 退款驳回原因改按 A156 的新场景；单值字典字段按 A151 / C85：请求 `payerBank` → `payerBankCode`（3.48、3.78）、`expressCompany` → `expressCompanyCode`（3.70），响应 `firstConfirm.payerBank` 与 `BANK_SERIAL_DUPLICATE.details.conflicts[].payerBank` 改为 `DictRef | null`；驳回原因响应第三轮已是 `DictRef`，系统枚举 `reasonCode`、`ruleCode` 不变。m07 的六个同名结构：第三轮已加 `Admin` 前缀、分页改用 `AdminPage<T>`，无需再改。
+
+W4-09结构/读兼容：退款来源增加staging_probe（预发系统退款），其审批kind仅staging_pay_refund；详情新增显式isExecutedBySystem，原executedBy保持nullable员工结构，原人工来源动作/权限/step-up不变。新来源的allowedRoutes/actions为空、canRetry/canConfirmNotAccepted为false，不通过原人工端点赋予系统操作能力。实际系统handler和10分钟自动退款由后继W4-09交付，本片不创建新值或任务。

@@ -15,6 +15,7 @@
 // 后续包加变量：在这里加键与校验，同 PR 改 .env.example（node infra/ci/check-env-example.mjs 核对键集合）。
 // 本文件不写相对导入：infra/ci/check-env-example.mjs 用 Node 自带的类型擦除直接加载它。
 
+import { createPrivateKey, X509Certificate } from "node:crypto";
 import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { BlockList, isIP } from "node:net";
 
@@ -51,6 +52,7 @@ export const ENV_KEYS: readonly string[] = [
   "AUTH_KEYS_FILE",
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
+  "STAGING_PAY_ENTITY_IDS",
   "BACKUP_FILE",
   "ALERTS_FILE",
   "SMS_SECRET_ID_FILE",
@@ -162,6 +164,8 @@ export interface WechatPayEnvConfig {
   readonly publicKeyPem: string;
   readonly appid: string;
   readonly notifyUrl: string;
+  /** 只由可选商户API证书PEM验证后派生，源JSON不得直接填写。 */
+  readonly merchantCertificateExpiresAt?: string;
 }
 
 const WechatPayEnvSchema = z
@@ -169,6 +173,7 @@ const WechatPayEnvSchema = z
     mchid: z.string().regex(/^\d{6,20}$/),
     merchantSerialNo: z.string().regex(/^[0-9A-Fa-f]{1,64}$/),
     merchantPrivateKeyPem: z.string().min(1),
+    merchantCertificatePem: z.string().min(1).optional(),
     apiV3Key: z.string().refine((v) => Buffer.byteLength(v.trim()) === 32),
     publicKeyId: z.string().regex(/^PUB_KEY_ID_[A-Za-z0-9]+$/),
     publicKeyPem: z.string().min(1),
@@ -184,9 +189,26 @@ function readWechatPay(source: EnvSource, issues: EnvIssue[]): WechatPayEnvConfi
   // RSA私钥与公钥合并后可能超过4KiB，复用已有JSON密钥读取；错误仅投影字段名。
   return readKeyFile(source, "WECHAT_PAY", issues, (json) => {
     const parsed = WechatPayEnvSchema.safeParse(json);
-    return parsed.success
-      ? parsed.data
-      : `配置字段不完整或不合法：${[...new Set(parsed.error.issues.map((i) => i.path.join(".") || "WECHAT_PAY"))].join("、")}`;
+    if (!parsed.success)
+      return `配置字段不完整或不合法：${[...new Set(parsed.error.issues.map((i) => i.path.join(".") || "WECHAT_PAY"))].join("、")}`;
+    const { merchantCertificatePem, ...config } = parsed.data;
+    if (merchantCertificatePem === undefined) return config;
+    try {
+      const certificate = new X509Certificate(merchantCertificatePem);
+      const serial = (value: string) => value.toUpperCase().replace(/^0+/, "") || "0";
+      if (
+        serial(certificate.serialNumber) !== serial(config.merchantSerialNo) ||
+        !certificate.checkPrivateKey(createPrivateKey(config.merchantPrivateKeyPem))
+      )
+        return "merchantCertificatePem：证书序列号或公钥与商户配置不匹配";
+      // 只投影证书自身期限；不推测有效期、不联网验证、不把PEM转交给健康读侧。
+      return {
+        ...config,
+        merchantCertificateExpiresAt: new Date(certificate.validTo).toISOString(),
+      };
+    } catch {
+      return "merchantCertificatePem：证书或商户私钥格式不合法";
+    }
   });
 }
 
@@ -252,6 +274,8 @@ export interface Env {
   readonly ADMIN_IP_ALLOWLIST?: readonly string[];
   /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
   readonly CERT_DOMAINS?: readonly string[];
+  /** 仅预发显式候选主体；配置名单不启用自动退款或任何资金动作。 */
+  readonly STAGING_PAY?: Readonly<{ entityIds: readonly string[] }>;
   readonly BACKUP?: BackupEnvConfig;
   readonly ALERTS?: AlertsEnvConfig;
   readonly SMS?: SmsEnvConfig;
@@ -1127,6 +1151,35 @@ function readCertDomains(source: EnvSource, issues: EnvIssue[]): readonly string
   return Object.freeze([...new Set(domains)]);
 }
 
+function readStagingPay(
+  source: EnvSource,
+  appEnv: string | undefined,
+  issues: EnvIssue[],
+): Env["STAGING_PAY"] {
+  const raw = read(source, "STAGING_PAY_ENTITY_IDS");
+  if (raw === undefined) return undefined;
+  if (appEnv !== "stg") {
+    issues.push({ key: "STAGING_PAY_ENTITY_IDS", reason: "仅stg环境允许配置非空主体名单" });
+    return undefined;
+  }
+  const entityIds = raw.split(",").map((id) => id.trim());
+  // 与契约IdSchema的版本/变体及小写口径一致；本配置入口保持可独立由Node加载。
+  const idSchema = z.uuidv7();
+  if (
+    source["STAGING_PAY_ENTITY_IDS"]!.length > 4096 ||
+    entityIds.length > 100 ||
+    entityIds.some((id) => id !== id.toLowerCase() || !idSchema.safeParse(id).success) ||
+    new Set(entityIds).size !== entityIds.length
+  ) {
+    issues.push({
+      key: "STAGING_PAY_ENTITY_IDS",
+      reason: "须为至多100个不重复的小写UUIDv7，逗号分隔、无空项且非空输入总长不超过4096字符",
+    });
+    return undefined;
+  }
+  return Object.freeze({ entityIds: Object.freeze(entityIds) });
+}
+
 /**
  * 读取并校验环境变量。任何一项不合格即抛 EnvError，一次列出全部问题。
  * @param source 缺省读 process.env；测试里传对象
@@ -1310,6 +1363,7 @@ export function loadEnv(
   const appEnv = read(source, "APP_ENV");
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
+  const stagingPay = readStagingPay(source, appEnv, issues);
   const alerts = readAlerts(source, issues);
   const serverErrors = readServerErrors(source, issues);
 
@@ -1378,6 +1432,7 @@ export function loadEnv(
     REDIS_URL,
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
+    ...(stagingPay ? { STAGING_PAY: stagingPay } : {}),
     ...(alerts ? { ALERTS: alerts } : {}),
     ...(serverErrors ? { SERVER_ERRORS: serverErrors } : {}),
     ...(minio ? { MINIO: minio } : {}),
