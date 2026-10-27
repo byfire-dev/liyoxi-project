@@ -169,3 +169,4 @@ export { createReconciliationHarness } from "./bill-reconciliation.js";
 export type { ReconciliationHarness } from "./bill-reconciliation.js";
 export { sourceBill } from "./bill-source.js";
 export type { SourceBillRow } from "./bill-source.js";
+export { findBillingLiveUploadJobIds } from "./admin-live/billing-upload.js";
