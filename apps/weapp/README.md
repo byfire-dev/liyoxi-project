@@ -332,3 +332,15 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 新增模型目标在 `src/sub/billing/topup/`，9 个固定场景在 `shots/topup-scenes.ts`；原默认全场景与旧守卫保留。本轮只执行新增及相邻最小目标，实际验证、包体对比和截图结果以 [W4-14 状态](../../docs/plan/status/W4-14.md) 为准。H5 明确返回 unsupported，固定虚构 DTO 仅为布局与交互验证；微信真机订阅授权、真实商户配置、小额实付及到账需按 V13/E2/E5 外部清单另验，不由本包离线样张证明。
 
 本轮新增和原相邻模型共42个唯一目标通过，weapp 类型检查通过；9新+5相邻共14张 H5 图实际齐备，升级实际空 newTerm 按服务端当前周期展示。首次14图后仅重验这一个展示目标；脚本清理输出导致其余13图丢失，已用同一现有 H5 --no-build 恢复，未重跑旧全量。最终普通同步 main311251a5 后正式包为主包755.5KB、billing66.7KB、order54.0KB；相对精确d23基线分别增加12569/10064/2390字节，其他包不变，原门槛通过。最终依赖检查无违规；源码与图路径、平台未验边界见本包状态。
+
+## 积分流水（W4-15）
+
+`sub/billing/ledger/index` 只经中央请求读取 `m.pointLedgerEntry.list` 的 generated merchant DTO。类型过滤用 `tab`，月份用公共北京时间日转换后的 `month`；段内只传服务端不透明游标，前月入口只取 `prevMonth`。首屏刷新废弃旧分页，合并只按 `rowKey` 去重并保持服务端顺序；`firstEntryAt` 按公共北京时间格式化。服务端标题、备注、计算式与数量原样展示，0 分显示 `0`，nullable 来源和备注不编造为金额或余额。
+
+钱包只新增积分明细导航。导航与页面分别消费 `ledger.read` 的真实角色/门店状态能力：店员视图为 `none`，零流水请求；归档老板按主体级只读能力处理。真实无权响应显示受限态，不能从钱包可见推断流水可读。请求同时受 contextRev、门店、会话、用户与成员角色/范围保护，切换或卸载使旧成功、错误和 finally 失效；GET 不补业务同意、审计动作或未登记埋点。
+
+本域模型目标为 `pnpm --filter @liyoxi/weapp exec vitest run src/sub/billing/ledger/model.test.ts src/sub/billing/wallet/model.test.ts --maxWorkers=1`。九个离线 H5 场景登记在 `shots/ledger-scenes.ts`，可用 `pnpm --filter @liyoxi/weapp shots -- --scene ledger-list` 逐个选择；首次会构建 H5，后续可用 `--no-build`。默认全场景清单与所有旧守卫保留；本轮按用户低量验证指示仅执行本域九态与钱包相邻目标，实际结果和同 base 预算在本包状态记录，不把未执行的旧全量记为通过。
+
+本轮16个流水模型目标与原钱包6目标通过，类型检查、正式构建及九态加原wallet-active共10图通过。精确3ecc基线到最终页面源码，主包716.3→743.2KB（增27542字节）、billing49.0→56.9KB（增8060字节），其余分包不变，原体积门槛通过。页面登记官方生成只落地本1页；色值、文案与依赖检查通过。截图在 `shots/dist/png/billing__ledger-*.png`，原相邻图为 `billing__wallet-active.png`；筛选场景在验证使用/前月过滤后清除，最终图为默认态。ROOT唯一分阶段源码审查和关键实际截图目检均无阻断。
+
+离线账目均为虚构 DTO。真机月份选择器、长列表滚动、下拉刷新、原生导航和真实商家流水仍需业主后续验证；H5 截图不等于微信真机或真实账目验收。
