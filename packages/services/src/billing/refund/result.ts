@@ -105,7 +105,9 @@ async function difference(
 export async function applyRefundCash(
   tx: Tx,
   deps: RefundDeps,
-  state: LockedRefund,
+  state: Pick<LockedRefund, "receipt" | "order"> & {
+    request: Pick<LockedRefund["request"], "entityId">;
+  },
   txn: RefundTxn,
 ) {
   const now = deps.clock.now();
