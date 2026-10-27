@@ -434,15 +434,13 @@ stateDiagram-v2
 
 ### 2.4 `refund_request` 现金退款申请
 
-现金退款的领域单据：规则核算快照与执行状态。与审批单一对一（`kind = plan_refund`，单号 `TK…` 存在审批单上）。提交时即建行。订购与广告取消退回积分不在本表，在 order 模块的 `cancel_request`；两表的执行状态取值相同（M54）。
-
-归属：主体维度（`entity_id`）；孤儿收款退款时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：70（领域申请单，紧跟审批单之后）。
+现金退款的领域单据：规则核算快照与执行状态。与审批单一对一（`kind = plan_refund`，单号 `TK…` 存在审批单上）。提交时即建行。订购与广告取消退回积分不在本表，在 order 模块的 `cancel_request`；两表的执行状态取值相同（M54）。 归属：主体维度（`entity_id`）；孤儿收款退款时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：70（领域申请单，紧跟审批单之后）。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
 | `id` | uuid | 否 | — | 主键，UUID v7，应用生成 | R1 |
 | `approval_request_id` | uuid | 否 | — | 审批单 → `approval_request.id`，一对一；单号 `TK…` 取 `approval_request.request_no` | d2:289；R3 |
-| `source` | text | 否 | — | 申请来源。取值：`customer_service` 客服在付款单详情发起；`exception` 差异单或履约受阻转入 | d2:291 |
+| `source` | text | 否 | — | 申请来源。取值：`customer_service` 客服；`exception` 差异或履约受阻；`staging_probe` 预发系统退款（仅window/1..100分/原路） | d2:291 |
 | `entity_id` | uuid | 可 | — | 所属主体 → `entity.id`；孤儿收款退款时为空 | d2:292；M13 |
 | `billing_order_id` | uuid | 可 | — | 被退收款所属的付款单 → `billing_order.id`；孤儿收款为空。规则为 `unapplied_receipt` 时它可能是一张已支付的单（重复付款），被退的不是它的入账交易 | d2:293、1105 |
 | `payment_txn_id` | uuid | 否 | — | 被退的那一笔收款交易 → `payment_txn.id`。除 `unapplied_receipt` 外都等于付款单的 `paid_payment_txn_id` | d2:294 |
@@ -462,6 +460,7 @@ stateDiagram-v2
 | `sla_snapshot` | jsonb | 可 | — | 执行时限的参数快照 `SlaSnapshot`（`policy = review.refund_execute`）；与 `exec_due_at` 同有同无 | d3:3052；M60；03 分组请求 |
 | `entitlement_revoked_at` | timestamptz | 可 | — | 套餐权益已回收（`revokeTerm` 成功）的时刻；非空后申请单不可作废 | d2:306；d1:1114 |
 | `executed_by_staff_id` | uuid | 可 | — | 最近一次执行的财务 → `staff.id` | d2:309 |
+| `is_executed_by_system` | boolean | 否 | `false` | 明确由预发系统执行；旧人工来源恒false，与真实执行员工互斥；不能由空员工推断 | W4-09独立结构前置 |
 | `executed_at` | timestamptz | 可 | — | 最近一次执行的时间 | d2:309 |
 | `done_at` | timestamptz | 可 | — | 退款完成时间 | d2:309 |
 | `voided_by_staff_id` | uuid | 可 | — | 审批通过后作废的财务 → `staff.id`；仅 `close_reason = voided` 时有值 | d2:310；M54 |
@@ -490,19 +489,20 @@ stateDiagram-v2
 
 | 约束名 | 种类 | 规则 |
 | --- | --- | --- |
-| `ck_refund_request_source` | CHECK | `source` 的取值限于：`customer_service`、`exception` |
+| `ck_refund_request_source` | CHECK | `source` 的取值限于：`customer_service`、`exception`、`staging_probe` |
 | `ck_refund_request_rule_code` | CHECK | `rule_code` 的取值限于：`window`、`qualification_failed`、`override`、`fulfillment_blocked`、`unapplied_receipt` |
 | `ck_refund_request_status` | CHECK | `status` 的取值限于：`pending_approval`、`pending_execution`、`executing`、`done`、`not_executed` |
 | `ck_refund_request_exec_route` | CHECK | `exec_route` 的取值限于：`wechat_original`、`offline` |
 | `ck_refund_request_close_reason` | CHECK | `close_reason` 的取值限于：`rejected`、`withdrawn`、`voided` |
 | `ck_refund_request_amount` | CHECK | 退款金额 = 基数 − 扣除，且大于 0；扣除不为负 |
-| `ck_refund_request_rule_source` | CHECK | 差异转入的申请只用履约受阻、未入账收款两条规则；客服发起的只用套餐三条规则 |
+| `ck_refund_request_rule_source` | CHECK | 差异转入只用履约受阻/未入账两条；客服只用套餐三条；预发系统另受window专属约束 |
 | `ck_refund_request_override` | CHECK | 规则外标记与 `override` 规则一一对应 |
-| `ck_refund_request_reason` | CHECK | 客服发起必有申请原因；差异转入不填 |
+| `ck_refund_request_reason` | CHECK | 客服发起必有申请原因；差异转入及预发系统不填 |
 | `ck_refund_request_subject` | CHECK | 只有未入账收款退回可以没有付款单；只有没有付款单的申请可以没有主体 |
 | `ck_refund_request_closed` | CHECK | 已退款、未执行即关闭 ⇔ 有结束时间；关闭原因只在 `not_executed` 时非空（M54） |
 | `ck_refund_request_voided` | CHECK | 作废 ⇔ 有作废人与作废说明；驳回、撤回不填这两列 |
-| `ck_refund_request_executed` | CHECK | 执行中、已退款必有路由、执行人、执行时间 |
+| `ck_refund_request_executed` | CHECK | 执行中/已退款必有路由和时间；旧来源仍必有真实执行员工且系统位false；仅预发系统可无员工且系统位true |
+| `ck_refund_request_staging_system` | CHECK | 旧来源系统位恒false；新来源仅window、非override、1..100分、有主体及付款单、无原因/员工、仅原路；系统位与真实执行时刻同有同无，审批中不得先置执行位 |
 | `ck_refund_request_executing_route` | CHECK | 只有微信原路退有“执行中” |
 | `ck_refund_request_done` | CHECK | 已退款 ⇔ 有完成时间 |
 | `ck_refund_request_revoked` | CHECK | 只有套餐规则会回收权益；权益已回收的申请不可作废，也不会停在待审批 |
@@ -1316,7 +1316,7 @@ stateDiagram-v2
 | `payment_txn.status` | `created` 已建（预下单在途或失败）；`prepaid` 已拿到 prepay_id，等用户付款；`succeeded` 收款成功；`closed` 已关闭 | 本分组 |
 | `payment_txn.recon_state` | `pending` 待对账（账单未到）；`matched` 已对平；`diff` 有差异（关联着未决差异单）；`resolved` 差异已处理 | 本分组 |
 | `transfer_proof.review_status` | `pending` 待财务确认；`accepted` 已采纳（确认到账）；`rejected` 已驳回；`superseded` 被新凭证替换 | 本分组 |
-| `refund_request.source` | `customer_service` 客服在付款单详情发起；`exception` 差异单或履约受阻转入 | 本分组 |
+| `refund_request.source` | `customer_service` 客服；`exception` 差异或履约受阻；`staging_probe` 预发系统退款 | 本分组；W4-09独立结构前置 |
 | `refund_request.rule_code` | `window` 套餐：开通或续费 7 天内且未使用积分；`qualification_failed` 套餐：资质终审不通过，免窗口；`override` 套餐：规则外退款（免窗口，仅超级管理员）；`fulfillment_blocked` 履约受阻，全额退；`unapplied_receipt` 未入账收款退回 | 本分组 |
 | `refund_request.status` | `pending_approval` 已提交、待审批；`pending_execution` 已批准、待执行；`executing` 执行中（微信原路退在途）；`done` 已退款；`not_executed` 未执行即关闭（驳回、撤回、作废） | 本分组 |
 | `refund_request.exec_route` | `wechat_original` 微信原路退；`offline` 线下退款登记 | 本分组 |
@@ -1622,3 +1622,5 @@ stateDiagram-v2
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A3、A15、A32、A37、A41、A46、A102（退款回调晚到））改了本文少量说明；表结构未变。
 第二批（2026-10-03）：按 h01 的请求（h01-hooks.md 2.6），2.6 `payment_exception.dedupe_key` 补回调与入账函数实时开单的键（`{kind}:{out_trade_no}`、`refund_over:{out_refund_no}`、`status_mismatch:refund:{out_refund_no}`、`refund_amount_mismatch:{out_refund_no}`），写明查单与对账共用；迟到成功（未超额）的 `kind` 待财务确认，不加新取值。表结构与约束未变。
+
+W4-09独立结构前置：`payment.I11`只按（原两个人工source、plan_refund）或（staging_probe、staging_pay_refund）精确配对，并核新类型真实系统提交/决定及同对象主体。新系统执行位必须有本申请同主体/同收款的真实system原路退款意图；未执行不预标，失败回待执行不清掉已发生的执行者事实。余额、权益、发票及原人工三人分离规则未放宽；本片不装配新写者，实际stg三保护与Saga由后继W4-09完成。

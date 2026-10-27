@@ -1754,7 +1754,7 @@ model ApprovalRequest {
   id                    String    @id(map: "pk_approval_request") @db.Uuid
   /// 业务单号：TK / TZ / YQ / ZH + yyyyMMdd + 流水；没有编号的类型为空
   requestNo             String?   @unique(map: "uq_approval_request_request_no") @map("request_no")
-  /// 审批类型（approval_kind，12 个取值）
+  /// 审批类型（approval_kind，13 个取值；staging_pay_refund仅预发系统意图）
   kind                  String
   /// 大类：review（商家提交的审核）/ approval（员工发起的审批）
   category              String
@@ -4848,7 +4848,7 @@ model RefundRequest {
   id                   String    @id(map: "pk_refund_request") @db.Uuid
   /// 审批单 → approval_request.id，一对一；单号 TK… 取 approval_request.request_no
   approvalRequestId    String    @unique(map: "uq_refund_request_approval_request_id") @map("approval_request_id") @db.Uuid
-  /// 申请来源：customer_service 客服在付款单详情发起；exception 差异单或履约受阻转入
+  /// 申请来源：customer_service 客服；exception 差异转入；staging_probe 预发系统退款
   source               String
   /// 所属主体 → entity.id；孤儿收款退款时为空
   entityId             String?   @map("entity_id") @db.Uuid
@@ -4888,6 +4888,8 @@ model RefundRequest {
   entitlementRevokedAt DateTime? @map("entitlement_revoked_at") @db.Timestamptz(3)
   /// 最近一次执行的财务 → staff.id
   executedByStaffId    String?   @map("executed_by_staff_id") @db.Uuid
+  /// 明确由预发系统执行；旧人工来源恒false，与真实执行员工互斥
+  isExecutedBySystem   Boolean   @default(false) @map("is_executed_by_system")
   /// 最近一次执行的时间
   executedAt           DateTime? @map("executed_at") @db.Timestamptz(3)
   /// 退款完成时间
