@@ -10,9 +10,25 @@
 | 谁来做 | W1-10、W1-11a 起；M4 全量 |
 | 最晚关闭点 | M4 退出；M8 复核 |
 | 不通过的退路 | — |
-| 状态 | 进行中 |
-| 结论 | M1 的真实数据库账本模型/冻结并发、账户锁、入账只履约一次与保存点故障测试已由 W1-10/W1-11a 完成；W1-21 集成链另核实际积分与 full 不变量。M4 全量账务与 M8 复核尚未完成，本项保留进行中。 |
-| 证据 | [W1-10 CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37411348227)、[W1-11a CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37421442684)；模型/并发及保存点目标路径见 [M1 回顾](../retro/m1.md) 第 2 节 |
-| 关闭日期 |  |
+| 状态 | 已关闭（通过） |
+| 结论 | M1 账本与保存点证据继续有效；M4 入账并发、退款三段式、对账、十三个月末手算和完整接口链已通过本机真实数据库目标。实际main十轮与两次演示亦通过，M4本地账务验证关闭；远端PR/CI仍按各包交付，M8须复核。 |
+| 证据 | [W1-10 CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37411348227)、[W1-11a CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37421442684)；[M1 回顾](../retro/m1.md)第2节及下表 M4 实际目标 |
+| 关闭日期 | 2026-10-27（M4本地代码验证） |
+
+离线发布说明（2026-10-27）：本页保留原78089e14本机证据与仅本地关闭结论。W4-19当前为第1个PR，repeat独立门禁及最终CI/命令片尚待各自远端合入；原main记录指本地验证时点，不作为远端整包已完成的依据，本次未新增执行验证。
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
+
+## M4 本地证据
+
+| 范围 | 实际目标与结果 |
+| --- | --- |
+| 入账交错、保存点与锁 | [W4-03](../status/W4-03.md)：`billing/payment/channel.property.test.ts` 三个聚合、原 seed42/3轮，以及 `apps/api/test/billing-channel-concurrency.test.ts` 真实 HTTP 三入口竞争；后续取消主体共享锁修复保留原3轮通过，已合 `ebc3a71e` |
+| 退款中断、乱序与现金守恒 | [W4-10](../status/W4-10.md)：`billing/refund/saga.test.ts` 15个场景、`saga.property.test.ts` 固定种子20261018/4轮，实际十四入口与双人CLI目标；真实超退反例须保留 I5 异常，不把反例当零违规 |
+| 付款差异与账单重放 | [W4-11](../status/W4-11.md)、[W4-12](../status/W4-12.md)：实际补记/关联接口、CSV独立模型6目标、9个真库目标、2个接口和通知2目标；覆盖原件、恢复及相同账单不多记账 |
+| 月末与延期 | [W4-05](../status/W4-05.md)、[W4-08](../status/W4-08.md)原目标复用；`billing/subscription/lifecycle.test.ts` 新十三行固定自然月末手算表 `753d89bc` 首次1/1通过，总8.03秒、业务2.85秒；最终过期清零及原资金域不变量通过 |
+| 完整 HTTP 与 full 检查 | W4-19 `m4.e2e.test.ts` 完整片 `7eb39c3b` 1/1通过、16.18秒，含线下/发票/配置/对账与真实后台消费，原full零违规/零错误；实际main `6740eb60` 十轮10/10、最长16.673秒；两次demo均full 134项零违规/零错误、原意图重放零新增与完整字典保留 |
+
+测试在本机 PostgreSQL/Redis 隔离范围执行，外部渠道使用既有公开替身。
+未变更的历史目标按所属状态记录复用，不扩大并发/数据量或重跑历史全套。
+本页不替代 V13 的真实微信账单、E5/E13 的真实资料与资金联调，也不把尚待远端 CI 的本地代码写成远端已验。

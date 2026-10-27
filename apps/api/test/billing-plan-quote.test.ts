@@ -67,13 +67,20 @@ beforeAll(async () => {
     { proposerId: proposer.staff.id, approverId: reviewer.id },
   );
 }, 120000);
-const post = (body: unknown, staff = admin) =>
-  api.request("/api/v1/admin/plans/quote", {
+const post = (body: unknown, staff = admin) => {
+  const route = api.api.mounted.find((row) => row.operationId === "admin.plan.quote");
+  expect(route).toMatchObject({
+    group: "admin",
     method: "POST",
+    path: "/api/v1/admin/plans/quote",
+  });
+  return api.request(route!.path, {
+    method: route!.method,
     json: body,
     headers: staff.headers,
     peer: `198.19.73.${++peer % 250}`,
   });
+};
 async function quote(body: unknown, staff = admin) {
   const response = await post(body, staff);
   expect(response.status, await response.clone().text()).toBe(200);

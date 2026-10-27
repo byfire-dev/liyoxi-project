@@ -75,6 +75,7 @@
     "demo:m3": "pnpm --filter @liyoxi/services exec tsx ../../apps/api/test/e2e/demo-m3.ts",
     "demo:m2": "pnpm --filter @liyoxi/services exec tsx ../../apps/api/test/e2e/demo-m2.ts",
     "e2e": "pnpm exec vitest run --project api apps/api/test/e2e/m1.e2e.test.ts",
+    "e2e:m4": "pnpm exec vitest run --project api --maxWorkers=1 --no-file-parallelism apps/api/test/e2e/m4.e2e.test.ts",
     "e2e:m3": "pnpm exec vitest run --project api apps/api/test/e2e/m3.e2e.test.ts",
     "e2e:m2": "pnpm exec vitest run --project api apps/api/test/e2e/m2.e2e.test.ts",
     "plan:summaries": "node infra/ci/plan-summaries.mjs",
