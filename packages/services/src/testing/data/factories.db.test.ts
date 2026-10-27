@@ -3,6 +3,7 @@
 // 用带种子的库（角色、套餐、协议清单是种子）；身份是应用角色 lyx_app。
 import type { PrismaClient } from "@liyoxi/db";
 import { describe, expect, it } from "vitest";
+import { planOrderContentSchema } from "@liyoxi/contract";
 
 import { createTxRunner, isUuid } from "../../kernel/index.js";
 import { phoneBidx, SecurityError, usccBidx } from "../../security/index.js";
@@ -208,6 +209,20 @@ describe("跟着状态走的缺省", () => {
       term.priceTotalFen,
       term.entityId,
     ]);
+    expect(planOrderContentSchema.parse(source.contentSnapshot)).toMatchObject({
+      v: 1,
+      kind: "plan",
+      planId: term.planId,
+      planName: plan.name,
+      planRevisionId: term.planRevisionId,
+      months: term.months,
+      cyclePriceFen: term.priceTotalFen,
+      payFen: source.amountFen,
+      monthlyPoints: term.monthlyPoints,
+      discountBp: term.discountBp,
+      promo: null,
+      quotedAt: clock.now().toISOString(),
+    });
 
     const pro = await prisma.plan.findUniqueOrThrow({ where: { code: "pro" } });
     const scheduled = await make.subscriptionTerm({ planId: pro.id, status: "scheduled" });
