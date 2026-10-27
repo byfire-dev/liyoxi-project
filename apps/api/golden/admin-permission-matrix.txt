@@ -142,6 +142,10 @@ admin.outboxEvent.retry | - | flow.ops.manage | 11 00 00 00 00 00 00 00
 admin.paramValue.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.paramValue.replace | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paramValue.withdraw | - | sys.param.edit | 11 00 00 00 00 00 00 00
+admin.paymentException.create | - | finance.recon.resolve | 11 00 00 00 00 00 00 11
+admin.paymentException.get | finance:view | - | 11 00 00 00 00 00 00 11
+admin.paymentException.list | finance:view | - | 11 00 00 00 00 00 00 11
+admin.paymentException.resolve | - | finance.recon.resolve | 11 00 00 00 00 00 00 11
 admin.paymentOrder.create | - | order.payment.create_offline | 11 00 00 00 00 00 00 11
 admin.paymentOrder.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.paymentOrder.list | order:view | - | 11 11 11 00 00 11 11 11

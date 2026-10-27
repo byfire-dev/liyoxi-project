@@ -11216,7 +11216,7 @@
   "clerkView": null,
   "xIdempotent": "required",
   "idempotentBy": null,
-  "idempotentNote": "三段式（C51 先调外部、再开事务，A84）：restore、record_channel_refund 先占用幂等记录、事务外查微信，再开事务落结果并写幂等记录；其余处理方式一个事务",
+  "idempotentNote": "三段式（C51 先调外部、再开事务，A84）：restore、rebuild_order、record_channel_refund 先占用幂等记录、事务外查微信，再开事务落结果并写幂等记录；其余处理方式一个事务",
   "screens": [
    "A:Reconcile"
   ],

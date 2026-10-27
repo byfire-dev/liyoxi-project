@@ -10,7 +10,7 @@ import { captureSubscriptionDailySnapshot } from "../reporting/snapshot.js";
 import type { PlanRefundPreview, PlanRefundRule, RevokeTermResult } from "../subscription/types.js";
 import { createLedger } from "./index.js";
 import { grantDue, refreshNextDue } from "./advance.js";
-import { fromDateColumn, toDateColumn } from "./context.js";
+import { acquireAccount, fromDateColumn, toDateColumn } from "./context.js";
 import type { LedgerClock } from "./context.js";
 import { findOperation, isRefundPending, loadAccount, writeOperation } from "./operation.js";
 import type { BucketMove } from "./operation.js";
@@ -123,24 +123,35 @@ export function createTermRefund(deps: LedgerDeps) {
     ctx: IdentityContext,
     term: SubscriptionTerm,
     action: "refund_suspended" | "refund_resumed" | "refunded",
-    requestId: string,
+    source: string | { paymentExceptionId: string },
   ) {
-    await deps.events.emit(tx, ctx, {
-      type: `billing.subscription.${action}`,
+    const requestId = typeof source === "string" ? source : source.paymentExceptionId;
+    const base = {
       aggregate: { type: "subscription_term", id: term.id },
-      payload: {
-        v: 1,
-        termId: term.id,
-        entityId: term.entityId,
-        refundRequestId: requestId,
-        ...(action === "refunded"
-          ? { termStatus: term.status === "scheduled" ? "cancelled" : "refunded" }
-          : {}),
-      },
       entityId: term.entityId,
       storeId: null,
       dedupeKey: `billing.subscription.${action}:${requestId}`,
-    });
+    };
+    if (action === "refunded")
+      await deps.events.emit(tx, ctx, {
+        ...base,
+        type: "billing.subscription.refunded",
+        payload: {
+          v: 1,
+          termId: term.id,
+          entityId: term.entityId,
+          ...(typeof source === "string" ? { refundRequestId: source } : source),
+          termStatus: term.status === "scheduled" ? "cancelled" : "refunded",
+        },
+      });
+    else {
+      if (typeof source !== "string") throw new TypeError("退款闸门事件必须来自退款申请");
+      await deps.events.emit(tx, ctx, {
+        ...base,
+        type: `billing.subscription.${action}`,
+        payload: { v: 1, termId: term.id, entityId: term.entityId, refundRequestId: source },
+      });
+    }
     await deps.onStep?.("event.emit");
   }
   async function suspendTermForRefund(
@@ -281,26 +292,72 @@ export function createTermRefund(deps: LedgerDeps) {
       await deps.onStep?.("term.update");
     }
   }
-  async function revokeTerm(
+  async function revoke(
     tx: Tx,
     ctx: IdentityContext,
-    input: { termId: string; refundRequestId: string },
-  ): Promise<RevokeTermResult> {
+    input:
+      { termId: string; refundRequestId: string } | { termId: string; paymentExceptionId: string },
+  ) {
+    const external = "paymentExceptionId" in input;
+    const ref = external
+      ? { type: "payment_exception" as const, id: input.paymentExceptionId }
+      : { type: "refund_request" as const, id: input.refundRequestId };
+    const source = external
+      ? { paymentExceptionId: input.paymentExceptionId }
+      : { refundRequestId: input.refundRequestId };
+    if (external) {
+      const initial = await tx.subscriptionTerm.findUniqueOrThrow({ where: { id: input.termId } });
+      await acquireAccount(tx, deps.clock, initial.entityId);
+      const held = await tx.subscriptionTerm.findUniqueOrThrow({ where: { id: input.termId } });
+      if (held.refundRequestId)
+        return {
+          revokedPoints: 0,
+          cancelledSchedules: 0,
+          billingOrderIds: [],
+          unrecoveredPoints: 0,
+          heldByRefundRequestId: held.refundRequestId,
+        };
+    }
     const { term, clock, account } = await enter(tx, input.termId);
     const opKey = `revoke:subscription_term:${term.id}`,
       existing = await findOperation(tx, opKey);
     if (existing) {
-      if (existing.refType !== "refund_request" || existing.refId !== input.refundRequestId)
+      if (
+        !external &&
+        (existing.refType !== "refund_request" || existing.refId !== input.refundRequestId)
+      )
         throw new AppError("PLAN_REFUND_NOT_ELIGIBLE");
       const first = await tx.subscriptionEvent.findFirst({
         where: { subscriptionTermId: term.id, type: { in: ["refunded", "cancelled"] } },
         orderBy: { seq: "asc" },
       });
-      return resultSchema.parse(first?.payload);
+      const result = resultSchema.parse(first?.payload);
+      const payload = first?.payload;
+      const unrecovered =
+        payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        typeof payload.unrecoveredPoints === "number"
+          ? payload.unrecoveredPoints
+          : 0;
+      return { ...result, unrecoveredPoints: unrecovered, heldByRefundRequestId: null };
     }
-    refuse(term.refundRequestId !== input.refundRequestId ? ["term_not_refundable"] : []);
+    if (external && term.refundRequestId)
+      return {
+        revokedPoints: 0,
+        cancelledSchedules: 0,
+        billingOrderIds: [],
+        unrecoveredPoints: 0,
+        heldByRefundRequestId: term.refundRequestId,
+      };
+    refuse(
+      !["scheduled", "active", "ended"].includes(term.status) ||
+        (!external && term.refundRequestId !== input.refundRequestId)
+        ? ["term_not_refundable"]
+        : [],
+    );
     const facts = await previewPlanRefund(tx, term.id);
-    refuse(term.refundRule !== "override" && !facts.unused ? ["points_used"] : []);
+    refuse(!external && term.refundRule !== "override" && !facts.unused ? ["points_used"] : []);
     const lots = await tx.pointLot.findMany({
       where: { subscriptionTermId: term.id },
       orderBy: { id: "asc" },
@@ -332,7 +389,7 @@ export function createTermRefund(deps: LedgerDeps) {
     await writeOperation(tx, deps, clock, account, {
       opKey,
       opType: "revoke",
-      ref: { type: "refund_request", id: input.refundRequestId },
+      ref,
       occurredAt: clock.now,
       bizDate: clock.today,
       title: null,
@@ -397,9 +454,9 @@ export function createTermRefund(deps: LedgerDeps) {
         });
       } else
         await writeOperation(tx, deps, clock, account, {
-          opKey: `refund_addon_suspend:${input.refundRequestId}`,
+          opKey: `refund_addon_suspend:${ref.id}`,
           opType: "addon_suspend",
-          ref: { type: "refund_request", id: input.refundRequestId },
+          ref,
           occurredAt: clock.now,
           bizDate: clock.today,
           title: null,
@@ -414,11 +471,18 @@ export function createTermRefund(deps: LedgerDeps) {
       revokedPoints: moves.reduce((n, m) => n + m.qty, 0),
       cancelledSchedules: cancelled.count,
       billingOrderIds: [...facts.billingOrderIds],
+      unrecoveredPoints: external
+        ? lots.reduce((n, lot) => n + lot.heldQty + lot.consumedQty + lot.convertedOutQty, 0)
+        : 0,
+      heldByRefundRequestId: null,
     };
     await event(tx, ctx, clock, term, term.status === "scheduled" ? "cancelled" : "refunded", {
-      ...result,
-      refundRequestId: input.refundRequestId,
-      rule: term.refundRule,
+      revokedPoints: result.revokedPoints,
+      cancelledSchedules: result.cancelledSchedules,
+      billingOrderIds: result.billingOrderIds,
+      ...(external ? { unrecoveredPoints: result.unrecoveredPoints } : {}),
+      ...source,
+      rule: external ? "override" : term.refundRule,
       affectedTerms: shifted
         ? await Promise.all(
             (
@@ -434,8 +498,61 @@ export function createTermRefund(deps: LedgerDeps) {
           )
         : [],
     });
-    await emit(tx, ctx, term, "refunded", input.refundRequestId);
+    await emit(
+      tx,
+      ctx,
+      term,
+      "refunded",
+      external ? { paymentExceptionId: input.paymentExceptionId } : input.refundRequestId,
+    );
     return result;
   }
-  return { previewPlanRefund, suspendTermForRefund, resumeTermFromRefund, revokeTerm };
+  async function revokeTerm(
+    tx: Tx,
+    ctx: IdentityContext,
+    input: { termId: string; refundRequestId: string },
+  ): Promise<RevokeTermResult> {
+    const result = await revoke(tx, ctx, input);
+    // 旧申请入口维持原返回契约，且仍只允许本申请持有闸门。
+    return {
+      revokedPoints: result.revokedPoints,
+      cancelledSchedules: result.cancelledSchedules,
+      billingOrderIds: result.billingOrderIds,
+    };
+  }
+  async function revokeTermForExternalRefund(
+    tx: Tx,
+    ctx: IdentityContext,
+    input: { termId: string; paymentExceptionId: string },
+  ) {
+    const exception = await tx.paymentException.findUnique({
+      where: { id: input.paymentExceptionId },
+    });
+    const term = await tx.subscriptionTerm.findUnique({ where: { id: input.termId } });
+    if (
+      !exception ||
+      exception.kind !== "refund_bill_only" ||
+      exception.status !== "open" ||
+      !term ||
+      exception.entityId !== term.entityId ||
+      !exception.billingOrderId ||
+      (term.sourceBillingOrderId !== exception.billingOrderId &&
+        !(await tx.subscriptionEvent.count({
+          where: {
+            subscriptionTermId: term.id,
+            type: "upgraded",
+            billingOrderId: exception.billingOrderId,
+          },
+        })))
+    )
+      throw new AppError("PLAN_REFUND_NOT_ELIGIBLE");
+    return revoke(tx, ctx, input);
+  }
+  return {
+    previewPlanRefund,
+    suspendTermForRefund,
+    resumeTermFromRefund,
+    revokeTerm,
+    revokeTermForExternalRefund,
+  };
 }

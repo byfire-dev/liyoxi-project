@@ -164,3 +164,5 @@ export {
   refundIdem as refundIdempotencyForTest,
 } from "./billing-refund.js";
 export type { RefundHarness as RefundHarnessForTest } from "./billing-refund.js";
+
+export { findBillingLiveUploadJobIds } from "./admin-live/billing-upload.js";
