@@ -2,7 +2,7 @@ import type { PrismaClient } from "@liyoxi/db";
 import fc from "fast-check";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { alertsOf, createTxRunner, uuidv7 } from "../kernel/index.js";
+import { alertsOf, assertNotInTransaction, createTxRunner, uuidv7 } from "../kernel/index.js";
 import {
   createRecordingPorts,
   createSampleEvents,
@@ -130,10 +130,280 @@ const pick = (rows: readonly ClaimedDelivery[], eventId: string, subscriber: str
   rows.find((one) => one.eventId === eventId && one.subscriber === subscriber) as DeliveryRef;
 const counts = () => workerSampleCounts(prisma);
 
+describe("可选事务外消费准备", () => {
+  it(
+    "行锁等待跨过租约期限后按锁后DB时间拒绝，零事务外准备",
+    async () => {
+      const eventId = await emitPlaced();
+      const ref = pick((await claim()).claimed, eventId, plain);
+      const before = (await counts())[plain];
+      await prisma.$executeRawUnsafe(
+        "UPDATE outbox_delivery SET lease_until=clock_timestamp()+interval '2 seconds' WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+        eventId,
+        plain,
+      );
+      let entered!: (pid: number) => void;
+      const waiting = new Promise<number>((resolve) => {
+        entered = resolve;
+      });
+      let called = 0;
+      const prepared: DispatchDeps = {
+        ...deps,
+        tx: {
+          run: (fn, options) =>
+            deps.tx.run(async (tx) => {
+              const [backend] = await tx.$queryRawUnsafe<{ pid: number }[]>(
+                "SELECT pg_backend_pid() AS pid",
+              );
+              entered(backend!.pid);
+              return fn(tx);
+            }, options),
+        },
+        beforeConsume: async () => {
+          called++;
+        },
+      };
+      let held!: () => void;
+      const holding = new Promise<void>((resolve) => {
+        held = resolve;
+      });
+      const keeper = createTxRunner({ prisma: other, appEnv: "test" }).run(async (lock) => {
+        await lock.$queryRawUnsafe(
+          "SELECT subscriber FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text FOR UPDATE",
+          eventId,
+          plain,
+        );
+        held();
+        const pid = await waiting;
+        let blocked = false;
+        for (let n = 0; n < 200 && !blocked; n++) {
+          const [probe] = await lock.$queryRawUnsafe<{ blocked: boolean }[]>(
+            "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1::int AND NOT granted) AS blocked",
+            pid,
+          );
+          blocked = probe!.blocked;
+          if (!blocked) await lock.$queryRawUnsafe("SELECT pg_sleep(0.005)::text");
+        }
+        expect(blocked).toBe(true);
+        const [live] = await lock.$queryRawUnsafe<{ valid: boolean }[]>(
+          "SELECT lease_until>clock_timestamp() AS valid FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+          eventId,
+          plain,
+        );
+        expect(live!.valid).toBe(true);
+        await lock.$queryRawUnsafe(
+          "SELECT pg_sleep(GREATEST(0,EXTRACT(EPOCH FROM lease_until-clock_timestamp()))::double precision+0.01)::text FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text",
+          eventId,
+          plain,
+        );
+      });
+      await Promise.race([holding, keeper]);
+      const consuming = consumeDelivery(prepared, ref);
+      try {
+        await keeper;
+      } finally {
+        await consuming;
+      }
+      expect(await consuming).toBe("stale");
+      expect(called).toBe(0);
+      expect((await counts())[plain]).toBe(before);
+      expect(await row(eventId, plain)).toMatchObject({
+        status: "leased",
+        attempts: 0,
+        dispatchNo: ref.dispatchNo,
+      });
+    },
+    SLOW,
+  );
+
+  it(
+    "同一有效派发可准备多次，准备在事务外，最终业务仍只提交一次",
+    async () => {
+      const eventId = await emitPlaced();
+      const ref = pick((await claim()).claimed, eventId, plain);
+      const before = (await counts())[plain];
+      const both = barrier(2);
+      const seen: DeliveryRef[] = [];
+      const prepared: DispatchDeps = {
+        ...deps,
+        async beforeConsume(current, event) {
+          assertNotInTransaction("lyxtest.beforeConsume");
+          expect(current).toEqual(ref);
+          expect(event).toMatchObject({ id: eventId, type: EVENT, payload: { v: 1 } });
+          seen.push(current);
+          await both();
+        },
+      };
+      const results = await Promise.all([
+        consumeDelivery(prepared, ref),
+        consumeDelivery(prepared, ref),
+      ]);
+      expect(results.sort()).toEqual(["done", "stale"]);
+      expect(seen).toHaveLength(2);
+      expect((await counts())[plain]).toBe(before + 1);
+      expect(await row(eventId, plain)).toMatchObject({ status: "done", attempts: 0 });
+    },
+    SLOW,
+  );
+
+  it(
+    "旧序号、过期租约与未知订阅者不准备；未知事件仍按原流程延后",
+    async () => {
+      const eventId = await emitPlaced();
+      const old = pick((await claim()).claimed, eventId, plain);
+      await hasten(eventId);
+      const current = pick((await claim()).claimed, eventId, plain);
+      let called = 0;
+      const prepared = {
+        ...deps,
+        beforeConsume: async () => {
+          called++;
+        },
+      };
+      expect(await consumeDelivery(prepared, old)).toBe("stale");
+      await hasten(eventId);
+      expect(await consumeDelivery(prepared, current)).toBe("stale");
+      await prisma.$executeRawUnsafe(
+        "INSERT INTO outbox_delivery(outbox_event_id,subscriber) VALUES($1::uuid,'lyxtest.onGone')",
+        eventId,
+      );
+      const unknown = pick((await claim()).claimed, eventId, "lyxtest.onGone");
+      expect(await consumeDelivery(prepared, unknown)).toBe("deferred");
+      expect(called).toBe(0);
+      expect(await row(eventId, "lyxtest.onGone")).toMatchObject({
+        status: "retry",
+        attempts: 0,
+        backoffSec: 300,
+      });
+    },
+    SLOW,
+  );
+
+  it(
+    "准备期间被重派或租约过期，最终事务fence拒绝旧业务提交",
+    async () => {
+      const eventId = await emitPlaced();
+      const old = pick((await claim()).claimed, eventId, plain);
+      const before = (await counts())[plain];
+      let current = old;
+      expect(
+        await consumeDelivery(
+          {
+            ...deps,
+            beforeConsume: async () => {
+              // 独立连接能改行，证明预检短事务已结束、未持有投递行锁。
+              await other.$executeRawUnsafe(
+                "UPDATE outbox_delivery SET lease_until=now()-interval '1 second' WHERE outbox_event_id=$1::uuid",
+                eventId,
+              );
+              current = pick((await claim()).claimed, eventId, plain);
+            },
+          },
+          old,
+        ),
+      ).toBe("stale");
+      expect(current.dispatchNo).toBe(old.dispatchNo + 1);
+      expect((await counts())[plain]).toBe(before);
+      expect(await row(eventId, plain)).toMatchObject({
+        status: "leased",
+        dispatchNo: current.dispatchNo,
+      });
+      expect(
+        await consumeDelivery(
+          {
+            ...deps,
+            beforeConsume: async () => {
+              await other.$executeRawUnsafe(
+                "UPDATE outbox_delivery SET lease_until=now()-interval '1 second' WHERE outbox_event_id=$1::uuid",
+                eventId,
+              );
+            },
+          },
+          current,
+        ),
+      ).toBe("stale");
+      expect((await counts())[plain]).toBe(before);
+    },
+    SLOW,
+  );
+
+  it(
+    "准备抛错沿原失败退避，不运行订阅者；恢复后仍按新派发提交",
+    async () => {
+      const eventId = await emitPlaced();
+      const ref = pick((await claim()).claimed, eventId, plain);
+      const before = (await counts())[plain];
+      const failures: string[] = [];
+      const outcome = await consumeDelivery(
+        {
+          ...deps,
+          beforeConsume: async () => {
+            throw new Error("公开测试准备失败");
+          },
+          onFailure: (value) => {
+            failures.push(value);
+          },
+        },
+        ref,
+      );
+      expect(outcome).toBe("retry");
+      expect(await row(eventId, plain)).toMatchObject({
+        status: "retry",
+        attempts: 1,
+        backoffSec: 5,
+        lastError: "Error: 公开测试准备失败",
+      });
+      expect(failures).toEqual(["retry"]);
+      expect((await counts())[plain]).toBe(before);
+      await hasten(eventId);
+      const next = pick((await claim()).claimed, eventId, plain);
+      expect(
+        await consumeDelivery(
+          {
+            ...deps,
+            beforeConsume: async () => {
+              assertNotInTransaction("lyxtest.beforeConsume");
+            },
+          },
+          next,
+        ),
+      ).toBe("done");
+      expect((await counts())[plain]).toBe(before + 1);
+    },
+    SLOW,
+  );
+
+  it(
+    "Redis不可达的进程内消费也经过同一事务外准备",
+    async () => {
+      const eventId = await emitPlaced();
+      const before = await counts();
+      Object.assign(channel, { down: true, downMs: 60_000 });
+      const seen: string[] = [];
+      const result = await dispatchDue({
+        ...deps,
+        beforeConsume: async (ref, event) => {
+          assertNotInTransaction("lyxtest.beforeConsume");
+          expect(event.id).toBe(eventId);
+          seen.push(ref.subscriber);
+        },
+      });
+      expect(result).toMatchObject({ claimed: 2, inProcess: 2, released: 0 });
+      expect(seen.sort()).toEqual([critical, plain].sort());
+      const after = await counts();
+      expect(after[plain]).toBe(before[plain] + 1);
+      expect(after[critical]).toBe(before[critical] + 1);
+    },
+    SLOW,
+  );
+});
+
 describe("退避与死信（验收 7）", () => {
   it(
     "失败后按 5 秒、15 秒、1 分、5 分、15 分、30 分、之后每小时后移；第 10 次进死信并告警一次",
     async () => {
+      // 样例计数在文件内累计；本次失败消费的每一轮都必须零新增。
+      const before = (await counts())[plain];
       workers.control.failing.add(plain);
       const eventId = await emitPlaced();
       const backoffs: number[] = [];
@@ -145,6 +415,7 @@ describe("退避与死信（验收 7）", () => {
         const after = await row(eventId, plain);
         expect(after).toMatchObject({ attempts: n, leased: false });
         expect(after.lastError).toContain("按用例的安排失败");
+        expect((await counts())[plain]).toBe(before);
         if (n < DELIVERY_MAX_ATTEMPTS) {
           expect([outcome, after.status]).toEqual(["retry", "retry"]);
           backoffs.push(after.backoffSec);
@@ -164,7 +435,7 @@ describe("退避与死信（验收 7）", () => {
       // 死信不再自动重试；失败的订阅者没有留下业务写
       await hasten(eventId);
       expect((await claim()).claimed.filter((one) => one.subscriber === plain)).toEqual([]);
-      expect((await counts())[plain]).toBe(0);
+      expect((await counts())[plain] - before).toBe(0);
     },
     SLOW,
   );

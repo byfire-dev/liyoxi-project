@@ -1,11 +1,15 @@
 # 内网探活：资金与计费存活指标
 
+离线发布打包说明（2026-10-27）：表内actual main是原本地代码收尾时点；远端发布仍须等待各必要前置与业务包实际合入，本次文书提取未新增执行验证。
+
 | 项 | 内容 |
 | --- | --- |
-| 状态 | 留桩中 |
-| 留桩内容 | `GET /internal/health/finance` 只出框架，没有取数。登记键 `hooks.internalHealth.finance.get` |
-| 骨架里的做法 | 路由已挂（`apps/api/src/probes.ts`，标了 `frame`，不进已挂载清单）；`packages/services/src/ops/health.ts` 的 `finance()` 返回 h01 第 2.5 节 `FinanceHealth` 的结构，各指标一律 `null` 并计入 `breaches`，`status` 为 `degraded`，HTTP 503 |
+| 状态 | 已回补 |
+| 留桩内容 | 原 `GET /internal/health/finance` 只出frame、没有真实资金/计费指标；登记键 `hooks.internalHealth.finance.get`。本桩只登记该代码回补，不承接发货、退款或真实资金外部验收 |
+| 骨架里的做法 | 原返回null/degraded。现已去frame并await独立逐项真实只读取数；每项1.5秒超时、沿5秒缓存，缺事实为null+breach、真实空队列为0，原内网隔离保持。商户API证书仅消费已校验X509派生期限，未知仍null，不从serial猜日期；真实PG/Hono已有200/503/GET零业务写、null/超时/边界证据 |
 | 登记的工作包 | W0-22 |
 | 回补里程碑 | M4 |
-| 回补的工作包 | 待拆包后填 |
+| 回补的工作包 | W4-09（代码与本机定点完成，actual main `29d8af05`；见状态页与收尾说明） |
 | 依据 | 计划 第 7.2 节 W0-22 一行；h01 第 2.5、3.14 节；约定 C1 |
+
+证据沿[W4-09状态](../status/W4-09.md)健康组件与FILE装配的已验记录复用，没有为文档收尾重跑。真实微信、资金、账单、真机、服务器/密钥与E18接收均仍pending，明确列在[本地代码收尾](../changes/W4-09-local-code-close.md)，本桩回补不代表这些外部事项通过。

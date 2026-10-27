@@ -7,6 +7,8 @@ import type {
   ProviderMethodName,
   WechatProvider,
   WechatSession,
+  WechatShippingInput,
+  WechatShippingOrder,
 } from "../../providers/types.js";
 import { createFakeCore, systemClock } from "./base.js";
 import type { FakeClock, FakeControl, FakeNotificationControl } from "./base.js";
@@ -30,6 +32,8 @@ export interface FakeWechat
   readonly subscribeMessages: FakeSubscribeMessage[];
   /** 文本检测的预置结论，按顺序各用一次；用完了一律 pass */
   readonly textVerdicts: ContentVerdict[];
+  readonly shippingOrders: Map<string, WechatShippingOrder>;
+  readonly shippingUploads: WechatShippingInput[];
   /**
    * 把文本检测切到“服务不可用”：之后每次 checkText 都返回 unavailable，直到切回来。
    * 调用方要走“服务不可用即拒收”的分支，用它来测。
@@ -43,6 +47,8 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
   const phones = new Map<string, string>();
   const subscribeMessages: FakeSubscribeMessage[] = [];
   const textVerdicts: ContentVerdict[] = [];
+  const shippingOrders = new Map<string, WechatShippingOrder>();
+  const shippingUploads: WechatShippingInput[] = [];
   let textCheckAvailable = true;
   let traceSeq = 0;
 
@@ -55,9 +61,52 @@ export function createFakeWechat(options: { clock?: FakeClock } = {}): FakeWecha
     phones,
     subscribeMessages,
     textVerdicts,
+    shippingOrders,
+    shippingUploads,
     setTextCheckAvailable(available) {
       textCheckAvailable = available;
     },
+
+    queryShippingInfo: (input) =>
+      core.run("queryShippingInfo", input, () => {
+        const order = shippingOrders.get(input.transactionId);
+        return order ? ok(structuredClone(order)) : failed("unavailable", "替身无该发货订单事实");
+      }),
+    uploadShippingInfo: (input) =>
+      core.run("uploadShippingInfo", input, () => {
+        const order = shippingOrders.get(input.transactionId);
+        if (
+          !order ||
+          order.state !== 1 ||
+          order.shipping?.finished ||
+          order.payerOpenid !== input.payerOpenid ||
+          !(input.uploadedAt instanceof Date) ||
+          !Number.isFinite(input.uploadedAt.getTime())
+        )
+          return {
+            ...failed("rejected", "替身拒绝无订单或重复发货"),
+            acceptance: "not_accepted" as const,
+          };
+        const snapshot = { ...input, uploadedAt: new Date(input.uploadedAt) };
+        delete snapshot.signal;
+        shippingUploads.push(snapshot);
+        shippingOrders.set(input.transactionId, {
+          ...order,
+          state: 2,
+          shipping: {
+            logisticsType: 3,
+            deliveryMode: 1,
+            finished: true,
+            items: [
+              {
+                description: input.itemDescription,
+                uploadedAtSec: Math.floor(input.uploadedAt.getTime() / 1000),
+              },
+            ],
+          },
+        });
+        return ok(undefined);
+      }),
 
     code2Session: (input) =>
       core.run("code2Session", input, () => {

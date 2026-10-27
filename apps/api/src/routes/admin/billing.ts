@@ -1,4 +1,6 @@
 import { adminBillingRefundHandlers } from "./billing-refunds.js";
+import { adminBillingReconciliationHandlers } from "./billing-reconciliation.js";
+import { adminBillingExceptionHandlers } from "./billing-exceptions.js";
 import { adminBillingInvoiceHandlers } from "./billing-invoices.js";
 import { adminBillingFinanceConfigHandlers } from "./billing-finance-config.js";
 import {
@@ -14,7 +16,9 @@ import { idemOf } from "../../http/idempotency.js";
 import { defineAdminHandler } from "../../routing/admin.js";
 import { adminBillingTransferReviewHandlers } from "./billing-transfer-review.js";
 export const adminBillingHandlers = [
+  ...adminBillingExceptionHandlers,
   ...adminBillingRefundHandlers,
+  ...adminBillingReconciliationHandlers,
   ...adminBillingTransferReviewHandlers,
   ...adminBillingInvoiceHandlers,
   ...adminBillingFinanceConfigHandlers,

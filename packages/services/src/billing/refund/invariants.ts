@@ -28,6 +28,28 @@ function check(code: string, sql: string): InvariantRegistration {
     },
   };
 }
+// 新类型仅配新系统来源；旧人工两来源仍严格为plan_refund，不泛化任意审批。
+const approvalPair = `(
+  (r.source IN ('customer_service','exception') AND a.kind='plan_refund' AND NOT r.is_executed_by_system)
+  OR (r.source='staging_probe' AND a.kind='staging_pay_refund'
+    AND a.submit_actor_type='system' AND a.submit_actor_id IS NULL AND a.submit_client IS NULL
+    AND a.requester_staff_id IS NULL AND a.requester_staff_group_id IS NULL
+    AND a.decided_by_staff_id IS NULL
+    AND (NOT r.is_executed_by_system OR (a.status='approved' AND r.executed_at>=a.decided_at))
+    AND (a.status NOT IN ('approved','rejected') OR a.is_decided_by_system)
+    AND a.subject_type='billing_order' AND a.subject_id=r.billing_order_id
+    AND a.entity_id IS NOT DISTINCT FROM r.entity_id AND a.store_id IS NULL)
+)`;
+// 失败回待执行也保留已执行者事实；必须有本申请真实原路意图，不能预标或借外部退款冒充。
+const systemExecutionMismatch = `(r.source='staging_probe' AND (
+  (r.is_executed_by_system AND NOT EXISTS (
+    SELECT 1 FROM refund_txn t WHERE t.refund_request_id=r.id AND t.origin='system'
+      AND t.channel='wechat_jsapi' AND t.payment_txn_id=r.payment_txn_id
+      AND t.billing_order_id IS NOT DISTINCT FROM r.billing_order_id
+      AND t.entity_id IS NOT DISTINCT FROM r.entity_id))
+  OR (NOT r.is_executed_by_system AND EXISTS (
+    SELECT 1 FROM refund_txn t WHERE t.refund_request_id=r.id))
+))`;
 export const refundInvariants: readonly InvariantRegistration[] = [
   check(
     "payment.I3",
@@ -47,6 +69,6 @@ export const refundInvariants: readonly InvariantRegistration[] = [
   ),
   check(
     "payment.I11",
-    `SELECT 'refund_request' subject_type,r.id subject_id,r.entity_id,jsonb_build_object('status',r.status,'approvalStatus',a.status,'kind',a.kind,'closeReason',r.close_reason) detail FROM refund_request r LEFT JOIN approval_request a ON a.id=r.approval_request_id WHERE a.id IS NULL OR a.kind<>'plan_refund' OR NOT ((a.status='pending' AND r.status='pending_approval') OR (a.status IN('rejected','withdrawn') AND r.status='not_executed' AND r.close_reason=a.status) OR (a.status='approved' AND (r.status IN('pending_execution','executing','done') OR (r.status='not_executed' AND r.close_reason='voided'))))`,
+    `SELECT 'refund_request' subject_type,r.id subject_id,r.entity_id,jsonb_build_object('status',r.status,'approvalStatus',a.status,'kind',a.kind,'closeReason',r.close_reason) detail FROM refund_request r LEFT JOIN approval_request a ON a.id=r.approval_request_id WHERE a.id IS NULL OR NOT ${approvalPair} OR ${systemExecutionMismatch} OR NOT ((a.status='pending' AND r.status='pending_approval') OR (a.status IN('rejected','withdrawn') AND r.status='not_executed' AND r.close_reason=a.status) OR (a.status='approved' AND (r.status IN('pending_execution','executing','done') OR (r.status='not_executed' AND r.close_reason='voided'))))`,
   ),
 ];

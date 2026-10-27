@@ -86,6 +86,13 @@ export function createPayment(deps: PaymentDeps): Payment {
             args: { paymentTxnId: receipt.id },
             entityId: order.entityId,
             storeId: order.storeId,
+            audit: {
+              stream: "ops",
+              category: "recon",
+              action: "finance.reconciliation.healed",
+              summary: "真实成功收款已关联付款单并完成入账",
+              target: { type: "payment_exception", id: row.id },
+            },
             emit: {
               type: "payment_exception.auto_healed",
               payload: { v: 1, paymentExceptionId: row.id },

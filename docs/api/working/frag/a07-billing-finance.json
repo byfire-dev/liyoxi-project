@@ -2474,7 +2474,7 @@
       "moduleView": null,
       "capability": null,
       "transitions": [
-        "payment_exception.status: （新建）→ open（bank_unmatched）",
+        "payment_exception.status: （新建）→ open（bank_unmatched）；08:760",
         "payment_txn.status: （新建）→ succeeded（孤儿收款）"
       ],
       "xAuth": "staff",
@@ -2538,16 +2538,16 @@
       "capability": null,
       "transitions": [
         "payment_exception.status: open → resolving（refund）",
-        "payment_exception.status: open → resolved",
+        "payment_exception.status: open → resolved；08:765、766",
         "refund_request.status: （新建）→ pending_approval（refund）",
         "approval_request.status: （新建）→ pending（refund）",
-        "billing_order.status: cancelled → paid（restore）",
-        "billing_order.status: （新建）→ paid（rebuild_order）",
-        "billing_order.status: pending_payment / pending_confirmation → paid（link_order）",
+        "billing_order.status: cancelled → paid（restore）；08:176",
+        "billing_order.status: （新建）→ paid（rebuild_order）；08:178",
+        "billing_order.status: pending_payment / pending_confirmation → paid（link_order）；08:174",
         "transfer_proof.review_status: pending → accepted（link_order）",
         "billing_order.fulfillment_status: blocked → done（retried）",
-        "billing_order.status: paid → refunded（record_channel_refund）",
-        "invoice_request.status: issued → red_pending（record_channel_refund）",
+        "billing_order.status: paid → refunded（record_channel_refund）；08:177",
+        "invoice_request.status: issued → red_pending（record_channel_refund）；08:1115",
         "subscription_term.status: scheduled / active / ended → cancelled / refunded（record_channel_refund，周期不在退款处理中时）",
         "payment_exception.status: （新建）→ open（entitlement_unrecovered）"
       ],

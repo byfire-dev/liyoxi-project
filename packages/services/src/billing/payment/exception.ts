@@ -1,7 +1,7 @@
 // h01 2.6：先查、冲突不插入；只有实际新建才写历史、事件与标记。调用方已锁付款单和交易。
 import type { BillingOrder, PaymentTxn } from "@liyoxi/db";
 import { calendarDate } from "@liyoxi/shared/time";
-import { uuidv7 } from "../../kernel/index.js";
+import { lockRows, uuidv7 } from "../../kernel/index.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
 import type { WechatPayTransaction } from "../../providers/types.js";
 import type { PaymentDeps, PaymentExceptionKind } from "./types.js";
@@ -31,7 +31,46 @@ export async function openPaymentException(
 ): Promise<string> {
   const { kind, order, receipt } = input;
   const dedupeKey = `${kind}:${receipt.outTradeNo}`;
-  const prior = await tx.paymentException.findUnique({ where: { dedupeKey } });
+  const knownOrphan =
+    kind === "bill_only" && !order
+      ? await tx.paymentException.findFirst({
+          where: {
+            kind: "bill_only",
+            OR: [
+              { paymentTxnId: receipt.id },
+              {
+                paymentTxnId: null,
+                detectedBy: "reconciliation",
+                wxBillLine: {
+                  isForeign: false,
+                  lineKind: "payment",
+                  outTradeNo: receipt.outTradeNo,
+                  transactionId: receipt.channelTxnNo ?? "",
+                  orderAmountFen: receipt.channelAmountFen ?? -1,
+                  wxBillFile: { status: "parsed", isHashVerified: true },
+                },
+              },
+            ],
+          },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        })
+      : null;
+  const prior = knownOrphan ?? (await tx.paymentException.findUnique({ where: { dedupeKey } }));
+  if (knownOrphan && !knownOrphan.paymentTxnId && knownOrphan.status === "open") {
+    // 仅orphan路径尚未持账户420；锁后复核并补同一可信原件现金关联，不覆盖人工结论。
+    await lockRows(tx, "payment_exception", [knownOrphan.id]);
+    const current = await tx.paymentException.findUniqueOrThrow({ where: { id: knownOrphan.id } });
+    if (current.status === "open" && current.paymentTxnId === null)
+      await tx.paymentException.update({
+        where: { id: current.id },
+        data: {
+          paymentTxnId: receipt.id,
+          entityId: receipt.entityId,
+          billingOrderId: null,
+          updatedAt: deps.clock.now(),
+        },
+      });
+  }
   if (prior !== null) return prior.id;
   const now = deps.clock.now();
   const healed = input.healed === true;

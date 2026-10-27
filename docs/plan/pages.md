@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 42 | 25 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 41 | 7 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 42 | 6 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 0 | 0 | 0 | 8 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 0 | 0 | 1 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 0 | 3 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -181,7 +181,7 @@
 | `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
 | `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |
 | `sub/billing` | 积分充值 | `sub/billing/topup/index` | TopUp | M45 | W4-14 | M4 | 是 |  |
-| `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | G4-C | M4 | 否 |  |
+| `sub/billing` | 积分流水 | `sub/billing/ledger/index` | Ledger | M46 | W4-15 | M4 | 是 |  |
 | `sub/billing` | 发票 | `sub/billing/invoices/index` | Invoices | M35 | W4-16 | M4 | 是 |  |
 | `sub/billing` | 合同 | `sub/billing/contracts/index` | Contracts | M34 | W4-16 | M4 | 是 |  |
 | `sub/profile` | 建档首页 | `sub/profile/profile/index` | Profile | M12 | W1-09 | M1 | 是 |  |

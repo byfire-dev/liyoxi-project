@@ -2530,6 +2530,12 @@
       "source": "W2-17 必要补登；03 分组 2.9、13 分组 2.1；纯提醒 followup_due"
     },
     {
+      "sceneKey": "s.receipt_daily_digest",
+      "audience": "staff",
+      "events": [],
+      "source": "W4-12 必要补登；receipt.daily_digest；当前在职超级管理员；仅站内；13分组2.1"
+    },
+    {
       "sceneKey": "s.wecom_invite",
       "audience": "staff",
       "events": [],

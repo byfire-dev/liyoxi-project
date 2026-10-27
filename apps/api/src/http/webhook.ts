@@ -42,11 +42,21 @@ const failure = (
 };
 export const webhookPreparation: RouteMiddlewareFactory = (route) => async (c, next) => {
   const path = route.path.split("/");
-  requests.set(c, {
+  const input = {
     provider: path[path.indexOf("hooks") + 1] ?? "",
     operationId: route.operationId,
-  });
+  };
+  requests.set(c, input);
   await next();
+  // Hono 已完成下游异常映射，webhookRateLimit 也已替换为渠道失败协议。
+  // 只观察已确定的最终响应；异常上抛时不在 finally 读取默认状态。
+  if (c.finalized)
+    c.var.runtime.webhooks.observeResponse({
+      ...input,
+      status: c.res.status,
+      requestId: c.var.requestId,
+      signature: c.req.header("Wechatpay-Signature"),
+    });
 };
 
 async function rawBody(c: Context<ApiEnv>): Promise<Uint8Array<ArrayBuffer> | null> {
