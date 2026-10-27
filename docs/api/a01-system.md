@@ -320,7 +320,7 @@
 | --- | --- | --- | --- | --- |
 | `approvalId` | string(uuid) | 是 | 审批单 id | `approval_request.id` |
 | `requestNo` | string \| null | 是 | 业务单号（`TK`、`TZ`、`YQ`、`ZH` 开头）；审核类等为 `null` | `approval_request.request_no` |
-| `kind` | enum | 是 | 审批类型，12 个取值见第 4 节 | `approval_request.kind` |
+| `kind` | enum | 是 | 审批类型，13个取值见第4节（新增预发系统退款） | `approval_request.kind` |
 | `category` | enum | 是 | `review` 商家提交的审核 / `approval` 员工发起的审批 | `approval_request.category` |
 | `status` | enum | 是 | `pending` / `approved` / `rejected` / `withdrawn` | `approval_request.status` |
 | `roundNo` | integer | 是 | 同一对象第几次提交 | `approval_request.round_no` |
@@ -364,6 +364,7 @@
 | `launch_link` | `publish` ≥ v | `publish.link.verify` | `admin.launchSubmission.get` | `admin.launchSubmission.approve` / `reject` | 系统（任务作废） |
 | `order_cancel`、`ad_cancel`、`qualification_cancel` | `order` ≥ v 或 `finance` ≥ v | `finance.refund.approve` | `admin.cancelRequest.get` | `admin.cancelRequest.approve` / `reject` | `admin.cancelRequest.withdraw` |
 | `plan_refund` | `finance` ≥ v 或 `order` ≥ v | `finance.refund.approve` | `admin.refundRequest.get` | `admin.refundRequest.approve` / `reject` | `admin.refundRequest.withdraw` |
+| `staging_pay_refund` | `finance` ≥ v 或 `order` ≥ v | 系统决定，无人工动作 | `admin.refundRequest.get`（后继stg类型登记后可读） | — | — |
 | `points_adjust` | `finance` ≥ v 或 `billing` ≥ v | `billing.adjust.approve` | `admin.pointAdjustmentRequest.get` | `admin.pointAdjustmentRequest.approve` / `reject` | `admin.pointAdjustmentRequest.withdraw` |
 | `subscription_extend` | `order` ≥ v 或 `billing` ≥ v | `billing.extension.approve`（仅主管，且是发起人所在组的主管） | `admin.termExtensionRequest.get` | `admin.termExtensionRequest.approve` / `reject` | `admin.termExtensionRequest.withdraw` |
 | `finance_config_change` | `finance` ≥ v | `finance.config.approve` | `admin.financeConfigRevision.list`（`tab=history&financeConfigRevisionId=…`，没有按 id 取单的接口，a07 3.80） | `admin.financeConfigRevision.approve` / `reject` | `admin.financeConfigRevision.withdraw` |
@@ -3271,7 +3272,7 @@
 | `pool` | `delivery_manager` / `editor` / `publisher` / `cs` | 同数据模型 `assignment_pool_member.pool` |
 | `WorkSource` | `store_manager` / `ticket_editor` / `ticket_publisher` / `ad_editor` / `service_ticket_owner` / `follow_up_owner` | 同数据模型 `assignment_history.source`（`x-open-enum`）；与对象类型的配对见 `ck_assignment_history_source_subject`（`store_manager` 对应 `store`、`drama_order`、`delivery_ticket`、`service_ticket`） |
 | `StaffAction` | `update` / `enable` / `disable` / `handover` / `reset-password` / `reset-mfa` / `reissue-activation-code` / `unlock` / `invite-wecom` / `bind-wecom` | 本文定义（C16），动作名取 C12 的账号类原名；角色尚未开放的待启用员工不给 `enable` |
-| `approvalKind` | `qualification` / `channel_account` / `launch_link` / `order_cancel` / `ad_cancel` / `qualification_cancel` / `plan_refund` / `points_adjust` / `subscription_extend` / `finance_config_change` / `account_change` / `transfer_confirm` | 同数据模型 `approval_request.kind` |
+| `approvalKind` | `qualification` / `channel_account` / `launch_link` / `order_cancel` / `ad_cancel` / `qualification_cancel` / `plan_refund` / `staging_pay_refund` / `points_adjust` / `subscription_extend` / `finance_config_change` / `account_change` / `transfer_confirm` | 同数据模型 `approval_request.kind` |
 | `approvalCategory` | `review` / `approval` | 同数据模型 `approval_request.category` |
 | `approvalStatus` | `pending` / `approved` / `rejected` / `withdrawn` | 同数据模型 `approval_request.status` |
 | `ApprovalTab`（3.36） | `todo` / `submitted` / `done_today` / `all` | 本文定义：待我处理 / 我发起的 / 今日已处理 / 全部；3.37 的计数键为其驼峰写法 `todo`、`submitted`、`doneToday`、`all` |

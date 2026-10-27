@@ -500,6 +500,8 @@
 - 商家场景的“通道”写“订阅槽位 / 短信模板（默认策略，节点）”，`—` 为只发站内；带订阅槽位的才进消息模板页的订阅消息页签（3.18）。员工场景没有订阅与短信（`ck_notify_scene_staff_channels`），外部通道是企业微信应用消息，“铃铛”是后台站内消息 `staff_message`。
 - 深链：商家写 `DeepLink` 的路由键（m08 2.1；参数按 m04 3.2 派生表的写法带对象 id 与 `storeId`）；员工写 `AdminLink` 的路由键（a02 的 `AdminRouteKey`）。
 - “播种”是 13 分组已列的 32 行；“补登”是本文按其他文档的请求与 x01 订阅栏新登记的键，由 13 分组随注册表同批播种（只加行，不改表结构，13-notify-docs.md:152），默认 `ext_enabled = true`、`sms_policy = never`、`send_window = immediate`。播种前派发函数找不到场景行时只记日志、不建通知。新增、改名场景都按本节改契约并记入修订记录。
+对公确认日摘要的标题/正文仅业务日、笔数、跨主体 bigint 十进制总分与流水号冲突放行笔数（正文≤200字）；完整安全清单保存在 `notification.vars.items`，不含账号、手机号或 openid。深链复用已实现 `admin.paymentTransaction.list/summary` 的成功日期与渠道筛选，服务端按 `channel_success_at` 的北京时间日界取数；财务收款页与该深链的实际页面消费由 W4-18 交付，本通知写入不表示后台已能查看清单。
+
 - 人工催办 `manual_reminder.sent` 按载荷 `scene` 映射到下表的场景派发，节点记 `M`（13-notify-docs.md:139）：`confirm_plan` → `m.plan_pending`，`confirm_sample` → `m.sample_pending`，`confirm_ad` → `m.ad_pending`，`golive` → `m.launch_remind`，`takedown`、`breach` → `m.offline_remind`，`patrol_fix` → `m.patrol_abnormal`，`renewal` → `m.plan_expiring`（x01 的请求）。
 
 **商家场景**
@@ -561,6 +563,7 @@
 | `s.followup_due` | 跟进到期提醒 | 纯提醒 `followup_due`，到期日 09:00 起 | 当前 `follow_up.owner_staff_id`，仍待跟进 | ✔ / ✔ | `merchant.detail`（`entityId`） | W2-17 必要补登；03 分组 2.9、13 分组 2.1 |
 | `s.approval_decided` | 审批结果 | `approval.approved`、`approval.rejected` | 申请人 | ✔ / ✔ | `approval.mine` | 播种 |
 | `s.receipt_pending` | 对公凭证待确认 | `transfer.proof_submitted` | 财务 | ✔ / ✔ | `order.receipts` | 播种 |
+| `s.receipt_daily_digest` | 对公确认日摘要 | 周期任务 `receipt.daily_digest`，无出站事件 | 当前在职超级管理员 | — / ✔ | `finance.payments`（`successFrom = successTo = bizDate`、`channel = bank_transfer`） | W4-12 必要补登；默认 `ext_enabled = false`，始终仅站内 |
 | `s.merchant_unreached` | 商家未触达 | 补发判定：订阅与短信都未送达（不经出站事件，13-notify-docs.md:439） | 该商家的交付经理 | ✔ / ✔ | `merchant.detail` | 播种 |
 | `s.export_ready` | 导出完成 | `export.succeeded`；`export.failed`（失败文案） | 申请人 | — / ✔ | `export.records`，`params = { exportJobId }`（a02 的请求） | 播种 |
 | `s.system_alert` | 系统告警 | 告警的铃铛副本（d7 §9.3，不经出站事件） | 超级管理员 | — / ✔ | `system.health` | 播种 |

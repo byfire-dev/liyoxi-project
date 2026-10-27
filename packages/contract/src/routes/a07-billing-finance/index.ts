@@ -65,3 +65,10 @@ export * from "./refund-requests.js";
 export * from "./point-accounts.js";
 export * from "./point-adjustment-requests.js";
 export * from "./term-extension-requests.js";
+
+export * from "./payment-exceptions.schemas.js";
+export * from "./payment-exceptions.js";
+
+export * from "./reconciliations.schemas.js";
+
+export * from "./reconciliations.js";

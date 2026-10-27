@@ -3,4 +3,5 @@
 import { receiptsRoute } from "../order/receipts";
 import { ordersRoute } from "../order/list";
 import { orderDetailRoute } from "../order/detail";
-export const orderRoutes = [receiptsRoute, ordersRoute, orderDetailRoute] as const;
+import { renewalsRoute } from "../order/renewals";
+export const orderRoutes = [receiptsRoute, ordersRoute, orderDetailRoute, renewalsRoute] as const;

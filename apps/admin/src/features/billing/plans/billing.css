@@ -1,0 +1,52 @@
+.billing-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.billing-stack,
+.billing-fields {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.billing-panel {
+  padding: 20px;
+  min-width: 0;
+}
+.billing-panel h2 {
+  margin-top: 0;
+}
+.billing-actions,
+.billing-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.billing-kpis {
+  margin-bottom: 16px;
+  gap: 24px;
+}
+.billing-kpis strong {
+  font-size: 24px;
+}
+.billing-fields .ant-input-number {
+  width: 100%;
+}
+.billing-quote {
+  overflow-wrap: anywhere;
+}
+.billing-value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.billing-table {
+  overflow-x: auto;
+  min-width: 0;
+}
+@media (max-width: 1200px) {
+  .billing-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -135,6 +135,7 @@ export const unconfiguredWechatPay: WechatPayProvider = {
   createRefund: wechatPayOff,
   queryRefund: wechatPayOff,
   fetchTradeBill: wechatPayOff,
+  fetchVerifiedTradeBill: wechatPayOff,
 };
 
 // ---------- sms：本地是控制台输出（sms/console.ts）；这里是连控制台都不许用时的实现 ----------
