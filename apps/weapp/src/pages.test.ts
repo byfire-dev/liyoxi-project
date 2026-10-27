@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("已交付四十一页包含 M1 全部二十五页，V1.1不实现", () => {
+  it("已交付四十二页包含 M1 全部二十五页，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
@@ -57,6 +57,7 @@ describe("页面清单", () => {
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/billing/topup/index",
+      "sub/billing/ledger/index",
       "sub/billing/invoices/index",
       "sub/billing/contracts/index",
       "sub/profile/profile/index",
@@ -100,6 +101,7 @@ describe("页面清单", () => {
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/billing/topup/index",
+      "sub/billing/ledger/index",
       "sub/billing/invoices/index",
       "sub/billing/contracts/index",
       "sub/profile/profile/index",
@@ -166,6 +168,7 @@ describe("由清单拼出全局配置", () => {
             "wallet/index",
             "plan-pick/index",
             "topup/index",
+            "ledger/index",
             "invoices/index",
             "contracts/index",
           ],
@@ -233,6 +236,7 @@ describe("由清单拼出全局配置", () => {
           "wallet/index",
           "plan-pick/index",
           "topup/index",
+          "ledger/index",
           "invoices/index",
           "contracts/index",
         ],

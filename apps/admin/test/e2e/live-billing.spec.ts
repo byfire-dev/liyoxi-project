@@ -33,7 +33,7 @@ test("对公到账真API：金额初始空、勾选+流水+金额确认，队列
     )
       selected.push(request.headers()["idempotency-key"]!);
   });
-  await page.goto("/orders/receipts");
+  await page.goto("/orders/receipts?q=到账演练");
   await expect(page.getByRole("heading", { name: "对公收款确认", exact: true })).toBeVisible();
   const queue = page.locator(".lyx-queue__list");
   await expect(queue.locator("[data-queue-item]")).toHaveCount(3);
