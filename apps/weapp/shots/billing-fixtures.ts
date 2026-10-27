@@ -112,7 +112,7 @@ export const billingQuote: Data<"m.plan.quote"> = {
   upgrade: null,
   downgradeImpact: null,
   promo: null,
-  validUntil: "2026-10-06T00:05:00.000Z",
+  validUntil: null,
   quotedAt: BILLING_NOW,
   policy: billingPolicy,
 };
@@ -261,6 +261,13 @@ export function billingPayment(scene: string): Data<"m.paymentOrder.get"> {
 }
 /** 固定 DTO 的单一注入口，只在 H5 明确标记时启用。 */
 export function offlineBillingRequest(scene: string): RequestLayer["request"] {
+  if (
+    scene.startsWith("topup-") ||
+    scene === "plan-renew" ||
+    scene === "plan-upgrade" ||
+    scene === "wechat-pending"
+  )
+    return offlinePurchaseRequest(scene);
   let receiptRegistered = false,
     receiptConfirmed = false;
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
@@ -330,6 +337,84 @@ export function offlineBillingRequest(scene: string): RequestLayer["request"] {
         createdAt: BILLING_NOW,
       } satisfies Data<"m.file.get">;
     } else throw new Error(`离线账单场景未登记调用：${path}`);
+    return value as T;
+  };
+}
+
+/** W414固定虚构策略与支付状态，仅经显式H5样张标记进入；不模拟原生支付成功。 */
+function offlinePurchaseRequest(scene: string): RequestLayer["request"] {
+  const fallback = offlineBillingRequest("wallet-active");
+  const policy: Data<"m.purchasePolicy.get"> = {
+    ...billingPolicy,
+    mode:
+      scene === "topup-offline"
+        ? "offline_contract"
+        : scene === "topup-hidden"
+          ? "hidden"
+          : "in_app",
+    channels: billingPolicy.channels.map((c) => ({ ...c, isEnabled: scene !== "topup-disabled" })),
+  };
+  return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
+    let value: unknown;
+    if (path === "/m/wallet")
+      value = {
+        ...billingWallet("wallet-active"),
+        topUp: { canTopUp: true, blockReason: null },
+      } satisfies Data<"m.wallet.get">;
+    else if (path === "/m/purchase-policy") value = policy;
+    else if (path === "/m/point-packs") {
+      if (scene === "topup-error") throw new Error("固定积分包加载失败");
+      value = {
+        items: [
+          { pointPackId: BILLING_ID, points: 1000, priceFen: 9900 },
+          { pointPackId: "00000000-0000-4000-8000-000000000002", points: 3000, priceFen: 27900 },
+        ],
+      } satisfies Data<"m.pointPack.list">;
+    } else if (path === "/m/plans")
+      value = {
+        items: billingPlans.items.map((p) => ({ ...p, isCurrent: scene === "plan-renew" })),
+      } satisfies Data<"m.plan.list">;
+    else if (path === "/m/plans/quote")
+      value = {
+        ...billingQuote,
+        policy,
+        action: scene === "plan-upgrade" ? "upgrade" : "renew",
+        orderType: scene === "plan-upgrade" ? "plan_upgrade" : "plan_renew",
+        months: scene === "plan-upgrade" ? null : 1,
+        newTerm: scene === "plan-upgrade" ? null : billingQuote.newTerm,
+        firstGrantDate: scene === "plan-upgrade" ? null : billingQuote.firstGrantDate,
+        effectiveMode: scene === "plan-upgrade" ? "immediate" : "next_term",
+        payFen: scene === "plan-upgrade" ? 38000 : billingQuote.payFen,
+        formula: {
+          ...billingQuote.formula,
+          text:
+            scene === "plan-upgrade"
+              ? "服务端升级试算：剩余周期按差额折算"
+              : "服务端续费报价：专业版 · 1个月",
+        },
+        upgrade:
+          scene === "plan-upgrade"
+            ? {
+                currentTermEndDate: "2026-11-12",
+                remainingDays: 6,
+                baseDays: 30,
+                remainingFullMonths: 0,
+                feeDeltaPerMonthFen: 600000,
+                monthlyDeltaPoints: 3000,
+                proratedFen: 38000,
+                topupPoints: 600,
+              }
+            : null,
+      } satisfies Data<"m.plan.quote">;
+    else if (path.startsWith("/m/payment-orders/"))
+      value = {
+        ...billingPayment("bank-waiting"),
+        channel: "wechat_jsapi",
+        transferState: null,
+        actions: ["wechat-prepay", "sync", "cancel"],
+        bankAccount: null,
+      } satisfies Data<"m.paymentOrder.get">;
+    else return fallback(path, options);
     return value as T;
   };
 }
