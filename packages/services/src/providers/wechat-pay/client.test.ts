@@ -689,6 +689,61 @@ describe("账单：申请与下载", () => {
     expect(last().url).toBe(url);
   });
 
+  it("可信原件绑定请求日/商户与摘要并隔离字节；仅验签400精确缺账作为missing", async () => {
+    replies.push(signed(200, ticket), file(bill));
+    const value = await driver().fetchVerifiedTradeBill({ billDate: "2026-10-03" });
+    expect(value).toMatchObject({
+      ok: true,
+      value: {
+        kind: "verified",
+        billDate: "2026-10-03",
+        appid: setup.config.appid,
+        mchid: setup.config.mchid,
+        sha1,
+      },
+    });
+    if (!value.ok || value.value.kind !== "verified") throw new Error("未取得可信原件");
+    const first = value.value.bytes;
+    first[0] = first[0]! ^ 1;
+    expect(new TextDecoder().decode(value.value.bytes)).toBe(bill);
+    replies.push(signed(400, { code: "NO_STATEMENT_EXIST" }));
+    expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-10-04" })).toMatchObject({
+      ok: true,
+      value: { kind: "missing", billDate: "2026-10-04" },
+    });
+    expect(hooked).toEqual(["fetchVerifiedTradeBill", "fetchVerifiedTradeBill"]);
+    for (const response of [
+      () => new Response(JSON.stringify({ code: "NO_STATEMENT_EXIST" }), { status: 400 }),
+      signed(404, { code: "NO_STATEMENT_EXIST" }),
+      signed(400, { code: "STATEMENT_CREATING" }),
+    ]) {
+      replies.push(response);
+      expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-10-03" })).toMatchObject({
+        ok: false,
+      });
+    }
+  });
+  it("可信原件拒绝坏签名ticket/外域/坏摘要/非法日期而不交原件", async () => {
+    replies.push(() => new Response(JSON.stringify(ticket), { status: 200 }));
+    expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-10-03" })).toMatchObject({
+      ok: false,
+    });
+    replies.push(signed(200, { ...ticket, download_url: "https://outside.example.invalid/bill" }));
+    expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-10-03" })).toMatchObject({
+      ok: false,
+    });
+    replies.push(signed(200, ticket), file(`${bill} `));
+    expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-10-03" })).toMatchObject({
+      ok: false,
+    });
+    const count = sent.length;
+    expect(await driver().fetchVerifiedTradeBill({ billDate: "2026-02-30" })).toMatchObject({
+      ok: false,
+      reason: "rejected",
+    });
+    expect(sent).toHaveLength(count);
+  });
+
   it("fetchTradeBill：申请加下载，返回账单原文；当日没有账单返回空文本", async () => {
     replies.push(signed(200, ticket), file(bill), refused(400, "NO_STATEMENT_EXIST"));
     expect(await driver().fetchTradeBill({ billDate: "2026-10-03" })).toEqual({

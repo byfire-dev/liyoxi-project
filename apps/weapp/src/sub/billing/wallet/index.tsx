@@ -19,10 +19,13 @@ import { account, useAccount } from "@/lib/account-runtime";
 import { useBootstrapStore } from "@/stores/bootstrap";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
+import { withSubscribe } from "@/lib/runtime";
+import { currentPurchaseContext } from "../topup/runtime";
 
 import { createWalletApi } from "./api";
 import { billingRequest } from "./runtime";
 import { billingCopy, purchaseVisible, walletPurchaseLabel } from "./model";
+import { ledgerContext } from "../ledger/model";
 
 import "./index.scss";
 
@@ -100,7 +103,18 @@ function WalletContent() {
     wallet && merchantStatusByEnum("billing_account.sub_status", wallet.subscription.status);
   const noun = data ? billingCopy(data.policy.copy.planNounKey, copy) : "";
   const pointsNoun = data ? billingCopy(data.policy.copy.pointsNounKey, copy) : "";
-  const purchase = data ? walletPurchaseLabel(data.wallet, data.policy, copy) : null;
+  const purchaseAllowed = currentPurchaseContext("plan.purchase").allowed;
+  const purchase =
+    data && purchaseAllowed ? walletPurchaseLabel(data.wallet, data.policy, copy) : null;
+  function openPurchase(path: string, renew = false) {
+    if (!data || !purchaseVisible(data.policy) || !currentPurchaseContext("plan.purchase").allowed)
+      return;
+    const navigate = () => {
+      if (currentPurchaseContext("plan.purchase").allowed) void Taro.navigateTo({ url: path });
+    };
+    if (renew) withSubscribe("renew_enter", navigate)();
+    else navigate();
+  }
   return (
     <View className="billing-wallet" id={data ? "billing-ready" : undefined}>
       <PageBody>
@@ -182,11 +196,35 @@ function WalletContent() {
                 <Button
                   block
                   onClick={() => {
-                    void Taro.navigateTo({ url: "/sub/billing/plan-pick/index" });
+                    openPurchase(
+                      "/sub/billing/plan-pick/index",
+                      wallet.subscription.status === "expired",
+                    );
                   }}
                 >
                   {purchase}
                 </Button>
+              ) : null}
+              {purchaseAllowed &&
+              purchaseVisible(data.policy) &&
+              !wallet.subscription.isRefundPending &&
+              wallet.subscription.status === "active" ? (
+                <View className="billing-wallet__tags">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      openPurchase("/sub/billing/plan-pick/index?intent=renew_next_term", true)
+                    }
+                  >
+                    续费 / 下期变更
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => openPurchase("/sub/billing/plan-pick/index?intent=upgrade_now")}
+                  >
+                    立即升级
+                  </Button>
+                </View>
               ) : null}
             </Card>
             {wallet.subscription.status === "expired" ? (
@@ -215,7 +253,34 @@ function WalletContent() {
                 {pointsNoun}
               </Note>
             ) : null}
-            <Card title={`可用${pointsNoun}`}>
+            <Card
+              title={`可用${pointsNoun}`}
+              extra={
+                ledgerContext({
+                  token: useSessionStore.getState().accessToken,
+                  storeId,
+                  contextRev: useContextStore.getState().contextRev,
+                  me,
+                }).allowed && accountPageImplemented("sub/billing/ledger/index") ? (
+                  <TextButton
+                    arrow
+                    onClick={() => {
+                      if (
+                        ledgerContext({
+                          token: useSessionStore.getState().accessToken,
+                          storeId: useContextStore.getState().currentStoreId,
+                          contextRev: useContextStore.getState().contextRev,
+                          me: account.snapshot().me,
+                        }).allowed
+                      )
+                        void Taro.navigateTo({ url: "/sub/billing/ledger/index" });
+                    }}
+                  >
+                    积分明细
+                  </TextButton>
+                ) : undefined
+              }
+            >
               <View className="billing-wallet__balance">
                 {formatInteger(wallet.points.spendablePoints)}
               </View>
@@ -237,6 +302,21 @@ function WalletContent() {
                   },
                 ]}
               />
+              {currentPurchaseContext("points.topup").allowed &&
+              purchaseVisible(data.policy) &&
+              wallet.topUp.canTopUp &&
+              accountPageImplemented("sub/billing/topup/index") ? (
+                <Button
+                  block
+                  variant="outline"
+                  onClick={() => {
+                    if (currentPurchaseContext("points.topup").allowed)
+                      openPurchase("/sub/billing/topup/index");
+                  }}
+                >
+                  加购{pointsNoun}
+                </Button>
+              ) : null}
             </Card>
             {wallet.subscription.scheduledTerms.map((term, index) => (
               <Card key={`${term.startDate}:${index}`} title={`下期${noun}`}>

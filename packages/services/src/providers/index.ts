@@ -53,6 +53,7 @@ import {
 
 export * from "./types.js";
 export { createWechatPay } from "./wechat-pay/driver.js";
+export { createVerifiedTradeBill } from "./wechat-pay/bill-evidence.js";
 export type { WechatPaySettings } from "./wechat-pay/config.js";
 export { createWecomRobot } from "./wecom/robot.js";
 export type { WecomRobotConfig, WecomRobotOptions } from "./wecom/robot.js";

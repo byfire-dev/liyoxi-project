@@ -39,6 +39,7 @@ import { assetActionRegression } from "../shots/asset-action-regressions.mjs";
 import { orderReferenceRegression } from "../shots/order-reference-regressions.mjs";
 import { runInvoiceRegression } from "../shots/invoice-regressions.mjs";
 import { runContractsRegression } from "../shots/contracts-regressions.mjs";
+import { runLedgerRegression } from "../shots/ledger-regressions.mjs";
 import { tenantRegression } from "../shots/tenant-regressions.mjs";
 import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
@@ -92,7 +93,19 @@ const { INVOICE_SCENES } = await import(
 const { CONTRACT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/contracts-scenes.ts")).href
 );
-const BILLING_SCENES = [...LEGACY_BILLING_SCENES, ...INVOICE_SCENES, ...CONTRACT_SCENES];
+const { TOPUP_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/topup-scenes.ts")).href
+);
+const { LEDGER_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/ledger-scenes.ts")).href
+);
+const BILLING_SCENES = [
+  ...LEGACY_BILLING_SCENES,
+  ...INVOICE_SCENES,
+  ...CONTRACT_SCENES,
+  ...TOPUP_SCENES,
+  ...LEDGER_SCENES,
+];
 const { CATALOG_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/catalog-scenes.ts")).href
 );
@@ -575,7 +588,9 @@ async function shoot(target) {
           if (kind === "billing") {
             globalThis.__LYX_BILLING_SHOT__ = scene;
             globalThis.__LYX_ACCOUNT_SHOT__ =
-              scene === "contracts-clerk" ? "mine-clerk" : "mine-owner";
+              scene === "contracts-clerk" || scene === "topup-clerk" || scene === "ledger-clerk"
+                ? "mine-clerk"
+                : "mine-owner";
           }
           if (kind === "message") {
             globalThis.__LYX_ACCOUNT_SHOT__ =
@@ -613,7 +628,13 @@ async function shoot(target) {
                   ? "#invoices-ready"
                   : target.scene.startsWith("contracts-")
                     ? "#contracts-ready"
-                    : "#billing-ready"
+                    : target.scene.startsWith("topup-")
+                      ? "#topup-ready"
+                      : target.scene === "ledger-loading"
+                        ? ".billing-ledger .lyx-skeleton"
+                        : target.scene.startsWith("ledger-") && target.scene !== "ledger-entry"
+                          ? "#ledger-ready"
+                          : "#billing-ready"
                 : target.kind === "publish"
                   ? "#publish-ready"
                   : target.kind === "order" || target.kind === "order-reference"
@@ -650,6 +671,8 @@ async function shoot(target) {
         await runInvoiceRegression(page, target.scene);
       if (target.kind === "billing" && target.scene.startsWith("contracts-"))
         await runContractsRegression(page, target.scene);
+      if (target.kind === "billing" && target.scene.startsWith("ledger-"))
+        await runLedgerRegression(page, target.scene);
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);
       if (target.kind === "tenant") await tenantRegression(page, target.scene);

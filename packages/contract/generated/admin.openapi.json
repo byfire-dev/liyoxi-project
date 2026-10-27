@@ -19761,6 +19761,812 @@
         ],
         "type": "object"
       },
+      "PaymentExceptionDetail": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "resolve"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allowedResolutions": {
+            "items": {
+              "enum": [
+                "restore",
+                "refund",
+                "retried",
+                "rebuild_order",
+                "link_order",
+                "offline_return",
+                "record_channel_refund",
+                "corrected",
+                "written_off"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "amountFen": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "billDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "billFact": {
+            "properties": {
+              "amountFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "occurredAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "outRefundNo": {
+                "type": "string"
+              },
+              "outTradeNo": {
+                "type": "string"
+              },
+              "refundId": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "transactionId": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "causeText": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channelTxnNo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "detectedBy": {
+            "enum": [
+              "callback",
+              "query",
+              "apply",
+              "reconciliation",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "entity": {
+            "properties": {
+              "entityId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "managerStaff": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "primaryStoreId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "primaryStoreName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "storeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "verificationStatus": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entityId",
+              "name",
+              "primaryStoreId",
+              "primaryStoreName",
+              "storeCount",
+              "verificationStatus",
+              "managerStaff"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "exceptionNo": {
+            "type": "string"
+          },
+          "hints": {
+            "items": {
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "text"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "paid_after_cancel",
+              "amount_mismatch",
+              "payer_mismatch",
+              "duplicate_receipt",
+              "fulfillment_blocked",
+              "bill_only",
+              "platform_only",
+              "status_mismatch",
+              "bank_unmatched",
+              "refund_bill_only",
+              "refund_platform_only",
+              "refund_amount_mismatch",
+              "refund_over",
+              "entitlement_unrecovered"
+            ],
+            "type": "string"
+          },
+          "linkCandidates": {
+            "items": {
+              "properties": {
+                "amountFen": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "entity": {
+                  "properties": {
+                    "entityId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "managerStaff": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/StaffBrief"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "primaryStoreId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "primaryStoreName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "storeCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "verificationStatus": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "entityId",
+                    "name",
+                    "primaryStoreId",
+                    "primaryStoreName",
+                    "storeCount",
+                    "verificationStatus",
+                    "managerStaff"
+                  ],
+                  "type": "object"
+                },
+                "orderNo": {
+                  "type": "string"
+                },
+                "paymentOrderId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "paymentOrderId",
+                "orderNo",
+                "entity",
+                "amountFen",
+                "status",
+                "createdAt"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "paymentExceptionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "paymentOrder": {
+            "properties": {
+              "orderNo": {
+                "type": "string"
+              },
+              "paymentOrderId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "paymentOrderId",
+              "orderNo",
+              "type",
+              "title"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "paymentTxn": {
+            "properties": {
+              "attemptNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "channel": {
+                "enum": [
+                  "wechat_jsapi",
+                  "bank_transfer"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "channelAmountFen": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "channelSuccessAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "channelTxnNo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "confirmedBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "feeFen": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "isApplied": {
+                "type": "boolean"
+              },
+              "outTradeNo": {
+                "type": "string"
+              },
+              "payerName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "paymentTransactionId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "reconState": {
+                "enum": [
+                  "pending",
+                  "matched",
+                  "diff",
+                  "resolved"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              "refundedFen": {
+                "type": "integer"
+              },
+              "reviewedBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "status": {
+                "enum": [
+                  "created",
+                  "prepaid",
+                  "succeeded",
+                  "closed"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              }
+            },
+            "required": [
+              "paymentTransactionId",
+              "attemptNo",
+              "channel",
+              "status",
+              "outTradeNo",
+              "channelTxnNo",
+              "channelAmountFen",
+              "feeFen",
+              "channelSuccessAt",
+              "isApplied",
+              "refundedFen",
+              "reconState",
+              "payerName",
+              "confirmedBy",
+              "reviewedBy"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "platformFact": {
+            "properties": {
+              "amountFen": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "occurredAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "outRefundNo": {
+                "type": "string"
+              },
+              "outTradeNo": {
+                "type": "string"
+              },
+              "refundId": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "transactionId": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "refundRequest": {
+            "properties": {
+              "refundRequestId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "requestNo": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "refundRequestId",
+              "requestNo",
+              "status"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "refundTxn": {
+            "properties": {
+              "amountFen": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "channel": {
+                "enum": [
+                  "wechat_jsapi",
+                  "offline"
+                ],
+                "type": "string"
+              },
+              "channelRefundNo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failCode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "failMessage": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "isLateSuccess": {
+                "type": "boolean"
+              },
+              "isRetryHalted": {
+                "type": "boolean"
+              },
+              "lastSubmitAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "offline": {
+                "properties": {
+                  "note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "payeeAccountMask": {
+                    "type": "string"
+                  },
+                  "payeeBank": {
+                    "type": "string"
+                  },
+                  "payeeName": {
+                    "type": "string"
+                  },
+                  "receiptFileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "registeredBy": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ]
+                      }
+                    ]
+                  },
+                  "transferDate": {
+                    "format": "date",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "transferDate",
+                  "payeeName",
+                  "payeeBank",
+                  "payeeAccountMask",
+                  "receiptFileId",
+                  "note",
+                  "registeredBy"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "origin": {
+                "enum": [
+                  "system",
+                  "external"
+                ],
+                "type": "string"
+              },
+              "outRefundNo": {
+                "type": "string"
+              },
+              "refundTxnId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "created",
+                  "processing",
+                  "succeeded",
+                  "closed",
+                  "abnormal",
+                  "not_accepted",
+                  "abandoned"
+                ],
+                "type": "string"
+              },
+              "submitCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "successAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "userReceivedAccount": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "refundTxnId",
+              "outRefundNo",
+              "channel",
+              "origin",
+              "status",
+              "amountFen",
+              "channelRefundNo",
+              "submitCount",
+              "lastSubmitAt",
+              "isRetryHalted",
+              "failCode",
+              "failMessage",
+              "successAt",
+              "userReceivedAccount",
+              "isLateSuccess",
+              "offline"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "resolution": {
+            "enum": [
+              "restore",
+              "refund",
+              "retried",
+              "rebuild_order",
+              "link_order",
+              "offline_return",
+              "record_channel_refund",
+              "corrected",
+              "written_off",
+              "none"
+            ],
+            "type": "string"
+          },
+          "resolutionNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolvedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolvedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolving",
+              "resolved",
+              "auto_healed",
+              "ignored"
+            ],
+            "type": "string"
+          },
+          "wxBillLine": {
+            "properties": {
+              "lineKind": {
+                "type": "string"
+              },
+              "lineNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "matchState": {
+                "type": "string"
+              },
+              "orderAmountFen": {
+                "type": "integer"
+              },
+              "outRefundNo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "outTradeNo": {
+                "type": "string"
+              },
+              "refundAmountFen": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "tradedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "wxBillLineId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "wxBillLineId",
+              "lineNo",
+              "lineKind",
+              "tradedAt",
+              "outTradeNo",
+              "outRefundNo",
+              "orderAmountFen",
+              "refundAmountFen",
+              "matchState"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "paymentExceptionId",
+          "exceptionNo",
+          "kind",
+          "detectedBy",
+          "billDate",
+          "entity",
+          "paymentOrder",
+          "channelTxnNo",
+          "amountFen",
+          "causeText",
+          "status",
+          "resolution",
+          "createdAt",
+          "resolvedAt",
+          "isOverdue",
+          "billFact",
+          "platformFact",
+          "paymentTxn",
+          "refundTxn",
+          "wxBillLine",
+          "allowedResolutions",
+          "linkCandidates",
+          "hints",
+          "resolutionNote",
+          "resolvedBy",
+          "refundRequest",
+          "lockVersion",
+          "actions"
+        ],
+        "type": "object"
+      },
       "PaymentOrderAdminDetail": {
         "properties": {
           "actions": {
@@ -25355,6 +26161,599 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "ReconDayRow": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "resolve",
+                "rerun"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bank": {
+            "properties": {
+              "amountFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              "count": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count",
+              "amountFen"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "billDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "billFileStatus": {
+            "enum": [
+              "pending",
+              "downloaded",
+              "parsed",
+              "empty",
+              "failed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billPay": {
+            "properties": {
+              "amountFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              "count": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count",
+              "amountFen"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "diff": {
+            "properties": {
+              "amountFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              "count": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "resolutions": {
+                "items": {
+                  "properties": {
+                    "amountFen": {
+                      "pattern": "^\\d+$",
+                      "type": "string"
+                    },
+                    "resolution": {
+                      "enum": [
+                        "restore",
+                        "refund",
+                        "retried",
+                        "rebuild_order",
+                        "link_order",
+                        "offline_return",
+                        "record_channel_refund",
+                        "corrected",
+                        "written_off",
+                        "none"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "resolution",
+                    "amountFen"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "count",
+              "amountFen",
+              "resolutions"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "feeFen": {
+            "pattern": "^-?\\d+$",
+            "type": "string"
+          },
+          "lastRunAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platformPay": {
+            "properties": {
+              "amountFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              "count": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "count",
+              "amountFen"
+            ],
+            "type": "object"
+          },
+          "reconciliationId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "refund": {
+            "properties": {
+              "billCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "billFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              "platformCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "platformFen": {
+                "pattern": "^\\d+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "platformCount",
+              "platformFen",
+              "billCount",
+              "billFen"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "runCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "wait",
+              "ok",
+              "diff",
+              "fixed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "billDate",
+          "reconciliationId",
+          "platformPay",
+          "billPay",
+          "bank",
+          "refund",
+          "feeFen",
+          "diff",
+          "status",
+          "billFileStatus",
+          "runCount",
+          "lastRunAt",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "ReconMonth": {
+        "properties": {
+          "dayStatusCounts": {
+            "properties": {
+              "diff": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "fixed": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ok": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "wait": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "ok",
+              "diff",
+              "fixed",
+              "wait"
+            ],
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReconDayRow"
+            },
+            "maxItems": 31,
+            "type": "array"
+          },
+          "month": {
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "type": "string"
+          },
+          "openExceptions": {
+            "items": {
+              "properties": {
+                "amountFen": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "billDate": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "causeText": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "channelTxnNo": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "detectedBy": {
+                  "enum": [
+                    "callback",
+                    "query",
+                    "apply",
+                    "reconciliation",
+                    "manual"
+                  ],
+                  "type": "string"
+                },
+                "entity": {
+                  "properties": {
+                    "entityId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "managerStaff": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/StaffBrief"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "primaryStoreId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "primaryStoreName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "storeCount": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "verificationStatus": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "entityId",
+                    "name",
+                    "primaryStoreId",
+                    "primaryStoreName",
+                    "storeCount",
+                    "verificationStatus",
+                    "managerStaff"
+                  ],
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "exceptionNo": {
+                  "type": "string"
+                },
+                "isOverdue": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "enum": [
+                    "paid_after_cancel",
+                    "amount_mismatch",
+                    "payer_mismatch",
+                    "duplicate_receipt",
+                    "fulfillment_blocked",
+                    "bill_only",
+                    "platform_only",
+                    "status_mismatch",
+                    "bank_unmatched",
+                    "refund_bill_only",
+                    "refund_platform_only",
+                    "refund_amount_mismatch",
+                    "refund_over",
+                    "entitlement_unrecovered"
+                  ],
+                  "type": "string"
+                },
+                "paymentExceptionId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "paymentOrder": {
+                  "properties": {
+                    "orderNo": {
+                      "type": "string"
+                    },
+                    "paymentOrderId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "paymentOrderId",
+                    "orderNo",
+                    "type",
+                    "title"
+                  ],
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "resolution": {
+                  "enum": [
+                    "restore",
+                    "refund",
+                    "retried",
+                    "rebuild_order",
+                    "link_order",
+                    "offline_return",
+                    "record_channel_refund",
+                    "corrected",
+                    "written_off",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                "resolvedAt": {
+                  "format": "date-time",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "open",
+                    "resolving",
+                    "resolved",
+                    "auto_healed",
+                    "ignored"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "paymentExceptionId",
+                "exceptionNo",
+                "kind",
+                "detectedBy",
+                "billDate",
+                "entity",
+                "paymentOrder",
+                "channelTxnNo",
+                "amountFen",
+                "causeText",
+                "status",
+                "resolution",
+                "createdAt",
+                "resolvedAt",
+                "isOverdue"
+              ],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "overview": {
+            "properties": {
+              "diff": {
+                "properties": {
+                  "earliestOpenBillDate": {
+                    "format": "date",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "openAmountFen": {
+                    "pattern": "^\\d+$",
+                    "type": "string"
+                  },
+                  "openCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "resolvingCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "openCount",
+                  "openAmountFen",
+                  "resolvingCount",
+                  "earliestOpenBillDate"
+                ],
+                "type": "object"
+              },
+              "platform": {
+                "properties": {
+                  "amountFen": {
+                    "pattern": "^\\d+$",
+                    "type": "string"
+                  },
+                  "bankCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "wechatCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "count",
+                  "amountFen",
+                  "wechatCount",
+                  "bankCount"
+                ],
+                "type": "object"
+              },
+              "refund": {
+                "properties": {
+                  "amountFen": {
+                    "pattern": "^\\d+$",
+                    "type": "string"
+                  },
+                  "count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "isBillMatched": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "count",
+                  "amountFen",
+                  "isBillMatched"
+                ],
+                "type": "object"
+              },
+              "wechatBill": {
+                "properties": {
+                  "amountFen": {
+                    "pattern": "^\\d+$",
+                    "type": "string"
+                  },
+                  "count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "downloadedThrough": {
+                    "format": "date",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "count",
+                  "amountFen",
+                  "downloadedThrough"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "platform",
+              "wechatBill",
+              "refund",
+              "diff"
+            ],
+            "type": "object"
+          },
+          "prevMonthAllOk": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "month",
+          "overview",
+          "dayStatusCounts",
+          "openExceptions",
+          "prevMonthAllOk"
         ],
         "type": "object"
       },
@@ -55432,6 +56831,910 @@
         "x-permission": "sys.param.edit"
       }
     },
+    "/api/v1/admin/payment-exceptions": {
+      "get": {
+        "operationId": "admin.paymentException.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "open",
+              "enum": [
+                "open",
+                "resolving",
+                "resolved",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "items": {
+                "enum": [
+                  "paid_after_cancel",
+                  "amount_mismatch",
+                  "payer_mismatch",
+                  "duplicate_receipt",
+                  "fulfillment_blocked",
+                  "bill_only",
+                  "platform_only",
+                  "status_mismatch",
+                  "bank_unmatched",
+                  "refund_bill_only",
+                  "refund_platform_only",
+                  "refund_amount_mismatch",
+                  "refund_over",
+                  "entitlement_unrecovered"
+                ],
+                "type": "string"
+              },
+              "maxItems": 14,
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "billDateFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "billDateTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "amountFen": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "billDate": {
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "causeText": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "channelTxnNo": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "detectedBy": {
+                                "enum": [
+                                  "callback",
+                                  "query",
+                                  "apply",
+                                  "reconciliation",
+                                  "manual"
+                                ],
+                                "type": "string"
+                              },
+                              "entity": {
+                                "properties": {
+                                  "entityId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "managerStaff": {
+                                    "anyOf": [
+                                      {
+                                        "$ref": "#/components/schemas/StaffBrief"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "primaryStoreId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "primaryStoreName": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "storeCount": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "verificationStatus": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "entityId",
+                                  "name",
+                                  "primaryStoreId",
+                                  "primaryStoreName",
+                                  "storeCount",
+                                  "verificationStatus",
+                                  "managerStaff"
+                                ],
+                                "type": [
+                                  "object",
+                                  "null"
+                                ]
+                              },
+                              "exceptionNo": {
+                                "type": "string"
+                              },
+                              "isOverdue": {
+                                "type": "boolean"
+                              },
+                              "kind": {
+                                "enum": [
+                                  "paid_after_cancel",
+                                  "amount_mismatch",
+                                  "payer_mismatch",
+                                  "duplicate_receipt",
+                                  "fulfillment_blocked",
+                                  "bill_only",
+                                  "platform_only",
+                                  "status_mismatch",
+                                  "bank_unmatched",
+                                  "refund_bill_only",
+                                  "refund_platform_only",
+                                  "refund_amount_mismatch",
+                                  "refund_over",
+                                  "entitlement_unrecovered"
+                                ],
+                                "type": "string"
+                              },
+                              "paymentExceptionId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "paymentOrder": {
+                                "properties": {
+                                  "orderNo": {
+                                    "type": "string"
+                                  },
+                                  "paymentOrderId": {
+                                    "format": "uuid",
+                                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "paymentOrderId",
+                                  "orderNo",
+                                  "type",
+                                  "title"
+                                ],
+                                "type": [
+                                  "object",
+                                  "null"
+                                ]
+                              },
+                              "resolution": {
+                                "enum": [
+                                  "restore",
+                                  "refund",
+                                  "retried",
+                                  "rebuild_order",
+                                  "link_order",
+                                  "offline_return",
+                                  "record_channel_refund",
+                                  "corrected",
+                                  "written_off",
+                                  "none"
+                                ],
+                                "type": "string"
+                              },
+                              "resolvedAt": {
+                                "format": "date-time",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "enum": [
+                                  "open",
+                                  "resolving",
+                                  "resolved",
+                                  "auto_healed",
+                                  "ignored"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "paymentExceptionId",
+                              "exceptionNo",
+                              "kind",
+                              "detectedBy",
+                              "billDate",
+                              "entity",
+                              "paymentOrder",
+                              "channelTxnNo",
+                              "amountFen",
+                              "causeText",
+                              "status",
+                              "resolution",
+                              "createdAt",
+                              "resolvedAt",
+                              "isOverdue"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "差异单列表（按日期、状态、类型）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "post": {
+        "operationId": "admin.paymentException.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "amountFen": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  "bankSerialNo": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "confirm": {
+                    "properties": {
+                      "amountFen": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      "bankSerialNo": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "amountFen",
+                      "bankSerialNo"
+                    ],
+                    "type": "object"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "payerBankCode": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "payerName": {
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "receivedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "receivedAt",
+                  "amountFen",
+                  "payerName",
+                  "bankSerialNo",
+                  "note",
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentExceptionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "登记异常到账（建孤儿收款与 bank_unmatched 差异单）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.recon.resolve"
+      }
+    },
+    "/api/v1/admin/payment-exceptions/{paymentExceptionId}": {
+      "get": {
+        "operationId": "admin.paymentException.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentExceptionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentExceptionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "差异单详情：账单侧事实、平台侧事实、差异原因、可选处理方式",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/payment-exceptions/{paymentExceptionId}/resolve": {
+      "post": {
+        "operationId": "admin.paymentException.resolve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentExceptionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "confirm": {
+                    "properties": {
+                      "amountFen": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "exceptionNo": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "exceptionNo",
+                      "amountFen"
+                    ],
+                    "type": "object"
+                  },
+                  "linkPaymentOrderId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "offlineReturn": {
+                    "properties": {
+                      "bankSerialNo": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "payeeAccount": {
+                        "pattern": "^\\d{6,40}$",
+                        "type": "string"
+                      },
+                      "payeeBank": {
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "payeeName": {
+                        "maxLength": 100,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "receiptFileId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "transferDate": {
+                        "format": "date",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "transferDate",
+                      "bankSerialNo",
+                      "payeeName",
+                      "payeeBank",
+                      "payeeAccount",
+                      "receiptFileId"
+                    ],
+                    "type": "object"
+                  },
+                  "resolution": {
+                    "enum": [
+                      "restore",
+                      "refund",
+                      "retried",
+                      "rebuild_order",
+                      "link_order",
+                      "offline_return",
+                      "record_channel_refund",
+                      "corrected",
+                      "written_off"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "resolution",
+                  "note",
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/PaymentExceptionDetail"
+                        },
+                        {
+                          "properties": {
+                            "outcome": {
+                              "enum": [
+                                "resolved",
+                                "refund_requested",
+                                "still_blocked"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "outcome"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "上游超时"
+          }
+        },
+        "summary": "处理差异：补单、转退款（生成退款申请走审批）、重试履约、重建付款单、关联付款单并确认、线下退回、补记渠道退款、数据更正、核销（说明必填）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "三段式（C51 先调外部、再开事务，A84）：restore、rebuild_order、record_channel_refund 先占用幂等记录、事务外查微信，再开事务落结果并写幂等记录；其余处理方式一个事务",
+        "x-permission": "finance.recon.resolve"
+      }
+    },
     "/api/v1/admin/payment-orders": {
       "get": {
         "operationId": "admin.paymentOrder.list",
@@ -64825,6 +67128,244 @@
         "x-idempotent": "none",
         "x-idempotent-reason": "试算（A20）",
         "x-permission": "merchant.qualification.review"
+      }
+    },
+    "/api/v1/admin/reconciliations": {
+      "get": {
+        "operationId": "admin.reconciliation.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ReconMonth"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "按月查看对账：月度概览、每日对账行（平台收款、微信账单、对公、退款、差异、状态）、账单下载进度",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/reconciliations/{reconciliationId}/rerun": {
+      "post": {
+        "operationId": "admin.reconciliation.rerun",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reconciliationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "confirm": {
+                    "properties": {
+                      "billDate": {
+                        "format": "date",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "billDate"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ReconDayRow"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "重新对账（重跑某日匹配步骤）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-idempotent-reason": "C51多事务：按商户号和账单日持会话锁串行，逐主体补记后同末TX保存日汇总与幂等响应",
+        "x-permission": "finance.recon.resolve",
+        "x-three-phase": true
       }
     },
     "/api/v1/admin/referral-codes": {

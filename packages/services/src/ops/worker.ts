@@ -10,6 +10,7 @@ import {
   createInvoiceAssembly,
   createRefunds,
   createRefundAssembly,
+  createReconciliationAssembly,
   createWechatRefundSource,
 } from "../billing/index.js";
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
@@ -24,10 +25,12 @@ import {
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
-import { createProbe } from "./probe.js";
+import { createBillMissingObserver } from "./bill-missing.js";
+import { createProbe, PROBE_QUERY_MS } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
 import { financialProbeRules } from "./financial-probe-rules.js";
+import { readPaymentExceptionAlertFacts } from "../billing/index.js";
 import { queueProbeRules } from "./queue-probe-rules.js";
 import { backupProbeRules } from "./backup-probe-rules.js";
 import type { QueueId } from "@liyoxi/contract/registry";
@@ -398,7 +401,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
   const refundScope = createRefundAssembly(invoiceScope.assembly);
-  const assembly = refundScope.assembly;
+  const reconciliationScope = createReconciliationAssembly(refundScope.assembly);
+  const assembly = reconciliationScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -410,7 +414,12 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
         logger,
         rules: [
           ...sqlProbeRules(options.probe.db),
-          ...financialProbeRules(options.probe.db),
+          ...financialProbeRules(options.probe.db, (at) =>
+            tx.run((t) => readPaymentExceptionAlertFacts(t, at), {
+              timeoutMs: PROBE_QUERY_MS,
+              maxWaitMs: PROBE_QUERY_MS,
+            }),
+          ),
           ...queueProbeRules(options.probe.queues ?? [], channel.observe?.bind(channel)),
           ...backupProbeRules(options.probe.db),
           ...operationalProbeRules(
@@ -807,6 +816,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     approvalRefs: createBillingApprovalRefs({ clock }),
   };
   refundScope.attach(refundDeps);
+  if (options.sessionMutex)
+    reconciliationScope.attach({
+      ...refundDeps,
+      sessionMutex: options.sessionMutex,
+      systemFiles: media,
+      orderPrefix: options.appEnv === "stg" ? "TFK" : "FK",
+      observeBillMissing: createBillMissingObserver({ tx, clock }),
+    });
   const refunds = createRefunds(refundDeps);
   const paymentChannel = createWechatChannel(workerPurchaseDeps);
   const closePaymentChannel = bindPaymentChannel(paymentChannel);
@@ -976,6 +993,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
     closeApproval: () => {
       refundScope.close();
+      reconciliationScope.close();
       invoiceScope.close();
       transferReviewScope.close();
       approvalSlaScope.close();

@@ -170,8 +170,12 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     note: "含 M10 对公转账弹层与付款结果",
     implemented: true,
   }),
-  page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "G4-C"),
-  page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "G4-C"),
+  page("sub/billing/topup/index", "sub/billing", "积分充值", "TopUp", "M45", "M4", "W4-14", {
+    implemented: true,
+  }),
+  page("sub/billing/ledger/index", "sub/billing", "积分流水", "Ledger", "M46", "M4", "W4-15", {
+    implemented: true,
+  }),
   page("sub/billing/invoices/index", "sub/billing", "发票", "Invoices", "M35", "M4", "W4-16", {
     implemented: true,
   }),

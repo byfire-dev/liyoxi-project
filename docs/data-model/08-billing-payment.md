@@ -175,9 +175,9 @@ erDiagram
 | `pending_payment`（`awaiting_proof` / `proof_rejected`） | 到期或老板取消（`billing_order.cancel`） | `cancelled` | 没有待确认的凭证；凭证待财务确认期间不可取消、不自动关闭 | 系统 / 商家 |
 | `cancelled` | 差异单“补单”（`billing_order.restore`） | `paid` | 唯一入口；存在该单未入账的成功收款；实时查单仍为成功且金额相等；回显 + 再次验证身份 + 说明 | 财务 |
 | `paid` | 入账收款的退款成功且累计退款 ≥ 实付（`billing_order.refund`） | `refunded` | 由 `refund_txn` 成功驱动；只算入账收款（`paid_payment_txn_id`）上的退款，未入账收款的退回不动本单 | 系统 |
+| — | 差异单灾备重建（`billing_order.rebuild`） | `paid` | 财务处理未关联付款单的 `bill_only`；事务外可信实时查单成功，原 `attach` 限开通/续费/加购，主体存在且应付等于实收；保存原商户单号 `rebuilt_from`、财务创建人、收款与入账事实，同事务履约（a07 3.79、d2 9.5） | 财务 |
 
 商家创建付款单的事务里先由 `biz_sequence` 取得 `order_no`，再随 `ref { type: 'billing_order', id, no }` 调 `agreements.assertConsents`（场景 `plan_purchase` / `topup`），同意记录的 `biz_no` 即本单号（13 分组；`ck_agreement_consent_biz_no` 要求 `FK` 前缀）。后台线下代建的付款单凭合同号，不调。
-
 ```mermaid
 stateDiagram-v2
   [*] --> pending_payment: 创建
@@ -819,7 +819,7 @@ stateDiagram-v2
 | `sha1` | text | 可 | — | 微信返回的文件摘要值 | d2:354 |
 | `is_hash_verified` | boolean | 否 | `false` | 下载内容的摘要是否校验通过 | d2:354；约定“命名规则” |
 | `line_count` | integer | 可 | — | 解析出的明细行数 | d2:354 |
-| `summary` | jsonb | 可 | — | 文件尾部汇总行（解析后与明细核对） | d2:354、1047 |
+| `summary` | jsonb | 可 | — | 文件尾部汇总行（解析后与明细核对）；当前ALL资金路径另存 `refundApplications = { v: 1, sha1, amounts: { [lineNo]: 申请退款金额整数分 } }`，只从同一已核摘要原件派生并绑定文件/行；原尾汇总保留原名。退款匹配使用申请全额，`wx_bill_line.refund_amount_fen`仍保留官方结算字段，派生证据缺失/不一致受控失败，不回退结算额 | d2:354、1047；W4-12官方当前ALL协议核实 |
 | `attempt_count` | integer | 否 | `0` | 下载尝试次数 | d2:354 |
 | `last_error` | text | 可 | — | 最近一次失败原因 | d2:354 |
 | `downloaded_at` | timestamptz | 可 | — | 下载完成时间 | d2:354 |
@@ -859,7 +859,7 @@ stateDiagram-v2
 **不变量**（每日校验）
 
 - `parsed` 的文件：`line_count` = 名下 `wx_bill_line` 的行数，且与 `summary` 的总笔数一致。
-- 最近 90 天内每个已过 D+1 14:00 的账单日都有一行，状态为 `parsed` 或 `empty`（否则告警）。
+- 最近 90 天内每个已过 D+1 14:00 的账单日都有一行，状态为 `parsed` 或 `empty`（否则告警）。 W4-12实施裁决：按[本包任务书](../plan/tasks/W4-12.md)第1、5节的明确资金安全边界，当前实现收紧上述`NO_STATEMENT_EXIST → empty`分支：即使本库暂未见成功现金，可信missing也只保留pending与对账wait，未配置/超时仍为失败/等待，不以此证明渠道无交易、不写空ok或清缺账告警。上表`empty`历史术语与既有枚举保留，读取下载进度兼容历史empty，不由本实现新写；真实无账单/零交易仍属E5/E13/V13授权外部核验。
 
 **相对草案的改动**
 
@@ -968,7 +968,7 @@ stateDiagram-v2
 | `platform_pay_fen` | bigint | 否 | `0` | 平台侧收款金额（分） | d2:358；M15 |
 | `bill_pay_count` | integer | 否 | `0` | 账单侧收款笔数 | d2:358 |
 | `bill_pay_fen` | bigint | 否 | `0` | 账单侧收款金额（分） | d2:358；M15 |
-| `platform_refund_count` | integer | 否 | `0` | 平台侧退款笔数（按成功日） | d2:358 |
+| `platform_refund_count` | integer | 否 | `0` | 平台侧退款笔数（按成功日，归原收款 `payment_txn.channel`；原微信收款的人工线下退仍属于微信，对公收款的线下退不混入微信） | d2:358；W4-12按本表收款渠道口径核实 |
 | `platform_refund_fen` | bigint | 否 | `0` | 平台侧退款金额（分） | d2:358；M15 |
 | `bill_refund_count` | integer | 否 | `0` | 账单侧退款笔数（按受理日） | d2:358 |
 | `bill_refund_fen` | bigint | 否 | `0` | 账单侧退款金额（分） | d2:358；M15 |
