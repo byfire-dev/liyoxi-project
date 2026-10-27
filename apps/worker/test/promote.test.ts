@@ -1,9 +1,9 @@
+import { buildWorkerServicesForTest } from "./support/services.js";
 import { randomUUID } from "node:crypto";
 import { deflateSync } from "node:zlib";
 
 import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it } from "vitest";
 import {
-  buildWorkerServices,
   createMedia,
   createRuntime,
   createLogger,
@@ -28,7 +28,7 @@ const redis = useTestRedis();
 const clock = createClock();
 let prisma: Awaited<ReturnType<typeof db.prisma>>;
 let channel: ReturnType<typeof createQueueChannel>;
-let services: ReturnType<typeof buildWorkerServices>;
+let services: ReturnType<typeof buildWorkerServicesForTest>;
 let assembly: ReturnType<typeof assembleForTest>;
 let media: ReturnType<typeof createMedia>;
 let runtime: ReturnType<typeof createWorkerRuntime>;
@@ -61,7 +61,7 @@ beforeEach(async () => {
   await redis.flush();
   prisma = await db.prisma();
   const make = createFactories({ db: prisma, clock });
-  services = buildWorkerServices({
+  services = buildWorkerServicesForTest({
     appEnv: "test",
     prisma,
     assembly,
@@ -287,7 +287,7 @@ phoneAcceptance(
       }),
     });
     const ownChannel = createQueueChannel({ redisUrl: env.REDIS_URL, prefix: `${prefix}bull` });
-    const ownServices = buildWorkerServices({
+    const ownServices = buildWorkerServicesForTest({
       appEnv: "test",
       prisma: livePrisma,
       assembly: assembleForTest({ entry: "worker", omitReal: ["recurringJobs"] }),

@@ -1,6 +1,6 @@
+import { buildWorkerServicesForTest } from "./support/services.js";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
-  buildWorkerServices,
   createMedia,
   createQueueChannel,
   createIdentityContext,
@@ -25,7 +25,7 @@ const handle = useSeededDatabase("worker"),
   clock = createClock();
 let prisma: Awaited<ReturnType<typeof handle.prisma>>,
   channel: ReturnType<typeof createQueueChannel>;
-const owned: ReturnType<typeof buildWorkerServices>[] = [];
+const owned: ReturnType<typeof buildWorkerServicesForTest>[] = [];
 const runtimes: ReturnType<typeof createWorkerRuntime>[] = [];
 const ci: NonNullable<Env["CI"]> = {
   callback: {
@@ -50,7 +50,7 @@ beforeAll(async () => {
   channel = createQueueChannel({ redisUrl: process.env.REDIS_URL!, prefix: `${redis.prefix}bull` });
   await channel.ping();
 });
-async function close(one: ReturnType<typeof buildWorkerServices>) {
+async function close(one: ReturnType<typeof buildWorkerServicesForTest>) {
   await one.shutdownMediaJobs?.();
   await one.closeNotify?.();
   one.closeMediaJobs?.();
@@ -71,8 +71,8 @@ afterEach(async () => {
 afterAll(async () => {
   await channel.close();
 });
-function build(options: Partial<Parameters<typeof buildWorkerServices>[0]> = {}) {
-  const one = buildWorkerServices({
+function build(options: Partial<Parameters<typeof buildWorkerServicesForTest>[0]> = {}) {
+  const one = buildWorkerServicesForTest({
     appEnv: "test",
     prisma,
     assembly: assembleForTest({ entry: "worker", omitReal: ["recurringJobs"] }),
