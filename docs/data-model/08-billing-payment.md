@@ -229,9 +229,7 @@ stateDiagram-v2
 
 ### 2.2 `payment_txn` 收款交易
 
-渠道侧一次收款尝试，成功的即“收款流水”。保存渠道实收金额、付款人、回传数据、对账状态。对公到账与孤儿到账也落在本表。银行流水号与付款行在本表，不在凭证表。
-
-归属：主体维度（`entity_id`）；孤儿到账（没有对应付款单）时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：300。
+渠道侧一次收款尝试，成功的即“收款流水”。保存渠道实收金额、付款人、回传数据、对账状态。对公到账与孤儿到账也落在本表。银行流水号与付款行在本表，不在凭证表。 归属：主体维度（`entity_id`）；孤儿到账（没有对应付款单）时为空。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：300。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
@@ -266,6 +264,12 @@ stateDiagram-v2
 | `recon_bill_date` | date | 可 | — | 对平所依据的账单日 | d2:258 |
 | `last_queried_at` | timestamptz | 可 | — | 最近一次主动查单时间（节流） | d2:259 |
 | `query_count` | integer | 否 | `0` | 主动查单次数 | d2:259 |
+| `shipping_report_state` | text | 可 | — | 发货受理事实：空为未认领；`unknown` 是否受理未知；`not_accepted` 明确未受理；`confirmed` 已确认受理 | [W4-09发货结构前置](#payment-txn-shipping-report) |
+| `shipping_report_appid` | text | 可 | — | 固化发货调用所用AppID；query不返回，恢复时须核当前调用配置一致 | W4-09发货结构前置 |
+| `shipping_report_mchid` | text | 可 | — | 固化收款商户号；恢复时与渠道收款身份匹配 | W4-09发货结构前置 |
+| `shipping_report_item_desc` | text | 可 | — | 固化虚拟发货描述，非空、最多120个Unicode字符 | W4-09发货结构前置 |
+| `shipping_report_upload_time` | timestamptz | 可 | — | 注入时钟给出的拟发送报文时间，保留毫秒；不代表已送达，query秒级时间按floor(ms/1000)匹配 | W4-09发货结构前置 |
+| `shipping_report_confirmed_at` | timestamptz | 可 | — | 注入时钟给出的真实确认观察时间；仅confirmed非空且不早于upload_time | W4-09发货结构前置 |
 | `created_at` | timestamptz | 否 | — | 创建时间 | d2:190 |
 | `updated_at` | timestamptz | 否 | — | 更新时间 | d2:190 |
 
@@ -274,12 +278,11 @@ stateDiagram-v2
 - 主键：`id`（`pk_payment_txn`）。
 - 外键：`entity_id` → `entity.id`（RESTRICT）；`billing_order_id` → `billing_order.id`（RESTRICT）；`transfer_proof_id` → `transfer_proof.id`（RESTRICT）；`confirmed_by_staff_id` → `staff.id`（RESTRICT）；`reviewed_by_staff_id` → `staff.id`（RESTRICT）。
 - 唯一约束：`uq_payment_txn_out_trade_no`（`out_trade_no`）；`uq_payment_txn_transfer_proof_id`（`transfer_proof_id`）。部分唯一索引、表达式唯一索引见“手写约束”。
-- 普通索引：
+- 普通索引：部分索引见“手写约束”。
   - `ix_payment_txn_billing_order_attempt`（`billing_order_id`, `attempt_no`）：取一张付款单名下的全部尝试。
   - `ix_payment_txn_status_success`（`status`, `channel_success_at`）：收款流水列表与汇总；按成功时间做反向对账。
   - `ix_payment_txn_recon_success`（`recon_state`, `channel_success_at`）：按对账状态筛选收款流水。
   - `ix_payment_txn_entity_success`（`entity_id`, `channel_success_at`）：按主体查收款。
-- 部分索引见“手写约束”。
 
 **手写约束**
 
@@ -300,15 +303,16 @@ stateDiagram-v2
 | `ck_payment_txn_bank_fields` | CHECK | 对公专有列只在对公渠道有值 |
 | `ck_payment_txn_bank_confirmed` | CHECK | 对公交易在财务确认时才建行：必为成功，且有原始流水号与确认人 |
 | `ck_payment_txn_reviewer` | CHECK | 复核人不得是确认人 |
+| `ck_payment_txn_shipping_report_state` | CHECK | 发货受理状态限于unknown、not_accepted、confirmed；空值表示未认领 |
+| `ck_payment_txn_shipping_report_intent` | CHECK | 未认领时六列全空；认领后AppID/商户号/描述/报文时间完整，且是有主体、付款单、入账时刻、渠道流水号、实收额及实际付款身份的成功微信收款 |
+| `ck_payment_txn_shipping_report_confirmation` | CHECK | confirmed当且仅当确认观察时间非空，且确认时间不早于报文意图时间 |
 | `uq_payment_txn_channel_txn_no` | 部分唯一索引 | `(channel, channel_txn_no, COALESCE(payer_bank, '')) WHERE channel_txn_no IS NOT NULL`：同一微信交易号、同一银行流水号（加付款行）只能入库一次 |
 | `uq_payment_txn_open_attempt` | 部分唯一索引 | `(billing_order_id) WHERE status IN ('created','prepaid')`：一张付款单至多一个进行中的尝试 |
 | `uq_payment_txn_applied` | 部分唯一索引 | `(billing_order_id) WHERE applied_at IS NOT NULL`：一张付款单至多入账一笔（V1.0 不支持分笔付款） |
 | `ix_payment_txn_payer_success` | 部分索引 | `(payer_openid, channel_success_at) WHERE status = 'succeeded'`：付款人当日累计已付（判断微信渠道是否可用） |
 | `ix_payment_txn_unapplied` | 部分索引 | `(channel_success_at) WHERE status = 'succeeded' AND applied_at IS NULL`：未入账收款扫描（`tx.unapplied_scan`）与“成功未入账超过 10 分钟”告警 |
 
-**状态列（不写状态历史）**
-
-`status` 记录渠道事实，不写 `status_transition`；用带原状态条件的 UPDATE。
+**状态列（不写状态历史）** `status` 记录渠道事实，不写 `status_transition`；用带原状态条件的 UPDATE。
 
 | 当前状态 | 事件 | 新状态 | 说明 |
 | --- | --- | --- | --- |
@@ -340,9 +344,7 @@ stateDiagram-v2
 
 ### 2.3 `transfer_proof` 对公转账凭证
 
-商家或员工上传的对公转账回单：文件、识别结果引用、系统比对结论、财务审核结论。启用二人复核时暂存第一名财务的确认内容。它是“对公收款确认”这条处理队列的待办对象，不进审批单。
-
-归属：主体维度（`entity_id`）。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：310。
+商家或员工上传的对公转账回单：文件、识别结果引用、系统比对结论、财务审核结论。启用二人复核时暂存第一名财务的确认内容。它是“对公收款确认”这条处理队列的待办对象，不进审批单。 归属：主体维度（`entity_id`）。主键：`id`（uuid）。只增：否。锁顺序（lock_rank）：310。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
@@ -394,9 +396,7 @@ stateDiagram-v2
 | `uq_transfer_proof_pending` | 部分唯一索引 | `(billing_order_id) WHERE review_status = 'pending'`：一张付款单同一时刻至多一张待确认的凭证 |
 | `ix_transfer_proof_pending_due` | 部分索引 | `(due_at) WHERE review_status = 'pending'`：超时预警与工作台待办的派生查询 |
 
-**状态列（不写状态历史）**
-
-`review_status` 是处理队列的结论，不写 `status_transition`，不进审批单（M22）；用带原状态条件的 UPDATE，后台操作带 `expectedVersion`。
+**状态列（不写状态历史）** `review_status` 是处理队列的结论，不写 `status_transition`，不进审批单（M22）；用带原状态条件的 UPDATE，后台操作带 `expectedVersion`。
 
 | 当前状态 | 事件 | 新状态 | 守卫 | 触发者 |
 | --- | --- | --- | --- | --- |
@@ -1314,6 +1314,7 @@ stateDiagram-v2
 | `billing_order.proxy_client` | `weapp` 小程序；`portal` 电脑端下载页；`admin` 运营管理后台 | 见 catalogue enums_shared：client |
 | `payment_txn.channel` | `wechat_jsapi` 微信支付 JSAPI；`bank_transfer` 对公转账 | 见 catalogue enums_shared：pay_channel |
 | `payment_txn.status` | `created` 已建（预下单在途或失败）；`prepaid` 已拿到 prepay_id，等用户付款；`succeeded` 收款成功；`closed` 已关闭 | 本分组 |
+| `payment_txn.shipping_report_state` | `unknown` 是否受理未知；`not_accepted` 明确未受理；`confirmed` 已确认受理；NULL为未认领 | W4-09发货结构前置 |
 | `payment_txn.recon_state` | `pending` 待对账（账单未到）；`matched` 已对平；`diff` 有差异（关联着未决差异单）；`resolved` 差异已处理 | 本分组 |
 | `transfer_proof.review_status` | `pending` 待财务确认；`accepted` 已采纳（确认到账）；`rejected` 已驳回；`superseded` 被新凭证替换 | 本分组 |
 | `refund_request.source` | `customer_service` 客服；`exception` 差异或履约受阻；`staging_probe` 预发系统退款 | 本分组；W4-09独立结构前置 |
@@ -1624,3 +1625,11 @@ stateDiagram-v2
 第二批（2026-10-03）：按 h01 的请求（h01-hooks.md 2.6），2.6 `payment_exception.dedupe_key` 补回调与入账函数实时开单的键（`{kind}:{out_trade_no}`、`refund_over:{out_refund_no}`、`status_mismatch:refund:{out_refund_no}`、`refund_amount_mismatch:{out_refund_no}`），写明查单与对账共用；迟到成功（未超额）的 `kind` 待财务确认，不加新取值。表结构与约束未变。
 
 W4-09独立结构前置：`payment.I11`只按（原两个人工source、plan_refund）或（staging_probe、staging_pay_refund）精确配对，并核新类型真实系统提交/决定及同对象主体。新系统执行位必须有本申请同主体/同收款的真实system原路退款意图；未执行不预标，失败回待执行不清掉已发生的执行者事实。余额、权益、发票及原人工三人分离规则未放宽；本片不装配新写者，实际stg三保护与Saga由后继W4-09完成。
+
+<a id="payment-txn-shipping-report"></a>
+
+**发货受理事实（W4-09独立结构前置）**
+
+六个专用列声明发货意图及受理事实，旧行保持全空。`unknown` 必须在首次事务外POST之前提交；它不代表已送达，也不能在通用幂等24小时清理、投递重试或人工redrive时清除。只有Provider明确 `acceptance=not_accepted` 才可记未受理并按原有界退避重新认领；超时、取消、5xx、缺失受理标记、查询失败/无发货/字段缺失一律保持未知，禁止据此盲目重报。可信成功响应或完整匹配原收款和固化意图的query才可确认，confirmed不再自动重报。
+
+query无AppID字段，后继writer先核此次调用配置与固化AppID一致，再核商户号、渠道/商户单号、实际付款身份、实收额、虚拟物流类型、统一发货模式、完成标记、描述及秒级上传时间。`upload_time` 保留毫秒意图，以floor(ms/1000)与query匹配；`confirmed_at` 取注入Clock真实观察值，时钟倒退则保unknown，不能用max伪造确认时刻。行内CHECK不替代同主体、付款单反向指针或调用配置校验；后继writer沿原 `billing_order(290)→payment_txn(300)` 与SessionMutex、带固化意图的条件更新实现恢复。本片仅结构声明，无writer/job、真实发货或开关启用，见 [前置边界](../plan/changes/W4-09-shipping-state-prerequisite.md)。

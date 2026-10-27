@@ -1,3 +1,5 @@
+import { unboundStagingRefundApproval } from "./staging-pay/kind.js";
+import { unboundShipping } from "./payment/shipping-assembly.js";
 import { refundInvariants } from "./refund/invariants.js";
 import { reconciliationInvariants } from "./reconciliation/invariants.js";
 import { withReconciliationBinding } from "./reconciliation/binding.js";
@@ -159,6 +161,9 @@ export const registration = defineRegistration("billing", {
     ),
     implementKeyed(machinePort, refundMachineKey, refundMachineBinding),
     implementKeyed(approvalKindPort, "plan_refund", unboundRefundApproval),
+    implementKeyed(approvalKindPort, "staging_pay_refund", unboundStagingRefundApproval, {
+      envs: ["stg"],
+    }),
     implementKeyed(fileRefTypePort, "refund_txn", refundFileRefs),
     implementKeyed(machinePort, invoiceMachineKey, invoiceMachineBinding),
     implementKeyed(fileRefTypePort, "invoice_doc", {
@@ -212,6 +217,11 @@ export const registration = defineRegistration("billing", {
     ),
   ],
   subscribers: [
+    {
+      name: "billing.uploadShippingInfo",
+      events: ["billing_order.paid"],
+      handle: unboundShipping,
+    },
     {
       name: "billing.submitRefundTxn",
       events: ["refund_txn.created"],

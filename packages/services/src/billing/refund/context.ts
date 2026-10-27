@@ -1,12 +1,14 @@
 import type { PermissionKey } from "@liyoxi/contract/authz";
 import { AppError, lockRows } from "../../kernel/index.js";
-import type { IdentityContext, Tx } from "../../kernel/index.js";
+import type { Env, IdentityContext, Tx } from "../../kernel/index.js";
 import { assertPermission, byEntity } from "../../authz/index.js";
 import type { StaffContext } from "../../authz/index.js";
 import type { BillingPurchaseDeps } from "../payment/purchase-context.js";
 import { createTermRefund } from "../ledger/term-refund.js";
 
 export interface RefundDeps extends BillingPurchaseDeps {
+  /** 仅组合根消费真实loadEnv输出；缺配不授予系统退款权能。 */
+  readonly stagingPay?: Pick<Env, "APP_ENV" | "STAGING_PAY">;
   isQualificationDead: (tx: Tx, entityId: string) => Promise<boolean>;
   approvalRefs: {
     prepare(tx: Tx, input: { serviceTicketId: string; entityId: string }): Promise<void>;
