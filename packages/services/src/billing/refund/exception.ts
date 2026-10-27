@@ -9,6 +9,8 @@ import type { Submission } from "./approval.js";
 import { transition } from "./state.js";
 export interface ExceptionRefundInput {
   paymentExceptionId: string;
+  /** 差异处理入口须在同TX的340锁后复核；旧内部消费者可省略。 */
+  expectedVersion?: number;
   note: string;
   serviceTicketId?: string;
   confirm: { exceptionNo: string; amountFen: number };
@@ -29,7 +31,7 @@ export async function submitExceptionRefund(
   if (!first || (!first.entityId && staff.scope.kind !== "all") || !first.paymentTxnId)
     throw new AppError("NOT_FOUND");
   if (
-    input.note.trim().length < 5 ||
+    input.note.trim().length < 1 ||
     input.note.length > 200 ||
     input.confirm.exceptionNo !== first.exceptionNo ||
     input.confirm.amountFen !== first.amountFen
@@ -91,6 +93,8 @@ export async function submitExceptionRefund(
     order = first.billingOrderId
       ? await tx.billingOrder.findUniqueOrThrow({ where: { id: first.billingOrderId } })
       : null;
+  if (input.expectedVersion !== undefined && exception.lockVersion !== input.expectedVersion)
+    throw new AppError("VERSION_CONFLICT");
   if (
     exception.status !== "open" ||
     exception.paymentTxnId !== receipt.id ||
