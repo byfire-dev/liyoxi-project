@@ -1,6 +1,14 @@
 import { spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -27,6 +35,10 @@ const oldMigrations = [
   "20261008183700_analytics_partition_retirement",
 ];
 const migration = "20261011125031_invitation_request";
+// 独立期望来自本轮仓库目录；后续新增迁移也必须由官方deploy实际执行。
+const currentMigrations = readdirSync(join(pkg, "prisma/migrations"), { withFileTypes: true })
+  .flatMap((entry) => (entry.isDirectory() ? [entry.name] : []))
+  .sort();
 const manifest = createRequire(import.meta.url).resolve("prisma/package.json");
 const cli = join(
   dirname(manifest),
@@ -80,6 +92,10 @@ describe("invitation_request 旧五迁移库升级", () => {
     "全部五种历史事实原列不变、A 精确回填，重跑 deploy 无待迁移",
     { timeout: 240_000 },
     async () => {
+      expect(currentMigrations.slice(0, oldMigrations.length + 1)).toEqual([
+        ...oldMigrations,
+        migration,
+      ]);
       const name = testDatabaseName("db", { label: "invreqmig" });
       assertTestDatabaseName(name);
       const url = testDatabaseUrl(name, { role: null });
@@ -215,7 +231,7 @@ describe("invitation_request 旧五迁移库升级", () => {
                 "SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name",
               )
             ).rows.map((row) => row.migration_name),
-          ).toEqual([...oldMigrations, migration]);
+          ).toEqual(currentMigrations);
         } finally {
           await finalInspect.end();
         }
