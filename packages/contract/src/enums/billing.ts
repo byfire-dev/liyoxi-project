@@ -260,7 +260,7 @@ export const TRANSFER_PROOF_REVIEW_STATUS = defineEnum(
 export const REFUND_REQUEST_SOURCE = defineEnum(
   "refund_request_source",
   ["refund_request.source"],
-  ["customer_service", "exception"],
+  ["customer_service", "exception", "staging_probe"],
 );
 
 export const REFUND_REQUEST_RULE_CODE = defineEnum(

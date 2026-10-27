@@ -6627,6 +6627,7 @@
                     "ad_cancel",
                     "qualification_cancel",
                     "plan_refund",
+                    "staging_pay_refund",
                     "points_adjust",
                     "subscription_extend",
                     "finance_config_change",
@@ -6799,6 +6800,7 @@
               "ad_cancel",
               "qualification_cancel",
               "plan_refund",
+              "staging_pay_refund",
               "points_adjust",
               "subscription_extend",
               "finance_config_change",
@@ -7249,6 +7251,7 @@
               "ad_cancel",
               "qualification_cancel",
               "plan_refund",
+              "staging_pay_refund",
               "points_adjust",
               "subscription_extend",
               "finance_config_change",
@@ -27285,6 +27288,10 @@
           "isExecOverdue": {
             "type": "boolean"
           },
+          "isExecutedBySystem": {
+            "default": false,
+            "type": "boolean"
+          },
           "isOverride": {
             "type": "boolean"
           },
@@ -27811,7 +27818,8 @@
           "source": {
             "enum": [
               "customer_service",
-              "exception"
+              "exception",
+              "staging_probe"
             ],
             "type": "string"
           },
@@ -67941,7 +67949,8 @@
             "schema": {
               "enum": [
                 "customer_service",
-                "exception"
+                "exception",
+                "staging_probe"
               ],
               "type": "string"
             }
@@ -68198,7 +68207,8 @@
                               "source": {
                                 "enum": [
                                   "customer_service",
-                                  "exception"
+                                  "exception",
+                                  "staging_probe"
                                 ],
                                 "type": "string"
                               },
@@ -68379,7 +68389,8 @@
             "schema": {
               "enum": [
                 "customer_service",
-                "exception"
+                "exception",
+                "staging_probe"
               ],
               "type": "string"
             }

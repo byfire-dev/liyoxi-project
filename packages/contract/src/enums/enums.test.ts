@@ -125,7 +125,16 @@ describe("操作人枚举与共用枚举（06 第 3.3 节；catalogue.json 的 e
     expect(drafted).toHaveLength(15);
     const declared = ENUMS_BY_MODULE.shared!.slice(0, drafted.length);
     expect(declared.map((def) => ({ name: def.name, values: [...def.values] }))).toEqual(
-      drafted.map(({ name, values }) => ({ name, values })),
+      drafted.map(({ name, values }) => ({
+        name,
+        // 独立结构前置只声明这一新值；冻结底稿及全部原值/顺序仍逐字核对。
+        values:
+          name === "approval_kind"
+            ? values.flatMap((value) =>
+                value === "plan_refund" ? [value, "staging_pay_refund"] : [value],
+              )
+            : values,
+      })),
     );
   });
 });

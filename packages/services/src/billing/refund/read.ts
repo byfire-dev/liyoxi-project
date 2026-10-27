@@ -186,7 +186,8 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
     : null;
   const approval = await approvalOf(deps).decisionView(tx, staff, r.approvalRequestId),
     open = r.refundTxns.find((t) => OPEN.includes(t.status));
-  const canRetry = r.status === "executing" && open?.status === "created";
+  const manual = r.source !== "staging_probe";
+  const canRetry = manual && r.status === "executing" && open?.status === "created";
   // 未入账的重复回单退款不冲减原付款单，也不要求红冲其已开发票。
   const needsRedInvoice =
     !!r.paymentTxn.appliedAt &&
@@ -200,11 +201,13 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
     !!open.lastSubmitAt &&
     deps.clock.now().getTime() - open.lastSubmitAt.getTime() >= 600_000;
   const allowedRoutes =
-    r.status === "pending_execution" && !open && !needsRedInvoice
+    manual && r.status === "pending_execution" && !open && !needsRedInvoice
       ? [...((await originalRoute(tx, deps, r.paymentTxn)) ? ["wechat_original"] : []), "offline"]
       : [];
   const actions: string[] = [
-    ...approval.actions.filter((a) => ["approve", "reject", "withdraw"].includes(a)),
+    ...(manual
+      ? approval.actions.filter((a) => ["approve", "reject", "withdraw"].includes(a))
+      : []),
   ];
   if (hasPermission(staff, "finance.refund.execute")) {
     if (allowedRoutes.includes("wechat_original")) actions.push("execute");
@@ -213,6 +216,7 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
     if (canConfirm) actions.push("confirm-not-accepted");
   }
   if (
+    manual &&
     r.status === "pending_execution" &&
     !r.entitlementRevokedAt &&
     !r.refundTxns.some((t) => ["succeeded", ...OPEN].includes(t.status)) &&
@@ -265,6 +269,7 @@ export async function detail(tx: Tx, deps: RefundDeps, staff: StaffContext, id: 
     },
     entitlementRevokedAt: iso(r.entitlementRevokedAt),
     executedBy: await staffBrief(tx, r.executedByStaffId),
+    isExecutedBySystem: r.isExecutedBySystem,
     executedAt: iso(r.executedAt),
     voidedBy: await staffBrief(tx, r.voidedByStaffId),
     closeNote: r.closeNote,
