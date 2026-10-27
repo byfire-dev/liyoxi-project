@@ -147,8 +147,7 @@ erDiagram
 | `m.ticket_reply` | `service_ticket.submitter_user_id`；后台登记、没有提交人的工单发给该门店的老板 | d6:243；12 分组的请求 |
 | `m.asset_feedback` | 订阅 06 分组的三个出站事件（前两个只在 `store_asset.upload_actor_type = merchant` 时发，员工代传的素材没有商家接收人）：`asset.adopted`（素材被采用）发给上传人；`asset.reviewed` 只在复核结论 `usability` 为 `need_reshoot`（需重拍）或 `need_portrait_auth`（需补肖像授权）时提醒上传人，其余结论不发；`asset.demand_created`（素材需求发起）按 `store_asset_demand.notify_scope` 取 `owner_and_clerks`（老板与门店店员）或 `owner_only` | d6:248；06 分组的请求 |
 
-`m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。
-其他分组已提出、要随注册表补的场景（不改表结构）：
+`m.rule_change_notice` 的正文（14 分组 2.6）：派发时按 `copy_mode` 取公告行的摘要：`offline_contract`（`showPrice = false`）取 `site_notice.summary_no_price`，该列为空（协议版本的公告，没有价格）时取 `summary`；其余模式取 `summary`。 其他分组已提出、要随注册表补的场景（不改表结构）：
 
 - 证照到期提醒与 `store.qualification_change.*`、`store.profile.changed` 的接入（d9:703-704、725；catalogue notes）。
 - 员工的跟进到期提醒与待审批提醒（03 分组 2.9、请求）：纯提醒，由通知规则派生（`source_rule` 非空），用 `notification.dedupe_key` 去重，不登记定时器行；取数经 03 注册的查询端口，分别用 `follow_up` 的部分索引 `ix_follow_up_next_follow_at`（提醒对象 `owner_staff_id`，`biz_type = follow_up`）与 `approval_request` 的 `pending` 行（`biz_type = approval_request`）。
@@ -192,6 +191,7 @@ erDiagram
 | `s.delivery_progress` | staff | 交付进度 | — |
 | `s.publish_progress` | staff | 发布待办 | — |
 | `s.merchant_changed` | staff | 商家变动 | — |
+| `s.receipt_daily_digest` | staff | 对公确认日摘要 | W4-12；默认 `ext_enabled = false`，始终只发站内；当前在职超级管理员按业务日/员工去重；安全清单保存在通知变量，页面消费待 W4-18 |
 | `s.wecom_invite` | staff | 企业微信绑定邀请 | W2-03 必要补登；active+invited 当前员工，站内-only，真实邀请审计 ID 去重 |
 | `s.followup_due` | staff | 跟进到期提醒 | W2-17 按既有跟进提醒请求补登；到期日 09:00、当前负责人、仍待跟进 |
 
@@ -1128,6 +1128,7 @@ erDiagram
 | `biz_type` | 用到它的场景 | 出处 |
 | --- | --- | --- |
 | `billing_order` | 付款成功、对公收款驳回 | d6:233、253；08 分组 5.2 |
+| `recon_day` | 对公确认日摘要 | W4-12；x01 `receipt.daily_digest`，真实 bank 对账日作为业务引用 |
 | `refund_request` | 退款结果 | d6:249 |
 | `invoice_doc`、`invoice_request` | 发票已开具（含邮件与重发）、发票驳回 | d6:244、253、953 |
 | `drama_order` | 订购成功 | d6:234 |

@@ -95,6 +95,14 @@ export interface WebhooksOptions {
   readonly alerts?: Alerts;
 }
 export interface Webhooks {
+  /** HTTP 薄壳只在最终应答确定后上报；签名仅作内存探测分类，不持久化。 */
+  observeResponse(input: {
+    readonly provider: string;
+    readonly operationId: string;
+    readonly status: number;
+    readonly requestId: string;
+    readonly signature?: string;
+  }): void;
   reject(
     provider: string,
     error: WebhookError,

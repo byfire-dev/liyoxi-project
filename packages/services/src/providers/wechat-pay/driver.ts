@@ -10,6 +10,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import { failed, ok } from "../types.js";
+import { createVerifiedTradeBill } from "./bill-evidence.js";
 import type {
   MiniProgramPayParams,
   BeforeProviderCall,
@@ -170,11 +171,11 @@ export function createWechatPayDriver(
     return ok({ hashType, hashValue, downloadUrl });
   }
 
-  async function downloadBill(input: {
+  async function downloadBillBytes(input: {
     downloadUrl: string;
     hashValue: string;
     hashType?: string;
-  }): Promise<ProviderResult<{ text: string }>> {
+  }): Promise<ProviderResult<{ bytes: Uint8Array }>> {
     if (input.hashType !== undefined && input.hashType.toUpperCase() !== "SHA1") {
       return failed("rejected", "账单的摘要算法不是 SHA1，校验不了");
     }
@@ -188,7 +189,12 @@ export function createWechatPayDriver(
     if (!verifyBillDigest(out.bytes, input.hashValue)) {
       return failed("unavailable", "账单的摘要值与申请时拿到的不一致，已拒收");
     }
-    return ok({ text: out.bytes.toString("utf8") });
+    return ok({ bytes: out.bytes });
+  }
+
+  async function downloadBill(input: Parameters<WechatPayDriver["downloadBill"]>[0]) {
+    const result = await downloadBillBytes(input);
+    return result.ok ? ok({ text: Buffer.from(result.value.bytes).toString("utf8") }) : result;
   }
 
   const verifyNotification: WechatPayDriver["verifyNotification"] = (input) =>
@@ -326,6 +332,51 @@ export function createWechatPayDriver(
     async downloadBill(input) {
       hook("downloadBill");
       return downloadBill(input);
+    },
+
+    async fetchVerifiedTradeBill({ billDate }) {
+      hook("fetchVerifiedTradeBill");
+      const at = new Date(`${billDate}T00:00:00Z`);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(billDate) ||
+        !Number.isFinite(at.getTime()) ||
+        at.toISOString().slice(0, 10) !== billDate
+      )
+        return failed("rejected", "账单日不合规");
+      const ticket = await client.request({
+        method: "GET",
+        path: `/v3/bill/tradebill?bill_date=${billDate}&bill_type=ALL`,
+        verifyError: true,
+      });
+      if (!ticket.ok) {
+        if (ticket.status === 400 && ticket.code === "NO_STATEMENT_EXIST" && ticket.verifiedError)
+          return ok({
+            kind: "missing" as const,
+            billDate,
+            appid: config.appid,
+            mchid: config.mchid,
+          });
+        return toFailure(ticket);
+      }
+      const hashType = text(ticket.json?.hash_type),
+        hashValue = text(ticket.json?.hash_value),
+        downloadUrl = text(ticket.json?.download_url);
+      if (!hashType || !hashValue || !downloadUrl || hashType !== "SHA1")
+        return failed("unavailable", "可信账单申请应答不合规");
+      const url = URL.canParse(downloadUrl) ? new URL(downloadUrl) : null;
+      if (!url || url.username || url.password || url.hash)
+        return failed("rejected", "可信账单下载地址不合规");
+      const downloaded = await downloadBillBytes({ hashType, hashValue, downloadUrl });
+      if (!downloaded.ok) return downloaded;
+      return ok(
+        createVerifiedTradeBill({
+          billDate,
+          appid: config.appid,
+          mchid: config.mchid,
+          sha1: hashValue,
+          bytes: downloaded.value.bytes,
+        }),
+      );
     },
 
     // 申请加下载。当日没有账单时 text 是空串（真实的账单至少有表头），由调用方按“账单不存在”处理

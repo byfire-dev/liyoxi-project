@@ -42,11 +42,14 @@ export async function sendSystemAlert(
   if (!scene || scene.audience !== "staff")
     throw new AppError("INTERNAL", { message: "系统告警场景尚未正确登记" });
   if (!scene.sceneEnabled) return { status: "disabled", recipients: 0, created: 0 };
-  // 仅付款差异专用规则增加财务；研发/运维仍走既有P1机器人与oncall通道，其他系统告警受众不变。
+  // 仅付款差异与精确账单日缺账规则增加财务；研发/运维走既有机器人与oncall通道。
   const paymentException = /^billing\.payment_exception:(open|critical|overdue)$/.test(
     input.fingerprint,
   );
-  const roles = paymentException ? ["super_admin", "finance"] : ["super_admin"];
+  const billMissing = /^billing\.bill_missing:\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(
+    input.fingerprint,
+  );
+  const roles = paymentException || billMissing ? ["super_admin", "finance"] : ["super_admin"];
   const found = (
     await Promise.all(
       roles.map((roleKey) =>

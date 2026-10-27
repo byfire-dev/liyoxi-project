@@ -10,6 +10,9 @@ import {
   createInvoiceAssembly,
   createRefunds,
   createRefundAssembly,
+  createStagingPayAssembly,
+  createReconciliationAssembly,
+  createShippingAssembly,
   createWechatRefundSource,
 } from "../billing/index.js";
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
@@ -24,6 +27,7 @@ import {
 import { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 import { createInvitationAssembly } from "./invitation-runtime.js";
 import { createModelBudgetRuntime } from "./model-budget-runtime.js";
+import { createBillMissingObserver } from "./bill-missing.js";
 import { createProbe, PROBE_QUERY_MS } from "./probe.js";
 import { sqlProbeRules } from "./probe-rules.js";
 import { operationalProbeRules } from "./operational-probe-rules.js";
@@ -221,6 +225,7 @@ export interface WorkerServicesOptions {
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
     readonly WECHAT_PAY?: Env["WECHAT_PAY"];
+    readonly STAGING_PAY?: Env["STAGING_PAY"];
     readonly MAIL_TENCENT?: Env["MAIL_TENCENT"];
     readonly OCR_TENCENT?: Env["OCR_TENCENT"];
     readonly DATA_KEYS?: DataKeysConfig;
@@ -399,7 +404,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
   const refundScope = createRefundAssembly(invoiceScope.assembly);
-  const assembly = refundScope.assembly;
+  const stagingPayScope = createStagingPayAssembly(refundScope.assembly);
+  const reconciliationScope = createReconciliationAssembly(stagingPayScope.assembly);
+  const shippingScope = createShippingAssembly(reconciliationScope.assembly);
+  const assembly = shippingScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -744,6 +752,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   };
   const delivery = {
     tx,
+    beforeConsume: shippingScope.beforeConsume,
     subscribers: events.subscribers,
     channel,
     alerts,
@@ -807,12 +816,34 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       : {}),
   };
   transferReviewScope.attach(workerPurchaseDeps);
+  shippingScope.attach({
+    tx,
+    clock,
+    sessionMutex: options.sessionMutex,
+    provider: providers.wechat,
+    appid: options.wechat?.config.appid,
+    paymentAppid: options.keys?.WECHAT_PAY?.appid,
+    mchid: options.keys?.WECHAT_PAY?.mchid,
+  });
   const refundDeps = {
     ...workerPurchaseDeps,
+    stagingPay: {
+      APP_ENV: options.appEnv,
+      ...(options.keys?.STAGING_PAY ? { STAGING_PAY: options.keys.STAGING_PAY } : {}),
+    },
     isQualificationDead,
     approvalRefs: createBillingApprovalRefs({ clock }),
   };
   refundScope.attach(refundDeps);
+  stagingPayScope.attach(refundDeps);
+  if (options.sessionMutex)
+    reconciliationScope.attach({
+      ...refundDeps,
+      sessionMutex: options.sessionMutex,
+      systemFiles: media,
+      orderPrefix: options.appEnv === "stg" ? "TFK" : "FK",
+      observeBillMissing: createBillMissingObserver({ tx, clock }),
+    });
   const refunds = createRefunds(refundDeps);
   const paymentChannel = createWechatChannel(workerPurchaseDeps);
   const closePaymentChannel = bindPaymentChannel(paymentChannel);
@@ -982,6 +1013,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     },
     closeApproval: () => {
       refundScope.close();
+      stagingPayScope.close();
+      reconciliationScope.close();
+      shippingScope.close();
       invoiceScope.close();
       transferReviewScope.close();
       approvalSlaScope.close();

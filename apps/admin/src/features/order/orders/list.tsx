@@ -4,6 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
 import { Alert, Checkbox, Input, Select } from "antd";
 import { useState } from "react";
+import { Tabs } from "../../../components/Tabs";
+import { PaymentOrdersView } from "./payment-view";
+import { paymentSearch } from "./payment-model";
 import { PageHeader } from "../../../components/PageHeader";
 import { QueryTablePage, type QueryColumn } from "../../../components/QueryTablePage";
 import { StatusTag } from "../../../components/StatusTag";
@@ -35,6 +38,27 @@ export function OrderStatus({ row }: { row: Pick<OrderCard, "status" | "subStatu
   );
 }
 export function OrdersPage() {
+  const search = route.useSearch(),
+    navigate = route.useNavigate(),
+    view = paymentSearch(search).view;
+  return (
+    <>
+      <Tabs
+        label="订单视图"
+        activeKey={view}
+        items={[
+          { key: "drama", label: "订购单" },
+          { key: "payments", label: "付款单" },
+        ]}
+        onChange={(next) =>
+          void navigate({ search: { ...search, ...paymentSearch({ ...search, view: next }) } })
+        }
+      />
+      {view === "payments" ? <PaymentOrdersView /> : <DramaOrdersPage />}
+    </>
+  );
+}
+function DramaOrdersPage() {
   const { services } = useRouteContext({ from: "__root__" }),
     navigate = route.useNavigate();
   const fullStaff = useModuleLevel("system") !== "n",

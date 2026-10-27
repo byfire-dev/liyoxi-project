@@ -249,3 +249,17 @@ W4-13 当前实现发票与受控财务配置（验收中）：发票申请保�
 本包定点：`src/billing/adjustments/approval.test.ts`、`read.test.ts` 与
 `apps/api/test/billing-adjustments.test.ts`；只用公开合成配置、真实本机测试库和已有替身。
 真实员工操作、真机、真实付款或退款均不由这些测试替代。
+
+
+### W4-09 发货受理与未知结果恢复
+
+`billing.uploadShippingInfo` 只消费真实 `billing_order.paid`，默认沿财务内控 `shippingReport=false` 不外呼。每个API/worker装配单独绑定scope，不用进程全局单例；实际事务外准备接在worker的 `DispatchDeps.beforeConsume`，原运输租约在消费前重新确认。API独立装配只绑定订阅者事务内复核，不在API请求中发货。
+
+准备阶段回读真实outbox及成功收款，锁序仍为 `billing_order(290)→payment_txn(300)`。虚拟统一发货前先提交收款行的永久 `unknown` 与AppID/商户号/描述/毫秒上传意图；完整过程由同交易SessionMutex串行，Provider仅事务外调用一次。成功或明确未受理才分别落 `confirmed/not_accepted`；任何未知、崩溃、幂等24小时清理或投递换代都不能重置意图。明确未受理的有界重投继续同一固定报文意图，仍使用原投递退避/10次死信上限。
+
+未知恢复只query：调用配置AppID须与固化AppID和支付AppID一致，商户号、渠道/商户单号、实际付款openid、实收额、虚拟物流/统一发货/完成标记、单条描述及 `floor(upload_time毫秒/1000)` 全匹配才确认。query不含AppID，不能用缺字段、查无或等待时长推导未受理。确认时间取注入Clock实际观察值，倒退保unknown；无 `max` 伪时间。结算再按原锁序回读同主体、同成功事件/入账反向关联及固化意图，用条件UPDATE防迟到覆盖。已退单的未认领/明确未受理意图不再发送且保留原状态，但既有未知仍可只读回查原受理事实。关闭开关允许消费而不发送，永久未知不清空。
+
+本片不启用开关、不改Provider重试/内核/DDL，也不宣称真实微信发货已验；结构字段及跨调用边界见 [结构前置](../../../../docs/plan/changes/W4-09-shipping-state-prerequisite.md)。
+
+
+新增 `payment/shipping.test.ts` 的9个真实PG目标已定点通过：包括真实入账事件/异人配置审批、已受理响应丢失与通用幂等清理、完整查询及身份/配置拒绝、真实退款后不发送或只查询、毫秒观察与两个真实会话owner三轮竞争。消费使用实际事件展开/认领/原beforeConsume与done事务；公共清理按DB基础设施时钟，测试仅将本轮幂等技术行移到24h清理边界，不动资金或发货事实。全部使用替身，未做真实微信操作。

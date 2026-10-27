@@ -283,3 +283,16 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 本轮 live/build 生产源为 b0d9c103；142434f5 只收口中文提示，经单叶轻检查和 ROOT 点核，没有声明文案后重跑全套。四张实际 manual-review/demand-results/portrait-awaiting-confirmation/portrait-confirmed 截图已人工查看，绝对路径记在状态中。首片只读签名/范围回归本轮继续通过；只读前置的外部字节替身与本轮真实 MinIO 写链分别记录。
 
 代码与本地验收已完成；真实客户肖像材料的法律有效性、E17/E22、真实识别准确率、生产云、消息送达、真机/有头及远端 CI 尚未验证，不以虚构 PNG 流程替代。
+
+
+## 套餐、积分、账户与线下开单（W4-17）
+
+六个登记项为 `/billing/plans`、`/billing/point-packs`、`/billing/params`、`/billing/accounts`、`/orders/renewals` 和既有订单菜单内的线下开单弹层。`/orders?view=payments` 是原 Orders 的独立付款单视图，详情按真实 paymentOrderId 读取付款信息、支付记录、转账凭证、退款与发票、操作日志；不把付款单伪关联到某张订购单，原订购单详情保持。
+
+价目/权益、报价公式、余额、剩余日期、计数及可用 actions 均来自实际 typed API。通用报价只读；实际开单另取绑定当前主体、套餐、周期和意图的服务端报价，积分包保存选择时价目快照。金额 0 与 null 分开显示，不补最低积分、不在浏览器计算业务价格。参数页从已有 priceTierRevision.list 读当前 S/A/B/C，延长原因从已有 extend_reason 启用字典读，不从历史反推或硬编码。
+
+编辑使用打开时版本，冲突保留草稿并要求重新核对；同步忙锁、同意图幂等键、中央再验证、范围 query key 与卸载取消共同限制双击及迟到回调。积分调整/延长仅发起实际审批，不自行更改余额或周期。流水使用真实游标及 10/20/50 条数，不能制造总页数；日期与值遵循服务端 DTO。
+
+线下先真实建付款单，再按精确单号、付款 ID 与主体重新读取列表 action，允许后才登记当前主体 pay_receipt。复用共享上传器真实直传、complete 与 stored 轮询，成功 fileId 才能提交收款审核；失败可重试当前单据，关闭或换范围后旧回调失效。代传不等于到账，财务确认仍由既有后端权限和独立审核处理。
+
+定点模型、类型、生产构建与 `live-billing-catalog.spec.ts` 的真实结果见 [W4-17 状态](../../docs/plan/status/W4-17.md)。live 的虚构余额经真实履约生成，开单开关在本轮隔离库通过原两名财务双人审批开启；私有上传入口只处理本轮成功登记、本人同主体的一个凭证文件，不扫描其他任务。旧收款演练按自身“到账演练”前缀过滤，保留原精确队列与金额断言。真实收款资料、银行到账、云账号及业主有头看样均须另验。

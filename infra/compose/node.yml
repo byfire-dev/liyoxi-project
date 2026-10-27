@@ -191,6 +191,7 @@ services:
       - /tmp:size=64m
     environment:
       APP_ENV: stg
+      STAGING_PAY_ENTITY_IDS: ${STAGING_PAY_ENTITY_IDS:-}
       LOG_LEVEL: ${LYX_LOG_LEVEL:-info}
       DATABASE_URL_FILE: /run/secrets/database-url
       REDIS_URL_FILE: /run/secrets/redis-url
@@ -265,6 +266,7 @@ services:
       - /tmp:size=64m
     environment:
       APP_ENV: stg
+      STAGING_PAY_ENTITY_IDS: ${STAGING_PAY_ENTITY_IDS:-}
       LOG_LEVEL: ${LYX_LOG_LEVEL:-info}
       DATABASE_URL_FILE: /run/secrets/database-url
       REDIS_URL_FILE: /run/secrets/redis-url

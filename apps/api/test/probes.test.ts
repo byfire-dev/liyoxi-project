@@ -1,7 +1,7 @@
 // 探活 5 条的接口层用例（任务书 W0-22 第 7 节第 4、6 条；h01 第 2.5、3.11–3.15 节），另导出已挂载清单。
 // 登记键以字符串字面量写在这里：“已落地”的判定按它认“有接口层测试”。
-//   落地 3 条："hooks.healthz.get"、"hooks.readyz.get"、"hooks.health.get"
-//   只有框架 2 条（留桩）："hooks.internalHealth.finance.get"、"hooks.internalHealth.flow.get"
+//   落地 4 条：公开三条与资金明细；流程明细仍为框架。
+//   只有框架 1 条（留桩）："hooks.internalHealth.flow.get"
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -72,14 +72,32 @@ describe("探活", () => {
     );
   });
 
-  it("两条内网探活只有框架：503，各指标为 null 且都在 breaches 里", TIMEOUT, async () => {
+  it("资金探活读真实空库并对缺事实降级；流程框架原语义保持", TIMEOUT, async () => {
     const { request } = await testApi.start();
+    const prisma = await testApi.db.prisma();
+    // 本文件前面的公开health用例可能已写租约；显式准备陈旧真实租约，避免依赖测试执行顺序。
+    await prisma.$executeRaw`
+      INSERT INTO worker_lease(name,holder,holder_version,acquired_at,heartbeat_at,probe_at)
+      VALUES('primary','finance-api:test','test',clock_timestamp()-interval '5 minute',clock_timestamp()-interval '4 minute',NULL)
+      ON CONFLICT(name) DO UPDATE SET acquired_at=EXCLUDED.acquired_at,heartbeat_at=EXCLUDED.heartbeat_at,probe_at=NULL`;
     const finance = await request("/internal/health/finance");
     expect(finance.status).toBe(503);
     expect(finance.headers.get("Cache-Control")).toBe("no-store");
     const financeBody = (await finance.json()) as { breaches: string[] };
-    expect(financeBody).toMatchObject({ status: "degraded", unappliedReceipt: null });
-    expect(financeBody.breaches).toHaveLength(10);
+    expect(financeBody).toMatchObject({
+      status: "degraded",
+      unappliedReceipt: { count: 0, oldestAgeSec: null },
+      timerLagSec: 0,
+      webhookBacklog: { pendingCount: 0, deadCount: 0, oldestPendingAgeSec: null },
+    });
+    expect([...financeBody.breaches].sort()).toEqual(
+      [
+        "workerHeartbeatAgeSec",
+        "certificates",
+        "billing.invariantRunAgeSec",
+        "billing.valuationAgeSec",
+      ].sort(),
+    );
 
     const flow = await request("/internal/health/flow");
     expect(flow.status).toBe(503);
@@ -98,22 +116,32 @@ describe("探活", () => {
 
 describe("已挂载清单", () => {
   it(
-    "契约里只登记的 5 条都挂上了；清单里探活是落地的 3 条，写到 dist/mounted-operations.json",
+    "契约里只登记的 5 条都挂上了；清单里探活是落地的 4 条，写到 dist/mounted-operations.json",
     TIMEOUT,
     async () => {
       const { api, request } = await testApi.start();
       for (const entry of allRegistryOnly) {
         expect((await request(entry.path)).status, entry.path).not.toBe(404);
       }
-      // 探活落地的 3 条都在；其余是各域陆续挂上的业务路由（各域的接口层用例各管各的），清单已排序
+      // 探活落地的 4 条都在；其余是各域陆续挂上的业务路由（各域的接口层用例各管各的），清单已排序
       expect(api.mountedOperations).toEqual(
-        expect.arrayContaining(["hooks.health.get", "hooks.healthz.get", "hooks.readyz.get"]),
+        expect.arrayContaining([
+          "hooks.health.get",
+          "hooks.healthz.get",
+          "hooks.readyz.get",
+          "hooks.internalHealth.finance.get",
+        ]),
       );
       expect(
         api.mountedOperations.filter((id) =>
-          ["hooks.health.get", "hooks.healthz.get", "hooks.readyz.get"].includes(id),
+          [
+            "hooks.health.get",
+            "hooks.healthz.get",
+            "hooks.readyz.get",
+            "hooks.internalHealth.finance.get",
+          ].includes(id),
         ),
-      ).toHaveLength(3);
+      ).toHaveLength(4);
       expect(api.mountedOperations).toEqual([...api.mountedOperations].sort());
       // “已落地”的判定（node infra/ci/landed.mjs）读这份文件：JSON 字符串数组，取生产的处理器清单
       const dist = fileURLToPath(new URL("../dist/", import.meta.url));

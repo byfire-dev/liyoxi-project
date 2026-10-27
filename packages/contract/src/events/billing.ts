@@ -12,6 +12,7 @@ import {
   PAYMENT_EXCEPTION_STATUS,
   POINT_HOLD_PURPOSE,
   PAYMENT_EXCEPTION_RESOLUTION,
+  RECON_DAY_STATUS,
 } from "../enums/index.js";
 import { zodEnum } from "../enums/zod.js";
 import { z } from "../zod.js";
@@ -177,7 +178,19 @@ export const paymentExceptionAutoHealedPayload = z.strictObject({
   paymentExceptionId: IdSchema,
   fromState: orNull(z.literal("open")),
   toState: z.literal("auto_healed"),
-  transition: z.enum(["payment_exception.record_healed", "payment_exception.reclassify"]),
+  transition: z.enum([
+    "payment_exception.record_healed",
+    "payment_exception.reclassify",
+    "payment_exception.auto_heal",
+  ]),
+});
+
+export const reconDayClosedPayload = z.strictObject({
+  v: z.literal(1),
+  reconDayId: IdSchema,
+  bizDate: DateSchema,
+  status: zodEnum(RECON_DAY_STATUS),
+  diffCount: z.int().nonnegative(),
 });
 
 export const billingOrderCreatedPayload = z.strictObject({
@@ -454,4 +467,5 @@ export const payloads = {
   "billing_order.fulfillment_blocked": billingOrderFulfillmentBlockedPayload,
   "payment_exception.opened": paymentExceptionOpenedPayload,
   "payment_exception.auto_healed": paymentExceptionAutoHealedPayload,
+  "recon.day_closed": reconDayClosedPayload,
 } as const;

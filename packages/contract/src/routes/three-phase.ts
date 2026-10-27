@@ -18,6 +18,7 @@ export const THREE_PHASE_OPERATIONS = {
   "admin.refundRequest.retry": "external-first",
   "admin.refundRequest.confirmNotAccepted": "external-first",
   "admin.paymentException.resolve": "external-first",
+  "admin.reconciliation.rerun": "multi-tx",
   "m.me.changePhone": "external-first",
   "m.smsCode.create": "commit-first",
   "m.storeProfile.contactSmsCode.create": "commit-first",
