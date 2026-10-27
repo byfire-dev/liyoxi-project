@@ -162,7 +162,7 @@ export const APPROVAL_STATUS = defineEnum(
 );
 export type ApprovalStatus = EnumValue<typeof APPROVAL_STATUS>;
 
-/** 审批单类型。有执行步的四个：order_cancel、ad_cancel、qualification_cancel、plan_refund；transfer_confirm 默认不启用 */
+/** 审批单类型。取消/人工退款及staging_pay_refund有执行步；transfer_confirm默认不启用 */
 export const APPROVAL_KIND = defineEnum(
   "approval_kind",
   ["approval_request.kind"],
@@ -174,6 +174,7 @@ export const APPROVAL_KIND = defineEnum(
     "ad_cancel",
     "qualification_cancel",
     "plan_refund",
+    "staging_pay_refund",
     "points_adjust",
     "subscription_extend",
     "finance_config_change",

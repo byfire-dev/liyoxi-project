@@ -19,12 +19,13 @@ import { StaffBriefSchema } from "./structures.js";
 export const APPROVAL_CATEGORIES = ["review", "approval"] as const;
 export type ApprovalCategory = (typeof APPROVAL_CATEGORIES)[number];
 
-/** 有执行步的四类（03 分组 第 3.2 节）：审批单停在 approved，执行在领域表；它们不填在途去重键 */
+/** 有执行步的类型（03分组第3.2节）：审批单停在approved，领域执行；不填在途去重键 */
 export const APPROVAL_EXECUTION_KINDS = [
   "order_cancel",
   "ad_cancel",
   "qualification_cancel",
   "plan_refund",
+  "staging_pay_refund",
 ] as const;
 export type ApprovalExecutionKind = (typeof APPROVAL_EXECUTION_KINDS)[number];
 

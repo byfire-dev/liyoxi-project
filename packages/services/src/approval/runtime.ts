@@ -73,6 +73,7 @@ const NUMBER_PREFIX: Partial<Record<ApprovalKind, ApprovalNumberPrefix>> = {
   ad_cancel: "TK",
   qualification_cancel: "TK",
   plan_refund: "TK",
+  staging_pay_refund: "TK",
   points_adjust: "TZ",
   subscription_extend: "YQ",
   account_change: "ZH",
@@ -87,7 +88,7 @@ export function approvalKindsOf(
   const problems: string[] = [];
   for (const [key, kind] of kinds) {
     if (!(APPROVAL_KIND.values as readonly string[]).includes(key)) {
-      problems.push(`${key}：不是审批类型（approval_request.kind 的 12 个取值之一）`);
+      problems.push(`${key}：不是已声明的审批类型（approval_request.kind）`);
       continue;
     }
     const review = REVIEW_KINDS.includes(key as ApprovalKind);
