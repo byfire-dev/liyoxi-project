@@ -2816,7 +2816,7 @@
 | 鉴权 | `staff`；`finance.recon.resolve`（A46 标再验证） |
 | 回显 | 要求 `confirm`：`{ billDate }` |
 | 幂等 | required |
-| 乐观锁 | 无（整个对账按账单日幂等，事务级咨询锁串行化） |
+| 乐观锁 | 无（整个对账按当前商户号/账单日持既有会话咨询锁串行；逐主体资金事务仍取同日事务咨询锁） |
 | 对应画板 | A:Reconcile（原型未画；有差异或账单补到时在日行上给“重新对账”） |
 
 **请求**：路径 `reconciliationId`（`recon_day.id`，微信渠道行）。请求体：`confirm`。
@@ -2832,6 +2832,8 @@
 | `CONFIRM_MISMATCH` | 409 | |
 
 **副作用**（同步执行匹配步骤，d2:1056-1082）：重写该日 `wx_bill_line.match_state`；按差异单 `dedupe_key` 开新的差异单（`payment_exception.status`：（新建）→ `open` 或 `auto_healed`），`platform_only` 在账单补到后 `open → auto_healed`；更新 `payment_txn.recon_state`、`payment_txn.fee_fen` 回填与 `refund_txn.recon_state`；`recon_day` 重算汇总与 `status`，`run_count + 1`、`last_run_at`；出站事件 `payment_exception.opened`（新开时）、`payment_exception.auto_healed`（自愈时）、`recon.day_closed`（x01 这两个差异单事件的发出方还没有登记本接口，cross_doc）；审计（`category = recon`）。
+
+实际运行沿C51 required多事务：框架禁止嵌套事务/事务内外呼，故先取得整个账单日的既有SessionMutex，再占用幂等意图；每笔主体现金独立TX经收款/退款公口补记，最后日汇总/审计/幂等响应同TX提交。中断可用相同键恢复，原件/渠道号/已入账事实不重复；占用/容量不足或会话锁丢失按既有BUSY边界失败，不无锁继续。账单退款匹配与日行退款累计用原件申请全额（08 summary的v1行号证据），原退款结算汇总保持原字段名；微信日行的平台退款按原收款payment_txn.channel归属，微信原收款的人工offline退仍计微信，对公原收款的offline退不混入微信。
 
 ### 3.76 admin.paymentException.list　差异单列表
 `GET /admin/payment-exceptions`

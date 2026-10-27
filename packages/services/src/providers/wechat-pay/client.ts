@@ -61,7 +61,7 @@ export interface RequestSpec {
   body?: Json;
   /** 应答不带签名（账单下载）：跳过验签 */
   unsigned?: boolean;
-  /** 仅退款查询：不存在证明也必须验签；其他旧调用的错误归一保持原样。 */
+  /** 退款查询/可信账单：不存在证明也必须验签；其他旧调用的错误归一保持原样。 */
   verifyError?: boolean;
 }
 

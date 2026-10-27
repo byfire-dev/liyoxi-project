@@ -31,12 +31,16 @@ import {
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 
-import { createWechatPayNotificationCrypto } from "../../providers/index.js";
+import {
+  createWechatPayNotificationCrypto,
+  createVerifiedTradeBill,
+} from "../../providers/index.js";
 import { failed, ok } from "../../providers/types.js";
 import type {
   ProviderFailure,
   ProviderMethodName,
   ProviderResult,
+  VerifiedTradeBillResult,
   WechatPayNotification,
   WechatPayProvider,
   WechatPayRefund,
@@ -120,6 +124,8 @@ export interface FakeWechatPayWireOptions {
 export interface FakeWechatPay extends WechatPayProvider, FakeControl<Method> {
   readonly orders: Map<string, FakeWechatPayOrder>;
   readonly refunds: Map<string, WechatPayRefund>;
+  /** 配置一份出账后冻结的官方格式样本；null模拟可信账单不存在。旧展示口不受影响。 */
+  setTradeBill(billDate: string, body: string | null): void;
   /** 待投的通知，deliverDue() 按数组顺序投到点的。可以直接改它来造乱序 */
   readonly queue: QueuedNotification[];
   /** 投出去的记录，按投递的先后 */
@@ -259,6 +265,7 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
   const core = createFakeCore<Method>(clock);
   const orders = new Map<string, FakeWechatPayOrder>();
   const refunds = new Map<string, WechatPayRefund>();
+  const tradeBills = new Map<string, string | null>();
   const queue: QueuedNotification[] = [];
   const deliveries: FakeDeliveryRecord[] = [];
   const queryResults = new Map<string, WechatPayTransaction | ProviderFailure>();
@@ -674,6 +681,21 @@ export function createFakeWechatPay(options: { clock?: FakeClock } = {}): FakeWe
         return refund
           ? ok({ ...refund })
           : { ...failed("rejected", "替身：退款单不存在"), refundNotFound: true as const };
+      }),
+
+    setTradeBill(billDate, body) {
+      tradeBills.set(billDate, body);
+    },
+    fetchVerifiedTradeBill: (input) =>
+      run("fetchVerifiedTradeBill", input, (): ProviderResult<VerifiedTradeBillResult> => {
+        const body = tradeBills.get(input.billDate),
+          appid = wire?.appid ?? "wx0000000000000000",
+          mchid = wire?.mchid ?? "1900000109";
+        if (body === undefined || body === null)
+          return ok({ kind: "missing" as const, billDate: input.billDate, appid, mchid });
+        const bytes = Buffer.from(body, "utf8"),
+          sha1 = createHash("sha1").update(bytes).digest("hex");
+        return ok(createVerifiedTradeBill({ billDate: input.billDate, appid, mchid, bytes, sha1 }));
       }),
 
     fetchTradeBill: (input) =>

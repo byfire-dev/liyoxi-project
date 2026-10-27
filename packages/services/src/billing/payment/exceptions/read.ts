@@ -21,7 +21,11 @@ import { resolutions } from "./matrix.js";
 
 const include = { billingOrder: true, paymentTxn: true } satisfies Prisma.PaymentExceptionInclude;
 type Row = Prisma.PaymentExceptionGetPayload<{ include: typeof include }>;
-async function overdueReader(tx: Tx, deps: PaymentExceptionDeps, rows: PaymentException[]) {
+async function overdueReader(
+  tx: Tx,
+  deps: Pick<PaymentExceptionDeps, "clock">,
+  rows: PaymentException[],
+) {
   const now = deps.clock.now(),
     from = rows.reduce((min, r) => (r.createdAt < min ? r.createdAt : min), now);
   const calendar = await loadWorkCalendar(
@@ -31,6 +35,24 @@ async function overdueReader(tx: Tx, deps: PaymentExceptionDeps, rows: PaymentEx
   );
   return (r: PaymentException) =>
     OPEN.includes(r.status) && addWorkingDays(calendar, r.createdAt, 1).at < now;
+}
+/** 同一全局财务资源的月度告警区，保持既有可见范围/安全行投影。 */
+export async function reconciliationExceptions(
+  tx: Tx,
+  deps: Pick<PaymentExceptionDeps, "clock">,
+  staff: StaffContext,
+  from: Date,
+  to: Date,
+) {
+  assertFinanceView(staff);
+  const rows = await tx.paymentException.findMany({
+    where: { AND: [byEntity(staff.scope)], status: { in: OPEN }, billDate: { gte: from, lt: to } },
+    include,
+    orderBy: [{ billDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    take: 20,
+  });
+  const overdue = await overdueReader(tx, deps, rows);
+  return Promise.all(rows.map((r) => rowView(tx, r, overdue(r))));
 }
 async function rowView(tx: Tx, row: Row, isOverdue: boolean) {
   return PaymentExceptionRowSchema.parse({

@@ -60,6 +60,7 @@ interface Claim {
   channels: readonly ChannelName[];
 }
 export const DEFAULT_P2_IMMEDIATE: readonly string[] = [
+  "billing.bill_missing",
   "webhook.backlog",
   "webhook.dead",
   "webhook.failing",
