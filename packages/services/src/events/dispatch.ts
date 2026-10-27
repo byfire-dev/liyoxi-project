@@ -7,7 +7,7 @@
 //      订阅者的业务写与“已消费”同事务，所以同一行被送达多少次，业务副作用都只有一次。
 //   4. 租约过期且上一次已入队（处理器失联）记一次失败；入队失败不记。失败满 10 次进死信并告警，不再自动重试。
 //   5. 多个实例同时派发：FOR UPDATE SKIP LOCKED，各拿各的，不重复、不互等。
-import type { Alerts, QueueChannel, Tx, TxRunner } from "../kernel/index.js";
+import type { Alerts, DeliveredEvent, QueueChannel, Tx, TxRunner } from "../kernel/index.js";
 import { REDIS_DOWN_FALLBACK_MS } from "../kernel/index.js";
 import type { SubscriberTable } from "./subscribers.js";
 
@@ -46,6 +46,8 @@ export interface ClaimResult {
 }
 
 export interface DispatchDeps {
+  /** 有效已知投递的事务外准备；至少一次，外部副作用须由领域按稳定键/渠道事实去重。 */
+  readonly beforeConsume?: (ref: DeliveryRef, event: DeliveredEvent) => Promise<void>;
   /** 已提交失败事实后的旁路；不得改变事务结果，旧装配可不提供。 */
   readonly onFailure?: (outcome: "retry" | "dead") => void | Promise<void>;
   readonly tx: TxRunner;
@@ -174,15 +176,47 @@ async function recordFailure(
   return row.status;
 }
 
+/** 调用方已持有投递行锁；独立语句取DB当前时间，避免锁等待前的目标表达式过时。 */
+async function liveLease(tx: Tx, ref: DeliveryRef): Promise<boolean> {
+  const [row] = await tx.$queryRawUnsafe<Array<{ valid: boolean }>>(
+    `SELECT lease_until>clock_timestamp() AS valid FROM outbox_delivery
+      WHERE outbox_event_id=$1::uuid AND subscriber=$2::text`,
+    ref.eventId,
+    ref.subscriber,
+  );
+  return row?.valid === true;
+}
+
 /**
  * 消费一次派发：队列的处理器与派发循环的进程内执行走同一个函数。
  * 订阅者抛错不往外抛：记一次失败后返回 retry 或 dead。只有数据库本身出问题才抛（那时由租约到期兜底）。
  */
 export async function consumeDelivery(
-  deps: Pick<DispatchDeps, "tx" | "subscribers" | "alerts" | "onFailure">,
+  deps: Pick<DispatchDeps, "tx" | "subscribers" | "alerts" | "onFailure" | "beforeConsume">,
   ref: DeliveryRef,
 ): Promise<ConsumeOutcome> {
   try {
+    if (deps.beforeConsume) {
+      const prepared = await deps.tx.run(async (tx) => {
+        const [row] = await tx.$queryRawUnsafe<Array<{ status: string; dispatchNo: number }>>(
+          `SELECT status,dispatch_no::int AS "dispatchNo"
+             FROM outbox_delivery WHERE outbox_event_id=$1::uuid AND subscriber=$2::text FOR UPDATE`,
+          ref.eventId,
+          ref.subscriber,
+        );
+        if (row?.status !== "leased" || row.dispatchNo !== ref.dispatchNo) return null;
+        if (!(await liveLease(tx, ref))) return null;
+        const [event] = await tx.$queryRawUnsafe<
+          Array<{ type: string; payload: Readonly<Record<string, unknown>> }>
+        >(`SELECT event_type AS type, payload FROM outbox_event WHERE id=$1::uuid`, ref.eventId);
+        if (!event) throw new Error(`投递行指向的事件 ${ref.eventId} 不存在`);
+        const subscriber = deps.subscribers.get(ref.subscriber);
+        // 未知事件仍交给下面的原延后/失败流程，不触发外部准备。
+        return subscriber?.events.includes(event.type) ? { id: ref.eventId, ...event } : undefined;
+      });
+      if (prepared === null) return "stale";
+      if (prepared !== undefined) await deps.beforeConsume(ref, prepared);
+    }
     return await deps.tx.run(async (tx): Promise<ConsumeOutcome> => {
       const [row] = await tx.$queryRawUnsafe<Array<{ status: string; dispatchNo: number }>>(
         `SELECT status, dispatch_no::int AS "dispatchNo" FROM outbox_delivery
@@ -191,6 +225,7 @@ export async function consumeDelivery(
         ref.subscriber,
       );
       if (row?.status !== "leased" || row.dispatchNo !== ref.dispatchNo) return "stale";
+      if (deps.beforeConsume && !(await liveLease(tx, ref))) return "stale";
       const [event] = await tx.$queryRawUnsafe<
         Array<{ type: string; payload: Readonly<Record<string, unknown>> }>
       >(`SELECT event_type AS type, payload FROM outbox_event WHERE id = $1::uuid`, ref.eventId);

@@ -186,8 +186,20 @@ describe("生产组合根同Tx预算参数公口", { timeout: SLOW }, () => {
       clock: h.clock,
       prefix,
       transport: {
-        eval: async (script, targets, argv) =>
-          client.eval(script, targets.length, ...targets, ...argv),
+        eval: async (script, targets, argv) => {
+          // 本目标只验参数修订因果，Lua TIME与注入钟一致；原真实TIME/250ms超期专项保持。
+          const now = h.clock.now().getTime();
+          expect(script).toContain("redis.call('TIME')");
+          return client.eval(
+            script.replaceAll(
+              "redis.call('TIME')",
+              `{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`,
+            ),
+            targets.length,
+            ...targets,
+            ...argv,
+          );
+        },
       },
     });
     try {

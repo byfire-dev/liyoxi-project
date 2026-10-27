@@ -30,6 +30,7 @@ export const billingOrder = chain("billing_order", "status", BILLING_ORDER_STATU
   ["08:175", ["pending_payment"], "billing_order.cancel", ["cancelled"]],
   ["08:176", ["cancelled"], "billing_order.restore", ["paid"]],
   ["08:177", ["paid"], "billing_order.refund", ["refunded"]],
+  ["08:178", null, "billing_order.rebuild", ["paid"]],
 ]);
 
 /** refund_request.status：docs/data-model/08-billing-payment.md */

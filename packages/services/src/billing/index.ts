@@ -182,6 +182,10 @@ export {
   rejectInvoiceAfterRefund,
 } from "./invoices/refund.js";
 export { createTermRefund } from "./subscription/index.js";
+export { createPaymentExceptions } from "./payment/exceptions/index.js";
+export type { PaymentExceptionDeps } from "./payment/exceptions/index.js";
+export { readPaymentExceptionAlertFacts } from "./payment/exceptions/alerts.js";
+export type { PaymentExceptionAlertFacts } from "./payment/exceptions/alerts.js";
 export type { PlanRefundRule, PlanRefundPreview, RevokeTermResult } from "./subscription/index.js";
 
 export {

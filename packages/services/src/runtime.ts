@@ -97,6 +97,7 @@ import {
   createInvoiceAssembly,
   createInvoices,
   createRefunds,
+  createPaymentExceptions,
   createRefundAssembly,
   createWechatRefundSource,
   createFinanceConfigService,
@@ -288,6 +289,7 @@ export interface Runtime {
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
     refunds: ReturnType<typeof createRefunds>;
+    paymentExceptions: ReturnType<typeof createPaymentExceptions>;
     financeConfig: ReturnType<typeof createFinanceConfigService>;
     adjustments: ReturnType<typeof createBillingAdjustments>;
     accounts: ReturnType<typeof createBillingAccounts>;
@@ -929,6 +931,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       assignDeliveryManager(t, { clock, assembly, tenant }, ctx, input),
   });
   let billingKeys = options.billingKeyring;
+  const fulfillment = createFulfillment({ clock, events });
   const purchaseDeps: BillingPurchaseDeps = {
     ...(env.WECHAT_PAY
       ? {
@@ -956,7 +959,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       flow,
       timers,
       bizNo,
-      fulfillment: createFulfillment({ clock, events }),
+      fulfillment,
     }),
     approval,
     docs: docsServices.docs,
@@ -990,6 +993,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     ...createBillingPurchase(purchaseDeps),
     invoices: createInvoices(invoiceDeps),
     refunds: createRefunds(refundDeps),
+    paymentExceptions: createPaymentExceptions({ ...refundDeps, fulfillment }),
     financeConfig: createFinanceConfigService(purchaseDeps),
     adjustments: createBillingAdjustments(adjustmentDeps),
     accounts: createBillingAccounts(adjustmentDeps),

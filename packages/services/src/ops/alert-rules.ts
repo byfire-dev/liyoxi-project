@@ -33,6 +33,7 @@ export const EVENT_ALERT_RULES = [
   "evidence.consent_digest_unavailable",
 ] as const;
 export const PROBE_ALERT_RULES = [
+  "billing.payment_exception",
   "outbox.unpublished",
   "outbox.delivery_lag",
   "outbox.dead",
