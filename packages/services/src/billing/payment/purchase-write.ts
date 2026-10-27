@@ -106,8 +106,19 @@ export async function createOrder(
   actor: PurchaseActor,
   client: PurchaseClient,
   input: PaymentOrderCreateBody,
+  stagingOnly = false,
 ) {
   owner(actor);
+  if (
+    stagingOnly &&
+    (input.channel !== "wechat_jsapi" ||
+      !input.planId ||
+      input.pointPackId ||
+      !Number.isInteger(input.expectAmountFen) ||
+      input.expectAmountFen < 1 ||
+      input.expectAmountFen > 100)
+  )
+    throw new AppError("PRECONDITION_CHANGED");
   await lockRows(tx, "entity", [actor.membership.entityId]);
   await validOwner(tx, deps, actor);
   const entity = await tx.entity.findUniqueOrThrow({ where: { id: actor.membership.entityId } });
@@ -146,6 +157,21 @@ export async function createOrder(
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   if (open) await lockRows(tx, "billing_order", [open.id]);
+  if (stagingOnly && open) {
+    // 先锁后回读；旧普通单/类型/金额不匹配不得先追加同意记录再拒绝。
+    const locked = await tx.billingOrder.findUniqueOrThrow({ where: { id: open.id } });
+    if (
+      !/^TFK\d+$/.test(locked.orderNo) ||
+      locked.entityId !== actor.membership.entityId ||
+      locked.channel !== "wechat_jsapi" ||
+      locked.status !== "pending_payment" ||
+      !["plan_new", "plan_renew"].includes(locked.type) ||
+      locked.amountFen < 1 ||
+      locked.amountFen > 100 ||
+      locked.amountFen !== input.expectAmountFen
+    )
+      throw new AppError("PRECONDITION_CHANGED");
+  }
   const clock = await deps.ledger.lockAccount(tx, entity.id),
     now = clock.now;
   const policy = (type: string, amount: number) =>
@@ -185,6 +211,14 @@ export async function createOrder(
         }
       : quoted!.quote.formula,
     orderType = topup ? "topup" : quoted!.quote.orderType;
+  if (
+    stagingOnly &&
+    (!["plan_new", "plan_renew"].includes(orderType) ||
+      !Number.isInteger(payFen) ||
+      payFen < 1 ||
+      payFen > 100)
+  )
+    throw new AppError("PRECONDITION_CHANGED");
   const impact = quoted?.quote.downgradeImpact;
   if (impact && (impact.storesToRemove > 0 || impact.membersToRemove > 0)) {
     if (!input.acknowledgedDowngradeImpact)
@@ -256,6 +290,7 @@ export async function createOrder(
   }
   const id = uuidv7(),
     orderNo = await deps.bizNo.next(tx, "FK");
+  if (stagingOnly && !/^TFK\d+$/.test(orderNo)) throw new AppError("PRECONDITION_CHANGED");
   await consents(
     tx,
     deps,

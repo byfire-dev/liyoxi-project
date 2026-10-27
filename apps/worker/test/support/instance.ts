@@ -66,7 +66,7 @@ export function createInstance(options: InstanceOptions) {
     monotonic: options.monotonic,
   });
   const services = buildWorkerServicesForTest({
-    appEnv: "test",
+    appEnv: options.appEnv === "stg" ? "stg" : "test",
     prisma: database.prisma,
     assembly,
     channel,

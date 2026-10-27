@@ -50,6 +50,19 @@ export async function quote(
   order: BillingOrder,
   requested?: string,
 ): Promise<CashRefundQuote> {
+  return quoteFacts(tx, deps, order, hasPermission(staff, "refund.override.request"), requested);
+}
+/** 系统窗口退款复用事实评估，永远不具备规则外退款权限；无员工上下文替身。 */
+export async function quoteSystemWindow(tx: Tx, deps: RefundDeps, order: BillingOrder) {
+  return quoteFacts(tx, deps, order, false, "window");
+}
+async function quoteFacts(
+  tx: Tx,
+  deps: RefundDeps,
+  order: BillingOrder,
+  allowOverride: boolean,
+  requested?: string,
+): Promise<CashRefundQuote> {
   const receipt = order.paidPaymentTxnId
     ? await tx.paymentTxn.findUnique({ where: { id: order.paidPaymentTxnId } })
     : null;
@@ -82,7 +95,7 @@ export async function quote(
     if (rule === "override" && cashOnly)
       return {
         rule,
-        eligible: unsupported === null && hasPermission(staff, "refund.override.request"),
+        eligible: unsupported === null && allowOverride,
         reasons,
       };
     if (!facts || !["scheduled", "active"].includes(facts.termStatus))
@@ -96,9 +109,7 @@ export async function quote(
     return {
       rule,
       eligible:
-        unsupported === null &&
-        reasons.length === 0 &&
-        (rule !== "override" || hasPermission(staff, "refund.override.request")),
+        unsupported === null && reasons.length === 0 && (rule !== "override" || allowOverride),
       reasons,
     };
   });

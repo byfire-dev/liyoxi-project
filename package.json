@@ -85,6 +85,7 @@
     "db:seed:demo": "pnpm --filter @liyoxi/services seed:demo",
     "clerk:snapshot": "LYX_CLERK_UPDATE=1 vitest run --project api apps/api/test/clerk/clerk.test.ts",
     "admin:e2e:live": "pnpm --filter @liyoxi/admin e2e:live",
+    "stg:pay-qr": "pnpm --filter @liyoxi/worker build && node apps/worker/dist/staging-pay-qr.js",
     "stg:buckets": "node infra/bootstrap/buckets.mjs"
   },
   "devDependencies": {

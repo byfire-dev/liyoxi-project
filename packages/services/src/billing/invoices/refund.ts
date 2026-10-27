@@ -37,7 +37,10 @@ export async function markInvoiceRedPending(
   if (
     order.entityId !== request.entityId ||
     order.paidPaymentTxnId !== request.paymentTxnId ||
-    request.approvalRequest.kind !== "plan_refund" ||
+    !(request.source === "staging_probe"
+      ? request.approvalRequest.kind === "staging_pay_refund"
+      : ["customer_service", "exception"].includes(request.source) &&
+        request.approvalRequest.kind === "plan_refund") ||
     request.approvalRequest.subjectType !== "billing_order" ||
     request.approvalRequest.subjectId !== order.id ||
     request.approvalRequest.entityId !== order.entityId

@@ -2,6 +2,7 @@ import { approvalKindPort } from "../../approval/index.js";
 import type { Assembly, KeyedPort, Tx, DeliveredEvent } from "../../kernel/index.js";
 import type { FiredTimer } from "../../kernel/index.js";
 import type { RefundDeps } from "./context.js";
+import { stagingRefundApproval } from "../staging-pay/kind.js";
 import { refundApproval } from "./approval.js";
 import { createRefundSaga } from "./saga.js";
 import { onRefundCalendarImported } from "./calendar.js";
@@ -20,6 +21,7 @@ export function createRefundAssembly(base: Assembly) {
     return deps;
   };
   const kind = refundApproval(current);
+  const stagingKind = base.appEnv === "stg" ? stagingRefundApproval(current) : undefined;
   const subscribers = base.subscribers.map((item) =>
     item.name === "billing.submitRefundTxn"
       ? {
@@ -60,10 +62,16 @@ export function createRefundAssembly(base: Assembly) {
       const entries = base.portEntries(port);
       if (port !== (approvalKindPort as unknown as KeyedPort<T>)) return entries;
       if (!entries.has("plan_refund")) throw new TypeError("缺少退款审批登记");
+      if (entries.has("staging_pay_refund") !== (base.appEnv === "stg"))
+        throw new TypeError("预发退款审批登记与当前环境不一致");
       return new Map(
         [...entries].map(([key, value]) => [
           key,
-          key === "plan_refund" ? (kind as unknown as T) : value,
+          key === "plan_refund"
+            ? (kind as unknown as T)
+            : key === "staging_pay_refund" && stagingKind
+              ? (stagingKind as unknown as T)
+              : value,
         ]),
       );
     },
