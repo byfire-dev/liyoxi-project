@@ -130,11 +130,26 @@ export function TicketDetailPage() {
                         { label: "补充说明", value: plan.data.draft.note ?? "—" },
                         { label: "上线方式", value: "商家自助发布" },
                         {
+                          label: "推送情况",
+                          value:
+                            plan.data.currentVersionNo > 0
+                              ? `已推送第 ${plan.data.currentVersionNo} 版`
+                              : "尚未推送",
+                        },
+                        {
                           label: "确认情况",
                           value:
-                            plan.data.confirmedVersionNo === null
-                              ? "尚未确认"
-                              : `已确认第 ${plan.data.confirmedVersionNo} 版`,
+                            plan.data.status === "pending_confirm"
+                              ? "等待商家确认"
+                              : plan.data.status === "revising"
+                                ? "商家要求修改，请调整方案后重新推送"
+                                : plan.data.confirmedVersionNo === null
+                                  ? "尚未确认"
+                                  : `已确认第 ${plan.data.confirmedVersionNo} 版`,
+                        },
+                        {
+                          label: "最近推送",
+                          value: plan.data.pushedAt ? date.dateTimeFull(plan.data.pushedAt) : "—",
                         },
                         { label: "广告位", value: "暂无" },
                       ]}
