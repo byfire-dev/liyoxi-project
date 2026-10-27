@@ -4,6 +4,7 @@ import { Alert, Button, Checkbox, Modal } from "antd";
 import { useState } from "react";
 import { InfoList } from "../../../components/InfoList";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
+import { localStorageRequestUrl } from "../../../lib/local-storage";
 import { Can } from "../../../lib/permissions";
 import { DETAIL_QUERY } from "../../../lib/query";
 import type { DetailApi, Ticket } from "./api";
@@ -81,7 +82,12 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
         <>
           <h2 className="lyx-section-title">样片第 {sample.versionNo} 版</h2>
           {sample.preview?.url ? (
-            <video controls preload="metadata" src={sample.preview.url} aria-label="样片预览" />
+            <video
+              controls
+              preload="metadata"
+              src={localStorageRequestUrl(sample.preview.url, __LYX_LOCAL_STORAGE_ORIGIN__)}
+              aria-label="样片预览"
+            />
           ) : (
             <p>预览地址暂不可用，请刷新重试</p>
           )}

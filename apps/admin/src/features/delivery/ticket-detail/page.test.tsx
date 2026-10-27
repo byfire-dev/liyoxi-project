@@ -7,11 +7,11 @@ import type { Plan, Ticket } from "./api";
 import { DETAIL_KEY } from "./model";
 import { batchId } from "./batch-test.fixture";
 
-const h = vi.hoisted(() => ({ services: null as unknown as AppServices }));
+const h = vi.hoisted(() => ({ services: null as unknown as AppServices, tab: "plan" }));
 vi.mock("@tanstack/react-router", () => ({
   getRouteApi: () => ({
     useParams: () => ({ ticketNo: "LYT-plan-feedback" }),
-    useSearch: () => ({ tab: "plan" }),
+    useSearch: () => ({ tab: h.tab }),
     useNavigate: () => vi.fn(),
   }),
   useRouteContext: () => ({ services: h.services }),
@@ -50,7 +50,7 @@ const initialPlan: Plan = {
   lockVersion: 0,
   actions: ["draft-replace", "push"],
 };
-// 缓存交付方案页签读取的真实 DTO 字段；样片与成片页签在这项测试中不挂载。
+// 缓存当前页签读取的真实 DTO 字段；未选中的页签不挂载。
 const ticket = {
   deliveryTicketId: batchId(405),
   ticketNo: "LYT-plan-feedback",
@@ -90,6 +90,7 @@ const ticket = {
 };
 let query: QueryClient;
 beforeEach(() => {
+  h.tab = "plan";
   query = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const noop = () => {};
   h.services = {
@@ -127,6 +128,28 @@ function serverPlan(patch: Partial<Plan>) {
     ...previous!,
     ...patch,
   }));
+}
+function serverSample(url: string) {
+  h.tab = "sample";
+  const sampleCache = {
+    versionNo: 1,
+    uploadedBy: { name: "样片测试剪辑师" },
+    uploadedAt: at,
+    qc: null,
+    preview: { url, expiresAt: "2026-10-27T08:00:00.000Z", posterUrl: null },
+    actions: [],
+  } satisfies Pick<
+    NonNullable<Ticket["currentSample"]>,
+    "versionNo" | "uploadedAt" | "qc" | "preview" | "actions"
+  > & {
+    uploadedBy: Pick<NonNullable<Ticket["currentSample"]>["uploadedBy"], "name">;
+  };
+  query.setQueryData([...DETAIL_KEY, ticket.ticketNo], {
+    ...ticket,
+    step: "sample_making",
+    actions: [],
+    currentSample: sampleCache,
+  });
 }
 describe("工单详情的方案推送反馈", () => {
   it("草稿推送后展示服务端版本、待确认状态与北京时间，重推后更新版本和时间", () => {
@@ -168,5 +191,27 @@ describe("工单详情的方案推送反馈", () => {
     html = render();
     expect(html).toContain("商家要求修改，请调整方案后重新推送");
     expect(html).not.toContain("等待商家确认");
+  });
+});
+
+describe("工单详情的样片预览地址", () => {
+  it("配置的本地存储源走同源代理并保留签名参数，默认测试模式保持原地址", () => {
+    const origin = __LYX_LOCAL_STORAGE_ORIGIN__ || "http://192.168.1.4:9110";
+    const path =
+      "/lyx-local-media/sample_video/preview.mp4?X-Amz-Signature=sample%2Bsignature&response-content-disposition=inline";
+    serverSample(`${origin}${path}`);
+    const expected = __LYX_LOCAL_STORAGE_ORIGIN__
+      ? `/__lyx_local_storage${path}`
+      : `${origin}${path}`;
+    expect(render().match(/<video\b[^>]*\bsrc="([^"]+)"/)?.[1]).toBe(
+      expected.replaceAll("&", "&amp;"),
+    );
+  });
+
+  it("外部 HTTPS 样片地址和签名参数保持原样", () => {
+    const url =
+      "https://media.example.test/sample.mp4?X-Amz-Signature=external%2Bsignature&response-content-disposition=inline";
+    serverSample(url);
+    expect(render().match(/<video\b[^>]*\bsrc="([^"]+)"/)?.[1]).toBe(url.replaceAll("&", "&amp;"));
   });
 });
