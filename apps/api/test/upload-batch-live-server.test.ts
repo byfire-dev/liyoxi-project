@@ -3,7 +3,10 @@ import {
   assertContentAdminLiveScope,
   parseOutputBatchLiveManifest as parseSharedManifest,
 } from "@liyoxi/services/testing";
-import { parseOutputBatchLiveManifest } from "./upload-batch-live-server.js";
+import {
+  parseOutputBatchLiveManifest,
+  parseInvoiceLiveEnvelope,
+} from "./upload-batch-live-server.js";
 
 const runId = "1234567890abcdef",
   id = "01950000-0000-7000-8000-000000000001";
@@ -63,6 +66,33 @@ const original = {
   video,
   resumeVideo: video,
 };
+it("可选发票scope保留无新scope的W318旧manifest，双方严格字段与未知键校验不丢失", () => {
+  const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id },
+    invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] },
+    previous = { ...original, w312: content, w318: assets };
+  expect(parseInvoiceLiveEnvelope(previous)).toEqual({
+    manifest: parseSharedManifest(previous),
+    w318: assets,
+    w418Invoice: undefined,
+  });
+  expect(parseInvoiceLiveEnvelope({ ...previous, w418Invoice: invoice })).toEqual({
+    manifest: parseSharedManifest(previous),
+    w318: assets,
+    w418Invoice: invoice,
+  });
+  expect(parseInvoiceLiveEnvelope(original)).toEqual({
+    manifest: parseSharedManifest(original),
+    w318: undefined,
+    w418Invoice: undefined,
+  });
+  for (const value of [
+    { ...previous, unexpected: true },
+    { ...previous, w318: { ...assets, verified: true } },
+    { ...previous, w418Invoice: { ...invoice, verified: true } },
+    { ...previous, w418Invoice: undefined },
+  ])
+    expect(() => parseInvoiceLiveEnvelope(value)).toThrow();
+});
 it("without W312 the original strict four-field manifest remains unchanged", () => {
   // The API and old delivery CLI use this identical public testing adapter.
   expect(parseOutputBatchLiveManifest).toBe(parseSharedManifest);
