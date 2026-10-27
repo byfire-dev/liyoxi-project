@@ -7,7 +7,7 @@
 //（那个脚本没有动：两边都要有库、有 Redis 前缀、有“4 个 worker 同时在场”的记录，库名与前缀没有交集）。
 //
 // 范围  与 --scope connected 相同：挂了 globalSetup 的测试项目的全部用例文件。问的是 Vitest 解析出来的配置与它列出的文件。
-// 分法  Vitest 配置里的分片器（跑测试时 --shard 用的同一个：文件路径取哈希、排序后按个数等分）。n 片互不重叠，合起来是全部。
+// 分法  Vitest 原 hash 等分作底，历史重文件按权重分散；轻文件只为保持原数量搬移。n 片互不重叠，合起来是全部。
 // 另带  每一片都带上两份测试支架自己的用例（本来就在这一片里的不重复）：
 //         packages/db/src/testing/parallel.test.ts              只有它写“4 个 worker 同时在场”那条记录
 //         packages/services/src/testing/redis-isolation.test.ts  保证每一片都用到 Redis 前缀
@@ -33,6 +33,7 @@ import { createWriteStream, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { balanceIsolationShards, parseIsolationTimings } from "./isolation-balance.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 /** 核对两份用量记录的脚本：不分片时用的同一个 */
@@ -82,7 +83,7 @@ function parseArgs(args) {
 /**
  * 问 Vitest：连库的测试项目（挂了 globalSetup 的）有哪些，它们的用例文件有哪些；给了 shard 时只留这一片。
  * 认项目的办法与 isolation.mjs 的 --scope connected 相同；只解析配置、列文件，不执行 globalSetup、不跑用例。
- * 分片用 Vitest 配置里的那个分片器，不在这里另写一遍算法。
+ * 原始分片仍问 Vitest；耗时提示只重排归属，不决定范围、执行或通过标准。
  */
 async function inspect(shard) {
   const { createVitest } = await import("vitest/node");
@@ -100,17 +101,34 @@ async function inspect(shard) {
     const all = (await vitest.globTestSpecifications()).filter((spec) =>
       names.has(spec.project.name),
     );
-    const mine = shard ? await new vitest.config.sequence.sequencer(vitest).shard(all) : all;
     const entry = (spec) => ({
       project: spec.project.name,
       file: relative(repoRoot, spec.moduleId),
     });
+    let files = all.map(entry);
+    if (shard) {
+      const sequencer = new vitest.config.sequence.sequencer(vitest);
+      const originalShard = vitest.config.shard;
+      const baseline = [];
+      try {
+        for (let index = 1; index <= shard.count; index++) {
+          vitest.config.shard = { index, count: shard.count };
+          baseline.push((await sequencer.shard(all)).map(entry));
+        }
+      } finally {
+        vitest.config.shard = originalShard;
+      }
+      const timings = parseIsolationTimings(
+        JSON.parse(readFileSync(new URL("./isolation-timings.json", import.meta.url), "utf8")),
+      );
+      files = balanceIsolationShards(baseline, timings)[shard.index - 1];
+    }
     const byFile = (a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0);
     return {
       projects,
       total: all.length,
       known: new Set(all.map((spec) => entry(spec).file)),
-      files: mine.map(entry).sort(byFile),
+      files: files.sort(byFile),
     };
   } finally {
     await vitest.close();
