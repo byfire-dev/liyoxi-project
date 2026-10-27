@@ -75,7 +75,13 @@ function PushSampleModal({ ticket, api, onClose, onRefresh }: PanelProps & { onC
 }
 export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
   const [open, setOpen] = useState<"upload" | "qc" | "push">(),
-    sample = ticket.currentSample;
+    sample = ticket.currentSample,
+    checkRejected = sample?.status === "check_rejected",
+    checkFailed =
+      checkRejected ||
+      sample?.production?.gate === "reject" ||
+      sample?.production?.pipelineState === "rejected",
+    checkPassed = sample?.production?.gate === "pass";
   return (
     <div className="lyx-production-sections">
       {sample ? (
@@ -91,10 +97,32 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
           ) : (
             <p>预览地址暂不可用，请刷新重试</p>
           )}
+          {checkFailed ? (
+            <Alert
+              type="error"
+              title={
+                checkRejected
+                  ? "样片体检未通过，请修正文件后重新上传并登记新版本"
+                  : "样片体检未通过，请等待处理或刷新查看结果"
+              }
+            />
+          ) : null}
           <InfoList
             items={[
               { label: "上传人", value: sample.uploadedBy.name },
               { label: "上传时间", value: date.dateTime(sample.uploadedAt) },
+              {
+                label: "体检",
+                value: checkRejected
+                  ? "体检拒收"
+                  : checkFailed
+                    ? "体检未通过"
+                    : checkPassed
+                      ? "通过"
+                      : sample.production?.pipelineState === "checking"
+                        ? "体检中"
+                        : "待体检",
+              },
               {
                 label: "质检",
                 value:
@@ -102,7 +130,13 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
                     ? "通过"
                     : sample.qc?.verdict === "fail"
                       ? "不通过"
-                      : "待质检",
+                      : checkRejected
+                        ? "体检拒收，暂不能质检"
+                        : checkFailed
+                          ? "体检未通过，暂不能质检"
+                          : checkPassed
+                            ? "待质检"
+                            : "待体检",
               },
               { label: "不通过原因", value: sample.qc?.rejectReason ?? "—" },
               { label: "质检人", value: sample.qc?.inspectedBy?.name ?? "—" },
