@@ -169,3 +169,5 @@ export { createReconciliationHarness } from "./bill-reconciliation.js";
 export type { ReconciliationHarness } from "./bill-reconciliation.js";
 export { sourceBill } from "./bill-source.js";
 export type { SourceBillRow } from "./bill-source.js";
+// 仅公开运行时生成的假X509身份，供FILE配置边界测试复用，不导入真实证书。
+export { merchantCertificateForTest } from "./wechatpay-certificate.js";

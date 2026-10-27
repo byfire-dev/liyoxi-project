@@ -15,6 +15,7 @@
 // 后续包加变量：在这里加键与校验，同 PR 改 .env.example（node infra/ci/check-env-example.mjs 核对键集合）。
 // 本文件不写相对导入：infra/ci/check-env-example.mjs 用 Node 自带的类型擦除直接加载它。
 
+import { createPrivateKey, X509Certificate } from "node:crypto";
 import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { BlockList, isIP } from "node:net";
 
@@ -162,6 +163,8 @@ export interface WechatPayEnvConfig {
   readonly publicKeyPem: string;
   readonly appid: string;
   readonly notifyUrl: string;
+  /** 只由可选商户API证书PEM验证后派生，源JSON不得直接填写。 */
+  readonly merchantCertificateExpiresAt?: string;
 }
 
 const WechatPayEnvSchema = z
@@ -169,6 +172,7 @@ const WechatPayEnvSchema = z
     mchid: z.string().regex(/^\d{6,20}$/),
     merchantSerialNo: z.string().regex(/^[0-9A-Fa-f]{1,64}$/),
     merchantPrivateKeyPem: z.string().min(1),
+    merchantCertificatePem: z.string().min(1).optional(),
     apiV3Key: z.string().refine((v) => Buffer.byteLength(v.trim()) === 32),
     publicKeyId: z.string().regex(/^PUB_KEY_ID_[A-Za-z0-9]+$/),
     publicKeyPem: z.string().min(1),
@@ -184,9 +188,26 @@ function readWechatPay(source: EnvSource, issues: EnvIssue[]): WechatPayEnvConfi
   // RSA私钥与公钥合并后可能超过4KiB，复用已有JSON密钥读取；错误仅投影字段名。
   return readKeyFile(source, "WECHAT_PAY", issues, (json) => {
     const parsed = WechatPayEnvSchema.safeParse(json);
-    return parsed.success
-      ? parsed.data
-      : `配置字段不完整或不合法：${[...new Set(parsed.error.issues.map((i) => i.path.join(".") || "WECHAT_PAY"))].join("、")}`;
+    if (!parsed.success)
+      return `配置字段不完整或不合法：${[...new Set(parsed.error.issues.map((i) => i.path.join(".") || "WECHAT_PAY"))].join("、")}`;
+    const { merchantCertificatePem, ...config } = parsed.data;
+    if (merchantCertificatePem === undefined) return config;
+    try {
+      const certificate = new X509Certificate(merchantCertificatePem);
+      const serial = (value: string) => value.toUpperCase().replace(/^0+/, "") || "0";
+      if (
+        serial(certificate.serialNumber) !== serial(config.merchantSerialNo) ||
+        !certificate.checkPrivateKey(createPrivateKey(config.merchantPrivateKeyPem))
+      )
+        return "merchantCertificatePem：证书序列号或公钥与商户配置不匹配";
+      // 只投影证书自身期限；不推测有效期、不联网验证、不把PEM转交给健康读侧。
+      return {
+        ...config,
+        merchantCertificateExpiresAt: new Date(certificate.validTo).toISOString(),
+      };
+    } catch {
+      return "merchantCertificatePem：证书或商户私钥格式不合法";
+    }
   });
 }
 
