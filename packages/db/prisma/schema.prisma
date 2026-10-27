@@ -4681,88 +4681,99 @@ model BillingOrder {
 /// 收款交易：渠道侧一次收款尝试，成功的即收款流水
 model PaymentTxn {
   /// 主键，UUID v7，应用生成
-  id                 String    @id(map: "pk_payment_txn") @db.Uuid
+  id                        String             @id(map: "pk_payment_txn") @db.Uuid
   /// 所属主体 → entity.id；创建时从付款单复制，孤儿到账为空，关联到付款单时补写
-  entityId           String?   @map("entity_id") @db.Uuid
+  entityId                  String?            @map("entity_id") @db.Uuid
   /// 付款单 → billing_order.id；仅“账单或银行有、平台无对应付款单”的孤儿交易为空
-  billingOrderId     String?   @map("billing_order_id") @db.Uuid
+  billingOrderId            String?            @map("billing_order_id") @db.Uuid
   /// 收款渠道，同付款单：wechat_jsapi 微信支付 JSAPI；bank_transfer 对公转账
-  channel            String
+  channel                   String
   /// 同一付款单的第几次尝试，从 1 起。出现第 2 次的唯一场景：付款人 openid 变了。孤儿交易：微信取商户单号里的尝试段，对公登记为 1
-  attemptNo          Int       @map("attempt_no") @db.SmallInt
+  attemptNo                 Int                @map("attempt_no") @db.SmallInt
   /// 商户单号：{order_no}-{attempt_no 两位}-{6 位随机 [0-9A-Z]}。随机段使单号不随流水回退而重复；对公渠道同样生成，作内部引用。孤儿交易没有付款单号：微信取账单或查单返回的商户单号；对公“登记异常到账”取 {CY 差异单号}-01-{6 位随机}，关联到付款单后不改
-  outTradeNo         String    @unique(map: "uq_payment_txn_out_trade_no") @map("out_trade_no")
+  outTradeNo                String             @unique(map: "uq_payment_txn_out_trade_no") @map("out_trade_no")
   /// 下单时的应付金额（分），大于 0；孤儿交易取渠道实收
-  amountFen          Int       @map("amount_fen")
+  amountFen                 Int                @map("amount_fen")
   /// 渠道实收金额（分）：微信回调、查单、账单返回的 amount.total；对公为财务确认的到账金额。成功前为空
-  channelAmountFen   Int?      @map("channel_amount_fen")
+  channelAmountFen          Int?               @map("channel_amount_fen")
   /// 微信：预下单时取当前会话的 openid，即 JSAPI 的 payer.openid
-  payerOpenid        String?   @map("payer_openid")
+  payerOpenid               String?            @map("payer_openid")
   /// 渠道返回的付款人：微信回调里的 payer.openid；对公为付款户名
-  channelPayerRef    String?   @map("channel_payer_ref")
+  channelPayerRef           String?            @map("channel_payer_ref")
   /// 下单时写给微信的附加数据（不超过 128 字节）：v1.{entityId}.{orderId}.{typeCode}.{refId}.{months}
-  attach             String?
+  attach                    String?
   /// 回调或查单返回的附加数据；应与 attach 相同，用于入账校验与灾备重建
-  channelAttach      String?   @map("channel_attach")
+  channelAttach             String?            @map("channel_attach")
   /// 渠道事实，不写状态历史：created 已建（预下单在途或失败）；prepaid 已拿到 prepay_id，等用户付款；succeeded 收款成功；closed 已关闭
-  status             String
+  status                    String
   /// 入账到付款单的时间。未入账收款 = 已成功、未入账、未全额退回
-  appliedAt          DateTime? @map("applied_at") @db.Timestamptz(3)
+  appliedAt                 DateTime?          @map("applied_at") @db.Timestamptz(3)
   /// 该笔收款已成功退回的金额（分）；不设上限
-  refundedFen        Int       @default(0) @map("refunded_fen")
+  refundedFen               Int                @default(0) @map("refunded_fen")
   /// 微信预支付交易会话标识，有效 2 小时
-  prepayId           String?   @map("prepay_id")
+  prepayId                  String?            @map("prepay_id")
   /// prepay_id 失效时间
-  prepayExpiresAt    DateTime? @map("prepay_expires_at") @db.Timestamptz(3)
+  prepayExpiresAt           DateTime?          @map("prepay_expires_at") @db.Timestamptz(3)
   /// 微信 transaction_id；对公为规范化后的银行流水号（去空白、全角转半角、去连字符、转大写）
-  channelTxnNo       String?   @map("channel_txn_no")
+  channelTxnNo              String?            @map("channel_txn_no")
   /// 对公：财务录入的原始流水号
-  bankSerialRaw      String?   @map("bank_serial_raw")
+  bankSerialRaw             String?            @map("bank_serial_raw")
   /// 对公：付款行（字典 bank 的编码，不建外键）；仅在流水号冲突时填写
-  payerBank          String?   @map("payer_bank")
+  payerBank                 String?            @map("payer_bank")
   /// 微信 success_time；对公为财务确认到账时间
-  channelSuccessAt   DateTime? @map("channel_success_at") @db.Timestamptz(3)
+  channelSuccessAt          DateTime?          @map("channel_success_at") @db.Timestamptz(3)
   /// 渠道原始交易状态
-  tradeStateRaw      String?   @map("trade_state_raw")
+  tradeStateRaw             String?            @map("trade_state_raw")
   /// 微信返回的付款银行类型
-  bankType           String?   @map("bank_type")
+  bankType                  String?            @map("bank_type")
   /// 手续费（分），对账时由交易账单回填
-  feeFen             Int?      @map("fee_fen")
+  feeFen                    Int?               @map("fee_fen")
   /// 对公：被采纳的凭证 → transfer_proof.id
-  transferProofId    String?   @unique(map: "uq_payment_txn_transfer_proof_id") @map("transfer_proof_id") @db.Uuid
+  transferProofId           String?            @unique(map: "uq_payment_txn_transfer_proof_id") @map("transfer_proof_id") @db.Uuid
   /// 对公：确认到账的财务（登记异常到账时为登记人）→ staff.id
-  confirmedByStaffId String?   @map("confirmed_by_staff_id") @db.Uuid
+  confirmedByStaffId        String?            @map("confirmed_by_staff_id") @db.Uuid
   /// 对公：复核人 → staff.id；仅启用二人复核时有值，取复核审批单的审批人
-  reviewedByStaffId  String?   @map("reviewed_by_staff_id") @db.Uuid
+  reviewedByStaffId         String?            @map("reviewed_by_staff_id") @db.Uuid
   /// 行级对账状态；对公收款确认即对平：pending 待对账（账单未到）；matched 已对平；diff 有差异（关联着未决差异单）；resolved 差异已处理
-  reconState         String    @default("pending") @map("recon_state")
+  reconState                String             @default("pending") @map("recon_state")
   /// 对平所依据的账单日
-  reconBillDate      DateTime? @map("recon_bill_date") @db.Date
+  reconBillDate             DateTime?          @map("recon_bill_date") @db.Date
   /// 最近一次主动查单时间（节流）
-  lastQueriedAt      DateTime? @map("last_queried_at") @db.Timestamptz(3)
+  lastQueriedAt             DateTime?          @map("last_queried_at") @db.Timestamptz(3)
   /// 主动查单次数
-  queryCount         Int       @default(0) @map("query_count")
+  queryCount                Int                @default(0) @map("query_count")
+  /// 发货受理事实：空为未认领；unknown 不能证明是否受理；not_accepted 明确未受理；confirmed 已确认
+  shippingReportState       String?            @map("shipping_report_state")
+  /// 固化发货调用所用 AppID；query 不返回该字段，后继写者须核调用配置一致
+  shippingReportAppid       String?            @map("shipping_report_appid")
+  /// 固化收款商户号，恢复时匹配渠道身份
+  shippingReportMchid       String?            @map("shipping_report_mchid")
+  /// 固化虚拟发货描述，非空且最多120个Unicode字符
+  shippingReportItemDesc    String?            @map("shipping_report_item_desc")
+  /// 固化拟发送的报文时间（毫秒），不代表已送达；query 秒级时间按 floor(ms/1000) 匹配
+  shippingReportUploadTime  DateTime?          @map("shipping_report_upload_time") @db.Timestamptz(3)
+  /// 注入时钟的真实确认观察时间；仅 confirmed 非空，且不早于固化报文时间
+  shippingReportConfirmedAt DateTime?          @map("shipping_report_confirmed_at") @db.Timestamptz(3)
   /// 创建时间
-  createdAt          DateTime  @map("created_at") @db.Timestamptz(3)
+  createdAt                 DateTime           @map("created_at") @db.Timestamptz(3)
   /// 更新时间
-  updatedAt          DateTime  @map("updated_at") @db.Timestamptz(3)
-
+  updatedAt                 DateTime           @map("updated_at") @db.Timestamptz(3)
   /// 所属主体
-  entity            Entity?            @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "fk_payment_txn_entity_id")
+  entity                    Entity?            @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "fk_payment_txn_entity_id")
   /// 付款单
-  billingOrder      BillingOrder?      @relation("PaymentTxnBillingOrder", fields: [billingOrderId], references: [id], onDelete: Restrict, map: "fk_payment_txn_billing_order_id")
+  billingOrder              BillingOrder?      @relation("PaymentTxnBillingOrder", fields: [billingOrderId], references: [id], onDelete: Restrict, map: "fk_payment_txn_billing_order_id")
   /// 被采纳的对公凭证
-  transferProof     TransferProof?     @relation(fields: [transferProofId], references: [id], onDelete: Restrict, map: "fk_payment_txn_transfer_proof_id")
+  transferProof             TransferProof?     @relation(fields: [transferProofId], references: [id], onDelete: Restrict, map: "fk_payment_txn_transfer_proof_id")
   /// 确认到账的财务
-  confirmedByStaff  Staff?             @relation("PaymentTxnConfirmedByStaff", fields: [confirmedByStaffId], references: [id], onDelete: Restrict, map: "fk_payment_txn_confirmed_by_staff_id")
+  confirmedByStaff          Staff?             @relation("PaymentTxnConfirmedByStaff", fields: [confirmedByStaffId], references: [id], onDelete: Restrict, map: "fk_payment_txn_confirmed_by_staff_id")
   /// 复核人
-  reviewedByStaff   Staff?             @relation("PaymentTxnReviewedByStaff", fields: [reviewedByStaffId], references: [id], onDelete: Restrict, map: "fk_payment_txn_reviewed_by_staff_id")
+  reviewedByStaff           Staff?             @relation("PaymentTxnReviewedByStaff", fields: [reviewedByStaffId], references: [id], onDelete: Restrict, map: "fk_payment_txn_reviewed_by_staff_id")
   /// 反向：以本交易入账的付款单
-  paidBillingOrder  BillingOrder?      @relation("BillingOrderPaidPaymentTxn")
-  refundRequests    RefundRequest[]
-  refundTxns        RefundTxn[]
-  paymentExceptions PaymentException[]
-  wxBillLines       WxBillLine[]
+  paidBillingOrder          BillingOrder?      @relation("BillingOrderPaidPaymentTxn")
+  refundRequests            RefundRequest[]
+  refundTxns                RefundTxn[]
+  paymentExceptions         PaymentException[]
+  wxBillLines               WxBillLine[]
 
   @@index([billingOrderId, attemptNo], map: "ix_payment_txn_billing_order_attempt")
   @@index([status, channelSuccessAt], map: "ix_payment_txn_status_success")
