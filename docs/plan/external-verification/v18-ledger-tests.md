@@ -15,7 +15,7 @@
 | 证据 | [W1-10 CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37411348227)、[W1-11a CI](https://github.com/byfire-dev/liyoxi-project/actions/runs/37421442684)；[M1 回顾](../retro/m1.md)第2节及下表 M4 实际目标 |
 | 关闭日期 | 2026-10-27（M4本地代码验证） |
 
-离线发布说明（2026-10-27）：本页保留原78089e14本机证据与仅本地关闭结论。W4-19当前为第1个PR，repeat独立门禁及最终CI/命令片尚待各自远端合入；原main记录指本地验证时点，不作为远端整包已完成的依据，本次未新增执行验证。
+第1个PR打包时点说明（2026-10-27）：本页保留原78089e14本机证据与仅本地关闭结论。当时repeat独立门禁及最终CI/命令片尚待各自远端合入；原main记录指本地验证时点，不作为远端整包已完成的依据，未新增执行验证；后续交付状态见W4-19状态页。
 
 业主事项的状态见 [业主清单](../owner-checklist.md)。填写规则见 [README](README.md)。
 
