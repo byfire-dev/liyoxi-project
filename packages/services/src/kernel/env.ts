@@ -52,6 +52,7 @@ export const ENV_KEYS: readonly string[] = [
   "AUTH_KEYS_FILE",
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
+  "STAGING_PAY_ENTITY_IDS",
   "BACKUP_FILE",
   "ALERTS_FILE",
   "SMS_SECRET_ID_FILE",
@@ -273,6 +274,8 @@ export interface Env {
   readonly ADMIN_IP_ALLOWLIST?: readonly string[];
   /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
   readonly CERT_DOMAINS?: readonly string[];
+  /** 仅预发显式候选主体；配置名单不启用自动退款或任何资金动作。 */
+  readonly STAGING_PAY?: Readonly<{ entityIds: readonly string[] }>;
   readonly BACKUP?: BackupEnvConfig;
   readonly ALERTS?: AlertsEnvConfig;
   readonly SMS?: SmsEnvConfig;
@@ -1148,6 +1151,35 @@ function readCertDomains(source: EnvSource, issues: EnvIssue[]): readonly string
   return Object.freeze([...new Set(domains)]);
 }
 
+function readStagingPay(
+  source: EnvSource,
+  appEnv: string | undefined,
+  issues: EnvIssue[],
+): Env["STAGING_PAY"] {
+  const raw = read(source, "STAGING_PAY_ENTITY_IDS");
+  if (raw === undefined) return undefined;
+  if (appEnv !== "stg") {
+    issues.push({ key: "STAGING_PAY_ENTITY_IDS", reason: "仅stg环境允许配置非空主体名单" });
+    return undefined;
+  }
+  const entityIds = raw.split(",").map((id) => id.trim());
+  // 与契约IdSchema的版本/变体及小写口径一致；本配置入口保持可独立由Node加载。
+  const idSchema = z.uuidv7();
+  if (
+    source["STAGING_PAY_ENTITY_IDS"]!.length > 4096 ||
+    entityIds.length > 100 ||
+    entityIds.some((id) => id !== id.toLowerCase() || !idSchema.safeParse(id).success) ||
+    new Set(entityIds).size !== entityIds.length
+  ) {
+    issues.push({
+      key: "STAGING_PAY_ENTITY_IDS",
+      reason: "须为至多100个不重复的小写UUIDv7，逗号分隔、无空项且非空输入总长不超过4096字符",
+    });
+    return undefined;
+  }
+  return Object.freeze({ entityIds: Object.freeze(entityIds) });
+}
+
 /**
  * 读取并校验环境变量。任何一项不合格即抛 EnvError，一次列出全部问题。
  * @param source 缺省读 process.env；测试里传对象
@@ -1331,6 +1363,7 @@ export function loadEnv(
   const appEnv = read(source, "APP_ENV");
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
+  const stagingPay = readStagingPay(source, appEnv, issues);
   const alerts = readAlerts(source, issues);
   const serverErrors = readServerErrors(source, issues);
 
@@ -1399,6 +1432,7 @@ export function loadEnv(
     REDIS_URL,
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
+    ...(stagingPay ? { STAGING_PAY: stagingPay } : {}),
     ...(alerts ? { ALERTS: alerts } : {}),
     ...(serverErrors ? { SERVER_ERRORS: serverErrors } : {}),
     ...(minio ? { MINIO: minio } : {}),
