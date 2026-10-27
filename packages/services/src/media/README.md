@@ -254,3 +254,7 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 新增SDK1/DB1与旧执照最小协议1合并3/3G（另1旧例未选），总6.77秒，未重复历史矩阵。
 首轮类型两处接线错误及未验边界记前置变更；真实云准确率/费用未验。
 worker配置接线另由独立伴随合入，不能把本源码装配当预发部署。
+
+### 无主体财务回单（W4-18）
+
+后台 pay_receipt 未指定 entity/store 时，只允许当前本人、all 范围、finance.receipt.confirm 加 finance.refund.execute 或 finance.recon.resolve 且完成再次验证，派生本人 secure/platform 文件。拒绝代门店上传；invoice 仍要求主体。platform/pay_receipt 的后台元数据与签名读取同样限 all，包含原上传人降级为 own/group 的情况；消费退款/对账仍走各域状态及本人文件守卫，不放宽资金操作。两新增真实 DB 目标和原 billing-upload 相邻目标已通过；真实云未验。
