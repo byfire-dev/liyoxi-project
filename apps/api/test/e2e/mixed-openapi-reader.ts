@@ -115,6 +115,7 @@ export function mixedReadPlan(
     "admin.followUp.list": { entityId: input.access.ids.entityId },
     "admin.storeAsset.list": { storeId: input.access.ids.storeId },
     "admin.subscriptionTerm.list": { tab: "expiring" },
+    "admin.reconciliation.list": { month: `${input.year}-01` },
   };
   for (const row of operations) {
     if (row.path.includes("{")) continue;

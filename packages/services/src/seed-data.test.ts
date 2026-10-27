@@ -171,13 +171,26 @@ describe("通知：槽位、短信模板、场景的通道绑定", () => {
     ).toEqual(["verify_code"]);
   });
 
-  it("绑定只写给登记过的商家场景；槽位与模板都在播种清单里；要发短信的都有模板", () => {
+  it("绑定只写给登记过的商家场景与对公摘要；槽位与模板都在播种清单里；要发短信的都有模板", () => {
     const sceneKeys: readonly string[] = NOTIFY_SCENES.map((scene) => scene.key);
     const slots: readonly string[] = WX_TEMPLATE_SLOT_SEEDS.map((slot) => slot.slotKey);
     const templates = SMS_TEMPLATE_SEEDS.map((item) => item.templateKey);
+    expect(Object.keys(SCENE_BINDINGS).filter((key) => !key.startsWith("m."))).toEqual([
+      "s.receipt_daily_digest",
+    ]);
     for (const [key, binding] of Object.entries(SCENE_BINDINGS)) {
       expect(sceneKeys, key).toContain(key);
-      expect(key.startsWith("m."), key).toBe(true);
+      if (key === "s.receipt_daily_digest") {
+        expect(NOTIFY_SCENES.find((scene) => scene.key === key)?.audience).toBe("staff");
+        expect(binding).toEqual({
+          wxTemplateSlotKey: null,
+          sendWindow: "immediate",
+          smsPolicy: "never",
+          smsTemplateKey: null,
+          smsNodes: null,
+          collapseWindowSec: 0,
+        });
+      } else expect(key.startsWith("m."), key).toBe(true);
       if (binding.wxTemplateSlotKey !== null) {
         expect(slots, key).toContain(binding.wxTemplateSlotKey);
         // 带订阅槽位的商家场景一律有短信模板
