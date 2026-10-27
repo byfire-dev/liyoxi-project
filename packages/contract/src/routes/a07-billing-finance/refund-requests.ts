@@ -1,8 +1,27 @@
 // 后台：套餐积分与财务 · refund-requests（docs/api/a07-billing-finance.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import { adminRoute } from "../builders.js";
+import { errorResponses, okResponse } from "../../common/index.js";
+import {
+  RefundParamsSchema,
+  RefundListQuerySchema,
+  RefundFilterSchema,
+  RefundSummarySchema,
+  RefundRequestPageSchema,
+  RefundRequestDetailSchema,
+  RefundApproveBodySchema,
+  RefundExecuteBodySchema,
+  RefundOfflineBodySchema,
+  RefundRejectBodySchema,
+  RefundWithdrawBodySchema,
+  RefundVoidBodySchema,
+  RefundRetryBodySchema,
+  RefundNotAcceptedBodySchema,
+} from "./refund.schemas.js";
 
-export const adminRefundRequestList = adminMeta({
+export const adminRefundRequestList = adminRoute({
+  request: { query: RefundListQuerySchema },
+  responses: { ...okResponse(RefundRequestPageSchema), ...errorResponses(400, 401, 403, 503) },
   method: "get",
   path: "/admin/refund-requests",
   operationId: "admin.refundRequest.list",
@@ -11,7 +30,9 @@ export const adminRefundRequestList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminRefundRequestSummary = adminMeta({
+export const adminRefundRequestSummary = adminRoute({
+  request: { query: RefundFilterSchema },
+  responses: { ...okResponse(RefundSummarySchema), ...errorResponses(400, 401, 403, 503) },
   method: "get",
   path: "/admin/refund-requests/summary",
   operationId: "admin.refundRequest.summary",
@@ -20,7 +41,12 @@ export const adminRefundRequestSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminRefundRequestGet = adminMeta({
+export const adminRefundRequestGet = adminRoute({
+  request: { params: RefundParamsSchema },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 503),
+  },
   method: "get",
   path: "/admin/refund-requests/{refundRequestId}",
   operationId: "admin.refundRequest.get",
@@ -30,7 +56,15 @@ export const adminRefundRequestGet = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminRefundRequestApprove = adminMeta({
+export const adminRefundRequestApprove = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundApproveBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/approve",
   operationId: "admin.refundRequest.approve",
@@ -39,7 +73,18 @@ export const adminRefundRequestApprove = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminRefundRequestConfirmNotAccepted = adminMeta({
+export const adminRefundRequestConfirmNotAccepted = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: RefundNotAcceptedBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503, 504),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/confirm-not-accepted",
   operationId: "admin.refundRequest.confirmNotAccepted",
@@ -50,7 +95,15 @@ export const adminRefundRequestConfirmNotAccepted = adminMeta({
     "三段式（C51 先调外部、再开事务，A84）：占用后事务外按 out_refund_no 查询微信，再开事务落结果并写幂等记录",
 });
 
-export const adminRefundRequestExecute = adminMeta({
+export const adminRefundRequestExecute = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundExecuteBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/execute",
   operationId: "admin.refundRequest.execute",
@@ -62,7 +115,15 @@ export const adminRefundRequestExecute = adminMeta({
     "三段式，多事务形态（C51）：事务 E1 落意图、回收权益、建 refund_txn(created) 并提交 → 事务外以 out_refund_no 调微信 → 事务 E2 落外调结果并写幂等记录；C51 已登记为“多事务”（A154）",
 });
 
-export const adminRefundRequestRecordOffline = adminMeta({
+export const adminRefundRequestRecordOffline = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundOfflineBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/record-offline",
   operationId: "admin.refundRequest.recordOffline",
@@ -71,7 +132,15 @@ export const adminRefundRequestRecordOffline = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminRefundRequestReject = adminMeta({
+export const adminRefundRequestReject = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundRejectBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/reject",
   operationId: "admin.refundRequest.reject",
@@ -81,7 +150,15 @@ export const adminRefundRequestReject = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminRefundRequestRetry = adminMeta({
+export const adminRefundRequestRetry = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundRetryBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/retry",
   operationId: "admin.refundRequest.retry",
@@ -92,7 +169,15 @@ export const adminRefundRequestRetry = adminMeta({
     "三段式（C51 先调外部、再开事务，A50）：占用后事务外以原 out_refund_no 提交微信，再开事务落结果并写幂等记录",
 });
 
-export const adminRefundRequestVoid = adminMeta({
+export const adminRefundRequestVoid = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundVoidBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/void",
   operationId: "admin.refundRequest.void",
@@ -101,7 +186,15 @@ export const adminRefundRequestVoid = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminRefundRequestWithdraw = adminMeta({
+export const adminRefundRequestWithdraw = adminRoute({
+  request: {
+    params: RefundParamsSchema,
+    body: { required: true, content: { "application/json": { schema: RefundWithdrawBodySchema } } },
+  },
+  responses: {
+    ...okResponse(RefundRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/refund-requests/{refundRequestId}/withdraw",
   operationId: "admin.refundRequest.withdraw",

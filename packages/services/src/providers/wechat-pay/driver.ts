@@ -19,6 +19,7 @@ import type {
   ProviderResult,
   WechatPayProvider,
   WechatPayRefund,
+  WechatPayRefundQueryResult,
   WechatPayTransaction,
 } from "../types.js";
 import { unconfiguredWechatPay } from "../unconfigured.js";
@@ -59,7 +60,7 @@ export interface WechatPayDriver extends WechatPayProvider {
   /** 调起参数签名（本地） */
   signMiniProgramPay(input: { prepayId: string }): Promise<ProviderResult<MiniProgramPayParams>>;
   /** 退款查询 */
-  queryRefund(input: { outRefundNo: string }): Promise<ProviderResult<WechatPayRefund>>;
+  queryRefund(input: { outRefundNo: string }): Promise<WechatPayRefundQueryResult>;
   /** 申请交易账单（bill_type=ALL）。当日没有账单返回 null */
   applyTradeBill(input: { billDate: string }): Promise<ProviderResult<TradeBillTicket | null>>;
   /** 下载账单并校验摘要值；不符即拒收。hashType 给了就核对：只认 SHA1 */
@@ -293,7 +294,28 @@ export function createWechatPayDriver(
     async queryRefund({ outRefundNo }) {
       hook("queryRefund");
       const path = `/v3/refund/domestic/refunds/${encodeURIComponent(outRefundNo)}`;
-      return refundOf(await client.request({ method: "GET", path }), { outRefundNo });
+      const result = await client.request({ method: "GET", path, verifyError: true });
+      if (
+        !result.ok &&
+        result.verifiedError &&
+        result.status === 404 &&
+        result.code === "RESOURCE_NOT_EXISTS"
+      )
+        return { ...toFailure(result), refundNotFound: true };
+      const refund = refundOf(result, { outRefundNo });
+      if (!refund.ok || !result.ok) return refund;
+      const raw = result.json ?? {},
+        time = text(raw.success_time);
+      const successAt = time ? new Date(time) : undefined;
+      if (successAt && Number.isNaN(successAt.getTime()))
+        return failed("unavailable", "微信支付的退款时间不合规");
+      return ok({
+        ...refund.value,
+        ...(successAt ? { successAt } : {}),
+        ...(text(raw.user_received_account)
+          ? { userReceivedAccount: text(raw.user_received_account) }
+          : {}),
+      });
     },
 
     async applyTradeBill({ billDate }) {

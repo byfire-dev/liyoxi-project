@@ -6,6 +6,7 @@ import {
 } from "./ops/index.js";
 import { readTargetActivity } from "./audit/index.js";
 import {
+  isQualificationDead,
   createProfileConsistencyAssembly,
   createProfileConsistencyTransactions,
   createProfileQualificationConsistency,
@@ -95,6 +96,9 @@ import {
   createTransferReviewAssembly,
   createInvoiceAssembly,
   createInvoices,
+  createRefunds,
+  createRefundAssembly,
+  createWechatRefundSource,
   createFinanceConfigService,
   createLedger,
   createPayment,
@@ -283,6 +287,7 @@ export interface Runtime {
   readonly order: OrderService;
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
+    refunds: ReturnType<typeof createRefunds>;
     financeConfig: ReturnType<typeof createFinanceConfigService>;
     adjustments: ReturnType<typeof createBillingAdjustments>;
     accounts: ReturnType<typeof createBillingAccounts>;
@@ -473,7 +478,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
   const adjustmentScope = createAdjustmentAssembly(invoiceScope.assembly);
-  const assembly = adjustmentScope.assembly;
+  const refundScope = createRefundAssembly(adjustmentScope.assembly);
+  const assembly = refundScope.assembly;
   const documentConverter = options.documentWorkerUrl
     ? createDocumentConverter({ workerUrl: options.documentWorkerUrl })
     : null;
@@ -633,11 +639,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     events,
     sources: options.webhookSources ?? [
       ...wechatSources,
-      createWechatPaymentSource({
+      createWechatRefundSource({
+        base: createWechatPaymentSource({
+          provider: () => providers.wechatPay,
+          identity: () => env.WECHAT_PAY,
+          channel: () => billing.wechatChannel,
+          alerts: alertsOf(assembly),
+        }),
         provider: () => providers.wechatPay,
         identity: () => env.WECHAT_PAY,
-        channel: () => billing.wechatChannel,
-        alerts: alertsOf(assembly),
+        deps: refundScope.current,
       }),
       createCiWebhookSource({
         key: env.CI?.callback.key,
@@ -969,9 +980,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     pendingCancels: readBillingPendingCancels,
   };
   adjustmentScope.attach(adjustmentDeps);
+  const refundDeps = {
+    ...purchaseDeps,
+    isQualificationDead,
+    approvalRefs: createBillingApprovalRefs({ clock }),
+  };
+  refundScope.attach(refundDeps);
   const billing = {
     ...createBillingPurchase(purchaseDeps),
     invoices: createInvoices(invoiceDeps),
+    refunds: createRefunds(refundDeps),
     financeConfig: createFinanceConfigService(purchaseDeps),
     adjustments: createBillingAdjustments(adjustmentDeps),
     accounts: createBillingAccounts(adjustmentDeps),
@@ -1151,6 +1169,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([() => modelBudget?.close()]);
         await settle([
           () => invoiceScope.close(),
+          () => refundScope.close(),
           () => adjustmentScope.close(),
           () => transferReviewScope.close(),
           () => mediaAssetsScope.close(),

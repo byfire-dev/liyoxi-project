@@ -547,18 +547,50 @@ describe("退款 createRefund 与退款查询 queryRefund", () => {
     expect(hooked).toEqual(["queryRefund", "queryRefund", "queryRefund", "queryRefund"]);
   });
 
-  it("退款单不存在（404 RESOURCE_NOT_EXISTS）：拒绝；应答金额不是整数分：不可用", async () => {
-    replies.push(refused(404, "RESOURCE_NOT_EXISTS"));
+  it("退款单不存在须可信签名的精确404；应答金额不是整数分：不可用", async () => {
+    replies.push(signed(404, { code: "RESOURCE_NOT_EXISTS" }));
     expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).toMatchObject({
       ok: false,
       reason: "rejected",
       code: "RESOURCE_NOT_EXISTS",
+      refundNotFound: true,
     });
     replies.push(signed(200, { ...accepted, amount: { total: 19900, refund: 199.5 } }));
     expect(await driver().queryRefund({ outRefundNo: "TK20261004000001" })).toMatchObject({
       ok: false,
       reason: "unavailable",
     });
+  });
+
+  it("普通404、伪签名、过期签名及非精确错误码不能证明退款未受理", async () => {
+    replies.push(
+      () => new Response(JSON.stringify({ code: "RESOURCE_NOT_EXISTS" }), { status: 404 }),
+    );
+    expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+    const invalid = signed(404, { code: "RESOURCE_NOT_EXISTS" });
+    replies.push(async (sent) => {
+      const response = await invalid(sent);
+      response.headers.set("Wechatpay-Signature", "invalid");
+      return response;
+    });
+    expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).not.toHaveProperty(
+      "refundNotFound",
+    );
+    replies.push(signed(404, { code: "RESOURCE_NOT_EXISTS" }, new Date(NOW.getTime() - 301_000)));
+    expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).not.toHaveProperty(
+      "refundNotFound",
+    );
+    replies.push(signed(404, { code: "ORDER_NOT_EXIST" }));
+    expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).not.toHaveProperty(
+      "refundNotFound",
+    );
+    replies.push(signed(500, { code: "RESOURCE_NOT_EXISTS" }));
+    expect(await driver().queryRefund({ outRefundNo: "TK-NONE" })).not.toHaveProperty(
+      "refundNotFound",
+    );
   });
 });
 

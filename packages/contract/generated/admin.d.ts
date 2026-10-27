@@ -2363,6 +2363,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payment-orders/{paymentOrderId}/refund-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 现金退款试算（套餐 7 天窗口、资质终审不通过、规则外） */
+        post: operations["admin.paymentOrder.refundQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payment-orders/{paymentOrderId}/refund-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发起现金退款申请（服务端核算数额；同事务建审批单、暂停该周期与开票） */
+        post: operations["admin.paymentOrder.refundRequest.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/payment-orders/{paymentOrderId}/transfer-proofs": {
         parameters: {
             query?: never;
@@ -3058,6 +3092,193 @@ export interface paths {
         put?: never;
         /** 重新启用渠道码 */
         post: operations["admin.referralCode.enable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 现金退款申请列表：页签（待审批、待执行（含执行中）、已处理、全部）、单号、商家 */
+        get: operations["admin.refundRequest.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 现金退款页签计数与指标：本月已退款金额与笔数、审批与执行中、本月驳回 */
+        get: operations["admin.refundRequest.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 现金退款申请详情：核算依据、执行结果与退款交易（失败原因、可否重试、可否确认未受理）、审批记录 */
+        get: operations["admin.refundRequest.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 通过现金退款申请，进入待执行 */
+        post: operations["admin.refundRequest.approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/confirm-not-accepted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认微信未受理（停止重试 ≥10 分钟且查询无此退款单），申请回到待执行 */
+        post: operations["admin.refundRequest.confirmNotAccepted"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 执行退款（微信原路）：勾选核对原交易单号与金额；先回收权益再提交微信退款，结果由回调或查单落终态 */
+        post: operations["admin.refundRequest.execute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/record-offline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 线下退款登记（对公付款的退款）：转账日期、银行流水号、回单文件 */
+        post: operations["admin.refundRequest.recordOffline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 驳回现金退款申请（说明必填），恢复周期与开票 */
+        post: operations["admin.refundRequest.reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 以同一商户退款单号重试微信退款 */
+        post: operations["admin.refundRequest.retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 作废已审批未执行的退款申请（说明必填），恢复周期与开票 */
+        post: operations["admin.refundRequest.void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-requests/{refundRequestId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 撤回尚未审批的现金退款申请（仅申请人；发起人已停用时代撤） */
+        post: operations["admin.refundRequest.withdraw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5862,6 +6083,76 @@ export interface components {
         BindWecomSelfBody: {
             code?: string;
             wecomUserid?: string;
+        };
+        CashRefundQuote: {
+            invoice: {
+                latestStatus: string | null;
+                needsRedInvoice: boolean;
+            };
+            openRequest: {
+                /** Format: uuid */
+                refundRequestId: string;
+                requestNo: string;
+                /** @enum {string} */
+                status: "pending_approval" | "pending_execution" | "executing" | "done" | "not_executed";
+            } | null;
+            paymentTxn: {
+                attemptNo: number;
+                /** @enum {string} */
+                channel: "wechat_jsapi" | "bank_transfer" | (string & {});
+                channelAmountFen: number | null;
+                /** Format: date-time */
+                channelSuccessAt: string | null;
+                channelTxnNo: string | null;
+                confirmedBy: components["schemas"]["StaffBrief"] | null;
+                feeFen: number | null;
+                isApplied: boolean;
+                outTradeNo: string;
+                payerName: string | null;
+                /** Format: uuid */
+                paymentTransactionId: string;
+                /** @enum {string} */
+                reconState: "pending" | "matched" | "diff" | "resolved" | (string & {});
+                refundedFen: number;
+                reviewedBy: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                status: "created" | "prepaid" | "succeeded" | "closed" | (string & {});
+            } | null;
+            refundableFen: number;
+            /** @enum {string} */
+            routePreview: "wechat_original" | "offline";
+            rules: {
+                eligible: boolean;
+                reasons: ("outside_window" | "points_used" | "term_upgraded" | "qualification_not_dead" | "term_not_refundable")[];
+                /** @enum {string} */
+                rule: "window" | "qualification_failed" | "override";
+            }[];
+            sideEffects: {
+                addonWillSuspend: number;
+                cancelSchedules: number;
+                nextTermWillStartNow: boolean;
+                revokePoints: number;
+            };
+            /** @enum {string|null} */
+            suggestedRule: "window" | "qualification_failed" | "override" | null;
+            supported: boolean;
+            term: {
+                /** Format: date-time */
+                endsAt: string;
+                planName: string;
+                /** Format: date-time */
+                startsAt: string;
+                status: string;
+                /** Format: uuid */
+                subscriptionTermId: string;
+                upgraded: boolean;
+            } | null;
+            /** @enum {string|null} */
+            unsupportedReason: "topup_not_refundable" | "upgrade_refund_source_first" | "not_fulfilled" | "not_paid" | "already_refunded" | "open_request_exists" | null;
+            unused: boolean;
+            /** Format: date-time */
+            windowDeadline: string | null;
+            withinWindow: boolean;
         };
         ChangePasswordBody: {
             currentPassword: string;
@@ -9058,6 +9349,231 @@ export interface components {
             sourceType: "sales" | "campaign" | "partner" | (string & {});
             /** @enum {string} */
             status: "active" | "disabled" | (string & {});
+        };
+        RefundRequestDetail: {
+            actions: string[];
+            allowedRoutes: ("wechat_original" | "offline")[];
+            amountFen: number;
+            approval: components["schemas"]["ApprovalDecisionView"];
+            baseAmountFen: number;
+            breakdown: {
+                /** @enum {boolean} */
+                cashOnly: true;
+                refundableFen: number;
+                /** @enum {string} */
+                rule: "override";
+                /** Format: uuid */
+                sourceTermId: string;
+                /** @enum {number} */
+                v: 1;
+            } | {
+                addonAvailable: number;
+                refundableFen: number;
+                /** @enum {string} */
+                rule: "window" | "qualification_failed" | "override";
+                sideEffects: {
+                    addonWillSuspend: number;
+                    cancelSchedules: number;
+                    nextTermWillStartNow: boolean;
+                    revokePoints: number;
+                };
+                /** Format: date-time */
+                termEndsAt: string;
+                /** Format: uuid */
+                termId: string;
+                /** Format: date-time */
+                termStartsAt: string;
+                termStatus: string;
+                unused: boolean;
+                upgraded: boolean;
+                /** @enum {number} */
+                v: 1;
+                /** Format: date-time */
+                windowDeadline: string | null;
+                withinWindow: boolean;
+            } | {
+                blockReasonCode?: string;
+                exceptionKind: string;
+                exceptionNo: string;
+                /** Format: uuid */
+                paymentExceptionId: string;
+                refundableFen: number;
+                /** @enum {string} */
+                rule: "fulfillment_blocked" | "unapplied_receipt";
+                unappliedFen?: number;
+                /** @enum {number} */
+                v: 1;
+            };
+            canConfirmNotAccepted: boolean;
+            canRetry: boolean;
+            closeNote: string | null;
+            /** @enum {string|null} */
+            closeReason: "rejected" | "withdrawn" | "voided" | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            deductAmountFen: number;
+            /** Format: date-time */
+            doneAt: string | null;
+            /** Format: date-time */
+            entitlementRevokedAt: string | null;
+            entity: {
+                /** Format: uuid */
+                entityId: string;
+                managerStaff: components["schemas"]["StaffBrief"] | null;
+                name: string;
+                /** Format: uuid */
+                primaryStoreId: string | null;
+                primaryStoreName: string | null;
+                storeCount: number;
+                verificationStatus: string;
+            } | null;
+            /** Format: date-time */
+            execDueAt: string | null;
+            execError: {
+                /** Format: date-time */
+                at: string;
+                code: string;
+                message: string;
+                /** Format: uuid */
+                refundTxnId: string;
+            } | null;
+            /** @enum {string|null} */
+            execRoute: "wechat_original" | "offline" | null;
+            /** Format: date-time */
+            executedAt: string | null;
+            executedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            hasExecError: boolean;
+            invoice: {
+                latest: {
+                    /** Format: uuid */
+                    invoiceRequestId: string;
+                    requestNo: string;
+                    status: string;
+                } | null;
+                needsRedInvoice: boolean;
+            };
+            isExecOverdue: boolean;
+            isOverride: boolean;
+            logs: {
+                action: string;
+                actor: string;
+                /** Format: date-time */
+                at: string;
+                note: string | null;
+            }[];
+            note: string | null;
+            paymentException: {
+                exceptionNo: string;
+                kind: string;
+                /** Format: uuid */
+                paymentExceptionId: string;
+            } | null;
+            paymentOrder: {
+                orderNo: string;
+                /** Format: uuid */
+                paymentOrderId: string;
+                title: string;
+                type: string;
+            } | null;
+            paymentTxn: {
+                attemptNo: number;
+                /** @enum {string} */
+                channel: "wechat_jsapi" | "bank_transfer" | (string & {});
+                channelAmountFen: number | null;
+                /** Format: date-time */
+                channelSuccessAt: string | null;
+                channelTxnNo: string | null;
+                confirmedBy: components["schemas"]["StaffBrief"] | null;
+                feeFen: number | null;
+                isApplied: boolean;
+                outTradeNo: string;
+                payerName: string | null;
+                /** Format: uuid */
+                paymentTransactionId: string;
+                /** @enum {string} */
+                reconState: "pending" | "matched" | "diff" | "resolved" | (string & {});
+                refundedFen: number;
+                reviewedBy: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                status: "created" | "prepaid" | "succeeded" | "closed" | (string & {});
+            };
+            reason: components["schemas"]["DictRef"] & (Record<string, never> | null);
+            recheckLog: {
+                approve?: {
+                    /** Format: date-time */
+                    at: string;
+                    eligible: boolean;
+                    reasons: string[];
+                    refundableFen: number;
+                    upgraded: boolean;
+                    usageOk: boolean;
+                };
+                execute?: {
+                    /** Format: date-time */
+                    at: string;
+                    eligible: boolean;
+                    reasons: string[];
+                    refundableFen: number;
+                    upgraded: boolean;
+                    usageOk: boolean;
+                };
+            } | null;
+            /** Format: uuid */
+            refundRequestId: string;
+            refundTxns: {
+                amountFen: number;
+                /** @enum {string} */
+                channel: "wechat_jsapi" | "offline";
+                channelRefundNo: string | null;
+                failCode: string | null;
+                failMessage: string | null;
+                isLateSuccess: boolean;
+                isRetryHalted: boolean;
+                /** Format: date-time */
+                lastSubmitAt: string | null;
+                offline: {
+                    note: string | null;
+                    payeeAccountMask: string;
+                    payeeBank: string;
+                    payeeName: string;
+                    /** Format: uuid */
+                    receiptFileId: string;
+                    registeredBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                    /** Format: date */
+                    transferDate: string;
+                } | null;
+                /** @enum {string} */
+                origin: "system" | "external";
+                outRefundNo: string;
+                /** Format: uuid */
+                refundTxnId: string;
+                /** @enum {string} */
+                status: "created" | "processing" | "succeeded" | "closed" | "abnormal" | "not_accepted" | "abandoned";
+                submitCount: number;
+                /** Format: date-time */
+                successAt: string | null;
+                userReceivedAccount: string | null;
+            }[];
+            relatedServiceTickets: {
+                /** Format: uuid */
+                serviceTicketId: string;
+                ticketNo: string;
+            }[];
+            requestNo: string;
+            requester: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            /** @enum {string} */
+            ruleCode: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
+            ruleText: string;
+            /** @enum {string} */
+            source: "customer_service" | "exception";
+            stageNote: string;
+            /** @enum {string} */
+            status: "pending_approval" | "pending_execution" | "executing" | "done" | "not_executed";
+            voidedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
         };
         ReleaseAdminView: {
             changedEpisodeNos: number[];
@@ -23332,6 +23848,183 @@ export interface operations {
             };
         };
     };
+    "admin.paymentOrder.refundQuote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    ruleCode?: "window" | "qualification_failed" | "override";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["CashRefundQuote"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.paymentOrder.refundRequest.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        amountFen: number;
+                        orderNo: string;
+                    };
+                    note?: string;
+                    reasonCode: string;
+                    /** @enum {string} */
+                    ruleCode: "window" | "qualification_failed" | "override";
+                    /** Format: uuid */
+                    serviceTicketId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "admin.paymentOrder.transferProof.create": {
         parameters: {
             query?: never;
@@ -27471,6 +28164,1034 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.list": {
+        parameters: {
+            query?: {
+                q?: string;
+                entityId?: string;
+                storeId?: string;
+                ruleCode?: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
+                source?: "customer_service" | "exception";
+                overdueOnly?: "true" | "false";
+                page?: number;
+                pageSize?: number;
+                tab?: "pending_approval" | "pending_execution" | "processed" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            items: {
+                                amountFen: number;
+                                /** @enum {string|null} */
+                                closeReason: "rejected" | "withdrawn" | "voided" | null;
+                                /** Format: date-time */
+                                closedAt: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                decidedAt: string | null;
+                                /** Format: date-time */
+                                doneAt: string | null;
+                                entity: {
+                                    /** Format: uuid */
+                                    entityId: string;
+                                    managerStaff: components["schemas"]["StaffBrief"] | null;
+                                    name: string;
+                                    /** Format: uuid */
+                                    primaryStoreId: string | null;
+                                    primaryStoreName: string | null;
+                                    storeCount: number;
+                                    verificationStatus: string;
+                                } | null;
+                                /** Format: date-time */
+                                execDueAt: string | null;
+                                /** @enum {string|null} */
+                                execRoute: "wechat_original" | "offline" | null;
+                                hasExecError: boolean;
+                                isExecOverdue: boolean;
+                                paymentOrder: {
+                                    orderNo: string;
+                                    /** Format: uuid */
+                                    paymentOrderId: string;
+                                    title: string;
+                                    type: string;
+                                } | null;
+                                /** Format: uuid */
+                                refundRequestId: string;
+                                requestNo: string;
+                                requester: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+                                /** @enum {string} */
+                                ruleCode: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
+                                ruleText: string;
+                                /** @enum {string} */
+                                source: "customer_service" | "exception";
+                                /** @enum {string} */
+                                status: "pending_approval" | "pending_execution" | "executing" | "done" | "not_executed";
+                            }[];
+                            page: number;
+                            pageSize: number;
+                            total: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.summary": {
+        parameters: {
+            query?: {
+                q?: string;
+                entityId?: string;
+                storeId?: string;
+                ruleCode?: "window" | "qualification_failed" | "override" | "fulfillment_blocked" | "unapplied_receipt";
+                source?: "customer_service" | "exception";
+                overdueOnly?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            executingCount: number;
+                            inProgressCount: number;
+                            monthRefunded: {
+                                amountFen: string;
+                                count: number;
+                            };
+                            monthRejectedCount: number;
+                            overdueCount: number;
+                            tabs: {
+                                pending_approval: number;
+                                pending_execution: number;
+                                processed: number;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        amountFen: number;
+                        requestNo: string;
+                    };
+                    confirmChecks: string[];
+                    lockVersion: number;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.confirmNotAccepted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        outRefundNo: string;
+                        requestNo: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 上游超时 */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        amountFen: number;
+                        channelTxnNo: string;
+                        requestNo: string;
+                    };
+                    confirmChecks: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.recordOffline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bankSerialNo: string;
+                    confirm: {
+                        amountFen: number;
+                        requestNo: string;
+                    };
+                    confirmChecks: string[];
+                    note?: string;
+                    payeeAccount: string;
+                    payeeBank: string;
+                    payeeName: string;
+                    /** Format: uuid */
+                    receiptFileId: string;
+                    /** Format: date */
+                    transferDate: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                    reasonCodes?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        outRefundNo: string;
+                        requestNo: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm: {
+                        amountFen: number;
+                        requestNo: string;
+                    };
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.refundRequest.withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refundRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["RefundRequestDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

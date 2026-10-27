@@ -126,8 +126,13 @@ function mapResource(id: string, eventType: string, serial: string, r: Json): Ma
     if (eventType !== `REFUND.${refund.status}`) return null;
     if (successAt === undefined && refund.status === "SUCCESS") return null;
     if (successAt !== undefined && Number.isNaN(Date.parse(successAt))) return null;
+    const successDate = successAt === undefined ? undefined : new Date(successAt);
     return {
-      notification: { kind: "refund", id, refund },
+      notification: {
+        kind: "refund",
+        id,
+        refund: { ...refund, ...(successDate === undefined ? {} : { successAt: successDate }) },
+      },
       summary: {
         serial,
         outTradeNo: refund.outTradeNo,
@@ -136,7 +141,7 @@ function mapResource(id: string, eventType: string, serial: string, r: Json): Ma
         refundId: refund.refundId,
         state: refund.status,
         amountFen: refund.refundFen,
-        successAt: successAt === undefined ? undefined : new Date(successAt).toISOString(),
+        successAt: successDate?.toISOString(),
       },
     };
   }

@@ -132,7 +132,39 @@ export type FulfillBlocked = z.infer<typeof fulfillBlockedSchema>;
  * subscription_event.payload，按 type。这里登记 M1 会写的几种：续接带新周期的名额；
  * 开通、续费预约、降级预约、过期没有细节（列为空）。升级、延长、退款一族的随 M4 增补。
  */
+const refundMark = {
+  refundRequestId: IdSchema,
+  rule: z.enum(["window", "qualification_failed", "override"]),
+  dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
+};
+const refundedTerm = z
+  .strictObject({
+    refundRequestId: IdSchema.optional(),
+    paymentExceptionId: IdSchema.optional(),
+    rule: z.enum(["window", "qualification_failed", "override"]),
+    revokedPoints: PointsSchema.nonnegative(),
+    cancelledSchedules: z.int().nonnegative(),
+    billingOrderIds: z.array(IdSchema),
+    unrecoveredPoints: PointsSchema.nonnegative().optional(),
+    affectedTerms: z
+      .array(
+        SubscriptionDailySnapshotSchema.refine(
+          (s) => s.status === "scheduled",
+          "受影响快照必须仍为预约周期",
+        ),
+      )
+      .optional(),
+    dailySnapshot: SubscriptionDailySnapshotSchema.optional(),
+  })
+  .refine(
+    (value) => !!value.refundRequestId !== !!value.paymentExceptionId,
+    "退款申请与外部差异只取其一",
+  );
 export const SUBSCRIPTION_EVENT_PAYLOADS = {
+  refund_suspended: z.strictObject(refundMark),
+  refund_resumed: z.strictObject(refundMark),
+  refunded: refundedTerm,
+  cancelled: refundedTerm,
   rolled_over: z.strictObject({
     maxStores: z.int().positive(),
     maxMembers: orNull(z.int().nonnegative()),
