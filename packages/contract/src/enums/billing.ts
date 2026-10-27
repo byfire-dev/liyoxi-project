@@ -251,6 +251,13 @@ export const PAYMENT_TXN_STATUS = defineEnum(
   ["created", "prepaid", "succeeded", "closed"],
 );
 
+/** 微信发货受理事实；NULL 为未认领，单独由数据库完整意图约束限定。 */
+export const PAYMENT_TXN_SHIPPING_REPORT_STATE = defineEnum(
+  "payment_txn_shipping_report_state",
+  ["payment_txn.shipping_report_state"],
+  ["unknown", "not_accepted", "confirmed"],
+);
+
 export const TRANSFER_PROOF_REVIEW_STATUS = defineEnum(
   "transfer_proof_review_status",
   ["transfer_proof.review_status"],

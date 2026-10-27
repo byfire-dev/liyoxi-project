@@ -250,6 +250,40 @@ export function createWebhooks(deps: WebhooksOptions): Webhooks {
     return { row: (await lock(tx, row.id)) as WebhookEvent, fresh: count.count === 1 };
   };
   return {
+    observeResponse(input) {
+      if (
+        input.provider !== "wechatpay" ||
+        !["hooks.wechatpay.transaction.notify", "hooks.wechatpay.refund.notify"].includes(
+          input.operationId,
+        ) ||
+        !Number.isInteger(input.status) ||
+        input.status < 100 ||
+        input.status > 599 ||
+        (input.status >= 200 && input.status < 300) ||
+        // 同 h01 与 Provider 的探测分类；包括验签前的停用、限流与体积拒绝。
+        input.signature?.startsWith("WECHATPAY/SIGNTEST/")
+      )
+        return;
+      try {
+        // ≥1 即越限，直接记首错事实；原 writer 登记在途并由所属 runtime.close 排空。
+        // 不等待独立告警事务，不能延长微信的 5 秒应答预算。
+        void alerts
+          .raise({
+            rule: "billing.callback_failed",
+            dimension: input.operationId,
+            severity: "P1",
+            detail: {
+              provider: input.provider,
+              operationId: input.operationId,
+              httpStatus: input.status,
+              reqId: input.requestId,
+            },
+          })
+          .catch(() => {});
+      } catch {
+        // 自定义端口同步抛错也不得覆盖已经确定的渠道应答。
+      }
+    },
     reject(provider, error, details) {
       const source = sources.get(provider);
       if (!source) throw new AppError("WEBHOOK_SOURCE_DISABLED");

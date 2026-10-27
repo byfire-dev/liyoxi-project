@@ -213,6 +213,21 @@ describe("密钥清单与 node.yml", () => {
     expect(serviceBlock("gateway")).not.toMatch(/secrets:/);
   });
 
+  it("预发显式主体名单默认空，仅worker与离线check-env接收公开标量", () => {
+    const line = "      STAGING_PAY_ENTITY_IDS: ${STAGING_PAY_ENTITY_IDS:-}\n";
+    for (const service of serviceNames) {
+      const block = serviceBlock(service);
+      if (["worker", "check-env"].includes(service)) {
+        expect(block, service).toContain(line);
+        expect(block, service).toContain("      APP_ENV: stg\n");
+      } else {
+        expect(block, service).not.toContain("STAGING_PAY_ENTITY_IDS");
+      }
+    }
+    expect(read(".env.example")).toMatch(/^STAGING_PAY_ENTITY_IDS=$/m);
+    expect(read("infra/compose/local.yml")).not.toContain("STAGING_PAY_ENTITY_IDS");
+  });
+
   it("不用 env_file；environment 里没有连接串与口令；六个常驻容器重启策略 no、日志带轮转", () => {
     expect(nodeYml.replace(/^\s*#.*$/gm, "")).not.toMatch(/env_file/);
     expect(serviceNames.filter((name) => !/profiles:/.test(serviceBlock(name)))).toEqual(

@@ -60,6 +60,8 @@ export const unconfiguredWechat: WechatProvider = {
   createMiniProgramCode: wechatOff,
   checkText: wechatOff,
   checkImage: wechatOff,
+  uploadShippingInfo: wechatOff,
+  queryShippingInfo: wechatOff,
 };
 
 /** 手机号组件给的 code 不是手机号时，本地的假微信回这个号 */
@@ -83,6 +85,11 @@ export function createLocalWechat(deps: { logger: ProviderLogger }): WechatProvi
   return {
     status: "local",
     configured: true,
+    uploadShippingInfo: async () => ({
+      ...failed("unsupported", "本地微信不提供真实发货"),
+      acceptance: "not_accepted",
+    }),
+    queryShippingInfo: async () => failed("unsupported", "本地微信不提供真实发货查询"),
     async code2Session({ code }) {
       if (code.trim() === "") return failed("rejected", "code 是空的");
       return ok({ openid: `local-openid-${code}` });

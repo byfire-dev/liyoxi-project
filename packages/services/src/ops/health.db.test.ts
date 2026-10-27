@@ -181,7 +181,7 @@ describe("两条内网探活的框架", () => {
       version: "sha-test",
     });
 
-    const finance = health.finance();
+    const finance = await health.finance();
     expect(finance.status).toBe("degraded");
     expect(finance.breaches).toEqual([
       "unappliedReceipt",

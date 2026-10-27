@@ -202,3 +202,9 @@ export type { Refunds, RefundDeps } from "./refund/index.js";
 
 export { submitExceptionRefund } from "./refund/index.js";
 export type { ExceptionRefundInput } from "./refund/index.js";
+
+export { createShippingAssembly } from "./payment/shipping-assembly.js";
+
+export { createStagingPayEntry } from "./staging-pay/entry.js";
+
+export { createStagingPayAssembly, unboundStagingAutorefundJob } from "./staging-pay/assembly.js";

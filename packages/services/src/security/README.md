@@ -72,7 +72,8 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 - inbox 可选 `projectPayload(tx, verifiedEvent): Promise<WebhookPayload | null>`：在 `accept` 的同一事务内、收件插入与加锁之前作有界的本地只读投影，再原子写收件与出站。原必需的同步 `payload` 仍作事务前先验检查；先验非法不调用投影。没有新口的旧来源、inline 与支付兜底沿用原路径；inline 登记此口在构造时拒绝。
 - 投影每次事务重试重新读取事实，接收独立复制的验签快照；返回值再复制并验证为非空的 JSON 对象，拒绝数组、循环、非有限数字与非 JSON 值。框架只验证形状，字段白名单、限量查询和去敏由来源负责；`null` 身份须放在对象字段内，不把原 openid 放进载荷。只读是来源契约，不是新的数据库权限代理；不得加业务行锁、写业务状态、另开事务或外呼，原事务/Provider guard 保持。
 - 非法投影输出以固定 `WEBHOOK_PAYLOAD_INVALID` 应答，投影自身异常、SQL/提交失败或 guard 拒绝沿原 `WEBHOOK_PERSIST_FAILED`；不传出原错误或 cause。收件、出站任一失败整体回滚。重放可再次只读投影，但不得覆盖首次 payload、摘要/密文、digest、收件时间或重复出站；同事务不表示绑定一直到提交不变，后继业务处理仍须校验当前事实。
-- `scan()` 由 `webhook_reprocess` 每分钟调用，按到期时间/id逐行独立事务、最多50条、`SKIP LOCKED`。缺来源或停用时保留可恢复行；1/5/15分钟、1/6小时退避，第8次 dead。支付第5次升级，其他来源可显式选 `escalateAfter:5`；告警只含 provider/attempts/id，当前端口为空实现，不声称真实通知。
+- `scan()` 由 `webhook_reprocess` 每分钟调用，按到期时间/id逐行独立事务、最多50条、`SKIP LOCKED`。缺来源或停用时保留可恢复行；1/5/15分钟、1/6小时退避，第8次 dead。支付第5次升级，其他来源可显式选 `escalateAfter:5`；告警只含 provider/attempts/id，由实际装配注入端口，未注入时沿空实现，不声称真实通知。
+- HTTP薄壳在Hono下游映射和渠道失败协议完成、响应已确定后调用 `observeResponse`。只有两条正式微信支付/退款端点的非2xx会立即提交 `billing.callback_failed:<operationId>` P1事实（五分钟内≥1即越限），`WECHATPAY/SIGNTEST/`前缀探测始终排除，包括未启用、限流和体积拒绝。仅复制provider、operationId、HTTP状态与规范reqId，签名不持久化；非阻塞调用既有告警端口，所属AlertFacts运行时跟踪在途并由原close排空，写失败不改渠道应答。T1失败但T1′成功返回200不触发本规则，原第5/8次失败告警保持。API/worker实际装配已使用独立事务AlertFacts；未配E18仍只落库，不代表群或短信已接通。
 - 只有 `wechatpay/inline` 可显式 `fallbackToInbox:true`。其 payload 必有完整 `resourceCipher` 和 `keyVersion` 才能在首事务失败后用新短事务落 `failed/inbox`；收件时间保留，下一次按实际失败时间加1分钟。其他来源无此成功兜底。CI/ASR 的 inline payload 必须为 null；其他 inbox 须有可恢复最小载荷。
 - 微信支付保留 `summary` 与密文180天，其他有载荷来源90天。`security.webhook_payload` 经既有每日 `ops.retention` 做限量 UPDATE，仅留 summary或置空并写 purgedAt；不删行、不改摘要/digest/来源/原收件举证列。`restore` 在载荷过期后必须受控失败，不制造恢复数据。
 

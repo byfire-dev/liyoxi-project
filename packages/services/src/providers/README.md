@@ -61,6 +61,10 @@ ASR URL 保持原 JS 字符串长度界限，查询保持原字符串 uint64 判
 
 ## 4. 选项与环境变量
 
+W4-09发货的 `wechat.uploadShippingInfo/queryShippingInfo` 使用官方小程序access_token端口，复用原token缓存、取消/关闭与beforeCall守卫；不是微信支付商户V3签名口。只支持虚拟商品统一发货，查单仅投影核对所需的交易、付款人与发货事实，不返回原始errmsg。新增方法可选，旧Provider没有此能力时由消费方拒绝；local不伪造真实发货，fake需显式预置订单事实。上传失败仅完整已知平台拒绝可标not_accepted，其余unknown；Provider内部不重送，丢回包后的持久去重和真实查单由W4-09领域完成。当前仅协议适配源码，不代表订阅者或任何真实发货已经验收。
+
+`WECHAT_PAY_FILE` 的既有严格JSON可选增加 `merchantCertificatePem`。唯一 `loadEnv` 在本地解析X509，将证书serial按十六进制同值规范化后对照 `merchantSerialNo`，并核对证书公钥与 `merchantPrivateKeyPem`；这里不拿微信支付平台 `publicKeyPem` 冒充商户证书身份。错误只返回字段/原因，不回显文件路径、证书或私钥。通过后丢弃输入证书PEM，只在输出 `WECHAT_PAY.merchantCertificateExpiresAt` 暴露证书自身validTo的ISO事实，源JSON不能填写该派生值。旧配置不带证书仍原输出、可启动；期限未知由后继健康读侧保持null+breach，不推测签发时长或以serial猜日期。不新增环境键、Provider方法、网络获取/证书链校验或轮换动作。
+
 `createProviders` 的三个本地选项（`ProviderSettings`）为 `sms.driver`（`console` / `tencent`）、`storage.driver`（`minio`，另可用 `storage.minio` 覆盖连接参数）、`esign.imageSeal`（图片章开关）。
 
 W2-21 增加 `settings.wechat { appid, secret }`，须同时提供借用的带前缀 Redis、时钟和关闭登记。运行时只从 `loadEnv().WECHAT` 注入；`WECHAT_APPID` 与三个 `*_FILE` 配置须完整成组。完整配置选择真实微信驱动，local/test、stg、prod 分别使用 develop、trial、release；初始化零 HTTP。全未配保留表中的本地假实现或未配置行为；显式 `RuntimeOptions.providers` 替身优先。运行时关闭先取消自有驱动在途请求，再关闭父 Redis；驱动不关闭借来的 Redis。密钥值与 openid 不进生效状态日志。

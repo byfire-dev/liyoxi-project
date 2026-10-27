@@ -6,6 +6,13 @@ import type { WechatHttpOutcome, WechatRequest } from "./client.js";
 import { createAccessTokenManager } from "./token.js";
 import type { WechatTokenCache } from "./token.js";
 import {
+  shippingBody,
+  shippingFailure,
+  shippingHttpFailure,
+  shippingOrderResult,
+  shippingUploadResult,
+} from "../wechat-pay/shipping.js";
+import {
   imageResult,
   mapWechatFailure,
   nonempty,
@@ -101,7 +108,9 @@ export function createWechatDriver(
             acceptance: targetStarted ? "unknown" : "not_accepted",
             code: aborted ? "aborted" : "unknown_outcome",
           })
-        : unavailable();
+        : method === "uploadShippingInfo"
+          ? shippingFailure(targetStarted ? "unknown" : "not_accepted")
+          : unavailable();
     if (closed || callerSignal?.aborted) return Promise.resolve(stop(callerSignal?.aborted));
     if (spec.body && Buffer.byteLength(JSON.stringify(spec.body)) > JSON_REQUEST_BYTES)
       return method === "sendSubscribeMessage"
@@ -135,14 +144,21 @@ export function createWechatDriver(
           signal,
           ...(token === undefined ? {} : { query: { ...spec.query, access_token: token } }),
         });
-        if (method !== "sendSubscribeMessage" && (signal.aborted || closed)) return unavailable();
+        if (
+          method !== "sendSubscribeMessage" &&
+          method !== "uploadShippingInfo" &&
+          (signal.aborted || closed)
+        )
+          return unavailable();
         const projected = response.ok
           ? project(response.value)
           : method === "sendSubscribeMessage"
             ? response.code === undefined && signal.aborted
               ? stop(true)
               : subscribeNotificationFailure(response)
-            : mapWechatFailure(method, response);
+            : method === "uploadShippingInfo"
+              ? shippingHttpFailure(response)
+              : mapWechatFailure(method, response);
         if (!response.ok && token !== undefined && tokenInvalid(response.code))
           await wait(tokens.invalidate(token), signal);
         return projected;
@@ -162,6 +178,28 @@ export function createWechatDriver(
   const provider: WechatProvider = {
     status: "wechat",
     configured: true,
+    uploadShippingInfo(input) {
+      const body = shippingBody(input);
+      if (body === null || input.signal?.aborted)
+        return Promise.resolve(shippingFailure("not_accepted", true));
+      return run(
+        "uploadShippingInfo",
+        { path: "/wxa/sec/order/upload_shipping_info", body },
+        (value) => shippingUploadResult(value.json),
+        true,
+        input.signal,
+      );
+    },
+    queryShippingInfo(input) {
+      if (!inputText(input.transactionId) || input.transactionId.length > 128) return invalid();
+      return run(
+        "queryShippingInfo",
+        { path: "/wxa/sec/order/get_order", body: { transaction_id: input.transactionId } },
+        (value) => shippingOrderResult(value.json),
+        true,
+        input.signal,
+      );
+    },
     code2Session(input) {
       if (!inputText(input.code)) return invalid();
       return run(
