@@ -1,11 +1,7 @@
+import { buildWorkerServicesForTest } from "./services.js";
 // 用例里的“一个任务进程实例”（W0-23）：测试装配（样例订阅者、定时器处理器、周期任务）之上的服务、队列与运行时。
 // 本文件不引 Vitest：进程中断的场景在子进程里也要加载它。库与 Redis 前缀由调用方给（测试支架发的）。
-import {
-  buildWorkerServices,
-  connectWorkerDatabase,
-  createQueueChannel,
-  createWorkerLease,
-} from "@liyoxi/services";
+import { connectWorkerDatabase, createQueueChannel, createWorkerLease } from "@liyoxi/services";
 import type { AppEnv, Clock, WorkerLease } from "@liyoxi/services";
 import {
   assembleForTest,
@@ -69,8 +65,8 @@ export function createInstance(options: InstanceOptions) {
     prefix: `${options.redisPrefix}bull`,
     monotonic: options.monotonic,
   });
-  const services = buildWorkerServices({
-    appEnv: "test",
+  const services = buildWorkerServicesForTest({
+    appEnv: options.appEnv === "stg" ? "stg" : "test",
     prisma: database.prisma,
     assembly,
     channel,
