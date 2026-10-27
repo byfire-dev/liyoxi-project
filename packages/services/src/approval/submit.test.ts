@@ -4,6 +4,7 @@ import type { PrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  createBizNoIssuer,
   createIdempotencyContext,
   defineRegistration,
   implementKeyed,
@@ -21,9 +22,10 @@ import {
 import { openClient, refusal, SLOW, useApprovalWorld } from "./__fixtures__/world.js";
 import type { Person } from "./__fixtures__/world.js";
 import { ApprovalError } from "./errors.js";
+import { bindApprovalKinds, boundApprovalKinds } from "./invariants.js";
 import { approvalKindPort } from "./kinds.js";
 import type { ApprovalKindRegistration } from "./kinds.js";
-import { approvalKindsOf } from "./runtime.js";
+import { approvalKindsOf, createApproval } from "./runtime.js";
 
 const world = useApprovalWorld();
 const T = { timeout: SLOW };
@@ -202,17 +204,36 @@ describe("提交与在途去重（验收 6）", () => {
       input: { badSummary: true },
     });
     await expect(badSummary).rejects.toMatchObject({ name: "ApprovalError", reason: "summary" });
-    const unregistered = sample.submit(requester.identity, {
-      kind: "plan_refund",
-      subjectType: "billing_order",
-      subjectId: uuidv7(),
-      entityId: merchant.entityId,
-    });
-    await expect(unregistered).rejects.toMatchObject({
-      name: "ApprovalError",
-      reason: "unregistered",
-    });
-    expect(await prisma.approvalRequest.count({ where: { entityId: merchant.entityId } })).toBe(0);
+    // 退款类型已经实际登记；缺登记反例显式移除本实例的类型实现。
+    const previousKinds = boundApprovalKinds();
+    try {
+      const missingKinds = createApproval({
+        assembly: assembleForTest({ entry: "api", withoutRealPorts: [approvalKindPort] }),
+        clock: sample.clock,
+        flow: sample.flow,
+        events: sample.events,
+        bizNo: createBizNoIssuer({ clock: sample.clock, appEnv: "test" }),
+      });
+      expect(missingKinds.kinds.has("plan_refund")).toBe(false);
+      const unregistered = sample.tx.run((tx) =>
+        missingKinds.submit(tx, requester.identity, {
+          kind: "plan_refund",
+          subjectType: "billing_order",
+          subjectId: uuidv7(),
+          entityId: merchant.entityId,
+          input: null,
+        }),
+      );
+      await expect(unregistered).rejects.toMatchObject({
+        name: "ApprovalError",
+        reason: "unregistered",
+      });
+      expect(await prisma.approvalRequest.count({ where: { entityId: merchant.entityId } })).toBe(
+        0,
+      );
+    } finally {
+      bindApprovalKinds(previousKinds);
+    }
   });
 });
 

@@ -530,7 +530,7 @@ stateDiagram-v2
 | `pending_execution` | 作废（`refund.void`） | `not_executed`（`voided`） | `entitlement_revoked_at` 为空；名下没有成功或未到终态的退款交易；说明必填 | 套餐规则：`resumeTermFromRefund`；同驳回的恢复动作；`red_pending` 的开票申请恢复为 `issued`（已回填红票的保持 `red_issued`）；写 `voided_by_staff_id`、`close_note`、`closed_at`；取消执行时限的定时器；审批单保持 `approved` | 财务 |
 | `executing` | 退款交易成功（`refund.complete`） | `done` | — | 收款交易累加 `refunded_fen`。入账收款：付款单累加已退，累计 ≥ 实付则 → `refunded`，`pending` 的开票申请自动驳回（`reject_kind = order_refunded`）。未入账收款：不动付款单。差异单 → `resolved`。写 `done_at`、`closed_at` | 系统（回调、查询） |
 | `executing` | 退款交易到达失败终态（`refund.fail`；`closed` / `not_accepted` / `abandoned`） | `pending_execution` | — | 写 `exec_error`；权益可能已回收，不可作废；执行时限不重新计时（失败由 `exec_error` 与退款告警跟进） | 系统 |
-
+| `pending_execution` | 日历修正（`sla.recalculated`） | 不变 | 尚未执行（`executed_at` 为空）；新日历批次晚于快照且影响原时限窗口 | 同事务取消旧执行定时器，按审批通过时刻及原策略重算 `exec_due_at`、`sla_snapshot`，写同状态历史并登记新执行定时器；已执行、重复和乱序事件不重启时限 | 系统（`calendar.imported`） |
 ```mermaid
 stateDiagram-v2
   [*] --> pending_approval: 发起（套餐规则 suspend）
@@ -1431,7 +1431,7 @@ stateDiagram-v2
 
 按规则分两组键。共有：`v`（结构版本）、`rule`（同 `rule_code`）、`refundableFen`（核算出的可退金额，= `amount_fen`）。
 
-套餐三条规则（`window` / `qualification_failed` / `override`），取自发起时 `previewPlanRefund` 的返回（d1:1070-1074）与被退周期当时的行：
+套餐三条规则（`window` / `qualification_failed` / `override`；M111已回收来源周期的升级补差仅保存 `{ v, rule: override, refundableFen, sourceTermId, cashOnly: true }`，不带 `termId`），取自发起时 `previewPlanRefund` 的返回（d1:1070-1074）与被退周期当时的行：
 
 | 键 | 类型 | 含义 |
 | --- | --- | --- |
@@ -1455,7 +1455,7 @@ stateDiagram-v2
 
 ### 4.8 `refund_request.recheck_log` — `RefundRecheckLog`
 
-`{ "approve": Recheck, "execute": Recheck }`，两个键都可缺。`Recheck` = `{ at, eligible, reasons: string[], usageOk, upgraded, refundableFen }`。
+`{ "approve": Recheck, "execute": Recheck, "executeIntents": { [sha256(actor/scope/key)]: refundTxnId } }`，各键都可缺。`executeIntents` 只登记本申请已创建的执行意图，保留旧键且不覆盖；最多对应原交易编号的99笔，恢复时沿原退款单号，不保存原幂等键或凭证。`Recheck` = `{ at, eligible, reasons: string[], usageOk, upgraded, refundableFen }`。
 
 ### 4.9 `refund_request.exec_error` — `RefundExecError`
 

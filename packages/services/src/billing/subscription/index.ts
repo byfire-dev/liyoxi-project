@@ -5,3 +5,5 @@ export type { Fulfillment, FulfillInput, FulfillOutcome } from "./fulfill.js";
 export { subscriptionInvariants } from "./invariants.js";
 export { FULFILL_STEPS } from "./types.js";
 export type { FulfillDeps, FulfillStep } from "./types.js";
+export { createTermRefund } from "../ledger/term-refund.js";
+export type { PlanRefundRule, PlanRefundPreview, RevokeTermResult } from "./types.js";

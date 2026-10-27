@@ -186,6 +186,13 @@ describe("替身的通知由真实驱动判别", () => {
         copies: 1,
         refund: { status: "CLOSED", refundFen: 29, copies: 1 },
       },
+      // seed 20261004 缩减出的反例：1 分成功退款的完成时间必须往返保留。
+      {
+        amountFen: 1,
+        attach: undefined,
+        copies: 1,
+        refund: { status: "SUCCESS", refundFen: 1, copies: 1 },
+      },
     ]);
     const results = created.map((notification) => verifyAndDecrypt(deps, pay.encode(notification)));
     expect(results.map((result) => (result.ok ? result.eventType : result.kind))).toEqual([
@@ -195,11 +202,24 @@ describe("替身的通知由真实驱动判别", () => {
       "REFUND.ABNORMAL",
       "TRANSACTION.SUCCESS",
       "REFUND.CLOSED",
+      "TRANSACTION.SUCCESS",
+      "REFUND.SUCCESS",
     ]);
     expect(results.map((result) => (result.ok ? result.notification : null))).toEqual(created);
     expect(results[0]).toMatchObject({
       kid: "fake",
       summary: { outTradeNo: "FK-0000", state: "SUCCESS", amountFen: 19900 },
+    });
+    expect(results[7]).toMatchObject({
+      ok: true,
+      notification: { kind: "refund", refund: { refundFen: 1, successAt: START } },
+      summary: { amountFen: 1, successAt: START.toISOString() },
+    });
+    const minimalRefund = created[7];
+    if (!minimalRefund) throw new Error("没有最小退款反例通知");
+    expect(await pay.verifyAndDecryptNotification(pay.encode(minimalRefund))).toEqual({
+      ok: true,
+      value: minimalRefund,
     });
   });
 

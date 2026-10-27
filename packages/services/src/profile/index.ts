@@ -53,3 +53,4 @@ export {
 export { createProfileConsistencyTransactions } from "./consistency-transactions.js";
 
 export type { ProfileConsistencyTransactions } from "./consistency-transactions.js";
+export { isQualificationDead } from "./qualification-facts.js";

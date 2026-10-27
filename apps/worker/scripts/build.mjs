@@ -50,6 +50,7 @@ const options = {
     "staff-reissue-activation": "src/cli/staff-reissue-activation.ts",
     "sms-init": "src/cli/sms-init.ts",
     "alerts-ack": "src/cli/alerts-ack.ts",
+    "refund-abandon-txn": "src/cli/refund-abandon-txn.ts",
     "analytics-repartition": "src/cli/analytics-repartition.ts",
   },
   outdir,

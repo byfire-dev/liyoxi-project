@@ -145,6 +145,8 @@ admin.paramValue.withdraw | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paymentOrder.create | - | order.payment.create_offline | 11 00 00 00 00 00 00 11
 admin.paymentOrder.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.paymentOrder.list | order:view | - | 11 11 11 00 00 11 11 11
+admin.paymentOrder.refundQuote | - | order.refund.request | 11 11 00 00 00 00 00 00
+admin.paymentOrder.refundRequest.create | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.paymentOrder.summary | order:view | - | 11 11 11 00 00 11 11 11
 admin.paymentOrder.transferProof.create | - | finance.receipt.confirm | 11 00 00 00 00 00 00 11
 admin.paymentTransaction.list | finance:view | - | 11 00 00 00 00 00 00 11
@@ -191,6 +193,17 @@ admin.referralCode.create | merchant:view | merchant.referral_code.manage | 11 0
 admin.referralCode.disable | merchant:view | merchant.referral_code.manage | 11 01 00 00 00 00 00 00
 admin.referralCode.enable | merchant:view | merchant.referral_code.manage | 11 01 00 00 00 00 00 00
 admin.referralCode.list | merchant:view | - | 11 11 11 11 11 11 11 11
+admin.refundRequest.approve | - | finance.refund.approve | 11 00 00 00 00 00 00 11
+admin.refundRequest.confirmNotAccepted | - | finance.refund.execute | 11 00 00 00 00 00 00 11
+admin.refundRequest.execute | - | finance.refund.execute | 11 00 00 00 00 00 00 11
+admin.refundRequest.get | - | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.refundRequest.list | finance:view | - | 11 00 00 00 00 00 00 11
+admin.refundRequest.recordOffline | - | finance.refund.execute | 11 00 00 00 00 00 00 11
+admin.refundRequest.reject | - | finance.refund.approve | 11 00 00 00 00 00 00 11
+admin.refundRequest.retry | - | finance.refund.execute | 11 00 00 00 00 00 00 11
+admin.refundRequest.summary | finance:view | - | 11 00 00 00 00 00 00 11
+admin.refundRequest.void | - | finance.refund.approve | 11 00 00 00 00 00 00 11
+admin.refundRequest.withdraw | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.role.defaults.get | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.get | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.list | system:view | - | 11 00 00 00 00 00 00 00

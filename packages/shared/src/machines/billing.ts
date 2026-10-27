@@ -44,6 +44,7 @@ export const refundRequest = chain("refund_request", "status", REFUND_REQUEST_ST
   ["08:530", ["pending_execution"], "refund.void", ["not_executed"]],
   ["08:531", ["executing"], "refund.complete", ["done"], NO_GUARD],
   ["08:532", ["executing"], "refund.fail", ["pending_execution"], NO_GUARD],
+  ["08:533", ["pending_execution"], "sla.recalculated", SAME],
 ]);
 
 /** payment_exception.status：docs/data-model/08-billing-payment.md */

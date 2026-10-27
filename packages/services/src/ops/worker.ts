@@ -1,3 +1,4 @@
+import { createBillingApprovalRefs } from "../support/index.js";
 import type { BillingPurchaseDeps } from "../billing/index.js";
 import {
   createWechatPaymentSource,
@@ -7,6 +8,9 @@ import {
   createFulfillment,
   createTransferReviewAssembly,
   createInvoiceAssembly,
+  createRefunds,
+  createRefundAssembly,
+  createWechatRefundSource,
 } from "../billing/index.js";
 import { createRuntimeMediaAssets, createMediaAssetsAssembly } from "./media-assets-runtime.js";
 import { createServerErrorReporter, reportWorkerOutcome } from "./server-errors.js";
@@ -30,6 +34,7 @@ import type { QueueId } from "@liyoxi/contract/registry";
 import type { SqlRunner } from "./binding.js";
 import { createInvitationExpiry } from "../tenant/index.js";
 import {
+  isQualificationDead,
   createProfileTenantLifecycle,
   createProfileConsistencyAssembly,
   createProfileConsistencyTransactions,
@@ -392,7 +397,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const invitationScope = createInvitationAssembly(docsScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
-  const assembly = invoiceScope.assembly;
+  const refundScope = createRefundAssembly(invoiceScope.assembly);
+  const assembly = refundScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
@@ -439,11 +445,16 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     events,
     sources: options.webhookSources ?? [
       ...wechatSources,
-      createWechatPaymentSource({
+      createWechatRefundSource({
+        base: createWechatPaymentSource({
+          provider: () => providers.wechatPay,
+          identity: () => options.keys?.WECHAT_PAY,
+          channel: () => paymentChannel,
+          alerts: alertsOf(assembly),
+        }),
         provider: () => providers.wechatPay,
         identity: () => options.keys?.WECHAT_PAY,
-        channel: () => paymentChannel,
-        alerts: alertsOf(assembly),
+        deps: refundScope.current,
       }),
       createCiWebhookSource({
         key: ci?.callback.key,
@@ -790,6 +801,13 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       : {}),
   };
   transferReviewScope.attach(workerPurchaseDeps);
+  const refundDeps = {
+    ...workerPurchaseDeps,
+    isQualificationDead,
+    approvalRefs: createBillingApprovalRefs({ clock }),
+  };
+  refundScope.attach(refundDeps);
+  const refunds = createRefunds(refundDeps);
   const paymentChannel = createWechatChannel(workerPurchaseDeps);
   const closePaymentChannel = bindPaymentChannel(paymentChannel);
   profileConsistencyScope.attach(
@@ -816,7 +834,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   // 扫描里出错过的主体（进程内的记忆）：下一轮排到正常的主体后面，不占着名额饿死别人
   const laggards = new Map<string, number>();
   const timing = {
-    beforeRun: paymentChannel.prepareExpire,
+    beforeRun: async (ref: Parameters<typeof paymentChannel.prepareExpire>[0]) => {
+      await paymentChannel.prepareExpire(ref);
+      await refunds.saga.preparePoll(ref);
+    },
     tx,
     assembly,
     registry: timers.registry,
@@ -954,6 +975,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       await staffScope.close();
     },
     closeApproval: () => {
+      refundScope.close();
       invoiceScope.close();
       transferReviewScope.close();
       approvalSlaScope.close();

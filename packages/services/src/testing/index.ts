@@ -158,5 +158,12 @@ export {
   currentSessionOpenid as currentSessionOpenidForTest,
 } from "../identity/index.js";
 
+// W4-10：worker CLI只经公开测试入口消费真实退款机制，不跨模块导入私有fixture。
+export {
+  createRefundHarness as createRefundHarnessForTest,
+  refundIdem as refundIdempotencyForTest,
+} from "./billing-refund.js";
+export type { RefundHarness as RefundHarnessForTest } from "./billing-refund.js";
+
 // 仅公开运行时生成的假X509身份，供FILE配置边界测试复用，不导入真实证书。
 export { merchantCertificateForTest } from "./wechatpay-certificate.js";
