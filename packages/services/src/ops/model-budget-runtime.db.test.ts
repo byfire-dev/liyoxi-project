@@ -353,10 +353,12 @@ describe("预算真实参数/Redis/独立告警事务", { timeout: SLOW }, () =>
   });
 
   it.each([false, true])("真实public digest组合根%s：许可后P2失效仍保3槽", async (invalidate) => {
+    // 组合根与真实Redis TIME同走实钟；P1前的PG等待不应消耗冻结时刻的许可窗口。
+    vi.spyOn(h.clock, "now").mockImplementation(() => new Date());
     await seed();
     await caps(200, 3);
     const job = await readyText();
-    h.clock.set(new Date());
+    const readPermit = vi.spyOn(runtime.admission, "readPermit");
     const model = vi.spyOn(h.fake.llm, "summarizeAsset").mockResolvedValue(
       ok({
         title: "",
@@ -367,16 +369,35 @@ describe("预算真实参数/Redis/独立告警事务", { timeout: SLOW }, () =>
         qualityNotes: [],
       }),
     );
-    if (invalidate) {
-      const original = runtime.admission.reserve.bind(runtime.admission);
-      vi.spyOn(runtime.admission, "reserve").mockImplementation(async (value, abort) => {
+    const original = runtime.admission.reserve.bind(runtime.admission);
+    const reserve = vi
+      .spyOn(runtime.admission, "reserve")
+      .mockImplementation(async (value, abort) => {
         const result = await original(value, abort);
-        h.clock.set(new Date());
-        await revision("media.model.daily_call_cap", 0);
+        if (invalidate && result.status === "reserved") {
+          await revision("media.model.daily_call_cap", 0);
+        }
         return result;
       });
-    }
     await h.media.jobs.run({ jobId: job.id });
+    expect(reserve).toHaveBeenCalledTimes(1);
+    expect(await reserve.mock.results[0]!.value).toEqual({
+      status: "reserved",
+      units: 3,
+      newFiles: 0,
+    });
+    expect(readPermit).toHaveBeenCalledTimes(2);
+    expect(await readPermit.mock.results[0]!.value).toEqual(
+      expect.objectContaining({ dailyFileCap: 200, dailyCallCap: 3 }),
+    );
+    expect(await readPermit.mock.results[1]!.value).toEqual(
+      invalidate ? null : expect.objectContaining({ dailyFileCap: 200, dailyCallCap: 3 }),
+    );
+    const p1 = readPermit.mock.calls[0]![1],
+      p2 = readPermit.mock.calls[1]![1];
+    expect(p2.admitUntilMs).toBe(p1.admitUntilMs);
+    expect(p2.readAtMs).toBeGreaterThanOrEqual(p1.readAtMs);
+    expect(p2.readAtMs).toBeLessThan(p1.admitUntilMs);
     const final = await prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } });
     expect(final.state).toBe(invalidate ? "canceled" : "succeeded");
     expect(model).toHaveBeenCalledTimes(invalidate ? 0 : 1);
