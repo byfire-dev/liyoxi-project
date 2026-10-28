@@ -59,6 +59,33 @@ describe("隔离分片的耗时提示只影响归属", () => {
     expect(baseline).toEqual(before);
   });
 
+  it("八片在不能整除的全集上仍确定分配，每项一次、原容量不变，重文件不会留在原来的两片", () => {
+    let offset = 0;
+    const baseline = [5, 5, 5, 5, 4, 4, 4, 4].map((size) =>
+      Array.from({ length: size }, () => file(offset++)),
+    );
+    const before = structuredClone(baseline);
+    const heavy = baseline
+      .flat()
+      .slice(0, 8)
+      .map((row, index) => ({
+        file: row.file,
+        milliseconds: 100_000 - index * 10_000,
+      }));
+    const timings = parseIsolationTimings(hints(heavy));
+    const result = balanceIsolationShards(baseline, timings);
+    expect(result.map((rows) => rows.length)).toEqual([5, 5, 5, 5, 4, 4, 4, 4]);
+    expect(keys(result.flat())).toEqual(keys(baseline.flat()));
+    expect(new Set(keys(result.flat())).size).toBe(36);
+    expect(
+      result.map((rows) => rows.filter((row) => timings.weights.has(row.file)).length),
+    ).toEqual([1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(
+      balanceIsolationShards(baseline, parseIsolationTimings(hints([...heavy].reverse()))),
+    ).toEqual(result);
+    expect(baseline).toEqual(before);
+  });
+
   it("未知新文件及原跳过文件仍在全集，过期提示不决定范围或执行", () => {
     const baseline = [[file(0), { ...file(1), skipped: true }], [file(2)], [file(3)], [file(4)]];
     const result = balanceIsolationShards(
