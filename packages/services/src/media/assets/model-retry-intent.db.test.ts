@@ -118,6 +118,9 @@ describe("持久人工retry意图", { timeout: 30_000 }, () => {
   });
 
   it("人工retry的新vision意图独立收费；旧token保留且原文件日计数不重复", async () => {
+    // 本目标用实时业务钟，避免Redis TIME旧采样的响应延迟带入后续许可。
+    // 原Lua TIME、250ms窗口与P1/P2真实耗时校验保持。
+    vi.spyOn(h.clock, "now").mockImplementation(() => new Date());
     const facts = await h.readyImage();
     expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
       "ok",
@@ -129,6 +132,30 @@ describe("持久人工retry意图", { timeout: 30_000 }, () => {
     expect(structuredOutput(await h.visionStrategy().execute(claimed, signal())).status).toBe("ok");
     expect(await h.visionStrategy().execute(claimed, signal())).toEqual({ state: "canceled" });
     expect(h.vision).toHaveBeenCalledTimes(2);
+    expect(h.budget.reserve).toHaveBeenCalledTimes(3);
+    expect(await h.budget.reserve.mock.results[0]!.value).toEqual({
+      status: "reserved",
+      units: 3,
+      newFiles: 1,
+    });
+    expect(await h.budget.reserve.mock.results[1]!.value).toEqual({
+      status: "reserved",
+      units: 3,
+      newFiles: 0,
+    });
+    expect(await h.budget.reserve.mock.results[2]!.value).toEqual({
+      status: "denied",
+      reason: "duplicate",
+    });
+    expect(h.budget.readPermit).toHaveBeenCalledTimes(5);
+    for (const index of [0, 2]) {
+      const p1 = h.budget.readPermit.mock.calls[index]![1],
+        p2 = h.budget.readPermit.mock.calls[index + 1]![1];
+      expect(p1.admitUntilMs - p1.readAtMs).toBe(250);
+      expect(p2.admitUntilMs).toBe(p1.admitUntilMs);
+      expect(p2.readAtMs).toBeGreaterThanOrEqual(p1.readAtMs);
+      expect(p2.readAtMs).toBeLessThan(p1.admitUntilMs);
+    }
     const permits = h.budget.reserve.mock.calls.map(([permit]) => permit);
     expect(permits[0]).toMatchObject({ jobId: facts.job.id, attemptNo: 1 });
     expect(Object.hasOwn(permits[0]!, "modelIntentId")).toBe(false);
