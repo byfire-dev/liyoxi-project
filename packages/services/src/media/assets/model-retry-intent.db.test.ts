@@ -117,101 +117,102 @@ describe("持久人工retry意图", { timeout: 30_000 }, () => {
     expect(h.budget.reserve).not.toHaveBeenCalled();
   });
 
-  it("人工retry的新vision意图独立收费；旧token保留且原文件日计数不重复", async () => {
-    // 本目标用实时业务钟，避免Redis TIME旧采样的响应延迟带入后续许可。
-    // 原Lua TIME、250ms窗口与P1/P2真实耗时校验保持。
-    vi.spyOn(h.clock, "now").mockImplementation(() => new Date());
-    const facts = await h.readyImage();
-    expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
-      "ok",
-    );
-    await fail(facts.job);
-    await retry(facts.job.id);
-    const claimed = await h.claim(await row(facts.job.id)),
-      input = inputOf(claimed);
-    expect(structuredOutput(await h.visionStrategy().execute(claimed, signal())).status).toBe("ok");
-    expect(await h.visionStrategy().execute(claimed, signal())).toEqual({ state: "canceled" });
-    expect(h.vision).toHaveBeenCalledTimes(2);
-    expect(h.budget.reserve).toHaveBeenCalledTimes(3);
-    expect(await h.budget.reserve.mock.results[0]!.value).toEqual({
-      status: "reserved",
-      units: 3,
-      newFiles: 1,
-    });
-    expect(await h.budget.reserve.mock.results[1]!.value).toEqual({
-      status: "reserved",
-      units: 3,
-      newFiles: 0,
-    });
-    expect(await h.budget.reserve.mock.results[2]!.value).toEqual({
-      status: "denied",
-      reason: "duplicate",
-    });
-    expect(h.budget.readPermit).toHaveBeenCalledTimes(5);
-    for (const index of [0, 2]) {
-      const p1 = h.budget.readPermit.mock.calls[index]![1],
-        p2 = h.budget.readPermit.mock.calls[index + 1]![1];
-      expect(p1.admitUntilMs - p1.readAtMs).toBe(250);
-      expect(p2.admitUntilMs).toBe(p1.admitUntilMs);
-      expect(p2.readAtMs).toBeGreaterThanOrEqual(p1.readAtMs);
-      expect(p2.readAtMs).toBeLessThan(p1.admitUntilMs);
-    }
-    const permits = h.budget.reserve.mock.calls.map(([permit]) => permit);
-    expect(permits[0]).toMatchObject({ jobId: facts.job.id, attemptNo: 1 });
-    expect(Object.hasOwn(permits[0]!, "modelIntentId")).toBe(false);
-    expect(permits[1]).toMatchObject({
-      jobId: facts.job.id,
-      modelIntentId: input.modelIntentId,
-      attemptNo: 1,
-    });
-    const all = await h.snapshot();
-    expect(all[`t:${facts.job.id}:1:vision`]).toBe(String(facts.job.deadlineAt.getTime()));
-    expect(all[`t:${input.modelIntentId}:1:vision`]).toBe(String(claimed.deadlineAt.getTime()));
-    expect(Object.keys(all).filter((key) => key.startsWith("t:"))).toHaveLength(2);
-    expect(Object.keys(all).filter((key) => key.startsWith("f:"))).toHaveLength(1);
-    expect(await spent()).toBe(6);
-  });
-
-  it("P1后仅持久输入代次改变即取消；真实runner的旧在途结果不能写洞察", async () => {
-    const first = await h.readyText(),
-      reserve = h.budget.reserve.getMockImplementation()!;
-    h.budget.reserve.mockImplementationOnce(async (permit, abort) => {
-      const result = await reserve(permit, abort);
-      await h.prisma.mediaJob.update({
-        where: { id: first.job.id },
-        data: { input: json({ ...inputOf(first.job), modelIntentId: uuidv7() }) },
+  it("人工retry的新vision意图独立收费；旧token保留且原文件日计数不重复", async () =>
+    h.withControlledModelTime(async () => {
+      const facts = await h.readyImage();
+      expect(structuredOutput(await h.visionStrategy().execute(facts.job, signal())).status).toBe(
+        "ok",
+      );
+      await fail(facts.job);
+      await retry(facts.job.id);
+      const claimed = await h.claim(await row(facts.job.id)),
+        input = inputOf(claimed);
+      expect(structuredOutput(await h.visionStrategy().execute(claimed, signal())).status).toBe(
+        "ok",
+      );
+      expect(await h.visionStrategy().execute(claimed, signal())).toEqual({ state: "canceled" });
+      expect(h.vision).toHaveBeenCalledTimes(2);
+      expect(h.budget.reserve).toHaveBeenCalledTimes(3);
+      expect(await h.budget.reserve.mock.results[0]!.value).toEqual({
+        status: "reserved",
+        units: 3,
+        newFiles: 1,
       });
-      return result;
-    });
-    expect(await h.digestStrategy().execute(first.job, signal())).toEqual({ state: "canceled" });
-    expect(h.budget.readPermit).toHaveBeenCalledTimes(1);
-    expect(h.digest).not.toHaveBeenCalled();
-    expect(await spent()).toBe(3);
+      expect(await h.budget.reserve.mock.results[1]!.value).toEqual({
+        status: "reserved",
+        units: 3,
+        newFiles: 0,
+      });
+      expect(await h.budget.reserve.mock.results[2]!.value).toEqual({
+        status: "denied",
+        reason: "duplicate",
+      });
+      expect(h.budget.readPermit).toHaveBeenCalledTimes(5);
+      for (const index of [0, 2]) {
+        const p1 = h.budget.readPermit.mock.calls[index]![1],
+          p2 = h.budget.readPermit.mock.calls[index + 1]![1];
+        expect(p1.admitUntilMs - p1.readAtMs).toBe(250);
+        expect(p2.admitUntilMs).toBe(p1.admitUntilMs);
+        expect(p2.readAtMs).toBeGreaterThanOrEqual(p1.readAtMs);
+        expect(p2.readAtMs).toBeLessThan(p1.admitUntilMs);
+      }
+      const permits = h.budget.reserve.mock.calls.map(([permit]) => permit);
+      expect(permits[0]).toMatchObject({ jobId: facts.job.id, attemptNo: 1 });
+      expect(Object.hasOwn(permits[0]!, "modelIntentId")).toBe(false);
+      expect(permits[1]).toMatchObject({
+        jobId: facts.job.id,
+        modelIntentId: input.modelIntentId,
+        attemptNo: 1,
+      });
+      const all = await h.snapshot();
+      expect(all[`t:${facts.job.id}:1:vision`]).toBe(String(facts.job.deadlineAt.getTime()));
+      expect(all[`t:${input.modelIntentId}:1:vision`]).toBe(String(claimed.deadlineAt.getTime()));
+      expect(Object.keys(all).filter((key) => key.startsWith("t:"))).toHaveLength(2);
+      expect(Object.keys(all).filter((key) => key.startsWith("f:"))).toHaveLength(1);
+      expect(await spent()).toBe(6);
+    }));
 
-    const late = await h.readyText("另一个受控在途摘要");
-    await h.prisma.mediaJob.update({
-      where: { id: late.job.id },
-      data: { state: "queued", attemptNo: 0, leaseOwner: null, nextRunAt: h.clock.now() },
-    });
-    const summarize = h.digest.getMockImplementation()!;
-    h.digest.mockImplementationOnce(async (input) => {
-      const old = await row(late.job.id);
+  it("P1后仅持久输入代次改变即取消；真实runner的旧在途结果不能写洞察", async () =>
+    h.withControlledModelTime(async () => {
+      const first = await h.readyText(),
+        reserve = h.budget.reserve.getMockImplementation()!;
+      h.budget.reserve.mockImplementationOnce(async (permit, abort) => {
+        const result = await reserve(permit, abort);
+        await h.prisma.mediaJob.update({
+          where: { id: first.job.id },
+          data: { input: json({ ...inputOf(first.job), modelIntentId: uuidv7() }) },
+        });
+        return result;
+      });
+      expect(await h.digestStrategy().execute(first.job, signal())).toEqual({ state: "canceled" });
+      expect(h.budget.readPermit).toHaveBeenCalledTimes(1);
+      expect(h.digest).not.toHaveBeenCalled();
+      expect(await spent()).toBe(3);
+
+      const late = await h.readyText("另一个受控在途摘要");
       await h.prisma.mediaJob.update({
         where: { id: late.job.id },
-        data: { input: json({ ...inputOf(old), modelIntentId: uuidv7() }) },
+        data: { state: "queued", attemptNo: 0, leaseOwner: null, nextRunAt: h.clock.now() },
       });
-      return summarize(input);
-    });
-    await h.media.jobs.run({ jobId: late.job.id });
-    expect((await row(late.job.id)).state).toBe("canceled");
-    expect(h.digest).toHaveBeenCalledTimes(1);
-    expect(
-      await h.prisma.storeAssetInsight.count({
-        where: { storeAssetId: late.assetId, kind: "digest" },
-      }),
-    ).toBe(0);
-    expect(await spent()).toBe(6);
-  });
+      const summarize = h.digest.getMockImplementation()!;
+      h.digest.mockImplementationOnce(async (input) => {
+        const old = await row(late.job.id);
+        await h.prisma.mediaJob.update({
+          where: { id: late.job.id },
+          data: { input: json({ ...inputOf(old), modelIntentId: uuidv7() }) },
+        });
+        return summarize(input);
+      });
+      await h.media.jobs.run({ jobId: late.job.id });
+      expect((await row(late.job.id)).state).toBe("canceled");
+      expect(h.digest).toHaveBeenCalledTimes(1);
+      expect(
+        await h.prisma.storeAssetInsight.count({
+          where: { storeAssetId: late.assetId, kind: "digest" },
+        }),
+      ).toBe(0);
+      expect(await spent()).toBe(6);
+    }));
 
   it("新ASR意图已有TaskId只查询；doc_extract不占模型槽，冷账本仍不初始化", async () => {
     const audio = await h.readyAudio();
