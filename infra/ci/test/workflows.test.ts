@@ -693,9 +693,6 @@ describe("ci.yml", () => {
       'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
       "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
       "pnpm admin:e2e",
-      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
-      MINIO_UP,
-      "pnpm admin:e2e:live",
       // W0-27a：小程序的单测、体积门禁；截图按受影响范围跑（它后面上传截图的一步没有 run）
       "pnpm --filter @liyoxi/weapp test",
       "node infra/ci/check-mp-size.mjs apps/weapp/dist",
@@ -703,6 +700,18 @@ describe("ci.yml", () => {
       'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
       "pnpm --filter @liyoxi/weapp exec playwright install --with-deps chromium",
       "pnpm weapp:shots",
+    ],
+    // 同一默认live全集在独立runner准备，不能依赖web产物或改成筛选目标。
+    "web-live": [
+      INSTALL,
+      DB_GENERATE,
+      'node apps/admin/scripts/e2e-affected.mjs --base "$BASE"',
+      `node -p '"version=" + require("./apps/admin/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"`,
+      'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
+      "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
+      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      MINIO_UP,
+      "pnpm admin:e2e:live",
     ],
     gates: [
       INSTALL,
@@ -813,16 +822,37 @@ describe("ci.yml", () => {
         expect(commands.slice(0, at), `${id}：${before}`).toContain(before);
       }
     }
-    // 带条件的步骤只在 web（冒烟、截图按受影响范围跑）；上传产物的几步写的是 always()，不是“可以不跑”
+    // web原冒烟/截图条件保持；web-live仅允许下列精确原后台条件，其他任务不能带条件跳过。
     const conditional = (id: string) =>
       `${jobBody(ci, id)}\n`
         .split(/^ {6}- name: /m)
         .slice(1)
         .filter((text) => /^ {8}if: (?!always\(\)$)/m.test(text))
         .map((text) => text.slice(0, text.indexOf("\n")));
-    for (const id of Object.keys(STEPS).filter((job) => job !== "web")) {
+    for (const id of Object.keys(STEPS).filter((job) => job !== "web" && job !== "web-live")) {
       expect(conditional(id), id).toEqual([]);
     }
+    expect(conditional("web-live")).toEqual([
+      "取 Playwright 的版本",
+      "后台冒烟用的浏览器缓存",
+      "后台浏览器使用官方 Ubuntu HTTPS 源",
+      "装后台冒烟用的浏览器",
+      "后台真实接口验收的本地依赖",
+      "后台真实接口验收的 MinIO",
+      "后台登录真实接口验收",
+      "上传后台真实接口截图",
+    ]);
+  });
+
+  it("web与完整live并行，两个job不互相等待、不整job跳过，原30分钟上限保持", () => {
+    for (const id of ["web", "web-live"]) {
+      const body = jobBody(ci, id);
+      expect(body, id).not.toMatch(/^ {4}(?:needs|if):/m);
+      expect(body, id).toMatch(/^ {4}timeout-minutes: 30$/m);
+      expect(body, id).toMatch(/^ {4}runs-on: \*runner$/m);
+      expect(body, id).not.toContain("actions/download-artifact@");
+    }
+    expect(commandsStarting("pnpm admin:e2e:live")).toEqual([["web-live", "pnpm admin:e2e:live"]]);
   });
 
   it("待落地数排在导出已挂载清单之后：清单不靠“那份用例恰好在这一片里”", () => {

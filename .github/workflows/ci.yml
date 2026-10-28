@@ -10,7 +10,8 @@
 #   test-infra      infra 项目的用例（infra/ci 的检查脚本）
 #   test-isolation、test-isolation-2 至 -4
 #                   测试隔离：两个会话同时跑连库的测试项目。全量分成四片，一个任务跑一片，合起来是原来的全量
-#   web             构建；后台与下载页的单测、构建、页面清单、冒烟
+#   web             构建；后台与下载页的单测、构建、页面清单、样例冒烟与小程序截图
+#   web-live        完整真实后台接口验收，自行准备本轮生产产物与owned资源，与web并行
 #   gates           密钥扫描、依赖审计、新增依赖发布时长、门禁自测
 # 加检查的规矩（门禁改动分类按“只增”判，写法见 infra/ci/README.md）：
 #   - 加一步：在用得上它的那个任务里新增一个完整的步骤（“- name:” 开头的一整段）。
@@ -758,8 +759,8 @@ jobs:
   web:
     name: web
     runs-on: *runner
-    # 健康轮后台55项live结束时job已耗15m41；慢轮共同用例中位约1.47倍，后续还有674项单测与208个截图目标。
-    # 30分钟仅为完整CI链路留余量，不代表性能达标；单例超时、重试、测试数量与并发保持原值。
+    # 真实接口链迁至web-live并行；此处保留构建、单测、samples/cover和小程序验收。
+    # 原30分钟执行上限不变，不表示CI总时长≤15分钟已达标。
     timeout-minutes: 30
     steps:
       - name: 检出（带完整历史：冒烟的受影响范围要与基线比）
@@ -822,17 +823,6 @@ jobs:
       - name: 后台冒烟
         if: steps.admin-e2e.outputs.run == 'true'
         run: pnpm admin:e2e
-      # W1-02①：样例冒烟之后再对实际 API 构建产物走登录，受影响范围沿用上一步。
-      - name: 后台真实接口验收的本地依赖
-        if: steps.admin-e2e.outputs.run == 'true'
-        run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
-      # 原图签发走实际 API 的本地存储驱动，首次调用会核对/建桶，因此与 PostgreSQL、Redis 一样需要就绪。
-      - name: 后台真实接口验收的 MinIO
-        if: steps.admin-e2e.outputs.run == 'true'
-        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
-      - name: 后台登录真实接口验收
-        if: steps.admin-e2e.outputs.run == 'true'
-        run: pnpm admin:e2e:live
       # 截图都是 1440 × 900：01–04 是外壳与三种骨架，05–12 是几个状态；用例失败时另有现场。
       # 业主合并前在运行页面的 Artifacts 里下载来看
       - name: 上传后台冒烟截图
@@ -843,7 +833,6 @@ jobs:
           path: |
             apps/admin/dist/e2e-shots/
             apps/admin/dist/e2e-results/
-            apps/admin/dist/e2e-live-results/
           if-no-files-found: error
           retention-days: 30
       # W0-27a：小程序。根上的 pnpm test 不含三个前端：请求层与四个端上封装的用例在这里跑（Node 环境，不起小程序运行时）
@@ -878,6 +867,78 @@ jobs:
         with:
           name: weapp-shots
           path: apps/weapp/shots/dist/png/
+          if-no-files-found: error
+          retention-days: 30
+
+  # 完整真实后台验收：同一默认全集、单worker与原finally；不依赖web的产物或job输出。
+  # 独立托管runner自行准备本轮UI/API、媒体和owned库，保持原条件和执行预算。
+  web-live:
+    name: web-live
+    runs-on: *runner
+    timeout-minutes: 30
+    steps:
+      - name: 检出（带完整历史：冒烟的受影响范围要与基线比）
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 装 pnpm（版本取 package.json 的 packageManager）
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装 Node（版本取 .nvmrc）
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: 冻结安装
+        run: pnpm install --frozen-lockfile
+      # 客户端在本job独立生成，供真实造数和API构建使用；不从web下载产物，也不连库。
+      - name: 生成数据库客户端（构建用）
+        run: pnpm db:generate
+      # 后台冒烟按受影响范围跑（计划 第 5.5 节）：PR 改到后台或它依赖的部分才跑，推到 main 一律跑。
+      # 范围写在 apps/admin/scripts/e2e-affected.mjs 开头；结论在这一步的输出里
+      - name: 后台冒烟要不要跑
+        id: admin-e2e
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: node apps/admin/scripts/e2e-affected.mjs --base "$BASE"
+      # 浏览器按 Playwright 的版本缓存（版本取 apps/admin/package.json，那里写的是精确版本）。
+      # 命中时“装浏览器”一步不再下载，只补系统依赖；没命中照常下载，任务结束时存进缓存
+      - name: 取 Playwright 的版本
+        id: playwright
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: node -p '"version=" + require("./apps/admin/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"
+      - name: 后台冒烟用的浏览器缓存
+        if: steps.admin-e2e.outputs.run == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}
+      - name: 后台浏览器使用官方 Ubuntu HTTPS 源
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs
+      - name: 装后台冒烟用的浏览器
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium
+      # W1-02①：独立准备后对实际API与本轮生产构建走完整登录和页面链，受影响范围不变。
+      - name: 后台真实接口验收的本地依赖
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      # 原图签发走实际 API 的本地存储驱动，首次调用会核对/建桶，因此与 PostgreSQL、Redis 一样需要就绪。
+      - name: 后台真实接口验收的 MinIO
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
+      - name: 后台登录真实接口验收
+        if: steps.admin-e2e.outputs.run == 'true'
+        run: pnpm admin:e2e:live
+      # live正常截图与失败现场均在本作业生成；独立artifact避免与web的样例截图争用名称。
+      - name: 上传后台真实接口截图
+        if: always() && steps.admin-e2e.outputs.run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: admin-e2e-live-shots
+          path: |
+            apps/admin/dist/e2e-shots/
+            apps/admin/dist/e2e-live-results/
           if-no-files-found: error
           retention-days: 30
 
@@ -998,6 +1059,7 @@ jobs:
       - test-isolation-3
       - test-isolation-4
       - web
+      - web-live
       - gates
       - gate-classify
     runs-on: *runner
