@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BatchUploadCredentialsSchema,
   UploadBatchCreateBodySchema,
   UploadBatchItemUpdateBodySchema,
   UploadBatchEmptyBodySchema,
@@ -84,5 +85,65 @@ describe("batch input ownership and purpose boundaries", () => {
     expect(UploadBatchCreateBodySchema.safeParse({ ...master, expectedCount: 1 }).success).toBe(
       false,
     );
+  });
+});
+
+describe("batch credential transport boundary", () => {
+  const expiresAt = "2026-10-27T12:10:00.000Z";
+  const common = {
+    bucket: "local-media",
+    region: "us-east-1",
+    prefix: "incoming/batch/",
+    fileParallel: 3,
+    expiresAt,
+  };
+  const multipart = {
+    ...common,
+    sts: {
+      tmpSecretId: "test-id",
+      tmpSecretKey: "test-secret",
+      sessionToken: "test-token",
+      startTime: "2026-10-27T12:00:00.000Z",
+      expiredTime: expiresAt,
+    },
+    chunkSize: 8 * 1024 * 1024,
+    chunkParallel: 4,
+  };
+  const post = {
+    ...common,
+    mode: "post",
+    posts: [
+      {
+        fileId: targetId,
+        key: "incoming/batch/file.mp4",
+        post: {
+          url: "http://localhost:9100/local-media",
+          fields: { key: "incoming/batch/file.mp4", policy: "test-policy" },
+        },
+        expiresAt,
+      },
+    ],
+  };
+  it("keeps legacy COS credentials with or without explicit multipart mode", () => {
+    expect(BatchUploadCredentialsSchema.parse(multipart)).toEqual(multipart);
+    expect(BatchUploadCredentialsSchema.parse({ ...multipart, mode: "multipart" })).toEqual({
+      ...multipart,
+      mode: "multipart",
+    });
+  });
+  it("accepts explicit per-file POST credentials without invented STS or chunk fields", () => {
+    expect(BatchUploadCredentialsSchema.parse(post)).toEqual(post);
+  });
+  it("rejects transport hybrids and malformed post mode rather than stripping the discriminator", () => {
+    for (const bad of [
+      { ...multipart, mode: "post" },
+      { ...post, sts: multipart.sts },
+      { ...post, chunkSize: multipart.chunkSize },
+      { ...post, chunkParallel: multipart.chunkParallel },
+      { ...post, posts: [{ ...post.posts[0], fileId: "forged" }] },
+      { ...post, posts: [] },
+      { ...post, mode: "unknown" },
+    ])
+      expect(BatchUploadCredentialsSchema.safeParse(bad).success).toBe(false);
   });
 });

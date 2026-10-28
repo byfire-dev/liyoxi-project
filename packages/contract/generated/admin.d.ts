@@ -6103,9 +6103,34 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
             fileParallel: number;
+            /** @enum {string} */
+            mode?: "multipart";
             prefix: string;
             region: string;
             sts: components["schemas"]["StsCredential"];
+        } | {
+            bucket: string;
+            /** Format: date-time */
+            expiresAt: string;
+            fileParallel: number;
+            /** @enum {string} */
+            mode: "post";
+            posts: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** Format: uuid */
+                fileId: string;
+                key: string;
+                post: {
+                    fields: {
+                        [key: string]: string;
+                    };
+                    /** Format: uri */
+                    url: string;
+                };
+            }[];
+            prefix: string;
+            region: string;
         };
         BillingParamList: {
             /** Format: date */

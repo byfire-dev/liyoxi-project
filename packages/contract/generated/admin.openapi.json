@@ -7987,47 +7987,143 @@
         "type": "object"
       },
       "BatchUploadCredentials": {
-        "properties": {
-          "bucket": {
-            "type": "string"
+        "anyOf": [
+          {
+            "properties": {
+              "bucket": {
+                "type": "string"
+              },
+              "chunkParallel": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "chunkSize": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "fileParallel": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "mode": {
+                "enum": [
+                  "multipart"
+                ],
+                "type": "string"
+              },
+              "prefix": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              },
+              "sts": {
+                "$ref": "#/components/schemas/StsCredential"
+              }
+            },
+            "required": [
+              "bucket",
+              "region",
+              "prefix",
+              "sts",
+              "chunkSize",
+              "fileParallel",
+              "chunkParallel",
+              "expiresAt"
+            ],
+            "type": "object"
           },
-          "chunkParallel": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "chunkSize": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "expiresAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "fileParallel": {
-            "exclusiveMinimum": 0,
-            "type": "integer"
-          },
-          "prefix": {
-            "type": "string"
-          },
-          "region": {
-            "type": "string"
-          },
-          "sts": {
-            "$ref": "#/components/schemas/StsCredential"
+          {
+            "additionalProperties": false,
+            "properties": {
+              "bucket": {
+                "type": "string"
+              },
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "fileParallel": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "mode": {
+                "enum": [
+                  "post"
+                ],
+                "type": "string"
+              },
+              "posts": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "fileId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "post": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fields": {
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        "url": {
+                          "format": "uri",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "fields"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "fileId",
+                    "key",
+                    "post",
+                    "expiresAt"
+                  ],
+                  "type": "object"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "prefix": {
+                "type": "string"
+              },
+              "region": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode",
+              "bucket",
+              "region",
+              "prefix",
+              "fileParallel",
+              "expiresAt",
+              "posts"
+            ],
+            "type": "object"
           }
-        },
-        "required": [
-          "bucket",
-          "region",
-          "prefix",
-          "sts",
-          "chunkSize",
-          "fileParallel",
-          "chunkParallel",
-          "expiresAt"
-        ],
-        "type": "object"
+        ]
       },
       "BillingParamList": {
         "properties": {

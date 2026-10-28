@@ -262,6 +262,10 @@ describe("W3-02 八接口实际生产pipeline", { timeout: 60_000 }, () => {
       chunkParallel: 4,
     });
     const second = await data<BatchUploadCredentials>(await request(path, {}, owner, null));
+    expect(first.mode).not.toBe("post");
+    expect(second.mode).not.toBe("post");
+    if (first.mode === "post" || second.mode === "post")
+      throw new Error("云存储批次应返回 STS 分片凭据");
     expect(second.sts.sessionToken).not.toBe(first.sts.sessionToken);
     expect(storage.callsOf("issueSts")).toHaveLength(calls + 2);
     expect(

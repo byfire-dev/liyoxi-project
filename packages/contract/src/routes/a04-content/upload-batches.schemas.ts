@@ -169,17 +169,41 @@ export const UploadBatchDetailSchema = z
   })
   .openapi("UploadBatchDetail");
 
-export const BatchUploadCredentialsSchema = z
+const BatchMultipartCredentialsSchema = z.object({
+  mode: z.literal("multipart").optional(),
+  bucket: z.string(),
+  region: z.string(),
+  prefix: z.string(),
+  sts: StsCredentialSchema,
+  chunkSize: z.int().positive(),
+  fileParallel: z.int().positive(),
+  chunkParallel: z.int().positive(),
+  expiresAt: InstantSchema,
+});
+const BatchPostCredentialsSchema = z
   .object({
+    mode: z.literal("post"),
     bucket: z.string(),
     region: z.string(),
     prefix: z.string(),
-    sts: StsCredentialSchema,
-    chunkSize: z.int().positive(),
     fileParallel: z.int().positive(),
-    chunkParallel: z.int().positive(),
     expiresAt: InstantSchema,
+    posts: z
+      .array(
+        z
+          .object({
+            fileId: IdSchema,
+            key: z.string(),
+            post: z.object({ url: z.url(), fields: z.record(z.string(), z.string()) }).strict(),
+            expiresAt: InstantSchema,
+          })
+          .strict(),
+      )
+      .min(1),
   })
+  .strict();
+export const BatchUploadCredentialsSchema = z
+  .union([BatchMultipartCredentialsSchema, BatchPostCredentialsSchema])
   .openapi("BatchUploadCredentials");
 export const UploadBatchCommitResultSchema = z
   .object({

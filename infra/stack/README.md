@@ -8,6 +8,8 @@
 
 当前手工开发库 `liyoxi` 接入独立本地媒体体检，使用 `local-media.mjs check|prepare` 与 `local-media.yml`。它们复用已有 PostgreSQL、Redis 0、MinIO，仅准备 API/worker/mediatool 三服务的配置，不迁移、播种或起停。需要显式提供既有 `DATA_KEYS_FILE`、`BIDX_KEYS_FILE`、`AUTH_KEYS_FILE`、当前 `MINIO_PUBLIC_ENDPOINT`，并经核对给出 `LYX_LOCAL_MEDIA_PROVIDER_KEYS` 及对应环境，防止遗漏原服务已启用的微信等能力。全未启用才可显式写 `none`；脚本不读取 `.env` 或密钥内容。生成的 `probe_only` 配置仅限 local/test，不需要 AI 主体及云模板，也不会产生云派生任务。准备完成后仍需按实际配置校验镜像、文件权限，再有序切换现有 API/worker；不能将本节下面默认使用另一数据库和 Redis 1 的 `stack:up` 当作接入当前业务的命令。
 
+MinIO 原片/成片批次使用逐文件 POST 表单，返回真实地域和桶名，不提供 STS 或分块续传。后台按 `mode` 选择上传方式，本地媒体请求沿既有同源代理且不携带 Cookie；跨刷新只尝试确认已上传对象，缺失时需使用批次替换入口。上传完成仍须经过对象确认、入库、真实体检，原片还须提交批次，才成为当前原片。云存储继续使用原 STS 分片流程。
+
 此入口还必须显式设置 `LYX_LOCAL_MEDIA_BIND`，Compose 与检查脚本均不提供默认监听地址。它接受 IPv4 地址：`127.0.0.1` 仅供本机，指定本机局域网 IPv4 仅监听该地址，`0.0.0.0` 同时保留本机与局域网访问。当前后台若经 `127.0.0.1:3000` 访问 API，而手机经 `192.168.1.4:3000` 访问，应在确认旧服务同样监听全部网卡后显式使用 `LYX_LOCAL_MEDIA_BIND=0.0.0.0`，以同时保留两个入口；不能静默改成回环监听。`check`/`prepare` 会打印待保留的监听地址，切换时应继续使用同一变量。`MINIO_PUBLIC_ENDPOINT` 仍须保留手机可访问的存储地址，两者分别控制 API 监听与存储签名地址。
 
 | 路径 | 内容 |

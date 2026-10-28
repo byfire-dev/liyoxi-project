@@ -7,6 +7,7 @@ import {
   createMultipartUploadAdapter,
   type MultipartUploadGrant,
 } from "../../../lib/upload-multipart";
+import { localStorageRequestUrl } from "../../../lib/local-storage";
 import type { BatchApi } from "./batch-api";
 import {
   createBatchModel,
@@ -34,6 +35,7 @@ export function createBatchUploader(options: {
   const files = new Map<string, File>();
   const adapters = new Map<string, ReturnType<typeof createMultipartUploadAdapter>>();
   const confirmed = new Map<string, () => void>();
+  const recoveryKeys = new Map<string, string>();
   let credentials: BatchUploadCredentials | undefined;
   let refresh: Promise<BatchUploadCredentials> | undefined;
   let running = false,
@@ -48,16 +50,30 @@ export function createBatchUploader(options: {
       throw new Error("当前批次不可上传");
     return batch;
   };
+  const future = (expiresAt: string, margin = 0) => {
+    const expires = Date.parse(expiresAt);
+    return Number.isFinite(expires) && expires > now() + margin;
+  };
   async function grant(item: UploadBatchItemView): Promise<MultipartUploadGrant> {
-    const batch = current();
+    const batch = current(),
+      key = item.uploadKey;
     if (
       batch.prefix !== `incoming/b${batch.uploadBatchId}/` ||
-      !item.uploadKey ||
-      !item.uploadKey.startsWith(batch.prefix) ||
-      item.uploadKey.slice(batch.prefix.length).includes("/")
+      !key ||
+      !key.startsWith(batch.prefix) ||
+      !key.slice(batch.prefix.length) ||
+      key.slice(batch.prefix.length).includes("/")
     )
       throw new Error("文件上传范围不合格");
-    if (!credentials || Date.parse(credentials.expiresAt) <= now() + 10_000) {
+    const cachedPost =
+      credentials?.mode === "post"
+        ? credentials.posts.find((post) => post.fileId === item.fileId && post.key === key)
+        : undefined;
+    if (
+      !credentials ||
+      !future(credentials.expiresAt, 10_000) ||
+      (credentials.mode === "post" && (!cachedPost || !future(cachedPost.expiresAt, 10_000)))
+    ) {
       refresh ??= options.api.refresh(batch.uploadBatchId, lifetime.signal).finally(() => {
         refresh = undefined;
       });
@@ -67,28 +83,105 @@ export function createBatchUploader(options: {
         issued.prefix !== batch.prefix ||
         issued.bucket !== batch.bucket ||
         issued.region !== batch.region ||
-        issued.chunkSize !== 8 * 1024 * 1024 ||
         issued.fileParallel !== 3 ||
-        issued.chunkParallel !== 4 ||
-        Date.parse(issued.expiresAt) <= now()
+        !future(issued.expiresAt) ||
+        (issued.mode !== "post" &&
+          (issued.chunkSize !== 8 * 1024 * 1024 || issued.chunkParallel !== 4))
       )
         throw new Error("批次上传凭据范围或并发参数不一致");
       credentials = issued;
     }
     check();
-    return {
+    const latest = current(),
+      live = latest.items.find((row) => row.uploadBatchItemId === item.uploadBatchItemId),
+      issued = credentials;
+    if (
+      latest.uploadBatchId !== batch.uploadBatchId ||
+      latest.state !== "uploading" ||
+      !live ||
+      live.fileId !== item.fileId ||
+      live.uploadKey !== key ||
+      live.state !== "pending" ||
+      live.fileStatus !== "pending" ||
+      !issued
+    )
+      throw new Error("当前文件不可上传，请刷新批次");
+    const base = {
       fileId: item.fileId,
-      mode: "multipart",
-      bucket: credentials.bucket,
-      region: credentials.region,
-      key: item.uploadKey,
-      prefix: credentials.prefix,
-      post: null,
-      sts: credentials.sts,
-      chunkSize: credentials.chunkSize,
-      chunkParallel: credentials.chunkParallel,
-      expiresAt: credentials.expiresAt,
+      bucket: issued.bucket,
+      region: issued.region,
+      key,
+      prefix: issued.prefix,
     };
+    if (issued.mode === "post") {
+      const posts = issued.posts.filter((post) => post.fileId === item.fileId),
+        post = posts[0];
+      if (
+        posts.length !== 1 ||
+        !post ||
+        post.key !== key ||
+        post.post.fields.key !== key ||
+        !future(post.expiresAt)
+      )
+        throw new Error("文件上传表单范围或有效期不一致");
+      return {
+        ...base,
+        mode: "post",
+        post: post.post,
+        sts: null,
+        chunkSize: null,
+        chunkParallel: null,
+        expiresAt: new Date(
+          Math.min(Date.parse(issued.expiresAt), Date.parse(post.expiresAt)),
+        ).toISOString(),
+      };
+    }
+    return {
+      ...base,
+      mode: "multipart",
+      post: null,
+      sts: issued.sts,
+      chunkSize: issued.chunkSize,
+      chunkParallel: issued.chunkParallel,
+      expiresAt: issued.expiresAt,
+    };
+  }
+  async function complete(item: UploadBatchItemView, key: string) {
+    const receipt = await options.api.complete(item.uploadBatchItemId, key, lifetime.signal);
+    check();
+    if (receipt.fileId !== item.fileId) throw new Error("文件归属不一致");
+    if (!["promoting", "stored"].includes(receipt.fileStatus))
+      throw new Error("文件尚未获服务器确认");
+    confirmed.get(item.uploadBatchItemId)?.();
+    return { fileId: item.fileId, status: receipt.fileStatus };
+  }
+  async function recoverPost(item: UploadBatchItemView) {
+    let key = recoveryKeys.get(item.uploadBatchItemId);
+    if (!key) {
+      key = `complete:${crypto.randomUUID()}`;
+      recoveryKeys.set(item.uploadBatchItemId, key);
+    }
+    let status: { fileId: string; status: string } = await complete(item, key);
+    // POST has no resumable chunks. Recovery only confirms bytes already on the server.
+    for (let poll = 0; status.status === "promoting" && poll < 120; poll++) {
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer);
+          reject(new Error("上传已取消"));
+        };
+        const timer = setTimeout(() => {
+          lifetime.signal.removeEventListener("abort", abort);
+          resolve();
+        }, 1000);
+        if (lifetime.signal.aborted) abort();
+        else lifetime.signal.addEventListener("abort", abort, { once: true });
+      });
+      check();
+      status = await options.fileStatus(item.fileId, lifetime.signal);
+    }
+    check();
+    if (status.status !== "stored" || status.fileId !== item.fileId)
+      throw new Error("文件尚未成功入库");
   }
   async function upload(item: UploadBatchItemView, file: File) {
     check();
@@ -98,26 +191,33 @@ export function createBatchUploader(options: {
       let adapter = adapters.get(item.uploadBatchItemId);
       const restore = !fresh.has(item.uploadBatchItemId) ? { grant: await grant(item) } : undefined;
       check();
+      if (restore?.grant.mode === "post") {
+        await recoverPost(item);
+        check();
+        options.onProgress(item.uploadBatchItemId, { percent: 100, busy: false });
+        return;
+      }
       if (!adapter) {
+        const fetchImpl = options.fetchImpl ?? fetch;
         adapter = createMultipartUploadAdapter({
-          fetchImpl: options.fetchImpl,
+          fetchImpl: (input, init) => {
+            if (init?.method === "POST" && init.body instanceof FormData) {
+              const url =
+                typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+              return fetchImpl(localStorageRequestUrl(url, __LYX_LOCAL_STORAGE_ORIGIN__), {
+                ...init,
+                credentials: "omit",
+              });
+            }
+            return fetchImpl(input, init);
+          },
           now,
           ports: {
             register: () => grant(item),
             refresh: () => grant(item),
             async complete(fileId, key) {
               if (fileId !== item.fileId) throw new Error("文件归属不一致");
-              const receipt = await options.api.complete(
-                item.uploadBatchItemId,
-                key!,
-                lifetime.signal,
-              );
-              check();
-              if (receipt.fileId !== fileId) throw new Error("文件归属不一致");
-              if (!["promoting", "stored"].includes(receipt.fileStatus))
-                throw new Error("文件尚未获服务器确认");
-              confirmed.get(item.uploadBatchItemId)?.();
-              return { fileId, status: receipt.fileStatus };
+              return complete(item, key!);
             },
             get: (fileId) => options.fileStatus(fileId, lifetime.signal),
             cancel: async () => {
@@ -227,6 +327,7 @@ export function createBatchUploader(options: {
       files.clear();
       credentials = undefined;
       fresh.clear();
+      recoveryKeys.clear();
     },
   };
 }
