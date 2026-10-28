@@ -7,6 +7,7 @@ import {
   png,
   signal,
   structuredOutput,
+  gate,
   json,
   SLOW,
 } from "./__fixtures__/model-admission.js";
@@ -36,6 +37,60 @@ const spent = async () => {
 };
 
 describe("三owner真实PG与Redis预算", () => {
+  it("refresh旧采样不倒拨queued任务且真实runner完成；拨钟冻结后可恢复实钟", async () => {
+    const sampled = await client.time(),
+      release = gate();
+    let reply = sampled;
+    const time = vi.spyOn(client, "time").mockImplementationOnce(async () => {
+        await release.promise;
+        return reply;
+      }),
+      refreshing = h.refresh();
+    try {
+      expect(time).toHaveBeenCalledTimes(1);
+      // 只向fixture注入一次旧TIME回包；真实Lua中的TIME与250ms许可完全不替换。
+      const first = await h.readyImage(png(), false);
+      expect(first.job.state).toBe("queued");
+      const oldAt = Math.min(
+        Number(sampled[0]) * 1000 + Math.floor(Number(sampled[1]) / 1000),
+        first.job.nextRunAt.getTime() - 1000,
+      );
+      reply = [Math.floor(oldAt / 1000), (oldAt % 1000) * 1000];
+      expect(oldAt).toBeLessThan(first.job.nextRunAt.getTime());
+      release.release();
+      await refreshing;
+      const before = Date.now(),
+        now = h.clock.now().getTime(),
+        after = Date.now();
+      expect(now).toBeGreaterThanOrEqual(before);
+      expect(now).toBeLessThanOrEqual(after);
+      expect(now).toBeGreaterThanOrEqual(first.job.nextRunAt.getTime());
+      await h.media.jobs.run({ jobId: first.job.id });
+      const result = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
+      expect(result.state).toBe("succeeded");
+      expect(AssetJobOutputSchema.parse(result.output).status).toBe("ok");
+
+      const frozen = new Date("2026-10-10T04:00:00.000Z");
+      h.clock.set(frozen);
+      expect(h.clock.now()).toEqual(frozen);
+      h.clock.advance(250);
+      expect(h.clock.now().getTime()).toBe(frozen.getTime() + 250);
+      await h.refresh();
+      const resumedBefore = Date.now(),
+        resumed = h.clock.now().getTime(),
+        resumedAfter = Date.now();
+      expect(resumed).toBeGreaterThanOrEqual(resumedBefore);
+      expect(resumed).toBeLessThanOrEqual(resumedAfter);
+    } finally {
+      release.release();
+      try {
+        await refreshing;
+      } finally {
+        time.mockRestore();
+      }
+    }
+  });
+
   it("准备真实耗时超过250ms后，许可仍从当前读时刻起算且不扩大窗口", async () => {
     const facts = await h.readyImage(),
       preparedAt = h.clock.now().getTime();
