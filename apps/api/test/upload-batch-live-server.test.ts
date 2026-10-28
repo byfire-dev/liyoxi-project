@@ -93,6 +93,36 @@ it("可选发票scope保留无新scope的W318旧manifest，双方严格字段与
   ])
     expect(() => parseInvoiceLiveEnvelope(value)).toThrow();
 });
+it("交付窄桥共用manifest接受已严格验证的发票scope且保留旧输入边界", () => {
+  const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id },
+    invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] },
+    previous = { ...original, w312: content, w318: assets },
+    full = { ...previous, w418Invoice: invoice };
+  expect(parseSharedManifest(full)).toEqual({ inputs: original, w312: scope });
+  expect(parseSharedManifest({ ...original, w418Invoice: invoice })).toEqual({
+    inputs: original,
+    w312: undefined,
+  });
+  expect(parseSharedManifest(previous)).toEqual({ inputs: original, w312: scope });
+  for (const w418Invoice of [
+    undefined,
+    null,
+    { ...invoice, staffId: "invalid" },
+    { ...invoice, entityIds: [id, id] },
+    { ...invoice, verified: true },
+  ])
+    expect(() => parseSharedManifest({ ...full, w418Invoice })).toThrow();
+  for (const value of [
+    { ...full, unexpected: true },
+    { ...full, w318: undefined },
+    { ...full, w318: { ...assets, verified: true } },
+    { ...full, w312: undefined },
+    { ...full, w312: { ...content, expectedDraftCount: 12 } },
+    { ...full, legacy: { ...delivery, anotherTarget: id } },
+    { ...full, video: { ...video, verified: true } },
+  ])
+    expect(() => parseSharedManifest(value)).toThrow();
+});
 it("without W312 the original strict four-field manifest remains unchanged", () => {
   // The API and old delivery CLI use this identical public testing adapter.
   expect(parseOutputBatchLiveManifest).toBe(parseSharedManifest);

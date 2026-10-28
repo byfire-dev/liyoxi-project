@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ParamListSchema } from "@liyoxi/contract";
 import { addDays, atMinuteOfDay, calendarDate } from "@liyoxi/shared/time";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { expect, test, type Browser, type Page } from "@playwright/test";
@@ -214,6 +215,18 @@ test("W207 参数当前/预约/撤销、两个浏览器上下文CAS冲突与年�
   } finally {
     await second.close();
   }
+  const readWorkStart = async () => {
+    const response = await page.request.get("/api/v1/admin/param-values?keys=work.start");
+    expect(response.status()).toBe(200);
+    const list = ParamListSchema.parse((await response.json()).data);
+    expect(list.items).toHaveLength(1);
+    expect(list.items[0]!.key).toBe("work.start");
+    return list.items[0]!;
+  };
+  const beforeSchedule = await readWorkStart();
+  expect(beforeSchedule.value).toBe("09:05");
+  expect(beforeSchedule.pending).toEqual([]);
+  expect(beforeSchedule.latestRev).toMatch(/^\d+$/);
   await start.fill("09:00");
   await select(page, "保存方式", "预约生效");
   const date = page.getByRole("textbox", { name: "生效日期（北京时间）", exact: true });
@@ -228,8 +241,33 @@ test("W207 参数当前/预约/撤销、两个浏览器上下文CAS冲突与年�
   await date.fill(scheduledDate);
   await date.press("Enter");
   await page.getByLabel("生效时刻（北京时间）", { exact: true }).fill("10:00");
+  const scheduledWrite = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === "/api/v1/admin/param-values",
+  );
   await page.getByRole("button", { name: "预约参数生效", exact: true }).click();
   await confirm(page, "确认预约参数");
+  const scheduledResponse = await scheduledWrite;
+  expect(scheduledResponse.status()).toBe(200);
+  const savedParams = ParamListSchema.parse((await scheduledResponse.json()).data);
+  expect(savedParams.items).toHaveLength(1);
+  const savedStart = savedParams.items[0]!;
+  expect(savedStart.key).toBe("work.start");
+  expect(savedStart.value).toBe("09:05");
+  expect(savedStart.rev).toBe(beforeSchedule.rev);
+  expect(savedStart.pending).toHaveLength(1);
+  const appointment = savedStart.pending[0]!;
+  expect(appointment.rev).toMatch(/^\d+$/);
+  expect(BigInt(appointment.rev)).toBeGreaterThan(BigInt(beforeSchedule.latestRev!));
+  expect(savedStart.latestRev).toBe(appointment.rev);
+  expect(appointment.value).toBe("09:00");
+  expect(appointment.effectiveAt).toBe(atMinuteOfDay(scheduledDate, 600).toISOString());
+  const persisted = await readWorkStart();
+  expect(persisted.value).toBe("09:05");
+  expect(persisted.rev).toBe(beforeSchedule.rev);
+  expect(persisted.latestRev).toBe(appointment.rev);
+  expect(persisted.pending).toEqual([appointment]);
   await expect(
     page.getByText(`${appDateTimeFormat.dateTime(atMinuteOfDay(scheduledDate, 600))} 生效`, {
       exact: true,
@@ -237,11 +275,16 @@ test("W207 参数当前/预约/撤销、两个浏览器上下文CAS冲突与年�
   ).toBeVisible();
   await page.getByRole("heading", { name: "参数配置", exact: true }).scrollIntoViewIfNeeded();
   await expect(page.getByText(/当前：09:05/)).toBeVisible();
-  await expect(page.getByText("预约版本 4", { exact: true })).toBeVisible();
+  await expect(page.getByText(`预约版本 ${appointment.rev}`, { exact: true })).toBeVisible();
   await shot(page, "w207-params-01-current-pending");
   await page.getByRole("button", { name: "撤销此预约", exact: true }).click();
   await confirm(page, "撤销预约参数");
   await expect(page.getByRole("button", { name: "撤销此预约", exact: true })).toHaveCount(0);
+  const withdrawn = await readWorkStart();
+  expect(withdrawn.pending).toEqual([]);
+  expect(withdrawn.value).toBe("09:05");
+  expect(withdrawn.rev).toBe(beforeSchedule.rev);
+  expect(withdrawn.latestRev).toBe(beforeSchedule.latestRev);
   await page.getByRole("button", { name: "导入内置年度安排", exact: true }).click();
   await confirm(page, "导入内置年度安排");
   await expect(page.getByRole("table", { name: "年度节假日安排", exact: true })).toBeVisible();

@@ -1447,7 +1447,11 @@ describe("广告取消两连接竞态与真实锁图", { timeout: 60000 }, () =>
         >`
           SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
           FROM pg_stat_activity WHERE pid = ${waiterPid}`;
-        if (backend?.waiting) {
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "approval_request"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "approval_request"');
           console.warn("ad cancel approval prelock observed", {
@@ -1945,7 +1949,11 @@ describe("活跃发起人对象失效后的真实财务代撤", () => {
         >`
           SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
           FROM pg_stat_activity WHERE pid = ${waiterPid}`;
-        if (backend?.waiting) {
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "ad"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "ad"');
           blocked = true;
@@ -2489,7 +2497,11 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
         >`
           SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
           FROM pg_stat_activity WHERE pid = ${waiterPid}`;
-        if (backend?.waiting) {
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "entity"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "entity"');
           blocked = true;
@@ -2556,14 +2568,40 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
       await connected;
       expect(writerPid).toBeGreaterThan(0);
       expect(waiterPid).not.toBe(writerPid);
-      let blocked = false;
+      let blocked = false,
+        mixedAttempt = -1,
+        acceptedAttempt = -1;
       for (let attempt = 0; attempt < 200; attempt++) {
-        const [backend] = await observer.$queryRaw<
+        const [actual] = await observer.$queryRaw<
           { waiting: boolean; blockers: number[]; query: string }[]
         >`
           SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query
           FROM pg_stat_activity WHERE pid = ${waiterPid}`;
-        if (backend?.waiting) {
+        let backend = actual;
+        // 只把首次真实完整见证的SQL文本变成旧staff查询；双方PID/锁等待保持真实。
+        if (
+          mixedAttempt < 0 &&
+          actual?.waiting &&
+          actual.blockers.includes(writerPid) &&
+          actual.query.includes('FROM "approval_request"')
+        ) {
+          mixedAttempt = attempt;
+          backend = {
+            ...actual,
+            query: 'SELECT "id"::text AS id FROM "staff" ORDER BY "id" FOR SHARE',
+          };
+          console.warn("entity ad cancel mixed observer sample injected", {
+            writerPid,
+            waiterPid,
+            mixedAttempt,
+            actualQuery: actual.query,
+          });
+        }
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "approval_request"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "approval_request"');
           console.warn("entity ad cancel low prelock observed", {
@@ -2572,12 +2610,15 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
             approvalId: r.approvalRequestId,
             blockers: backend.blockers,
           });
+          acceptedAttempt = attempt;
           blocked = true;
           break;
         }
         await new Promise((resolve) => setTimeout(resolve, 5));
       }
       expect(blocked).toBe(true);
+      expect(mixedAttempt).toBeGreaterThanOrEqual(0);
+      expect(acceptedAttempt).toBeGreaterThan(mixedAttempt);
       release();
       await writer;
       expect(await waiter).toEqual({ value: [r.id] });
@@ -3197,7 +3238,11 @@ describe("客服广告取消审批引用：真实早晚回调", () => {
           "SELECT wait_event_type = 'Lock' AS waiting, pg_blocking_pids(pid) AS blockers, query FROM pg_stat_activity WHERE pid = $1",
           waiterPid,
         );
-        if (backend?.waiting) {
+        if (
+          backend?.waiting &&
+          backend.blockers.includes(writerPid) &&
+          backend.query.includes('FROM "service_ticket"')
+        ) {
           expect(backend.blockers).toContain(writerPid);
           expect(backend.query).toContain('FROM "service_ticket"');
           expect(accountCalls).toBe(0);
