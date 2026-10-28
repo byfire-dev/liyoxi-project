@@ -53,7 +53,8 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
   const frozenNow = h.clock.now,
     set = h.clock.set,
     advance = h.clock.advance;
-  let realtime = false;
+  let realtime = false,
+    controlledModelTime = false;
   // 默认与本地 Redis 共用实钟，不能把 TIME 的旧采样锚到响应返回时刻。
   // 同一对象供 ledger、策略和 runtime 使用；显式拨钟仍冻结，refresh 才恢复实钟。
   h.clock.now = () => (realtime ? new Date() : frozenNow());
@@ -86,14 +87,38 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
   const evalCall = vi.fn(
     async (script: string, keys: readonly string[], argv: readonly string[]) => {
       assertNotInTransaction("真实预算Lua");
+      if (controlledModelTime) {
+        const now = h.clock.now().getTime();
+        expect(script).toContain("redis.call('TIME')");
+        const parts = script.split("redis.call('TIME')");
+        expect(parts).toHaveLength(2);
+        script = parts.join(`{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`);
+      }
       return client.eval(script, keys.length, ...keys, ...argv);
     },
   );
   const ledger = createModelBudgetLedger({ clock: h.clock, prefix, transport: { eval: evalCall } });
   async function refresh() {
     await client.time();
+    if (controlledModelTime) return;
     set(new Date());
     realtime = true;
+  }
+  // 功能正例显式选择受控时间；PG、Redis/Lua、传输250ms截止与预算算法均保留。
+  // ready*/claim的refresh在此作用域内保留拨钟；异常/正常退出均恢复进入前模式与冻结值。
+  async function withControlledModelTime<T>(run: () => Promise<T>): Promise<T> {
+    if (controlledModelTime) throw new Error("受控模型时钟不允许嵌套");
+    const previousRealtime = realtime,
+      previousNow = h.clock.now();
+    h.clock.set(previousNow);
+    controlledModelTime = true;
+    try {
+      return await run();
+    } finally {
+      controlledModelTime = false;
+      set(previousNow);
+      realtime = previousRealtime;
+    }
   }
   await refresh();
   const at = h.clock.now().getTime();
@@ -486,6 +511,7 @@ export async function modelWorld(prisma: PrismaClient, client: Redis, ownPrefix:
     key,
     client,
     refresh,
+    withControlledModelTime,
     deps,
     claim,
     current,

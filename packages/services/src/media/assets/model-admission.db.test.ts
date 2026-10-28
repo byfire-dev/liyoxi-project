@@ -49,14 +49,20 @@ describe("三owner真实PG与Redis预算", () => {
     try {
       expect(time).toHaveBeenCalledTimes(1);
       // 只向fixture注入一次旧TIME回包；真实Lua中的TIME与250ms许可完全不替换。
-      const first = await h.readyImage(png(), false);
-      expect(first.job.state).toBe("queued");
+      const asset = await h.media.assets.create(h.owner, {
+          type: "text",
+          textBody: "公开虚构时钟回归素材",
+        }),
+        first = await h.prisma.mediaJob.findFirstOrThrow({
+          where: { parentId: asset.storeAssetId, kind: "audit_text" },
+        });
+      expect(first.state).toBe("queued");
       const oldAt = Math.min(
         Number(sampled[0]) * 1000 + Math.floor(Number(sampled[1]) / 1000),
-        first.job.nextRunAt.getTime() - 1000,
+        first.nextRunAt.getTime() - 1000,
       );
       reply = [Math.floor(oldAt / 1000), (oldAt % 1000) * 1000];
-      expect(oldAt).toBeLessThan(first.job.nextRunAt.getTime());
+      expect(oldAt).toBeLessThan(first.nextRunAt.getTime());
       release.release();
       await refreshing;
       const before = Date.now(),
@@ -64,11 +70,21 @@ describe("三owner真实PG与Redis预算", () => {
         after = Date.now();
       expect(now).toBeGreaterThanOrEqual(before);
       expect(now).toBeLessThanOrEqual(after);
-      expect(now).toBeGreaterThanOrEqual(first.job.nextRunAt.getTime());
-      await h.media.jobs.run({ jobId: first.job.id });
-      const result = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
+      expect(now).toBeGreaterThanOrEqual(first.nextRunAt.getTime());
+      await h.media.jobs.run({ jobId: first.id });
+      const result = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.id } });
       expect(result.state).toBe("succeeded");
-      expect(AssetJobOutputSchema.parse(result.output).status).toBe("ok");
+      expect(AssetJobOutputSchema.parse(result.output)).toEqual({
+        status: "ok",
+        reason: null,
+        content: {},
+        verdict: "pass",
+      });
+      expect(h.budget.readPermit).not.toHaveBeenCalled();
+      expect(h.budget.reserve).not.toHaveBeenCalled();
+      expect(h.evalCall).not.toHaveBeenCalled();
+      expect(h.vision).not.toHaveBeenCalled();
+      expect(h.digest).not.toHaveBeenCalled();
 
       const frozen = new Date("2026-10-10T04:00:00.000Z");
       h.clock.set(frozen);
@@ -89,6 +105,53 @@ describe("三owner真实PG与Redis预算", () => {
         time.mockRestore();
       }
     }
+  });
+
+  it("受控时钟异常退出恢复实钟、可顺序重入且拒绝嵌套；advance仍令250ms许可过期", async () => {
+    const facts = await h.readyText(),
+      read = h.budget.readPermit.getMockImplementation()!,
+      failure = new Error("受控作用域故障");
+    await expect(
+      h.withControlledModelTime(async () => {
+        const at = h.clock.now();
+        await h.refresh();
+        expect(h.clock.now()).toEqual(at);
+        await expect(h.withControlledModelTime(async () => undefined)).rejects.toThrow(
+          "不允许嵌套",
+        );
+        h.budget.readPermit.mockImplementationOnce(async (tx, input) => {
+          const permit = await read(tx, input);
+          h.clock.advance(250);
+          return permit;
+        });
+        expect(await h.digestStrategy().execute(facts.job, signal())).toEqual({
+          state: "canceled",
+        });
+        expect(h.budget.readPermit).toHaveBeenCalledTimes(1);
+        expect(h.budget.reserve).not.toHaveBeenCalled();
+        expect(h.evalCall).not.toHaveBeenCalled();
+        expect(h.digest).not.toHaveBeenCalled();
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+    const before = Date.now(),
+      restored = h.clock.now().getTime(),
+      after = Date.now();
+    expect(restored).toBeGreaterThanOrEqual(before);
+    expect(restored).toBeLessThanOrEqual(after);
+
+    const frozen = new Date("2026-10-10T04:00:00.000Z");
+    h.clock.set(frozen);
+    for (const delta of [1, 2]) {
+      await h.withControlledModelTime(async () => {
+        expect(h.clock.now()).toEqual(frozen);
+        h.clock.advance(delta);
+        await h.refresh();
+        expect(h.clock.now().getTime()).toBe(frozen.getTime() + delta);
+      });
+      expect(h.clock.now()).toEqual(frozen);
+    }
+    await h.refresh();
   });
 
   it("准备真实耗时超过250ms后，许可仍从当前读时刻起算且不扩大窗口", async () => {
@@ -140,67 +203,69 @@ describe("三owner真实PG与Redis预算", () => {
 
   it.each(["asr", "vision", "digest"] as const)(
     "%s真实许可读两次、预留一次且计原文件/槽",
-    async (kind) => {
-      const facts =
-        kind === "asr"
-          ? await h.readyAudio()
-          : kind === "vision"
-            ? await h.readyImage()
-            : await h.readyText();
-      const execute =
-        kind === "asr"
-          ? h.asrStrategy().execute
-          : kind === "vision"
-            ? h.visionStrategy().execute
-            : h.digestStrategy().execute;
-      const result = await execute(facts.job, signal());
-      expect(result.state).toBe(kind === "asr" ? "submitted" : "succeeded");
-      if (kind !== "asr") expect(structuredOutput(result).status).toBe("ok");
-      expect(h.budget.readPermit).toHaveBeenCalledTimes(2);
-      expect(h.budget.reserve).toHaveBeenCalledTimes(1);
-      expect(h.evalCall).toHaveBeenCalledTimes(1);
-      const permit = h.budget.reserve.mock.calls[0]![0];
-      expect(permit).toMatchObject({
-        entityId: h.merchant.entity.id,
-        storeId: h.merchant.store.id,
-        jobId: facts.job.id,
-        kind,
-        attemptNo: 1,
-        fileIds: facts.files.map((file) => file.id).sort(),
-        dailyFileCap: 200,
-        dailyCallCap: 10000,
-        originalDeadlineMs: facts.job.deadlineAt.getTime(),
-      });
-      expect(permit.admitUntilMs).toBe(permit.readAtMs + 250);
-      expect(await spent()).toBe(kind === "asr" ? 1 : 3);
-      const all = await h.snapshot();
-      expect(all[`t:${facts.job.id}:1:${kind}`]).toBe(String(facts.job.deadlineAt.getTime()));
-      expect(Object.keys(all).filter((key) => key.startsWith("f:"))).toHaveLength(
-        facts.files.length,
-      );
-      expect(h.fake.asr.callsOf("submit")).toHaveLength(kind === "asr" ? 1 : 0);
-      expect(h.vision).toHaveBeenCalledTimes(kind === "vision" ? 1 : 0);
-      expect(h.digest).toHaveBeenCalledTimes(kind === "digest" ? 1 : 0);
-    },
+    async (kind) =>
+      h.withControlledModelTime(async () => {
+        const facts =
+          kind === "asr"
+            ? await h.readyAudio()
+            : kind === "vision"
+              ? await h.readyImage()
+              : await h.readyText();
+        const execute =
+          kind === "asr"
+            ? h.asrStrategy().execute
+            : kind === "vision"
+              ? h.visionStrategy().execute
+              : h.digestStrategy().execute;
+        const result = await execute(facts.job, signal());
+        expect(result.state).toBe(kind === "asr" ? "submitted" : "succeeded");
+        if (kind !== "asr") expect(structuredOutput(result).status).toBe("ok");
+        expect(h.budget.readPermit).toHaveBeenCalledTimes(2);
+        expect(h.budget.reserve).toHaveBeenCalledTimes(1);
+        expect(h.evalCall).toHaveBeenCalledTimes(1);
+        const permit = h.budget.reserve.mock.calls[0]![0];
+        expect(permit).toMatchObject({
+          entityId: h.merchant.entity.id,
+          storeId: h.merchant.store.id,
+          jobId: facts.job.id,
+          kind,
+          attemptNo: 1,
+          fileIds: facts.files.map((file) => file.id).sort(),
+          dailyFileCap: 200,
+          dailyCallCap: 10000,
+          originalDeadlineMs: facts.job.deadlineAt.getTime(),
+        });
+        expect(permit.admitUntilMs).toBe(permit.readAtMs + 250);
+        expect(await spent()).toBe(kind === "asr" ? 1 : 3);
+        const all = await h.snapshot();
+        expect(all[`t:${facts.job.id}:1:${kind}`]).toBe(String(facts.job.deadlineAt.getTime()));
+        expect(Object.keys(all).filter((key) => key.startsWith("f:"))).toHaveLength(
+          facts.files.length,
+        );
+        expect(h.fake.asr.callsOf("submit")).toHaveLength(kind === "asr" ? 1 : 0);
+        expect(h.vision).toHaveBeenCalledTimes(kind === "vision" ? 1 : 0);
+        expect(h.digest).toHaveBeenCalledTimes(kind === "digest" ? 1 : 0);
+      }),
   );
 
-  it("视频六帧只占一个原文件与三槽", async () => {
-    const facts = await h.readyVideo();
-    const probe = await h.prisma.storeAssetInsight.findFirstOrThrow({
-      where: { storeAssetId: facts.assetId, fileId: facts.files[0]!.id, kind: "tech_spec" },
-      include: { mediaJob: true, file: { include: { mediaInfo: true } } },
-    });
-    expect(probe.mediaJob?.finishedAt).toBeInstanceOf(Date);
-    expect(probe.file?.mediaInfo?.probedAt).toEqual(probe.mediaJob?.finishedAt);
-    const output = structuredOutput(await h.visionStrategy().execute(facts.job, signal()));
-    expect(output.status, output.reason ?? undefined).toBe("ok");
-    expect(output.reason).toBeNull();
-    expect(h.signing).toHaveBeenCalledTimes(6);
-    expect(h.vision.mock.calls[0]![0].imageUrls).toHaveLength(6);
-    expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual([facts.files[0]!.id]);
-    expect(await spent()).toBe(3);
-    expect(Object.keys(await h.snapshot()).filter((key) => key.startsWith("f:"))).toHaveLength(1);
-  });
+  it("视频六帧只占一个原文件与三槽", async () =>
+    h.withControlledModelTime(async () => {
+      const facts = await h.readyVideo();
+      const probe = await h.prisma.storeAssetInsight.findFirstOrThrow({
+        where: { storeAssetId: facts.assetId, fileId: facts.files[0]!.id, kind: "tech_spec" },
+        include: { mediaJob: true, file: { include: { mediaInfo: true } } },
+      });
+      expect(probe.mediaJob?.finishedAt).toBeInstanceOf(Date);
+      expect(probe.file?.mediaInfo?.probedAt).toEqual(probe.mediaJob?.finishedAt);
+      const output = structuredOutput(await h.visionStrategy().execute(facts.job, signal()));
+      expect(output.status, output.reason ?? undefined).toBe("ok");
+      expect(output.reason).toBeNull();
+      expect(h.signing).toHaveBeenCalledTimes(6);
+      expect(h.vision.mock.calls[0]![0].imageUrls).toHaveLength(6);
+      expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual([facts.files[0]!.id]);
+      expect(await spent()).toBe(3);
+      expect(Object.keys(await h.snapshot()).filter((key) => key.startsWith("f:"))).toHaveLength(1);
+    }));
 
   it.each(["missing", "disabled", "throws", "unknown"])(
     "成对端口%s关闭且不借legacy真值",
@@ -298,38 +363,39 @@ describe("三owner真实PG与Redis预算", () => {
     expect(await spent()).toBe(0);
   });
 
-  it("真实视觉缓存命中零旧新授权、签发、预算和模型", async () => {
-    const body = png(),
-      first = await h.readyImage(body, false);
-    await h.refresh();
-    await h.media.jobs.run({ jobId: first.job.id });
-    const result = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
-    expect(AssetJobOutputSchema.parse(result.output).status).toBe("ok");
-    const next = await h.readyImage(body),
-      before = await h.snapshot();
-    h.budget.readPermit.mockClear();
-    h.budget.reserve.mockClear();
-    h.evalCall.mockClear();
-    h.signing.mockClear();
-    h.vision.mockClear();
-    const legacy = vi.fn(async () => {
-        throw new Error("缓存不可授权");
-      }),
-      d = h.deps();
-    const output = structuredOutput(
-      await h
-        .visionStrategy({ ...d, assets: { ...d.assets, allowModelCall: legacy } })
-        .execute(next.job, signal()),
-    );
-    expect(output).toMatchObject({ status: "ok", reusedFromId: expect.any(String) });
-    expect(h.budget.readPermit).not.toHaveBeenCalled();
-    expect(h.budget.reserve).not.toHaveBeenCalled();
-    expect(legacy).not.toHaveBeenCalled();
-    expect(h.signing).not.toHaveBeenCalled();
-    expect(h.vision).not.toHaveBeenCalled();
-    expect(h.evalCall).not.toHaveBeenCalled();
-    expect(await h.snapshot()).toEqual(before);
-  });
+  it("真实视觉缓存命中零旧新授权、签发、预算和模型", async () =>
+    h.withControlledModelTime(async () => {
+      const body = png(),
+        first = await h.readyImage(body, false);
+      await h.refresh();
+      await h.media.jobs.run({ jobId: first.job.id });
+      const result = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
+      expect(AssetJobOutputSchema.parse(result.output).status).toBe("ok");
+      const next = await h.readyImage(body),
+        before = await h.snapshot();
+      h.budget.readPermit.mockClear();
+      h.budget.reserve.mockClear();
+      h.evalCall.mockClear();
+      h.signing.mockClear();
+      h.vision.mockClear();
+      const legacy = vi.fn(async () => {
+          throw new Error("缓存不可授权");
+        }),
+        d = h.deps();
+      const output = structuredOutput(
+        await h
+          .visionStrategy({ ...d, assets: { ...d.assets, allowModelCall: legacy } })
+          .execute(next.job, signal()),
+      );
+      expect(output).toMatchObject({ status: "ok", reusedFromId: expect.any(String) });
+      expect(h.budget.readPermit).not.toHaveBeenCalled();
+      expect(h.budget.reserve).not.toHaveBeenCalled();
+      expect(legacy).not.toHaveBeenCalled();
+      expect(h.signing).not.toHaveBeenCalled();
+      expect(h.vision).not.toHaveBeenCalled();
+      expect(h.evalCall).not.toHaveBeenCalled();
+      expect(await h.snapshot()).toEqual(before);
+    }));
 
   it.each(["zero", "lost", "exhausted"])(
     "原TaskId的ASR查询在%s预算下零新授权/签发/提交",
@@ -383,53 +449,54 @@ describe("三owner真实PG与Redis预算", () => {
     },
   );
 
-  it("ASR缓存真实完成历史命中，默认legacy false仍零授权/签发/预算/模型", async () => {
-    const first = await h.readyAudio(false);
-    h.permitControlledModel(true);
-    await h.refresh();
-    await h.media.jobs.run({ jobId: first.job.id });
-    const submitted = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
-    expect(submitted.state).toBe("submitted");
-    expect(submitted.externalJobId).toEqual(expect.stringMatching(/^(?:0|[1-9][0-9]{0,19})$/));
-    if (!submitted.externalJobId) throw new Error("没有原TaskId");
-    h.fake.asr.tasks.set(submitted.externalJobId, {
-      taskId: submitted.externalJobId,
-      requestId: "fake-asr",
-      state: "succeeded",
-      text: "公开虚构语音",
-      durationSec: 1,
-      segments: [{ text: "公开虚构语音", startMs: 0, endMs: 1000 }],
-    });
-    h.clock.set(submitted.nextRunAt);
-    await h.media.jobs.run({ jobId: first.job.id });
-    expect(
-      AssetJobOutputSchema.parse(
-        (await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } })).output,
-      ).status,
-    ).toBe("ok");
-    const next = await h.readyAudio(false),
-      before = await h.snapshot();
-    h.permitControlledModel(false);
-    h.budget.readPermit.mockClear();
-    h.budget.reserve.mockClear();
-    h.evalCall.mockClear();
-    h.fake.storage.resetCalls();
-    h.fake.asr.resetCalls();
-    await h.media.jobs.run({ jobId: next.job.id });
-    expect(
-      AssetJobOutputSchema.parse(
-        (await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: next.job.id } })).output,
-      ),
-    ).toMatchObject({ status: "ok", reusedFromId: expect.any(String) });
-    expect(h.budget.readPermit).not.toHaveBeenCalled();
-    expect(h.budget.reserve).not.toHaveBeenCalled();
-    expect(h.evalCall).not.toHaveBeenCalled();
-    expect(h.fake.storage.callsOf("presignGet")).toHaveLength(0);
-    expect(h.fake.asr.callsOf("submit")).toHaveLength(0);
-    expect(h.fake.asr.callsOf("query")).toHaveLength(0);
-    expect(h.fake.asr.callsOf("transcribe")).toHaveLength(0);
-    expect(await h.snapshot()).toEqual(before);
-  });
+  it("ASR缓存真实完成历史命中，默认legacy false仍零授权/签发/预算/模型", async () =>
+    h.withControlledModelTime(async () => {
+      const first = await h.readyAudio(false);
+      h.permitControlledModel(true);
+      await h.refresh();
+      await h.media.jobs.run({ jobId: first.job.id });
+      const submitted = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } });
+      expect(submitted.state).toBe("submitted");
+      expect(submitted.externalJobId).toEqual(expect.stringMatching(/^(?:0|[1-9][0-9]{0,19})$/));
+      if (!submitted.externalJobId) throw new Error("没有原TaskId");
+      h.fake.asr.tasks.set(submitted.externalJobId, {
+        taskId: submitted.externalJobId,
+        requestId: "fake-asr",
+        state: "succeeded",
+        text: "公开虚构语音",
+        durationSec: 1,
+        segments: [{ text: "公开虚构语音", startMs: 0, endMs: 1000 }],
+      });
+      h.clock.set(submitted.nextRunAt);
+      await h.media.jobs.run({ jobId: first.job.id });
+      expect(
+        AssetJobOutputSchema.parse(
+          (await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: first.job.id } })).output,
+        ).status,
+      ).toBe("ok");
+      const next = await h.readyAudio(false),
+        before = await h.snapshot();
+      h.permitControlledModel(false);
+      h.budget.readPermit.mockClear();
+      h.budget.reserve.mockClear();
+      h.evalCall.mockClear();
+      h.fake.storage.resetCalls();
+      h.fake.asr.resetCalls();
+      await h.media.jobs.run({ jobId: next.job.id });
+      expect(
+        AssetJobOutputSchema.parse(
+          (await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: next.job.id } })).output,
+        ),
+      ).toMatchObject({ status: "ok", reusedFromId: expect.any(String) });
+      expect(h.budget.readPermit).not.toHaveBeenCalled();
+      expect(h.budget.reserve).not.toHaveBeenCalled();
+      expect(h.evalCall).not.toHaveBeenCalled();
+      expect(h.fake.storage.callsOf("presignGet")).toHaveLength(0);
+      expect(h.fake.asr.callsOf("submit")).toHaveLength(0);
+      expect(h.fake.asr.callsOf("query")).toHaveLength(0);
+      expect(h.fake.asr.callsOf("transcribe")).toHaveLength(0);
+      expect(await h.snapshot()).toEqual(before);
+    }));
 
   it("合法跨北京日已接收TaskId查询不依赖当天账本状态", async () => {
     const facts = await h.readyAudio();
@@ -486,21 +553,22 @@ describe("三owner真实PG与Redis预算", () => {
     expect(h.budget.reserve).not.toHaveBeenCalled();
   });
 
-  it("人工retry同job/attempt/kind保守冲突，不新造代次或重复模型IO", async () => {
-    const facts = await h.readyText();
-    expect(structuredOutput(await h.digestStrategy().execute(facts.job, signal())).status).toBe(
-      "ok",
-    );
-    const before = await h.snapshot();
-    await h.refresh();
-    expect(await h.digestStrategy().execute(facts.job, signal())).toEqual({ state: "canceled" });
-    expect(h.digest).toHaveBeenCalledTimes(1);
-    expect(h.budget.reserve).toHaveBeenCalledTimes(2);
-    expect(await spent()).toBe(3);
-    const after = await h.snapshot();
-    for (const [key, value] of Object.entries(before).filter(([key]) => /^[gsftq]:/.test(key)))
-      expect(after[key]).toBe(value);
-  });
+  it("人工retry同job/attempt/kind保守冲突，不新造代次或重复模型IO", async () =>
+    h.withControlledModelTime(async () => {
+      const facts = await h.readyText();
+      expect(structuredOutput(await h.digestStrategy().execute(facts.job, signal())).status).toBe(
+        "ok",
+      );
+      const before = await h.snapshot();
+      await h.refresh();
+      expect(await h.digestStrategy().execute(facts.job, signal())).toEqual({ state: "canceled" });
+      expect(h.digest).toHaveBeenCalledTimes(1);
+      expect(h.budget.reserve).toHaveBeenCalledTimes(2);
+      expect(await spent()).toBe(3);
+      const after = await h.snapshot();
+      for (const [key, value] of Object.entries(before).filter(([key]) => /^[gsftq]:/.test(key)))
+        expect(after[key]).toBe(value);
+    }));
 
   describe("摘要Unicode来源准备", () => {
     let facts: Awaited<ReturnType<ModelWorld["readyDigestSources"]>>, next: typeof facts;
@@ -516,58 +584,44 @@ describe("三owner真实PG与Redis预算", () => {
         facts.files,
       );
     }, SLOW);
-    it("摘要Unicode实际16000码点贡献只计留存正文，所有丢弃后缀仍绑定hash", async () => {
-      const evaluate = h.evalCall.getMockImplementation()!;
-      h.evalCall.mockImplementation((script, keys, argv) => {
-        // 本例验已预留后的来源hash取消，不量 CI 墙钟耗时；真实Redis与原Lua预算逻辑，
-        // 仅统一TIME读取为注入时钟。组外真实TIME/250ms边界用例不变。
-        const now = h.clock.now().getTime();
-        expect(script).toContain("redis.call('TIME')");
-        return evaluate(
-          script.replaceAll(
-            "redis.call('TIME')",
-            `{ '${Math.floor(now / 1000)}', '${(now % 1000) * 1000}' }`,
-          ),
-          keys,
-          argv,
+    it("摘要Unicode实际16000码点贡献只计留存正文，所有丢弃后缀仍绑定hash", async () =>
+      h.withControlledModelTime(async () => {
+        // 每段2000 UTF16/1999码点，说明/前缀/换行仍占原布局；第九个文件完全被截掉。
+        expect(structuredOutput(await h.digestStrategy().execute(facts.job, signal())).status).toBe(
+          "ok",
         );
-      });
-      // 每段2000 UTF16/1999码点，说明/前缀/换行仍占原布局；第九个文件完全被截掉。
-      expect(structuredOutput(await h.digestStrategy().execute(facts.job, signal())).status).toBe(
-        "ok",
-      );
-      const input = h.digest.mock.calls[0]![0];
-      expect(Array.from(input.text)).toHaveLength(16000);
-      expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual(
-        facts.files
-          .slice(0, 8)
-          .map((file) => file.id)
-          .sort(),
-      );
-      expect(await spent()).toBe(3);
-      const original = h.budget.reserve.getMockImplementation()!;
-      h.budget.reserve.mockImplementationOnce(async (context, abort) => {
-        const paid = await original(context, abort),
-          last = next.sources[8]!;
-        expect(paid).toMatchObject({ status: "reserved", units: 3 });
-        await h.tx.run(async (tx) => {
-          await lockRows(tx, "store_asset", [next.assetId]);
-          const content = { description: "文".repeat(1999) + "改", tags: [] };
-          const old = AssetJobOutputSchema.parse(last.origin.output);
-          await tx.mediaJob.update({
-            where: { id: last.origin.id },
-            data: { output: json({ ...old, content }) },
+        const input = h.digest.mock.calls[0]![0];
+        expect(Array.from(input.text)).toHaveLength(16000);
+        expect(h.budget.reserve.mock.calls[0]![0].fileIds).toEqual(
+          facts.files
+            .slice(0, 8)
+            .map((file) => file.id)
+            .sort(),
+        );
+        expect(await spent()).toBe(3);
+        const original = h.budget.reserve.getMockImplementation()!;
+        h.budget.reserve.mockImplementationOnce(async (context, abort) => {
+          const paid = await original(context, abort),
+            last = next.sources[8]!;
+          expect(paid).toMatchObject({ status: "reserved", units: 3 });
+          await h.tx.run(async (tx) => {
+            await lockRows(tx, "store_asset", [next.assetId]);
+            const content = { description: "文".repeat(1999) + "改", tags: [] };
+            const old = AssetJobOutputSchema.parse(last.origin.output);
+            await tx.mediaJob.update({
+              where: { id: last.origin.id },
+              data: { output: json({ ...old, content }) },
+            });
+            await tx.storeAssetInsight.update({
+              where: { id: last.insight.id },
+              data: { content: json(content) },
+            });
           });
-          await tx.storeAssetInsight.update({
-            where: { id: last.insight.id },
-            data: { content: json(content) },
-          });
+          return paid;
         });
-        return paid;
-      });
-      expect(await h.digestStrategy().execute(next.job, signal())).toEqual({ state: "canceled" });
-      expect(h.digest).toHaveBeenCalledTimes(1);
-      expect(await spent()).toBe(6);
-    });
+        expect(await h.digestStrategy().execute(next.job, signal())).toEqual({ state: "canceled" });
+        expect(h.digest).toHaveBeenCalledTimes(1);
+        expect(await spent()).toBe(6);
+      }));
   });
 });
