@@ -404,7 +404,7 @@ describe("登记的校验", () => {
       "points_adjust",
     ]);
     const broken = assemblyOf({
-      refund: base,
+      lyxtest_invalid_kind: base,
       qualification: base,
       order_cancel: base,
       subscription_extend: {
@@ -421,8 +421,9 @@ describe("登记的校验", () => {
     }
     expect(thrown).toBeInstanceOf(ApprovalError);
     const message = (thrown as Error).message;
+    expect(message).toContain("审批类型的登记有 9 处不对");
     for (const part of [
-      "refund：不是审批类型",
+      "lyxtest_invalid_kind：不是已声明的审批类型（approval_request.kind）",
       "qualification：大类应是 review",
       "qualification：单号前缀应是 null",
       "order_cancel：有执行步",
