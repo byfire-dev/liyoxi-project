@@ -45,6 +45,27 @@ function rawTools() {
   return { raw, sent, close };
 }
 describe("W3-04 测试工具装配保留真实边界", { timeout: 60_000 }, () => {
+  it("本地探测配置只装配真实工具与事实读取，不产生主体或云模板占位", async () => {
+    const raw = rawTools();
+    const scope = createRuntimeMediaProduction(
+      {
+        mode: "probe_only",
+        workDir: "/work",
+        socketPath: "/work/.sock/mediatool.sock",
+      },
+      createFakeProviders(),
+      { appEnv: "test", tools: raw.raw },
+    );
+    try {
+      expect(scope.production?.mode).toBe("probe_only");
+      expect(scope.production?.config).toBeNull();
+      expect(scope.production?.readMasterFacts).toBeTypeOf("function");
+      expect((await scope.production!.tool.health()).ok).toBe(false);
+      expect(raw.sent).toHaveBeenCalledTimes(1);
+    } finally {
+      await scope.close();
+    }
+  });
   it("stg/prod或缺完整配置在任何工具调用前拒绝注入", () => {
     const raw = rawTools(),
       providers = createFakeProviders();

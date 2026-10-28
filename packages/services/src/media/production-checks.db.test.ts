@@ -99,7 +99,13 @@ function report(label: string | null = null, width = 1080, height = 1920): Probe
   };
 }
 async function fixture(
-  input: { ai?: boolean; upstream?: boolean; missingContext?: boolean; sample?: boolean } = {},
+  input: {
+    ai?: boolean;
+    upstream?: boolean;
+    missingContext?: boolean;
+    sample?: boolean;
+    probeOnly?: boolean;
+  } = {},
 ) {
   const make = createFactories({ db, clock }),
     fake = createFakeProviders({ clock }),
@@ -205,23 +211,27 @@ async function fixture(
     tool,
     workspace,
     cloud: fake.media,
-    config: {
-      aigc: {
-        Label: "1",
-        ContentProducer: "PUBLIC-SYSTEM",
-        ReservedCode1: "",
-        ContentPropagator: "",
-        ReservedCode2: "",
-      },
-      templates: {
-        normalize: "normalize",
-        sample: "sample",
-        sd: "sd",
-        hd: "hd",
-        brand: "brand",
-        ai: "ai",
-      },
-    },
+    ...(input.probeOnly
+      ? { mode: "probe_only" as const, config: null }
+      : {
+          config: {
+            aigc: {
+              Label: "1",
+              ContentProducer: "PUBLIC-SYSTEM",
+              ReservedCode1: "",
+              ContentPropagator: "",
+              ReservedCode2: "",
+            },
+            templates: {
+              normalize: "normalize",
+              sample: "sample",
+              sd: "sd",
+              hd: "hd",
+              brand: "brand",
+              ai: "ai",
+            },
+          },
+        }),
     parameters: async () => ({
       finalMaxMb: 200,
       softDurationMs: 180000,
@@ -380,6 +390,95 @@ async function trailerFixture(h: Fixture) {
   };
 }
 describe("真实制作事实与派生", { timeout: 30000 }, () => {
+  it("probe_only实际runner写入技术与全部硬检查，通过也不产生水印或云任务", async () => {
+    const h = await fixture({ sample: true, probeOnly: true }),
+      id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+    await h.media.jobs.run({ jobId: id });
+    expect(h.production.config).toBeNull();
+    expect(h.probe).toHaveBeenCalledOnce();
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      state: "succeeded",
+      output: { sourceSha256: digest },
+    });
+    expect(await db.mediaInfo.findUniqueOrThrow({ where: { fileId: h.file.id } })).toMatchObject({
+      durationMs: 60000,
+      displayWidth: 1080,
+      displayHeight: 1920,
+      vcodec: "h264",
+      acodec: "aac",
+    });
+    const check = await db.mediaCheck.findUniqueOrThrow({ where: { fileId: h.file.id } });
+    expect(check.gate).toBe("pass");
+    expect(check.hard).toEqual(
+      ["H1", "H2", "H3", "H4", "H5", "H6", "H7"].map((code) =>
+        expect.objectContaining({ code, pass: true }),
+      ),
+    );
+    expect(await db.mediaJob.findMany({ where: { subjectId: h.file.id } })).toHaveLength(1);
+    expect(await db.playableAsset.count({ where: { sourceFileId: h.file.id } })).toBe(0);
+    expect(await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).toMatchObject({
+      ready: true,
+      playable: null,
+    });
+    expect(h.stamp).not.toHaveBeenCalled();
+    expect(h.fake.media.calls).toHaveLength(0);
+    expect(
+      await db.outboxEvent.count({
+        where: { eventType: "media.production.checked", aggregateId: h.file.id },
+      }),
+    ).toBe(1);
+  });
+  it.each(["missing_aigc", "horizontal_pcm", "missing_context"] as const)(
+    "probe_only真实体检仍拒绝%s，不补标、不伪造上下文或排云任务",
+    async (reason) => {
+      const h = await fixture({
+        sample: true,
+        probeOnly: true,
+        ai: reason === "missing_aigc",
+        missingContext: reason === "missing_context",
+      });
+      if (reason === "horizontal_pcm")
+        h.probe.mockImplementation(async () => {
+          const result = report(null, 854, 480);
+          result.streams[1]!.codecName = "pcm_f32le";
+          return ok(result);
+        });
+      const id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+      await h.media.jobs.run({ jobId: id });
+      expect(await db.mediaJob.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        state: "succeeded",
+      });
+      const check = await db.mediaCheck.findUniqueOrThrow({ where: { fileId: h.file.id } });
+      expect(check.gate).toBe("reject");
+      const failedCodes =
+        reason === "horizontal_pcm"
+          ? ["H3", "H4"]
+          : reason === "missing_context"
+            ? ["H3", "H7"]
+            : ["H7"];
+      expect(check.hard).toEqual(
+        expect.arrayContaining(
+          failedCodes.map((code) => expect.objectContaining({ code, pass: false })),
+        ),
+      );
+      const info = await db.mediaInfo.findUniqueOrThrow({ where: { fileId: h.file.id } });
+      expect(info.durationMs).toBe(60000);
+      if (reason === "horizontal_pcm")
+        expect(info).toMatchObject({ displayWidth: 854, displayHeight: 480, acodec: "pcm_f32le" });
+      if (reason === "missing_context") expect(check.contextSnapshot).toBeNull();
+      const record = await db.productionRecord.findUniqueOrThrow({ where: { fileId: h.file.id } });
+      expect(record.pipelineState).toBe("rejected");
+      if (reason === "missing_aigc") {
+        expect(record.aiUsage).toMatchObject({ used: true });
+        expect(record.aigcState).toBe("failed");
+      }
+      expect(await db.mediaJob.findMany({ where: { subjectId: h.file.id } })).toHaveLength(1);
+      expect(await db.productionRecord.count({ where: { derivedFromFileId: h.file.id } })).toBe(0);
+      expect(await db.playableAsset.count({ where: { sourceFileId: h.file.id } })).toBe(0);
+      expect(h.stamp).not.toHaveBeenCalled();
+      expect(h.fake.media.calls).toHaveLength(0);
+    },
+  );
   it("递增业务clock的真实runner收尾共用已写完成时间，严格制作事实仍可ready", async () => {
     const h = await fixture();
     await db.fileObject.update({ where: { id: h.file.id }, data: { sha256: null } });
