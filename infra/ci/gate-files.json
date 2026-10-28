@@ -186,6 +186,11 @@
       "pattern": "packages/contract/released/retired.json",
       "kind": "frozen",
       "note": "C77 在役版本摘除清单：任何改动均须单独 gate-change 评审"
+    },
+    {
+      "pattern": "apps/api/test/admin-content-revisions.test.ts",
+      "kind": "new-file",
+      "note": "首页缓存价格边界回归：准备与业务预算及既有断言的修改须独立 gate-change；登记先于准备阶段调整合入"
     }
   ]
 }
