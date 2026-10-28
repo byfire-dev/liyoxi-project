@@ -135,6 +135,14 @@ const CREDENTIAL_JOBS: Record<string, { id: string; condition: string; keys: str
       keys: ["STG_SSH_PRIVATE_KEY", "STG_SSH_KNOWN_HOSTS"],
     },
   ],
+  "weapp-review-upload.yml": [
+    {
+      id: "weapp-review-upload",
+      condition:
+        "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_WEAPP_REVIEW_UPLOAD_ENABLED == 'true' && vars.STG_FREEZE == 'true' && inputs.execute == true",
+      keys: ["STG_SSH_PRIVATE_KEY", "STG_SSH_KNOWN_HOSTS"],
+    },
+  ],
   "rollback-stg.yml": [
     {
       id: "rollback-stg",
