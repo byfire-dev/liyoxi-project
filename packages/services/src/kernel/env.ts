@@ -244,7 +244,7 @@ export interface Env {
         };
       }
     | {
-        readonly mode: "probe_only";
+        readonly mode: "probe_only" | "local_sample_watermark";
         readonly workDir: string;
         readonly socketPath: string;
       };
@@ -619,14 +619,17 @@ function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"
       ai: template,
     }),
   });
-  const probeOnly = z.strictObject({ ...paths, mode: z.literal("probe_only") });
+  const probeOnly = z.strictObject({
+    ...paths,
+    mode: z.enum(["probe_only", "local_sample_watermark"]),
+  });
   const parsed = z.union([full, probeOnly]).safeParse(json);
   if (
     !parsed.success ||
     !parsed.data.socketPath.startsWith(`${parsed.data.workDir}/.sock/`) ||
     !/^[A-Za-z0-9._-]+$/.test(parsed.data.socketPath.slice(parsed.data.workDir.length + 7))
   )
-    return "制作配置须为完整主体与六模板，或显式 probe_only；工作目录与同目录套接字须合法";
+    return "制作配置须为完整主体与六模板，或显式 probe_only/local_sample_watermark；工作目录与同目录套接字须合法";
   return parsed.data;
 }
 
@@ -1409,11 +1412,14 @@ export function loadEnv(
   if (
     mediaProduction &&
     "mode" in mediaProduction &&
-    mediaProduction.mode === "probe_only" &&
+    ["probe_only", "local_sample_watermark"].includes(mediaProduction.mode) &&
     appEnv !== "local" &&
     appEnv !== "test"
   ) {
-    issues.push({ key: "MEDIA_PRODUCTION_FILE", reason: "probe_only 仅允许 local/test 环境" });
+    issues.push({
+      key: "MEDIA_PRODUCTION_FILE",
+      reason: `${mediaProduction.mode} 仅允许 local/test 环境`,
+    });
   }
   const clientErrorProjects = readKeyFile(
     source,

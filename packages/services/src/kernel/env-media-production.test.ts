@@ -34,6 +34,7 @@ const probeOnly = {
   workDir: "/tmp/lyx-probe-only",
   socketPath: "/tmp/lyx-probe-only/.sock/mediatool.sock",
 };
+const localWatermark = { ...probeOnly, mode: "local_sample_watermark" };
 const file = (name: string, body: unknown) => {
   const path = join(root, name);
   writeFileSync(path, JSON.stringify(body));
@@ -41,6 +42,47 @@ const file = (name: string, body: unknown) => {
 };
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 describe("制作成组FILE配置", () => {
+  it.each(["local", "test"])("%s 本地样片水印配置不需要云模板或AI主体", (appEnv) => {
+    const loaded = loadEnv({
+      ...base,
+      APP_ENV: appEnv,
+      MEDIA_PRODUCTION_FILE: file(`local-watermark-${appEnv}`, localWatermark),
+    }).MEDIA_PRODUCTION;
+    expect(loaded).toEqual(localWatermark);
+    expect(loaded).not.toHaveProperty("aigc");
+    expect(loaded).not.toHaveProperty("templates");
+  });
+  it.each(["stg", "prod"])("%s 拒绝本地样片水印，诊断不泄露配置路径", (appEnv) => {
+    const databaseFile = join(root, `watermark-database-${appEnv}`);
+    const redisFile = join(root, `watermark-redis-${appEnv}`);
+    writeFileSync(databaseFile, base.DATABASE_URL);
+    writeFileSync(redisFile, base.REDIS_URL);
+    try {
+      loadEnv({
+        APP_ENV: appEnv,
+        DATABASE_URL_FILE: databaseFile,
+        REDIS_URL_FILE: redisFile,
+        MEDIA_PRODUCTION_FILE: file(`restricted-watermark-${appEnv}`, localWatermark),
+      });
+      expect.fail("本地样片水印不得在预发或生产启用");
+    } catch (error) {
+      expect(error).toBeInstanceOf(EnvError);
+      expect((error as EnvError).issues).toEqual([
+        { key: "MEDIA_PRODUCTION_FILE", reason: "local_sample_watermark 仅允许 local/test 环境" },
+      ]);
+      expect(String(error)).not.toContain(root);
+    }
+  });
+  it("本地样片水印拒绝混入云模板、AI主体和越界socket", () => {
+    for (const [index, value] of [
+      { ...localWatermark, aigc: valid.aigc },
+      { ...localWatermark, templates: valid.templates },
+      { ...localWatermark, socketPath: "/other/.sock/media.sock" },
+    ].entries())
+      expect(() =>
+        loadEnv({ ...base, MEDIA_PRODUCTION_FILE: file(`invalid-watermark-${index}`, value) }),
+      ).toThrow(EnvError);
+  });
   it("未配明确降级；完整FILE保留真实主体与六模板，不补法务值", () => {
     expect(loadEnv(base).MEDIA_PRODUCTION).toBeUndefined();
     expect(

@@ -154,7 +154,8 @@ export async function enqueueDerivation(
   kind: "restamp" | "normalize",
 ): Promise<string> {
   const production = deps.production;
-  if (!production || production.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
+  if (!production || (production.mode !== undefined && production.mode !== "full"))
+    throw new AppError("PROVIDER_UNAVAILABLE");
   await lockRows(tx, "production_record", [fileId]);
   const record = await tx.productionRecord.findUnique({ where: { fileId } });
   if (!record) throw new AppError("NOT_FOUND");

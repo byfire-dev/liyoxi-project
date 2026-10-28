@@ -59,6 +59,8 @@ export function createProductionMediaTools(options: {
       invoke("transcode", input.signal, (signal) => raw.stampAigc({ ...input, signal })),
     watermarkPng: (input) =>
       invoke("transcode", input.signal, (signal) => raw.watermarkPng!({ ...input, signal })),
+    watermarkSample: (input) =>
+      invoke("transcode", input.signal, (signal) => raw.watermarkSample!({ ...input, signal })),
     health: (signal) => invoke("probe", signal, (ownedSignal) => raw.health(ownedSignal)),
   };
   const workspace = createMediaWorkspace({

@@ -1,9 +1,17 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@liyoxi/db";
+import { STAFF_ROLE_DEFAULTS, defaultRoleActions } from "@liyoxi/contract";
+import { buildStaffContext, normalizeRoleConfig } from "../authz/index.js";
 import { createMedia } from "./runtime.js";
 import { createEvents } from "../events/index.js";
-import { assertNotInTransaction, createTxRunner, uuidv7, lockRows } from "../kernel/index.js";
+import {
+  assertNotInTransaction,
+  createIdentityContext,
+  createTxRunner,
+  uuidv7,
+  lockRows,
+} from "../kernel/index.js";
 import {
   assembleForTest,
   createClock,
@@ -18,6 +26,8 @@ import type {
   ProbeReport,
   MediaToolClient,
   MediaWorkspace,
+  MediaWorkSession,
+  ObjectRef,
 } from "../providers/types.js";
 import { ok, failed } from "../providers/types.js";
 const handle = useSeededDatabase("services"),
@@ -33,6 +43,8 @@ afterEach(async () => {
 });
 const body = new Uint8Array([1, 2, 3]),
   digest = createHash("sha256").update(body).digest("hex");
+const localBody = new Uint8Array([4, 5, 6, 7]),
+  localDigest = createHash("sha256").update(localBody).digest("hex");
 const upstream: AigcLabel = {
   Label: "1",
   ContentProducer: "PUBLIC-UPSTREAM",
@@ -105,6 +117,7 @@ async function fixture(
     missingContext?: boolean;
     sample?: boolean;
     probeOnly?: boolean;
+    localWatermark?: boolean;
   } = {},
 ) {
   const make = createFactories({ db, clock }),
@@ -171,8 +184,24 @@ async function fixture(
   let label = input.upstream ? JSON.stringify(upstream) : null;
   const probe = vi.fn(async (_request: Parameters<MediaToolClient["probe"]>[0]) => {
     assertNotInTransaction("production-probe");
-    return ok(report(label));
+    const actual = report(label);
+    if (input.localWatermark && _request.path.endsWith("/stamped.mp4"))
+      actual.format.sizeBytes = localBody.length;
+    return ok(actual);
   });
+  const watermark = vi.fn(
+    async (_request: Parameters<NonNullable<MediaToolClient["watermarkSample"]>>[0]) => {
+      assertNotInTransaction("production-local-watermark");
+      const actual = report();
+      actual.format.sizeBytes = localBody.length;
+      return ok({
+        report: actual,
+        inputSizeBytes: body.length,
+        outputSizeBytes: localBody.length,
+        sha256: localDigest,
+      });
+    },
+  );
   const stamp = vi.fn(async (request: Parameters<MediaToolClient["stampAigc"]>[0]) => {
     assertNotInTransaction("production-stamp");
     label = request.aigcJson;
@@ -181,29 +210,37 @@ async function fixture(
   const tool: MediaToolClient = {
     probe,
     stampAigc: stamp,
+    watermarkSample: watermark,
     poster: async () =>
       ok({ bytes: body, sizeBytes: body.length, width: 720, height: 1280, atMs: 1000 }),
     health: async () => ok({ ffmpeg: "fake", ffprobe: "fake" }),
   };
+  const download = vi.fn(async (_input: ObjectRef & { size: number; etag: string }) =>
+    ok({ size: body.length, sha256: digest }),
+  );
+  const publish = vi.fn(async (request: Parameters<MediaWorkSession["publish"]>[0]) => {
+    assertNotInTransaction("production-publish");
+    const bytes = input.localWatermark && request.name === "stamped.mp4" ? localBody : body;
+    const etag = fake.storage.put(
+      request.dst,
+      bytes,
+      request.name === "poster.jpg" ? "image/jpeg" : "video/mp4",
+    );
+    return ok({
+      size: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      etag,
+    });
+  });
   const workspace: MediaWorkspace = {
     close: async () => {},
     run: async (job, signal, action) => {
       assertNotInTransaction("production-workspace");
       return action({
         path: (name) => `${job.id}/${name}`,
-        download: async () =>
-          signal.aborted
-            ? failed("unavailable", "canceled")
-            : ok({ size: body.length, sha256: digest }),
-        publish: async (request) => {
-          assertNotInTransaction("production-publish");
-          const etag = fake.storage.put(
-            request.dst,
-            body,
-            request.name === "poster.jpg" ? "image/jpeg" : "video/mp4",
-          );
-          return ok({ size: body.length, sha256: digest, etag });
-        },
+        download: async (request) =>
+          signal.aborted ? failed("unavailable", "canceled") : download(request),
+        publish,
       });
     },
   };
@@ -211,27 +248,29 @@ async function fixture(
     tool,
     workspace,
     cloud: fake.media,
-    ...(input.probeOnly
-      ? { mode: "probe_only" as const, config: null }
-      : {
-          config: {
-            aigc: {
-              Label: "1",
-              ContentProducer: "PUBLIC-SYSTEM",
-              ReservedCode1: "",
-              ContentPropagator: "",
-              ReservedCode2: "",
+    ...(input.localWatermark
+      ? { mode: "local_sample_watermark" as const, config: null }
+      : input.probeOnly
+        ? { mode: "probe_only" as const, config: null }
+        : {
+            config: {
+              aigc: {
+                Label: "1",
+                ContentProducer: "PUBLIC-SYSTEM",
+                ReservedCode1: "",
+                ContentPropagator: "",
+                ReservedCode2: "",
+              },
+              templates: {
+                normalize: "normalize",
+                sample: "sample",
+                sd: "sd",
+                hd: "hd",
+                brand: "brand",
+                ai: "ai",
+              },
             },
-            templates: {
-              normalize: "normalize",
-              sample: "sample",
-              sd: "sd",
-              hd: "hd",
-              brand: "brand",
-              ai: "ai",
-            },
-          },
-        }),
+          }),
     parameters: async () => ({
       finalMaxMb: 200,
       softDurationMs: 180000,
@@ -261,6 +300,9 @@ async function fixture(
     production,
     probe,
     stamp,
+    watermark,
+    download,
+    publish,
     fake,
     make,
     staff,
@@ -389,6 +431,279 @@ async function trailerFixture(h: Fixture) {
     ),
   };
 }
+async function localWatermarkFixture(options: { ai?: boolean; upstream?: boolean } = {}) {
+  const h = await fixture({ sample: true, localWatermark: true, ...options });
+  const id = await h.tx.run((t) => h.media.enqueueProbe(t, h.file.id));
+  await h.media.jobs.run({ jobId: id });
+  return h;
+}
+const localJob = (h: Fixture) =>
+  db.mediaJob.findFirstOrThrow({
+    where: { kind: "watermark_sample", subjectId: h.file.id },
+  });
+async function localRetryActor(h: Fixture) {
+  const staff = await h.make.staff({ staffRoleKey: "super_admin" });
+  const role = STAFF_ROLE_DEFAULTS.find((row) => row.key === "super_admin")!;
+  return {
+    identity: createIdentityContext({ actor: { type: "staff", id: staff.id, client: "admin" } }),
+    staff: buildStaffContext({
+      staff: { id: staff.id, roleKey: "super_admin", isLead: true, staffGroupId: null },
+      role: normalizeRoleConfig("super_admin", {
+        moduleLevels: role.moduleLevels,
+        dataScope: role.dataScope,
+        actions: defaultRoleActions("super_admin"),
+      }),
+      groupStaffIds: [],
+      stepUpAt: clock.now(),
+    }),
+    meta: { requestId: uuidv7(), ip: null, userAgent: null, authMethod: null, sessionId: null },
+  };
+}
+describe("local_sample_watermark真实任务与可播放事实", { timeout: 30000 }, () => {
+  it("probe通过仅排本地水印，实际读回发布后原尺寸产物才成为playable", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    expect(job).toMatchObject({
+      mode: "local",
+      provider: "mediatool",
+      state: "queued",
+      externalJobId: null,
+    });
+    expect(job.input).toMatchObject({
+      sourceSha256: digest,
+      contextHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      recipe: "sample_center_v1",
+      aiUsed: false,
+    });
+    expect(job.input).not.toHaveProperty("template");
+    expect(job.input).not.toHaveProperty("scratchKey");
+    const handler = h.media.jobs.handlers.get("watermark_sample")!;
+    expect(handler.validInput({ ...(job.input as object), template: "forged-cloud" })).toBe(false);
+    expect(handler.validInput({ ...(job.input as object), aiUsed: true })).toBe(false);
+    expect(await h.tx.run((t) => h.media.ensureSampleWatermark(t, h.file.id))).toBe(job.id);
+    expect(await h.tx.run((t) => h.media.ensureSampleWatermark(t, h.file.id))).toBe(job.id);
+    expect(
+      await db.mediaJob.count({ where: { kind: "watermark_sample", subjectId: h.file.id } }),
+    ).toBe(1);
+    expect(await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).toMatchObject({
+      ready: true,
+      playable: null,
+    });
+    await h.media.jobs.run({ jobId: job.id });
+    const finished = await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(finished).toMatchObject({
+      state: "succeeded",
+      externalJobId: null,
+      output: {
+        sha256: localDigest,
+        quality: "source",
+        technical: { displayWidth: 1080, displayHeight: 1920 },
+      },
+    });
+    const asset = await db.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } });
+    expect(asset).toMatchObject({
+      state: "ready",
+      width: 1080,
+      height: 1920,
+      watermark: { recipe: "sample_center_v1" },
+    });
+    const rendition = (asset.renditions as Array<{ fileId: string }>)[0]!;
+    expect(rendition.fileId).not.toBe(h.file.id);
+    expect(
+      await db.fileObject.findUniqueOrThrow({ where: { id: rendition.fileId } }),
+    ).toMatchObject({
+      category: "sample_wm",
+      sha256: localDigest,
+      sizeBytes: BigInt(localBody.length),
+      status: "stored",
+    });
+    expect(await db.fileObject.findUniqueOrThrow({ where: { id: h.file.id } })).toMatchObject({
+      sha256: digest,
+      sizeBytes: BigInt(body.length),
+      category: "sample_video",
+    });
+    expect(await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).toMatchObject({
+      ready: true,
+      playable: { id: asset.id },
+    });
+    expect(
+      await db.fileRef.count({
+        where: {
+          refType: "playable_asset",
+          refId: asset.id,
+          state: "live",
+          role: { in: ["source", "rendition"] },
+        },
+      }),
+    ).toBe(2);
+    expect(
+      await db.outboxEvent.count({
+        where: { aggregateId: asset.id, eventType: "media.playable.ready" },
+      }),
+    ).toBe(1);
+    expect(h.watermark).toHaveBeenCalledOnce();
+    expect(h.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "stamped.mp4",
+        expectedSha256: localDigest,
+        expectedSize: localBody.length,
+      }),
+    );
+    expect(h.fake.media.callsOf("transcode")).toHaveLength(0);
+    expect(h.stamp).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { ai: true, withUpstream: false },
+    { ai: true, withUpstream: true },
+    { ai: false, withUpstream: true },
+  ])("AI声明或实际上游标识%j仍结算体检但不进入本地水印或补标", async ({ ai, withUpstream }) => {
+    const h = await localWatermarkFixture({ ai, upstream: withUpstream });
+    expect(await db.mediaCheck.findUniqueOrThrow({ where: { fileId: h.file.id } })).toMatchObject({
+      gate: withUpstream ? "pass" : "reject",
+    });
+    expect(
+      await db.mediaJob.count({
+        where: { subjectId: h.file.id, kind: { in: ["watermark_sample", "restamp", "normalize"] } },
+      }),
+    ).toBe(0);
+    expect(h.watermark).not.toHaveBeenCalled();
+    expect(h.stamp).not.toHaveBeenCalled();
+    expect(h.fake.media.callsOf("transcode")).toHaveLength(0);
+  });
+
+  it("终局工具失败保持不可播放；正式人工重试恢复同一资产后才成功", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    h.watermark.mockResolvedValueOnce(failed("rejected", "local renderer rejected") as never);
+    await h.media.jobs.run({ jobId: job.id });
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+      state: "failed",
+    });
+    expect(
+      await db.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } }),
+    ).toMatchObject({ state: "failed" });
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+    ).toBeNull();
+    const actor = await localRetryActor(h);
+    await h.media.jobAdmin.retry(actor, job.id, { note: "本地真实水印恢复" });
+    expect(
+      await db.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } }),
+    ).toMatchObject({ state: "processing" });
+    await h.media.jobs.run({ jobId: job.id });
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+      state: "succeeded",
+      externalJobId: null,
+    });
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable?.id,
+    ).toBe(job.parentId);
+  });
+
+  it("源摘要变化后旧排队任务取消，不能把别的源素材变成水印事实", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    await db.fileObject.update({ where: { id: h.file.id }, data: { sha256: localDigest } });
+    await h.media.jobs.run({ jobId: job.id });
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+      state: "canceled",
+    });
+    expect(h.watermark).not.toHaveBeenCalled();
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+    ).toBeNull();
+  });
+
+  it("下载的真实摘要漂移时拒绝，不能只相信数据库源SHA", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    h.download.mockResolvedValueOnce(ok({ size: body.length, sha256: localDigest }));
+    await h.media.jobs.run({ jobId: job.id });
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+      state: "failed",
+      errorCode: "MEDIA_SOURCE_CHANGED",
+    });
+    expect(h.watermark).not.toHaveBeenCalled();
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+    ).toBeNull();
+  });
+
+  it("独立读回发现被缩放或发布摘要不符时不能成为可播放产物", async () => {
+    for (const mismatch of ["dimensions", "digest"] as const) {
+      const h = await localWatermarkFixture(),
+        job = await localJob(h);
+      if (mismatch === "dimensions")
+        h.probe.mockImplementation(async () => {
+          const actual = report(null, 720, 1280);
+          actual.format.sizeBytes = localBody.length;
+          return ok(actual);
+        });
+      else
+        h.publish.mockResolvedValueOnce(
+          ok({ size: localBody.length, sha256: digest, etag: '"changed"' }),
+        );
+      await h.media.jobs.run({ jobId: job.id });
+      expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+        state: "failed",
+      });
+      expect(
+        (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+      ).toBeNull();
+    }
+  });
+
+  it("运行中取消传递同一signal，暂停后不发布；恢复仍走真实任务", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    let entered!: () => void;
+    const called = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    h.watermark.mockImplementationOnce(async (request) => {
+      entered();
+      await new Promise<void>((resolve) =>
+        request.signal!.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      return failed("unavailable", "canceled") as never;
+    });
+    h.publish.mockClear();
+    const running = h.media.jobs.run({ jobId: job.id });
+    await called;
+    await h.media.jobs.pause();
+    await running;
+    expect(h.publish).not.toHaveBeenCalled();
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({
+      state: "queued",
+      externalJobId: null,
+    });
+    h.media.jobs.resume();
+    await h.media.jobs.run({ jobId: job.id });
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable?.id,
+    ).toBe(job.parentId);
+  });
+
+  it("就绪后的目标SHA或本地任务mode被篡改，现有读取守卫仍拒绝playable", async () => {
+    const h = await localWatermarkFixture(),
+      job = await localJob(h);
+    await h.media.jobs.run({ jobId: job.id });
+    const input = job.input as { destinationFileId: string };
+    await db.mediaJob.update({ where: { id: job.id }, data: { mode: "remote" } });
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+    ).toBeNull();
+    await db.mediaJob.update({ where: { id: job.id }, data: { mode: "local" } });
+    await db.fileObject.update({
+      where: { id: input.destinationFileId },
+      data: { sha256: digest },
+    });
+    expect(
+      (await h.tx.run((t) => h.media.deliveryProductionFacts(t, h.file.id))).playable,
+    ).toBeNull();
+  });
+});
 describe("真实制作事实与派生", { timeout: 30000 }, () => {
   it("probe_only实际runner写入技术与全部硬检查，通过也不产生水印或云任务", async () => {
     const h = await fixture({ sample: true, probeOnly: true }),

@@ -53,6 +53,7 @@ const options = {
     "refund-abandon-txn": "src/cli/refund-abandon-txn.ts",
     "staging-pay-qr": "src/cli/staging-pay-qr.ts",
     "analytics-repartition": "src/cli/analytics-repartition.ts",
+    "sample-watermark": "src/cli/sample-watermark.ts",
   },
   outdir,
   bundle: true,

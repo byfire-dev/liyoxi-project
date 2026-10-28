@@ -8,41 +8,20 @@ import type { BoundMediaDeps } from "./context.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
 import { jobBudget } from "./jobs/policy.js";
 import { link, release } from "./refs.js";
-export const PlayableInputSchema = z.strictObject({
-  fileId: z.uuid(),
-  playableAssetId: z.uuid(),
-  destinationFileId: z.uuid(),
-  quality: z.enum(["sd", "hd", "source"]),
-  objectKey: z
-    .string()
-    .regex(
-      /^(?:t\/[0-9a-f-]{36}\/[a-f0-9]{16}\/(?:sd|hd)\.mp4|sample\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.mp4)$/,
-    ),
-  scratchKey: z.string().regex(/^ci-out\/[0-9a-f-]{36}\/output\.mp4$/),
-  template: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
-  specVersion: z.number().int().min(1).max(32767),
-  aiUsed: z.boolean(),
-  watermarks: z
-    .array(
-      z.union([
-        z.strictObject({ templateId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/) }),
-        z.strictObject({
-          text: z.string().min(1).max(128),
-          position: z.enum(["Center", "TopRight"]),
-          fontSize: z.number().int().min(5).max(100),
-          transparency: z.number().int().min(1).max(100),
-        }),
-      ]),
-    )
-    .max(3),
-});
-export const RenditionSchema = z.strictObject({
-  quality: z.enum(["sd", "hd", "source"]),
-  fileId: z.uuid(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
-  bitrateKbps: z.number().int().nonnegative().nullable(),
-});
+import { contextHash } from "./production.js";
+import { deliveryProductionFacts } from "./production/facts.js";
+import {
+  LocalSamplePlayableInputSchema,
+  PlayableInputSchema,
+  RenditionSchema,
+} from "./playable-schemas.js";
+export {
+  CloudPlayableInputSchema,
+  LocalSamplePlayableInputSchema,
+  PlayableInputSchema,
+  PlayableOutputSchema,
+  RenditionSchema,
+} from "./playable-schemas.js";
 /** Caller holds the parent domain; prelock existing assets before production/file locks. */
 export async function enqueueTrailer(
   deps: BoundMediaDeps,
@@ -52,7 +31,7 @@ export async function enqueueTrailer(
   const production = deps.production;
   if (
     !production ||
-    production.mode === "probe_only" ||
+    (production.mode !== undefined && production.mode !== "full") ||
     !production.readTrailerFacts ||
     !production.setTrailerTarget
   )
@@ -236,6 +215,7 @@ export async function enqueueSampleWatermark(
 ): Promise<string> {
   const production = deps.production;
   if (!production || production.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
+  const local = production.mode === "local_sample_watermark";
   const [file, record, check] = await Promise.all([
     tx.fileObject.findUnique({ where: { id: fileId } }),
     tx.productionRecord.findUnique({ where: { fileId } }),
@@ -249,9 +229,22 @@ export async function enqueueSampleWatermark(
     check?.gate !== "pass"
   )
     throw new AppError("FILE_NOT_AVAILABLE");
+  if (local) {
+    const actual = await deliveryProductionFacts(deps, tx, fileId);
+    const info = await tx.mediaInfo.findUnique({ where: { fileId } });
+    if (
+      !production.tool.watermarkSample ||
+      !actual.ready ||
+      (record.aiUsage as { used?: boolean }).used !== false ||
+      record.aigcState !== "not_required" ||
+      !file.sha256 ||
+      info?.aigcMeta !== null
+    )
+      throw new AppError("PROVIDER_UNAVAILABLE");
+  }
   const store = await production.readStoreFacts(tx, file.storeId);
   if (!store) throw new AppError("PROVIDER_UNAVAILABLE");
-  const { specVersion } = await production.parameters(tx),
+  const { specVersion, ruleVersion } = await production.parameters(tx),
     now = deps.clock.now(),
     orderItemId = record.orderItemId;
   if (!Number.isSafeInteger(specVersion) || specVersion < 1 || specVersion > 32767)
@@ -296,25 +289,41 @@ export async function enqueueSampleWatermark(
       {
         id,
         kind: "watermark_sample",
-        mode: "remote",
-        provider: production.cloud.status,
+        mode: local ? "local" : "remote",
+        provider: local ? "mediatool" : production.cloud.status,
         subjectType: "file_object",
         subjectId: file.id,
         parentType: "playable_asset",
         parentId: playable.id,
         dedupeKey,
-        input: {
-          fileId: file.id,
-          playableAssetId: playable.id,
-          destinationFileId,
-          quality: "source",
-          objectKey: `sample/${playable.id}/${destinationFileId}.mp4`,
-          scratchKey: `ci-out/${id}/output.mp4`,
-          template: production.config.templates.sample,
-          specVersion,
-          aiUsed: (record.aiUsage as { used?: boolean }).used === true,
-          watermarks: [{ text, position: "Center", fontSize: 36, transparency: 30 }],
-        },
+        input: local
+          ? LocalSamplePlayableInputSchema.parse({
+              execution: "local",
+              fileId: file.id,
+              playableAssetId: playable.id,
+              destinationFileId,
+              quality: "source",
+              objectKey: `sample/${playable.id}/${destinationFileId}.mp4`,
+              specVersion,
+              ruleVersion,
+              sourceSha256: file.sha256,
+              contextHash: contextHash(record),
+              recipe: "sample_center_v1",
+              aiUsed: false,
+              watermarks: [{ text, position: "Center" }],
+            })
+          : {
+              fileId: file.id,
+              playableAssetId: playable.id,
+              destinationFileId,
+              quality: "source",
+              objectKey: `sample/${playable.id}/${destinationFileId}.mp4`,
+              scratchKey: `ci-out/${id}/output.mp4`,
+              template: production.config.templates.sample,
+              specVersion,
+              aiUsed: (record.aiUsage as { used?: boolean }).used === true,
+              watermarks: [{ text, position: "Center", fontSize: 36, transparency: 30 }],
+            },
         state: "queued",
         maxAttempts: 3,
         nextRunAt: now,
@@ -325,17 +334,35 @@ export async function enqueueSampleWatermark(
     ],
     skipDuplicates: true,
   });
-  return (await tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey } })).id;
+  const job = await tx.mediaJob.findUniqueOrThrow({ where: { dedupeKey } });
+  if (
+    local &&
+    (job.mode !== "local" ||
+      job.provider !== "mediatool" ||
+      !LocalSamplePlayableInputSchema.safeParse(job.input).success)
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
+  return job.id;
 }
 export async function playableCurrent(
   tx: Tx,
   job: Parameters<MediaConvergenceHandler["needed"]>[1],
+  options: { allowLocalFailed?: boolean } = {},
 ) {
   const input = PlayableInputSchema.safeParse(job.input);
   if (
     !input.success ||
     job.parentId !== input.data.playableAssetId ||
     job.parentType !== "playable_asset"
+  )
+    return false;
+  const local = LocalSamplePlayableInputSchema.safeParse(job.input).success;
+  if (
+    local &&
+    (job.kind !== "watermark_sample" ||
+      job.mode !== "local" ||
+      job.provider !== "mediatool" ||
+      job.externalJobId !== null)
   )
     return false;
   const [asset, file] = await Promise.all([
@@ -352,12 +379,14 @@ export async function playableCurrent(
       (job.kind === "watermark_sample"
         ? `watermark_sample:${asset.id}:v${asset.specVersion}`
         : `transcode_mp4:${asset.id}:${input.data.quality}:v${asset.specVersion}`) &&
-    input.data.scratchKey === `ci-out/${job.id}/output.mp4` &&
+    (local ||
+      ("scratchKey" in input.data && input.data.scratchKey === `ci-out/${job.id}/output.mp4`)) &&
     (job.kind === "watermark_sample"
       ? input.data.objectKey === `sample/${asset.id}/${input.data.destinationFileId}.mp4`
       : input.data.objectKey.startsWith(`t/${asset.ownerId}/`) &&
         input.data.objectKey.endsWith(`/${input.data.quality}.mp4`)) &&
     (asset.state === "processing" ||
+      (local && options.allowLocalFailed && job.state === "failed" && asset.state === "failed") ||
       (job.kind === "watermark_sample" && asset.state === "ready" && asset.watermark === null)) &&
     file?.status === "stored" &&
     file.moderationState !== "block"
@@ -617,6 +646,8 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
         const asset = await tx.playableAsset.findUnique({ where: { id } });
         if (asset?.kind !== "trailer") {
           await lockRows(tx, "playable_asset", [id]);
+          if (asset?.kind === "sample" && deps.production?.mode === "local_sample_watermark")
+            await lockRows(tx, "production_record", [asset.sourceFileId]);
           return;
         }
         if (!deps.production?.readTrailerFacts) throw new AppError("PROVIDER_UNAVAILABLE");
@@ -634,7 +665,9 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
           throw new AppError("BUSY");
       },
       needed: async (tx, job) => {
-        if (!(await playableCurrent(tx, job))) return false;
+        const allowLocalFailed =
+          deps.production?.mode === "local_sample_watermark" && job.state === "failed";
+        if (!(await playableCurrent(tx, job, { allowLocalFailed }))) return false;
         const asset = await tx.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } });
         return (
           asset.kind !== "trailer" ||

@@ -59,6 +59,16 @@ function guardedTestTools(raw: ProductionMediaTools): ProductionMediaTools {
             ),
         }
       : {}),
+    ...(raw.client.watermarkSample
+      ? {
+          watermarkSample: (
+            input: Parameters<NonNullable<MediaToolClient["watermarkSample"]>>[0],
+          ) =>
+            invoke("transcode", input.signal, (signal) =>
+              raw.client.watermarkSample!({ ...input, signal }),
+            ),
+        }
+      : {}),
   };
   const workspace: MediaWorkspace = {
     run: <T>(
@@ -139,7 +149,7 @@ export function createRuntimeMediaProduction(
   const production: MediaProductionDeps =
     "aigc" in configured
       ? { ...common, config: { aigc: configured.aigc, templates: configured.templates } }
-      : { ...common, mode: "probe_only", config: null };
+      : { ...common, mode: configured.mode, config: null };
   return {
     production,
     close: () => (closing ??= tools.close()),

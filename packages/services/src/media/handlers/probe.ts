@@ -1,4 +1,4 @@
-import { z } from "zod";
+import type { z } from "zod";
 import { checkProduction } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import type { MediaJob } from "@liyoxi/db";
@@ -13,37 +13,16 @@ import {
   readProductionWork,
   requiredJson,
 } from "../production.js";
-import { TechnicalSchema, checkFacts, technicalReport } from "../production-report.js";
+import { checkFacts, technicalReport } from "../production-report.js";
 import type { Technical } from "../production-report.js";
 import type { Tx, IdentityContext } from "../../kernel/index.js";
 import { AppError, lockRows } from "../../kernel/index.js";
 import type { StorageBucket } from "../../providers/types.js";
 import { link, release } from "../refs.js";
 import { enqueueSampleWatermark } from "../production-playables.js";
-const inputSchema = z.strictObject({
-  fileId: z.uuid(),
-  profile: z.enum(["master", "trailer_src", "ad", "sample", "final", "asset"]),
-  ruleVersion: z.number().int().min(1).max(32767),
-  contextHash: z.string().regex(/^[a-f0-9]{64}$/),
-  coverFileId: z.uuid(),
-});
-export { inputSchema as ProbeInputSchema };
-const artifact = z.strictObject({
-  id: z.uuid(),
-  key: z.string().max(512),
-  size: z
-    .number()
-    .int()
-    .positive()
-    .max(1024 ** 2),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  etag: z.string().min(1).max(256),
-});
-export const ProbeOutputSchema = z.strictObject({
-  technical: TechnicalSchema,
-  cover: artifact.nullable(),
-  sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
-});
+import type { ProbeArtifactSchema as artifact } from "../production-job-schemas.js";
+import { ProbeInputSchema as inputSchema, ProbeOutputSchema } from "../production-job-schemas.js";
+export { ProbeInputSchema, ProbeOutputSchema } from "../production-job-schemas.js";
 const failure = (code: string, retryable = false): JobOutcome => ({
   state: "failed",
   failure: { code, retryable },
@@ -369,6 +348,17 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
         });
         // Probe-only runtimes persist the same real checks, without creating production outputs.
         if (deps.production?.mode === "probe_only") return;
+        if (deps.production?.mode === "local_sample_watermark") {
+          if (
+            !ai &&
+            output.technical.aigcMeta === null &&
+            !output.technical.invalidAigc &&
+            checked.gate === "pass" &&
+            facts.production.kind === "sample"
+          )
+            return [await enqueueSampleWatermark(deps, tx, facts.file.id)];
+          return;
+        }
         if (ai && !output.technical.aigcMeta && !output.technical.invalidAigc && deps.production) {
           const next = await enqueueDerivation(deps, tx, facts.file.id, "restamp");
           return [next];

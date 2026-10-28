@@ -77,6 +77,7 @@ export type MediaProductionDeps = MediaProductionBase &
   (
     | { readonly mode?: "full"; readonly config: MediaProductionConfig }
     | { readonly mode: "probe_only"; readonly config: null }
+    | { readonly mode: "local_sample_watermark"; readonly config: null }
   );
 export interface ProductionWorkFacts {
   readonly file: FileObject;

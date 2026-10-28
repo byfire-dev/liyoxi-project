@@ -17,7 +17,7 @@ import { readdir, readFile } from "node:fs/promises";
 import http from "node:http";
 import { dirname } from "node:path";
 
-import { LIMITS, poster, probe, stampAigc } from "./ops.mjs";
+import { LIMITS, poster, probe, stampAigc, watermarkSample } from "./ops.mjs";
 import { RequestError, SOCKET_PATH } from "./paths.mjs";
 import { children, killGroup } from "./run.mjs";
 import { watermarkPng } from "./watermark.mjs";
@@ -35,6 +35,7 @@ const OPS = {
   "/poster": poster,
   "/stampAigc": stampAigc,
   "/watermarkPng": watermarkPng,
+  "/watermarkSample": watermarkSample,
   "/docText": docText,
 };
 

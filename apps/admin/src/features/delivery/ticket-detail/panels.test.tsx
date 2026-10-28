@@ -126,6 +126,21 @@ describe("样片体检与人工质检状态", () => {
     expect(html).not.toContain("重新上传并登记新版本");
     expect(render(patch, null)).not.toContain("样片质检");
   });
+  it.each([
+    [null, "尚未生成"],
+    ["processing", "生成中"],
+    ["failed", "生成失败，请联系管理员处理"],
+    ["ready", "已就绪"],
+  ] as const)("水印状态%s可见，仍由服务端决定推送动作", (state, label) => {
+    const html = render({
+      status: "qc_passed",
+      production: passed,
+      watermark: state ? { playableAssetId: batchId(507), state, fileId: null } : null,
+      actions: [],
+    });
+    expect(html).toContain(`<dt>水印预览</dt><dd>${label}</dd>`);
+    expect(html).not.toContain("推送样片");
+  });
   it.each(["pass", "fail"] as const)("保留既有人工质检%s结论、人员与条目", (verdict) => {
     const html = render({
       status: verdict === "pass" ? "qc_passed" : "qc_rejected",

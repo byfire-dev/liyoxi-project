@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { createHash } from "node:crypto";
 import type { MediaJob } from "@liyoxi/db";
 import type { BoundMediaDeps } from "../context.js";
@@ -12,32 +11,14 @@ import {
   readProductionWork,
   requiredJson,
 } from "../production.js";
-import { LabelSchema, TechnicalSchema, parseLabel, technicalReport } from "../production-report.js";
+import { LabelSchema, parseLabel, technicalReport } from "../production-report.js";
 import { saveTechnical } from "./probe.js";
 import { link } from "../refs.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
 import { AppError, lockRows } from "../../kernel/index.js";
 import type { StorageBucket } from "../../providers/types.js";
-export const DerivationInputSchema = z.strictObject({
-  fileId: z.uuid(),
-  destinationFileId: z.uuid(),
-  contextHash: z.string().regex(/^[a-f0-9]{64}$/),
-  ruleVersion: z.number().int().min(1).max(32767),
-  objectKey: z.string().regex(/^derived\/[0-9a-f-]{36}\/(restamp|normalize)-v\d{1,5}\.mp4$/),
-  template: z.string().min(1).max(128),
-});
-export const DerivationOutputSchema = z.strictObject({
-  fileId: z.uuid(),
-  size: z
-    .number()
-    .int()
-    .positive()
-    .max(2 * 1024 ** 3),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/),
-  etag: z.string().min(1).max(256),
-  technical: TechnicalSchema,
-  aigcOrigin: z.enum(["upstream", "stamped"]).nullable(),
-});
+import { DerivationInputSchema, DerivationOutputSchema } from "../production-job-schemas.js";
+export { DerivationInputSchema, DerivationOutputSchema } from "../production-job-schemas.js";
 const failure = (code: string, retryable = false): JobOutcome => ({
   state: "failed",
   failure: { code, retryable },
@@ -72,7 +53,8 @@ export async function finishDerivation(
   ctx: IdentityContext,
 ) {
   if (outcome.state !== "succeeded") return;
-  if (deps.production?.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
+  if (deps.production?.mode !== undefined && deps.production.mode !== "full")
+    throw new AppError("PROVIDER_UNAVAILABLE");
   const output = DerivationOutputSchema.parse(outcome.output),
     input = DerivationInputSchema.parse(job.input),
     facts = await readProductionWork(deps, tx, job.subjectId);
@@ -148,13 +130,13 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
     validOutput: (output) => DerivationOutputSchema.safeParse(output).success,
     current: (tx, job) => derivationCurrent(deps, tx, job),
     canRetry: (tx, job) =>
-      deps.production?.mode === "probe_only"
+      deps.production?.mode !== undefined && deps.production.mode !== "full"
         ? Promise.resolve(false)
         : derivationCurrent(deps, tx, job),
     prepare: (tx, job) => readProductionWork(deps, tx, job.subjectId),
     execute: async (job, context, signal) => {
       const production = deps.production;
-      if (!production || production.mode === "probe_only")
+      if (!production || (production.mode !== undefined && production.mode !== "full"))
         return failure("MEDIA_PROVIDER_UNSUPPORTED");
       const facts = context as Awaited<ReturnType<typeof readProductionWork>>,
         input = DerivationInputSchema.parse(job.input),
