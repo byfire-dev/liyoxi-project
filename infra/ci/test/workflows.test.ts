@@ -673,11 +673,15 @@ describe("ci.yml", () => {
       "pnpm test --project infra",
     ],
     // W0-05b：两个会话同时跑连库的测试项目（挂了 globalSetup 的），核对库名与 Redis 前缀没有交集。
-    // 全量分成四片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
-    "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/4"],
-    "test-isolation-2": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 2/4"],
-    "test-isolation-3": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 3/4"],
-    "test-isolation-4": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 4/4"],
+    // 全量分成八片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
+    "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/8"],
+    "test-isolation-2": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 2/8"],
+    "test-isolation-3": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 3/8"],
+    "test-isolation-4": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 4/8"],
+    "test-isolation-5": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 5/8"],
+    "test-isolation-6": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 6/8"],
+    "test-isolation-7": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 7/8"],
+    "test-isolation-8": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 8/8"],
     // 构建；W0-28：后台与下载页的单测、构建、页面清单；后台冒烟按受影响范围跑（它后面上传截图的一步没有 run）
     web: [
       INSTALL,
@@ -780,10 +784,14 @@ describe("ci.yml", () => {
   it("测试隔离的全量拆在几个任务里跑：范围照旧是全部连库的测试项目，分成互补的几片，合起来是原来的那一遍", () => {
     const runs = commandsStarting("node infra/ci/isolation-shard.mjs");
     expect(runs).toEqual([
-      ["test-isolation", "node infra/ci/isolation-shard.mjs --shard 1/4"],
-      ["test-isolation-2", "node infra/ci/isolation-shard.mjs --shard 2/4"],
-      ["test-isolation-3", "node infra/ci/isolation-shard.mjs --shard 3/4"],
-      ["test-isolation-4", "node infra/ci/isolation-shard.mjs --shard 4/4"],
+      ["test-isolation", "node infra/ci/isolation-shard.mjs --shard 1/8"],
+      ["test-isolation-2", "node infra/ci/isolation-shard.mjs --shard 2/8"],
+      ["test-isolation-3", "node infra/ci/isolation-shard.mjs --shard 3/8"],
+      ["test-isolation-4", "node infra/ci/isolation-shard.mjs --shard 4/8"],
+      ["test-isolation-5", "node infra/ci/isolation-shard.mjs --shard 5/8"],
+      ["test-isolation-6", "node infra/ci/isolation-shard.mjs --shard 6/8"],
+      ["test-isolation-7", "node infra/ci/isolation-shard.mjs --shard 7/8"],
+      ["test-isolation-8", "node infra/ci/isolation-shard.mjs --shard 8/8"],
     ]);
     // 每一条只有片号不同；没有哪一条带别的参数（缩范围、换 worker 数、只列不跑）
     expectComplementary(runs, /^node infra\/ci\/isolation-shard\.mjs --shard (\d+)\/(\d+)$/);
@@ -805,12 +813,15 @@ describe("ci.yml", () => {
     ]
       .filter(([, command]) => command.includes("--shard"))
       .map(([id]) => id);
-    expect(shardJobs).toHaveLength(7);
+    expect(shardJobs).toHaveLength(11);
     for (const id of shardJobs) {
       const commands = commandsOf(id);
       const at = commands.findIndex((command) => command.includes("--shard"));
       for (const before of [DB_GENERATE, MIGRATE, MINIO_UP]) {
         expect(commands.slice(0, at), `${id}：${before}`).toContain(before);
+      }
+      if (id.startsWith("test-isolation")) {
+        expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
       }
     }
     // 带条件的步骤只在 web（冒烟、截图按受影响范围跑）；上传产物的几步写的是 always()，不是“可以不跑”
@@ -977,6 +988,10 @@ describe("本地 Compose 与 CI 的服务容器", () => {
       "test-isolation-2",
       "test-isolation-3",
       "test-isolation-4",
+      "test-isolation-5",
+      "test-isolation-6",
+      "test-isolation-7",
+      "test-isolation-8",
     ]) {
       expect(servicesOf(id), id).toEqual(["postgres", "redis"]);
     }
