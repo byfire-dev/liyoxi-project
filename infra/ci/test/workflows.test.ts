@@ -673,11 +673,15 @@ describe("ci.yml", () => {
       "pnpm test --project infra",
     ],
     // W0-05b：两个会话同时跑连库的测试项目（挂了 globalSetup 的），核对库名与 Redis 前缀没有交集。
-    // 全量分成四片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
-    "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/4"],
-    "test-isolation-2": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 2/4"],
-    "test-isolation-3": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 3/4"],
-    "test-isolation-4": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 4/4"],
+    // 全量分成八片，一个任务跑一片（每片里照旧是两个会话），合起来是原来的那一遍
+    "test-isolation": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 1/8"],
+    "test-isolation-2": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 2/8"],
+    "test-isolation-3": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 3/8"],
+    "test-isolation-4": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 4/8"],
+    "test-isolation-5": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 5/8"],
+    "test-isolation-6": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 6/8"],
+    "test-isolation-7": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 7/8"],
+    "test-isolation-8": [...ISOLATION_SETUP, "node infra/ci/isolation-shard.mjs --shard 8/8"],
     // 构建；W0-28：后台与下载页的单测、构建、页面清单；后台冒烟按受影响范围跑（它后面上传截图的一步没有 run）
     web: [
       INSTALL,
@@ -693,9 +697,6 @@ describe("ci.yml", () => {
       'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
       "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
       "pnpm admin:e2e",
-      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
-      MINIO_UP,
-      "pnpm admin:e2e:live",
       // W0-27a：小程序的单测、体积门禁；截图按受影响范围跑（它后面上传截图的一步没有 run）
       "pnpm --filter @liyoxi/weapp test",
       "node infra/ci/check-mp-size.mjs apps/weapp/dist",
@@ -703,6 +704,18 @@ describe("ci.yml", () => {
       'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
       "pnpm --filter @liyoxi/weapp exec playwright install --with-deps chromium",
       "pnpm weapp:shots",
+    ],
+    // 同一默认live全集在独立runner准备，不能依赖web产物或改成筛选目标。
+    "web-live": [
+      INSTALL,
+      DB_GENERATE,
+      'node apps/admin/scripts/e2e-affected.mjs --base "$BASE"',
+      `node -p '"version=" + require("./apps/admin/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"`,
+      'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
+      "pnpm --filter @liyoxi/admin exec playwright install --with-deps chromium",
+      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      MINIO_UP,
+      "pnpm admin:e2e:live",
     ],
     gates: [
       INSTALL,
@@ -780,10 +793,14 @@ describe("ci.yml", () => {
   it("测试隔离的全量拆在几个任务里跑：范围照旧是全部连库的测试项目，分成互补的几片，合起来是原来的那一遍", () => {
     const runs = commandsStarting("node infra/ci/isolation-shard.mjs");
     expect(runs).toEqual([
-      ["test-isolation", "node infra/ci/isolation-shard.mjs --shard 1/4"],
-      ["test-isolation-2", "node infra/ci/isolation-shard.mjs --shard 2/4"],
-      ["test-isolation-3", "node infra/ci/isolation-shard.mjs --shard 3/4"],
-      ["test-isolation-4", "node infra/ci/isolation-shard.mjs --shard 4/4"],
+      ["test-isolation", "node infra/ci/isolation-shard.mjs --shard 1/8"],
+      ["test-isolation-2", "node infra/ci/isolation-shard.mjs --shard 2/8"],
+      ["test-isolation-3", "node infra/ci/isolation-shard.mjs --shard 3/8"],
+      ["test-isolation-4", "node infra/ci/isolation-shard.mjs --shard 4/8"],
+      ["test-isolation-5", "node infra/ci/isolation-shard.mjs --shard 5/8"],
+      ["test-isolation-6", "node infra/ci/isolation-shard.mjs --shard 6/8"],
+      ["test-isolation-7", "node infra/ci/isolation-shard.mjs --shard 7/8"],
+      ["test-isolation-8", "node infra/ci/isolation-shard.mjs --shard 8/8"],
     ]);
     // 每一条只有片号不同；没有哪一条带别的参数（缩范围、换 worker 数、只列不跑）
     expectComplementary(runs, /^node infra\/ci\/isolation-shard\.mjs --shard (\d+)\/(\d+)$/);
@@ -805,24 +822,48 @@ describe("ci.yml", () => {
     ]
       .filter(([, command]) => command.includes("--shard"))
       .map(([id]) => id);
-    expect(shardJobs).toHaveLength(7);
+    expect(shardJobs).toHaveLength(11);
     for (const id of shardJobs) {
       const commands = commandsOf(id);
       const at = commands.findIndex((command) => command.includes("--shard"));
       for (const before of [DB_GENERATE, MIGRATE, MINIO_UP]) {
         expect(commands.slice(0, at), `${id}：${before}`).toContain(before);
       }
+      if (id.startsWith("test-isolation")) {
+        expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
+      }
     }
-    // 带条件的步骤只在 web（冒烟、截图按受影响范围跑）；上传产物的几步写的是 always()，不是“可以不跑”
+    // web原冒烟/截图条件保持；web-live仅允许下列精确原后台条件，其他任务不能带条件跳过。
     const conditional = (id: string) =>
       `${jobBody(ci, id)}\n`
         .split(/^ {6}- name: /m)
         .slice(1)
         .filter((text) => /^ {8}if: (?!always\(\)$)/m.test(text))
         .map((text) => text.slice(0, text.indexOf("\n")));
-    for (const id of Object.keys(STEPS).filter((job) => job !== "web")) {
+    for (const id of Object.keys(STEPS).filter((job) => job !== "web" && job !== "web-live")) {
       expect(conditional(id), id).toEqual([]);
     }
+    expect(conditional("web-live")).toEqual([
+      "取 Playwright 的版本",
+      "后台冒烟用的浏览器缓存",
+      "后台浏览器使用官方 Ubuntu HTTPS 源",
+      "装后台冒烟用的浏览器",
+      "后台真实接口验收的本地依赖",
+      "后台真实接口验收的 MinIO",
+      "后台登录真实接口验收",
+      "上传后台真实接口截图",
+    ]);
+  });
+
+  it("web与完整live并行，两个job不互相等待、不整job跳过，原30分钟上限保持", () => {
+    for (const id of ["web", "web-live"]) {
+      const body = jobBody(ci, id);
+      expect(body, id).not.toMatch(/^ {4}(?:needs|if):/m);
+      expect(body, id).toMatch(/^ {4}timeout-minutes: 30$/m);
+      expect(body, id).toMatch(/^ {4}runs-on: \*runner$/m);
+      expect(body, id).not.toContain("actions/download-artifact@");
+    }
+    expect(commandsStarting("pnpm admin:e2e:live")).toEqual([["web-live", "pnpm admin:e2e:live"]]);
   });
 
   it("待落地数排在导出已挂载清单之后：清单不靠“那份用例恰好在这一片里”", () => {
@@ -977,6 +1018,10 @@ describe("本地 Compose 与 CI 的服务容器", () => {
       "test-isolation-2",
       "test-isolation-3",
       "test-isolation-4",
+      "test-isolation-5",
+      "test-isolation-6",
+      "test-isolation-7",
+      "test-isolation-8",
     ]) {
       expect(servicesOf(id), id).toEqual(["postgres", "redis"]);
     }
