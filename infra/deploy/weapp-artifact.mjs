@@ -6,7 +6,7 @@ import { validateRelease } from "../ci/stg-image-facts.mjs";
 import { readRecords } from "./node-record.mjs";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-export async function uploadArtifacts(options, upload) {
+export function validateUploadArtifacts(options) {
   const {
     source,
     manifestSha256,
@@ -55,6 +55,10 @@ export async function uploadArtifacts(options, upload) {
     JSON.parse(readFileSync(`${project}/project.config.json`)).appid !== appid
   )
     throw Error("项目来源不符");
+  return { source, project, appid, key, version: manifest.tag };
+}
+export async function uploadArtifacts(options, upload) {
+  const { source, project, appid, key, version } = validateUploadArtifacts(options);
   await upload([
     "--upload",
     "--project",
@@ -64,11 +68,11 @@ export async function uploadArtifacts(options, upload) {
     "--private-key",
     key,
     "--version",
-    manifest.tag,
+    version,
     "--robot",
     "1",
   ]);
-  return { status: "uploaded", source, version: manifest.tag, robot: 1 };
+  return { status: "uploaded", source, version, robot: 1 };
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
