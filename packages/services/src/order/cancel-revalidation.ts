@@ -164,12 +164,13 @@ export async function revalidateCancel(
       for (const field of ["qty", "backToOriginal", "convertedToAddon", "forfeited"] as const)
         compare(line.id, `preview.${field}`, preview[field], current.preview[field]);
     } catch (error) {
-      // State/ledger/schema failure is a visible recheck failure; infrastructure errors still abort.
-      if (
-        !(error instanceof Error) ||
-        !["AppError", "LedgerError", "HoldStateError", "ZodError"].includes(error.name)
-      )
-        throw error;
+      // Only facts failures become evidence. Account contention and internal ledger failures
+      // retain their original retry/error semantics and never masquerade as a changed quote.
+      const factsFailure =
+        (error instanceof AppError &&
+          ["PRECONDITION_CHANGED", "STATE_NOT_ALLOWED", "NOT_FOUND"].includes(error.error)) ||
+        (error instanceof Error && ["HoldStateError", "ZodError"].includes(error.name));
+      if (!factsFailure || !(error instanceof Error)) throw error;
       diffs.push({ lineId: line.id, field: "facts", expected: "valid", actual: error.message });
     }
   }

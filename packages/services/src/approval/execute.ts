@@ -6,15 +6,14 @@ import type { ApprovalExecutionKind } from "@liyoxi/contract";
 import type { EmitContext } from "../events/index.js";
 import type { Tx } from "../kernel/index.js";
 
-import { loadApproval } from "./context.js";
+import { kindOf } from "./context.js";
 import type { ApprovalDeps } from "./context.js";
 import { ApprovalError } from "./errors.js";
-
-export interface RecordExecutedInput {
-  readonly approvalId: string;
-  /** 领域行：表名与 id */
-  readonly domain: { readonly type: "cancel_request" | "refund_request"; readonly id: string };
-}
+import { findApproval } from "./repo.js";
+import { AppError } from "../kernel/index.js";
+import type { RecordExecutedInput } from "./execution-facts.js";
+export { approvalExecutionFactsPort } from "./execution-facts.js";
+export type { ApprovalExecutionFacts, RecordExecutedInput } from "./execution-facts.js";
 
 /** 返回这次是否真的发了事件：同一张审批单已经发过即 false */
 export async function recordExecuted(
@@ -23,8 +22,16 @@ export async function recordExecuted(
   ctx: EmitContext,
   input: RecordExecutedInput,
 ): Promise<{ emitted: boolean }> {
-  const { row, kind } = await loadApproval(tx, deps, input.approvalId);
-  if (!kind.hasExecution) {
+  const row = await findApproval(tx, input.approvalId);
+  if (!row) throw new AppError("NOT_FOUND");
+  const registered = deps.kinds.get(row.kind);
+  // W5-01 consumes an already approved order cancellation before W5-02 owns its
+  // submission callbacks. This narrow fact check registers no producer or fake kind.
+  if (!registered && ["order_cancel", "qualification_cancel"].includes(row.kind)) {
+    const facts = deps.executionFacts?.get(row.kind);
+    if (!facts || !(await facts(tx, ctx, input, row)))
+      throw new ApprovalError("execution", "取消执行的真实完成事实或执行身份不一致");
+  } else if (!(registered ?? kindOf(deps, row.kind)).hasExecution) {
     throw new ApprovalError("execution", `${row.kind} 没有执行步，通过即生效，不记执行`);
   }
   if (row.status !== "approved") {
