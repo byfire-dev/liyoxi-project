@@ -1,6 +1,6 @@
 import { ChecklistItemsSchema } from "@liyoxi/contract";
 import type { PushPackageBody } from "@liyoxi/contract";
-import type { DeliveryRelease } from "@liyoxi/db";
+import type { DeliveryRelease, EpisodeOutput } from "@liyoxi/db";
 import { calendarDate } from "@liyoxi/shared/time";
 import { paramsAt } from "../config/index.js";
 import type { StaffContext } from "../authz/index.js";
@@ -133,74 +133,20 @@ export async function pushPackage(
     blockers.push({ code: "usage_ended" });
   if (blockers.length) throw new AppError("PACKAGE_PUSH_BLOCKED", { details: { blockers } });
   if (!deps.publish) throw new AppError("INTERNAL", { message: "真实上线任务服务尚未装配" });
-  const now = deps.clock.now(),
-    max = await tx.deliveryRelease.aggregate({
-      where: { orderItemId: t.orderItemId },
-      _max: { releaseNo: true },
-    }),
-    title = (t.orderItem.dramaSnapshot as { title: string }).title;
-  const manifest = outputs.map((e) => ({
-    episodeNo: e.episodeNo,
-    outputId: e.id,
-    fileId: e.fileId,
-    name: `${title}_第${String(e.episodeNo).padStart(2, "0")}集.mp4`,
-    size: e.sizeBytes.toString(),
-    crc64: e.file.crc64,
-  }));
-  await tx.deliveryRelease.updateMany({
-    where: { id: { in: old.map((r) => r.id) } },
-    data: { state: "superseded", supersededAt: now, updatedAt: now },
-  });
-  const release = await tx.deliveryRelease.create({
-    data: {
-      id: uuidv7(),
-      entityId: t.entityId,
-      storeId: t.storeId,
-      orderItemId: t.orderItemId,
-      deliveryTicketId: id,
-      releaseNo: (max._max.releaseNo ?? 0) + 1,
-      kind: "initial",
-      state: "pushed",
-      episodeCount: t.orderItem.episodeCount,
-      totalBytes: outputs.reduce((s, e) => s + e.sizeBytes, 0n),
-      manifestSnapshot: manifest,
-      publishListText: list.text,
-      checklistCode: "delivery.precheck",
-      checklistVersionNo: checklist.versionNo,
-      precheckResults: checklist.results,
-      note: b.note ?? null,
-      pushedByStaffId: staff.staff.id,
-      pushedAt: now,
-      idempotencyKey: key,
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
-  const validDays = (await paramsAt(tx, ["package.link_ttl_days"], now))["package.link_ttl_days"],
-    expiresAt = new Date(now.getTime() + validDays * 86400000);
-  await tx.downloadGrant.updateMany({
-    where: { orderItemId: t.orderItemId, state: "active" },
-    data: { state: "superseded", endedAt: now, updatedAt: now },
-  });
-  await tx.downloadGrant.create({
-    data: {
-      id: uuidv7(),
-      entityId: t.entityId,
-      storeId: t.storeId,
-      orderItemId: t.orderItemId,
-      deliveryReleaseId: release.id,
-      granteeType: "entity",
-      granteeId: t.entityId,
-      state: "active",
-      validDays,
-      expiresAt,
-      actorType: "system",
-      createdAt: now,
-      updatedAt: now,
-    },
-  });
+  const { release, expiresAt } = await writeDeliveryRelease(
+    tx,
+    deps,
+    staff,
+    t,
+    outputs,
+    checklist,
+    list,
+    key,
+    old,
+    { kind: "initial", ...(b.note ? { note: b.note } : {}) },
+  );
   await step(tx, deps, ctx, t, "package.pushed", "awaiting_launch", "10:182", {
-    delivered_at: t.deliveredAt ?? now,
+    delivered_at: t.deliveredAt ?? deps.clock.now(),
   });
   const launched = await deps.publish.createLaunchTasks(tx, ctx, {
     orderItemId: t.orderItemId,
@@ -243,4 +189,94 @@ export async function pushPackage(
     grantExpiresAt: expiresAt.toISOString(),
     launchTaskCount: launched.length,
   };
+}
+
+/** Single release/grant writer shared by initial delivery and validated reissues. */
+export async function writeDeliveryRelease(
+  tx: Tx,
+  deps: DeliveryDeps,
+  staff: StaffContext,
+  t: Awaited<ReturnType<typeof ticketOf>>,
+  outputs: Array<EpisodeOutput & { file: { crc64: string | null } }>,
+  checklist: Awaited<ReturnType<typeof quality>>,
+  list: Awaited<ReturnType<typeof publishListFacts>>,
+  key: string,
+  old: readonly DeliveryRelease[],
+  details: {
+    kind: "initial" | "reissue";
+    changedEpisodeNos?: number[];
+    reasonCode?: string;
+    note?: string;
+  },
+) {
+  const id = t.id;
+  const now = deps.clock.now(),
+    max = await tx.deliveryRelease.aggregate({
+      where: { orderItemId: t.orderItemId },
+      _max: { releaseNo: true },
+    }),
+    title = (t.orderItem.dramaSnapshot as { title: string }).title;
+  const manifest = outputs.map((e) => ({
+    episodeNo: e.episodeNo,
+    outputId: e.id,
+    fileId: e.fileId,
+    name: `${title}_第${String(e.episodeNo).padStart(2, "0")}集.mp4`,
+    size: e.sizeBytes.toString(),
+    crc64: e.file.crc64,
+  }));
+  await tx.deliveryRelease.updateMany({
+    where: { id: { in: old.map((r) => r.id) } },
+    data: { state: "superseded", supersededAt: now, updatedAt: now },
+  });
+  const release = await tx.deliveryRelease.create({
+    data: {
+      id: uuidv7(),
+      entityId: t.entityId,
+      storeId: t.storeId,
+      orderItemId: t.orderItemId,
+      deliveryTicketId: id,
+      releaseNo: (max._max.releaseNo ?? 0) + 1,
+      kind: details.kind,
+      changedEpisodeNos: details.changedEpisodeNos ?? [],
+      reasonCode: details.reasonCode ?? null,
+      state: "pushed",
+      episodeCount: t.orderItem.episodeCount,
+      totalBytes: outputs.reduce((s, e) => s + e.sizeBytes, 0n),
+      manifestSnapshot: manifest,
+      publishListText: list.text,
+      checklistCode: "delivery.precheck",
+      checklistVersionNo: checklist.versionNo,
+      precheckResults: checklist.results,
+      note: details.note ?? null,
+      pushedByStaffId: staff.staff.id,
+      pushedAt: now,
+      idempotencyKey: key,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  const validDays = (await paramsAt(tx, ["package.link_ttl_days"], now))["package.link_ttl_days"],
+    expiresAt = new Date(now.getTime() + validDays * 86400000);
+  await tx.downloadGrant.updateMany({
+    where: { orderItemId: t.orderItemId, state: "active" },
+    data: { state: "superseded", endedAt: now, updatedAt: now },
+  });
+  await tx.downloadGrant.create({
+    data: {
+      id: uuidv7(),
+      entityId: t.entityId,
+      storeId: t.storeId,
+      orderItemId: t.orderItemId,
+      deliveryReleaseId: release.id,
+      granteeType: "entity",
+      granteeId: t.entityId,
+      state: "active",
+      validDays,
+      expiresAt,
+      actorType: "system",
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  return { release, expiresAt };
 }

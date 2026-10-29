@@ -5266,6 +5266,12 @@
    "via": "订阅者"
   },
   {
+   "ref": "10-delivery.md:1375",
+   "column": "delivery_ticket.step",
+   "transition": "未归档/终止步骤→不变（sla.recalculated）",
+   "via": "订阅者"
+  },
+  {
    "ref": "10-delivery.md:641",
    "column": "sample.status",
    "transition": "uploaded→check_rejected",

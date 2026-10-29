@@ -10,6 +10,8 @@ import {
 } from "../kernel/index.js";
 import {
   planForNotify,
+  manualReminderTargetForNotify,
+  launchReminderForNotify,
   sampleForNotify,
   releaseForNotify,
   samplesAwaitingMerchant,
@@ -19,6 +21,10 @@ import {
   planManagerForNotify,
   sampleManagerForNotify,
   sampleEditorForNotify,
+  reissueEditorForNotify,
+  reissuedReleaseForNotify,
+  launchRescheduledItemForNotify,
+  deliveryEventCurrentForNotify,
 } from "./notify-facts.js";
 import { deliveryManagerPort } from "../profile/index.js";
 import { implementAdminProfileFacts } from "../profile/index.js";
@@ -32,9 +38,21 @@ import { deliveryMachines } from "./machines.js";
 import { orderSidePort } from "./ports.js";
 import { reevaluate } from "./reevaluate.js";
 import { deliveryFileRefs } from "./file-refs.js";
+import { onDeliveryCalendarImported } from "./stage-sla.js";
+import { prepareReevaluation } from "./reevaluate-locks.js";
 export const registration = defineRegistration("delivery", {
   ports: [orderSidePort],
   portImplementations: [
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "manualReminderTargetForNotify",
+      manualReminderTargetForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "launchReminderForNotify",
+      launchReminderForNotify,
+    ),
     implementAdminProfileFacts("delivery", readProfileAdminDeliveryFacts),
     implementTenantCloseFacts(deliveryCloseFactsPort, {
       countOnlineReleaseTicketsByEntity,
@@ -65,6 +83,26 @@ export const registration = defineRegistration("delivery", {
     notifyReaderImplementation(currentNotifyReadPort, "planForNotify", planForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "sampleForNotify", sampleForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "releaseForNotify", releaseForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "deliveryEventCurrentForNotify",
+      deliveryEventCurrentForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "reissueEditorForNotify",
+      reissueEditorForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "reissuedReleaseForNotify",
+      reissuedReleaseForNotify,
+    ),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "launchRescheduledItemForNotify",
+      launchRescheduledItemForNotify,
+    ),
 
     notifyReaderImplementation(currentNotifyReadPort, "ticketForNotify", ticketForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "planManagerForNotify", planManagerForNotify),
@@ -91,14 +129,22 @@ export const registration = defineRegistration("delivery", {
     ...deliveryMachines,
     ...deliveryFileRefs,
     implement(deliveryManagerPort, (tx, input) => assignStoreTickets(tx, boundDelivery(), input)),
-    implement(launchChangedPort, (tx, input) =>
-      reevaluate(
+    implement(launchChangedPort, async (tx, input) => {
+      if (input.phase === "prelock") {
+        await prepareReevaluation(tx, [input.deliveryTicketId], {
+          ...(input.staffId ? { staffIds: [input.staffId] } : {}),
+          ...(input.approvalRequestId ? { approvalRequestId: input.approvalRequestId } : {}),
+          ...(input.fileIds ? { fileIds: input.fileIds } : {}),
+        });
+        return;
+      }
+      await reevaluate(
         tx,
         boundDelivery(),
         createIdentityContext({ actor: { type: "system", job: "publish.launch_changed" } }),
         input.deliveryTicketId,
-      ).then(() => {}),
-    ),
+      );
+    }),
     implement(launchHandlerPort, async (tx, id) => {
       const ticket = await tx.deliveryTicket.findUnique({
         where: { id },
@@ -113,6 +159,19 @@ export const registration = defineRegistration("delivery", {
   ],
   subscribers: [
     {
+      name: "delivery.onCalendarImported",
+      events: ["calendar.imported"],
+      handle: async (tx, event) =>
+        onDeliveryCalendarImported(
+          tx,
+          boundDelivery(),
+          createIdentityContext({
+            actor: { type: "system", job: "delivery.on_calendar_imported" },
+          }),
+          Number(event.payload.calendarVersion),
+        ),
+    },
+    {
       name: "delivery.onProductionChecked",
       events: ["media.production.checked"],
       handle: async () => {
@@ -125,7 +184,7 @@ export const registration = defineRegistration("delivery", {
       code: `delivery.${code}`,
       severity: "P2" as const,
       modes: ["full" as const],
-      heal: code === "I3" ? ("heal_and_alert" as const) : ("none" as const),
+      heal: code === "I3" || code === "I2" ? ("heal_and_alert" as const) : ("none" as const),
       run: (tx: Parameters<typeof findDeliveryViolations>[0]) => findDeliveryViolations(tx, code),
     })),
     { code: "flow.STUCK_TICKET", severity: "P2", modes: [], heal: "none" },

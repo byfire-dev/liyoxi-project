@@ -22,6 +22,7 @@ import type { QualityInput } from "./quality.js";
 import { manualProductionContext } from "./production-context.js";
 import { qcView } from "./quality-views.js";
 import { reevaluate } from "./reevaluate.js";
+import { lockReevaluationInputs } from "./reevaluate-inputs.js";
 export async function episodeView(tx: Tx, e: EpisodeOutput) {
   const file = await tx.fileObject.findUniqueOrThrow({ where: { id: e.fileId } }),
     p = await tx.productionRecord.findUnique({ where: { fileId: e.fileId } }),
@@ -102,14 +103,36 @@ export async function registerEpisodes(
       ? { ...staff, moduleLevels: { ...staff.moduleLevels, delivery: "v" } }
       : staff,
   );
+  const verifyInputs = await lockReevaluationInputs(tx, [id]);
   await lockTickets(tx, [id]);
+  await verifyInputs();
   const t = await ticketOf(tx, id);
   unpaused(t);
-  if (!["batch_compose", "delivering"].includes(t.step) || t.deliveredAt || b.reissueId)
+  const reissue = b.reissueId
+    ? await tx.deliveryReissue.findFirst({
+        where: {
+          id: b.reissueId,
+          deliveryTicketId: id,
+          entityId: t.entityId,
+          storeId: t.storeId,
+          status: "open",
+        },
+      })
+    : null;
+  const normal = ["batch_compose", "delivering"].includes(t.step) && !t.deliveredAt && !b.reissueId;
+  const replacing =
+    ["awaiting_launch", "launch_verify", "in_service"].includes(t.step) && !!reissue;
+  if (!normal && !replacing)
     throw new AppError("EPISODE_REGISTER_NOT_ALLOWED", {
-      details: { step: t.step, reason: b.reissueId ? "reissue_required" : "step" },
+      details: { step: t.step, reason: b.reissueId ? "not_in_reissue" : "reissue_required" },
     });
-  if (t.editorId && t.editorId !== staff.staff.id) throw new AppError("PERMISSION_DENIED");
+  if (
+    t.editorId &&
+    t.editorId !== staff.staff.id &&
+    !staff.staff.isLead &&
+    staff.staff.roleKey !== "super_admin"
+  )
+    throw new AppError("PERMISSION_DENIED");
   if (!!b.items === !!b.uploadBatchId) throw invalid("items", "逐集与批次须二选一");
   const batch = b.uploadBatchId
     ? await tx.uploadBatch.findUnique({
@@ -131,6 +154,10 @@ export async function registerEpisodes(
     items.some((r) => r.episodeNo < 1 || r.episodeNo > t.orderItem.episodeCount)
   )
     throw invalid("items", "集号越界或重复");
+  if (reissue && items.some((i) => !reissue.episodeNos.includes(i.episodeNo)))
+    throw new AppError("EPISODE_REGISTER_NOT_ALLOWED", {
+      details: { step: t.step, reason: "not_in_reissue" },
+    });
   const rows = await tx.episodeOutput.findMany({
     where: { deliveryTicketId: id, episodeNo: { in: items.map((r) => r.episodeNo) } },
   });
@@ -209,7 +236,7 @@ export async function registerEpisodes(
           deliveryTicketId: id,
           episodeNo: i.episodeNo,
           variant: "common",
-          deliveryReissueId: null,
+          deliveryReissueId: reissue?.id ?? null,
           status: { in: ["uploaded", "qc_passed", "qc_rejected", "check_rejected"] },
         },
         data: { status: "replaced", isCurrent: false, updatedAt: now },
@@ -225,6 +252,7 @@ export async function registerEpisodes(
           entityId: t.entityId,
           storeId: t.storeId,
           deliveryTicketId: id,
+          deliveryReissueId: reissue?.id ?? null,
           episodeNo: i.episodeNo,
           variant: "common",
           revisionNo: (m._max.revisionNo ?? 0) + 1,
@@ -250,11 +278,6 @@ export async function registerEpisodes(
       });
       outputs.push(e);
     }
-    if (!t.editorId)
-      await tx.deliveryTicket.update({
-        where: { id },
-        data: { editorId: staff.staff.id, updatedAt: now },
-      });
     await record(
       tx,
       ctx.actor,
@@ -269,7 +292,6 @@ export async function registerEpisodes(
         stream: "activity",
         category: "delivery",
         action: "delivery.episode.register",
-        meta: { editorClaimed: !t.editorId },
         summary: `登记成片第 ${items.map((i) => i.episodeNo).join("、")} 集`,
         target: { type: "delivery_ticket", id },
         entityId: t.entityId,
@@ -297,7 +319,7 @@ export async function registerEpisodes(
         () => insert(),
       )
     : (await insert()).value;
-  await reevaluate(tx, deps, ctx, t.id);
+  if (!reissue) await reevaluate(tx, deps, ctx, t.id);
   return registered;
 }
 export async function inspectEpisodes(
@@ -309,10 +331,17 @@ export async function inspectEpisodes(
   b: InspectEpisodesBody,
 ) {
   await ticketOf(tx, id, staff);
+  const verifyInputs = await lockReevaluationInputs(tx, [id]);
   await lockTickets(tx, [id]);
+  await verifyInputs();
   const t = await ticketOf(tx, id, staff);
   unpaused(t);
-  if (!["batch_compose", "delivering"].includes(t.step)) throw new AppError("STATE_NOT_ALLOWED");
+  if (
+    !["batch_compose", "delivering", "awaiting_launch", "launch_verify", "in_service"].includes(
+      t.step,
+    )
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
   const all = await tx.episodeOutput.findMany({
     where: { deliveryTicketId: id },
     orderBy: { revisionNo: "desc" },
@@ -348,8 +377,22 @@ export async function inspectEpisodes(
     ],
     results = [];
   for (const e of rows) {
-    if (e.status !== "uploaded" || e.deliveryReissueId) throw new AppError("STATE_NOT_ALLOWED");
-    const latest = all.find((r) => r.episodeNo === e.episodeNo && r.variant === e.variant);
+    if (e.status !== "uploaded") throw new AppError("STATE_NOT_ALLOWED");
+    const reissue = e.deliveryReissueId
+      ? await tx.deliveryReissue.findUnique({ where: { id: e.deliveryReissueId } })
+      : null;
+    if (
+      e.deliveryReissueId
+        ? !reissue || reissue.status !== "open" || !reissue.episodeNos.includes(e.episodeNo)
+        : !["batch_compose", "delivering"].includes(t.step)
+    )
+      throw new AppError("STATE_NOT_ALLOWED");
+    const latest = all.find(
+      (r) =>
+        r.episodeNo === e.episodeNo &&
+        r.variant === e.variant &&
+        r.deliveryReissueId === e.deliveryReissueId,
+    );
     if (latest?.id !== e.id)
       throw new AppError("EPISODE_NOT_LATEST", {
         details: { episodeOutputId: e.id, latestEpisodeOutputId: latest?.id },
@@ -369,7 +412,7 @@ export async function inspectEpisodes(
       ),
       r = await insertQuality(tx, deps, t, staff.staff.id, "episode_output", e.id, q),
       now = deps.clock.now();
-    if (q.verdict === "pass")
+    if (q.verdict === "pass" && !e.deliveryReissueId)
       await tx.episodeOutput.updateMany({
         where: {
           deliveryTicketId: id,
@@ -384,7 +427,7 @@ export async function inspectEpisodes(
       where: { id: e.id },
       data: {
         status: q.verdict === "pass" ? "qc_passed" : "qc_rejected",
-        isCurrent: q.verdict === "pass",
+        isCurrent: q.verdict === "pass" && !e.deliveryReissueId,
         qcRecordId: r.id,
         updatedAt: now,
       },
@@ -411,7 +454,7 @@ export async function inspectEpisodes(
         qcRecordIds: failed.map((r) => r.qcRecordId),
       },
     });
-  await reevaluate(tx, deps, ctx, id);
+  if (rows.some((e) => e.deliveryReissueId === null)) await reevaluate(tx, deps, ctx, id);
   await record(
     tx,
     ctx.actor,
@@ -443,7 +486,9 @@ export async function inspectPackage(
   b: QualityInput,
 ) {
   await ticketOf(tx, id, staff);
+  const verifyInputs = await lockReevaluationInputs(tx, [id]);
   await lockTickets(tx, [id]);
+  await verifyInputs();
   const t = await ticketOf(tx, id, staff);
   unpaused(t);
   if (t.step !== "batch_compose") throw new AppError("STATE_NOT_ALLOWED");

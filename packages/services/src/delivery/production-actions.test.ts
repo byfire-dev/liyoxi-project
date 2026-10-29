@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { AdminDeliveryPlanDetailSchema, DeliveryTicketDetailSchema } from "@liyoxi/contract";
+import { scopeOf } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
-import { useSeededDatabase } from "../testing/index.js";
+import { createIdentityContext } from "../kernel/index.js";
+import { sampleStaffContext, useSeededDatabase } from "../testing/index.js";
 import { draft, harness } from "./__fixtures__/harness.js";
 import type { Harness } from "./__fixtures__/harness.js";
 import { ticketProductionActions } from "./views.js";
@@ -32,6 +34,15 @@ async function snapshot(id: string) {
   };
 }
 
+async function nonLeadEditor() {
+  const row = await h.make.staff({ staffRoleKey: "editor", isLead: false });
+  return {
+    row,
+    staff: await sampleStaffContext(h.prisma, row.id),
+    ctx: createIdentityContext({ actor: { type: "staff", id: row.id, client: "admin" } }),
+  };
+}
+
 describe("制作表单由服务端下发操作入口", { timeout: 60000 }, () => {
   it("真实 GET 在样片、制作、待交付三步给出不同入口且零业务写入", async () => {
     const o = await h.order(true),
@@ -56,9 +67,22 @@ describe("制作表单由服务端下发操作入口", { timeout: 60000 }, () =>
 
   it("其他剪辑师、暂停、已交付事实分别隐藏不能执行的入口", async () => {
     const o = await h.order(true),
-      a = await h.staff(),
-      other = await h.staff(),
+      actor = await nonLeadEditor(),
+      other = await nonLeadEditor(),
       id = o.deliveryTicketIds[0]!;
+    // This predicate fixture grants read/QC separately so ownership, pause and delivered facts
+    // remain independently exercised. The default own-task scope is covered below unchanged.
+    const permissions = new Set([...actor.staff.permissions, "delivery.episode.qc" as const]);
+    const a = {
+      ...actor,
+      staff: {
+        ...actor.staff,
+        permissions,
+        dataScope: "all" as const,
+        moduleLevels: { ...actor.staff.moduleLevels, delivery: "e" as const },
+        scope: scopeOf(actor.staff.staff, { dataScope: "all" }, [], permissions),
+      },
+    };
     await h.prisma.deliveryTicket.update({
       where: { id },
       data: { step: "sample_making", editorId: other.row.id },
@@ -97,6 +121,26 @@ describe("制作表单由服务端下发操作入口", { timeout: 60000 }, () =>
     ).rejects.toMatchObject({ error: "EPISODE_REGISTER_NOT_ALLOWED" });
   });
 
+  it("超级管理员可代他人登记，真实GET下发代登记入口且不更改负责人", async () => {
+    const o = await h.order(true),
+      actor = await h.staff(),
+      owner = await nonLeadEditor(),
+      id = o.deliveryTicketIds[0]!;
+    for (const [step, expected] of [
+      ["sample_making", ["sample-create"]],
+      ["batch_compose", ["episode-register", "inspect-episodes", "inspect-package"]],
+      ["delivering", ["episode-register", "inspect-episodes"]],
+    ] as const) {
+      await h.prisma.deliveryTicket.update({
+        where: { id },
+        data: { step, editorId: owner.row.id },
+      });
+      const before = await snapshot(id);
+      expect(onlyProduction((await h.delivery.get(actor.staff, id)).actions)).toEqual(expected);
+      expect(await snapshot(id)).toEqual(before);
+    }
+  });
+
   it("有读权限但缺少操作权限或只有查看等级时，真实 GET 不给制作入口", async () => {
     const o = await h.order(true),
       a = await h.staff(),
@@ -117,7 +161,7 @@ describe("制作表单由服务端下发操作入口", { timeout: 60000 }, () =>
   });
 
   it("暂停或查看等级在任意阶段、编辑归属与权限子集中均不能获得制作入口", async () => {
-    const a = await h.staff();
+    const a = await nonLeadEditor();
     fc.assert(
       fc.property(
         fc.constantFrom(

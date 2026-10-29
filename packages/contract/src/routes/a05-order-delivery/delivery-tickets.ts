@@ -46,22 +46,36 @@ export const adminDeliveryTicketGet = adminRoute({
   },
 });
 
-export const adminDeliveryTicketActivityList = adminMeta({
+export const adminDeliveryTicketActivityList = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets/{deliveryTicketId}/activities",
   operationId: "admin.deliveryTicket.activity.list",
   summary: "工单操作日志（系统、员工、商家）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: TicketParamSchema, query: TicketActivityQuerySchema },
+  responses: {
+    ...okResponse(TicketActivityPageSchema),
+    ...errorResponses(400, 401, 403, 404, 500),
+  },
 });
 
-export const adminDeliveryTicketAssignEditor = adminMeta({
+export const adminDeliveryTicketAssignEditor = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/assign-editor",
   operationId: "admin.deliveryTicket.assignEditor",
   summary: "指派或改派剪辑师",
   "x-permission": "delivery.ticket.assign_editor",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: AssignStaffBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DeliveryTicketWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
 export const adminDeliveryTicketAssignManager = adminRoute({
@@ -82,13 +96,22 @@ export const adminDeliveryTicketAssignManager = adminRoute({
   "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
-export const adminDeliveryTicketAssignPublisher = adminMeta({
+export const adminDeliveryTicketAssignPublisher = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/assign-publisher",
   operationId: "admin.deliveryTicket.assignPublisher",
   summary: "改派发布专员（开工时已轮询指派）",
   "x-permission": "delivery.ticket.assign_publisher",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: AssignStaffBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DeliveryTicketWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
 export const adminDeliveryTicketEpisodeOutputList = adminRoute({
@@ -122,13 +145,25 @@ export const adminDeliveryTicketEpisodeOutputCreate = adminRoute({
   },
 });
 
-export const adminDeliveryTicketForceTransition = adminMeta({
+export const adminDeliveryTicketForceTransition = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/force-transition",
   operationId: "admin.deliveryTicket.forceTransition",
   summary: "人工纠偏：把工单改到更正白名单内的指定步骤（写 is_forced 状态历史；原因不少于 10 字）",
   "x-permission": "flow.admin.transition",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: ForceTransitionBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(DeliveryTicketWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
 export const adminDeliveryTicketInspectEpisodes = adminRoute({
@@ -205,25 +240,41 @@ export const adminDeliveryTicketPushPackage = adminRoute({
   },
 });
 
-export const adminDeliveryTicketReevaluate = adminMeta({
+export const adminDeliveryTicketReevaluate = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/reevaluate",
   operationId: "admin.deliveryTicket.reevaluate",
   summary: "对卡住的工单重新求值（满足条件即推进步骤）",
   "x-permission": "flow.ops.manage",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: ReevaluateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(ReevaluateResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketReissueCreate = adminMeta({
+export const adminDeliveryTicketReissueCreate = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/reissues",
   operationId: "admin.deliveryTicket.reissue.create",
   summary: "发起补发（交付后发现成片有误；原因与说明必填）",
   "x-permission": "delivery.package.reissue",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: ReissueCreateBodySchema } } },
+  },
+  responses: {
+    ...okResponse(ReissueWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketRemind = adminMeta({
+export const adminDeliveryTicketRemind = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/remind",
   operationId: "admin.deliveryTicket.remind",
@@ -231,15 +282,32 @@ export const adminDeliveryTicketRemind = adminMeta({
     "人工催办商家：确认方案、确认样片、上线提醒（订阅消息与短信补发；同一对象同一场景每日一次）",
   "x-permission": "assert-in-handler",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: TicketRemindBodySchema } } },
+  },
+  responses: {
+    ...okResponse(AdminRemindResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const adminDeliveryTicketRework = adminMeta({
+export const adminDeliveryTicketRework = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/rework",
   operationId: "admin.deliveryTicket.rework",
   summary: "主管返工：从批量合成或成片交付退回样片制作（广告就绪）或广告准备，必填原因",
   "x-permission": "delivery.ticket.rework",
   "x-idempotent": "required",
+  request: {
+    params: TicketParamSchema,
+    body: { required: true, content: { "application/json": { schema: ReworkBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DeliveryTicketWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["currentSample.preview", "currentSample.decision.feedbackImages"],
 });
 
 export const adminDeliveryTicketSampleCreate = adminRoute({
@@ -271,6 +339,17 @@ import {
   DeliveryTicketSummarySchema,
   DeliveryTicketDetailSchema,
   DeliveryTicketWriteResultSchema,
+  TicketActivityQuerySchema,
+  TicketActivityPageSchema,
+  AssignStaffBodySchema,
+  ForceTransitionBodySchema,
+  ReevaluateBodySchema,
+  ReevaluateResultSchema,
+  ReissueCreateBodySchema,
+  ReissueWriteResultSchema,
+  TicketRemindBodySchema,
+  AdminRemindResultSchema,
+  ReworkBodySchema,
 } from "./delivery.schemas.js";
 
 import {

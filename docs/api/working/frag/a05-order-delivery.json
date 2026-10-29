@@ -1139,7 +1139,7 @@
    "capability": null,
    "transitions": [
     "delivery_reissue.status: (新建) → open",
-    "delivery_ticket.step: 不变（status_transition 事件码 reissue.opened，from_state = to_state）"
+    "delivery_ticket.step: 不变（status_transition 事件码 reissue.opened，from_state = to_state）（10:195）"
    ],
    "xAuth": "staff",
    "xIdempotent": "required",
@@ -1163,7 +1163,8 @@
    "capability": null,
    "transitions": [
     "delivery_reissue.status: open → cancelled",
-    "episode_output.status: 替换行 → replaced"
+    "episode_output.status: 替换行 → replaced",
+    "delivery_ticket.step: 不变（reissue.cancelled；10:1377）"
    ],
    "xAuth": "staff",
    "xIdempotent": "required",
@@ -1196,7 +1197,8 @@
     "delivery_release.state: pushed → superseded（旧包）；(新建) → pushed（新包）",
     "download_grant.state: active → superseded；(新建) → active",
     "episode_output.status: 旧当前行 → replaced；替换行置当前",
-    "zip_bundle.zip_state: building/ready/failed → none（旧包被取代，作废 ZIP 缓存）"
+    "zip_bundle.zip_state: building/ready/failed → none（旧包被取代，作废 ZIP 缓存）",
+    "delivery_ticket.step: 不变（package.reissued；10:195）"
    ],
    "xAuth": "staff",
    "xIdempotent": "required",

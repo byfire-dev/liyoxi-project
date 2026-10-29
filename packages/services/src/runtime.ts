@@ -127,7 +127,7 @@ import {
 import type { BillingPurchase, BillingPurchaseDeps } from "./billing/index.js";
 import { createNotifyMessages } from "./notify/index.js";
 import type { NotifyMessages } from "./notify/index.js";
-import { staffBriefs, createStaffAssembly } from "./staff/index.js";
+import { staffBriefs, createStaffAssembly, readAdminFlowStaff } from "./staff/index.js";
 import { staffWorkSourcesOf } from "./kernel/index.js";
 import { sendStaffWecomInvite } from "./notify/index.js";
 import { readAgreementNoticeLink } from "./docs/index.js";
@@ -146,7 +146,7 @@ import type { Config, ConfigAdmin, SiteAdmin } from "./config/index.js";
 import { createEvents } from "./events/index.js";
 import type { Events } from "./events/index.js";
 import { createFlow } from "./flow/index.js";
-import type { Flow } from "./flow/index.js";
+import type { AdminFlow } from "./flow/index.js";
 import {
   alertsOf,
   piiFieldsOf,
@@ -350,7 +350,7 @@ export interface Runtime {
   /** 断开数据库与 Redis。进程退出前调一次 */
   close(): Promise<void>;
   /** 状态迁移（W1-01a 接进来）：改状态机表的状态只经 flow.transition */
-  readonly flow: Flow;
+  readonly flow: AdminFlow;
   /**
    * 后台登录与会话的用例（W1-01a）：登录两步、激活四步、再验证、每请求的会话校验、退出、命令行引导。
    * 第一次取时才加载密钥并装配；三份密钥文件（DATA_KEYS_FILE、BIDX_KEYS_FILE、AUTH_KEYS_FILE）没配全即抛 SecurityError
@@ -696,7 +696,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindWebhooks = bindWebhooks(webhooks);
   const timers = createTimers({ assembly });
-  const flow = createFlow({ assembly, clock, events });
+  const flow = createFlow({ assembly, clock, events, adminStaffReader: readAdminFlowStaff });
   invitationScope.attach(createInvitationExpiry({ clock, flow, timers }));
   const reportingTenant = createTenant({ tx, clock, flow, assembly });
   const analytics = createAnalyticsReceiver({
@@ -794,6 +794,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     flow,
     events,
     sla: createSla({ clock, assembly }),
+    get approval() {
+      return approval;
+    },
   });
   const contentLicense = createContentLicense({ clock, flow, timers });
   const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });

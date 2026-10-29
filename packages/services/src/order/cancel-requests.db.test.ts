@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { OrderCancelRequestCreateBodySchema } from "@liyoxi/contract";
 import { assertSnapshotsEqual, snapshotTables, useSeededDatabase } from "../testing/index.js";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
+import { workHoursAt } from "../sla/index.js";
 import type { CancelActor } from "./cancel-context.js";
 import { voidCancelRequest, withdrawCancelRequest } from "./cancel-decisions.js";
 import { startOrder } from "./start.js";
@@ -147,6 +148,111 @@ describe("W5-02 真实订购取消申请与决定", { timeout: 120000 }, () => {
     await expect(h.requests.create(p.actor, p.out.orderId, input)).rejects.toMatchObject({
       error: "ORDER_IN_AFTER_SALE",
     });
+  });
+
+  it("真实广告位计划阶段经公开取消申请与撤回恢复，父指针及三个时限一致且不动资金", async () => {
+    const p = await pending("plan_confirm");
+    if (!p.b.term) throw new Error("该真实订购必须已有订阅周期");
+    const ad = await h.unassignedAd({
+      entity: p.b.entity,
+      store: p.b.store,
+      user: p.b.user,
+      b: { term: p.b.term },
+    });
+    const placement = await h.prisma.orderItemPlacement.create({
+      data: {
+        id: uuidv7(),
+        orderItemId: p.items[0]!.id,
+        slot: "opening",
+        adId: ad.id,
+        durationSec: 3,
+        boundVersionNo: null,
+        createdAt: h.clock.now(),
+        updatedAt: h.clock.now(),
+      },
+    });
+    const ticket = await h.prisma.deliveryTicket.findUniqueOrThrow({
+        where: { orderItemId: p.items[0]!.id },
+      }),
+      stage = await h.prisma.deliveryTicketStage.findFirstOrThrow({
+        where: { deliveryTicketId: ticket.id, completedAt: null },
+      }),
+      plan = await h.prisma.deliveryPlan.findUniqueOrThrow({
+        where: { dramaOrderId: p.out.orderId },
+      });
+    expect(ticket).toMatchObject({ step: "plan_confirm", waitingOn: "staff", pauseCount: 0 });
+    expect(stage.dueAt).not.toBeNull();
+    expect(ticket.stepDueAt).toEqual(stage.dueAt);
+    expect(plan.staffDueAt).toEqual(stage.dueAt);
+    const money = await snapshotTables(h.prisma, MONEY_TABLES),
+      quote = await h.requests.quote(p.actor, p.out.orderId, p.input),
+      created = await h.requests.create(p.actor, p.out.orderId, {
+        ...p.input,
+        note: "带真实广告位的计划阶段取消",
+        expect: quote.expect,
+      }),
+      saved = await h.saved(created.cancelRequestId),
+      paused = await h.prisma.deliveryTicket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(paused).toMatchObject({
+      step: "plan_confirm",
+      waitingOn: "staff",
+      pauseCount: 1,
+      pauseRemainingMin: expect.any(Number),
+    });
+    expect(
+      await h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: p.out.orderId } }),
+    ).toMatchObject({ status: "after_sale", openCancelRequestId: saved.id });
+    assertSnapshotsEqual(money, await snapshotTables(h.prisma, MONEY_TABLES));
+    h.clock.advance(60 * 60_000);
+    const expected = await h.tx.run(async (tx) =>
+      h.core.sla.dueAt(tx, {
+        policy: "ticket.plan_confirm",
+        amount: paused.pauseRemainingMin!,
+        unit: "work_minutes",
+        from: h.clock.now(),
+        workHours: await workHoursAt(tx, h.clock.now()),
+      }),
+    );
+    await h.requests.withdraw(p.actor, saved.id, { note: "本人撤回带广告位的取消申请" });
+    expect(await h.saved(saved.id)).toMatchObject({
+      status: "not_executed",
+      closeReason: "withdrawn",
+      approvalRequest: { status: "withdrawn" },
+    });
+    expect(
+      await h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: p.out.orderId } }),
+    ).toMatchObject({ status: "producing", openCancelRequestId: null });
+    expect(
+      await h.prisma.deliveryTicket.findUniqueOrThrow({ where: { id: ticket.id } }),
+    ).toMatchObject({
+      step: "plan_confirm",
+      waitingOn: "staff",
+      pauseCount: 0,
+      pausedAt: null,
+      pauseRemainingMin: null,
+      stepDueAt: expected.dueAt,
+    });
+    expect(
+      await h.prisma.deliveryTicketStage.findUniqueOrThrow({ where: { id: stage.id } }),
+    ).toMatchObject({
+      dueAt: expected.dueAt,
+      completedAt: null,
+      visitNo: stage.visitNo,
+      enteredAt: stage.enteredAt,
+      pausedMinutes: 60,
+    });
+    expect(await h.prisma.deliveryPlan.findUniqueOrThrow({ where: { id: plan.id } })).toMatchObject(
+      { staffDueAt: expected.dueAt },
+    );
+    expect(
+      await h.prisma.deliveryTicketPause.findFirstOrThrow({
+        where: { deliveryTicketId: ticket.id, refId: saved.approvalRequestId },
+      }),
+    ).toMatchObject({ releasedAt: h.clock.now(), releaseEvent: "withdrawn" });
+    expect(
+      await h.prisma.orderItemPlacement.findUniqueOrThrow({ where: { id: placement.id } }),
+    ).toEqual(placement);
+    assertSnapshotsEqual(money, await snapshotTables(h.prisma, MONEY_TABLES));
   });
 
   it("真实审批守卫自批、版本、确认与再验证；通过只到待执行并登记时限", async () => {

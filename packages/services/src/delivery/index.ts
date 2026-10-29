@@ -1,5 +1,7 @@
 export { registration } from "./register.js";
 export { createDelivery } from "./service.js";
+export { createDeliveryM5 } from "./lifecycle-m5.js";
+export type { DeliveryM5, DeliveryM5Deps } from "./lifecycle-m5.js";
 export { createDeliveryDownloads } from "./download/index.js";
 export type { DeliveryDownloads, DeliveryDownloadDeps } from "./download/index.js";
 export type { Delivery } from "./service.js";
