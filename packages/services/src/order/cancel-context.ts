@@ -25,6 +25,7 @@ export interface CancelDeps {
   events: Events;
   timers: Timers;
   sla: Sla;
+  orderSubmissionCompanion?: (serviceTicketId: string) => OrderCancelSubmissionCompanion;
 }
 export interface CancelActor {
   ctx: IdentityContext;
@@ -42,6 +43,17 @@ export interface AdCancelSubmissionCompanion {
   beforeAccount(tx: Tx, target: AdCancelSubmissionTarget): Promise<void>;
   afterCreated(tx: Tx, target: AdCancelSubmissionTarget): Promise<void>;
 }
+export interface OrderCancelSubmissionTarget {
+  readonly actor: CancelActor;
+  readonly approvalId: string;
+  readonly dramaOrderId: string;
+  readonly entityId: string;
+  readonly storeId: string;
+}
+export interface OrderCancelSubmissionCompanion {
+  beforeAccount(tx: Tx, target: OrderCancelSubmissionTarget): Promise<void>;
+  afterCreated(tx: Tx, target: OrderCancelSubmissionTarget): Promise<void>;
+}
 export interface CancelCall {
   deps: CancelDeps;
   actor: CancelActor;
@@ -50,6 +62,10 @@ export interface CancelCall {
   auto?: boolean;
   submissionCompanion?: AdCancelSubmissionCompanion;
   submissionTarget?: AdCancelSubmissionTarget;
+  lineIds?: ReadonlyMap<string, string>;
+  orderSubmissionCompanion?: OrderCancelSubmissionCompanion;
+  orderSubmissionTarget?: OrderCancelSubmissionTarget;
+  prelockedStaffIds?: readonly string[];
 }
 // 与 qualification 同形的事务绑定；静态 kind 不缓存某个 API/worker 的实例。
 const calls = new WeakMap<Tx, CancelCall>();
@@ -67,6 +83,8 @@ export function cancelCall(tx: Tx) {
   if (!call) throw new AppError("INTERNAL", { message: "广告取消必须从 order 公口进入" });
   return call;
 }
+/** Only the active submission callback can authorize its same-Tx automatic execution. */
+export const currentCancelCall = (tx: Tx) => calls.get(tx);
 export const cancelScope = (actor: CancelActor) => actor.staff?.scope ?? SYSTEM_SCOPE;
 export class CancelRecheckError extends AppError {
   constructor(

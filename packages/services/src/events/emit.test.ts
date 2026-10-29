@@ -170,12 +170,10 @@ describe("emit：事件与业务写同事务（验收 2）", () => {
 describe("emit：信封与载荷校验（验收 3）", () => {
   const notEmitted = EVENTS.find((event) => event.status === "not_emitted")?.name as string;
   const reserved = EVENTS.find((event) => event.status === "reserved")?.name as string;
-  const noSchema = EVENTS.find(
-    (event) =>
-      event.status === "v1" &&
-      event.aggregates.includes("drama_order") &&
-      eventPayloadSchema(event.name) === undefined,
-  )?.name as string;
+  const noSchemaEvent = EVENTS.find(
+    (event) => event.status === "v1" && eventPayloadSchema(event.name) === undefined,
+  );
+  const noSchema = noSchemaEvent?.name as string;
   const id = uuidv7();
   const refused: Array<[string, string, EmitInput]> = [
     ["未登记的事件名", "unknown_event", { type: "lyxtest.nope", payload: { v: 1 } }],
@@ -206,7 +204,11 @@ describe("emit：信封与载荷校验（验收 3）", () => {
     [
       "没有 schema 的正式事件",
       "no_schema",
-      { type: noSchema, aggregate: { type: "drama_order", id }, payload: { v: 1 } },
+      {
+        type: noSchema,
+        aggregate: noSchemaEvent?.aggregates[0] ? { type: noSchemaEvent.aggregates[0], id } : null,
+        payload: { v: 1 },
+      },
     ],
     ["去重键是空串", "dedupe_key", { ...placed(), dedupeKey: " " }],
     ["有门店没有主体", "tenant", { ...placed(), storeId: id }],
@@ -226,7 +228,7 @@ describe("emit：信封与载荷校验（验收 3）", () => {
     expect([notEmitted, reserved].every((name) => typeof name === "string")).toBe(true);
     expect(EVENTS.find((event) => event.name === noSchema)).toMatchObject({
       status: "v1",
-      aggregates: ["drama_order"],
+      aggregates: noSchemaEvent?.aggregates,
     });
     expect(eventPayloadSchema(noSchema)).toBeUndefined();
   });

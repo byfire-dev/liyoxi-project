@@ -38,7 +38,7 @@ export function runRound({
   script = "e2e",
 }) {
   if (
-    !["e2e", "e2e:m2", "e2e:m3", "e2e:m4"].includes(script) ||
+    !["e2e", "e2e:m2", "e2e:m3", "e2e:m4", "e2e:m5"].includes(script) ||
     !/^[a-z0-9]{1,12}$/.test(session) ||
     !Number.isInteger(timeoutMs) ||
     timeoutMs < 1 ||

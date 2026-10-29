@@ -8,9 +8,25 @@
 
 `resultSnapshot` 和完整 `CancelRequestDetail` 来自实际 ReturnResult，分摊预览保留在原快照。账本未返回实际逐批明细，因此结果 breakdown 的 `lots=[]`，不复制预览来冒充实际；三个去向数与 qty 为真实账本值。完整 DTO 在资金事务内组装并作为 C50 持久回执，`replayed` 仅在通用响应 meta。审批执行事实通过 `approval.execution_facts` 端口由 order 提供，approval 不反向读取上层表。
 
-本包目标：`cancel-execute.property/concurrency/fault.test.ts` 共26条，覆盖六阶段、原路/转加购/作废、零退款、两个真实客户端各3轮、整笔故障回滚和幂等；`apps/api/test/order-cancel-execute.test.ts` 7条验证实际鉴权、stepup、范围、职责分离和C50。只有未实现的 W5-02 提交审批输入用合法 approved/pending_execution 快照准备；订单、开工、账本、方案/样片/制作及媒体检验均走真实公共服务与 Provider 协议。W5-02 应补真实申请 producer 后直接消费本执行入口；W5-03/08 只扩各自领域事实，不复制资金逻辑。
+W5-01目标：`cancel-execute.property/concurrency/fault.test.ts` 共26条，覆盖六阶段、原路/转加购/作废、零退款、两个真实客户端各3轮、整笔故障回滚和幂等；`apps/api/test/order-cancel-execute.test.ts` 7条验证实际鉴权、stepup、范围、职责分离和C50。该机制测试保留当时尚未交付的W5-02上游审批快照；订单、开工、账本、方案/样片/制作及媒体检验均走真实公共服务与Provider协议。下述W5-02场景使用正式申请producer；W5-03/08只扩各自领域事实，不复制资金逻辑。
 
-广告取消财务代撤（A15）：活跃发起人的广告已确认/取消且指针按库约束清空时，真实财务可在完整目标图预锁及再验证后撤回；owner 在关闭回调再次核终局事实。只从 order 公口建立真实事务上下文；直接泛 approval、缺预锁或关联错配严格拒绝，外来指针不清理。本人、停用发起人代撤及实际 system 失效路径不变，无新 HTTP 或 M5 producer。
+广告取消财务代撤（A15）：活跃发起人的广告已确认/取消且指针按库约束清空时，真实财务可在完整目标图预锁及再验证后撤回；owner 在关闭回调再次核终局事实。只从 order 公口建立真实事务上下文；直接泛 approval、缺预锁或关联错配严格拒绝，外来指针不清理。本人、停用发起人代撤及实际system失效路径不变；该A15补片本身未新增HTTP或M5 producer，正式取消入口见下节。
+
+## 取消申请与资质后续（W5-02）
+
+`createCancelRequests(deps)` 提供 `quote(actor, orderId, body)`、`create(actor, orderId, body, idem)` 和 `approve/reject/withdraw/void(actor, cancelRequestId, body, idem)`。报价复用原只读 `quoteOrderCancel`；写入回包在同一事务调用 `readCancelRequestDetail`，将完整DTO作为C50回执。命中回执之前仍复核当前员工、权限与范围；本人撤回/作废允许原发起人范围例外，审批与执行仍要求当前对象范围。所有回包沿原员工身份读取，系统免审不会扩大读范围。
+
+人工创建只收三个原因；在真实父项/工单全图锁与账本账户锁内重算expect，逐个校验手动扣除依据及明确选择项。新审批、申请、明细由本事务创建，预分配ID先登记锁顺序，并发互斥由真实父行锁、指针与部分唯一索引保证。订单进入/退出after_sale时指针与状态在同一迁移UPDATE更新。客服关联通过组合根注入的 `orderSubmissionCompanion(serviceTicketId)` 两阶段拥有者公口处理；缺装配显式失败，service270锁位于账户420之前。
+
+`orderCancelKind`、`qualificationCancelKind` 使用统一approval：真实版本、确认回显、自批与权限守卫先由框架判断，再做取消重校验。通过只记pending_execution与执行SLA；失败证据在完整事务回滚后单独追加。驳回跳过再验证，本人撤回无需再验证，代撤仍核启用状态/对象失效、财务权限及再验证；作废仅发起人。关闭只释放本审批来源的cancel_review，不清其他暂停，再推导父单，真实full闸门的待开工单恢复原order.start键。
+
+免审批仅在开关开启、全部release且原批次全额退回时成立，由本事务真实system批准，并从同一 `executeCancel` 进入W5-01执行叶；没有模拟财务身份或第二套资金writer。中间after_sale不额外发订单状态事件，最终状态只发一次；每个非live取消项发与实际结果一致的cancelled/refunded/terminated事件。
+
+广告沿原有父锁组合语义，不为本事务尚未创建的行追加逆序低锁；只有 `submitAdCancel` 在真实新行建立且免审条件命中后签发的私有事务见证，才能在唯一执行入口跳过本次新approval/request/line三行的锁。见证须逐ID吻合，且没有订单或额外审批目标；既有业务锁、重校验、账户和实际执行事实检查全部保留。Tx层对象失效的系统撤回/作废同样只认锁后真实事实，正常对象不能走此通道；HTTP用例始终要求真实员工。
+
+`bindCancelRequests`为worker绑定真实依赖。资质订阅者在store130之前预读并取得staff20、approval30、cancel50、line60及后续全部业务锁，锁后重读当前轮次与目标图。终局只接受profile当前真实终局事实，系统代真实审核人生成整店申请，覆盖尚未被其他申请占用的待开工订购与未指派广告。非终局使用 `order.rejected_stale:drama_order:{id}:r{roundNo}`，在驳回时刻加参数自然日后提醒；处理器复核当前轮次、非终局结论、待开工与无在途取消，再发去重的 `order.rejected_stale`。新轮次、恢复资质或开工均跳旧提醒，绝不自动取消。
+
+本地定点已覆盖 `cancel-requests.db.test.ts` 14项、`qualification-cancel.db.test.ts` 4项及 `cancel-read.db.test.ts` 4项；资格用真实profile提交/驳回事件驱动，七日通知沿真实runtime到在职客服主管，旧轮延迟消费零通知。受影响回归覆盖原广告核心128项、订阅者3项、三个连接20轮开工竞争；唯一执行另核正式kind注册后的提前recordExecuted拒绝与plan_confirm真实账本金额/订单项事件。失败修复只复跑对应场景，未重复原全矩阵；正式API与最终类型/分层由组合根验收。
 
 W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 交选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
 

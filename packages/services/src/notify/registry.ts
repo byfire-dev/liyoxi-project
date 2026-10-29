@@ -409,6 +409,18 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   ],
   "order.submitted": [spec("m.order_submitted", "orderForNotify", "dramaOrderId", "order", order)],
   "order.started": [spec("m.order_progress", "orderForNotify", "dramaOrderId", "order", order)],
+  "order.rejected_stale": [
+    {
+      ...staffSpec("s.kf_todo", "orderRejectedForNotify", "dramaOrderId", "order.detail", [
+        "pending_start",
+      ]),
+      category: "order",
+      staffLink: (fact) => ({
+        route: "order.detail",
+        params: { orderId: fact.orderId ?? fact.bizId },
+      }),
+    },
+  ],
   "plan.pushed": [
     spec(
       "m.plan_pending",

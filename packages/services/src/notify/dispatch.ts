@@ -158,6 +158,13 @@ export async function currentNotificationFact(
     (!fact.targetDate || fact.targetDate < calendarDate(deps.clock.now()))
   )
     return null;
+  if (spec.sceneKey === "s.kf_todo") {
+    fact.staffIds =
+      (await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
+        roleKey: "cs",
+        isLead: true,
+      })) ?? [];
+  }
   if (["s.approval_pending", "s.approval_overdue"].includes(spec.sceneKey))
     fact.staffIds = await deps.approvalRecipients(tx, id);
   // 已发出的旧SLA事件可能晚于日历修正才消费，必须按当前截止复核。
@@ -522,6 +529,11 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
+    if (
+      event.type === "order.rejected_stale" &&
+      (fact.occurredAt !== event.payload.rejectedAt || fact.storeId !== event.payload.storeId)
+    )
+      continue;
     if (
       joined &&
       (fact.bizType !== "invitation" ||

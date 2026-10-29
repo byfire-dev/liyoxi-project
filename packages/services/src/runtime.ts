@@ -57,16 +57,22 @@ import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import {
   createOrderService,
-  createCancelExecution,
+  bindCancelRequests,
   bindOrder,
   bindOrderStart,
   readUnassignedStoreOrderIds,
   syncUnassignedStoreOrders,
   readBillingPendingCancels,
 } from "./order/index.js";
-import { createBillingApprovalRefs, readCancelApprovalRefs } from "./support/index.js";
+import {
+  createBillingApprovalRefs,
+  createOrderCancelApprovalRefCompanion,
+  readCancelApprovalRefs,
+} from "./support/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
-import type { OrderService, CancelExecution } from "./order/index.js";
+import type { OrderService, CancelDeps } from "./order/index.js";
+import { createRuntimeCancelRequests } from "./runtime-cancel-requests.js";
+import type { RuntimeCancelRequests } from "./runtime-cancel-requests.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
 // 配置读侧、健康检查 → 服务装配。应用层只经 @liyoxi/services 的入口拿到它，不引 @liyoxi/db（硬性规则 5）。
@@ -294,7 +300,7 @@ export interface Runtime {
   readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
-  readonly cancelRequests: CancelExecution;
+  readonly cancelRequests: RuntimeCancelRequests;
   readonly stagingPay: ReturnType<typeof createStagingPayEntry>;
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
@@ -932,13 +938,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindBilling = bindBillingTimers({ clock, flow, timers });
   const ledger = createLedger({ clock, events });
   billingDailyScope.attach({ ledger, ...createBillingDailyProjection({ ledger }) });
-  const unbindOrder = bindOrder({
-    assembly,
-    clock,
-    flow,
-    cancel: { tx, clock, flow, events, approval, ledger, timers, sla, assembly },
-  });
-  const cancelRequests = createCancelExecution({
+  const cancelDeps: CancelDeps = {
     tx,
     clock,
     flow,
@@ -949,7 +949,12 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     sla,
     assembly,
     readApprovalRefs: readCancelApprovalRefs,
-  });
+    orderSubmissionCompanion: (serviceTicketId) =>
+      createOrderCancelApprovalRefCompanion({ serviceTicketId, clock }),
+  };
+  const unbindOrder = bindOrder({ assembly, clock, flow, cancel: cancelDeps });
+  const unbindCancelRequests = bindCancelRequests(cancelDeps);
+  const cancelRequests = createRuntimeCancelRequests(cancelDeps);
   const tenant = createTenant({ tx, clock, flow, assembly });
   const unbindOrderStart = bindOrderStart({
     tx,
@@ -1276,6 +1281,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         ]);
         await settle([
           unbindOrderStart,
+          unbindCancelRequests,
           unbindOrder,
           unbindBilling,
           unbindPaymentChannel,
