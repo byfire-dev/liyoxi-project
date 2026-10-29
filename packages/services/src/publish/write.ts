@@ -30,6 +30,7 @@ import {
 import { checked } from "./machines.js";
 import { launchChangedPort, launchHandlerPort } from "./ports.js";
 import { boundAssembly } from "./binding.js";
+import { closeCancelReviewLaunchSubmission } from "./cancel-review-close.js";
 type Body =
   ChannelAccountApproveBody | ChannelAccountRejectBody | LaunchApproveBody | LaunchRejectBody;
 const calls = new WeakMap<
@@ -693,7 +694,5 @@ export const launchKind = defineApprovalKind<SubmissionInput>({
   revalidate: async () => {},
   onApproved: (tx, row, d) => launchDecision(tx, row, d, true),
   onRejected: (tx, row, d) => launchDecision(tx, row, d, false),
-  onWithdrawn: async () => {
-    throw new AppError("STATE_NOT_ALLOWED");
-  },
+  onWithdrawn: closeCancelReviewLaunchSubmission,
 });

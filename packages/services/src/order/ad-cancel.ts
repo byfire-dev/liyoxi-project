@@ -5,7 +5,6 @@ import {
   CancelRejectBodySchema,
   CancelVoidBodySchema,
   CancelWithdrawBodySchema,
-  ReturnBreakdownSchema,
 } from "@liyoxi/contract";
 import type {
   AdCancelCoreSubmitBody,
@@ -46,6 +45,9 @@ import {
 } from "./cancel-locks.js";
 import { boundCancelAdItems, quoteAdCancel } from "./cancel-quote.js";
 import { revalidateCancel } from "./cancel-revalidation.js";
+import { finishCancelTargets, readCancelExecutionRequest } from "./cancel-execution.js";
+import { prelockCancelExecutionGraph, readCancelExecutionGraph } from "./cancel-locks.js";
+import { runCancelUseCase } from "./cancel-use-case.js";
 
 const executionKey = (id: string) =>
   timerKey("sla.breach", { type: "approval_request", id }, "execution");
@@ -333,7 +335,6 @@ async function finishAdCancel(
   const c = cancelCall(tx),
     line = r.cancelRequestLines[0]!,
     now = c.deps.clock.now();
-  const preview = ReturnBreakdownSchema.parse(line.previewSnapshot);
   const result = await cancelAd(
     tx,
     c.deps,
@@ -368,12 +369,6 @@ async function finishAdCancel(
               refNo: r.approvalRequest.requestNo!,
               ctx: c.actor.ctx,
             });
-      if (
-        result.returnedPoints !== preview.backToOriginal ||
-        result.convertedPoints !== preview.convertedToAddon ||
-        result.forfeitedPoints !== preview.forfeited
-      )
-        throw new AppError("PRECONDITION_CHANGED");
       return result;
     },
   );
@@ -385,10 +380,11 @@ async function finishAdCancel(
       forfeitedPoints: result.forfeitedPoints,
       executedAt: now,
       resultSnapshot: {
-        ...preview,
+        qty: result.returnedPoints + result.convertedPoints + result.forfeitedPoints,
         backToOriginal: result.returnedPoints,
         convertedToAddon: result.convertedPoints,
         forfeited: result.forfeitedPoints,
+        lots: [],
       },
     },
   });
@@ -653,7 +649,10 @@ export async function executeCancel(
   const body = CancelExecuteBodySchema.parse(input),
     staff = staffIdentity(actor);
   assertPermission(staff, "finance.refund.execute", deps.clock.now());
-  const r = await lockedRequest(tx, actor, id);
+  await readCancelExecutionRequest(tx, actor, id);
+  const graph = await readCancelExecutionGraph(tx, id);
+  await prelockCancelExecutionGraph(tx, graph, staff.staff.id);
+  const r = await readCancelExecutionRequest(tx, actor, id);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   assertConfirm(body.confirm, {
     requestNo: r.approvalRequest.requestNo!,
@@ -682,7 +681,30 @@ export async function executeCancel(
         recheckLog: { ...jsonObject(r.recheckLog), execute: entry } as Prisma.InputJsonValue,
       },
     });
-    await finishAdCancel(tx, r, false, body.confirmChecks);
+    await finishCancelTargets(tx, deps, actor, r, graph, at);
+    await deps.timers.cancel(tx, {
+      subject: { type: "approval_request", id: r.approvalRequestId },
+      kinds: ["sla.breach"],
+      keyPrefix: executionKey(r.approvalRequestId),
+    });
+    await transition(
+      tx,
+      r,
+      "cancel.execute",
+      {
+        executed_at: at,
+        closed_at: at,
+        is_executed_by_system: false,
+        executed_by_staff_id: staff.staff.id,
+        exec_confirm_checks: [...body.confirmChecks],
+      },
+      "cancel.executed",
+      { isAutoExecuted: false },
+    );
+    await deps.approval.recordExecuted(tx, actor.ctx, {
+      approvalId: r.approvalRequestId,
+      domain: { type: "cancel_request", id: r.id },
+    });
     return cancelResult(tx, id);
   });
 }
@@ -708,27 +730,8 @@ function cancelResult(tx: Tx, id: string) {
  * Same-Tx callers use the exported Tx functions and retain responsibility for this separate failure log.
  */
 export function createAdCancel(deps: CancelDeps) {
-  const run = async <T>(fn: (tx: Tx) => Promise<T>, idem?: IdempotencyContext) => {
-    try {
-      return await deps.tx.run(fn, idem ? { idem } : {});
-    } catch (error) {
-      if (error instanceof CancelRecheckError)
-        await deps.tx.run(async (tx) => {
-          await lockRows(tx, "cancel_request", [error.requestId]);
-          const row = await tx.cancelRequest.findUniqueOrThrow({ where: { id: error.requestId } });
-          await tx.cancelRequest.update({
-            where: { id: row.id },
-            data: {
-              recheckLog: {
-                ...jsonObject(row.recheckLog),
-                [error.phase]: error.entry,
-              } as Prisma.InputJsonValue,
-            },
-          });
-        });
-      throw error;
-    }
-  };
+  const run = <T>(fn: (tx: Tx) => Promise<T>, idem?: IdempotencyContext) =>
+    runCancelUseCase(deps, fn, idem);
   return {
     submit: (
       actor: CancelActor,

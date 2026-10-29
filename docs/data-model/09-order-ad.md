@@ -1102,6 +1102,8 @@ stateDiagram-v2
 
 恒有 `qty = backToOriginal + convertedToAddon + forfeited`。`result_snapshot` 的三个数同时落在 `returned_points`、`converted_points`、`forfeited_points` 三列。
 
+W5-01 执行写入时，`result_snapshot` 由真实账本 `ReturnResult` 的三项数量规范化为此结构，`qty` 为三项之和。账本尚未返回逐批执行明细，因此新执行结果的 `lots = []`；不得用 `preview_snapshot.lots` 代替实际结果。历史快照保持原样。
+
 ### 4.6 `cancel_request.recheck_log`（本稿所定，承接 d2:301）
 
 | 键 | 类型 | 含义 |

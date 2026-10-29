@@ -67,3 +67,8 @@ export { staffPiiFields } from "./pii-fields.js";
 export { loadCliStaffContext } from "./cli-context.js";
 
 export { staffContextsForNotify, staffTargetForNotify } from "./notify-facts.js";
+export {
+  closeSystemFollowUps,
+  readSystemFollowUpCloseTargets,
+  lockSystemFollowUpCloseTargets,
+} from "./cancel-follow-ups.js";

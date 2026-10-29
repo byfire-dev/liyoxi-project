@@ -14,10 +14,11 @@ import { findI1Violations, findI2Violations, findI4Violations } from "./invarian
 import { boundApprovalSla, onApprovalCalendarImported, handleApprovalSlaBreach } from "./sla.js";
 import { findI3Violations, findI5Violations } from "./sla-invariants.js";
 import { approvalKindPort } from "./kinds.js";
+import { approvalExecutionFactsPort } from "./execute.js";
 import { APPROVAL_CHAIN, approvalBinding } from "./machine.js";
 
 export const registration = defineRegistration("approval", {
-  ports: [approvalKindPort],
+  ports: [approvalKindPort, approvalExecutionFactsPort],
   subscribers: [
     {
       name: "approval.onCalendarImported",

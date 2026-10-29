@@ -6,11 +6,17 @@ import type { Ledger } from "../billing/index.js";
 import type { Events } from "../events/index.js";
 import type { Flow } from "../flow/index.js";
 import { AppError } from "../kernel/index.js";
-import type { Clock, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
+import type { Assembly, Clock, IdentityContext, Tx, TxRunner } from "../kernel/index.js";
 import type { Sla } from "../sla/index.js";
 import type { Timers } from "../timers/index.js";
 
 export interface CancelDeps {
+  /** 既有广告调用方无需履约运行时；包含工单的统一执行由组合根提供真实装配。 */
+  assembly?: Assembly;
+  readApprovalRefs?: (
+    tx: Tx,
+    input: { approvalRequestId: string; entityId: string; storeId: string },
+  ) => Promise<readonly { serviceTicketId: string; ticketNo: string; status: string }[]>;
   tx: TxRunner;
   clock: Clock;
   approval: Approval;

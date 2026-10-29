@@ -59,6 +59,21 @@ export const payloads = {
     deliveryManagerId: z.union([IdSchema, z.null()]),
   }),
   "ticket.assigned": z.strictObject({ ...ticket, deliveryManagerId: IdSchema }),
+  "ticket.terminated": z
+    .strictObject({
+      v: z.literal(1),
+      deliveryTicketId: IdSchema,
+      orderItemId: IdSchema,
+      cancelRequestId: IdSchema,
+      fromState: z.enum(DELIVERY_TICKET_STEP.values).exclude(["archived", "terminated"]),
+      toState: z.enum(["terminated", "takedown"]),
+      transition: z.literal("ticket.terminate"),
+    })
+    .refine((p) =>
+      ["in_service", "takedown"].includes(p.fromState)
+        ? p.toState === "takedown"
+        : p.toState === "terminated",
+    ),
   "ticket.held": z.strictObject({
     v: z.literal(1),
     deliveryTicketId: IdSchema,

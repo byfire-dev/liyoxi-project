@@ -25,8 +25,10 @@ import { readProfileStoreLastOrders } from "./profile-list.js";
 import { readProfileAdminOrderFacts } from "./profile-admin.js";
 import { QualificationImpactPort } from "../profile/index.js";
 import { previewFinalReject } from "./cancel-quote.js";
+import { checkedCancel } from "./cancel-context.js";
 import { readCancelReviewCause } from "./cancel-review-facts.js";
-import { approvalKindPort } from "../approval/index.js";
+import { approvalExecutionFactsPort, approvalKindPort } from "../approval/index.js";
+import { cancelExecutionCompleted } from "./cancel-execution.js";
 import { adCancelKind, cancelRequestBinding, cancelRequestChain } from "./ad-cancel-kind.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
@@ -98,6 +100,8 @@ export const registration = defineRegistration("order", {
     implement(adminStoreListOrderPort, readProfileStoreLastOrders),
     implement(entityAdCancelClosePort, entityAdCancelCloser),
     implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
+    implementKeyed(approvalExecutionFactsPort, "order_cancel", cancelExecutionCompleted),
+    implementKeyed(approvalExecutionFactsPort, "qualification_cancel", cancelExecutionCompleted),
     implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),
     implementTenantCloseFacts(orderCloseFactsPort, {
       countOpenOrdersByEntity,
@@ -130,7 +134,13 @@ export const registration = defineRegistration("order", {
     implement(orderManagerPort, syncOrderManager),
     implement(QualificationImpactPort, { previewFinalReject }),
     implementKeyed(machinePort, chainKey("drama_order", "status"), {
-      companions: ["sub_status", "status_changed_at", "closed_at", "started_at"],
+      companions: [
+        "sub_status",
+        "status_changed_at",
+        "closed_at",
+        "started_at",
+        "open_cancel_request_id",
+      ],
       guards: {
         [rowKey("09:197", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
       },
@@ -141,13 +151,26 @@ export const registration = defineRegistration("order", {
       }),
     }),
     implementKeyed(machinePort, chainKey("order_item", "phase"), {
-      companions: ["phase_changed_at", "usage_start_date", "live_episode_count", "captured_at"],
+      companions: [
+        "phase_changed_at",
+        "usage_start_date",
+        "live_episode_count",
+        "captured_at",
+        "cancel_reason_code",
+        "cancelled_at",
+        "refund_requested_points",
+        "returned_points",
+        "converted_points",
+        "forfeited_points",
+      ],
       activity: (facts) => ({
         category: "flow",
         action: `order.item.${facts.event === "order.start" ? "start" : "submit"}`,
         summary: facts.event === "order.start" ? "扣减订单项积分并开工" : "冻结订单项积分",
       }),
       guards: {
+        [rowKey("09:353", "cancel.execute")]: async (_tx, facts) => checkedCancel(facts.args),
+        [rowKey("09:354", "ticket.terminate")]: async (_tx, facts) => checkedCancel(facts.args),
         [rowKey("09:352", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
         [rowKey("09:355", "package.pushed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:356", "launch.changed")]: async (_tx, facts) => isDerivationChecked(facts.args),
