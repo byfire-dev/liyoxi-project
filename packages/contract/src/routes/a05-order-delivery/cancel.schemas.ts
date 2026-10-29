@@ -1,9 +1,10 @@
 // a05 §2.2/3.6/3.61：只读核算 DTO；此处不接管任何 HTTP 路由。
 import { z } from "../../zod.js";
-import { IdSchema, DateSchema, InstantSchema } from "../../common/index.js";
+import { IdSchema, DateSchema, InstantSchema, PageQuerySchema } from "../../common/index.js";
 import { CANCEL_REQUEST_LINE_STAGE, PRODUCTION_MODEL } from "../../enums/index.js";
 import { zodEnum } from "../../enums/zod.js";
 import { StaffBriefSchema } from "../a01-system/structures.js";
+import { adminPage } from "../a01-system/structures.js";
 import { ApprovalDecisionViewSchema } from "../a01-system/approvals.schemas.js";
 import { AdminStoreBriefSchema } from "./public.schemas.js";
 const points = z.int().nonnegative();
@@ -166,6 +167,9 @@ const resultTotals = z.strictObject({
   convertedPoints: points,
   forfeitedPoints: points,
 });
+export const CancelActionsSchema = z.array(
+  z.enum(["approve", "reject", "withdraw", "void", "execute"]),
+);
 export const CancelRequestDetailSchema = z
   .strictObject({
     cancelRequestId: IdSchema,
@@ -210,7 +214,7 @@ export const CancelRequestDetailSchema = z
     ),
     destination: ReturnBreakdownSchema,
     resultTotals: resultTotals.nullable(),
-    approval: ApprovalDecisionViewSchema,
+    approval: ApprovalDecisionViewSchema.extend({ actions: CancelActionsSchema }),
     confirmChecks: z.array(z.string()),
     execution: z
       .strictObject({
@@ -262,7 +266,102 @@ export const CancelRequestDetailSchema = z
       }),
     ),
     lockVersion: points,
-    actions: z.array(z.string()),
+    actions: CancelActionsSchema,
   })
   .openapi("CancelRequestDetail");
 export type CancelRequestDetail = z.infer<typeof CancelRequestDetailSchema>;
+
+export const OrderCancelRequestCreateBodySchema = OrderCancelQuoteBodySchema.extend({
+  note: z.string().trim().min(5).max(200),
+  expect: z.strictObject({ totalRefundPoints: points }),
+  serviceTicketId: inputId.optional(),
+});
+export type OrderCancelRequestCreateBody = z.infer<typeof OrderCancelRequestCreateBodySchema>;
+
+const cancelKind = z.enum(["order_cancel", "ad_cancel", "qualification_cancel"]);
+export const CancelRequestFiltersSchema = z
+  .strictObject({
+    q: z.string().min(1).max(40).optional(),
+    kind: z
+      .string()
+      .transform((value, ctx) => {
+        const parsed = z.array(cancelKind).min(1).safeParse(value.split(","));
+        if (!parsed.success) {
+          ctx.addIssue({ code: "custom", message: "取消类型须为合法的逗号分隔值" });
+          return z.NEVER;
+        }
+        return [...new Set(parsed.data)];
+      })
+      .optional(),
+    reasonCode: CancelReasonSchema.optional(),
+    storeId: IdSchema.optional(),
+    entityId: IdSchema.optional(),
+    requesterId: z.union([IdSchema, z.literal("me")]).optional(),
+    overdueOnly: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true")
+      .optional(),
+    submittedFrom: DateSchema.optional(),
+    submittedTo: DateSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      !value.submittedFrom || !value.submittedTo || value.submittedFrom <= value.submittedTo,
+    {
+      path: ["submittedTo"],
+      message: "结束日期须不早于开始日期",
+    },
+  );
+export const CancelRequestListQuerySchema = CancelRequestFiltersSchema.safeExtend({
+  ...PageQuerySchema.shape,
+  tab: z
+    .enum(["pending_approval", "pending_execution", "processed", "all"])
+    .default("pending_approval"),
+  sort: z.enum(["urgency", "-submittedAt", "execDueAt"]).default("urgency"),
+});
+export const CancelRequestCardSchema = CancelRequestDetailSchema.pick({
+  cancelRequestId: true,
+  requestNo: true,
+  kind: true,
+  store: true,
+  target: true,
+  reasonCode: true,
+  lineCount: true,
+  totalBasePoints: true,
+  totalDeductPoints: true,
+  totalRefundPoints: true,
+  isFullReturn: true,
+  status: true,
+  closeReason: true,
+  approvalStatus: true,
+  submittedAt: true,
+  requester: true,
+  isSystemSubmitted: true,
+  approvalDueAt: true,
+  decidedAt: true,
+  execDueAt: true,
+  executedAt: true,
+  isOverdue: true,
+  actions: true,
+})
+  .strip()
+  .openapi("CancelRequestCard");
+export const CancelRequestListSchema = adminPage(CancelRequestCardSchema);
+export const CancelRequestSummarySchema = z
+  .strictObject({
+    tabs: z.strictObject({
+      pending_approval: points,
+      pending_execution: points,
+      processed: points,
+    }),
+    monthReturnedPoints: points,
+    monthDoneCount: points,
+    inProgressCount: points,
+    monthRejectedCount: points,
+    overdueCount: points,
+  })
+  .openapi("CancelRequestSummary");
+export type CancelRequestFilters = z.infer<typeof CancelRequestFiltersSchema>;
+export type CancelRequestListQuery = z.infer<typeof CancelRequestListQuerySchema>;
+export type CancelRequestCard = z.infer<typeof CancelRequestCardSchema>;
+export type CancelRequestSummary = z.infer<typeof CancelRequestSummarySchema>;

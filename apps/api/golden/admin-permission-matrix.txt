@@ -37,7 +37,14 @@ admin.billingParam.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.billingParam.withdraw | billing:view | billing.param.edit | 11 00 00 00 00 11 00 00
 admin.calendarDay.batchImport | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.calendarDay.list | system:view | - | 11 00 00 00 00 00 00 00
+admin.cancelRequest.approve | - | finance.refund.approve | 11 00 00 00 00 00 00 11
 admin.cancelRequest.execute | - | finance.refund.execute | 11 00 00 00 00 00 00 11
+admin.cancelRequest.get | - | - | 11 11 11 11 11 11 11 11
+admin.cancelRequest.list | - | - | 11 11 11 11 11 11 11 11
+admin.cancelRequest.reject | - | finance.refund.approve | 11 00 00 00 00 00 00 11
+admin.cancelRequest.summary | - | - | 11 11 11 11 11 11 11 11
+admin.cancelRequest.void | - | order.refund.request | 11 11 00 00 00 00 00 00
+admin.cancelRequest.withdraw | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.channelAccount.get | - | - | 11 11 11 11 11 11 11 11
 admin.channelAccountSubmission.approve | publish:edit | publish.account.verify | 11 00 00 00 11 00 00 00
 admin.channelAccountSubmission.get | - | - | 11 11 11 11 11 11 11 11
@@ -135,6 +142,8 @@ admin.mediaJob.retry | - | media.job.retry | 11 00 00 00 00 11 00 00
 admin.merchantUser.disable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
 admin.merchantUser.enable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
 admin.merchantUser.forceLogout | merchant:view | merchant.user.force_logout | 11 11 00 00 00 00 00 00
+admin.order.cancelQuote | - | order.refund.request | 11 11 00 00 00 00 00 00
+admin.order.cancelRequest.create | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.order.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11

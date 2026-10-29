@@ -11,6 +11,12 @@ import {
   AdminOrderSummarySchema,
   AdminOrderDetailSchema,
 } from "./order-read.schemas.js";
+import {
+  OrderCancelQuoteBodySchema,
+  OrderCancelRequestCreateBodySchema,
+  CancelQuoteSchema,
+  CancelRequestDetailSchema,
+} from "./cancel.schemas.js";
 
 export const adminOrderList = adminRoute({
   request: { query: AdminOrderListQuerySchema },
@@ -66,7 +72,15 @@ export const adminOrderActivityList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminOrderCancelQuote = adminMeta({
+export const adminOrderCancelQuote = adminRoute({
+  request: {
+    params: z.object({ orderId: IdSchema }),
+    body: {
+      required: true,
+      content: { "application/json": { schema: OrderCancelQuoteBodySchema } },
+    },
+  },
+  responses: { ...okResponse(CancelQuoteSchema), ...errorResponses(400, 401, 403, 404, 409) },
   method: "post",
   path: "/admin/orders/{orderId}/cancel-quote",
   operationId: "admin.order.cancelQuote",
@@ -76,7 +90,18 @@ export const adminOrderCancelQuote = adminMeta({
   "x-idempotent-reason": "试算（A20）",
 });
 
-export const adminOrderCancelRequestCreate = adminMeta({
+export const adminOrderCancelRequestCreate = adminRoute({
+  request: {
+    params: z.object({ orderId: IdSchema }),
+    body: {
+      required: true,
+      content: { "application/json": { schema: OrderCancelRequestCreateBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(CancelRequestDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/admin/orders/{orderId}/cancel-requests",
   operationId: "admin.order.cancelRequest.create",

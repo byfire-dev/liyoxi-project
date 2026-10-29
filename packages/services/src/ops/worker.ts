@@ -76,7 +76,7 @@ import type { PrismaClient } from "@liyoxi/db";
 import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
-import { bindOrder, bindOrderStart } from "../order/index.js";
+import { bindOrder, bindOrderStart, bindCancelRequests } from "../order/index.js";
 import { assignDeliveryManager } from "../profile/index.js";
 import { recommendedStaff, createStaffAssembly } from "../staff/index.js";
 import { staffWorkSourcesOf } from "../kernel/index.js";
@@ -771,6 +771,17 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     sla: deliveryCore.sla,
     bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
   });
+  const closeCancelRequests = bindCancelRequests({
+    tx,
+    clock,
+    flow,
+    events,
+    approval,
+    ledger,
+    timers,
+    sla: deliveryCore.sla,
+    assembly,
+  });
   const closeDerive = bindOrder({
     assembly,
     clock,
@@ -1036,6 +1047,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: () => {
       closeStart();
+      closeCancelRequests();
       closeDerive();
     },
     closeBillingTimers: () => {

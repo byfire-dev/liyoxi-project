@@ -25,9 +25,8 @@ export async function recordExecuted(
   const row = await findApproval(tx, input.approvalId);
   if (!row) throw new AppError("NOT_FOUND");
   const registered = deps.kinds.get(row.kind);
-  // W5-01 consumes an already approved order cancellation before W5-02 owns its
-  // submission callbacks. This narrow fact check registers no producer or fake kind.
-  if (!registered && ["order_cancel", "qualification_cancel"].includes(row.kind)) {
+  // 取消审批注册正式提交回调后，执行仍必须核对领域完成事实和执行身份。
+  if (["order_cancel", "qualification_cancel"].includes(row.kind)) {
     const facts = deps.executionFacts?.get(row.kind);
     if (!facts || !(await facts(tx, ctx, input, row)))
       throw new ApprovalError("execution", "取消执行的真实完成事实或执行身份不一致");

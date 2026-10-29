@@ -131,7 +131,20 @@ export async function revalidateCancel(
             (request.kind !== "ad_cancel" || request.adId === ad.id),
         );
         const bound = await boundCancelAdItems(tx, ad.id);
-        compare(line.id, "boundOrderItemIds", [], bound);
+        const covered =
+          request.kind === "qualification_cancel"
+            ? new Set(
+                request.cancelRequestLines
+                  .filter((l) => l.targetType === "order_item")
+                  .map((l) => l.targetId),
+              )
+            : new Set<string>();
+        compare(
+          line.id,
+          "boundOrderItemIds",
+          [],
+          bound.filter((id) => !covered.has(id)),
+        );
         current = await calculateCancelFacts(tx, adCancelFacts(ad), reasonCode, at, options);
       } else compare(line.id, "targetType", "order_item|ad", line.targetType);
       if (!current) continue;
