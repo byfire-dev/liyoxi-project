@@ -20,6 +20,7 @@
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
+#   weapp-review-upload <40hex源码> <64hex摘要> <weapp-vX.Y.Z> 冻结后仅用机器人2上传同源提审包
 #   redis-flush <项目>  显式演练开关开启且未冻结时，只清本 node.yml 项目 Redis 的 DB 0
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
@@ -49,9 +50,11 @@ COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
 PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats redis-flush"
+PUBLIC_STEPS="$PUBLIC_STEPS weapp-review-upload"
 USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签] | logs <六服务> <UUID> | log-stats <1–1440分钟>"
 
 USAGE="$USAGE | redis-flush <本节点项目>"
+USAGE="$USAGE | weapp-review-upload <源码SHA> <摘要SHA256> <weapp-vX.Y.Z>"
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
   via_ssh=1
@@ -81,10 +84,15 @@ case "$step" in
     [[ "$2" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]] || usage_die "请求编号必须是 UUID"
     ;;
   log-stats)
-    [ $# -eq 1 ] && [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 分钟必须是 1–1440 的整数"
+    { [ $# -eq 1 ] || { [ $# -eq 3 ] && [ "$2" = --by-env-version ] && [[ "$3" =~ ^sha-[a-f0-9]{12}$ ]]; }; } &&
+      [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 只接受1–1440分钟及可选 --by-env-version <sha-12>"
     ;;
   weapp-upload)
     [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
+    ;;
+  weapp-review-upload)
+    [ $# -eq 3 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] &&
+      [[ "$3" =~ ^weapp-v(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$ ]] || usage_die "提审上传只接受源码、摘要与合法版本标签"
     ;;
   deps | status | api-stop | prune | preflight | facts) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
   pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts | verify-assets) need_tag "$@" ;;
@@ -327,6 +335,7 @@ step_run() {
 step_log_read() (
   set -o pipefail
   local mode="$1" service="$2" value="$3" minutes="$4" tail="$5" tag image output
+  shift 5
   tag="$(current_tag)"
   [ -n "$tag" ] || die "还没有当前版本：日志 runner 不可用"
   need_tag "$tag"
@@ -338,7 +347,7 @@ step_log_read() (
     docker run --rm -i --pull never --network none --read-only --user 65534:65534 \
       --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --cpus 0.5 --pids-limit 32 --log-driver none \
       --mount "type=bind,source=$LYX_SRC/infra/deploy/log-stats.mjs,target=/helper/log-stats.mjs,readonly" \
-      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value")" || die "日志读取失败或超过上限，未输出不完整结果"
+      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value" "$@")" || die "日志读取失败或超过上限，未输出不完整结果"
   [ -z "$output" ] || printf '%s\n' "$output"
 )
 
@@ -367,12 +376,17 @@ step_redis_flush() {
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
 . "$LYX_SRC/infra/deploy/node-weapp.sh"
+. "$LYX_SRC/infra/deploy/node-weapp-review.sh"
 
 case "$step" in
   redis-flush) step_redis_flush "$1" ;;
   logs) step_log_read logs "$1" "$2" 60 5001 ;;
-  log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
+  log-stats)
+    if [ $# -eq 3 ]; then step_log_read stats gateway "$1" "$1" 100001 --by-env-version --client-version "$3"
+    else step_log_read stats gateway "$1" "$1" 100001; fi
+    ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
+  weapp-review-upload) step_weapp_review_upload "$1" "$2" "$3" ;;
   deps) step_deps ;;
   pull) step_pull "$1" ;;
   check-env) step_check_env "$1" ;;

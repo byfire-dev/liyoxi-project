@@ -68,6 +68,48 @@ const success = {
   },
 };
 const sendJson = (response: ServerResponse, json: unknown) => response.end(JSON.stringify(json));
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+// sendTemplate 到注入 fetch 同步执行；只接管该段创建的 Provider 截止计时器。
+// 进入原生 fetch 前恢复全局函数，HTTP 客户端的所有内部计时器保持真实运行。
+function captureDeadline(forward: typeof fetch, expectedMs: number) {
+  const timer = vi.spyOn(globalThis, "setTimeout");
+  let entered = false,
+    restored = false,
+    fire: (() => void) | undefined;
+  const restore = () => {
+    if (!restored) timer.mockRestore();
+    restored = true;
+  };
+  return {
+    fetch: ((url, init) => {
+      entered = true;
+      try {
+        expect(timer).toHaveBeenCalledTimes(1);
+        const call = timer.mock.calls[0]!;
+        expect(call).toHaveLength(2);
+        expect(call[1]).toBe(expectedMs);
+        expect(timer.mock.results[0]?.type).toBe("return");
+        clearTimeout(timer.mock.results[0]!.value as ReturnType<typeof setTimeout>);
+        fire = call[0];
+      } finally {
+        restore();
+      }
+      return forward(url, init);
+    }) satisfies typeof fetch,
+    entered: () => entered,
+    fire: () => {
+      expect(fire).toBeTypeOf("function");
+      fire!();
+    },
+    restore,
+  };
+}
 
 describe("腾讯云短信：TC3 与真实本地 HTTP（公开虚构凭据，不发真实短信）", () => {
   it("官方 Node SMS demo 固定向量；期望值由独立 Python hashlib/hmac 计算", () => {
@@ -229,49 +271,146 @@ describe("腾讯云短信：TC3 与真实本地 HTTP（公开虚构凭据，不�
     expect(http.calls()).toBe(1);
   });
   it("5xx、网络断开、超时均不重发", async () => {
-    let mode = "5xx";
+    let mode = "5xx",
+      arrived = deferred();
     const http = await local((_req, res) => {
+      arrived.resolve();
       if (mode === "5xx") {
         res.statusCode = 503;
         res.end("private");
       } else if (mode === "network") res.destroy();
     });
-    const sms = createTencentSms({
-      config,
-      ...http,
-      timeoutMs: 25,
-      getTemplate: async () => template,
-    });
-    for (mode of ["5xx", "network", "timeout"])
-      expect(await sms.sendTemplate(input)).toMatchObject({
-        ok: false,
-        reason: "unavailable",
-        acceptance: "unknown",
-      });
+    const fetcher = vi.fn(http.fetch);
+    for (mode of ["5xx", "network", "timeout"]) {
+      arrived = deferred();
+      const control = new AbortController(),
+        beforeFetch = fetcher.mock.calls.length,
+        beforeArrival = http.calls(),
+        deadline = captureDeadline(fetcher, 25);
+      let settled = false,
+        pending: ReturnType<SmsProvider["sendTemplate"]> | undefined;
+      try {
+        const sms = createTencentSms({
+          config,
+          fetch: deadline.fetch,
+          timeoutMs: 25,
+          getTemplate: async () => template,
+        });
+        pending = sms.sendTemplate({ ...input, signal: control.signal }).then((result) => {
+          settled = true;
+          return result;
+        });
+        expect(deadline.entered()).toBe(true);
+        await Promise.race([arrived.promise, pending]);
+        expect(http.calls()).toBe(beforeArrival + 1);
+        expect(fetcher).toHaveBeenCalledTimes(beforeFetch + 1);
+        const sentSignal = fetcher.mock.calls[beforeFetch]?.[1]?.signal;
+        expect(sentSignal).toBeInstanceOf(AbortSignal);
+        if (mode === "timeout") {
+          expect(settled).toBe(false);
+          expect(sentSignal?.aborted).toBe(false);
+          deadline.fire();
+        }
+        expect(await pending).toMatchObject({
+          ok: false,
+          reason: "unavailable",
+          acceptance: "unknown",
+        });
+        expect(sentSignal?.aborted).toBe(mode === "timeout");
+        expect(fetcher).toHaveBeenCalledTimes(beforeFetch + 1);
+        expect(http.calls()).toBe(beforeArrival + 1);
+      } finally {
+        deadline.restore();
+        control.abort();
+        await pending?.catch(() => undefined);
+      }
+    }
+    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(http.calls()).toBe(3);
   });
   it("取消响应头等待与响应流及时回收；超限响应拒绝", async () => {
-    let mode = "wait";
+    let mode = "wait",
+      arrived = deferred(),
+      reading = deferred();
+    let readStarted: boolean;
     const http = await local((_req, res) => {
       if (mode === "stream") {
         res.writeHead(200);
         res.write('{"Response":');
       } else if (mode === "large") res.end("x".repeat(262145));
+      arrived.resolve();
     });
-    const sms = createTencentSms({
-      config,
-      ...http,
-      timeoutMs: 1000,
-      getTemplate: async () => template,
+    const fetcher = vi.fn<typeof fetch>(async (url, init) => {
+      const response = await http.fetch(url, init);
+      if (mode === "stream" && response.body) {
+        // 保留真实Response、正文和reader，只观测生产代码首次进入真实read。
+        const reader = response.body.getReader(),
+          read = reader.read.bind(reader),
+          entered = reading;
+        Object.defineProperty(reader, "read", {
+          value: () => {
+            const next = read();
+            readStarted = true;
+            entered.resolve();
+            return next;
+          },
+        });
+        Object.defineProperty(response.body, "getReader", { value: () => reader });
+      }
+      return response;
     });
-    for (mode of ["wait", "stream"]) {
-      const control = new AbortController();
-      const pending = sms.sendTemplate({ ...input, signal: control.signal });
-      setTimeout(() => control.abort(), 25);
-      expect(await pending).toMatchObject({ ok: false, acceptance: "unknown" });
+    for (mode of ["wait", "stream", "large"]) {
+      arrived = deferred();
+      reading = deferred();
+      readStarted = false;
+      const control = new AbortController(),
+        beforeFetch = fetcher.mock.calls.length,
+        beforeArrival = http.calls(),
+        deadline = captureDeadline(fetcher, 1000);
+      let settled = false,
+        pending: ReturnType<SmsProvider["sendTemplate"]> | undefined,
+        timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const sms = createTencentSms({
+          config,
+          fetch: deadline.fetch,
+          timeoutMs: 1000,
+          getTemplate: async () => template,
+        });
+        pending = sms.sendTemplate({ ...input, signal: control.signal }).then((result) => {
+          settled = true;
+          return result;
+        });
+        expect(deadline.entered()).toBe(true);
+        await Promise.race([arrived.promise, pending]);
+        expect(http.calls()).toBe(beforeArrival + 1);
+        expect(fetcher).toHaveBeenCalledTimes(beforeFetch + 1);
+        if (mode === "stream") {
+          await Promise.race([reading.promise, pending]);
+          expect(readStarted).toBe(true);
+        }
+        const sentSignal = fetcher.mock.calls[beforeFetch]?.[1]?.signal;
+        if (mode !== "large") {
+          expect(settled).toBe(false);
+          expect(control.signal.aborted).toBe(false);
+          expect(sentSignal?.aborted).toBe(false);
+          timer = setTimeout(() => control.abort(), 25);
+        }
+        expect(await pending).toMatchObject({ ok: false, acceptance: "unknown" });
+        if (mode !== "large") {
+          expect(control.signal.aborted).toBe(true);
+          expect(sentSignal?.aborted).toBe(true);
+        }
+        expect(fetcher).toHaveBeenCalledTimes(beforeFetch + 1);
+        expect(http.calls()).toBe(beforeArrival + 1);
+      } finally {
+        deadline.restore();
+        if (timer !== undefined) clearTimeout(timer);
+        control.abort();
+        await pending?.catch(() => undefined);
+      }
     }
-    mode = "large";
-    expect(await sms.sendTemplate(input)).toMatchObject({ ok: false, acceptance: "unknown" });
+    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(http.calls()).toBe(3);
   });
   it("已经取消、模板禁用、多余/缺失/超长变量、8位激活码，外呼前拒绝", async () => {

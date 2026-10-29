@@ -30,8 +30,19 @@ function timestamp(value) {
 }
 
 /** 导出只为本机用例；CLI 的分钟与请求编号仍逐项严格校验。 */
-export async function readLogs(input, mode, value, now = Date.now()) {
+export async function readLogs(input, mode, value, now = Date.now(), options = {}) {
   if (!["stats", "logs"].includes(mode)) fail("只接受 stats 或 logs");
+  const byEnvVersion = options.byEnvVersion === true;
+  const clientVersion = options.clientVersion;
+  if (
+    Object.keys(options).some((key) => !["byEnvVersion", "clientVersion"].includes(key)) ||
+    (options.byEnvVersion !== undefined && typeof options.byEnvVersion !== "boolean") ||
+    ((byEnvVersion || clientVersion !== undefined) && mode !== "stats") ||
+    (clientVersion !== undefined && (!byEnvVersion || !/^sha-[a-f0-9]{12}$/.test(clientVersion)))
+  )
+    fail("版本分组只接受stats与可选sha-12客户端版本");
+  const envVersions = { develop: 0, trial: 0, release: 0, unknown: 0 };
+  let otherClientVersions = 0;
   if (mode === "stats" && !/^(?:[1-9]\d{0,2}|1[0-3]\d\d|14[0-3]\d|1440)$/.test(value))
     fail("分钟必须是 1–1440 的整数");
   if (mode === "logs" && !UUID.test(value)) fail("请求编号必须是 UUID");
@@ -95,6 +106,18 @@ export async function readLogs(input, mode, value, now = Date.now()) {
       excluded++;
       return;
     }
+    if (byEnvVersion) {
+      if (clientVersion !== undefined && row.client_version !== clientVersion) {
+        otherClientVersions++;
+        return;
+      }
+      const env =
+        typeof row.env_version === "string" &&
+        ["develop", "trial", "release"].includes(row.env_version)
+          ? row.env_version
+          : "unknown";
+      envVersions[env]++;
+    }
     samples.push(row.request_time);
     if (row.status >= 500) errors++;
   }
@@ -130,6 +153,9 @@ export async function readLogs(input, mode, value, now = Date.now()) {
       badLines,
       outsideWindow,
       inputRows: rows,
+      ...(byEnvVersion
+        ? { clientVersion: clientVersion ?? null, envVersions, otherClientVersions }
+        : {}),
     }) + "\n"
   );
 }
@@ -137,8 +163,22 @@ export async function readLogs(input, mode, value, now = Date.now()) {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [mode, value, ...extra] = process.argv.slice(2);
   try {
-    if (extra.length || !value) fail("用法：log-stats.mjs stats <分钟> | logs <UUID>");
-    process.stdout.write(await readLogs(process.stdin, mode, value));
+    const grouped =
+      extra[0] === "--by-env-version" &&
+      (extra.length === 1 || (extra.length === 3 && extra[1] === "--client-version"));
+    if (!value || (extra.length && !grouped))
+      fail(
+        "用法：log-stats.mjs stats <分钟> [--by-env-version [--client-version sha-12]] | logs <UUID>",
+      );
+    process.stdout.write(
+      await readLogs(
+        process.stdin,
+        mode,
+        value,
+        Date.now(),
+        grouped ? { byEnvVersion: true, ...(extra[2] ? { clientVersion: extra[2] } : {}) } : {},
+      ),
+    );
   } catch (error) {
     // 只输出自己的固定错误；底层流错误不泄漏日志或运行环境。
     process.stderr.write(

@@ -66,6 +66,9 @@ export const kindLabels: Readonly<Record<string, string>> = {
   launch_link: "上线链接",
   finance_config_change: "受控财务配置",
   transfer_confirm: "付款凭证核对",
+  points_adjust: "积分调整",
+  subscription_extend: "补偿延长",
+  plan_refund: "现金退款",
 };
 export const statusLabels: Readonly<Record<string, string>> = {
   pending: "待处理",
@@ -75,10 +78,48 @@ export const statusLabels: Readonly<Record<string, string>> = {
 };
 /** 只使用已落地页面和准确的领域GET符号；不把服务端字符串拼成任意URL/调用。 */
 export function approvalTarget(
-  value: Pick<ApprovalDetail, "approvalId" | "operations"> & { kind: string },
+  value: Pick<ApprovalDetail, "approvalId" | "operations"> & {
+    kind: string;
+    domain?: ApprovalDetail["domain"];
+  },
   access: AccessSnapshot | null,
 ) {
+  // 退款页执行链尚未完，整页implemented保持false；仅已落地的真实plan_refund详情可从审批进入。
+  if (value.kind === "plan_refund") {
+    const page = findPage("finance.refunds"),
+      domain = value.domain;
+    return page &&
+      canEnterPage(access, page) &&
+      value.operations.get === "admin.refundRequest.get" &&
+      uuid.test(value.approvalId) &&
+      domain?.type === "refund_request" &&
+      uuid.test(domain.id)
+      ? `/finance/refunds?refundRequestId=${encodeURIComponent(domain.id)}`
+      : null;
+  }
+  if (value.kind === "finance_config_change") {
+    const page = findPage("finance.settings"),
+      domain = value.domain;
+    return page?.implemented &&
+      canEnterPage(access, page) &&
+      value.operations.get === "admin.financeConfigRevision.list" &&
+      uuid.test(value.approvalId) &&
+      domain?.type === "finance_config_revision" &&
+      uuid.test(domain.id)
+      ? `/finance/settings?tab=history&id=${encodeURIComponent(domain.id)}`
+      : null;
+  }
   const targets: Readonly<Record<string, { operation: string; page: string; path: string }>> = {
+    points_adjust: {
+      operation: "admin.pointAdjustmentRequest.get",
+      page: "finance.credit_adjust",
+      path: "/finance/credit-adjust",
+    },
+    subscription_extend: {
+      operation: "admin.termExtensionRequest.get",
+      page: "finance.credit_adjust",
+      path: "/finance/credit-adjust",
+    },
     qualification: {
       operation: "admin.qualificationSubmission.get",
       page: "merchant.review",
