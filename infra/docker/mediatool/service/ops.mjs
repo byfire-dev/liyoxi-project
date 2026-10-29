@@ -356,7 +356,9 @@ function reportOf(demuxer, raw, boxes, sizeBytes) {
       bitRate: int(format.bit_rate),
       tags,
     },
-    streams: (Array.isArray(raw?.streams) ? raw.streams : []).map(streamOf),
+    streams: /** @type {ReturnType<typeof streamOf>[]} */ (
+      (Array.isArray(raw?.streams) ? raw.streams : []).map(streamOf)
+    ),
     // 顶层 box 的顺序，只对 mov 一族有意义
     boxes,
     moovBeforeMdat: moovBeforeMdat(boxes),
