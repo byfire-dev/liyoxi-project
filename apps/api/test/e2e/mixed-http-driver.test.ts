@@ -150,7 +150,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
       .map((row) => row.operationId)
       .sort(),
   );
-  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(10);
+  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(11);
   for (const row of plan.operations) {
     const route = allRoutes.find((one) => one.operationId === row.operationId);
     expect(route, row.operationId).toBeDefined();
@@ -171,6 +171,14 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   expect(
     plan.operations.find((row) => row.operationId === "admin.assetDemand.list")?.path,
   ).toContain("storeId=" + id);
+  expect(
+    plan.operations.find((row) => row.operationId === "admin.productionRecord.list")?.path,
+  ).toBe("/api/v1/admin/production-records?orderItemId=" + id);
+  expect(
+    allRoutes
+      .find((row) => row.operationId === "admin.productionRecord.list")
+      ?.request?.query?.safeParse({}).success,
+  ).toBe(false);
   expect(plan.operations.find((row) => row.operationId === "m.drama.search")?.path).toContain(
     "q=" + encodeURIComponent("修车"),
   );
