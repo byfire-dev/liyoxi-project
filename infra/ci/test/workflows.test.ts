@@ -640,6 +640,7 @@ describe("ci.yml", () => {
       "pnpm test --project '!infra' --shard=1/4",
       "pnpm e2e",
       "pnpm e2e:m3",
+      "pnpm e2e:m4",
       // W0-10：api-check、约束名核对读上面建的迁移库；待落地数只减不增要排在“测试”之后（已挂载处理器的清单由
       // apps/api 的测试装配导出）；计划 第 8.2 节的表（它的下一步上传两份清单，没有 run）
       "node infra/ci/api-check.mjs",
@@ -649,6 +650,8 @@ describe("ci.yml", () => {
       "node infra/ci/landed.mjs --check --report --out packages/contract/dist/pending-routes.md",
       "node infra/ci/landed.mjs --check --require M0,M1",
       "node infra/ci/landed.mjs --check --require M0,M1,M3",
+      "node infra/ci/landed.mjs --check --require M0,M1,M4",
+      "node infra/ci/four-counts.mjs --require M0,M1,M4",
       "node infra/ci/plan-routes.mjs --check --summary packages/contract/dist/route-milestones.md",
       // W0-23：只构建任务进程这一个包（“构建”在 web，产物过不来），下面步骤跑它的产物
       "pnpm --filter @liyoxi/worker build",
