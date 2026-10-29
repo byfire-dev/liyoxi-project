@@ -182,3 +182,13 @@ export { findBillingLiveUploadJobIds } from "./admin-live/billing-upload.js";
 
 // 仅公开运行时生成的假X509身份，供FILE配置边界测试复用，不导入真实证书。
 export { merchantCertificateForTest } from "./wechatpay-certificate.js";
+
+// W5-02: shared real qualification prerequisites without crossing private profile fixtures.
+export {
+  createQualificationFixtureUscc,
+  installQualificationFixtureDicts,
+  createQualificationFixtureFile,
+  completeQualificationFixture,
+  submitQualificationFixture,
+} from "./qualification.fixture.js";
+export type { QualificationFixture } from "./qualification.fixture.js";

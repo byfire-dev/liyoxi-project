@@ -17,7 +17,6 @@ import type {
 import type { Prisma } from "@liyoxi/db";
 import type { SlaPolicy } from "@liyoxi/shared/workcal";
 import {
-  cancelAd,
   claimAdCancelRequest,
   clearAdCancelRequestPointers,
   readAdCancelFacts,
@@ -33,6 +32,7 @@ import {
   cancelCall,
   cancelPass,
   cancelScope,
+  currentCancelCall,
   CancelRecheckError,
   withCancelCall,
 } from "./cancel-context.js";
@@ -48,6 +48,12 @@ import { revalidateCancel } from "./cancel-revalidation.js";
 import { finishCancelTargets, readCancelExecutionRequest } from "./cancel-execution.js";
 import { prelockCancelExecutionGraph, readCancelExecutionGraph } from "./cancel-locks.js";
 import { runCancelUseCase } from "./cancel-use-case.js";
+
+// Only submitAdCancel can issue this witness, after all three new rows actually exist.
+const freshAdSubmissions = new WeakMap<
+  Tx,
+  { requestId: string; approvalId: string; lineId: string }
+>();
 
 const executionKey = (id: string) =>
   timerKey("sla.breach", { type: "approval_request", id }, "execution");
@@ -67,9 +73,23 @@ async function staffActor(tx: Tx, actor: CancelActor) {
     throw new AppError("PERMISSION_DENIED");
   return staff;
 }
-async function requestOf(tx: Tx, actor: CancelActor, id: string) {
+async function requestOf(tx: Tx, actor: CancelActor, id: string, allowRequester = false) {
+  const scope = cancelScope(actor),
+    store = managedStore(scope);
   const r = await tx.cancelRequest.findFirst({
-    where: { id, store: managedStore(cancelScope(actor)) },
+    where: {
+      id,
+      ...(scope.kind === "all"
+        ? {}
+        : {
+            OR: [
+              { store },
+              ...(allowRequester && actor.staff
+                ? [{ approvalRequest: { requesterStaffId: actor.staff.staff.id } }]
+                : []),
+            ],
+          }),
+    },
     include: { cancelRequestLines: { orderBy: { id: "asc" } }, approvalRequest: true },
   });
   if (!r || r.kind !== "ad_cancel") throw new AppError("NOT_FOUND");
@@ -94,11 +114,11 @@ async function requestOf(tx: Tx, actor: CancelActor, id: string) {
     throw new AppError("PRECONDITION_CHANGED");
   return r;
 }
-async function lockedRequest(tx: Tx, actor: CancelActor, id: string) {
-  await requestOf(tx, actor, id); // scoped 404 before exposing the graph
+async function lockedRequest(tx: Tx, actor: CancelActor, id: string, allowRequester = false) {
+  await requestOf(tx, actor, id, allowRequester); // scoped 404 before exposing the graph
   const graph = await readAdCancelTargetGraph(tx, [id]);
   await prelockAdCancelTargets(tx, graph, actor.staff ? [actor.staff.staff.id] : []);
-  return requestOf(tx, actor, id);
+  return requestOf(tx, actor, id, allowRequester);
 }
 async function invalidTarget(tx: Tx, r: Awaited<ReturnType<typeof requestOf>>) {
   const store = await tx.store.findUniqueOrThrow({
@@ -146,7 +166,9 @@ export async function validateAdCancelSubmission(
   approvalId: string,
 ) {
   const c = cancelCall(tx),
-    ad = await lockAdCancelSubmission(tx, adId, cancelScope(c.actor));
+    lineId = uuidv7();
+  c.lineIds = new Map([[adId, lineId]]);
+  const ad = await lockAdCancelSubmission(tx, adId, cancelScope(c.actor));
   if (c.submissionCompanion) {
     c.submissionTarget = Object.freeze({
       actor: c.actor,
@@ -241,10 +263,16 @@ async function transition(
 }
 export async function approveAdCancelCallback(tx: Tx, row: ApprovalRow) {
   const c = cancelCall(tx),
-    r = await requestOf(tx, c.actor, c.requestId!);
+    r = await readCancelExecutionRequest(tx, c.actor, c.requestId!);
   if (r.approvalRequestId !== row.id || row.status !== "approved")
     throw new AppError("PRECONDITION_CHANGED");
-  if (c.auto) return finishAdCancel(tx, r, true, []);
+  if (c.auto) {
+    await executeCancel(tx, c.deps, c.actor, r.id, {
+      confirm: { requestNo: r.approvalRequest.requestNo!, totalRefundPoints: r.totalRefundPoints },
+      confirmChecks: ["order_points_checked"],
+    });
+    return;
+  }
   const at = row.decidedAt!,
     values = await paramsAt(tx, ["sla.review.refund_execute"], at);
   const policy = values["sla.review.refund_execute"] as SlaPolicy;
@@ -280,7 +308,7 @@ export async function closeAdCancelCallback(
   reason: "rejected" | "withdrawn",
 ) {
   const c = cancelCall(tx),
-    r = await requestOf(tx, c.actor, c.requestId!);
+    r = await requestOf(tx, c.actor, c.requestId!, true);
   if (row.id !== r.approvalRequestId || row.status !== reason)
     throw new AppError("PRECONDITION_CHANGED");
   await closeAdCancel(tx, r, reason, null, true);
@@ -325,93 +353,6 @@ async function closeAdCancel(
     {},
     merged,
   );
-}
-async function finishAdCancel(
-  tx: Tx,
-  r: Awaited<ReturnType<typeof requestOf>>,
-  auto: boolean,
-  checks: readonly string[],
-) {
-  const c = cancelCall(tx),
-    line = r.cancelRequestLines[0]!,
-    now = c.deps.clock.now();
-  const result = await cancelAd(
-    tx,
-    c.deps,
-    c.actor.ctx,
-    {
-      adId: r.adId!,
-      entityId: r.entityId,
-      storeId: r.storeId,
-      cancelRequestId: r.id,
-      approvalRequestId: r.approvalRequestId,
-      reasonCode: r.reasonCode,
-      refundPoints: line.refundPoints,
-      now,
-    },
-    async () => {
-      if (line.mode === "terminate_only")
-        return { returnedPoints: 0, convertedPoints: 0, forfeitedPoints: 0 };
-      const reasonClass = line.reasonClass as "merchant" | "platform" | "qualification";
-      const result =
-        line.mode === "release"
-          ? await c.deps.ledger.release(tx, {
-              pointHoldId: line.pointHoldId,
-              reasonClass,
-              title: { refNo: r.approvalRequest.requestNo!, dramaTitles: [] },
-              ctx: c.actor.ctx,
-            })
-          : await c.deps.ledger.refund(tx, {
-              pointHoldId: line.pointHoldId,
-              qty: line.refundPoints,
-              reasonClass,
-              source: { type: "cancel_request_line", id: line.id },
-              refNo: r.approvalRequest.requestNo!,
-              ctx: c.actor.ctx,
-            });
-      return result;
-    },
-  );
-  await tx.cancelRequestLine.update({
-    where: { id: line.id },
-    data: {
-      returnedPoints: result.returnedPoints,
-      convertedPoints: result.convertedPoints,
-      forfeitedPoints: result.forfeitedPoints,
-      executedAt: now,
-      resultSnapshot: {
-        qty: result.returnedPoints + result.convertedPoints + result.forfeitedPoints,
-        backToOriginal: result.returnedPoints,
-        convertedToAddon: result.convertedPoints,
-        forfeited: result.forfeitedPoints,
-        lots: [],
-      },
-    },
-  });
-  await c.deps.timers.cancel(tx, {
-    subject: { type: "approval_request", id: r.approvalRequestId },
-    kinds: ["sla.breach"],
-    keyPrefix: executionKey(r.approvalRequestId),
-  });
-  await transition(
-    tx,
-    r,
-    auto ? "cancel.auto_execute" : "cancel.execute",
-    {
-      executed_at: now,
-      closed_at: now,
-      is_executed_by_system: auto,
-      executed_by_staff_id: auto ? null : c.actor.staff!.staff.id,
-      exec_confirm_checks: [...checks],
-    },
-    "cancel.executed",
-    { isAutoExecuted: auto },
-  );
-  if (!auto)
-    await c.deps.approval.recordExecuted(tx, c.actor.ctx, {
-      approvalId: r.approvalRequestId,
-      domain: { type: "cancel_request", id: r.id },
-    });
 }
 export async function submitAdCancel(
   tx: Tx,
@@ -467,7 +408,7 @@ export async function submitAdCancel(
     });
     await tx.cancelRequestLine.create({
       data: {
-        id: uuidv7(),
+        id: cancelCall(tx).lineIds!.get(ad.id)!,
         cancelRequestId: requestId,
         entityId: ad.entityId,
         storeId: ad.storeId,
@@ -534,15 +475,16 @@ export async function submitAdCancel(
       !l.preview.forfeited
     ) {
       const c = cancelCall(tx);
+      freshAdSubmissions.set(tx, {
+        requestId,
+        approvalId: submitted.approvalId,
+        lineId: c.lineIds!.get(ad.id)!,
+      });
       c.auto = true;
       c.actor = {
         ctx: createIdentityContext({ actor: { type: "system", job: "cancel.auto_execute" } }),
       };
       await deps.approval.approve(tx, c.actor.ctx, { approvalId: submitted.approvalId });
-      await deps.approval.recordExecuted(tx, c.actor.ctx, {
-        approvalId: submitted.approvalId,
-        domain: { type: "cancel_request", id: requestId },
-      });
     }
     return cancelResult(tx, requestId);
   });
@@ -597,7 +539,7 @@ export async function withdrawAdCancel(
 ) {
   const body = CancelWithdrawBodySchema.parse(input);
   if (actor.ctx.actor.type !== "system") staffIdentity(actor);
-  const r = await lockedRequest(tx, actor, id);
+  const r = await lockedRequest(tx, actor, id, true);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   if (actor.ctx.actor.type === "system") {
     if (!(await invalidTarget(tx, r))) throw new AppError("APPROVAL_WITHDRAW_FORBIDDEN");
@@ -624,7 +566,7 @@ export async function voidAdCancel(
     const staff = staffIdentity(actor);
     assertPermission(staff, "order.refund.request", deps.clock.now());
   }
-  const r = await lockedRequest(tx, actor, id);
+  const r = await lockedRequest(tx, actor, id, true);
   if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
   if (r.status !== "pending_execution" || r.closedAt || r.approvalRequest.status !== "approved")
     throw new AppError("STATE_NOT_ALLOWED");
@@ -646,39 +588,79 @@ export async function executeCancel(
   id: string,
   input: CancelExecuteBody,
 ) {
-  const body = CancelExecuteBodySchema.parse(input),
-    staff = staffIdentity(actor);
-  assertPermission(staff, "finance.refund.execute", deps.clock.now());
-  await readCancelExecutionRequest(tx, actor, id);
+  const body = CancelExecuteBodySchema.parse(input);
+  const active = currentCancelCall(tx);
+  const automatic =
+    actor.ctx.actor.type === "system" &&
+    active?.auto === true &&
+    active.requestId === id &&
+    active.actor === actor;
+  const staff = automatic ? null : staffIdentity(actor);
+  if (staff) assertPermission(staff, "finance.refund.execute", deps.clock.now());
+  const first = await readCancelExecutionRequest(tx, actor, id);
   const graph = await readCancelExecutionGraph(tx, id);
-  await prelockCancelExecutionGraph(tx, graph, staff.staff.id);
+  const freshAd = automatic && first.kind === "ad_cancel" ? freshAdSubmissions.get(tx) : undefined;
+  if (automatic && first.kind === "ad_cancel" && freshAd?.requestId !== id)
+    throw new AppError("STATE_NOT_ALLOWED");
+  await prelockCancelExecutionGraph(tx, graph, staff?.staff.id, freshAd);
   const r = await readCancelExecutionRequest(tx, actor, id);
-  if (actor.ctx.actor.type !== "system") await staffActor(tx, actor);
+  if (!automatic) await staffActor(tx, actor);
   assertConfirm(body.confirm, {
     requestNo: r.approvalRequest.requestNo!,
     totalRefundPoints: r.totalRefundPoints,
   });
-  if (r.status === "done") return cancelResult(tx, id); // serialized replay; no ledger/event duplication
-  if (r.status !== "pending_execution" || r.closedAt || r.approvalRequest.status !== "approved")
+  if (r.status === "done" && !automatic) return cancelResult(tx, id);
+  if (
+    r.status !== (automatic ? "pending_approval" : "pending_execution") ||
+    r.closedAt ||
+    r.approvalRequest.status !== "approved"
+  )
     throw new AppError("STATE_NOT_ALLOWED");
   const at = (await deps.ledger.lockAccount(tx, r.entityId)).now;
-  const values = await paramsAt(tx, ["refund.require_distinct_executor"], at);
-  if (
+  const values = await paramsAt(
+    tx,
+    ["refund.require_distinct_executor", "refund.points.auto_approve_before_production"],
+    at,
+  );
+  if (automatic) {
+    if (
+      values["refund.points.auto_approve_before_production"] !== true ||
+      !r.approvalRequest.isDecidedBySystem ||
+      r.cancelRequestLines.some((line) => {
+        const preview = jsonObject(line.previewSnapshot);
+        return (
+          line.mode !== "release" ||
+          preview.qty !== line.refundPoints ||
+          preview.backToOriginal !== line.refundPoints ||
+          preview.convertedToAddon !== 0 ||
+          preview.forfeited !== 0
+        );
+      })
+    )
+      throw new AppError("STATE_NOT_ALLOWED");
+  } else if (
     values["refund.require_distinct_executor"] === true &&
-    r.approvalRequest.decidedByStaffId === staff.staff.id
+    r.approvalRequest.decidedByStaffId === staff!.staff.id
   )
     throw new AppError("REFUND_EXECUTOR_CONFLICT");
   const entry = await revalidateCancel(
     tx,
-    { scope: staff.scope, requestId: id, phase: "execute" },
+    {
+      scope: cancelScope(actor),
+      requestId: id,
+      phase: automatic ? "approve" : "execute",
+    },
     at,
   );
-  if (!entry.ok) throw new CancelRecheckError(id, "execute", entry);
-  return withCancelCall(tx, { deps, actor, requestId: id }, async () => {
+  if (!entry.ok) throw new CancelRecheckError(id, automatic ? "approve" : "execute", entry);
+  const finish = async () => {
     await tx.cancelRequest.update({
       where: { id },
       data: {
-        recheckLog: { ...jsonObject(r.recheckLog), execute: entry } as Prisma.InputJsonValue,
+        recheckLog: {
+          ...jsonObject(r.recheckLog),
+          [automatic ? "approve" : "execute"]: entry,
+        } as Prisma.InputJsonValue,
       },
     });
     await finishCancelTargets(tx, deps, actor, r, graph, at);
@@ -690,23 +672,24 @@ export async function executeCancel(
     await transition(
       tx,
       r,
-      "cancel.execute",
+      automatic ? "cancel.auto_execute" : "cancel.execute",
       {
         executed_at: at,
         closed_at: at,
-        is_executed_by_system: false,
-        executed_by_staff_id: staff.staff.id,
-        exec_confirm_checks: [...body.confirmChecks],
+        is_executed_by_system: automatic,
+        executed_by_staff_id: staff?.staff.id ?? null,
+        exec_confirm_checks: automatic ? [] : [...body.confirmChecks],
       },
       "cancel.executed",
-      { isAutoExecuted: false },
+      { isAutoExecuted: automatic },
     );
     await deps.approval.recordExecuted(tx, actor.ctx, {
       approvalId: r.approvalRequestId,
       domain: { type: "cancel_request", id: r.id },
     });
     return cancelResult(tx, id);
-  });
+  };
+  return automatic ? finish() : withCancelCall(tx, { deps, actor, requestId: id }, finish);
 }
 function cancelResult(tx: Tx, id: string) {
   return tx.cancelRequest.findUniqueOrThrow({

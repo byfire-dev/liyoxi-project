@@ -55,9 +55,28 @@ export const cancelExecutionCompleted: ApprovalExecutionFacts = async (tx, ctx, 
 };
 
 /** Reading a request never expands staff data scope via an unscoped target lookup. */
-export async function readCancelExecutionRequest(tx: Tx, actor: CancelActor, id: string) {
+export async function readCancelExecutionRequest(
+  tx: Tx,
+  actor: CancelActor,
+  id: string,
+  options: { allowRequester?: boolean } = {},
+) {
+  const scope = cancelScope(actor);
+  const store = managedStore(scope);
   const r = await tx.cancelRequest.findFirst({
-    where: { id, store: managedStore(cancelScope(actor)) },
+    where: {
+      id,
+      ...(scope.kind === "all"
+        ? {}
+        : {
+            OR: [
+              { store },
+              ...(options.allowRequester && actor.staff
+                ? [{ approvalRequest: { requesterStaffId: actor.staff.staff.id } }]
+                : []),
+            ],
+          }),
+    },
     include: { cancelRequestLines: { orderBy: { id: "asc" } }, approvalRequest: true },
   });
   if (!r) throw new AppError("NOT_FOUND");
@@ -189,23 +208,40 @@ async function finishItem(
     });
     return;
   }
+  const phase =
+    line.mode === "release"
+      ? "cancelled"
+      : result.returnedPoints + result.convertedPoints > 0
+        ? "refunded"
+        : "terminated";
+  const payload = {
+    v: 1 as const,
+    orderItemId: item.id,
+    dramaOrderId: item.dramaOrderId,
+    cancelRequestId: r.id,
+  };
+  const returned = {
+    returnedPoints: result.returnedPoints,
+    convertedPoints: result.convertedPoints,
+    forfeitedPoints: result.forfeitedPoints,
+  };
   await deps.flow.transition(tx, actor.ctx, {
     machine: "order_item",
     stateField: "phase",
     id: item.id,
     event: line.mode === "release" ? "cancel.execute" : "ticket.terminate",
-    to:
-      line.mode === "release"
-        ? "cancelled"
-        : result.returnedPoints + result.convertedPoints > 0
-          ? "refunded"
-          : "terminated",
+    to: phase,
     args: cancelPass(),
     entityId: r.entityId,
     storeId: r.storeId,
     set: { ...amounts, phase_changed_at: now },
     audit: { mergedInto: { approvalRequestId: r.approvalRequestId } },
-    emit: { none: true, primary: "cancel.executed" },
+    emit:
+      phase === "cancelled"
+        ? { type: "order.item.cancelled", payload: { ...payload, ...returned } }
+        : phase === "refunded"
+          ? { type: "order.item.refunded", payload: { ...payload, ...returned } }
+          : { type: "order.item.terminated", payload },
   });
 }
 

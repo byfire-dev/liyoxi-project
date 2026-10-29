@@ -13,6 +13,8 @@ import { dictRefs } from "./quote.js";
 
 const iso = (at: Date | null) => at?.toISOString() ?? null;
 const date = (at: Date | null) => at?.toISOString().slice(0, 10) ?? null;
+const adLabel = (type: string, seconds: number) =>
+  `${type === "opening" ? "片头贴片" : type === "ending" ? "片尾贴片" : type === "corner" ? "角标字幕条" : type === "mid_roll" ? "片中插播" : type} ${seconds} 秒`;
 
 /** Execute-only projection: scope and real execute permission have already been checked in this Tx. */
 export async function readExecutedCancelDetail(
@@ -21,9 +23,31 @@ export async function readExecutedCancelDetail(
   actor: CancelActor,
   id: string,
 ): Promise<CancelRequestDetail> {
-  const r = await readCancelExecutionRequest(tx, actor, id),
-    a = r.approvalRequest;
+  const r = await readCancelExecutionRequest(tx, actor, id);
   if (r.status !== "done" || !r.executedAt || !actor.staff) throw new AppError("STATE_NOT_ALLOWED");
+  return projectCancelRequestDetail(tx, deps, r, []);
+}
+export type CancelReadRequest = Awaited<ReturnType<typeof readCancelExecutionRequest>>;
+const title = (value: unknown) => {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("title" in value) ||
+    typeof value.title !== "string"
+  )
+    throw new AppError("PRECONDITION_CHANGED", { message: "取消明细缺少真实剧名快照" });
+  return value.title;
+};
+/** Caller has checked domain read visibility or the stronger execute authorization. Never writes. */
+export async function projectCancelRequestDetail(
+  tx: Tx,
+  deps: CancelDeps,
+  r: CancelReadRequest,
+  actions: CancelRequestDetail["actions"],
+): Promise<CancelRequestDetail> {
+  const a = r.approvalRequest;
+  const done = r.status === "done";
+  if (done && !r.executedAt) throw new AppError("PRECONDITION_CHANGED");
   const store = await tx.store.findUniqueOrThrow({
     where: { id: r.storeId },
     include: {
@@ -71,13 +95,19 @@ export async function readExecutedCancelDetail(
       })
     : null;
   const ad = r.adId ? await readAdCancelFacts(tx, r.adId) : null;
+  if (
+    (order && (order.entityId !== r.entityId || order.storeId !== r.storeId)) ||
+    (r.adId && (!ad || ad.entityId !== r.entityId || ad.storeId !== r.storeId))
+  )
+    throw new AppError("PRECONDITION_CHANGED", { message: "取消对象归属不一致" });
   const adPricing = ad ? PricingSnapshotSchema.parse(ad.pricingSnapshot) : null;
   const adPlan = adPricing
     ? await tx.plan.findUniqueOrThrow({ where: { id: adPricing.planId } })
     : null;
   const lines = await Promise.all(
     r.cancelRequestLines.map(async (line) => {
-      const item = items.find((i) => i.id === line.targetId);
+      const item =
+        line.targetType === "order_item" ? items.find((i) => i.id === line.targetId) : undefined;
       const targetAd =
         line.targetType === "ad"
           ? ad?.id === line.targetId
@@ -86,20 +116,48 @@ export async function readExecutedCancelDetail(
           : null;
       if (!item && !targetAd) throw new AppError("PRECONDITION_CHANGED");
       if (
-        line.executedAt === null ||
-        line.returnedPoints === null ||
-        line.convertedPoints === null ||
-        line.forfeitedPoints === null ||
-        line.resultSnapshot === null
+        (item &&
+          (item.entityId !== r.entityId ||
+            item.storeId !== r.storeId ||
+            (r.kind === "order_cancel" && item.dramaOrderId !== r.dramaOrderId))) ||
+        (targetAd && (targetAd.entityId !== r.entityId || targetAd.storeId !== r.storeId))
+      )
+        throw new AppError("PRECONDITION_CHANGED", { message: "取消明细对象归属不一致" });
+      if (
+        done &&
+        (line.executedAt === null ||
+          line.returnedPoints === null ||
+          line.convertedPoints === null ||
+          line.forfeitedPoints === null ||
+          line.resultSnapshot === null)
       )
         throw new AppError("PRECONDITION_CHANGED", { message: "已执行取消缺少真实明细结果" });
+      if (
+        !done &&
+        (line.executedAt !== null ||
+          line.returnedPoints !== null ||
+          line.convertedPoints !== null ||
+          line.forfeitedPoints !== null ||
+          line.resultSnapshot !== null)
+      )
+        throw new AppError("PRECONDITION_CHANGED", { message: "未执行取消含不完整执行结果" });
+      const breakdown = done ? ReturnBreakdownSchema.parse(line.resultSnapshot) : null;
+      if (
+        done &&
+        (!breakdown ||
+          breakdown.qty !== line.refundPoints ||
+          breakdown.backToOriginal !== line.returnedPoints ||
+          breakdown.convertedToAddon !== line.convertedPoints ||
+          breakdown.forfeited !== line.forfeitedPoints)
+      )
+        throw new AppError("PRECONDITION_CHANGED", { message: "已执行明细结果与真实去向不一致" });
       return {
         cancelRequestLineId: line.id,
         targetType: line.targetType,
         targetId: line.targetId,
         label: item
-          ? (item.dramaSnapshot as { title: string }).title
-          : `${targetAd!.type} ${targetAd!.durationSec} 秒 · ${targetAd!.adNo}`,
+          ? title(item.dramaSnapshot)
+          : `${adLabel(targetAd!.type, targetAd!.durationSec)} · ${targetAd!.adNo}`,
         episodeCount: item?.episodeCount ?? null,
         productionModel: item?.productionModel ?? null,
         platforms: item?.orderItemAccounts.map((v) => v.platform) ?? [],
@@ -120,13 +178,15 @@ export async function readExecutedCancelDetail(
         usageEndSource: line.usageEndSource,
         capturedAt: iso(item?.capturedAt ?? targetAd?.capturedAt ?? null),
         preview: ReturnBreakdownSchema.parse(line.previewSnapshot),
-        result: {
-          returnedPoints: line.returnedPoints,
-          convertedPoints: line.convertedPoints,
-          forfeitedPoints: line.forfeitedPoints,
-          executedAt: iso(line.executedAt),
-          breakdown: ReturnBreakdownSchema.parse(line.resultSnapshot),
-        },
+        result: done
+          ? {
+              returnedPoints: line.returnedPoints,
+              convertedPoints: line.convertedPoints,
+              forfeitedPoints: line.forfeitedPoints,
+              executedAt: iso(line.executedAt),
+              breakdown,
+            }
+          : null,
         targetState: item?.phase ?? targetAd!.status,
       };
     }),
@@ -136,25 +196,27 @@ export async function readExecutedCancelDetail(
   const city = store.storeProfileStore?.cityCode,
     district = store.storeProfileStore?.districtCode;
   const reasons = await dictRefs(tx, "reject_reason", a.reasonCodes);
-  const approval = deps.approval.kinds.has(r.kind)
-    ? await deps.approval.decisionView(tx, actor.staff, a.id)
-    : {
-        approvalId: a.id,
-        kind: a.kind,
-        status: a.status,
-        roundNo: a.roundNo,
-        submittedAt: iso(a.submittedAt),
-        dueAt: iso(a.dueAt),
-        badges: [],
-        requester: brief(a.requesterStaffId),
-        decidedBy: brief(a.decidedByStaffId),
-        isDecidedBySystem: a.isDecidedBySystem,
-        decidedAt: iso(a.decidedAt),
-        decisionNote: a.decisionNote,
-        reasons,
-        lockVersion: a.lockVersion,
-        actions: [],
-      };
+  const now = deps.clock.now();
+  const isOverdue =
+    (r.status === "pending_approval" && a.dueAt !== null && a.dueAt < now) ||
+    (r.status === "pending_execution" && r.execDueAt !== null && r.execDueAt < now);
+  const approval = {
+    approvalId: a.id,
+    kind: a.kind,
+    status: a.status,
+    roundNo: a.roundNo,
+    submittedAt: iso(a.submittedAt),
+    dueAt: iso(a.dueAt),
+    badges: isOverdue ? ["overdue"] : [],
+    requester: brief(a.requesterStaffId),
+    decidedBy: brief(a.decidedByStaffId),
+    isDecidedBySystem: a.isDecidedBySystem,
+    decidedAt: iso(a.decidedAt),
+    decisionNote: a.decisionNote,
+    reasons,
+    lockVersion: a.lockVersion,
+    actions,
+  };
   return CancelRequestDetailSchema.parse({
     cancelRequestId: r.id,
     requestNo: a.requestNo,
@@ -169,9 +231,14 @@ export async function readExecutedCancelDetail(
       qualificationStatus: store.qualificationStatus,
     },
     target: order
-      ? { type: "drama_order", id: order.id, no: order.orderNo, label: order.orderNo }
+      ? {
+          type: "drama_order",
+          id: order.id,
+          no: order.orderNo,
+          label: `《${lines[0]?.label ?? order.orderNo}》等 ${r.lineCount} 部`,
+        }
       : ad
-        ? { type: "ad", id: ad.id, no: ad.adNo, label: `${ad.type} ${ad.durationSec} 秒` }
+        ? { type: "ad", id: ad.id, no: ad.adNo, label: adLabel(ad.type, ad.durationSec) }
         : {
             type: "store",
             id: store.id,
@@ -194,7 +261,7 @@ export async function readExecutedCancelDetail(
     decidedAt: iso(a.decidedAt),
     execDueAt: iso(r.execDueAt),
     executedAt: iso(r.executedAt),
-    isOverdue: false,
+    isOverdue,
     note: r.note ?? "",
     lines,
     destination: {
@@ -204,23 +271,33 @@ export async function readExecutedCancelDetail(
       forfeited: summary("forfeited"),
       lots: lines.flatMap((l) => l.preview.lots),
     },
-    resultTotals: {
-      returnedPoints: lines.reduce((n, l) => n + l.result.returnedPoints, 0),
-      convertedPoints: lines.reduce((n, l) => n + l.result.convertedPoints, 0),
-      forfeitedPoints: lines.reduce((n, l) => n + l.result.forfeitedPoints, 0),
-    },
+    resultTotals: done
+      ? {
+          returnedPoints: lines.reduce((n, l) => n + (l.result?.returnedPoints ?? 0), 0),
+          convertedPoints: lines.reduce((n, l) => n + (l.result?.convertedPoints ?? 0), 0),
+          forfeitedPoints: lines.reduce((n, l) => n + (l.result?.forfeitedPoints ?? 0), 0),
+        }
+      : null,
     approval,
     confirmChecks: a.confirmChecks,
-    execution: {
-      executedBy: brief(r.executedByStaffId),
-      isExecutedBySystem: r.isExecutedBySystem,
-      executedAt: iso(r.executedAt),
-      execConfirmChecks: r.execConfirmChecks,
-    },
+    execution: done
+      ? {
+          executedBy: brief(r.executedByStaffId),
+          isExecutedBySystem: r.isExecutedBySystem,
+          executedAt: iso(r.executedAt),
+          execConfirmChecks: r.execConfirmChecks,
+        }
+      : null,
     closeNote: r.closeNote,
     recheckLog: {
-      approve: (r.recheckLog as { approve?: unknown } | null)?.approve ?? null,
-      execute: (r.recheckLog as { execute?: unknown } | null)?.execute ?? null,
+      approve:
+        r.recheckLog && typeof r.recheckLog === "object" && "approve" in r.recheckLog
+          ? r.recheckLog.approve
+          : null,
+      execute:
+        r.recheckLog && typeof r.recheckLog === "object" && "execute" in r.recheckLog
+          ? r.recheckLog.execute
+          : null,
     },
     order: order
       ? {
@@ -267,14 +344,28 @@ export async function readExecutedCancelDetail(
             },
           ]
         : []),
-      {
-        at: iso(r.executedAt),
-        action: "executed",
-        actorName: r.isExecutedBySystem ? "系统" : (brief(r.executedByStaffId)?.name ?? null),
-        note: null,
-      },
+      ...(r.closeReason === "voided"
+        ? [
+            {
+              at: iso(r.closedAt),
+              action: "voided",
+              actorName: brief(a.requesterStaffId)?.name ?? null,
+              note: r.closeNote,
+            },
+          ]
+        : []),
+      ...(done
+        ? [
+            {
+              at: iso(r.executedAt),
+              action: "executed",
+              actorName: r.isExecutedBySystem ? "系统" : (brief(r.executedByStaffId)?.name ?? null),
+              note: null,
+            },
+          ]
+        : []),
     ],
     lockVersion: r.lockVersion,
-    actions: [],
+    actions,
   });
 }

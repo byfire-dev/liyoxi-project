@@ -12,6 +12,39 @@ const cancelled = {
   toState: z.literal("not_executed"),
 };
 export const payloads = {
+  "order.item.cancelled": z.strictObject({
+    v: z.literal(1),
+    orderItemId: IdSchema,
+    dramaOrderId: IdSchema,
+    cancelRequestId: IdSchema,
+    returnedPoints: z.int().nonnegative(),
+    convertedPoints: z.int().nonnegative(),
+    forfeitedPoints: z.int().nonnegative(),
+    ...transitionKeys,
+  }),
+  "order.item.refunded": z.strictObject({
+    v: z.literal(1),
+    orderItemId: IdSchema,
+    dramaOrderId: IdSchema,
+    cancelRequestId: IdSchema.optional(),
+    returnedPoints: z.int().nonnegative(),
+    convertedPoints: z.int().nonnegative(),
+    forfeitedPoints: z.int().nonnegative(),
+    ...transitionKeys,
+  }),
+  "order.item.terminated": z.strictObject({
+    v: z.literal(1),
+    orderItemId: IdSchema,
+    dramaOrderId: IdSchema,
+    cancelRequestId: IdSchema,
+    ...transitionKeys,
+  }),
+  "order.rejected_stale": z.strictObject({
+    v: z.literal(1),
+    dramaOrderId: IdSchema,
+    storeId: IdSchema,
+    rejectedAt: InstantSchema,
+  }),
   "order.started": z.object({
     v: z.literal(1),
     dramaOrderId: IdSchema,

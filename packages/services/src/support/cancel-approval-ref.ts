@@ -8,12 +8,17 @@ import type { Clock, IdentityContext, Tx } from "../kernel/index.js";
 interface Target {
   readonly actor: { readonly ctx: IdentityContext; readonly staff?: StaffContext };
   readonly approvalId: string;
-  readonly adId: string;
   readonly entityId: string;
   readonly storeId: string;
 }
-interface Prepared {
-  readonly target: Target;
+interface AdTarget extends Target {
+  readonly adId: string;
+}
+interface OrderTarget extends Target {
+  readonly dramaOrderId: string;
+}
+interface Prepared<T extends Target> {
+  readonly target: T;
   readonly actor: Target["actor"];
   readonly staffId: string;
   readonly ctx: IdentityContext;
@@ -21,21 +26,25 @@ interface Prepared {
   readonly signature: string;
   attached: boolean;
 }
-const signature = (target: Target) =>
-  JSON.stringify([target.approvalId, target.adId, target.entityId, target.storeId]);
 
 /**
- * a05 §3.62 专用审批引用。不是 a08 的四类 processing 补关联入口：
+ * a05 §3.7/3.62 专用审批引用。不是 a08 的四类 processing 补关联入口：
  * 不增加客服权限、taskScope、待分配池或状态限制；已结工单仅保留历史引用。
  * 应用把这对回调传给 order；早取270，晚只重入，整个组合使用调用方同一Tx。
  */
-export function createAdCancelApprovalRefCompanion(options: {
+function createCancelApprovalRefCompanion<T extends Target>(options: {
   readonly serviceTicketId: string;
   readonly clock: Clock;
+  readonly kind: "ad_cancel" | "order_cancel";
+  readonly subjectType: "ad" | "drama_order";
+  readonly subjectId: (target: T) => string;
+  readonly summary: string;
 }) {
-  const { serviceTicketId, clock } = options;
-  const prepared = new WeakMap<Tx, Prepared>();
-  const ticket = async (tx: Tx, target: Target) => {
+  const { serviceTicketId, clock, kind, subjectType, subjectId, summary } = options;
+  const signature = (target: T) =>
+    JSON.stringify([target.approvalId, subjectId(target), target.entityId, target.storeId]);
+  const prepared = new WeakMap<Tx, Prepared<T>>();
+  const ticket = async (tx: Tx, target: T) => {
     const row = await tx.serviceTicket.findFirst({
       where: {
         id: serviceTicketId,
@@ -47,7 +56,7 @@ export function createAdCancelApprovalRefCompanion(options: {
     return row;
   };
   return {
-    async beforeAccount(tx: Tx, target: Target): Promise<void> {
+    async beforeAccount(tx: Tx, target: T): Promise<void> {
       const { ctx, staff } = target.actor;
       if (ctx.actor.type !== "staff" || !staff || ctx.actor.id !== staff.staff.id)
         throw new AppError("PERMISSION_DENIED");
@@ -71,7 +80,7 @@ export function createAdCancelApprovalRefCompanion(options: {
         attached: false,
       });
     },
-    async afterCreated(tx: Tx, target: Target): Promise<void> {
+    async afterCreated(tx: Tx, target: T): Promise<void> {
       const plan = prepared.get(tx);
       if (
         !plan ||
@@ -90,9 +99,9 @@ export function createAdCancelApprovalRefCompanion(options: {
       const approval = await tx.approvalRequest.findUnique({ where: { id: target.approvalId } });
       if (
         !approval ||
-        approval.kind !== "ad_cancel" ||
-        approval.subjectType !== "ad" ||
-        approval.subjectId !== target.adId ||
+        approval.kind !== kind ||
+        approval.subjectType !== subjectType ||
+        approval.subjectId !== subjectId(target) ||
         approval.entityId !== row.entityId ||
         approval.storeId !== row.storeId ||
         approval.submitActorType !== "staff" ||
@@ -133,7 +142,7 @@ export function createAdCancelApprovalRefCompanion(options: {
           stream: "activity",
           category: "service_ticket",
           action: "support.service_ticket.ref_add",
-          summary: "关联广告取消审批",
+          summary,
           target: { type: "service_ticket", id: row.id, label: row.ticketNo },
           entityId: row.entityId,
           storeId: row.storeId,
@@ -145,4 +154,30 @@ export function createAdCancelApprovalRefCompanion(options: {
       plan.attached = true;
     },
   };
+}
+
+export function createAdCancelApprovalRefCompanion(options: {
+  readonly serviceTicketId: string;
+  readonly clock: Clock;
+}) {
+  return createCancelApprovalRefCompanion<AdTarget>({
+    ...options,
+    kind: "ad_cancel",
+    subjectType: "ad",
+    subjectId: (target) => target.adId,
+    summary: "关联广告取消审批",
+  });
+}
+
+export function createOrderCancelApprovalRefCompanion(options: {
+  readonly serviceTicketId: string;
+  readonly clock: Clock;
+}) {
+  return createCancelApprovalRefCompanion<OrderTarget>({
+    ...options,
+    kind: "order_cancel",
+    subjectType: "drama_order",
+    subjectId: (target) => target.dramaOrderId,
+    summary: "关联订购取消审批",
+  });
 }

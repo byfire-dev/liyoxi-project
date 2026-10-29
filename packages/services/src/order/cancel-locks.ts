@@ -60,12 +60,27 @@ export type CancelExecutionGraph = Awaited<ReturnType<typeof readCancelExecution
 export async function prelockCancelExecutionGraph(
   tx: Tx,
   graph: CancelExecutionGraph,
-  staffId: string,
+  staffId?: string,
+  freshAd?: { readonly requestId: string; readonly approvalId: string; readonly lineId: string },
 ) {
-  await lockRows(tx, "staff", sorted([...graph.staffIds, staffId]), "share");
-  await lockRows(tx, "approval_request", graph.approvalIds);
-  await lockRows(tx, "cancel_request", [graph.requestId]);
-  await lockRows(tx, "cancel_request_line", graph.lineIds);
+  if (
+    freshAd &&
+    (graph.requestId !== freshAd.requestId ||
+      graph.approvalIds.length !== 1 ||
+      graph.approvalIds[0] !== freshAd.approvalId ||
+      graph.lineIds.length !== 1 ||
+      graph.lineIds[0] !== freshAd.lineId ||
+      graph.adIds.length !== 1 ||
+      graph.orderIds.length !== 0 ||
+      graph.itemIds.length !== 0)
+  )
+    throw new AppError("INTERNAL", { message: "本事务新广告取消的执行见证与目标图不一致" });
+  await lockRows(tx, "staff", sorted([...graph.staffIds, ...(staffId ? [staffId] : [])]), "share");
+  if (!freshAd) {
+    await lockRows(tx, "approval_request", graph.approvalIds);
+    await lockRows(tx, "cancel_request", [graph.requestId]);
+    await lockRows(tx, "cancel_request_line", graph.lineIds);
+  }
   // A concurrent executor may have finished while we waited on the low locks.
   // Its now closed children are irrelevant to a serialized result replay.
   if (

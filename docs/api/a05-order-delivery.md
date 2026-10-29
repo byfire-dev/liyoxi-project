@@ -501,7 +501,7 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `lines` | array<`CancelLineView`> | 是 | 逐项核算 | `cancel_request_line` |
 | `destination` | `ReturnBreakdownView` | 是 | 提交时的去向之和（财务审批时看到的就是这一份） | 各行 `preview_snapshot` 求和 |
 | `resultTotals` | object \| null | 是 | 执行后的实际去向合计 `{ returnedPoints, convertedPoints, forfeitedPoints }`（“积分将即时退回”之后显示） | 各行实际数量求和 |
-| `approval` | `ApprovalDecisionView` | 是 | 审批决定信息（a01-system 2.10，全仓共用）：`approvalId`、`lockVersion`（通过时带回）、`dueAt`、`decidedBy`、`isDecidedBySystem`、`decidedAt`、`decisionNote`、`reasons`（`[{ code, name }]`，字典 `reject_reason`）等；`actions` 与本结构的 `actions` 相同 | `approval_request`（来源同 a01 `ApprovalItem`） |
+| `approval` | `ApprovalDecisionView` | 是 | 沿a01-system 2.10公共审批字段：`approvalId`、`lockVersion`（通过时带回）、`dueAt`、`decidedBy`、`isDecidedBySystem`、`decidedAt`、`decisionNote`、`reasons`（`[{ code, name }]`，字典 `reject_reason`）等；仅取消详情由`CancelRequestDetailSchema`沿`ApprovalDecisionViewSchema`派生，`actions`按`CancelActionsSchema`使用本领域五动作，与本结构的`actions`相同，不改变公共审批列表动作 | `approval_request`（来源同 a01 `ApprovalItem`） |
 | `confirmChecks` | array<`ConfirmCheck`> | 是 | 审批通过时勾选的核对项（`ApprovalDecisionView` 不含此项，单列）；没有为 `[]` | `approval_request.confirm_checks` |
 | `execution` | object \| null | 是 | 执行：`{ executedBy: StaffBrief \| null, isExecutedBySystem, executedAt, execConfirmChecks }`；未执行为空 | `cancel_request.executed_by_staff_id`、`is_executed_by_system`、`executed_at`、`exec_confirm_checks` |
 | `closeNote` | string \| null | 是 | 作废说明 | `cancel_request.close_note` |
