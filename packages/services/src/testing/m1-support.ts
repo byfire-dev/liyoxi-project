@@ -57,6 +57,8 @@ const localUrl = (
 export async function createM1Support(options: M1SupportOptions = {}): Promise<M1Support> {
   options.signal?.throwIfAborted();
   const attach = options.attach;
+  if (options.wechatPay && (attach || options.ownerNetwork || process.env.APP_ENV !== "test"))
+    throw new Error("M1 假支付身份仅接受本机test独立scope");
   const ownerNetwork = options.ownerNetwork !== undefined;
   if (ownerNetwork) assertM1OwnerNetwork(options, process.env);
   const diagnosticWrite = options.diagnosticWrite;
@@ -217,6 +219,19 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       ...fakeKeyEnv(),
       DATABASE_URL: databaseUrl,
       ...(attach ? { WECHAT: M1_LOCAL_WECHAT } : {}),
+      ...(options.wechatPay
+        ? {
+            WECHAT_PAY: {
+              ...options.wechatPay,
+              merchantSerialNo: "01",
+              merchantPrivateKeyPem: "explicit-test-provider",
+              apiV3Key: "00000000000000000000000000000000",
+              publicKeyId: "PUB_KEY_ID_TEST",
+              publicKeyPem: "explicit-test-provider",
+              notifyUrl: "https://example.invalid/hooks/wechatpay",
+            },
+          }
+        : {}),
     };
     const { providers } = createProviderHarness({ clock });
     options.prepareProviders?.(providers);

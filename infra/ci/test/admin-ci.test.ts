@@ -19,9 +19,9 @@ afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
 });
 
-/** web 任务的各个步骤：从它的键到下一个任务的键 */
-function webSteps(): Map<string, string> {
-  const start = ci.indexOf("\n  web:\n");
+/** 指定后台任务的各个步骤：从它的键到下一个任务的键 */
+function webSteps(job = "web"): Map<string, string> {
+  const start = ci.indexOf(`\n  ${job}:\n`);
   expect(start).toBeGreaterThan(0);
   const next = ci.slice(start + 2).search(/^ {2}[\w-]+:$/m) + 1;
   expect(next).toBeGreaterThan(0);
@@ -109,6 +109,83 @@ describe("CI：后台与下载页的步骤在必过任务 web 里", () => {
     expect(upload).toMatch(/uses: actions\/upload-artifact@[0-9a-f]{40} # v\d+\.\d+\.\d+/);
     expect(upload).toContain("apps/admin/dist/e2e-shots/");
     expect(upload).toContain("if-no-files-found: error");
+  });
+});
+
+describe("CI：完整真实接口验收在独立web-live里", () => {
+  const steps = webSteps("web-live");
+  const samples = webSteps();
+
+  it("独立检出、冻结安装和生成数据库客户端；required同时覆盖原web和live", () => {
+    const checkout = steps.get("检出（带完整历史：冒烟的受影响范围要与基线比）");
+    expect(checkout).toContain("\n          fetch-depth: 0\n");
+    expect(checkout).toContain("\n          persist-credentials: false\n");
+    for (const [name, command] of [
+      ["冻结安装", "pnpm install --frozen-lockfile"],
+      ["生成数据库客户端（构建用）", "pnpm db:generate"],
+    ] as const) {
+      const step = steps.get(name);
+      expect(step, name).toContain(`\n        run: ${command}\n`);
+      expect(step, name).not.toMatch(/^ {8}if:/m);
+      expect(step, name).not.toMatch(/\|\|/);
+    }
+    const required = ci.slice(ci.indexOf("\n  required:\n"));
+    for (const id of ["web", "web-live"]) {
+      expect(required).toMatch(new RegExp(`^ {4}needs:\\n(?: {6}- [\\w-]+\\n)*? {6}- ${id}$`, "m"));
+    }
+  });
+
+  it("沿用同一受影响判定与浏览器缓存，正式依赖和完整live仅按原结论运行", () => {
+    expect(steps.get("后台冒烟要不要跑")).toBe(samples.get("后台冒烟要不要跑"));
+    for (const name of [
+      "取 Playwright 的版本",
+      "后台冒烟用的浏览器缓存",
+      "后台浏览器使用官方 Ubuntu HTTPS 源",
+      "装后台冒烟用的浏览器",
+      "后台真实接口验收的本地依赖",
+      "后台真实接口验收的 MinIO",
+      "后台登录真实接口验收",
+    ]) {
+      expect(steps.get(name), name).toContain(
+        "\n        if: steps.admin-e2e.outputs.run == 'true'\n",
+      );
+      expect(steps.get(name), name).not.toMatch(/\|\|/);
+    }
+    expect(steps.get("取 Playwright 的版本")).toContain("\n        id: playwright\n");
+    const cache = steps.get("后台冒烟用的浏览器缓存");
+    expect(cache).toMatch(/uses: actions\/cache@[0-9a-f]{40} # v\d+\.\d+\.\d+/);
+    expect(cache).toContain("\n          path: ~/.cache/ms-playwright\n");
+    expect(cache).toMatch(
+      /^ {10}key: playwright-.*\$\{\{ steps\.playwright\.outputs\.version \}\}$/m,
+    );
+    expect(steps.get("后台登录真实接口验收")).toContain("\n        run: pnpm admin:e2e:live\n");
+  });
+
+  it("两份artifact各收本job证据，live正常截图和失败现场都保留，失败时也上传", () => {
+    const paths = (step: string | undefined) =>
+      (step?.match(/^ {10}path: \|\n((?: {12}.+\n)+)/m)?.[1] ?? "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const samplesUpload = samples.get("上传后台冒烟截图");
+    const liveUpload = steps.get("上传后台真实接口截图");
+    expect(paths(samplesUpload)).toEqual([
+      "apps/admin/dist/e2e-shots/",
+      "apps/admin/dist/e2e-results/",
+    ]);
+    expect(paths(liveUpload)).toEqual([
+      "apps/admin/dist/e2e-shots/",
+      "apps/admin/dist/e2e-live-results/",
+    ]);
+    expect(samplesUpload).toContain("\n          name: admin-e2e-shots\n");
+    expect(liveUpload).toContain("\n          name: admin-e2e-live-shots\n");
+    for (const upload of [samplesUpload, liveUpload]) {
+      expect(upload).toContain("\n        if: always() && steps.admin-e2e.outputs.run == 'true'\n");
+      expect(upload).toMatch(/uses: actions\/upload-artifact@[0-9a-f]{40} # v\d+\.\d+\.\d+/);
+      expect(upload).toContain("\n          if-no-files-found: error\n");
+      expect(upload).toContain("\n          retention-days: 30\n");
+    }
+    expect(read("apps/admin/test/e2e/live-order-fixture.ts")).toContain('"dist/e2e-shots"');
   });
 });
 

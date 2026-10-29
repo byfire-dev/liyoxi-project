@@ -16,7 +16,11 @@ import type { BoundMediaDeps, FileRow, MediaActor, RegisterInput } from "./conte
 const notFound = () => new AppError("NOT_FOUND");
 export const inStaffScope = (staff: StaffContext): Prisma.FileObjectWhereInput => ({
   OR: [
-    { scopeType: "platform" },
+    // 平台资金回单不能因无entity而绕过数据范围；owned与readable共用此查询边界。
+    {
+      scopeType: "platform",
+      ...(staff.scope.kind === "all" ? {} : { category: { not: "pay_receipt" } }),
+    },
     { scopeType: "entity", ...byEntity(staff.scope) },
     { scopeType: "store", ...byStore(staff.scope) },
   ],
@@ -160,6 +164,24 @@ export async function registerScope(
     throw new AppError("PERMISSION_DENIED");
   await guard?.assert(tx, actor, input);
   if (financeFile) {
+    // 无主体的错款退回/线下退款回单：只给全范围且可处理资金退回的当前财务员工。
+    // 不接受客户端scope，也不替代消费回单时的本人、申请状态及资金守卫。
+    if (input.category === "pay_receipt" && !input.entityId && !input.storeId) {
+      if (staff.scope.kind !== "all") throw notFound();
+      assertPermission(
+        staff,
+        staff.permissions.has("finance.refund.execute")
+          ? "finance.refund.execute"
+          : "finance.recon.resolve",
+        deps.clock.now(),
+      );
+      return {
+        scopeType: "platform" as const,
+        entityId: null,
+        storeId: null,
+        onBehalfStoreId: null,
+      };
+    }
     const store = input.storeId
       ? await tx.store.findFirst({
           where: { id: input.storeId, ...byStore(staff.scope).store },
