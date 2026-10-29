@@ -91,6 +91,26 @@ it("HTTP只发给核验版本的真实目标，保方法/载荷/会话及读请�
     expect(sent.get("host")).toBe("127.0.0.1:8123");
     expect(sent.get("origin")).toBe(original.Origin);
   }
+  const signedRaw = '{ "id" : "owned-notification", "resource": {"ciphertext":"test"} }';
+  await transport.request("/api/v1/hooks/wechatpay/transactions", {
+    method: "POST",
+    rawBody: signedRaw,
+    headers: { "Content-Type": "application/json", "Wechatpay-Signature": "test-signature" },
+  });
+  expect(requests.at(-1)?.init?.body).toBe(signedRaw);
+  expect(new Headers(requests.at(-1)?.init?.headers).get("wechatpay-signature")).toBe(
+    "test-signature",
+  );
+  await expect(
+    transport.request("/api/v1/hooks/wechatpay/transactions", {
+      method: "POST",
+      rawBody: signedRaw,
+      json: {},
+    }),
+  ).rejects.toThrow("正文输入互斥");
+  expect(
+    requests.filter((request) => request.path === "/api/v1/hooks/wechatpay/transactions"),
+  ).toHaveLength(1);
 });
 
 it("错版本、越界路径、未知接口和旧版500全部失败关闭，探活响应有界", async () => {

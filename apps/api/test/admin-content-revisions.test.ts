@@ -1,6 +1,6 @@
 import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
 // W310 nine real routes, including required replay/C50 and read-only pricing metadata.
-import { beforeAll, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createIdentityContext, runSeed, seedDemoContent, uuidv7 } from "@liyoxi/services";
 import { EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
 import type {
@@ -319,106 +319,112 @@ it("admin.dramaPrice.list/summary、admin.dramaPriceRevision.list、admin.priceT
     expect((await app.request(root + path)).status).toBe(401);
   }
 });
-it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceVersion变更且回包即时新价，无等待timer", async () => {
-  app.clock.set(new Date("2026-01-05T04:00:00Z"));
-  await seedDemoContent(
-    {
-      tx: app.runtime.tx,
-      clock: app.clock,
-      content: app.runtime.content,
-      prepareMasters: createCodecDemoMasterPreparer({
-        appEnv: "test",
+describe("商城home跨午夜缓存", () => {
+  // 全量演示内容只在本组准备；准备预算与原5秒业务验收分开。
+  beforeAll(async () => {
+    app.clock.set(new Date("2026-01-05T04:00:00Z"));
+    await seedDemoContent(
+      {
         tx: app.runtime.tx,
         clock: app.clock,
+        content: app.runtime.content,
+        prepareMasters: createCodecDemoMasterPreparer({
+          appEnv: "test",
+          tx: app.runtime.tx,
+          clock: app.clock,
+          media: app.runtime.media,
+          events: app.runtime.events,
+        }),
         media: app.runtime.media,
-        events: app.runtime.events,
+        appEnv: "test",
+      },
+      supervisor.staff.id,
+    );
+  }, 180000);
+  it("商城60秒home缓存跨午夜价格边界与热度事件，实际SQL priceVersion变更且回包即时新价，无等待timer", async () => {
+    app.clock.set(new Date("2026-01-05T04:00:00Z"));
+    const d = await prisma.drama.findFirstOrThrow({ where: { status: "listed", heatTier: "S" } });
+    const read = () => app.request("/api/v1/m/home");
+    const future = await data<DramaPriceCreateResult>(
+      await post(`/dramas/${d.id}/drama-price-revisions`, {
+        mode: "custom",
+        customPoints: 3200,
+        effectiveDate: "2026-01-06",
+        reasonCode: "quality",
+        confirm: { currentPoints: 3000 },
       }),
-      media: app.runtime.media,
-      appEnv: "test",
-    },
-    supervisor.staff.id,
-  );
-  const d = await prisma.drama.findFirstOrThrow({ where: { status: "listed", heatTier: "S" } });
-  const read = () => app.request("/api/v1/m/home");
-  const future = await data<DramaPriceCreateResult>(
-    await post(`/dramas/${d.id}/drama-price-revisions`, {
-      mode: "custom",
-      customPoints: 3200,
-      effectiveDate: "2026-01-06",
-      reasonCode: "quality",
-      confirm: { currentPoints: 3000 },
-    }),
-  );
-  app.clock.set(new Date("2026-01-05T15:59:59.999Z"));
-  type Home = {
-    hot: { dramaId: string; listPricePoints: number }[];
-    new: { dramaId: string; listPricePoints: number }[];
-  };
-  const rowOf = (home: Home) => [...home.hot, ...home.new].find((row) => row.dramaId === d.id);
-  const before = await data<Home>(await read()),
-    versionBefore = (
+    );
+    app.clock.set(new Date("2026-01-05T15:59:59.999Z"));
+    type Home = {
+      hot: { dramaId: string; listPricePoints: number }[];
+      new: { dramaId: string; listPricePoints: number }[];
+    };
+    const rowOf = (home: Home) => [...home.hot, ...home.new].find((row) => row.dramaId === d.id);
+    const before = await data<Home>(await read()),
+      versionBefore = (
+        await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
+      ).find((row) => row.id === d.id)!.priceVersion;
+    expect(rowOf(before)?.listPricePoints).toBe(3000);
+    app.clock.advance(1);
+    expect(rowOf(await data<Home>(await read()))?.listPricePoints).toBe(3200);
+    const versionAfter = (
       await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
     ).find((row) => row.id === d.id)!.priceVersion;
-  expect(rowOf(before)?.listPricePoints).toBe(3000);
-  app.clock.advance(1);
-  expect(rowOf(await data<Home>(await read()))?.listPricePoints).toBe(3200);
-  const versionAfter = (
-    await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
-  ).find((row) => row.id === d.id)!.priceVersion;
-  expect(versionAfter).not.toEqual(versionBefore);
-  expect(
-    (
-      await prisma.timer.findFirstOrThrow({
-        where: { subjectId: future.revision.dramaPriceRevisionId },
-      })
-    ).status,
-  ).toBe("scheduled");
-  // Crossing midnight expires the original staff session; keep the real session TTL intact.
-  supervisor = await signInAsStaff(prisma, { roleKey: "super_admin", now: app.clock.now() });
-  // Restore template through the real write path, then apply a real tier fact without bumping site cache.
-  app.clock.advance(1);
-  await data(
-    await post(`/dramas/${d.id}/drama-price-revisions`, {
-      mode: "template",
-      customPoints: null,
-      effectiveDate: null,
-      reasonCode: "restore_template",
-      confirm: { currentPoints: 3200 },
-    }),
-  );
-  const templateBefore = await data<Home>(await read());
-  expect(rowOf(templateBefore)?.listPricePoints).toBe(3000);
-  const old = (
-    await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
-  ).find((row) => row.id === d.id)!.priceVersion;
-  app.clock.advance(1);
-  const event = await app.runtime.tx.run(async (tx) => {
-    await tx.drama.update({
-      where: { id: d.id },
-      data: { heatTier: "A", updatedAt: app.clock.now() },
+    expect(versionAfter).not.toEqual(versionBefore);
+    expect(
+      (
+        await prisma.timer.findFirstOrThrow({
+          where: { subjectId: future.revision.dramaPriceRevisionId },
+        })
+      ).status,
+    ).toBe("scheduled");
+    // Crossing midnight expires the original staff session; keep the real session TTL intact.
+    supervisor = await signInAsStaff(prisma, { roleKey: "super_admin", now: app.clock.now() });
+    // Restore template through the real write path, then apply a real tier fact without bumping site cache.
+    app.clock.advance(1);
+    await data(
+      await post(`/dramas/${d.id}/drama-price-revisions`, {
+        mode: "template",
+        customPoints: null,
+        effectiveDate: null,
+        reasonCode: "restore_template",
+        confirm: { currentPoints: 3200 },
+      }),
+    );
+    const templateBefore = await data<Home>(await read());
+    expect(rowOf(templateBefore)?.listPricePoints).toBe(3000);
+    const old = (
+      await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
+    ).find((row) => row.id === d.id)!.priceVersion;
+    app.clock.advance(1);
+    const event = await app.runtime.tx.run(async (tx) => {
+      await tx.drama.update({
+        where: { id: d.id },
+        data: { heatTier: "A", updatedAt: app.clock.now() },
+      });
+      return app.runtime.events.emit(tx, ctx(), {
+        type: "drama.tier_changed",
+        aggregate: { type: "drama", id: d.id },
+        payload: { v: 1, dramaId: d.id, fromTier: "S", toTier: "A" },
+      });
     });
-    return app.runtime.events.emit(tx, ctx(), {
-      type: "drama.tier_changed",
-      aggregate: { type: "drama", id: d.id },
-      payload: { v: 1, dramaId: d.id, fromTier: "S", toTier: "A" },
-    });
+    const stored = await prisma.outboxEvent.findUniqueOrThrow({ where: { id: event.id! } });
+    await app.runtime.tx.run((tx) =>
+      app.runtime.assembly.subscriber("billing.onTierChanged")!.handle(tx, {
+        id: stored.id,
+        type: stored.eventType,
+        payload: EVENT_PAYLOAD_SCHEMAS["drama.tier_changed"].parse(stored.payload),
+      }),
+    );
+    const next = (
+      await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
+    ).find((row) => row.id === d.id)!.priceVersion;
+    expect(next).not.toEqual(old);
+    expect(rowOf(await data<Home>(await read()))?.listPricePoints).toBe(2000);
+    expect(
+      await prisma.outboxEvent.count({
+        where: { aggregateId: d.id, eventType: "pricing.drama_price_changed" },
+      }),
+    ).toBe(1);
   });
-  const stored = await prisma.outboxEvent.findUniqueOrThrow({ where: { id: event.id! } });
-  await app.runtime.tx.run((tx) =>
-    app.runtime.assembly.subscriber("billing.onTierChanged")!.handle(tx, {
-      id: stored.id,
-      type: stored.eventType,
-      payload: EVENT_PAYLOAD_SCHEMAS["drama.tier_changed"].parse(stored.payload),
-    }),
-  );
-  const next = (
-    await app.runtime.tx.run((tx) => app.runtime.content.visibleCatalog(tx, app.clock.now()))
-  ).find((row) => row.id === d.id)!.priceVersion;
-  expect(next).not.toEqual(old);
-  expect(rowOf(await data<Home>(await read()))?.listPricePoints).toBe(2000);
-  expect(
-    await prisma.outboxEvent.count({
-      where: { aggregateId: d.id, eventType: "pricing.drama_price_changed" },
-    }),
-  ).toBe(1);
 });

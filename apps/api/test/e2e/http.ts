@@ -104,7 +104,8 @@ export async function createM1HttpTransport(options: HttpOptions) {
       if (target.origin !== origin.origin || !target.pathname.startsWith("/api/v1/"))
         throw new Error("M1 HTTP 请求离开本轮服务");
       await version();
-      const { json, headers, peer: ignored, signal: callerSignal, ...rest } = init;
+      const { json, rawBody, headers, peer: ignored, signal: callerSignal, ...rest } = init;
+      if (json !== undefined && rawBody !== undefined) throw new Error("M1 正文输入互斥");
       void ignored; // TCP peer comes from the real socket, never the caller's fixture field.
       const requestHeaders = new Headers(headers);
       if (options.phaseClient !== undefined)
@@ -128,7 +129,11 @@ export async function createM1HttpTransport(options: HttpOptions) {
         redirect: "error",
         signal: signal(callerSignal),
         headers: requestHeaders,
-        ...(json === undefined ? {} : { body: JSON.stringify(json) }),
+        ...(rawBody !== undefined
+          ? { body: rawBody }
+          : json === undefined
+            ? {}
+            : { body: JSON.stringify(json) }),
       });
       if (response.status >= 500 || response.status === 404) {
         await response.body?.cancel();

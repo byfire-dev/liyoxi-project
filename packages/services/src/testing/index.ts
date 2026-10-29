@@ -72,6 +72,10 @@ export type { M2Support, M2FactScope } from "./m2-chain.js";
 export { createP95Fixture } from "./p95-fixture.js";
 export type { P95Dataset } from "./p95-fixture.js";
 export { createM3Support } from "./m3-support.js";
+export { createM4Support } from "./m4-support.js";
+export type { M4Support } from "./m4-support.js";
+export { verifyM4DemoReplay } from "./m4-demo.js";
+export type { M4DemoReplayContext, M4DemoReplayResult } from "./m4-demo.js";
 export type { M3Support, M3SupportOptions, M3MediaScope, M3DrainOptions } from "./m3-support.js";
 export type {
   M1Support,
@@ -132,6 +136,10 @@ export { createCodecDemoMasterPreparer } from "./demo-masters.js";
 export { createDocsAdminFixture } from "./docs-admin.js";
 export { findAgreementLiveUploadJobIds } from "./admin-live/agreements-m2-upload.js";
 export { createMerchantAssetLiveUploadPump } from "./admin-live/merchant-assets-upload.js";
+export {
+  createInvoiceLiveUploadPump,
+  parseInvoiceLiveUploadScope,
+} from "./admin-live/invoice-upload.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
 
 // W3-12: exact owned content scope for the existing private live server.
