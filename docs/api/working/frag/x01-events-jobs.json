@@ -2139,7 +2139,9 @@
     "toState",
     "transition"
    ],
-   "subscribers": []
+   "subscribers": [
+    "order.onReferencesClosed"
+   ]
   },
   {
    "name": "order.rejected_stale",
@@ -2378,7 +2380,9 @@
     "toState",
     "transition"
    ],
-   "subscribers": []
+   "subscribers": [
+    "order.onReferencesClosed"
+   ]
   },
   {
    "name": "cancel.voided",
@@ -4253,6 +4257,11 @@
   "flow.reconcile_sweep"
  ],
  "subscribers": [
+  {
+   "name": "order.onReferencesClosed",
+   "module": "order",
+   "critical": true
+  },
   {
    "name": "notify.onEvent",
    "module": "notify",

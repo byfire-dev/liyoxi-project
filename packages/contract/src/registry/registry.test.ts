@@ -144,7 +144,7 @@ describe("与 x01 对账（验收 1–4）", () => {
       });
       expect(problems).toContain("订阅者：frag有而契约没有：notify.onMerchantUserDeleted");
       expect(problems).toContain("订阅者：x01 正文有而契约没有：notify.onMerchantUserDeleted");
-      expect(problems).toContain("数量：订阅者应为 34 个，契约登记了 33 个");
+      expect(problems).toContain("数量：订阅者应为 35 个，契约登记了 34 个");
       expect(problems).toContain("里程碑：M2 的订阅者应为 9 个（计划 第 8.4 节），契约登记了 8 个");
       expect(problems).toHaveLength(4);
     });
@@ -247,7 +247,7 @@ describe("与 x01 对账（验收 1–4）", () => {
 describe("归属表 docs/plan/x01-map.md 是生成物（验收 5）", () => {
   it("一项一行，共 114 行；每项都有里程碑与所属模块", () => {
     const rows = x01MapRows();
-    expect(rows).toHaveLength(34 + 24 + 25 + 11 + 8 + 7 + 5);
+    expect(rows).toHaveLength(35 + 24 + 25 + 11 + 8 + 7 + 5);
     for (const row of rows) {
       expect(MAP_CATEGORIES).toContain(row.category);
       expect(MILESTONES).toContain(row.milestone);

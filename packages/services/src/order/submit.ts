@@ -128,7 +128,7 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
       surchargeBp: initialPricing[0]!.kind === "drama" ? initialPricing[0]!.surchargeBp : 0,
     },
   };
-  // All existing lower-rank objects have been locked before assets370 and the unique billing420.
+  // 素材370及其全部文件410在唯一账户420之前排他预锁；登记引用只重入同强度锁。
   await assertAssetReferences(
     tx,
     { entityId, storeId, ids: input.referenceStoreAssetIds ?? [] },
@@ -207,13 +207,17 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
       updatedAt: now,
     },
   });
-  await linkAssetReferences(tx, {
-    entityId,
-    storeId,
-    ids: input.referenceStoreAssetIds ?? [],
-    orderId,
-    now,
-  });
+  await linkAssetReferences(
+    tx,
+    {
+      entityId,
+      storeId,
+      ids: input.referenceStoreAssetIds ?? [],
+      orderId,
+      now,
+    },
+    deps.media.link,
+  );
   for (let i = 0; i < itemIds.length; i++) {
     const snapshot = late.snapshots.get(input.dramaIds[i]!)!,
       pricing = PricingSnapshotSchema.parse(held[i]!.snapshot);

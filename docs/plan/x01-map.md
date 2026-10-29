@@ -11,12 +11,12 @@
 | M0 | 0 | 0 | 3 | 4 | 2 | 0 | 0 | 9 |
 | M1 | 2 | 2 | 1 | 2 | 1 | 0 | 1 | 9 |
 | M2 | 9 | 3 | 10 | 3 | 1 | 1 | 3 | 30 |
-| M3 | 6 | 3 | 3 | 1 | 1 | 2 | 0 | 16 |
+| M3 | 7 | 3 | 3 | 1 | 1 | 2 | 0 | 17 |
 | M4 | 6 | 4 | 5 | 0 | 0 | 2 | 1 | 18 |
 | M5 | 5 | 4 | 0 | 1 | 1 | 0 | 0 | 11 |
 | M6 | 2 | 5 | 1 | 0 | 1 | 0 | 0 | 9 |
 | M7 | 4 | 3 | 2 | 0 | 1 | 2 | 0 | 12 |
-| 合计 | 34 | 24 | 25 | 11 | 8 | 7 | 5 | 114 |
+| 合计 | 35 | 24 | 25 | 11 | 8 | 7 | 5 | 115 |
 
 定时器按“kind × 主体”计行：同一个 kind 有几种主体就有几行（`sla.breach` 有 7 行）。
 
@@ -77,6 +77,7 @@
 | 订阅者 | `content.onTrailerReady` | content | M3 |
 | 订阅者 | `delivery.onProductionChecked` | delivery | M3 |
 | 订阅者 | `media.onCalendarImported` | media | M3 |
+| 订阅者 | `order.onReferencesClosed` | order | M3 |
 | 订阅者 | `profile.onFileModerated` | profile | M3 |
 | 定时器 | `content.license_end`（主体 `drama`） | content | M3 |
 | 定时器 | `pricing.drama_price_effective`（主体 `drama_price_revision`） | billing | M3 |

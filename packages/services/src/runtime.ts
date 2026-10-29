@@ -952,7 +952,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     orderSubmissionCompanion: (serviceTicketId) =>
       createOrderCancelApprovalRefCompanion({ serviceTicketId, clock }),
   };
-  const unbindOrder = bindOrder({ assembly, clock, flow, cancel: cancelDeps });
+  const unbindOrder = bindOrder({ assembly, clock, flow, media, cancel: cancelDeps });
   const unbindCancelRequests = bindCancelRequests(cancelDeps);
   const cancelRequests = createRuntimeCancelRequests(cancelDeps);
   const tenant = createTenant({ tx, clock, flow, assembly });
