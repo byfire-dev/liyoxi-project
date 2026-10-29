@@ -144,8 +144,8 @@
 | `m.orderItem.sample.get` | GET | `/m/order-items/{orderItemId}/sample` | 样片确认页：当前推送版本、时长、查看方式（preview_channels）、广告位标记（出现时间、类型）、质检摘要；不可在小程序内播放时不返回播放地址，返回查看方式说明 | `delivery.confirm_sample` | none | V1.0 | 3.8 |
 | `m.performanceReport.list` | GET | `/m/performance-reports` | V1.1：投放数据（概览、按周趋势、单集数据、月度效果报告） | — | none | V1.1 | 3.28 |
 | `m.performanceUpload.create` | POST | `/m/performance-uploads` | V1.1：商家每周上传作品数据截图，发布专员审核后录入 | — | required | V1.1 | 3.29 |
-| `m.sample.confirm` | POST | `/m/samples/{sampleId}/confirm` | 确认样片 {versionNo, viewedVia, hasViewed}，推进到批量合成 | `delivery.confirm_sample` | required | V1.0 | 3.9 |
-| `m.sample.downloadUrls` | POST | `/m/samples/{sampleId}/download-urls` | 签发水印版样片的 15 分钟直链（保存到相册查看）；每次写访问审计，首次访问回写 sample.first_viewed_at | `delivery.confirm_sample` | none | V1.0 | 3.11 |
+| `m.sample.confirm` | POST | `/m/samples/{sampleId}/confirm` | 确认小程序样片 {versionNo, viewedVia: weapp, hasViewed: true}，推进到批量合成 | `delivery.confirm_sample` | required | V1.0 | 3.9 |
+| `m.sample.downloadUrls` | POST | `/m/samples/{sampleId}/download-urls` | 历史样片相册接口：第一期仅小程序内查看，鉴权及版本校验后拒绝签发 | `delivery.confirm_sample` | none | V1.0 | 3.11 |
 | `m.sample.requestChange` | POST | `/m/samples/{sampleId}/request-change` | 对样片提出修改意见（合成问题）：{feedbackKind: 'compose', note, imageFileIds?} | `delivery.confirm_sample` | required | V1.0 | 3.10 |
 | `m.takedownTask.list` | GET | `/m/takedown-tasks` | 下架任务（?tab=pending\|done）：剧目、账号、使用期止日、应完成日；无任务时给出最早结束剧目与下架任务生成日 | `publish.read` | none | V1.0 | 3.21 |
 | `m.takedownTask.summary` | GET | `/m/takedown-tasks/summary` | 发布任务页“待下架 N / 已完成 N”中下架任务一侧的计数，键与列表 tab 取值一致 | `publish.read` | none | V1.0 | 3.22 |
