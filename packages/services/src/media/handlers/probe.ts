@@ -367,6 +367,8 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
           gate: checked.gate,
           derivedFromFileId: facts.production.derivedFromFileId,
         });
+        // Probe-only runtimes persist the same real checks, without creating production outputs.
+        if (deps.production?.mode === "probe_only") return;
         if (ai && !output.technical.aigcMeta && !output.technical.invalidAigc && deps.production) {
           const next = await enqueueDerivation(deps, tx, facts.file.id, "restamp");
           return [next];

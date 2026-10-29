@@ -117,27 +117,31 @@ export function createRuntimeMediaProduction(
         storage: providers.storage,
       });
   let closing: Promise<void> | undefined;
+  const common = {
+    tool: tools.client,
+    workspace: tools.workspace,
+    cloud: providers.media,
+    // D5 §4.7: final cap 200 MiB and the 180-second soft warning. No unregistered parameter keys.
+    parameters: async () => ({
+      finalMaxMb: 200,
+      softDurationMs: 180_000,
+      ruleVersion: 1,
+      specVersion: 1,
+    }),
+    readStoreFacts: readStoreMediaFacts,
+    readAdDurations: readAdDurationFacts,
+    readAdKind: readAdProductionKind,
+    readMasterFacts: readMasterProductionFacts,
+    readTrailerFacts: readTrailerMediaFacts,
+    setTrailerTarget,
+    installTrailerCurrent,
+  };
+  const production: MediaProductionDeps =
+    "aigc" in configured
+      ? { ...common, config: { aigc: configured.aigc, templates: configured.templates } }
+      : { ...common, mode: "probe_only", config: null };
   return {
-    production: {
-      tool: tools.client,
-      workspace: tools.workspace,
-      cloud: providers.media,
-      config: { aigc: configured.aigc, templates: configured.templates },
-      // D5 §4.7: final cap 200 MiB and the 180-second soft warning. No unregistered parameter keys.
-      parameters: async () => ({
-        finalMaxMb: 200,
-        softDurationMs: 180_000,
-        ruleVersion: 1,
-        specVersion: 1,
-      }),
-      readStoreFacts: readStoreMediaFacts,
-      readAdDurations: readAdDurationFacts,
-      readAdKind: readAdProductionKind,
-      readMasterFacts: readMasterProductionFacts,
-      readTrailerFacts: readTrailerMediaFacts,
-      setTrailerTarget,
-      installTrailerCurrent,
-    },
+    production,
     close: () => (closing ??= tools.close()),
   };
 }

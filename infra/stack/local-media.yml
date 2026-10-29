@@ -1,0 +1,86 @@
+# 本机既有业务库的媒体体检接入；不包含依赖、迁移或播种。
+# 先运行 local-media.mjs check / prepare，再将其生成的 override 叠在本文件后。
+# 切换前须停掉旧宿主 API/worker；不能让两个 worker 同时消费 Redis 0。
+name: liyoxi-local-media
+
+x-server: &server
+  image: ${LYX_LOCAL_MEDIA_SERVER_IMAGE:-liyoxi/server:local-media-probe}
+  init: true
+  read_only: true
+  user: "1000:1000"
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp:size=64m]
+  stop_grace_period: 60s
+  restart: on-failure
+  environment: &environment
+    APP_ENV: local
+    LOG_LEVEL: info
+    # local.yml 已公开的开发凭据；明确复用 liyoxi 与 Redis 0。
+    DATABASE_URL: postgresql://liyoxi:lyx-local-dev@lyx-postgres:5432/liyoxi
+    REDIS_URL: redis://lyx-redis:6379/0
+    MINIO_ENDPOINT: http://lyx-minio:9000
+    MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:?须与当前后台和真机使用的签名地址一致}
+    DATA_KEYS_FILE: /run/secrets/data-keys.json
+    BIDX_KEYS_FILE: /run/secrets/bidx-keys.json
+    AUTH_KEYS_FILE: /run/secrets/auth-keys.json
+    MEDIA_PRODUCTION_FILE: /run/secrets/media-production.json
+  volumes:
+    - work:/work
+  depends_on:
+    mediatool:
+      condition: service_healthy
+
+services:
+  mediatool:
+    image: ${LYX_LOCAL_MEDIA_TOOL_IMAGE:-liyoxi/mediatool:local}
+    network_mode: none
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1
+    tmpfs: [/tmp:size=64m]
+    volumes:
+      - work:/work
+    restart: on-failure
+
+  api:
+    <<: *server
+    command: [node, apps/api/dist/server.js, --port, "3000"]
+    ports:
+      - "${LYX_LOCAL_MEDIA_BIND:?须显式保留现有 API 的本机或局域网监听范围}:3000:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - 'fetch("http://127.0.0.1:3000/readyz").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  worker:
+    <<: *server
+    command: [node, apps/worker/dist/index.js]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          psql "$$DATABASE_URL" -X -w -Atc "SELECT count(*) FROM worker_lease WHERE name = 'primary'
+          AND heartbeat_at > clock_timestamp() - interval '60 seconds'" | grep -qx 1
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+networks:
+  default:
+    name: liyoxi_default
+    external: true
+
+volumes:
+  work:
+    name: lyx-local-media-work
