@@ -197,35 +197,6 @@ async function buildApi(env) {
     join(ROOT, "apps/api", apiOut, "upload-batch-live-mediatool-helper.mjs"),
   );
 }
-const STARTUP_STAGES = new Set([
-  "relay_start",
-  "relay_ready",
-  "masters_start",
-  "masters_ready",
-  "w120_start",
-  "w120_ready",
-  "checks_start",
-  "checks_ready",
-  "api_listen_start",
-  "api_listening",
-  "cos_listen_start",
-  "cos_listening",
-  "ready",
-]);
-const W120_STAGES = new Set(["upload_probe_watermark", "sample_qc", "delivering"]);
-/** 只投影固定诊断字段；耗时由父进程计时，子进程的任意附加字段都不外发。 */
-export function startupDiagnostic(event, elapsedMs) {
-  if (!event || typeof event !== "object" || Array.isArray(event)) return null;
-  if (event.evt === "w302.live.startup" && STARTUP_STAGES.has(event.stage))
-    return { evt: "w302.live.startup", stage: event.stage, elapsedMs };
-  if (
-    event.evt === "w120.actual_media" &&
-    W120_STAGES.has(event.stage) &&
-    (event.outcome === "pass" || event.outcome === "reject")
-  )
-    return { evt: "w120.actual_media", stage: event.stage, outcome: event.outcome, elapsedMs };
-  return null;
-}
 function startApi(env, image) {
   const loader = createRequire(join(ROOT, "packages/services/package.json")).resolve("tsx");
   // A wrapper may relay a second signal before async shutdown finishes. Signal the actual
@@ -251,19 +222,14 @@ function startApi(env, image) {
   child.stderr.on("data", (chunk) => log.write(chunk));
   child.once("close", () => log.end());
   return new Promise((accept, reject) => {
-    let buffer = "",
-      lastStage = "unreported";
-    const startedAt = performance.now();
-    const elapsedMs = () => Math.max(0, Math.round(performance.now() - startedAt));
-    const failure = (message) =>
-      new Error(`${message} (lastStage=${lastStage}, elapsedMs=${elapsedMs()})`);
+    let buffer = "";
     const timer = setTimeout(
-      () => reject(failure("W302 private server did not start within 60 seconds")),
+      () => reject(new Error("W302 private server did not start within 60 seconds")),
       60_000,
     );
     const fail = () => {
       clearTimeout(timer);
-      reject(failure("W302 private server exited before readiness"));
+      reject(new Error("W302 private server exited before readiness"));
     };
     child.once("error", fail);
     child.once("close", fail);
@@ -280,16 +246,7 @@ function startApi(env, image) {
         } catch {
           continue;
         }
-        const diagnostic = startupDiagnostic(event, elapsedMs());
-        if (diagnostic) {
-          lastStage = `${diagnostic.evt}:${diagnostic.stage}${diagnostic.outcome ? `:${diagnostic.outcome}` : ""}`;
-          process.stdout.write(`${JSON.stringify(diagnostic)}\n`);
-          continue;
-        }
         if (
-          event &&
-          typeof event === "object" &&
-          !Array.isArray(event) &&
           event.evt === "w302.live.listening" &&
           typeof event.apiOrigin === "string" &&
           typeof event.cosOrigin === "string"

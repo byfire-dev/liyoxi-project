@@ -1,5 +1,7 @@
 // Task-private entry: real production handlers/middleware, no production server switch.
 import { readFile, realpath } from "node:fs/promises";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
@@ -70,6 +72,28 @@ export function parseInvoiceLiveEnvelope(raw: unknown) {
     w418Invoice: undefined,
   };
 }
+const STARTUP_STAGES = [
+  "relay_start",
+  "relay_ready",
+  "masters_start",
+  "masters_ready",
+  "w120_start",
+  "w120_ready",
+  "checks_start",
+  "checks_ready",
+  "api_listen_start",
+  "api_listening",
+  "cos_listen_start",
+  "cos_listening",
+  "ready",
+] as const;
+type StartupStage = (typeof STARTUP_STAGES)[number];
+/** 诊断仅允许固定阶段和本地单调时钟耗时，不接受任意日志或附加字段。 */
+export function startupDiagnostic(stage: unknown, elapsedMs: number) {
+  const approved = STARTUP_STAGES.find((value) => value === stage);
+  if (!approved || !Number.isFinite(elapsedMs) || elapsedMs < 0) return null;
+  return { evt: "w302.live.startup", stage: approved, elapsedMs: Math.round(elapsedMs) };
+}
 export async function startOutputBatchLiveServer(options: {
   env: Env;
   prefix: string;
@@ -81,7 +105,9 @@ export async function startOutputBatchLiveServer(options: {
   version?: string;
   documentWorkerUrl?: URL;
   signal?: AbortSignal;
+  onStartupStage?: (stage: StartupStage, elapsedMs: number) => void;
 }) {
+  const startupStartedAt = performance.now();
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
   const w312 =
@@ -199,22 +225,11 @@ export async function startOutputBatchLiveServer(options: {
     })());
   try {
     options.signal?.throwIfAborted();
-    const reportStartup = (
-      stage:
-        | "relay_start"
-        | "relay_ready"
-        | "masters_start"
-        | "masters_ready"
-        | "w120_start"
-        | "w120_ready"
-        | "checks_start"
-        | "checks_ready"
-        | "api_listen_start"
-        | "api_listening"
-        | "cos_listen_start"
-        | "cos_listening"
-        | "ready",
-    ) => process.stdout.write(`${JSON.stringify({ evt: "w302.live.startup", stage })}\n`);
+    const reportStartup = (stage: StartupStage) => {
+      const elapsedMs = Math.max(0, Math.round(performance.now() - startupStartedAt));
+      process.stdout.write(`${JSON.stringify(startupDiagnostic(stage, elapsedMs))}\n`);
+      options.onStartupStage?.(stage, elapsedMs);
+    };
     reportStartup("relay_start");
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
     reportStartup("relay_ready");
@@ -566,10 +581,22 @@ async function main() {
   const path = await realpath(values["input-manifest"]);
   const env = loadEnv(),
     runId = assertScope(env, values["test-redis-prefix"]);
-  if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
+  const ownedSuffix = join(
+    "apps",
+    "admin",
+    "dist",
+    "tmp",
+    `admin-live-${runId}`,
+    "media-input.json",
+  );
+  if (!path.endsWith(`${sep}${ownedSuffix}`))
     throw new Error("Input manifest must be the exact owned temporary file");
   const raw: unknown = JSON.parse(await readFile(path, "utf8"));
   const { manifest, w318, w418Invoice } = parseInvoiceLiveEnvelope(raw);
+  const diagnosticDir = join(dirname(dirname(dirname(path))), "e2e-live-results");
+  mkdirSync(diagnosticDir, { recursive: true });
+  const diagnosticFile = join(diagnosticDir, `w302-startup-${runId}.jsonl`);
+  writeFileSync(diagnosticFile, "", { flag: "wx", mode: 0o600 });
   const controller = new AbortController();
   let server: Awaited<ReturnType<typeof startOutputBatchLiveServer>> | undefined;
   const cancel = () => {
@@ -593,6 +620,10 @@ async function main() {
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       signal: controller.signal,
+      onStartupStage: (stage, elapsedMs) => {
+        const diagnostic = startupDiagnostic(stage, elapsedMs);
+        if (diagnostic) appendFileSync(diagnosticFile, `${JSON.stringify(diagnostic)}\n`);
+      },
     });
     process.stdout.write(
       `${JSON.stringify({
