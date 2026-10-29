@@ -1,6 +1,7 @@
 // W1-02②：生产后台连真实 API，复用登录态与专属库的员工造数。
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { StaffListItemSchema, adminPage } from "@liyoxi/contract";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 import { ensureLiveStepUp } from "./live-step-up";
 
@@ -24,25 +25,71 @@ async function select(page: Page, label: string, value: string) {
 
 test("员工筛选、分页URL与新增manual一次性激活码，同步双提交只建一行", async ({ page }) => {
   const context = liveContext();
-  const fixture = (context.fixtures as { fixtures: { staff: StaffFixture } }).fixtures.staff;
+  const fixtures = (
+    context.fixtures as {
+      fixtures: {
+        staff: StaffFixture;
+        w418: {
+          approvals: { requesterStaffId: string };
+          invoices: { reviewerStaffId: string };
+        };
+      };
+    }
+  ).fixtures;
+  const fixture = fixtures.staff;
   expect(fixture.staff).toHaveLength(10);
+  const addedActors = [
+    {
+      staffId: fixtures.w418.approvals.requesterStaffId,
+      name: "W418隔离审批发起人",
+      roleKey: "super_admin",
+      status: "active",
+    },
+    {
+      staffId: fixtures.w418.invoices.reviewerStaffId,
+      name: "W418红冲关联退款复核人",
+      roleKey: "super_admin",
+      status: "active",
+    },
+  ];
+  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(2);
+  // 原14人：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；另加上述两名W418演员。
+  const originalStaffCount = 1 + fixture.staff.length + 2 + 1;
+  expect(originalStaffCount).toBe(14);
+  const expectedStaffCount = originalStaffCount + addedActors.length;
   const errors = recordErrors(page);
   const firstList = page.waitForRequest(
     (request) =>
       request.method() === "GET" && new URL(request.url()).pathname === "/api/v1/admin/staff",
   );
   await page.goto("/sys/staff?sort=unsupported&roleKey=unknown&page=0&pageSize=13&uiOnly=x");
-  const firstQuery = new URL((await firstList).url()).searchParams;
+  const firstRequest = await firstList;
+  const firstQuery = new URL(firstRequest.url()).searchParams;
   expect(firstQuery.get("page")).toBe("1");
   expect(firstQuery.get("pageSize")).toBe("20");
   for (const key of ["roleKey", "sort", "uiOnly"]) expect(firstQuery.has(key)).toBe(false);
+  const firstResponse = await firstRequest.response();
+  expect(firstResponse).not.toBeNull();
+  expect(firstResponse!.status()).toBe(200);
+  const initialStaff = adminPage(StaffListItemSchema).parse((await firstResponse!.json()).data);
+  expect(initialStaff.total).toBe(expectedStaffCount);
+  expect(initialStaff.items).toHaveLength(expectedStaffCount);
+  for (const actor of addedActors) {
+    expect(fixture.staff.map((item) => item.id)).not.toContain(actor.staffId);
+    expect(initialStaff.items.filter((item) => item.staffId === actor.staffId)).toEqual([
+      expect.objectContaining(actor),
+    ]);
+  }
   await expect(page.getByRole("heading", { name: "员工账号", exact: true })).toBeVisible();
   const table = page.getByRole("table");
   await expect(table.getByRole("columnheader")).toHaveCount(8);
   await expect(table.getByRole("columnheader", { name: /手机号.*已脱敏/ })).toBeVisible();
   await expect(table).toContainText("****");
-  // 初始14名员工：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；再加表头。
-  await expect(table.getByRole("row")).toHaveCount(15);
+  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount + 1);
+  for (const actor of addedActors) {
+    await expect(table.getByText(actor.name, { exact: true })).toHaveCount(1);
+    await expect(table.getByText(actor.name, { exact: true })).toBeVisible();
+  }
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
   await expect(table.getByText("已禁用", { exact: true })).toBeVisible();
@@ -71,10 +118,10 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page).toHaveURL(/pageSize=10/);
   await page.getByRole("button", { name: "下一页", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(5);
+  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount - 10 + 1);
   await page.reload();
   await expect(page.getByLabel("第 2 页", { exact: true })).toBeVisible();
-  await expect(table.getByRole("row")).toHaveCount(5);
+  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount - 10 + 1);
   await page.getByRole("button", { name: "上一页", exact: true }).click();
   await noHorizontalScroll(page, "员工分页");
 

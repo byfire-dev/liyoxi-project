@@ -476,7 +476,8 @@ export async function startOutputBatchLiveServer(options: {
     });
     options.signal?.throwIfAborted();
     for (const api of apis) api.readiness.state = "ready";
-    // Original 15s cadence; exact owned IDs, never the all-database scanPromote.
+    // Private live cadence, not a production SLA: exact owned IDs, never all-database scanPromote.
+    // One-second ticks avoid idle gaps between real promote/probe work; pending keeps it single-flight.
     interval = setInterval(() => {
       if (pending) return;
       pending = Promise.all([
@@ -498,7 +499,7 @@ export async function startOutputBatchLiveServer(options: {
         .finally(() => {
           pending = undefined;
         });
-    }, 15_000);
+    }, 1_000);
     return {
       apiOrigin,
       cosOrigin,
