@@ -84,7 +84,8 @@ case "$step" in
     [[ "$2" =~ ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$ ]] || usage_die "请求编号必须是 UUID"
     ;;
   log-stats)
-    [ $# -eq 1 ] && [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 分钟必须是 1–1440 的整数"
+    { [ $# -eq 1 ] || { [ $# -eq 3 ] && [ "$2" = --by-env-version ] && [[ "$3" =~ ^sha-[a-f0-9]{12}$ ]]; }; } &&
+      [[ "$1" =~ ^[1-9][0-9]{0,3}$ ]] && [ "$1" -le 1440 ] || usage_die "log-stats 只接受1–1440分钟及可选 --by-env-version <sha-12>"
     ;;
   weapp-upload)
     [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
@@ -334,6 +335,7 @@ step_run() {
 step_log_read() (
   set -o pipefail
   local mode="$1" service="$2" value="$3" minutes="$4" tail="$5" tag image output
+  shift 5
   tag="$(current_tag)"
   [ -n "$tag" ] || die "还没有当前版本：日志 runner 不可用"
   need_tag "$tag"
@@ -345,7 +347,7 @@ step_log_read() (
     docker run --rm -i --pull never --network none --read-only --user 65534:65534 \
       --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --cpus 0.5 --pids-limit 32 --log-driver none \
       --mount "type=bind,source=$LYX_SRC/infra/deploy/log-stats.mjs,target=/helper/log-stats.mjs,readonly" \
-      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value")" || die "日志读取失败或超过上限，未输出不完整结果"
+      --entrypoint node "$image" /helper/log-stats.mjs "$mode" "$value" "$@")" || die "日志读取失败或超过上限，未输出不完整结果"
   [ -z "$output" ] || printf '%s\n' "$output"
 )
 
@@ -379,7 +381,10 @@ step_redis_flush() {
 case "$step" in
   redis-flush) step_redis_flush "$1" ;;
   logs) step_log_read logs "$1" "$2" 60 5001 ;;
-  log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
+  log-stats)
+    if [ $# -eq 3 ]; then step_log_read stats gateway "$1" "$1" 100001 --by-env-version --client-version "$3"
+    else step_log_read stats gateway "$1" "$1" 100001; fi
+    ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
   weapp-review-upload) step_weapp_review_upload "$1" "$2" "$3" ;;
   deps) step_deps ;;
