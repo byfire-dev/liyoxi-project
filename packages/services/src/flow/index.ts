@@ -1,8 +1,11 @@
 // flow：统一状态迁移（W0-16）。用法见本目录的 README.md。
 export { createFlow } from "./runtime.js";
-export type { Flow, FlowOptions } from "./runtime.js";
+export type { AdminFlow, Flow, FlowOptions } from "./runtime.js";
 export type {
   MergedAudit,
+  AdminStaffFact,
+  AdminStaffReader,
+  AdminTransitionInput,
   NoEvent,
   TransitionEvent,
   TransitionInput,
