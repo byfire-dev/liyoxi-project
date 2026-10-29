@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { makeTempDir, repoRoot } from "./helpers.js";
+import { makeTempDir, repoRoot, writeFiles } from "./helpers.js";
 
 type Round = { status: string; exitCode: number | null; signal: string | null; durationMs: number };
 type Summary = {
@@ -25,6 +25,7 @@ type RoundOptions = {
   signal?: AbortSignal;
   timeoutMs?: number;
   spawnProcess?: typeof spawn;
+  script?: string;
 };
 const { parseArgs, runRound, runRepeated } = (await import(
   pathToFileURL(join(repoRoot, "infra/ci/e2e-repeat.mjs")).href
@@ -194,6 +195,79 @@ describe("连续运行不能把失败重试成十次成功", () => {
     expect(result.status).toBe("passed");
     expect(readFileSync(logPath, "utf8")).toContain("real child green");
   });
+  it("具名 M5 命令精确派发 pnpm e2e:m5，保留会话与环境隔离", async () => {
+    const logPath = join(temp(), "m5.log");
+    const result = await runRound({
+      session: "rm5allow1",
+      logPath,
+      script: "e2e:m5",
+      spawnProcess: ((command: string, args: readonly string[], options: SpawnOptions) => {
+        expect([command, args]).toEqual(["pnpm", ["e2e:m5"]]);
+        expect(options.env?.LYX_TEST_SESSION).toBe("rm5allow1");
+        expect(options.env?.APP_ENV).toBe("test");
+        expect(options.detached).toBe(process.platform !== "win32");
+        return spawn(
+          process.execPath,
+          ["-e", "process.stdout.write('M5 dispatch fixture')"],
+          options,
+        );
+      }) as typeof spawn,
+    });
+    expect(result.status).toBe("passed");
+    expect(readFileSync(logPath, "utf8")).toContain("M5 dispatch fixture");
+  });
+  it("M5 白名单不代表脚本已交付，缺失脚本首轮失败并保存未完成汇总", async () => {
+    const fixture = temp();
+    writeFiles(fixture, {
+      "package.json": JSON.stringify({ name: "lyx-repeat-no-m5", private: true, scripts: {} }),
+    });
+    let starts = 0;
+    const summary = await runRepeated({
+      times: 10,
+      out: temp(),
+      runOnce: (options) =>
+        runRound({
+          ...options,
+          script: "e2e:m5",
+          spawnProcess: ((command: string, args: readonly string[], spawnOptions: SpawnOptions) => {
+            starts += 1;
+            expect([command, args]).toEqual(["pnpm", ["e2e:m5"]]);
+            return spawn(command, args, { ...spawnOptions, cwd: fixture });
+          }) as typeof spawn,
+        }),
+    });
+    expect(starts).toBe(1);
+    expect([
+      summary.exitCode,
+      summary.attempted,
+      summary.passed,
+      summary.failed,
+      summary.skipped,
+    ]).toEqual([1, 1, 0, 1, 9]);
+    expect(summary.rounds[0]?.status).toBe("failed");
+    expect(summary.rounds[0]?.exitCode).not.toBe(0);
+    expect(readFileSync(summary.rounds[0]!.logPath, "utf8")).toContain(
+      'Command "e2e:m5" not found',
+    );
+    expect(JSON.parse(readFileSync(summary.summaryPath, "utf8")).status).toBe("failed");
+  });
+  it("任意命令、M5 近似名和追加参数仍在启动前按原语义拒绝", () => {
+    let starts = 0;
+    for (const script of ["true", "e2e:m6", "e2e:m50", "e2e:m5 --help", "e2e:m5; true"]) {
+      expect(() =>
+        runRound({
+          session: "rreject1",
+          logPath: join(temp(), "rejected.log"),
+          script,
+          spawnProcess: (() => {
+            starts += 1;
+            throw new Error("不应启动子进程");
+          }) as typeof spawn,
+        }),
+      ).toThrow("测试会话或单轮时限无效");
+    }
+    expect(starts).toBe(0);
+  });
   it("非法次数、未知或重复参数不能成为零次通过或命令覆盖", () => {
     for (const args of [
       ["--times", "0"],
@@ -201,6 +275,7 @@ describe("连续运行不能把失败重试成十次成功", () => {
       ["--times", "101"],
       ["--times", "10", "--times", "1"],
       ["--command", "true"],
+      ["--command", "e2e:m5"],
       ["--out"],
     ])
       expect(() => parseArgs(args)).toThrow();
