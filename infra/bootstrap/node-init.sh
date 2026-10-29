@@ -18,7 +18,7 @@
 #   4. Compose 网络的固定网段（stg.env 的 LYX_NODE_SUBNET）不与已有的 Docker 网络、本机网卡的网段相撞。
 # 再动手（每一步打印出来）：
 #   a. 建目录：${LYX_NODE_HOME}（缺省 /opt/liyoxi）、secrets/（0700，只有 root 能进）、static/{admin,portal}/assets/；
-#   b. 把本脚本所在那棵树的 infra/compose、infra/deploy、infra/bootstrap 拷到 $LYX_NODE_HOME/infra/ 下；
+#   b. 把本脚本所在那棵树的 infra/compose、infra/deploy、infra/bootstrap 及唯一所需 ci/probe-during-deploy.mjs 拷到 $LYX_NODE_HOME/infra/ 下；
 #   c. 写 node.env（只有镜像仓库前缀；已有就不覆盖，给了 --registry 才改那一行）；
 #   d. 建发布用户 lyx-deploy（不设口令，只能用密钥）；sudoers 只放行它以 root 执行 node-step.sh 这一个脚本；
 #      给了 --deploy-key 就写 authorized_keys：一行，限定只能执行 node-step.sh，不给终端，不许任何转发；
@@ -56,6 +56,7 @@ DEPLOY_USER="${LYX_DEPLOY_USER:-lyx-deploy}"
 DEFAULT_REF_NAME="li""yo"
 REF_NAME="${LYX_REF_NAME:-$DEFAULT_REF_NAME}"
 STG_ENV="$LYX_SRC/infra/compose/env/stg.env"
+ASSET_PROBE="$LYX_SRC/infra/ci/probe-during-deploy.mjs"
 NODE_STEP="$LYX_NODE_HOME/infra/deploy/node-step.sh"
 stg() { sed -n "s/^$1=//p" "$STG_ENV" | head -n 1 | tr -d '\n'; }
 PORT="${LYX_GATEWAY_PORT:-$(stg LYX_GATEWAY_PORT)}"
@@ -79,6 +80,7 @@ stop() {
   printf '停下：%s\n什么都没有改。\n' "$*" >&2
   exit 1
 }
+[ -f "$ASSET_PROBE" ] && [ -r "$ASSET_PROBE" ] || stop "源码缺少资源核对所需 infra/ci/probe-during-deploy.mjs；请按 README 补齐传输清单"
 ip_int() {
   local IFS=.
   # shellcheck disable=SC2086
@@ -185,9 +187,12 @@ copy_tree() {
       rm -rf "$LYX_NODE_HOME/infra/$one" &&
       mv "$LYX_NODE_HOME/infra/$one.new" "$LYX_NODE_HOME/infra/$one" || return 1
   done
+  mkdir -p "$LYX_NODE_HOME/infra/ci" &&
+    chmod 0755 "$LYX_NODE_HOME/infra/ci" &&
+    install -m 0644 "$ASSET_PROBE" "$LYX_NODE_HOME/infra/ci/probe-during-deploy.mjs" || return 1
   chmod 0755 "$LYX_NODE_HOME"/infra/deploy/*.sh "$LYX_NODE_HOME"/infra/deploy/nginx/*.sh "$LYX_NODE_HOME"/infra/bootstrap/*.sh
 }
-act "拷贝 infra/compose、infra/deploy、infra/bootstrap 到 $LYX_NODE_HOME/infra/" copy_tree
+act "拷贝 infra/compose、infra/deploy、infra/bootstrap 及资源核对 probe 到 $LYX_NODE_HOME/infra/" copy_tree
 
 write_node_env() {
   local file="$LYX_NODE_HOME/node.env"
