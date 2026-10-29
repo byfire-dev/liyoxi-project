@@ -25,6 +25,8 @@ import {
   findAgreementLiveUploadJobIds,
   findBillingLiveUploadJobIds,
   createMerchantAssetLiveUploadPump,
+  createInvoiceLiveUploadPump,
+  parseInvoiceLiveUploadScope,
   finishW120LiveFixture,
 } from "@liyoxi/services/testing";
 import type { ContentAdminLiveScope, OutputBatchLiveInput } from "@liyoxi/services/testing";
@@ -52,12 +54,29 @@ function assertScope(env: Env, prefix: string) {
 }
 
 export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
+/** Only the optional invoice scope is stripped; the original strict parser validates all older fields. */
+export function parseInvoiceLiveEnvelope(raw: unknown) {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w418Invoice" in raw) {
+    const { w418Invoice, ...legacy } = raw;
+    return {
+      manifest: parseOutputBatchLiveManifest(legacy),
+      w318: "w318" in legacy ? legacy.w318 : undefined,
+      w418Invoice: parseInvoiceLiveUploadScope(w418Invoice),
+    };
+  }
+  return {
+    manifest: parseOutputBatchLiveManifest(raw),
+    w318: typeof raw === "object" && raw !== null && "w318" in raw ? raw.w318 : undefined,
+    w418Invoice: undefined,
+  };
+}
 export async function startOutputBatchLiveServer(options: {
   env: Env;
   prefix: string;
   inputs: OutputBatchLiveInput;
   w312?: ContentAdminLiveScope;
   w318?: unknown;
+  w418Invoice?: unknown;
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
@@ -106,6 +125,7 @@ export async function startOutputBatchLiveServer(options: {
   let stopped: Promise<void> | undefined;
   let startupCancellation: Promise<PromiseSettledResult<void>[]> | undefined;
   let merchantUploads: ReturnType<typeof createMerchantAssetLiveUploadPump> | undefined;
+  let invoiceUploads: ReturnType<typeof createInvoiceLiveUploadPump> | undefined;
   const cancelStartup = () => {
     closing = true;
     startupCancellation ??= Promise.allSettled(
@@ -117,6 +137,7 @@ export async function startOutputBatchLiveServer(options: {
     (stopped ??= (async () => {
       closing = true;
       merchantUploads?.beginStop();
+      invoiceUploads?.beginStop();
       for (const api of apis) api.readiness.state = "draining";
       if (interval) clearInterval(interval);
       // Cancel executor IO before waiting for a pump which may itself be awaiting that IO.
@@ -126,6 +147,7 @@ export async function startOutputBatchLiveServer(options: {
       const pumpResults = await Promise.allSettled([pending]);
       const agreementResults = await Promise.allSettled([...agreementPending]);
       const receiptResults = await Promise.allSettled([...receiptPending]);
+      const invoiceResults = await Promise.allSettled([invoiceUploads?.close()]);
       receiptFiles.clear();
       agreementFiles.clear();
       contentFiles.clear();
@@ -163,6 +185,7 @@ export async function startOutputBatchLiveServer(options: {
           ...pumpResults,
           ...agreementResults,
           ...receiptResults,
+          ...invoiceResults,
           ...serverResults,
           ...merchantUploadResults,
           ...inputResults,
@@ -237,6 +260,8 @@ export async function startOutputBatchLiveServer(options: {
     runtimes.push(batch);
     if (options.w318 !== undefined)
       merchantUploads = createMerchantAssetLiveUploadPump(batch, options.w318, options.prefix);
+    if (options.w418Invoice !== undefined)
+      invoiceUploads = createInvoiceLiveUploadPump(batch, options.w418Invoice, options.prefix);
     if (w312) await assertContentAdminLiveTargets(batch, w312);
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
     options.signal?.throwIfAborted();
@@ -398,23 +423,33 @@ export async function startOutputBatchLiveServer(options: {
               if (contentRegistration && contentFiles.size >= 100)
                 throw new Error("W312 observed file registrations exceeded the exact bound");
             }
-            const response = merchantUploads
-              ? await merchantUploads.fetch(
+            const originalFetch = async () =>
+              merchantUploads
+                ? await merchantUploads.fetch(
+                    request,
+                    () => agreementFetch(request, env),
+                    async () => {
+                      const headers = new Headers(request.headers);
+                      for (const key of ["content-length", "content-type", "transfer-encoding"])
+                        headers.delete(key);
+                      const me = await batchApi.app.fetch(
+                        new Request(new URL("/api/v1/admin/auth/me", request.url), { headers }),
+                      );
+                      if (!me.ok) return null;
+                      const body = (await me.json()) as { data: unknown };
+                      return StaffMeSchema.parse(body.data).staff.staffId;
+                    },
+                  )
+                : agreementFetch(request, env);
+            const response = invoiceUploads
+              ? await invoiceUploads.fetch(
                   request,
-                  () => agreementFetch(request, env),
-                  async () => {
-                    const headers = new Headers(request.headers);
-                    for (const key of ["content-length", "content-type", "transfer-encoding"])
-                      headers.delete(key);
-                    const me = await batchApi.app.fetch(
-                      new Request(new URL("/api/v1/admin/auth/me", request.url), { headers }),
-                    );
-                    if (!me.ok) return null;
-                    const body = (await me.json()) as { data: unknown };
-                    return StaffMeSchema.parse(body.data).staff.staffId;
-                  },
+                  originalFetch,
+                  async () =>
+                    StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"))
+                      .staff.staffId,
                 )
-              : await agreementFetch(request, env);
+              : await originalFetch();
             if (contentRegistration && response.ok && !closing) {
               const value: unknown = await response.clone().json();
               const parsed = FileRegistrationSchema.safeParse(
@@ -441,7 +476,8 @@ export async function startOutputBatchLiveServer(options: {
     });
     options.signal?.throwIfAborted();
     for (const api of apis) api.readiness.state = "ready";
-    // Original 15s cadence; exact owned IDs, never the all-database scanPromote.
+    // Private live cadence, not a production SLA: exact owned IDs, never all-database scanPromote.
+    // One-second ticks avoid idle gaps between real promote/probe work; pending keeps it single-flight.
     interval = setInterval(() => {
       if (pending) return;
       pending = Promise.all([
@@ -463,7 +499,7 @@ export async function startOutputBatchLiveServer(options: {
         .finally(() => {
           pending = undefined;
         });
-    }, 15_000);
+    }, 1_000);
     return {
       apiOrigin,
       cosOrigin,
@@ -504,11 +540,7 @@ async function main() {
   if (!path.includes(`/admin-live-${runId}/`) || !path.endsWith("/media-input.json"))
     throw new Error("Input manifest must be the exact owned temporary file");
   const raw: unknown = JSON.parse(await readFile(path, "utf8"));
-  const { w318, ...legacy } =
-    typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w318" in raw
-      ? raw
-      : { w318: undefined };
-  const manifest = parseOutputBatchLiveManifest(w318 === undefined ? raw : legacy);
+  const { manifest, w318, w418Invoice } = parseInvoiceLiveEnvelope(raw);
   const controller = new AbortController();
   let server: Awaited<ReturnType<typeof startOutputBatchLiveServer>> | undefined;
   const cancel = () => {
@@ -527,6 +559,7 @@ async function main() {
       inputs: manifest.inputs,
       w312: manifest.w312,
       w318,
+      w418Invoice,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),

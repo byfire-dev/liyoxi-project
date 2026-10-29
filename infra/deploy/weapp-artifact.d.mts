@@ -9,6 +9,13 @@ export interface UploadOptions {
   releaseLog: string;
   key: string;
 }
+export function validateUploadArtifacts(options: UploadOptions): {
+  source: string;
+  project: string;
+  appid: string;
+  key: string;
+  version: string;
+};
 export function uploadArtifacts(
   options: UploadOptions,
   upload: (args: string[]) => Promise<void>,

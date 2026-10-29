@@ -160,7 +160,7 @@ export async function createBatchFile(
       uploadActorId: batch.createdByStaffId,
       uploadClient: "admin",
       status: "pending",
-      uploadMode: "multipart",
+      uploadMode: deps.storage.capabilities.sts ? "multipart" : "post",
       clientToken: input.clientToken,
       uploadBatchId: batch.id,
       declaredSize: BigInt(input.sizeBytes),

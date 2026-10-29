@@ -153,11 +153,12 @@ export async function enqueueDerivation(
   fileId: string,
   kind: "restamp" | "normalize",
 ): Promise<string> {
+  const production = deps.production;
+  if (!production || production.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
   await lockRows(tx, "production_record", [fileId]);
   const record = await tx.productionRecord.findUnique({ where: { fileId } });
   if (!record) throw new AppError("NOT_FOUND");
-  const parameters = await deps.production?.parameters(tx);
-  if (!parameters || !deps.production) throw new AppError("PROVIDER_UNAVAILABLE");
+  const parameters = await production.parameters(tx);
   if (
     !Number.isSafeInteger(parameters.ruleVersion) ||
     parameters.ruleVersion < 1 ||
@@ -173,7 +174,7 @@ export async function enqueueDerivation(
       {
         id: uuidv7(),
         kind,
-        provider: kind === "restamp" ? "mediatool" : deps.production.cloud.status,
+        provider: kind === "restamp" ? "mediatool" : production.cloud.status,
         mode: kind === "restamp" ? "local" : "remote",
         subjectType: "file_object",
         subjectId: fileId,
@@ -187,7 +188,7 @@ export async function enqueueDerivation(
           contextHash: hash,
           ruleVersion: parameters.ruleVersion,
           objectKey: `derived/${destinationFileId}/${kind}-v${parameters.ruleVersion}.mp4`,
-          template: deps.production.config.templates.normalize,
+          template: production.config.templates.normalize,
         },
         maxAttempts: 3,
         nextRunAt: now,

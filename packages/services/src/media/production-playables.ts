@@ -49,10 +49,16 @@ export async function enqueueTrailer(
   tx: Tx,
   input: { dramaId: string; fileId: string; staffId: string },
 ): Promise<readonly string[]> {
-  if (!deps.production?.readTrailerFacts || !deps.production.setTrailerTarget)
+  const production = deps.production;
+  if (
+    !production ||
+    production.mode === "probe_only" ||
+    !production.readTrailerFacts ||
+    !production.setTrailerTarget
+  )
     throw new AppError("PROVIDER_UNAVAILABLE");
   const [drama, file, checked, info] = await Promise.all([
-    deps.production.readTrailerFacts(tx, input.dramaId),
+    production.readTrailerFacts(tx, input.dramaId),
     tx.fileObject.findUnique({ where: { id: input.fileId } }),
     tx.mediaCheck.findUnique({ where: { fileId: input.fileId } }),
     tx.mediaInfo.findUnique({ where: { fileId: input.fileId } }),
@@ -87,7 +93,7 @@ export async function enqueueTrailer(
     throw new AppError("TRAILER_SOURCE_REJECTED", {
       details: { reason: "rejected", failed: checked.hard },
     });
-  const { specVersion } = await deps.production.parameters(tx),
+  const { specVersion } = await production.parameters(tx),
     now = deps.clock.now();
   if (!Number.isSafeInteger(specVersion) || specVersion < 1 || specVersion > 32767)
     throw new AppError("VALIDATION_FAILED");
@@ -123,7 +129,7 @@ export async function enqueueTrailer(
     (id): id is string => !!id,
   );
   await lockRows(tx, "playable_asset", locked);
-  const current = await deps.production.readTrailerFacts(tx, input.dramaId);
+  const current = await production.readTrailerFacts(tx, input.dramaId);
   if (
     !current ||
     [current.targetPlayableAssetId, current.currentPlayableAssetId].some(
@@ -140,7 +146,7 @@ export async function enqueueTrailer(
       throw new AppError("TRAILER_SOURCE_REJECTED", { details: { reason: "retired" } });
     throw new AppError("STATE_NOT_ALLOWED");
   }
-  await deps.production.setTrailerTarget(tx, {
+  await production.setTrailerTarget(tx, {
     dramaId: drama.dramaId,
     playableAssetId: playable.id,
     staffId: input.staffId,
@@ -166,7 +172,7 @@ export async function enqueueTrailer(
           id,
           kind: "transcode_mp4",
           mode: "remote",
-          provider: deps.production.cloud.status,
+          provider: production.cloud.status,
           subjectType: "file_object",
           subjectId: file.id,
           parentType: "playable_asset",
@@ -179,12 +185,12 @@ export async function enqueueTrailer(
             quality,
             objectKey: `t/${drama.dramaId}/${nonce}/${quality}.mp4`,
             scratchKey: `ci-out/${id}/output.mp4`,
-            template: deps.production.config.templates[quality],
+            template: production.config.templates[quality],
             specVersion,
             aiUsed: drama.isAiGenerated,
             watermarks: [
-              { templateId: deps.production.config.templates.brand },
-              ...(drama.isAiGenerated ? [{ templateId: deps.production.config.templates.ai }] : []),
+              { templateId: production.config.templates.brand },
+              ...(drama.isAiGenerated ? [{ templateId: production.config.templates.ai }] : []),
             ],
           },
           state: "queued",
@@ -228,7 +234,8 @@ export async function enqueueSampleWatermark(
   tx: Tx,
   fileId: string,
 ): Promise<string> {
-  if (!deps.production) throw new AppError("PROVIDER_UNAVAILABLE");
+  const production = deps.production;
+  if (!production || production.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
   const [file, record, check] = await Promise.all([
     tx.fileObject.findUnique({ where: { id: fileId } }),
     tx.productionRecord.findUnique({ where: { fileId } }),
@@ -242,9 +249,9 @@ export async function enqueueSampleWatermark(
     check?.gate !== "pass"
   )
     throw new AppError("FILE_NOT_AVAILABLE");
-  const store = await deps.production.readStoreFacts(tx, file.storeId);
+  const store = await production.readStoreFacts(tx, file.storeId);
   if (!store) throw new AppError("PROVIDER_UNAVAILABLE");
-  const { specVersion } = await deps.production.parameters(tx),
+  const { specVersion } = await production.parameters(tx),
     now = deps.clock.now(),
     orderItemId = record.orderItemId;
   if (!Number.isSafeInteger(specVersion) || specVersion < 1 || specVersion > 32767)
@@ -290,7 +297,7 @@ export async function enqueueSampleWatermark(
         id,
         kind: "watermark_sample",
         mode: "remote",
-        provider: deps.production.cloud.status,
+        provider: production.cloud.status,
         subjectType: "file_object",
         subjectId: file.id,
         parentType: "playable_asset",
@@ -303,7 +310,7 @@ export async function enqueueSampleWatermark(
           quality: "source",
           objectKey: `sample/${playable.id}/${destinationFileId}.mp4`,
           scratchKey: `ci-out/${id}/output.mp4`,
-          template: deps.production.config.templates.sample,
+          template: production.config.templates.sample,
           specVersion,
           aiUsed: (record.aiUsage as { used?: boolean }).used === true,
           watermarks: [{ text, position: "Center", fontSize: 36, transparency: 30 }],

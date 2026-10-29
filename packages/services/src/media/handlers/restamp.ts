@@ -16,7 +16,7 @@ import { LabelSchema, TechnicalSchema, parseLabel, technicalReport } from "../pr
 import { saveTechnical } from "./probe.js";
 import { link } from "../refs.js";
 import type { IdentityContext, Tx } from "../../kernel/index.js";
-import { lockRows } from "../../kernel/index.js";
+import { AppError, lockRows } from "../../kernel/index.js";
 import type { StorageBucket } from "../../providers/types.js";
 export const DerivationInputSchema = z.strictObject({
   fileId: z.uuid(),
@@ -72,6 +72,7 @@ export async function finishDerivation(
   ctx: IdentityContext,
 ) {
   if (outcome.state !== "succeeded") return;
+  if (deps.production?.mode === "probe_only") throw new AppError("PROVIDER_UNAVAILABLE");
   const output = DerivationOutputSchema.parse(outcome.output),
     input = DerivationInputSchema.parse(job.input),
     facts = await readProductionWork(deps, tx, job.subjectId);
@@ -146,10 +147,15 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
     validInput: (input) => DerivationInputSchema.safeParse(input).success,
     validOutput: (output) => DerivationOutputSchema.safeParse(output).success,
     current: (tx, job) => derivationCurrent(deps, tx, job),
+    canRetry: (tx, job) =>
+      deps.production?.mode === "probe_only"
+        ? Promise.resolve(false)
+        : derivationCurrent(deps, tx, job),
     prepare: (tx, job) => readProductionWork(deps, tx, job.subjectId),
     execute: async (job, context, signal) => {
       const production = deps.production;
-      if (!production) return failure("MEDIA_PROVIDER_UNSUPPORTED");
+      if (!production || production.mode === "probe_only")
+        return failure("MEDIA_PROVIDER_UNSUPPORTED");
       const facts = context as Awaited<ReturnType<typeof readProductionWork>>,
         input = DerivationInputSchema.parse(job.input),
         size = Number(facts.file.sizeBytes);

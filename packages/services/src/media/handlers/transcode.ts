@@ -31,8 +31,21 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
   const schema = kind === "normalize" ? DerivationInputSchema : PlayableInputSchema;
   const input = (job: MediaJob) => schema.parse(job.input);
   const parsed = (value: unknown) => schema.parse(value);
-  const cloud = deps.production?.cloud;
-  if (!cloud)
+  const production = deps.production;
+  if (production?.mode === "probe_only")
+    return {
+      kind,
+      mode: "remote",
+      validInput: (value) => schema.safeParse(value).success,
+      validOutput: (value) => outputSchema.safeParse(value).success,
+      current: async () => true,
+      canRetry: async () => false,
+      execute: async () => failure("MEDIA_PROVIDER_UNSUPPORTED"),
+      recover: async () => failure("MEDIA_PROVIDER_UNSUPPORTED"),
+      poll: async () => failure("MEDIA_PROVIDER_UNSUPPORTED"),
+    };
+  const cloud = production?.cloud;
+  if (!production || !cloud)
     return {
       kind,
       mode: "remote",
@@ -230,8 +243,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
       });
       let watermarks = request.watermarks;
       if (kind === "watermark_sample") {
-        const mark = request.watermarks?.[0],
-          production = deps.production;
+        const mark = request.watermarks?.[0];
         if (
           !production?.tool.watermarkPng ||
           request.watermarks?.length !== 1 ||
@@ -314,8 +326,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
     poll: async (job, signal) => {
       const remote = await native.poll!(job, signal);
       if (remote.state !== "succeeded") return remote;
-      const production = deps.production!,
-        value = input(job),
+      const value = input(job),
         playableInput = kind === "normalize" ? null : PlayableInputSchema.parse(value);
       const facts = await deps.tx.run((tx) => readProductionWork(deps, tx, job.subjectId));
       if (

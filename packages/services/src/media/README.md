@@ -127,7 +127,9 @@ production_record 父先预锁已有样片350再制作记录360；属于批次�
 
 预告片 SD480×854、HD720×1280 两个独立云任务都完成且通过产物回读才安装 current；target 变化的晚结果退役，失败保留旧预告。样片取真实门店 name，经 shared 清洗、截10字和北京时间日期生成完整正式文案；固定许可 Noto CJK 字体渲染透明720×96 PNG，再使用同桶固定临时对象的原生 Image 水印，样片输出720×1280。云任务成功状态不能代替重新下载、探测、七字段回读与对象确认。
 
-`MEDIA_PRODUCTION_FILE` 必须完整给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
+`MEDIA_PRODUCTION_FILE` 的完整制作配置给工作根、根内 socket、AI主体五个配置值及六个模板标识；ProduceID 和 PropagateID 由实际文件/来源事实生成。缺配置受控失败，不自行补法务主体值。store/ad/drama/trailer 由组合根同事务公开事实注入，media 不直接读取同层 content 的私有表。local/test 工具测试注入保留真实领域事实与外呼守卫，生产环境拒绝注入。
+
+本地或测试环境可显式使用 `{ "mode": "probe_only", "workDir": "/work", "socketPath": "/work/.sock/mediatool.sock" }`。这条分支不需要或接受 AI 主体、云模板占位，stg/prod 拒绝装配。它运行相同的真实读取、probe、封面、H1–H7 与结果回写，保留原片上下文和质检守卫；不排 AI 补标、样片水印或云转码，旧派生任务也不能借此执行。技术体检通过仍不表示有商家可用的水印样片。现有完整配置的语义保持不变。本机既有业务库的容器接线见 [local-media 脚本](../../../../infra/stack/local-media.mjs)，不能直接用默认 stack 切换数据库。
 
 `productionFacts` 只回有限技术/检查/AI/派生/水印事实，不返回对象键、短签名或用户工具正文。`retireDramaMedia` 证明 DB retired、在途取消与专属引用即时释放，返回 objectRefs 和 `cdnPending:true`；真实公开 URL/CDN 清除尚未配置，不能声称停止播放。当前真实库15例、客户端小IO15和装配4例已通过；存储新增字节/元数据欺骗2反例先真实失败，完整修正后受影响14例和CI/配置6例均已通过，API/worker类型通过。新源镜像31例中30通过、1条原业主样本条件跳过；最长完整中文水印实际两行alpha均不触画布边缘。约199.8MiB五轮体检+封面最慢232ms，三轮补标七字段完整回读、最慢424ms，原沙箱与轮数/上限不变；这是Mac本机观察。同步实际main bfcf9817后的旧装配、必跑MinIO、新鲜类型、严格分层、双次官方生成/门禁与API/worker构建已通过，相关纯类型迁移的32例定点回归通过；真实云、法务与平台读标未验。
 
@@ -254,3 +256,7 @@ closedBefore是原deadline拒绝水位而非总开关；token不是当前PG许�
 新增SDK1/DB1与旧执照最小协议1合并3/3G（另1旧例未选），总6.77秒，未重复历史矩阵。
 首轮类型两处接线错误及未验边界记前置变更；真实云准确率/费用未验。
 worker配置接线另由独立伴随合入，不能把本源码装配当预发部署。
+
+### 无主体财务回单（W4-18）
+
+后台 pay_receipt 未指定 entity/store 时，只允许当前本人、all 范围、finance.receipt.confirm 加 finance.refund.execute 或 finance.recon.resolve 且完成再次验证，派生本人 secure/platform 文件。拒绝代门店上传；invoice 仍要求主体。platform/pay_receipt 的后台元数据与签名读取同样限 all，包含原上传人降级为 own/group 的情况；消费退款/对账仍走各域状态及本人文件守卫，不放宽资金操作。两新增真实 DB 目标和原 billing-upload 相邻目标已通过；真实云未验。

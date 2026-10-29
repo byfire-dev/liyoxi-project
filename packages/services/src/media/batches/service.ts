@@ -11,14 +11,16 @@ import type { Tx } from "../../kernel/index.js";
 import { record } from "../../audit/index.js";
 import type { BoundMediaDeps, MediaActor, MediaOptions } from "../context.js";
 import { release } from "../refs.js";
-import { matchesMagic } from "@liyoxi/shared/uploads";
+import { matchesMagic, UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
 import type { StorageBucket } from "../../providers/types.js";
 import { emitFile, notifyPromote, providerValue } from "../upload.js";
+import { requirePending } from "../views.js";
 import { activeExpiry, activeItems, batchCoverage, coverageComplete } from "./state.js";
 import {
   batchDeps,
   batchOf,
   batchView,
+  categoryOfBatch,
   convergeBatch,
   createBatchFile,
   itemView,
@@ -108,6 +110,128 @@ async function createProduction(
       createdAt: now,
       updatedAt: now,
     },
+  });
+}
+
+interface PendingPostFile {
+  itemId: string;
+  fileId: string;
+  bucket: StorageBucket;
+  key: string;
+  mime: string;
+  size: number;
+}
+/** Both credential phases re-read authorization and live file bindings under the parent locks. */
+async function pendingPostFiles(
+  tx: Tx,
+  deps: BatchRuntimeDeps,
+  actor: MediaActor,
+  id: string,
+): Promise<PendingPostFile[]> {
+  const { facts } = await ownedBatch(tx, deps, actor, id, { lockTarget: true });
+  await lockRows(tx, "upload_batch", [id]);
+  const batch = await batchOf(tx, id);
+  if (batch.state !== "uploading") throw new AppError("STATE_NOT_ALLOWED");
+  if (facts.expectedCount !== batch.expectedCount) throw new AppError("PRECONDITION_CHANGED");
+  await lockBatchFiles(tx, id);
+  const items = activeItems(batch.uploadBatchItems)
+    .filter((item) => item.state === "pending")
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const files = await tx.fileObject.findMany({
+    where: { id: { in: items.map((item) => item.fileId) } },
+  });
+  const byId = new Map(files.map((file) => [file.id, file])),
+    category = categoryOfBatch(batch.purpose),
+    definition = UPLOAD_CATEGORIES[category],
+    bucket = definition.bucket === "pub" ? "asset" : definition.bucket,
+    now = deps.clock.now(),
+    pending: PendingPostFile[] = [];
+  for (const item of items) {
+    const file = byId.get(item.fileId);
+    if (!file || file.uploadBatchId !== id) throw new AppError("STATE_NOT_ALLOWED");
+    // Completion can precede the worker's item transition; those objects need no new write grant.
+    if (file.status !== "pending") continue;
+    requirePending(file, now);
+    if (file.confirmingUntil && file.confirmingUntil > now)
+      throw new AppError("CONFIRM_IN_PROGRESS");
+    const size = Number(file.declaredSize);
+    if (
+      file.uploadMode !== "post" ||
+      file.category !== category ||
+      file.entityId !== facts.entityId ||
+      file.storeId !== facts.storeId ||
+      file.uploadActorType !== "staff" ||
+      file.uploadActorId !== batch.createdByStaffId ||
+      file.incomingBucket !== bucket ||
+      !file.incomingKey?.startsWith(prefixOf(id)) ||
+      !file.uploadExpiresAt ||
+      !Number.isSafeInteger(size) ||
+      size <= 0
+    )
+      throw new AppError("STATE_NOT_ALLOWED");
+    pending.push({
+      itemId: item.id,
+      fileId: file.id,
+      bucket,
+      key: file.incomingKey,
+      mime: file.declaredMime,
+      size,
+    });
+  }
+  if (!pending.length) throw new AppError("STATE_NOT_ALLOWED");
+  return pending;
+}
+
+async function postCredentials(deps: BatchRuntimeDeps, actor: MediaActor, id: string) {
+  const location = deps.storage.uploadLocation;
+  if (deps.storage.status !== "local" || deps.storage.capabilities.sts || !location)
+    throw new AppError("PROVIDER_UNAVAILABLE");
+  const files = await deps.tx.run((tx) => pendingPostFiles(tx, deps, actor, id));
+  // Provider I/O stays outside either transaction, and policies are never persisted or in batchView.
+  const posts = await Promise.all(
+    files.map(async (file) => {
+      const post = providerValue(
+        await deps.storage.presignPost({
+          bucket: file.bucket,
+          key: file.key,
+          mime: file.mime,
+          maxBytes: file.size,
+          expiresSec: 600,
+        }),
+      );
+      if (
+        post.key !== file.key ||
+        post.fields.key !== file.key ||
+        !Number.isFinite(post.expiresAt.getTime())
+      )
+        throw new AppError("PROVIDER_UNAVAILABLE");
+      return {
+        fileId: file.fileId,
+        key: file.key,
+        post: { url: post.url, fields: post.fields },
+        expiresAt: post.expiresAt.toISOString(),
+      };
+    }),
+  );
+  await deps.tx.run(async (tx) => {
+    const current = await pendingPostFiles(tx, deps, actor, id);
+    if (JSON.stringify(current) !== JSON.stringify(files)) throw new AppError("STATE_NOT_ALLOWED");
+  });
+  if (
+    deps.storage.status !== "local" ||
+    deps.storage.capabilities.sts ||
+    posts.some((post) => new Date(post.expiresAt) <= deps.clock.now())
+  )
+    throw new AppError("PROVIDER_UNAVAILABLE");
+  const expiresAt = new Date(Math.min(...posts.map((post) => new Date(post.expiresAt).getTime())));
+  return BatchUploadCredentialsSchema.parse({
+    mode: "post",
+    bucket: location.buckets[files[0]!.bucket],
+    region: location.region,
+    prefix: prefixOf(id),
+    fileParallel: 3,
+    expiresAt: expiresAt.toISOString(),
+    posts,
   });
 }
 
@@ -244,6 +368,7 @@ export function createUploadBatches(input: BoundMediaDeps) {
   };
   const refreshCredentials = async (actor: MediaActor, id: string, raw: unknown) => {
     empty(raw);
+    if (!deps.storage.capabilities.sts) return postCredentials(deps, actor, id);
     await deps.tx.run(async (tx) => {
       const { batch } = await ownedBatch(tx, deps, actor, id);
       if (batch.state !== "uploading") throw new AppError("STATE_NOT_ALLOWED");

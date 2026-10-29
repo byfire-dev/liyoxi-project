@@ -223,25 +223,31 @@ export interface Env {
   readonly LLM_DOMESTIC?: LlmDomesticEnvConfig;
   /** 独立可选回调；密钥保留 FILE 的原始 UTF8 字节，只解析、不装配。 */
   readonly ASR_CALLBACK?: Readonly<{ origin: string; key: string }>;
-  readonly MEDIA_PRODUCTION?: {
-    readonly workDir: string;
-    readonly socketPath: string;
-    readonly aigc: {
-      readonly Label: string;
-      readonly ContentProducer: string;
-      readonly ReservedCode1: string;
-      readonly ContentPropagator: string;
-      readonly ReservedCode2: string;
-    };
-    readonly templates: {
-      readonly normalize: string;
-      readonly sd: string;
-      readonly hd: string;
-      readonly sample: string;
-      readonly brand: string;
-      readonly ai: string;
-    };
-  };
+  readonly MEDIA_PRODUCTION?:
+    | {
+        readonly workDir: string;
+        readonly socketPath: string;
+        readonly aigc: {
+          readonly Label: string;
+          readonly ContentProducer: string;
+          readonly ReservedCode1: string;
+          readonly ContentPropagator: string;
+          readonly ReservedCode2: string;
+        };
+        readonly templates: {
+          readonly normalize: string;
+          readonly sd: string;
+          readonly hd: string;
+          readonly sample: string;
+          readonly brand: string;
+          readonly ai: string;
+        };
+      }
+    | {
+        readonly mode: "probe_only";
+        readonly workDir: string;
+        readonly socketPath: string;
+      };
   readonly APP_ENV: AppEnv;
   readonly LOG_LEVEL: LogLevel;
   readonly DATABASE_URL: string;
@@ -591,9 +597,12 @@ function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"
     .min(1)
     .max(128)
     .regex(/^[A-Za-z0-9_-]+$/);
-  const schema = z.strictObject({
+  const paths = {
     workDir: z.string().regex(/^\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/),
     socketPath: z.string().min(1).max(512),
+  };
+  const full = z.strictObject({
+    ...paths,
     aigc: z.strictObject({
       Label: text.min(1).max(16),
       ContentProducer: text.min(1),
@@ -610,13 +619,14 @@ function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"
       ai: template,
     }),
   });
-  const parsed = schema.safeParse(json);
+  const probeOnly = z.strictObject({ ...paths, mode: z.literal("probe_only") });
+  const parsed = z.union([full, probeOnly]).safeParse(json);
   if (
     !parsed.success ||
     !parsed.data.socketPath.startsWith(`${parsed.data.workDir}/.sock/`) ||
     !/^[A-Za-z0-9._-]+$/.test(parsed.data.socketPath.slice(parsed.data.workDir.length + 7))
   )
-    return "制作配置须为完整工作目录/同目录套接字/七字段主体口径/六模板映射；不得带任意路径";
+    return "制作配置须为完整主体与六模板，或显式 probe_only；工作目录与同目录套接字须合法";
   return parsed.data;
 }
 
@@ -1396,6 +1406,15 @@ export function loadEnv(
   const llmDomestic = readModelFile(source, "LLM_DOMESTIC", issues, LlmDomesticEnvSchema);
   const asrCallback = readAsrCallback(source, asrTencent, issues);
   const mediaProduction = readKeyFile(source, "MEDIA_PRODUCTION", issues, parseMediaProduction);
+  if (
+    mediaProduction &&
+    "mode" in mediaProduction &&
+    mediaProduction.mode === "probe_only" &&
+    appEnv !== "local" &&
+    appEnv !== "test"
+  ) {
+    issues.push({ key: "MEDIA_PRODUCTION_FILE", reason: "probe_only 仅允许 local/test 环境" });
+  }
   const clientErrorProjects = readKeyFile(
     source,
     "CLIENT_ERROR_PROJECTS",

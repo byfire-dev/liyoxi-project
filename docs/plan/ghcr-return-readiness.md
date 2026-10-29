@@ -2,6 +2,19 @@
 
 2026-10-18，目标源码仓为 `byfire-dev/liyoxi-project`。本页接续[迁回台账](repository-return.md)，只登记实际核验结果，不替代同提交发布门禁或真实平台验收。
 
+## 首次节点部署当前状态
+
+2026-10-19，已留存首次节点部署核验：固定源码为`22e8a2d5b7c5ce8a1e9ac5ee739db6ce6c822f97`（`sha-22e8a2d5b7c5`），与后续开发中的main分开记录。
+
+| 核验 | 已证实范围 |
+| --- | --- |
+| 四应用镜像 | 原生`ghcr.io/byfire-dev/liyoxi/{server,gateway,mediatool,weapp-uploader}:sha-22e8a2d5b7c5`已核摘要与源码revision一致，架构为`linux/amd64` |
+| 节点运行 | postgres、redis、mediatool、worker、api、gateway六服务运行且版本匹配；API healthz/readyz为200、worker租约正常 |
+| 配置与数据库 | 配置静态检查、迁移、种子配置核对以及数据库角色/授权/表/约束/分区检查通过；不作为真实业务数据或容量验收 |
+| 公网与消息推送 | API/管理后台/下载页HTTPS探测为200；正确`https://api.stg.liyoxi.timavia.com/api/v1/hooks/wechat/messages`签名GET为200且echo一致。业主随后确认“微信小程序已完成配置”，按该上下文登记微信后台消息推送配置完成 |
+
+E2仍整体进行中：这次确认不覆盖认证、类目、代码上传密钥、体验版上传、真机或真实COS上传/支付。weapp-uploader镜像已到节点，不表示执行过小程序上传。首次手动引导核验已单独留档，没有补造自动发布历史；后续源码须按自己的发布门禁交付，不能沿用固定22e8部署结果。
+
 ## 公开构建配置
 
 目标仓 Actions variables 首次查询为空。以下四项按既有 AppID、预发域名与当前仓库身份补回；均为公开配置，不含凭据：
@@ -13,25 +26,27 @@
 | `STG_WEAPP_APPID` | `wx66a51228082e82d4` |
 | `STG_WEAPP_API_BASE_URL` | `https://api.stg.liyoxi.timavia.com` |
 
-四次创建均返回 201，随后独立 GET 读回确认四项值完全一致且无其他变量。镜像发布、COS 制品上传、源码映射上传、部署及小程序上传开关均未开启。
+2026-10-18 补录公开变量时，四次创建均返回201，随后独立GET读回确认四项值完全一致且无其他变量；当时镜像发布、COS制品上传、源码映射上传、部署及小程序上传开关均未开启。固定22e8的首次节点核验以后续当前状态为准，不据此推断其他开关现值。
 
 ## 镜像目标与待核项
 
 | 内容 | 目标或处置 | 当前边界 |
 | --- | --- | --- |
-| API / worker 共用镜像 | `ghcr.io/byfire-dev/liyoxi/server:sha-<12位源码SHA>` | 待首次发布与匿名拉取核验 |
-| 网关及网页 | `ghcr.io/byfire-dev/liyoxi/gateway:sha-<12位源码SHA>` | 待首次发布与匿名拉取核验 |
-| 媒体工具 | `ghcr.io/byfire-dev/liyoxi/mediatool:sha-<12位源码SHA>` | 待首次发布与匿名拉取核验 |
-| 小程序上传工具 | `ghcr.io/byfire-dev/liyoxi/weapp-uploader:sha-<12位源码SHA>` | 发布镜像不代表已向微信上传体验版 |
-| PostgreSQL / Redis | 同 namespace 的 `postgres:17`、`redis:7` | 仅手动 `mirror_base` 转存既有固定多架构摘要；待执行 |
+| API / worker 共用镜像 | `ghcr.io/byfire-dev/liyoxi/server:sha-<12位源码SHA>` | 固定`sha-22e8a2d5b7c5`已原生GHCR交付并完成节点摘要/revision/amd64核验 |
+| 网关及网页 | `ghcr.io/byfire-dev/liyoxi/gateway:sha-<12位源码SHA>` | 固定`sha-22e8a2d5b7c5`已原生GHCR交付并完成节点摘要/revision/amd64核验 |
+| 媒体工具 | `ghcr.io/byfire-dev/liyoxi/mediatool:sha-<12位源码SHA>` | 固定`sha-22e8a2d5b7c5`已原生GHCR交付并完成节点摘要/revision/amd64核验 |
+| 小程序上传工具 | `ghcr.io/byfire-dev/liyoxi/weapp-uploader:sha-<12位源码SHA>` | 固定22e8镜像已到节点并核验；未执行小程序上传 |
+| PostgreSQL / Redis | 同 namespace 的 `postgres:17`、`redis:7` | 首次节点两项依赖已运行；镜像转存按专用mirror记录，不用四应用核验替代 |
 | MinIO | 继续使用[原公共包及固定摘要](../../infra/docker/minio-recovery.md) | 不随源码仓改名替换；未删除或重发原包 |
-| 节点镜像前缀 | 预期 `LYX_IMAGE_PREFIX=ghcr.io/byfire-dev/`，Compose 自行追加 `liyoxi/...` | 尚未读取或更改节点配置 |
+| 节点镜像前缀 | 预期`LYX_IMAGE_PREFIX=ghcr.io/byfire-dev/`，Compose 自行追加 `liyoxi/...` | 固定22e8四应用的原生GHCR来源已核，不在本文记录节点配置文件内容 |
 
-首次核验时 CLI 缺少 `read:packages`，Packages 清单请求返回 403 后停止重试。业主完成授权后，已确认活跃账号为 byfire-dev 且包含该 scope；重新请求返回 200，完整清单中没有 `liyoxi/` 目标包，因此本轮不存在目标包名冲突。首次发布、关联仓库、Actions 实际写入及每包公开状态仍待验证。四应用构建已有 OCI source/revision 标签；公开源码仓不自动证明包公开。
+2026-10-18 首次发布前核验时 CLI 缺少 `read:packages`，Packages 清单请求返回 403 后停止重试。业主完成授权后，已确认活跃账号为 byfire-dev 且包含该 scope；重新请求返回 200，完整清单中没有 `liyoxi/` 目标包，因此本轮不存在目标包名冲突。以上保留发布前时点；固定22e8四应用的实际交付以页首当前核验为准，后续版本及每包状态分别取对应发布证据。四应用构建已有 OCI source/revision 标签；公开源码仓不自动证明包公开。
 
-Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`，不需要向聊天提供个人令牌。只有确定包可写、公开配置读回正确、版本来源明确后再执行一次发布；发布后逐包核公开访问、摘要和来源。
+Actions 的 GHCR 推送使用本仓 `GITHUB_TOKEN` 和 job 的 `packages: write`，不需要向聊天提供个人令牌。后续每次发布仍须确定包可写、公开配置读回正确、版本来源明确；发布后逐包核公开访问、摘要和来源。
 
-## 当前检查与预发条件
+## 2026-10-18 发布前检查记录
+
+本节保留当时的失败、DNS与证书准备记录；当前固定22e8已部署，不再以本节当时的“未部署”描述现况。
 
 `745a6bd52f96111851374e4d71d0e73985ce1b4b` 的 [images](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755984) 与 [stack-smoke](https://github.com/byfire-dev/liyoxi-project/actions/runs/39115755976) 成功，尚不是镜像发布或节点部署证据。
 

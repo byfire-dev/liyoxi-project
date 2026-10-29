@@ -100,6 +100,7 @@ export async function verifyM3Aigc(
     derivedProbe = after.jobs.find((job) => job.subjectId === derivedId && job.kind === "probe"),
     config = support.runtime.env.MEDIA_PRODUCTION;
   assert.ok(derived && derivedFile && info && derivedProbe && config);
+  assert.ok("aigc" in config, "AIGC 合流验收需要完整媒体生产配置");
   assert.equal(derivedFile.status, "stored");
   assert.equal(derived.source, "restamped");
   assert.equal(derived.derivedFromFileId, fileId);

@@ -437,8 +437,11 @@
 
 `BatchUploadCredentials`（3.26 的响应）：
 
+云存储沿用整批 STS 分片凭据；local/test 的 MinIO 不支持 STS，返回 `mode = post` 的逐文件表单。客户端按 `mode` 分支，省略 `mode` 的旧响应仍按 `multipart` 处理。
+
 | 字段 | 类型 | 必有 | 说明 |
 | --- | --- | --- | --- |
+| `mode` | `multipart` | 否 | 云存储分片模式；兼容未带此字段的旧响应 |
 | `bucket`、`region`、`prefix` | string | 是 | 同 `UploadBatchDetail` |
 | `sts` | object `{ tmpSecretId, tmpSecretKey, sessionToken, startTime, expiredTime }` | 是 | 临时密钥，只能写 `prefix` 下的对象（d5:1091），30 分钟；`startTime`、`expiredTime` 为 string(date-time)，与 a01 `FileRegistration.sts` 一致 |
 | `chunkSize` | integer | 是 | 分块字节数（8MB，d5:1187） |
@@ -446,6 +449,8 @@
 | `expiresAt` | string(date-time) | 是 | 密钥到期时刻（C34 格式） |
 
 `sts` 与 a01 `FileRegistration.sts` 同构，契约里共用一个 schema。
+
+本地 POST 分支保留 `bucket`、`region`、`prefix`、`fileParallel`、`expiresAt`，不包含 `sts`、`chunkSize`、`chunkParallel`；增加必填 `mode = post` 及 `posts` 数组。每项为 `{ fileId, key, post: { url, fields }, expiresAt }`，只为当前仍待上传的文件签发，策略绑定真实对象键、MIME 和登记大小，有效期 600 秒。签发前后重新核验权限、批次状态和条目绑定，文件被替换、确认或目标被归档后不返回旧策略。POST 不支持分块续传；跨刷新先调用完成确认核查已上传对象，缺失时由用户替换或重试，不将本地文件选择当作服务端已有字节。
 
 ## 3. 接口
 
@@ -1320,7 +1325,7 @@
 
 **副作用**：`upload_batch: matching → uploading`（06:524）；`expires_at` 顺延为当前 + 72 小时（不超过创建后 7 天）。
 
-**说明**：开始后调 3.26 取临时密钥，SDK 按每个条目的 `uploadKey` 直传（分块 8MB、文件并发 3、分块并发 4），逐文件完成后调 3.28（d5:1187）。
+**说明**：开始后调 3.26 取直传凭据。云存储 SDK 按每个条目的 `uploadKey` 直传（分块 8MB、文件并发 3、分块并发 4）；本地 MinIO 按逐文件 POST 表单上传。两种模式均逐文件完成后调 3.28，继续执行真实对象确认、入库和媒体体检（d5:1187）。
 
 ### 3.26 admin.uploadBatch.refreshCredentials　签发整批直传凭证
 
@@ -1342,7 +1347,7 @@
 
 **错误**：`STATE_NOT_ALLOWED`（批次不是 `uploading`）；`PERMISSION_DENIED`（持有人已无该用途的权限）；`PROVIDER_UNAVAILABLE`（503，临时密钥服务不可用，可重试，d5:1095）；`NOT_FOUND`（批次不存在或不是本人的）。
 
-**副作用**：无业务写入。临时密钥的策略只允许写 `incoming/b{uploadBatchId}/*`（d5:1091），30 分钟。
+**副作用**：无业务写入。云存储临时密钥的策略只允许写 `incoming/b{uploadBatchId}/*`（d5:1091），30 分钟。本地 MinIO 按上述 POST 分支签发，不伪造 STS。
 
 **说明**：
 - 设这条路由的理由：路线图只有按文件续签的 `admin.file.refreshCredentials`（a01），它的策略是 `incoming/{fileId}/*`，覆盖不了批次前缀；按文件签发要为一部 60–80 集的剧逐个调用，与 d5“一份凭证覆盖整批”的设计相反。也不能在 3.25 的响应里带凭证：状态迁移是 `required`，重放会返回已过期的凭证（A18）。

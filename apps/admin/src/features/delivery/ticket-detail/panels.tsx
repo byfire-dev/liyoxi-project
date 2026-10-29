@@ -4,6 +4,7 @@ import { Alert, Button, Checkbox, Modal } from "antd";
 import { useState } from "react";
 import { InfoList } from "../../../components/InfoList";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
+import { localStorageRequestUrl } from "../../../lib/local-storage";
 import { Can } from "../../../lib/permissions";
 import { DETAIL_QUERY } from "../../../lib/query";
 import type { DetailApi, Ticket } from "./api";
@@ -74,21 +75,54 @@ function PushSampleModal({ ticket, api, onClose, onRefresh }: PanelProps & { onC
 }
 export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
   const [open, setOpen] = useState<"upload" | "qc" | "push">(),
-    sample = ticket.currentSample;
+    sample = ticket.currentSample,
+    checkRejected = sample?.status === "check_rejected",
+    checkFailed =
+      checkRejected ||
+      sample?.production?.gate === "reject" ||
+      sample?.production?.pipelineState === "rejected",
+    checkPassed = sample?.production?.gate === "pass";
   return (
     <div className="lyx-production-sections">
       {sample ? (
         <>
           <h2 className="lyx-section-title">样片第 {sample.versionNo} 版</h2>
           {sample.preview?.url ? (
-            <video controls preload="metadata" src={sample.preview.url} aria-label="样片预览" />
+            <video
+              controls
+              preload="metadata"
+              src={localStorageRequestUrl(sample.preview.url, __LYX_LOCAL_STORAGE_ORIGIN__)}
+              aria-label="样片预览"
+            />
           ) : (
             <p>预览地址暂不可用，请刷新重试</p>
           )}
+          {checkFailed ? (
+            <Alert
+              type="error"
+              title={
+                checkRejected
+                  ? "样片体检未通过，请修正文件后重新上传并登记新版本"
+                  : "样片体检未通过，请等待处理或刷新查看结果"
+              }
+            />
+          ) : null}
           <InfoList
             items={[
               { label: "上传人", value: sample.uploadedBy.name },
               { label: "上传时间", value: date.dateTime(sample.uploadedAt) },
+              {
+                label: "体检",
+                value: checkRejected
+                  ? "体检拒收"
+                  : checkFailed
+                    ? "体检未通过"
+                    : checkPassed
+                      ? "通过"
+                      : sample.production?.pipelineState === "checking"
+                        ? "体检中"
+                        : "待体检",
+              },
               {
                 label: "质检",
                 value:
@@ -96,7 +130,13 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
                     ? "通过"
                     : sample.qc?.verdict === "fail"
                       ? "不通过"
-                      : "待质检",
+                      : checkRejected
+                        ? "体检拒收，暂不能质检"
+                        : checkFailed
+                          ? "体检未通过，暂不能质检"
+                          : checkPassed
+                            ? "待质检"
+                            : "待体检",
               },
               { label: "不通过原因", value: sample.qc?.rejectReason ?? "—" },
               { label: "质检人", value: sample.qc?.inspectedBy?.name ?? "—" },

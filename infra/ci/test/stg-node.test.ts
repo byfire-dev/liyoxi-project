@@ -1251,6 +1251,42 @@ describe("node-init.sh（任务书 第 7 节第 6 条；系统命令全部桩掉
     expect(readFileSync(join(home, "node.env"), "utf8")).toContain("registry.example.invalid/lyx/");
   });
 
+  it("资源核对probe单文件安装同字节且可重跑；缺源在写入前拒绝", () => {
+    const { env, rules } = setup();
+    const first = sh(NODE_INIT, [], { env, fakes: FAKES, rules });
+    expect(first.status, first.output).toBe(0);
+    const dir = join(env.LYX_NODE_HOME, "infra/ci");
+    const target = join(dir, "probe-during-deploy.mjs");
+    const original = readFileSync(join(repoRoot, "infra/ci/probe-during-deploy.mjs"));
+    expect(existsSync(target)).toBe(true);
+    expect(readFileSync(target)).toEqual(original);
+    expect(readdirSync(dir)).toEqual(["probe-during-deploy.mjs"]);
+    expect(mode(dir)).toBe("755");
+    expect(mode(target)).toBe("644");
+    writeFileSync(target, "旧的probe\n");
+    writeFileSync(join(dir, "keep.txt"), "不归本次安装管理\n");
+    const again = sh(NODE_INIT, [], { env, fakes: FAKES, rules });
+    expect(again.status, again.output).toBe(0);
+    expect(readFileSync(target)).toEqual(original);
+    expect(readFileSync(join(dir, "keep.txt"), "utf8")).toBe("不归本次安装管理\n");
+
+    const missing = setup();
+    const refused = sh(NODE_INIT, [], {
+      env: {
+        ...missing.env,
+        LYX_SRC: tempDir(),
+        LYX_GATEWAY_PORT: "8080",
+        LYX_NODE_SUBNET: "172.30.41.0/24",
+      },
+      fakes: FAKES,
+      rules: missing.rules,
+    });
+    expect(refused.status, refused.output).toBe(1);
+    expect(refused.output).toContain("源码缺少资源核对所需");
+    expect(existsSync(missing.env.LYX_NODE_HOME)).toBe(false);
+    expect(changed(refused.lines)).toEqual([]);
+  });
+
   it("--nginx-oom：才装宿主机 nginx 的覆盖文件，不重启 nginx", () => {
     const { env, rules } = setup();
     const result = sh(NODE_INIT, ["--nginx-oom"], { env, fakes: FAKES, rules });

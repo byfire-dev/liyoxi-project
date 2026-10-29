@@ -18,11 +18,10 @@ export interface MediaProductionConfig {
     readonly ai: string;
   };
 }
-export interface MediaProductionDeps {
+interface MediaProductionBase {
   readonly tool: MediaToolClient;
   readonly workspace: MediaWorkspace;
   readonly cloud: MediaProvider;
-  readonly config: MediaProductionConfig;
   readonly parameters: (
     tx: Tx,
   ) => Promise<ProductionCheckOptions & { ruleVersion: number; specVersion: number }>;
@@ -73,6 +72,12 @@ export interface MediaProductionDeps {
   readonly batchLockSiblings?: (tx: Tx, batchId: string) => Promise<void>;
   readonly batchNeedsJob?: (tx: Tx, input: { batchId: string; fileId: string }) => Promise<boolean>;
 }
+/** Legacy callers without an explicit mode retain the complete production pipeline. */
+export type MediaProductionDeps = MediaProductionBase &
+  (
+    | { readonly mode?: "full"; readonly config: MediaProductionConfig }
+    | { readonly mode: "probe_only"; readonly config: null }
+  );
 export interface ProductionWorkFacts {
   readonly file: FileObject;
   readonly production: ProductionRecord | null;
