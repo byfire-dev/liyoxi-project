@@ -3449,7 +3449,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 推送样片给商家确认（previewChannels：小程序不播放时提供水印版存相册、电脑端或企业微信） */
+        /** 推送小程序样片；显式历史恢复须重新质检并创建新版本，保留原推送快照 */
         post: operations["admin.sample.push"];
         delete?: never;
         options?: never;
@@ -10175,6 +10175,11 @@ export interface components {
         };
         SamplePushBody: {
             includeWecom?: boolean;
+            legacyRecovery?: {
+                quality: components["schemas"]["SampleInspectBody"];
+                reason: string;
+                versionNo: number;
+            };
             markWecomSent?: boolean;
         };
         /** @description Sentry envelope 原文，≤200KB */

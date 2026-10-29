@@ -43,7 +43,17 @@ export const SampleInspectBodySchema = z
   })
   .openapi("SampleInspectBody");
 export const SamplePushBodySchema = z
-  .strictObject({ includeWecom: z.boolean().optional(), markWecomSent: z.boolean().optional() })
+  .strictObject({
+    includeWecom: z.boolean().optional(),
+    markWecomSent: z.boolean().optional(),
+    legacyRecovery: z
+      .strictObject({
+        versionNo: z.int().positive(),
+        reason: text.trim().min(10).max(200),
+        quality: SampleInspectBodySchema,
+      })
+      .optional(),
+  })
   .openapi("SamplePushBody");
 export const AdminSampleWriteResultSchema = AdminSampleViewSchema.extend({
   replayed: z.boolean(),

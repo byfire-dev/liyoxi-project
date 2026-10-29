@@ -72,6 +72,12 @@ export type {
 } from "./alert-actions.js";
 export { createSampleWatermarkActions } from "./sample-watermark-actions.js";
 export type { SampleWatermarkCliInput } from "./sample-watermark-actions.js";
+export {
+  createQ9LocalSampleRecovery,
+  Q9LocalSampleRecoveryInputSchema,
+} from "./q9-local-sample-recovery.js";
+export type { Q9LocalSampleRecoveryInput } from "./q9-local-sample-recovery.js";
+export { q9LocalSampleRecoveryEnv } from "./q9-local-sample-recovery-env.js";
 
 export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";
 

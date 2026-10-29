@@ -24,7 +24,7 @@ import {
   SampleUploadModal,
 } from "../../src/features/delivery/ticket-detail/uploads";
 
-type Scenario = "sample-qc" | "episode-qc" | "sample-upload" | "episode-upload";
+type Scenario = "sample-qc" | "sample-recovery" | "episode-qc" | "sample-upload" | "episode-upload";
 type Change = "preview" | "sample" | "sample-version" | "episode" | "template" | "item" | "ticket";
 interface Sent {
   method: string;
@@ -64,6 +64,7 @@ const access: AccessSnapshot = {
   moduleLevels: { delivery: "e" },
   actions: [
     "delivery.sample.qc",
+    "delivery.sample.push",
     "delivery.episode.qc",
     "delivery.sample.upload",
     "delivery.episode.register",
@@ -203,7 +204,7 @@ const initialTicket = DeliveryTicketDetailSchema.parse({
     sampleId: batchId(911),
     deliveryTicketId: batchId(901),
     versionNo: 1,
-    status: "uploaded",
+    status: scenario === "sample-recovery" ? "pushed" : "uploaded",
     fileId: batchId(912),
     durationMs: null,
     adSlots: [],
@@ -214,7 +215,7 @@ const initialTicket = DeliveryTicketDetailSchema.parse({
     qc: null,
     pushedBy: null,
     pushedAt: null,
-    previewChannels: [],
+    previewChannels: scenario === "sample-recovery" ? ["album", "portal"] : [],
     offlineSentAt: null,
     offlineSentBy: null,
     firstViewedAt: null,
@@ -223,7 +224,7 @@ const initialTicket = DeliveryTicketDetailSchema.parse({
     confirmDueRemindAt: null,
     watermark: null,
     preview: { url: "unused-preview-1", expiresAt: "2027-10-09T00:00:00.000Z", posterUrl: null },
-    actions: ["inspect"],
+    actions: scenario === "sample-recovery" ? ["recover_legacy"] : ["inspect"],
   },
   samples: [],
   episodeProgress: {
@@ -392,6 +393,7 @@ const api = {
   batches: batchApi,
   template: async () => initialTemplate,
   inspectSample: record("inspectSample"),
+  recoverLegacySample: record("recoverLegacySample"),
   inspectEpisodes: record("inspectEpisodes"),
   file: (body: unknown, _key: string, signal?: AbortSignal) =>
     new Promise((resolve) => {
@@ -443,7 +445,8 @@ function Probe() {
     }),
     change: (change) => {
       if (change === "template") {
-        const code = scenario === "sample-qc" ? "qc.sample" : "qc.episode";
+        const code =
+          scenario === "sample-qc" || scenario === "sample-recovery" ? "qc.sample" : "qc.episode";
         query.setQueryData(["delivery", "ticket-detail", "checklist", code], {
           ...initialTemplate,
           versionNo: 2,
@@ -477,10 +480,18 @@ function Probe() {
     <QueryClientProvider client={query}>
       <AccessContext.Provider value={access}>
         {open ? (
-          scenario === "sample-qc" || scenario === "episode-qc" ? (
+          scenario === "sample-qc" ||
+          scenario === "sample-recovery" ||
+          scenario === "episode-qc" ? (
             <QualityModal
               {...props}
-              mode={scenario === "sample-qc" ? "sample" : "episodes"}
+              mode={
+                scenario === "sample-recovery"
+                  ? "recover"
+                  : scenario === "sample-qc"
+                    ? "sample"
+                    : "episodes"
+              }
               grid={grid}
             />
           ) : scenario === "sample-upload" ? (

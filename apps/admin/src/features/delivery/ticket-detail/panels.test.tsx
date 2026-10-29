@@ -78,6 +78,22 @@ function render(patch: Partial<Sample> = {}, permissions: AccessSnapshot | null 
   );
 }
 describe("样片体检与人工质检状态", () => {
+  it("历史恢复同时依赖服务端动作、推送权限和质检权限", () => {
+    const patch = {
+      status: "pushed",
+      previewChannels: ["album", "portal"],
+      actions: ["recover_legacy"],
+    };
+    expect(render(patch)).toContain("恢复小程序查看");
+    expect(render({ ...patch, actions: [] })).not.toContain("恢复小程序查看");
+    for (const missing of ["delivery.sample.push", "delivery.sample.qc"]) {
+      expect(
+        render(patch, { ...access, actions: access.actions.filter((a) => a !== missing) }),
+      ).not.toContain("恢复小程序查看");
+    }
+    expect(render(patch, null)).not.toContain("恢复小程序查看");
+    expect(render(patch)).not.toContain("推送样片");
+  });
   it.each(["uploading", "checking"])("%s期间明确等待体检，未宣称待人工质检", (pipelineState) => {
     const html = render({ production: { ...sample.production!, pipelineState } });
     expect(html).toContain(

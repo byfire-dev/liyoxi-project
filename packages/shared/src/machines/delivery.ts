@@ -30,7 +30,7 @@ export const deliveryTicket = chain("delivery_ticket", "step", DELIVERY_TICKET_S
   ["10:172", ["assigning"], "ticket.assign", ["plan_confirm"]],
   ["10:173", ["plan_confirm"], "plan.confirmed", ["ad_prep"]],
   ["10:174", ["ad_prep"], "ads.ready", ["sample_making"]],
-  ["10:175", ["sample_making"], "sample.pushed", ["sample_confirm"]],
+  ["10:175", ["sample_making", "sample_confirm"], "sample.pushed", ["sample_confirm"]],
   ["10:176", ["sample_confirm"], "sample.confirmed", ["batch_compose"]],
   ["10:177", ["sample_confirm"], "sample.change_requested", ["sample_making"]],
   ["10:178", ["sample_confirm"], "sample.change_requested", ["ad_prep"]],

@@ -1,5 +1,5 @@
 import { AppError, isUuid, lockRows } from "../kernel/index.js";
-import type { Tx } from "../kernel/index.js";
+import type { RowLockMode, Tx } from "../kernel/index.js";
 import type { Media } from "../media/index.js";
 
 /** The delivery parent is already locked. Existing assets precede production and file locks. */
@@ -8,6 +8,7 @@ export async function productionEvidence(
   media: Pick<Media, "deliveryProductionFacts">,
   fileId: string,
   watermarked = false,
+  fileLockMode: RowLockMode = "share",
 ) {
   const before = watermarked
     ? await tx.playableAsset.findMany({
@@ -40,7 +41,8 @@ export async function productionEvidence(
         )
       : [],
   );
-  await lockRows(tx, "file_object", [fileId, ...outputIds], "share");
+  // Reference writers need UPDATE from the first sorted file lock, before any later rendition id.
+  await lockRows(tx, "file_object", [fileId, ...outputIds], fileLockMode);
   const facts = await media.deliveryProductionFacts(tx, fileId);
   if (!facts.ready || !facts.production || (watermarked && !facts.playable))
     throw watermarked
