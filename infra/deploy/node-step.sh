@@ -20,6 +20,7 @@
 #   facts / preflight 只读版本、发布历史与 P1（告警包未接时明确 unavailable）
 #   image-facts <标签> 只核目标三类本地镜像；record <标签> <base64url JSON> 严格校验后追加记录
 #   weapp-upload <40hex源码> <64hex摘要> 只读同源制品、复核成功部署，再用机器人1上传；未启用或未配桶时跳过
+#   weapp-review-upload <40hex源码> <64hex摘要> <weapp-vX.Y.Z> 冻结后仅用机器人2上传同源提审包
 #   redis-flush <项目>  显式演练开关开启且未冻结时，只清本 node.yml 项目 Redis 的 DB 0
 #  下面三个给 systemd 单元用（infra/deploy/systemd/），不经 SSH：
 #   run <服务>         前台起一个服务（docker compose up --no-deps），容器退出即返回
@@ -49,9 +50,11 @@ COMPOSE_FILE="$LYX_SRC/infra/compose/node.yml"
 SUPERVISOR="${LYX_NODE_SUPERVISOR:-systemd}"
 SERVICES="postgres redis mediatool api worker gateway"
 PUBLIC_STEPS="deps pull check-env migrate seed up status verify-db stage-assets worker-swap api-stop api-start smoke prune preflight facts image-facts record verify-assets verify-assets-live weapp-upload logs log-stats redis-flush"
+PUBLIC_STEPS="$PUBLIC_STEPS weapp-review-upload"
 USAGE="用法：node-step.sh deps | pull <标签> | check-env <标签> | migrate <标签> | seed <标签> | up <标签> | status | verify-db <标签> | stage-assets <标签> | worker-swap <标签> | api-stop | api-start <标签> | smoke <标签> | prune | facts | preflight | image-facts <标签> | record <标签> <base64url JSON> | verify-assets <标签> | verify-assets-live <标签> [旧标签] | logs <六服务> <UUID> | log-stats <1–1440分钟>"
 
 USAGE="$USAGE | redis-flush <本节点项目>"
+USAGE="$USAGE | weapp-review-upload <源码SHA> <摘要SHA256> <weapp-vX.Y.Z>"
 via_ssh=0
 if [ $# -eq 0 ] && [ -n "${SSH_ORIGINAL_COMMAND:-}" ]; then
   via_ssh=1
@@ -85,6 +88,10 @@ case "$step" in
     ;;
   weapp-upload)
     [ $# -eq 2 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] || usage_die "weapp-upload 只接受源码 SHA 与摘要 SHA256"
+    ;;
+  weapp-review-upload)
+    [ $# -eq 3 ] && [[ "$1" =~ ^[a-f0-9]{40}$ ]] && [[ "$2" =~ ^[a-f0-9]{64}$ ]] &&
+      [[ "$3" =~ ^weapp-v(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$ ]] || usage_die "提审上传只接受源码、摘要与合法版本标签"
     ;;
   deps | status | api-stop | prune | preflight | facts) [ $# -eq 0 ] || usage_die "$step 不带参数。$USAGE" ;;
   pull | check-env | migrate | seed | up | verify-db | stage-assets | worker-swap | api-start | smoke | image-facts | verify-assets) need_tag "$@" ;;
@@ -367,12 +374,14 @@ step_redis_flush() {
 # 发布步骤没有独立的命令入口；上面的窄协议校验同时覆盖本地调用与强制 SSH。
 . "$LYX_SRC/infra/deploy/node-release.sh"
 . "$LYX_SRC/infra/deploy/node-weapp.sh"
+. "$LYX_SRC/infra/deploy/node-weapp-review.sh"
 
 case "$step" in
   redis-flush) step_redis_flush "$1" ;;
   logs) step_log_read logs "$1" "$2" 60 5001 ;;
   log-stats) step_log_read stats gateway "$1" "$1" 100001 ;;
   weapp-upload) step_weapp_upload "$1" "$2" ;;
+  weapp-review-upload) step_weapp_review_upload "$1" "$2" "$3" ;;
   deps) step_deps ;;
   pull) step_pull "$1" ;;
   check-env) step_check_env "$1" ;;
