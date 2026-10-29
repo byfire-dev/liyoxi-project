@@ -20,7 +20,11 @@ export function ticketProductionActions(
 ) {
   if (t.pauseCount || !satisfiesLevel(staff.moduleLevels.delivery, "edit")) return [];
   const actions: string[] = [],
-    canUpload = !t.editorId || t.editorId === staff.staff.id,
+    canUpload =
+      !t.editorId ||
+      t.editorId === staff.staff.id ||
+      staff.staff.isLead ||
+      staff.staff.roleKey === "super_admin",
     composing = ["batch_compose", "delivering"].includes(t.step);
   if (t.step === "sample_making" && canUpload && hasPermission(staff, "delivery.sample.upload"))
     actions.push("sample-create");

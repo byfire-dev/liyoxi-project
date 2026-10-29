@@ -1,4 +1,4 @@
-// PR2 真实 worker 装配独立运行全部13检查；主链产物的 full 零违规由 delivery/production-path 另证。
+// PR2 真实 worker 装配独立运行全部15检查（含 I2/I14）；主链产物的 full 零违规由 delivery/production-path 另证。
 import { it, expect } from "vitest";
 import {
   assembleForTest,
@@ -15,7 +15,7 @@ import { createSla } from "../sla/index.js";
 import { buildWorkerServices } from "./worker.js";
 import { runInvariants } from "./invariants/index.js";
 const db = useSeededDatabase("services");
-it("真实worker delivery绑定执行full13检查零违规，媒体桩不依赖API工厂", async () => {
+it("真实worker delivery绑定执行full15检查零违规，媒体桩不依赖API工厂", async () => {
   const prisma = await db.prisma(),
     clock = createClock(),
     assembly = assembleForTest({ entry: "worker" }),
@@ -57,11 +57,16 @@ it("真实worker delivery绑定执行full13检查零违规，媒体桩不依赖A
       );
     });
     expect(
+      worker.assembly.invariants
+        .filter((check) => check.code.startsWith("delivery.") && check.modes?.includes("full"))
+        .map((check) => check.code),
+    ).toEqual(expect.arrayContaining(["delivery.I2", "delivery.I14"]));
+    expect(
       await runInvariants(
         { tx, assembly: worker.assembly, clock },
         { mode: "full", trigger: "manual", modules: ["delivery"] },
       ),
-    ).toMatchObject({ status: "succeeded", checksRun: 13, violationsFound: 0, errors: [] });
+    ).toMatchObject({ status: "succeeded", checksRun: 15, violationsFound: 0, errors: [] });
   } finally {
     worker.closeDelivery?.();
     worker.closePublish?.();

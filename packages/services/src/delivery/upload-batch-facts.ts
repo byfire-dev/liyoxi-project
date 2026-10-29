@@ -21,18 +21,22 @@ export async function authorizeBatchUpload(
     select: { id: true },
   });
   if (!found) throw new AppError("NOT_FOUND");
-  const t = await ticketOf(
-    tx,
-    found.id,
+  const scopedStaff =
     staff.moduleLevels.delivery === "o"
-      ? { ...staff, moduleLevels: { ...staff.moduleLevels, delivery: "v" } }
-      : staff,
-  );
+      ? { ...staff, moduleLevels: { ...staff.moduleLevels, delivery: "v" as const } }
+      : staff;
+  const t = await ticketOf(tx, found.id, scopedStaff);
   if (!options.readOnly) {
     if (options.lock) await lockTickets(tx, [t.id]);
-    const current = options.lock ? await ticketOf(tx, t.id, staff) : t;
+    const current = options.lock ? await ticketOf(tx, t.id, scopedStaff) : t;
     unpaused(current);
-    if (current.editorId !== staff.staff.id) throw new AppError("PERMISSION_DENIED");
+    if (
+      current.editorId &&
+      current.editorId !== staff.staff.id &&
+      !staff.staff.isLead &&
+      staff.staff.roleKey !== "super_admin"
+    )
+      throw new AppError("PERMISSION_DENIED");
     // Reissue registration is still owned by W3-06; the current real consumer rejects it too.
     if (!["batch_compose", "delivering"].includes(current.step) || current.deliveredAt)
       throw new AppError("EPISODE_REGISTER_NOT_ALLOWED", {

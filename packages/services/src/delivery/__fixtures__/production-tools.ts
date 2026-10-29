@@ -3,16 +3,31 @@ import { uuidv7 } from "../../kernel/index.js";
 import type { DeliveredEvent } from "../../kernel/index.js";
 import type { MediaProductionDeps } from "../../media/index.js";
 import { createProductionChecked } from "../production-checked.js";
+import { readAdDurationFacts, readAdProductionKind } from "../index.js";
 import { harness } from "./harness.js";
 import { createDeliveryProductionTools } from "../../testing/index.js";
 
 /** External codec/cloud doubles only: all job claims, hashes, rows, refs and delivery writes are real. */
 export function productionHarness(prisma: PrismaClient) {
   let external: ReturnType<typeof createDeliveryProductionTools>;
+  let measuredDurationMs: number | undefined;
   const h = harness(prisma, true, ({ fake }) => {
     external = createDeliveryProductionTools(fake);
     const production: MediaProductionDeps = {
-      tool: external.tool,
+      tool: {
+        ...external.tool,
+        async probe(input) {
+          const result = await external.tool.probe(input);
+          if (!result.ok || measuredDurationMs === undefined) return result;
+          const value = structuredClone(result.value);
+          value.format.durationMs = measuredDurationMs;
+          for (const stream of value.streams) {
+            stream.durationMs = measuredDurationMs;
+            stream.nbFrames = Math.round((measuredDurationMs * 30) / 1000);
+          }
+          return { ...result, value };
+        },
+      },
       workspace: external.workspace,
       cloud: fake.media,
       config: {
@@ -42,6 +57,8 @@ export function productionHarness(prisma: PrismaClient) {
         const store = await tx.store.findUnique({ where: { id } });
         return store?.name ? { name: store.name } : null;
       },
+      readAdDurations: readAdDurationFacts,
+      readAdKind: readAdProductionKind,
       readMasterFacts: async (tx, id) => {
         const master = await tx.dramaEpisodeMaster.findUnique({ where: { id } });
         const info = master
@@ -72,10 +89,16 @@ export function productionHarness(prisma: PrismaClient) {
       payload: event.payload as Record<string, unknown>,
     };
   }
-  async function probe(fileId: string) {
-    const jobId = await h.tx.run((tx) => h.media.enqueueProbe(tx, fileId));
-    await h.media.jobs.run({ jobId });
-    return jobId;
+  async function probe(fileId: string, durationMs?: number) {
+    const previous = measuredDurationMs;
+    measuredDurationMs = durationMs;
+    try {
+      const jobId = await h.tx.run((tx) => h.media.enqueueProbe(tx, fileId));
+      await h.media.jobs.run({ jobId });
+      return jobId;
+    } finally {
+      measuredDurationMs = previous;
+    }
   }
   return {
     ...h,

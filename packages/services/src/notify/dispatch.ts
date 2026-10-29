@@ -6,6 +6,7 @@ import {
 } from "@liyoxi/contract";
 import { createConfig, paramsAt } from "../config/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
+import { calendarDate } from "@liyoxi/shared/time";
 import { notifyReadOf, remindersOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
 import type {
@@ -16,10 +17,14 @@ import type {
 } from "./context.js";
 import {
   EVENT_SCENES,
+  DELIVERY_LAUNCH_REMINDER_SPEC,
   INVITATION_JOIN_SPEC,
   NotifyFactSchema,
   specFor,
   ownerOnlyFor,
+  REISSUE_EDITOR_SPEC,
+  REISSUED_RELEASE_SPEC,
+  LAUNCH_RESCHEDULED_SPEC,
 } from "./registry.js";
 import { notificationDueAt, textLimit, externalAllowed } from "./policy.js";
 import { storeArchiveNotifications, storeArchiveSource } from "./store-archive.js";
@@ -148,6 +153,11 @@ export async function currentNotificationFact(
   const found = await notifyReadOf(deps.assembly).read(tx, spec.reader, id);
   if (found === null) return null;
   const fact = NotifyFactSchema.parse(found);
+  if (
+    [REISSUE_EDITOR_SPEC, REISSUED_RELEASE_SPEC, LAUNCH_RESCHEDULED_SPEC].includes(spec) &&
+    (!fact.targetDate || fact.targetDate < calendarDate(deps.clock.now()))
+  )
+    return null;
   if (spec.sceneKey === "s.kf_todo") {
     fact.staffIds =
       (await notifyReadOf(deps.assembly).read<string[]>(tx, "activeStaffForNotify", {
@@ -204,6 +214,10 @@ export const smsNodeAllowed = (nodes: unknown, node: string): boolean =>
 // These producers can recur while the account/store and current status stay the same.
 // A stable outbox ID preserves each occurrence, including replay after a later review round.
 const occurrenceEvents = new Set([
+  "manual_reminder.sent",
+  "package.reissue_opened",
+  "package.reissued",
+  "order.item.launch_rescheduled",
   "entity_member.removed",
   "store.archived",
   "entity_member.stores_changed",
@@ -429,9 +443,20 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  // These progress events describe a particular persisted correction. A delayed old event
+  // must not borrow a newer release or launch date merely because its parent still exists.
+  if (
+    ["package.reissue_opened", "package.reissued", "order.item.launch_rescheduled"].includes(
+      event.type,
+    ) &&
+    !(await notifyReadOf(deps.assembly).read<boolean>(tx, "deliveryEventCurrentForNotify", {
+      type: event.type,
+      payload: event.payload,
+    }))
+  )
+    return 0;
   if (event.type === "manual_reminder.sent") {
     const payload = EVENT_PAYLOAD_SCHEMAS["manual_reminder.sent"].parse(event.payload);
-    if (payload.scene !== "renewal" || payload.subjectType !== "subscription_term") return 0;
     const row = await tx.manualReminderLog.findUnique({
       where: { id: payload.manualReminderLogId },
     });
@@ -443,6 +468,26 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       row.bizDate.toISOString().slice(0, 10) !== payload.bizDate
     )
       return 0;
+    if (["confirm_plan", "confirm_sample", "golive"].includes(payload.scene)) {
+      if ((payload.scene === "golive" ? "order_item" : "delivery_ticket") !== payload.subjectType)
+        return 0;
+      const target = await notifyReadOf(deps.assembly).read<{ refId: string }>(
+        tx,
+        "manualReminderTargetForNotify",
+        { subjectId: payload.subjectId, scene: payload.scene },
+      );
+      if (!target) return 0;
+      const spec =
+        payload.scene === "confirm_plan"
+          ? EVENT_SCENES["plan.pushed"]![0]!
+          : payload.scene === "confirm_sample"
+            ? EVENT_SCENES["sample.pushed"]![0]!
+            : DELIVERY_LAUNCH_REMINDER_SPEC;
+      const fact = await currentNotificationFact(tx, deps, spec, target.refId);
+      if (!fact || (spec.pendingStatus && !spec.pendingStatus.includes(fact.status))) return 0;
+      return dispatchFact(tx, deps, spec, fact, { event, node: "M" });
+    }
+    if (payload.scene !== "renewal" || payload.subjectType !== "subscription_term") return 0;
     if (
       !(
         await remindersOf(deps.assembly).revalidate(tx, "R1", {

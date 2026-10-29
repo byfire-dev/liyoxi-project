@@ -734,6 +734,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
+    get approval() {
+      return approval;
+    },
     tx,
     clock,
     assembly,

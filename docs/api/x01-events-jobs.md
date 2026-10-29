@@ -847,6 +847,7 @@ BullMQ 只是执行通道：任务一律 `attempts: 1`，重试、到期、租�
 | `10:191-192` | `delivery_ticket.step` | →terminated / takedown（ticket.terminate） | 随取消执行（`admin.cancelRequest.execute`、`cancel.auto_execute`） | 随调用方事务 |
 | `10:193` | `delivery_ticket.step` | in_service→launch_verify（launch.verify_revoked） | 随 `admin.launchSubmission.revoke` | 随调用方事务 |
 | `10:272` | delivery_ticket_stage.due_at（日历重算） | 重算并重设 sla.breach（工单另写 from = to） | 订阅者 `delivery.onCalendarImported` | 订阅者 |
+| `10:1375` | `delivery_ticket.step` | 未归档/终止步骤→不变（sla.recalculated） | 订阅者 `delivery.onCalendarImported`：当前环节按新日历真实重算后，同事务记录工单同态历史，不新建环节 | 订阅者 |
 | `10:641` | `sample.status` | uploaded→check_rejected | 订阅者 `delivery.onProductionChecked` | 订阅者 |
 | `10:648` | `sample.status` | →superseded（系统） | 随 `admin.deliveryTicket.sample.create`（新版本）；广告重新打开时随 `flow.reevaluate()` | 随调用方事务 |
 | `10:649` | `sample.status` | confirmed→superseded | 随 `admin.deliveryTicket.rework` | 随调用方事务 |

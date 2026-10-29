@@ -28,6 +28,30 @@ const sample = {
   ...transition,
 };
 export const payloads = {
+  "order.item.launch_rescheduled": z.strictObject({
+    v: z.literal(1),
+    orderItemId: IdSchema,
+    dramaOrderId: IdSchema,
+    prevDate: z.iso.date().nullable(),
+    newDate: z.iso.date(),
+  }),
+  "package.reissue_opened": z.strictObject({
+    v: z.literal(1),
+    deliveryReissueId: IdSchema,
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    episodeNos: z.array(z.int().positive()).min(1),
+    reasonCode: z.string().min(1),
+  }),
+  "package.reissued": z.strictObject({
+    v: z.literal(1),
+    deliveryReissueId: IdSchema,
+    deliveryReleaseId: IdSchema,
+    deliveryTicketId: IdSchema,
+    orderItemId: IdSchema,
+    episodeNos: z.array(z.int().positive()).min(1),
+    grantExpiresAt: z.iso.datetime(),
+  }),
   "sample.uploaded": z.strictObject(sample),
   "sample.check_rejected": z.strictObject(sample),
   "sample.superseded": z.strictObject(sample),

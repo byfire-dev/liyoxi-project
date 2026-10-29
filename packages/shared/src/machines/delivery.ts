@@ -68,6 +68,10 @@ export const deliveryTicket = chain("delivery_ticket", "step", DELIVERY_TICKET_S
   ],
   ["10:194", ["in_service"], "admin.force", ["launch_verify"]],
   ["10:194", ["takedown"], "admin.force", ["in_service"]],
+  ["10:195", ["awaiting_launch", "launch_verify", "in_service"], "reissue.opened", SAME],
+  ["10:1377", DELIVERY_TICKET_STEP.values, "reissue.cancelled", SAME],
+  ["10:195", ["awaiting_launch", "launch_verify", "in_service"], "package.reissued", SAME],
+  ["10:1375", [...STEPS_1_TO_9, "in_service", "takedown"], "sla.recalculated", SAME],
 ]);
 
 /** delivery_plan.status：docs/data-model/10-delivery.md */

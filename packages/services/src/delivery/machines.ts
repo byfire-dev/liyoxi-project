@@ -3,8 +3,14 @@ import { Prisma } from "@liyoxi/db";
 import type { MachineBinding, TransitionFacts } from "../flow/index.js";
 import { implementKeyed, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
-const pass = Symbol("delivery.checked");
-export const checked = () => pass;
+import { boundDelivery } from "./binding.js";
+import { syncDeliveryStageSla } from "./stage-sla.js";
+import { checkCorrectionStructure, correctionGuard, correctionEffect } from "./correction.js";
+import { checked } from "./transition-args.js";
+export { checked } from "./transition-args.js";
+const pass = checked();
+const pauseCollectionPass = Symbol("delivery.pause_collection");
+export const pauseCollectionChecked = () => pauseCollectionPass;
 const legacySampleRecoveryPass = Symbol("delivery.legacy_sample_recovery");
 export const legacySampleRecoveryChecked = () => legacySampleRecoveryPass;
 export const cancelResumeChecked = (approvalRequestId: string) => ({ pass, approvalRequestId });
@@ -48,6 +54,16 @@ const guards = (rows: ReadonlyArray<readonly [string, string]>) =>
   );
 async function stage(tx: Tx, f: TransitionFacts) {
   if (f.from === f.to) return;
+  if (f.from !== null && f.event !== "ticket.terminate")
+    await tx.deliveryTicketStage.updateMany({
+      where: {
+        deliveryTicketId: f.subjectId,
+        completedAt: null,
+        dueAt: { lte: f.now },
+        isBreached: false,
+      },
+      data: { isBreached: true, updatedAt: f.now },
+    });
   if (f.from !== null)
     await tx.deliveryTicketStage.updateMany({
       where: { deliveryTicketId: f.subjectId, completedAt: null },
@@ -84,6 +100,7 @@ async function stage(tx: Tx, f: TransitionFacts) {
       },
     });
   }
+  await syncDeliveryStageSla(tx, boundDelivery(), f.subjectId);
 }
 async function terminateStage(tx: Tx, f: TransitionFacts) {
   if (f.from !== f.to) return stage(tx, f);
@@ -106,6 +123,15 @@ const rows = [
   ["10:183", "launch.changed"],
   ["10:184", "launch.changed"],
   ["10:185", "launch.changed"],
+  ["10:179", "ad.reopened"],
+  ["10:181", "ticket.rework"],
+  ["10:186", "usage.ended"],
+  ["10:187", "usage.ended"],
+  ["10:188", "takedown.all_checked"],
+  ["10:195", "reissue.opened"],
+  ["10:1377", "reissue.cancelled"],
+  ["10:195", "package.reissued"],
+  ["10:1375", "sla.recalculated"],
 ] as const;
 const ticket: MachineBinding = {
   companions: [
@@ -128,8 +154,11 @@ const ticket: MachineBinding = {
     "paused_at",
     "pause_remaining_min",
     "terminated_at",
+    "usage_ended_at",
+    "archived_at",
   ],
   guards: {
+    [rowKey("10:194", "admin.force")]: correctionGuard,
     [rowKey("10:191", "ticket.terminate")]: terminateGuard,
     [rowKey("10:192", "ticket.terminate")]: terminateGuard,
     ...guards(rows.filter(([ref]) => ref !== "10:196")),
@@ -138,6 +167,7 @@ const ticket: MachineBinding = {
         ? facts.to === "sample_confirm" && facts.args === legacySampleRecoveryPass
         : facts.from === "sample_making" && facts.args === pass,
     [rowKey("10:189", "ticket.hold")]: async (tx, facts) => {
+      if (facts.args === pauseCollectionPass) return true;
       const args = facts.args as ReturnType<typeof cancelHoldChecked> | undefined;
       if (args?.holdPass !== holdPass) return false;
       const ticket = await tx.deliveryTicket.findUnique({ where: { id: facts.subjectId } });
@@ -166,6 +196,7 @@ const ticket: MachineBinding = {
       );
     },
     [rowKey("10:190", "ticket.resume")]: async (tx, facts) => {
+      if (facts.args === pauseCollectionPass) return true;
       const args = facts.args as ReturnType<typeof cancelResumeChecked> | undefined;
       if (args?.pass !== pass) return false;
       const ticket = await tx.deliveryTicket.findUnique({ where: { id: facts.subjectId } });
@@ -188,7 +219,12 @@ const ticket: MachineBinding = {
     ...Object.fromEntries(rows.map(([ref, event]) => [rowKey(ref, event), stage])),
     [rowKey("10:191", "ticket.terminate")]: terminateStage,
     [rowKey("10:192", "ticket.terminate")]: terminateStage,
+    [rowKey("10:194", "admin.force")]: async (tx, facts) => {
+      await correctionEffect(tx, facts);
+      await stage(tx, facts);
+    },
   },
+  adminTransition: { checkInvariants: checkCorrectionStructure },
   activity: (f) => ({
     category: "delivery",
     action: `delivery.ticket.${f.event.split(".")[1]}`,

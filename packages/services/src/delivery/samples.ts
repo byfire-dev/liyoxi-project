@@ -1,4 +1,3 @@
-import { record as auditRecord } from "../audit/index.js";
 import type { SamplePushBody } from "@liyoxi/contract";
 import type { Prisma, Sample } from "@liyoxi/db";
 import type { StaffContext } from "../authz/index.js";
@@ -12,6 +11,7 @@ import { recoverLegacySample } from "./sample-legacy-recovery.js";
 import { assertOwner, lockTickets, ticketOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
 import { step, reevaluate } from "./reevaluate.js";
+import { lockReevaluationInputs } from "./reevaluate-inputs.js";
 import { orderSidePort } from "./ports.js";
 import {
   dramaUsesAi,
@@ -54,7 +54,7 @@ export async function createSample(
   id: string,
   b: { fileId: string; adSlots: Slots },
 ) {
-  // 首次领取空 editor 的事务先用父行范围检查；o 级不能借此读取其他已领取任务。
+  // 先检查父行范围；登记身份再按实际显式指派或主管权限核验。
   const first = await ticketOf(
     tx,
     id,
@@ -62,11 +62,19 @@ export async function createSample(
       ? { ...staff, moduleLevels: { ...staff.moduleLevels, delivery: "v" } }
       : staff,
   );
+  const verifyInputs = await lockReevaluationInputs(tx, [id]);
   await lockTickets(tx, [id]);
+  await verifyInputs();
   const t = await ticketOf(tx, id);
   unpaused(t);
   if (t.step !== "sample_making") throw new AppError("STATE_NOT_ALLOWED");
-  if (t.editorId && t.editorId !== staff.staff.id) throw new AppError("PERMISSION_DENIED");
+  if (
+    t.editorId &&
+    t.editorId !== staff.staff.id &&
+    !staff.staff.isLead &&
+    staff.staff.roleKey !== "super_admin"
+  )
+    throw new AppError("PERMISSION_DENIED");
   if (first.entityId !== t.entityId || first.storeId !== t.storeId) throw new AppError("NOT_FOUND");
   if (
     b.adSlots.some(
@@ -80,7 +88,7 @@ export async function createSample(
   )
     throw invalid("adSlots", "广告位标记不合法");
   const old = await tx.sample.findMany({
-    where: { deliveryTicketId: id, status: { in: ["uploaded", "qc_passed"] } },
+    where: { deliveryTicketId: id, status: { in: ["uploaded", "qc_passed", "pushed"] } },
     orderBy: { id: "asc" },
   });
   await lockRows(
@@ -139,35 +147,6 @@ export async function createSample(
       updatedAt: now,
     },
   });
-  if (!t.editorId) {
-    await tx.deliveryTicket.update({
-      where: { id },
-      data: { editorId: staff.staff.id, updatedAt: now },
-    });
-    await auditRecord(
-      tx,
-      ctx.actor,
-      {
-        requestId: ctx.requestId,
-        ip: ctx.ip,
-        userAgent: ctx.userAgent,
-        authMethod: null,
-        sessionId: null,
-      },
-      {
-        stream: "activity",
-        category: "delivery",
-        action: "delivery.ticket.editor_claimed",
-        summary: "首次登记领取剪辑任务",
-        target: { type: "delivery_ticket", id },
-        entityId: t.entityId,
-        storeId: t.storeId,
-        before: { editorId: null },
-        after: { editorId: staff.staff.id },
-        fields: ["editorId"],
-      },
-    );
-  }
   await deps.media.link(tx, {
     fileId: b.fileId,
     entityId: t.entityId,
@@ -189,8 +168,14 @@ export async function inspectSample(
   b: QualityInput,
 ) {
   const first = await sampleOf(tx, id, staff);
+  const verifyInputs = await lockReevaluationInputs(tx, [first.t.id]);
   await lockTickets(tx, [first.t.id]);
-  await lockRows(tx, "sample", [id]);
+  await verifyInputs();
+  const liveSamples = await tx.sample.findMany({
+    where: { deliveryTicketId: first.t.id, status: { in: ["uploaded", "qc_passed", "pushed"] } },
+    select: { id: true },
+  });
+  await lockRows(tx, "sample", [id, ...liveSamples.map((s) => s.id)]);
   const { s, t } = await sampleOf(tx, id, staff);
   unpaused(t);
   if (t.step !== "sample_making" || s.status !== "uploaded")

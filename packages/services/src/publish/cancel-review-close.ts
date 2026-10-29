@@ -1,4 +1,5 @@
 import type { Approval, ApprovalDecision, ApprovalRow } from "../approval/index.js";
+import { TAKEDOWN_TASK_TRIGGER_KIND } from "@liyoxi/contract/enums";
 import { record } from "../audit/index.js";
 import type { Flow, TransitionFacts } from "../flow/index.js";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
@@ -12,16 +13,23 @@ import { createTimers, timerKey } from "../timers/index.js";
 
 const ids = (values: readonly string[]) => [...new Set(values)].sort();
 const pass = Symbol("publish.cancel_close");
-const active = new WeakMap<Tx, { requestId: string; itemIds: readonly string[] }>();
+type CloseAuthority =
+  | { kind: "cancel"; requestId: string; itemIds: readonly string[] }
+  | { kind: "expiry" | "renewal"; ticketId: string; itemIds: readonly string[]; now: Date };
+const active = new WeakMap<Tx, CloseAuthority>();
 const withdrawing = new WeakMap<Tx, string>();
 export const cancelPublishGuard = async (tx: Tx, facts: TransitionFacts) => {
   const call = active.get(tx);
   if (facts.args !== pass || !call) return false;
+  // The private invocation is installed only after checking current delivery facts.
+  // Rechecking after this writer creates missing takedowns would invalidate its
+  // own early-end proof (the newly created task has no merchant confirmation).
+  if (call.kind !== "cancel") return call.kind === "expiry";
   const request = await tx.cancelRequest.findUnique({ where: { id: call.requestId } });
   return request?.status === "pending_execution" && request.closedAt === null;
 };
 
-/** Only the cancellation owner can authorize a launch-link system withdrawal. */
+/** Only a checked cancellation/expiry invocation can withdraw an in-flight submission. */
 export async function closeCancelReviewLaunchSubmission(
   tx: Tx,
   row: ApprovalRow,
@@ -123,7 +131,7 @@ export async function readCancelReviewPublishTargets(tx: Tx, orderItemIds: reado
   };
 }
 export type CancelReviewPublishTargets = Awaited<ReturnType<typeof readCancelReviewPublishTargets>>;
-interface CloseDeps {
+export interface CloseDeps {
   readonly assembly: Assembly;
   readonly clock: Clock;
   readonly flow: Flow;
@@ -149,27 +157,93 @@ export async function closeCancelReviewPublish(
   targets: CancelReviewPublishTargets,
   input: CloseInput,
 ) {
+  return closePublish(tx, deps, ctx, targets, input, {
+    kind: "cancel",
+    requestId: input.cancelRequestId,
+    itemIds: targets.orderItemIds,
+  });
+}
+
+async function validDeliveryClose(tx: Tx, call: Exclude<CloseAuthority, { kind: "cancel" }>) {
+  const ticket = await tx.deliveryTicket.findUnique({
+    where: { id: call.ticketId },
+    include: { orderItem: true },
+  });
+  if (
+    !ticket ||
+    call.itemIds.length !== 1 ||
+    call.itemIds[0] !== ticket.orderItemId ||
+    ticket.pauseCount !== 0 ||
+    !ticket.orderItem.usageEndDate
+  )
+    return false;
+  const today = calendarDate(call.now),
+    end = ticket.orderItem.usageEndDate.toISOString().slice(0, 10);
+  if (call.kind === "renewal") return ticket.step === "in_service" && end > today;
+  if (!["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(ticket.step))
+    return false;
+  if (today > end) return true;
+  const tasks = await tx.takedownTask.findMany({
+    where: { orderItemId: ticket.orderItemId, status: { not: "void" } },
+    select: { merchantConfirmedAt: true },
+  });
+  return tasks.length > 0 && tasks.every((t) => t.merchantConfirmedAt !== null);
+}
+
+export async function closeDeliveryPublish(
+  tx: Tx,
+  deps: CloseDeps,
+  ctx: IdentityContext,
+  targets: CancelReviewPublishTargets,
+  input: { deliveryTicketId: string; now: Date },
+  kind: "expiry" | "renewal",
+) {
+  const authority = {
+    kind,
+    ticketId: input.deliveryTicketId,
+    itemIds: targets.orderItemIds,
+    now: input.now,
+  };
+  if (!(await validDeliveryClose(tx, authority))) throw new AppError("STATE_NOT_ALLOWED");
+  return closePublish(tx, deps, ctx, targets, { now: input.now }, authority);
+}
+
+async function closePublish(
+  tx: Tx,
+  deps: CloseDeps,
+  ctx: IdentityContext,
+  targets: CancelReviewPublishTargets,
+  input: CloseInput | { now: Date },
+  authority: CloseAuthority,
+) {
   if (active.has(tx)) throw new AppError("INTERNAL");
   if (
     JSON.stringify(targets) !==
     JSON.stringify(await readCancelReviewPublishTargets(tx, targets.orderItemIds))
   )
-    throw new AppError("PRECONDITION_CHANGED", { message: "取消发布锁图已变化" });
-  active.set(tx, { requestId: input.cancelRequestId, itemIds: targets.orderItemIds });
+    throw new AppError("PRECONDITION_CHANGED", { message: "发布收尾锁图已变化" });
+  active.set(tx, authority);
+  const cancelling = authority.kind === "cancel";
+  const closing = authority.kind !== "renewal";
+  const voidReason = cancelling ? "terminated" : "usage_expired";
+  const payload =
+    authority.kind === "cancel"
+      ? { cancelRequestId: authority.requestId }
+      : { deliveryTicketId: authority.ticketId };
   const system = createIdentityContext({
-    actor: { type: "system", job: "order.execute_cancel" },
+    actor: { type: "system", job: cancelling ? "order.execute_cancel" : "delivery.reevaluate" },
     requestId: ctx.requestId,
   });
   const timers = createTimers({ assembly: deps.assembly });
   try {
-    for (const task of targets.tasks) {
+    for (const task of closing ? targets.tasks : []) {
       if (task.reviewStatus === "void" || (task.isLive && task.reviewStatus === "passed")) continue;
       for (const sub of task.launchSubmissions) {
         withdrawing.set(tx, sub.id);
         try {
           await deps.approval.withdraw(tx, system, {
             approvalId: sub.approvalRequestId,
-            note: "订单项取消执行，撤回在途上线核验",
+            note: cancelling ? "订单项取消执行，撤回在途上线核验" : "使用期结束，撤回在途上线核验",
           });
         } finally {
           withdrawing.delete(tx);
@@ -184,8 +258,8 @@ export async function closeCancelReviewPublish(
         args: pass,
         entityId: task.entityId,
         storeId: task.storeId,
-        ...(task.isLive ? {} : { set: { void_reason: "terminated" } }),
-        payload: { cancelRequestId: input.cancelRequestId },
+        ...(task.isLive ? {} : { set: { void_reason: voidReason } }),
+        payload,
         emit: task.isLive
           ? {
               type: "launch.settled",
@@ -197,12 +271,12 @@ export async function closeCancelReviewPublish(
                 v: 1,
                 launchTaskId: task.id,
                 orderItemId: task.orderItemId,
-                voidReason: "terminated",
+                voidReason,
               },
             },
       });
     }
-    for (const patrol of targets.patrols) {
+    for (const patrol of closing ? targets.patrols : []) {
       await deps.flow.transition(tx, ctx, {
         machine: "patrol_task",
         stateField: "status",
@@ -212,7 +286,7 @@ export async function closeCancelReviewPublish(
         args: pass,
         entityId: patrol.entityId,
         storeId: patrol.storeId,
-        payload: { cancelRequestId: input.cancelRequestId },
+        payload,
         emit: {
           type: "patrol.voided",
           payload: { v: 1, patrolTaskId: patrol.id },
@@ -224,20 +298,23 @@ export async function closeCancelReviewPublish(
       });
     }
     await closeSystemFollowUps(tx, ctx, {
-      subjects: targets.patrols.map((p) => ({
+      subjects: (closing ? targets.patrols : []).map((p) => ({
         subjectType: "patrol_task" as const,
         subjectId: p.id,
       })),
       now: input.now,
     });
     for (const item of targets.items) {
-      const line = input.lines.find((l) => l.orderItemId === item.id);
-      if (!line) throw new AppError("PRECONDITION_CHANGED");
+      const line =
+        "lines" in input ? input.lines.find((l) => l.orderItemId === item.id) : undefined;
+      if (cancelling && !line) throw new AppError("PRECONDITION_CHANGED");
       const delivered = await tx.deliveryRelease.count({ where: { orderItemId: item.id } });
       if (!delivered) continue;
-      const usageEndDate = line.terminationDate ?? item.usageEndDate;
+      const usageEndDate = line?.terminationDate ?? item.usageEndDate;
       if (!usageEndDate) throw new AppError("PRECONDITION_CHANGED");
-      const due = addDays(calendarDate(input.now), 1),
+      const due = cancelling
+          ? addDays(calendarDate(input.now), 1)
+          : usageEndDate.toISOString().slice(0, 10),
         dueDate = new Date(`${due}T00:00:00.000Z`);
       const accountIds = ids([
         ...item.orderItemAccounts.map((a) => a.channelAccountId),
@@ -254,12 +331,24 @@ export async function closeCancelReviewPublish(
         const old = targets.takedowns.find(
           (t) => t.orderItemId === item.id && t.channelAccountId === channelAccountId,
         );
+        if (!closing && !old) continue;
         if (old?.status === "checked") continue;
         const base = {
-          triggerKind: line.stage === "live" ? "platform_termination" : "terminated_after_delivery",
+          triggerKind: cancelling
+            ? line!.stage === "live"
+              ? "platform_termination"
+              : "terminated_after_delivery"
+            : (TAKEDOWN_TASK_TRIGGER_KIND.values.find((v) => v === old?.triggerKind) ??
+              (calendarDate(input.now) > due ? "expiry" : "early_end")),
           usageEndDate,
-          dueDate,
+          dueDate:
+            !cancelling &&
+            old &&
+            ["platform_termination", "terminated_after_delivery"].includes(old.triggerKind)
+              ? old.dueDate
+              : dueDate,
         } as const;
+        const effectiveDue = base.dueDate.toISOString().slice(0, 10);
         let id: string;
         if (old) {
           id = old.id;
@@ -282,7 +371,9 @@ export async function closeCancelReviewPublish(
               policy: snapshot.policy,
               amount: snapshot.amount,
               unit: snapshot.unit as (typeof SLA_UNITS)[number],
-              from: new Date(Math.max(old.merchantConfirmedAt.getTime(), endOfDay(due).getTime())),
+              from: new Date(
+                Math.max(old.merchantConfirmedAt.getTime(), endOfDay(effectiveDue).getTime()),
+              ),
               workHours: await workHoursAt(tx, input.now),
             });
             checkDueAt = result.dueAt;
@@ -309,8 +400,10 @@ export async function closeCancelReviewPublish(
             {
               stream: "activity",
               category: "delivery",
-              action: "publish.takedown_task.cancel_resync",
-              summary: "取消执行同步下架时限",
+              action: cancelling
+                ? "publish.takedown_task.cancel_resync"
+                : "publish.takedown_task.usage_resync",
+              summary: cancelling ? "取消执行同步下架时限" : "使用期变更同步下架时限",
               target: { type: "takedown_task", id },
               entityId: launch.entityId,
               storeId: launch.storeId,
@@ -325,7 +418,7 @@ export async function closeCancelReviewPublish(
                 status: old.status,
                 triggerKind: base.triggerKind,
                 usageEndDate: usageEndDate.toISOString().slice(0, 10),
-                dueDate: due,
+                dueDate: effectiveDue,
                 checkDueAt: (checkDueAt ?? old.checkDueAt)?.toISOString() ?? null,
               },
               fields: [
@@ -364,6 +457,7 @@ export async function closeCancelReviewPublish(
             args: pass,
             entityId: launch.entityId,
             storeId: launch.storeId,
+            payload,
             emit: {
               type: "takedown.created",
               payload: {
@@ -371,7 +465,7 @@ export async function closeCancelReviewPublish(
                 takedownTaskId: id,
                 orderItemId: item.id,
                 channelAccountId,
-                dueDate: due,
+                dueDate: effectiveDue,
                 basis: launch.isLive ? "live" : "delivered_unverified",
                 triggerKind: base.triggerKind,
                 node: "created",
@@ -387,11 +481,11 @@ export async function closeCancelReviewPublish(
           await timers.arm(tx, {
             kind: "takedown.overdue",
             subject: { type: "takedown_task", id },
-            key: timerKey("takedown.overdue", { type: "takedown_task", id }, due),
-            fireAt: atMinuteOfDay(addDays(due, 1), 540),
+            key: timerKey("takedown.overdue", { type: "takedown_task", id }, effectiveDue),
+            fireAt: atMinuteOfDay(addDays(effectiveDue, 1), 540),
             entityId: launch.entityId,
             storeId: launch.storeId,
-            payload: { dueDate: due },
+            payload: { dueDate: effectiveDue },
           });
       }
     }
@@ -404,18 +498,18 @@ export async function closeCancelReviewPublish(
 export const cancelReviewPublishMachines = [
   implementKeyed(machinePort, chainKey("patrol_task", "status"), {
     guards: { [rowKey("11:547", "patrol.void")]: cancelPublishGuard },
-    activity: () => ({
+    activity: (facts) => ({
       category: "delivery",
       action: "publish.patrol_task.void",
-      summary: "取消订单项作废巡检",
+      summary: facts.payload?.cancelRequestId ? "取消订单项作废巡检" : "使用期结束作废巡检",
     }),
   }),
   implementKeyed(machinePort, chainKey("takedown_task", "status"), {
     guards: { [rowKey("11:653", "takedown.create")]: cancelPublishGuard },
-    activity: () => ({
+    activity: (facts) => ({
       category: "delivery",
       action: "publish.takedown_task.create",
-      summary: "取消订单项创建下架核查",
+      summary: facts.payload?.cancelRequestId ? "取消订单项创建下架核查" : "使用期结束创建下架核查",
     }),
   }),
 ];
