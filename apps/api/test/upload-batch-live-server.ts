@@ -199,7 +199,25 @@ export async function startOutputBatchLiveServer(options: {
     })());
   try {
     options.signal?.throwIfAborted();
+    const reportStartup = (
+      stage:
+        | "relay_start"
+        | "relay_ready"
+        | "masters_start"
+        | "masters_ready"
+        | "w120_start"
+        | "w120_ready"
+        | "checks_start"
+        | "checks_ready"
+        | "api_listen_start"
+        | "api_listening"
+        | "cos_listen_start"
+        | "cos_listening"
+        | "ready",
+    ) => process.stdout.write(`${JSON.stringify({ evt: "w302.live.startup", stage })}\n`);
+    reportStartup("relay_start");
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
+    reportStartup("relay_ready");
     options.signal?.throwIfAborted();
     const tools = createOutputBatchToolsForTest({
       socketPath: relay.socketPath,
@@ -263,15 +281,21 @@ export async function startOutputBatchLiveServer(options: {
     if (options.w418Invoice !== undefined)
       invoiceUploads = createInvoiceLiveUploadPump(batch, options.w418Invoice, options.prefix);
     if (w312) await assertContentAdminLiveTargets(batch, w312);
+    reportStartup("masters_start");
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
+    reportStartup("masters_ready");
     options.signal?.throwIfAborted();
+    reportStartup("w120_start");
     const w120 = inputs.w120
       ? await finishW120LiveFixture(batch, inputs.w120, inputs.video, options.signal)
       : undefined;
+    reportStartup("w120_ready");
     options.signal?.throwIfAborted();
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
+    reportStartup("checks_start");
     await runStartupChecks(batch.startupChecks);
+    reportStartup("checks_ready");
     options.signal?.throwIfAborted();
     const readAgreementData = async (request: Request, path: string) => {
       const headers = new Headers(request.headers);
@@ -400,6 +424,7 @@ export async function startOutputBatchLiveServer(options: {
       }
       return response;
     };
+    reportStartup("api_listen_start");
     const apiOrigin = await new Promise<string>((resolve) => {
       apiServer = serve(
         {
@@ -467,13 +492,16 @@ export async function startOutputBatchLiveServer(options: {
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
       );
     });
+    reportStartup("api_listening");
     options.signal?.throwIfAborted();
+    reportStartup("cos_listen_start");
     const cosOrigin = await new Promise<string>((resolve) => {
       cosServer = serve(
         { fetch: (request) => cos.fetch(request), hostname: "127.0.0.1", port: 0 },
         ({ port }) => resolve(`http://127.0.0.1:${port}`),
       );
     });
+    reportStartup("cos_listening");
     options.signal?.throwIfAborted();
     for (const api of apis) api.readiness.state = "ready";
     // Private live cadence, not a production SLA: exact owned IDs, never all-database scanPromote.
@@ -500,6 +528,7 @@ export async function startOutputBatchLiveServer(options: {
           pending = undefined;
         });
     }, 1_000);
+    reportStartup("ready");
     return {
       apiOrigin,
       cosOrigin,
