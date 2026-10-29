@@ -92,6 +92,35 @@ describe("连接参数", () => {
       await storage.issueSts({ bucket: "media", keyPrefix: INCOMING_PREFIX, durationSec: 900 }),
     ).toMatchObject({ ok: false, reason: "unsupported" });
   });
+
+  it("上传位置只暴露真实地域和物理桶名，自定义配置也不获得 STS 能力", async () => {
+    expect(storage.uploadLocation).toEqual({
+      region: LOCAL_MINIO.region,
+      buckets: LOCAL_MINIO.buckets,
+    });
+    const config = {
+      ...LOCAL_MINIO,
+      region: "us-west-2",
+      buckets: {
+        secure: "fixture-secure",
+        asset: "fixture-asset",
+        media: "fixture-media",
+        pub: "fixture-pub",
+      },
+    };
+    const custom = createMinioStorage(config);
+    try {
+      expect(custom.status).toBe("local");
+      expect(custom.uploadLocation).toEqual({ region: config.region, buckets: config.buckets });
+      expect(Object.keys(custom.uploadLocation!)).toEqual(["region", "buckets"]);
+      expect(custom.capabilities).toEqual({ sts: false, versioning: false });
+      expect(
+        await custom.issueSts({ bucket: "media", keyPrefix: INCOMING_PREFIX, durationSec: 900 }),
+      ).toMatchObject({ ok: false, reason: "unsupported" });
+    } finally {
+      await custom.close();
+    }
+  });
 });
 
 live("初始化时建四个桶", () => {

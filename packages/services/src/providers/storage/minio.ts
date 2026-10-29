@@ -272,6 +272,7 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
     status: "local",
     configured: true,
     capabilities: { sts: false, versioning: false },
+    uploadLocation: { region: config.region, buckets: config.buckets },
     ensureBuckets,
     close: async () => {
       closed = true;

@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import type { UploadBatchDetail } from "@liyoxi/contract";
 import type { BatchApi } from "./batch-api";
 import { createBatchSession, createBatchUploader } from "./batch-upload";
 import { batchFixture, batchCredentials, batchId, batchItem, batchNow } from "./batch-test.fixture";
@@ -46,6 +47,168 @@ function cloud() {
   };
   return { calls, fetchImpl };
 }
+function postCredentials(batch: UploadBatchDetail) {
+  const expiresAt = new Date(batchNow + 600_000).toISOString();
+  return {
+    mode: "post" as const,
+    bucket: batch.bucket,
+    region: batch.region,
+    prefix: batch.prefix,
+    fileParallel: 3 as const,
+    expiresAt,
+    posts: batch.items
+      .filter((item) => item.state === "pending" && item.fileStatus === "pending")
+      .map((item) => ({
+        fileId: item.fileId,
+        key: item.uploadKey!,
+        post: {
+          url: `${__LYX_LOCAL_STORAGE_ORIGIN__ || "http://127.0.0.1:9100"}/${batch.bucket}`,
+          fields: {
+            key: item.uploadKey!,
+            "Content-Type": "video/mp4",
+            policy: "public-test-policy",
+          },
+        },
+        expiresAt,
+      })),
+  };
+}
+function postSetup(purpose: "final_release" | "drama_master" = "final_release") {
+  const state = setup();
+  state.batch.purpose = purpose;
+  state.batch.bucket = "lyx-local-media";
+  state.batch.region = "us-east-1";
+  vi.mocked(state.api.refresh).mockImplementation(async () => postCredentials(state.batch));
+  const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
+  const progress = vi.fn(),
+    settled = vi.fn();
+  const uploader = createBatchUploader({
+    api: state.api,
+    purpose,
+    current: () => state.batch,
+    now: () => batchNow,
+    fetchImpl,
+    fileStatus: async (fileId) => ({ fileId, status: "stored" }),
+    onProgress: progress,
+    onSettled: settled,
+  });
+  return { ...state, fetchImpl, progress, settled, uploader };
+}
+it("MinIO 原片 POST 使用真实逐文件表单和本地代理，服务器确认后才报入库完成", async () => {
+  const { batch, api, files, fetchImpl, progress, settled, uploader } = postSetup("drama_master");
+  uploader.attach(batch, files, true);
+  await uploader.run();
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  const [url, request] = fetchImpl.mock.calls[0]!;
+  expect(url).toBe(
+    __LYX_LOCAL_STORAGE_ORIGIN__
+      ? `/__lyx_local_storage/${batch.bucket}`
+      : `http://127.0.0.1:9100/${batch.bucket}`,
+  );
+  expect(request).toMatchObject({ method: "POST", credentials: "omit", redirect: "error" });
+  expect(request!.body).toBeInstanceOf(FormData);
+  const form = request!.body as FormData;
+  expect(form.get("key")).toBe(batch.items[0]!.uploadKey);
+  expect(form.get("policy")).toBe("public-test-policy");
+  expect(form.get("file")).toBeInstanceOf(File);
+  expect(api.complete).toHaveBeenCalledWith(
+    batch.items[0]!.uploadBatchItemId,
+    expect.stringMatching(/^complete:/),
+    expect.any(AbortSignal),
+  );
+  expect(progress).toHaveBeenLastCalledWith(batch.items[0]!.uploadBatchItemId, {
+    percent: 100,
+    busy: false,
+  });
+  expect(settled).toHaveBeenCalledTimes(1);
+  expect(batch.state).toBe("uploading");
+  expect(api.commit).not.toHaveBeenCalled();
+  uploader.close();
+});
+it("POST 缓存仍有效但服务器替换了文件时重新签发，不沿用旧文件 policy", async () => {
+  const { batch, api, files, fetchImpl, uploader } = postSetup();
+  uploader.attach(batch, files, true);
+  await uploader.run();
+  const old = batch.items[0]!;
+  old.state = "replaced";
+  const replacement = { ...batchItem(2), originalName: old.originalName, episodeNo: 1 };
+  batch.items.push(replacement);
+  uploader.attach(batch, files, true);
+  await uploader.run();
+  expect(api.refresh).toHaveBeenCalledTimes(2);
+  expect(fetchImpl).toHaveBeenCalledTimes(2);
+  expect((fetchImpl.mock.calls[1]![1]!.body as FormData).get("key")).toBe(replacement.uploadKey);
+  expect(vi.mocked(api.complete).mock.calls.map((call) => call[0])).toEqual([
+    old.uploadBatchItemId,
+    replacement.uploadBatchItemId,
+  ]);
+  uploader.close();
+});
+it.each(["fileId", "key", "form-key", "expired"])(
+  "POST 凭据 %s 不匹配当前条目时显示错误，不上传或调用 complete",
+  async (invalid) => {
+    const { batch, api, files, fetchImpl, progress, uploader } = postSetup();
+    const issued = postCredentials(batch),
+      post = issued.posts[0]!;
+    if (invalid === "fileId") post.fileId = batchId(999);
+    if (invalid === "key") post.key = `incoming/b${batchId(99)}/${batchId(999)}.mp4`;
+    if (invalid === "form-key") post.post.fields.key = `${batch.prefix}${batchId(999)}.mp4`;
+    if (invalid === "expired") post.expiresAt = new Date(batchNow - 1).toISOString();
+    vi.mocked(api.refresh).mockResolvedValue(issued);
+    uploader.attach(batch, files, true);
+    await uploader.run();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(api.complete).not.toHaveBeenCalled();
+    expect(progress).toHaveBeenLastCalledWith(
+      batch.items[0]!.uploadBatchItemId,
+      expect.objectContaining({ busy: false, error: expect.any(String) }),
+    );
+    uploader.close();
+  },
+);
+it("POST 刷新找回的 pending 文件先由服务器确认已有对象，不再次 POST", async () => {
+  const { batch, api, files, fetchImpl, progress, uploader } = postSetup();
+  uploader.attach(batch, files, false);
+  await uploader.run();
+  expect(api.complete).toHaveBeenCalledTimes(1);
+  expect(fetchImpl).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenLastCalledWith(batch.items[0]!.uploadBatchItemId, {
+    percent: 100,
+    busy: false,
+  });
+  expect(batch.state).toBe("uploading");
+  uploader.close();
+});
+it("POST 刷新恢复缺对象时保留真实确认错误，不按错误文案自动重写对象", async () => {
+  const { batch, api, files, fetchImpl, progress, uploader } = postSetup();
+  vi.mocked(api.complete).mockRejectedValue(new Error("UPLOAD_NOT_FOUND：找不到原上传对象"));
+  uploader.attach(batch, files, false);
+  await uploader.run();
+  await uploader.run();
+  expect(api.complete).toHaveBeenCalledTimes(2);
+  expect(fetchImpl).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenLastCalledWith(batch.items[0]!.uploadBatchItemId, {
+    percent: 0,
+    busy: false,
+    error: "UPLOAD_NOT_FOUND：找不到原上传对象",
+  });
+  expect(new Set(vi.mocked(api.complete).mock.calls.map((call) => call[1])).size).toBe(1);
+  uploader.close();
+});
+it("POST 返回失败仍显示上传失败，不能确认文件或冒充入库完成", async () => {
+  const { batch, api, files, fetchImpl, progress, uploader } = postSetup();
+  fetchImpl.mockResolvedValue(new Response("rejected", { status: 403 }));
+  uploader.attach(batch, files, true);
+  await uploader.run();
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(api.complete).not.toHaveBeenCalled();
+  expect(progress).toHaveBeenLastCalledWith(
+    batch.items[0]!.uploadBatchItemId,
+    expect.objectContaining({ percent: 0, busy: false, error: expect.any(String) }),
+  );
+  expect(progress.mock.calls.some((call) => call[1].percent === 100)).toBe(false);
+  uploader.close();
+});
 it("真实订阅移除关闭本scope，重新订阅可用新scope，旧GET晚到不能污染", async () => {
   const { api } = setup();
   const delayed = deferred<ReturnType<typeof batchFixture>>();
