@@ -7,6 +7,8 @@ import { HANDLERS } from "../../src/routes/index.js";
 
 export interface M1RequestInit extends Omit<RequestInit, "body" | "headers"> {
   readonly json?: unknown;
+  /** 已编码的官方签名信封；与json互斥，不重新序列化。 */
+  readonly rawBody?: string;
   readonly headers?: Readonly<Record<string, string>>;
   readonly peer?: string;
 }
@@ -30,7 +32,8 @@ export function createM1Api(support: M1Support): M1Api {
     async request(path, init = {}) {
       if (!path.startsWith("/api/v1/")) throw new Error("M1 只调用正式 API 路径");
       const host = path.startsWith("/api/v1/admin/") ? "admin.localhost" : "api.localhost";
-      const { json, headers = {}, peer = "198.19.0.1", ...rest } = init;
+      const { json, rawBody, headers = {}, peer = "198.19.0.1", ...rest } = init;
+      if (json !== undefined && rawBody !== undefined) throw new Error("M1 正文输入互斥");
       return api.app.request(
         `http://${host}${path}`,
         {
@@ -40,7 +43,11 @@ export function createM1Api(support: M1Support): M1Api {
             ...(json === undefined ? {} : { "content-type": "application/json" }),
             ...headers,
           },
-          ...(json === undefined ? {} : { body: JSON.stringify(json) }),
+          ...(rawBody !== undefined
+            ? { body: rawBody }
+            : json === undefined
+              ? {}
+              : { body: JSON.stringify(json) }),
         },
         { incoming: { socket: { remoteAddress: peer } } },
       );

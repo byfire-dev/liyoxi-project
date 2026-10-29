@@ -101,11 +101,6 @@ describe("analytics_repartition实际应用角色与构建入口", { timeout: 12
   beforeAll(async () => {
     support = createAnalyticsCliSupport(await db.prisma());
     source = { APP_ENV: "test", DATABASE_URL: await db.url(), REDIS_URL: process.env.REDIS_URL };
-    await execute(process.execPath, ["scripts/build.mjs", "--outdir", buildDir], {
-      cwd: workerDir,
-      timeout: 60_000,
-      maxBuffer: 2_097_152,
-    });
   });
   afterAll(() => rmSync(join(workerDir, buildDir), { recursive: true, force: true }));
   it("超级管理员真实单月搬移、完整列不变、重复无丢重；原审核失败不写审计", async () => {
@@ -138,6 +133,12 @@ describe("analytics_repartition实际应用角色与构建入口", { timeout: 12
     ).toBe(2);
   });
   it("dist入口真实执行，非法月份只出用法、合法重复确为服务返回结果", async () => {
+    // 仅此目标消费构建产物，完整构建不占用共享初始化钩子的预算。
+    await execute(process.execPath, ["scripts/build.mjs", "--outdir", buildDir], {
+      cwd: workerDir,
+      timeout: 60_000,
+      maxBuffer: 2_097_152,
+    });
     const admin = await support.make.staff({ staffRoleKey: "super_admin" });
     const result = await execute(process.execPath, [builtEntry, ...args(admin.id, support.month)], {
       cwd: workerDir,

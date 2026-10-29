@@ -225,6 +225,9 @@
 | `pnpm --filter @liyoxi/services exec vitest run src/kernel/` | 只跑 kernel（事务单元）的用例：开事务与嵌套、保存点、死锁与锁等待超时的并发测试、外呼断言、时钟、UUID v7 的性质测试、加锁顺序、操作人。连库的几份要本地的 PostgreSQL 与 `DATABASE_URL`。`tx.run`、`savepoint`、`lockRows` 怎么用，性质测试的轮次与种子怎么改，见 [README](packages/services/src/kernel/README.md) |
 | `pnpm contract:docs-check` | 路由元数据对账：契约的路由清单（`packages/contract/src/routes`，一份接口文档一个目录）与 `docs/api/working/routemap.json` 逐字段 0 差异；公开、可选、验签路由与黄金文件一致；`x-step-up: skip` 与约定 C86 的登记表一致；路径里的资源段与资源登记一致。只读文件，不连库。改接口要同一个 PR 改契约、路线图与分组文档。口径见 [脚本](packages/contract/scripts/docs-check.ts) 开头的注释与 [README](infra/ci/README.md) 第 7 节 |
 | `node infra/ci/landed.mjs --report`（`--check` 与基线比；`--require M0,M1` 核对里程碑清零） | 已落地判定与待落地清单：按里程碑分组列出还没落地的 V1.0 接口与各缺什么；待落地数高于基线 `infra/ci/landed-baseline.txt` 即失败。见 [README](infra/ci/README.md) 第 7 节 |
+| `node infra/ci/review-readiness.mjs --commit <完整SHA> --base-url <预发HTTPS根地址>` | 送审出包前只读核对：干净main源码、四个具名包、M0/M1/M2正式落地检查、兼容、注销页、E3/E5、平台核对表、冻结与同提交健康。挂载清单由同检出正式探活目标产生，缺失不算已落地。STG_FREEZE须显式true；缺项失败，不代表已上传或提审 |
+| `node infra/deploy/review-check.mjs --privacy`；`--base-url <地址> --version sha-<12位>` | 只读核对实际隐私调用/requiredPrivateInfos与平台表；或核开发、体验、正式三种类型的devtools引导默认/送审差异开关。真实iOS/Android/Harmony策略与平台勾选仍由业主核；购买策略不作为feature flag |
+| `node infra/deploy/log-stats.mjs stats 60 --by-env-version --client-version sha-<12位>` | 只读stdin，按同源客户端版本筛选并计develop/trial/release/unknown；保留原统计边界。节点对应`log-stats 60 --by-env-version sha-<12位>`。标签→完整源码→sha客户端头需先核，客户端头只作诊断，空样本不能给O4结论 |
 | `node infra/ci/plan-routes.mjs --check`（`--write` 重写；`--summary <文件>` 出逐条的归属汇总） | 计划 第 8.2 节的表由路由清单生成：V1.0 的接口都有里程碑，表与清单无差异。归属写在 `packages/contract/src/routes/milestones.ts`，改了先跑 `pnpm contract:generate` 再跑 `--write` |
 | `node infra/ci/natural-constraints.mjs` | natural 幂等的约束名核对：契约里写的每个约束名在迁移库 `lyx_migrate_check` 里都找得到；只读 |
 | `node infra/ci/api-check.mjs` | CI 里跑 `tools/api-check/check.py` 的写法：“表.列”一项连 `lyx_migrate_check`，未核对按失败算；通过后重新生成三份登记文档（`docs/api/registry-*.md`）并 `git diff --exit-code` |
@@ -268,6 +271,8 @@
 | `pnpm e2e:m2`；`pnpm demo:m2` | 共用 M1 二十集真实接口主链和 M2 生命周期/运输恢复；本机单路上传，明确 `CI=true` 才用原 M1 四路，90秒判据不变。本机分段目标不代替完整链或十连；说明与实际结果见 [M2 演示手册](docs/plan/demo/m2.md) 与 [合流回顾](docs/plan/retro/m2.md)。 |
 | `pnpm e2e:m3`；`node infra/ci/m3-repeat.mjs --times 10` | M3 的真实接口合流目标；与 M1 共用顺序执行、独立会话、90秒总墙钟和失败摘要，M3产物另存 `apps/api/dist/m3-e2e-repeat/`。失败不重试、不把超时或被中止的轮次记绿；本轮资源由主链自然收尾。真实云、预发与真机仍按外部台账单列。 |
 | `pnpm demo:m3` | M3的隔离演示入口，调用同一正式接口主链；连续两次核演示种子与业务数量，第二次零新增，拒绝生产库。说明见 [M3 演示手册](docs/plan/demo/m3.md) 与 [合流回顾](docs/plan/retro/m3.md)。 |
+| `pnpm e2e:m4` | M4 独立资金接口主链；单 worker、文件不并行，真实 Hono 与假渠道正式签名协议，覆盖支付退款、调整延长、三人线下收款、发票、差异对账、三模式及受控配置24小时边界。每轮独立测试库和 Redis 前缀，初始化、主链、全量不变量与自然清理合计 ≤90 秒。真实资金和云端联调仍单列未验。 |
+| `pnpm demo:m4` | 本轮新隔离库走同一 M4 接口链，在核心退款完成后，用原 key 重放原付款/退款意图及两份签名通知，核业务零新增、演示种子零新增和字典保留；不接收目标业务库，生产环境拒绝。实际执行与主干十轮验收见 W4-19 状态，假通道不表示真实实付。 |
 | `node infra/ci/check-stubs.mjs` | 留桩门禁：34 个计划行精确关联功能留桩文件及既有未来页面登记，检查模板键、回补点和合法 M0–M8，M0/M1 必须已回补；删除文件、页面或只改计划回补点都失败。 |
 | `pnpm test:fault` | 故障注入套件：各包的并发、性质与故障注入用例一条命令跑完（按文件名圈：`*.concurrency.test.ts`、`*.property.test.ts`、名字是 `fault` 的目录与文件、幂等与租约的用例；它们也都在 `pnpm test` 里）。前提同 `pnpm test`。造什么、看什么的清单在 [docs/plan/m0-exit.md](docs/plan/m0-exit.md) 第 4 节 |
 | `pnpm plan:summaries` | 现生成台账三张汇总：`docs/plan/stubs/`、`changes/`、`external-verification/` 下各一份 `SUMMARY.md`（不入库，被 git 忽略，不用提交）。单项文件不合规时报错并指出是哪个文件的哪一项；CI 的“台账单项文件核对”只做这道核对（`node infra/ci/plan-summaries.mjs --check`，不写文件）。口径见 [脚本](infra/ci/plan-summaries.mjs) 开头的注释 |
