@@ -332,7 +332,10 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     const fullChecks = h.assembly.invariants.filter(
       (c) => c.code.startsWith("delivery.") && c.modes?.includes("full"),
     );
-    expect(fullChecks).toHaveLength(13);
+    expect(fullChecks).toHaveLength(15);
+    expect(fullChecks.map((check) => check.code)).toEqual(
+      expect.arrayContaining(["delivery.I2", "delivery.I14"]),
+    );
     for (const c of fullChecks)
       expect(await h.tx.run((tx) => c.run!(tx, {}, { now: h.clock.now() })), c.code).toEqual([]);
     expect(await h.tx.run(findI2Violations)).toEqual([]);

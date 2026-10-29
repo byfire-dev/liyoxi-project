@@ -20,15 +20,16 @@ import type { Harness } from "./harness.js";
 export function derivedHarness(h: Harness) {
   const flow = createFlow({ assembly: h.assembly, clock: h.clock, events: h.events });
   const binding = { assembly: h.assembly, clock: h.clock, flow };
-  const core = {
+  const base = {
     ...binding,
     tx: h.tx,
     events: h.events,
     sla: createSla({ clock: h.clock, assembly: h.assembly }),
     timers: h.deps.timers,
   };
-  const tenant = createTenant(core),
-    approval = createApproval({ ...core, bizNo: h.deps.bizNo });
+  const tenant = createTenant(base),
+    approval = createApproval({ ...base, bizNo: h.deps.bizNo });
+  const core = { ...base, approval };
   const media = createMedia({ ...core, storage: h.fake.storage });
   const profile = createProfile({
     ...core,

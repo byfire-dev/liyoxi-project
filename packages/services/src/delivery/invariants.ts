@@ -40,8 +40,6 @@ export async function findDeliveryViolations(tx: Tx, code: string): Promise<Inva
       tx,
       rows.map((t) => t.id),
     );
-    const deps = boundDelivery(),
-      ctx = createIdentityContext({ actor: { type: "system", job: "delivery.pause_self_heal" } });
     for (const t of rows) {
       const active = t.deliveryTicketPauses,
         stale = [] as string[];
@@ -51,6 +49,8 @@ export async function findDeliveryViolations(tx: Tx, code: string): Promise<Inva
         active.length > 0 !== (t.pausedAt !== null) ||
         (active.length === 0 && t.pauseRemainingMin !== null);
       if (!summaryMismatch && !stale.length) continue;
+      const deps = boundDelivery(),
+        ctx = createIdentityContext({ actor: { type: "system", job: "delivery.pause_self_heal" } });
       const stage = t.deliveryTicketStages.find((s) => s.completedAt === null),
         now = deps.clock.now();
       let remaining = t.pauseRemainingMin;

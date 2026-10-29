@@ -108,7 +108,7 @@ it("从未推送404，跨店对象404，店员仍403", async () => {
     ),
   ).rejects.toMatchObject({ error: "ROLE_FORBIDDEN" });
 }, 60000);
-it("交付full全部13检查加media两检查零违规，真实污染log被I4抓到/关闭包activegrant被I15抓到", async () => {
+it("交付full全部15检查加media两检查零违规，真实污染log被I4抓到/关闭包activegrant被I15抓到", async () => {
   const r = await packageReady(h);
   await Promise.all(
     [1, 2, 1].map((episodeNo) =>
@@ -118,7 +118,7 @@ it("交付full全部13检查加media两检查零违规，真实污染log被I4抓
   const full = h.assembly.invariants.filter(
     (c) => c.code.startsWith("delivery.") && c.modes?.includes("full"),
   );
-  expect(full).toHaveLength(13);
+  expect(full).toHaveLength(15);
   for (const c of full)
     expect(await h.tx.run((tx) => c.run!(tx, {}, { now: h.clock.now() })), c.code).toEqual([]);
   expect(await h.tx.run(findI2Violations)).toEqual([]);

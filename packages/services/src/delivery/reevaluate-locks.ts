@@ -12,6 +12,28 @@ const prepared = new WeakMap<
     graph: Awaited<ReturnType<typeof readCancelReviewExecuteTargets>>;
   }
 >();
+const targetKeys = [
+  "staffIds",
+  "approvalRequestIds",
+  "dramaIds",
+  "adIds",
+  "dramaOrderIds",
+  "orderItemIds",
+  "deliveryTicketIds",
+  "channelAccountIds",
+  "deliveryPlanIds",
+  "deliveryReleaseIds",
+  "launchTaskIds",
+  "patrolTaskIds",
+  "sampleIds",
+  "takedownTaskIds",
+  "followUpIds",
+  "zipBundleIds",
+  "fileObjectIds",
+] as const;
+function lockTargetSignature(targets: Awaited<ReturnType<typeof readReevaluationTargets>>) {
+  return JSON.stringify(targetKeys.map((key) => [...new Set(targets[key])].sort()));
+}
 
 /** One complete graph, before any owner begins. Reentries can only reuse these locks. */
 export async function prepareReevaluation(
@@ -79,7 +101,9 @@ export async function prepareReevaluation(
     ...posters,
   ]);
   const fresh = await readReevaluationTargets(tx, ticketIds);
-  if (JSON.stringify(fresh) !== JSON.stringify(targets))
+  // A writer may have committed new business facts while we waited on its parent lock.
+  // Only a changed lock target set requires a retry; evaluate the now serialized fresh facts.
+  if (lockTargetSignature(fresh) !== lockTargetSignature(targets))
     throw new AppError("PRECONDITION_CHANGED", { message: "求值锁图变化，请重试整个事务" });
   prepared.set(tx, {
     ticketIds: new Set(ticketIds),
@@ -90,9 +114,9 @@ export async function prepareReevaluation(
       ...(extras.approvalRequestId ? [extras.approvalRequestId] : []),
     ]),
     fileIds: new Set([...graph.fileObjectIds, ...(extras.fileIds ?? []), ...posters]),
-    graph,
+    graph: fresh.graph,
   });
-  return graph;
+  return fresh.graph;
 }
 
 /** Read-only complete union for callers that coordinate other owners before invoking delivery. */

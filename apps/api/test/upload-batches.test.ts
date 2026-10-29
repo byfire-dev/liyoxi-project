@@ -369,6 +369,50 @@ describe("W3-02 八接口实际生产pipeline", { timeout: 60_000 }, () => {
       (await db.uploadBatch.findUniqueOrThrow({ where: { id: good.uploadBatchId } })).state,
     ).toBe("uploading");
   });
+  it("成片批次允许超管代办且不认领剪辑师，仍拒绝越权与暂停", async () => {
+    const anotherEditor = await signInAsStaff(db, { roleKey: "editor", now: app.clock.now() });
+    for (const editorId of [null, anotherEditor.staff.id]) {
+      const item = await make.orderItem({
+        phase: "producing",
+        dramaId,
+        episodeCount: 20,
+        dramaSnapshot: { title: "虚构二十集", dramaId },
+      });
+      const ticket = await make.deliveryTicket({
+        orderItemId: item.id,
+        step: "batch_compose",
+        editorId,
+      });
+      const body = {
+        purpose: "final_release",
+        targetId: item.id,
+        scope: "full",
+        files: [draft()],
+        aiUsage: { used: false, tools: [] },
+      };
+      const assignments = await db.assignmentHistory.count();
+      const batch = await data<UploadBatchDetail>(await request(base, body));
+      expect(batch).toMatchObject({
+        expectedCount: 20,
+        aiUsage: { declaredBy: owner.staff.id, used: false },
+      });
+      expect(await db.deliveryTicket.findUniqueOrThrow({ where: { id: ticket.id } })).toMatchObject(
+        {
+          editorId,
+        },
+      );
+      expect(await db.assignmentHistory.count()).toBe(assignments);
+      const before = await db.uploadBatch.count();
+      await error(await request(base, body, editor), 404, "NOT_FOUND");
+      await error(await request(base, body, limited), 403, "PERMISSION_DENIED");
+      await db.deliveryTicket.update({
+        where: { id: ticket.id },
+        data: { pauseCount: 1, pausedAt: app.clock.now() },
+      });
+      await error(await request(base, body), 409, "TICKET_ON_HOLD");
+      expect(await db.uploadBatch.count()).toBe(before);
+    }
+  });
   it("成片需真实工单当前范围/AI声明，不能调用原片commit；原片未ready不得commit", async () => {
     const body = {
       purpose: "final_release",

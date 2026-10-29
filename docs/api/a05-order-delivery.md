@@ -99,7 +99,7 @@
 | 事项 | 规则 |
 | --- | --- |
 | 鉴权 | 全部 `x-auth: staff`（C2）。查看类不设权限点，按模块等级（`order`、`delivery`、`finance`、`billing` 的查看等级）判定（`d4-identity.md:1163`；C66）；写接口的权限点逐条列出，都在注册表（`d4-identity.md:1141-1185`）或增补表（1.2）里。再验证（step-up）只由注册表决定，接口不另行声明（A13）：本文涉及的要求再验证的权限点是 `finance.refund.approve`、`finance.refund.execute`（注册表标“要”），所以取消申请的通过、执行与代撤要求再验证；驳回按 C86 登记为 `x-step-up: skip`，不检查再验证（A127；`03-staff-authz-audit.md:806`）；`flow.admin.transition` 建议在增补表里标“要”（`d3-flow.md:3498`）。权限取决于对象的接口声明 `permission: assert-in-handler`（A45），规则写在该接口的说明里；处理器取到的权限点在注册表里标了再验证的，处理器同样校验 `stepup_at`，不满足返回 403 `STEP_UP_REQUIRED`（C66） |
-| 数据范围 | 订购单、取消申请、工单、广告都按归属门店套员工的数据范围（`all` / `group` / `own`）；`own` 时：订购单与工单看 `delivery_manager_id` 为本人的门店，广告看 `editor_id` 为本人或所属门店的交付经理为本人。模块等级为 `o`（本人任务）的剪辑师、发布专员：工单列表只返回 `editor_id` 或 `publisher_id` 为本人的工单，广告只返回 `editor_id` 为本人的广告，写操作只允许作用于本人任务，否则 403 `PERMISSION_DENIED`（`d4-identity.md:1366`；C58）。不在范围内的对象一律 404 `NOT_FOUND`（C24）。取消申请另外让发起人看得到自己发起的（`d3-flow.md:2357`） |
+| 数据范围 | 订购单、取消申请、工单、广告都按归属门店套员工的数据范围（`all` / `group` / `own`）；`own` 时：订购单与工单看 `delivery_manager_id` 为本人的门店，广告看 `editor_id` 为本人或所属门店的交付经理为本人。模块等级为 `o`（本人任务）的剪辑师、发布专员：工单列表只返回 `editor_id` 或 `publisher_id` 为本人的工单，广告只返回 `editor_id` 为本人的广告，普通员工写操作只允许作用于本人任务，否则 403 `PERMISSION_DENIED`（`d4-identity.md:1366`；C58）；样片/成片制作入口沿已实现的主管与超级管理员代办规则（1.3、3.30、3.38），仍须操作权限和自身数据范围，不改变负责人。不在范围内的对象一律 404 `NOT_FOUND`（C24）。取消申请另外让发起人看得到自己发起的（`d3-flow.md:2357`） |
 | 审批决定的守卫顺序 | 与 a03 第 1.1 节相同（C7；`d4-identity.md:1360-1364`），用于 3.11–3.13：路由级的模块等级、权限点 403 `PERMISSION_DENIED` → 再验证 403 `STEP_UP_REQUIRED`（驳回按 C86 跳过）→ 服务层取对象（范围外 404）→ 审批单不是 `pending` 409 `APPROVAL_NOT_PENDING` → 审批人是发起人 403 `APPROVAL_SELF_FORBIDDEN` → 处理器追加的权限判定（代撤）403 → `lockVersion`（只有通过带）409 `VERSION_CONFLICT` → `confirm` 409 `CONFIRM_MISMATCH` → 事务内重算前提，变了回滚并 409 `PRECONDITION_CHANGED` |
 | 指派的范围 | 分配类写操作（3.20–3.22、3.54）：被指派的员工须启用、角色对口，且在操作人的员工集合内（`authz.scopeOf().staffIds`；主管只能指派给本组的人，范围为“全部”的不受限，`d4-identity.md:1324` 第 4 条）；不满足一律 409 `ASSIGNEE_INVALID`，`details.reason` 分别为 `not_active`、`role_mismatch`、`out_of_scope`，与现任相同为 `same_as_current`（第 5 节） |
 | 待分配池 | 持有 `merchant.manager.assign` 且是主管的员工，工单列表能看到 `delivery_manager_id` 为空的工单；持有 `delivery.ad.assign` 的主管能看到 `editor_id` 为空的广告（`d4-identity.md:1189-1192` 的“待分配池”） |
@@ -158,7 +158,7 @@
 
 | 端口或函数 | 调用方 | 规则 |
 | --- | --- | --- |
-| `delivery.authorizeUpload` | a04 的成片批次 `admin.uploadBatch.create`（`purpose = final_release`）；a01 `admin.file.create`（分类 `final_episode`、`sample_video`、`ad_video`） | 成片（批次与单个文件）：调用者持有 `delivery.episode.register`，且是该订单项工单的剪辑师（`editor_id`，`o` 级只限本人任务）；工单在 `batch_compose`、`delivering`（未推送），或在待上线、上线核验、使用中且有在途补发单；未暂停。批次另返回 `expectedCount`（订购集数；补发时为补发单的集数）、`production_ctx = { headAdVersionId, tailAdVersionId, productionTier }`（片头、片尾取钉住版本或广告当前确认版本；`productionTier` = `order_item.production_model`，06-media.md 4.7）、`targetLabel`（“《剧名》· 工单号”：`order_item.drama_snapshot.title` + `delivery_ticket.ticket_no`，工单号含订单号）。样片文件：`delivery.sample.upload`，工单剪辑师，工单在 `sample_making`。广告文件：`delivery.ad.upload`，广告的 `editor_id` 是本人，广告在 `producing`、`revising`。不满足返回 403 `PERMISSION_DENIED`，步骤不对返回 409 `EPISODE_REGISTER_NOT_ALLOWED`（成片）或 `STATE_NOT_ALLOWED` |
+| `delivery.authorizeUpload` | a04 的成片批次 `admin.uploadBatch.create`（`purpose = final_release`）；a01 `admin.file.create`（分类 `final_episode`、`sample_video`、`ad_video`） | 成片（批次与单个文件）：调用者持有 `delivery.episode.register`，且通过工单数据范围校验；已指派时普通剪辑师须为本人，持有同一权限的主管或超级管理员可在自身范围内代办，代办不认领或更改 `editor_id`；工单在 `batch_compose`、`delivering`（未推送），或在待上线、上线核验、使用中且有在途补发单；未暂停。批次另返回 `expectedCount`（订购集数；补发时为补发单的集数）、`production_ctx = { headAdVersionId, tailAdVersionId, productionTier }`（片头、片尾取钉住版本或广告当前确认版本；`productionTier` = `order_item.production_model`，06-media.md 4.7）、`targetLabel`（“《剧名》· 工单号”：`order_item.drama_snapshot.title` + `delivery_ticket.ticket_no`，工单号含订单号）。样片文件：`delivery.sample.upload`，同一工单范围与代办规则，工单在 `sample_making`。广告文件：`delivery.ad.upload`，广告的 `editor_id` 是本人，广告在 `producing`、`revising`。不满足返回 403 `PERMISSION_DENIED`，步骤不对返回 409 `EPISODE_REGISTER_NOT_ALLOWED`（成片）或 `STATE_NOT_ALLOWED` |
 | `order.previewFinalReject`（`QualificationImpactPort`） | a03 的终局驳回试算 | 与系统生成整店取消（`qualification_cancel`）同一口径：本门店 `status = pending_start` 且无在途取消的订购单，`status = pending_assign` 或 `returned`（`returned_from = pending_assign`）且无在途取消的广告（09-order-ad.md:808）；逐项按 `cancelLine` 的 `release` 全额算；返回 `{ pendingStartOrderCount, pendingAssignAdCount, heldPoints, orders: [{ orderId, orderNo, heldPoints }], ads: [{ adId, adNo, heldPoints }], computedAt }`；只读 |
 | 交付经理转移的改派实现 | a03 `admin.store.reassignDeliveryManager`、a01 员工禁用移交 | 在调用方事务里：本门店未结订购单（`status` 不在 `ended`、`cancelled`、`refunded`）的 `drama_order.delivery_manager_id`、未归档未终止工单的 `delivery_ticket.delivery_manager_id` 等于原负责人的改为接收人，逐对象写 `assignment_history`（`source = store_manager`，`subject_type` 为 `drama_order`、`delivery_ticket`，同一 `batch_id`）；为空的订购单同步为接收人、不写记录；`assigning` 步骤的工单不动（仍由 3.20 分配） |
 | 门店首次分配交付经理的工单分配实现 | a03 `admin.store.assignDeliveryManager`（3.8a）；本文 3.20 | 与 3.20 共用一个实现：在调用方事务里把本门店未暂停、`step = assigning` 的工单逐张按 `ticket.assign` 迁移到 `plan_confirm`（写 `delivery_manager_id`、`assigned_at`，开环节与时限），同步未结订购单的 `drama_order.delivery_manager_id`；不写 `assignment_history`、不登记联系时限（首次分配没有原负责人）；每张工单一条 `ticket.assigned`。暂停中的工单留在待分配，恢复后由 3.20 分配 |
@@ -2125,7 +2125,7 @@ W5-01 的正式执行响应与资金写入在同一事务内生成并保存为�
 
 | 项 | 内容 |
 | --- | --- |
-| 鉴权 | `staff`；权限点 `delivery.episode.register`（剪辑师，本人任务：调用者须是本单 `editor_id`） |
+| 鉴权 | `staff`；权限点 `delivery.episode.register`；普通剪辑师限本人任务，持有该权限的主管或超级管理员可在自身数据范围内代办；不认领或更改剪辑师 |
 | 幂等 | required |
 | 乐观锁 | 不带；工单行锁（同一集再登记即换版） |
 | 对应画板 | A:TicketDetail（“上传成片（逐集）”，原型未画表单） |
@@ -2496,7 +2496,7 @@ W5-01 的正式执行响应与资金写入在同一事务内生成并保存为�
 
 | 项 | 内容 |
 | --- | --- |
-| 鉴权 | `staff`；权限点 `delivery.sample.upload`（剪辑师，本人任务：调用者须是本单 `editor_id`） |
+| 鉴权 | `staff`；权限点 `delivery.sample.upload`；普通剪辑师限本人任务，持有该权限的主管或超级管理员可在自身数据范围内代办；不认领或更改剪辑师 |
 | 幂等 | required |
 | 乐观锁 | 不带；工单行锁（`uq_sample_live` 保证同一工单至多一个“活着”的版本） |
 | 对应画板 | A:TicketDetail（“上传样片”：先经 `admin.file.create` 直传拿到 `fileId`，原型未画表单） |
@@ -2745,7 +2745,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 | `TICKET_ON_HOLD` | 409 | 工单暂停中 |
 | `VALIDATION_FAILED` | 400 | 集号越界、原因编码无效、说明为空 |
 
-**副作用**：`delivery_reissue`（新建）→ `open`（`opened_by_staff_id` = 本人、`opened_at`）；工单步骤不变（补发动作在状态历史里记在工单上：`delivery_ticket` 写一行 `from_state = to_state`，迁移事件码 `reissue.opened`，10-delivery.md:922；它是状态历史的事件码，不是出站事件名，x01 N4）；活动流审计；出站事件 `package.reissue_opened`（聚合 `delivery_reissue`，前缀 `package.` 按 x01 2.2 指 `delivery_release`、`delivery_reissue`；载荷 `{ deliveryReissueId, deliveryTicketId, orderItemId, episodeNos, reasonCode }`；通知剪辑师；初稿的 `reissue.opened` 违反 N3，已改名，x01 3.10）。
+**副作用**：`delivery_reissue`（新建）→ `open`（`opened_by_staff_id` = 本人、`opened_at`）；工单步骤不变（补发动作在状态历史里记在工单上：`delivery_ticket` 写一行 `from_state = to_state`，迁移事件码 `reissue.opened`，10-delivery.md:195、922；它是状态历史的事件码，不是出站事件名，x01 N4）；活动流审计；出站事件 `package.reissue_opened`（聚合 `delivery_reissue`，前缀 `package.` 按 x01 2.2 指 `delivery_release`、`delivery_reissue`；载荷 `{ deliveryReissueId, deliveryTicketId, orderItemId, episodeNos, reasonCode }`；通知剪辑师；初稿的 `reissue.opened` 违反 N3，已改名，x01 3.10）。
 
 **说明**：替换集经 3.30 带 `reissueId` 登记、经 3.31 质检，发布前商家下载到的仍是旧的已通过版本（d3-flow.md:1672）。
 
@@ -2772,7 +2772,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 | `STATE_NOT_ALLOWED` | 409 | 补发单不是 `open` |
 | `PERMISSION_DENIED` | 403 | 不是发起人也不是主管 |
 
-**副作用**：`delivery_reissue.status`：`open` → `cancelled`，写 `closed_at`；该补发单下的替换行（`uploaded`、`qc_passed`、`qc_rejected`）→ `replaced`（10-delivery.md:729）；工单写一行 `from_state = to_state` 的状态历史（事件 `reissue.cancelled`）；活动流审计。
+**副作用**：`delivery_reissue.status`：`open` → `cancelled`，写 `closed_at`；该补发单下的替换行（`uploaded`、`qc_passed`、`qc_rejected`）→ `replaced`（10-delivery.md:729）；工单写一行 `from_state = to_state` 的状态历史（事件 `reissue.cancelled`，10:1377）；活动流审计。
 
 **说明**：取消不影响商家当前可下载的成片包。
 
@@ -2825,7 +2825,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 - `delivery_release`：旧的 `pushed` 包 → `superseded`（写 `superseded_at`，作废 ZIP 缓存，清单引用保留 30 天）；新包（新建）→ `pushed`（`kind = reissue`、`changed_episode_nos` = 补发集号、`reason_code`、`note`）。
 - `download_grant`：旧授权 → `superseded`；新授权（新建）→ `active`，重新计期。
 - `publish_list_episode.changed_in_release_no` 对应集写新的推送序号（商家端“已更新”）。
-- `delivery_reissue.status`：`open` → `published`，写 `published_delivery_release_id`、`closed_at`；工单写一行 `from_state = to_state` 的状态历史（事件 `package.reissued`）。
+- `delivery_reissue.status`：`open` → `published`，写 `published_delivery_release_id`、`closed_at`；工单写一行 `from_state = to_state` 的状态历史（事件 `package.reissued`，10:195）。
 - 该订单项已有上线任务通过核验时，写一条系统跟进待办 `follow_up`（`subject_type = delivery_reissue`，`channel = system`，`next_follow_at` = 现在，`owner_staff_id` = 门店交付经理，“补发后确认商家已替换”）。
 - 出站事件 `package.reissued`（通知商家：“第 12、15 集已更新，请重新下载；已发布的请替换”，订阅消息 ＋ 短信）。
 

@@ -23,7 +23,7 @@ beforeAll(async () => {
 }, SLOW);
 describe("delivery 真实 worker 循环", () => {
   it("flow_reevaluate_sweep 每五分钟，实际运行时收到并只补偿一次", async () => {
-    const worker = await h.instance(),
+    const worker = await h.instance({ sampleTimers: false }),
       clock = worker.clock,
       make = createFactories({ db: h.prisma, clock }),
       manager = await make.staff({ staffRoleKey: "delivery_manager" }),
@@ -58,6 +58,9 @@ describe("delivery 真实 worker 循环", () => {
         );
       });
     const id = created.deliveryTicketIds[0]!;
+    expect(s.assembly.timerHandlers.some((handler) => handler.kind.startsWith("lyxtest."))).toBe(
+      false,
+    );
     await h.prisma.deliveryTicket.update({ where: { id }, data: { step: "ad_prep" } });
     await h.prisma.deliveryTicketStage.updateMany({
       where: { deliveryTicketId: id, completedAt: null },

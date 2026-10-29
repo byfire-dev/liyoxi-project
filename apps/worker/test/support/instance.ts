@@ -44,17 +44,23 @@ export interface InstanceOptions extends WorkerSampleOptions {
   readonly exit?: (code: number) => void;
   /** 带上真实模块的周期任务（W0-24 的不变量与清理）；缺省不带 */
   readonly realRecurring?: boolean;
+  /** 真实业务循环用例不装样例定时器，领域内部仍按正式契约严格校验。 */
+  readonly sampleTimers?: boolean;
 }
 
 export function createInstance(options: InstanceOptions) {
   const redisUrl = options.redisUrl ?? process.env.REDIS_URL;
   if (!redisUrl) throw new Error("REDIS_URL 未设置");
   const sample = createWorkerSample(options);
+  const sampleRegistration =
+    options.sampleTimers === false
+      ? { ...sample.registration, timerHandlers: [], recurringJobs: [] }
+      : sample.registration;
   const ports = createRecordingPorts();
   const assembly = assembleForTest({
     entry: "worker",
     appEnv: options.appEnv,
-    extra: [sample.registration, ports.registration],
+    extra: [sampleRegistration, ports.registration],
     // 真实模块的周期任务（不变量、清理）缺省不带：这里的用例只跑样例的；要带的写 realRecurring: true
     omitReal: options.realRecurring === true ? [] : ["recurringJobs"],
   });
@@ -72,7 +78,7 @@ export function createInstance(options: InstanceOptions) {
     channel,
     clock,
     testEvents: SAMPLE_EVENTS,
-    timerCatalog: SAMPLE_TIMER_CATALOG,
+    ...(options.sampleTimers === false ? {} : { timerCatalog: SAMPLE_TIMER_CATALOG }),
   });
   const lease: WorkerLease | undefined =
     options.lease === undefined
