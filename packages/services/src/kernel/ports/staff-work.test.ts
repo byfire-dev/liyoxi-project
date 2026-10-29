@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import fc from "fast-check";
 import { assemble, defineRegistration, implementKeyed } from "../assembly/index.js";
 import { createIdentityContext } from "../actor.js";
 import type { Tx } from "../tx.js";
@@ -60,6 +61,42 @@ function assembly(
 }
 
 describe("员工在办来源的兼容完整性声明", () => {
+  it("任意广告与交付任务混排、重复均只交所属owner，成功结果不丢不增", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(fc.record({ adOwner: fc.boolean(), id: fc.integer({ min: 1, max: 6 }) }), {
+          maxLength: 16,
+        }),
+        async (cases) => {
+          const asked = cases.map(({ adOwner, id }) => ({
+            ...(adOwner ? ad : delivery),
+            subjectId: `01900000-0000-7000-8000-${String(id).padStart(12, "0")}`,
+          }));
+          const seen: StaffWorkItem[] = [];
+          const owner = (key: StaffWorkOwner): StaffWorkSource => ({
+            listOpen: async () => [],
+            reassign: async (handle, received) => {
+              expect(handle).toBe(tx);
+              expect(received.items.every((item) => item.reassignOwner === key)).toBe(true);
+              seen.push(...received.items);
+              return received.items;
+            },
+          });
+          const sources = staffWorkSourcesOf(
+            assembly({ ad: owner("ad"), delivery: owner("delivery") }),
+            { requiredOwners: ["ad"] },
+          );
+          const result = await sources.reassign(tx, input(asked));
+          const keys = (items: readonly StaffWorkItem[]) =>
+            items.map((item) => `${item.source}:${item.subjectType}:${item.subjectId}`).sort();
+          expect(keys(seen)).toEqual(keys(asked));
+          expect(keys(result)).toEqual([...new Set(keys(asked))]);
+        },
+      ),
+      { seed: 20261030, numRuns: 20 },
+    );
+  });
+
   it.each(STAFF_WORK_OWNERS)("原必需来源%s缺失时，空声明也不能绕过读和改派守卫", async (owner) => {
     const sources = staffWorkSourcesOf(assembly({ omit: owner }), { requiredOwners: [] });
     for (const result of [
