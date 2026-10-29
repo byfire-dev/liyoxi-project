@@ -48,4 +48,6 @@ Q9 不扩展修改意见、按时间点反馈、M5 其他接口/页面、portal�
 - `pnpm lint:colors`、`pnpm lint:copy`、状态/台账单项核对、`git diff --check` 通过；`python3 tools/schema-check/check.py --db lyx_test_q9_schema_20261029_1910` 独立临时库验证 15 份分组文档、168 张表，字段差异 0，已自动清理。
 - 一轮独立只读复审无阻断项；范围覆盖服务守卫、历史渠道封闭、真实水印证据、GET 零写、版本勾选失效、迟到换签与 Taro 生命周期。复审全文及实际远端 CI 运行链接由调度发布到本 PR；不追加第二轮复审。
 
+首次 PR CI 发现两处文档对账偏差：样片说明新增两行导致状态机引用行号偏移，§7.3 历史留桩行改名导致登记键不匹配。已将说明并入原段落、保留历史索引行并紧邻注明 Q9 当前范围覆盖，不改检查规则或恢复电脑预览承诺。`pnpm machines:check`、`node infra/ci/check-stubs.mjs`、`check-stubs.test.ts` 8 项和两项 check-stubs 门禁反例通过。machines 缺行反例在本机临时副本因 pnpm 依赖链接未找到 tsx 而未跑成，不记为通过；最终以当前 head 的完整 CI 为准。
+
 部署、真实类目/提审、iOS/安卓真机、法务以及最低版本控制与真实混跑均未执行，仍按第 2 节及原外部台账后续处理。
