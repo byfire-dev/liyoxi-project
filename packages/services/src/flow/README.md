@@ -1,12 +1,12 @@
 # flow：统一状态迁移
 
-25 张业务状态机表的状态只有一个入口 `flow.transition()`（W0-16）。依据：[03](../../../../docs/03-key-designs.md) 第 3.1 节；[06](../../../../docs/06-data-model.md) 第 3.4、5 节；[01 分组](../../../../docs/data-model/01-kernel-flow.md) 第 2.6、3.2 节；[03 分组](../../../../docs/data-model/03-staff-authz-audit.md) 第 2.10 节“迁移与审计行”；[x01](../../../../docs/api/x01-events-jobs.md) 第 2.3 节 P4、第 2.4 节 E1、E2。迁移表本身在 [`@liyoxi/shared/machines`](../../../shared/src/machines/README.md)，这里不另写一份。
+25 张业务状态机表的普通迁移经 `flow.transition()`，人工纠偏经受控 `flow.adminTransition()`，共用同一状态/历史/审计/事件写入流水线。依据：[03](../../../../docs/03-key-designs.md) 第 3.1 节；[06](../../../../docs/06-data-model.md) 第 3.4、5 节；[01 分组](../../../../docs/data-model/01-kernel-flow.md) 第 2.6、3.2 节；[03 分组](../../../../docs/data-model/03-staff-authz-audit.md) 第 2.10 节“迁移与审计行”；[x01](../../../../docs/api/x01-events-jobs.md) 第 2.3 节 P4、第 2.4 节 E1、E2。迁移表本身在 [`@liyoxi/shared/machines`](../../../shared/src/machines/README.md)，这里不另写一份。
 
 ## 1. 这里有什么
 
 | 文件 | 内容 |
 | --- | --- |
-| `runtime.ts` | `createFlow`：装配入口，给出 `transition` |
+| `runtime.ts` | `createFlow`：装配入口，返回普通迁移与受控强迁能力 |
 | `transition.ts` | 迁移的八步 |
 | `bindings.ts` | 状态机的登记 `MachineBinding` 与两个端口：`machinePort`（按链登记守卫、副作用、随迁列、活动流默认描述）、`workMinutesPort`（工作分钟） |
 | `invariants.ts`、`register.ts` | `flow.I12` 的查询与登记；启动自检 `assertStateColumns` |
@@ -129,9 +129,23 @@ LYX_FC_RUNS=2000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 都连库：要本地的 PostgreSQL 与 `DATABASE_URL`（`CLAUDE.md` 第 9 节）。
 
-## 9. 已知的限度
+## 9. 人工纠偏公共前置（W5-03 PR1）
 
-- 人工纠偏（`admin.force`、`is_forced`）不在这里：`transition()` 拒发 `admin.force`，`flow.adminTransition` 由第一个用到它的包做。系统求值 `reevaluate()`、环节记录切换、定时器随状态重设都不内置，各域放在自己的副作用里。
+`createFlow` 返回 `AdminFlow extends Flow`。既有 `Flow` 仍只要求 `transition`，现有普通迁移替身不必伪造强迁能力。拥有者显式消费 `AdminFlow` 或其 `Pick`，调用 `flow.adminTransition(tx, ctx, staff, input)`；`input` 必须给 `to`、10–200字且trim后非空的 `note`、本对象的 `ops/system_ops` 审计和真实出站事件，其余随迁列、参数和归属沿普通迁移形状。`event`、新建与强迁标记由受控通道决定，普通 `transition` 继续拒绝 `admin.force`。
+
+组合根必须提供 `FlowOptions.adminStaffReader(tx, staffId)`。flow先统一取得员工20序的SHARE锁，再调用同事务只读reader取得当前 `id/status/roleKey/staffGroupId/isLead`，与传入员工上下文逐项核对；权限和10分钟再验证由真实authz的 `flow.admin.transition` 判定。缺reader显式失败，flow不查询L1员工表。PR1不提前修改生产组合根，业务PR再接真实员工拥有者公口。
+
+更正白名单只认shared机器表已登记的 `admin.force` 行，当前为 `delivery_ticket.step` 的原回退对及 `service_ticket.status` 的 `closed → processing`。附录里的其他示例没有已登记机器行时不开放。选中行必须已有本领域的 `guards[rowKey]`、`effects[rowKey]` 和 `MachineBinding.adminTransition.checkInvariants(tx, facts)`；缺任何一项均显式拒绝，不用默认成功检查。结构检查返回真实违规名称数组，非空时抛 `CORRECTION_NOT_ALLOWED`，基础设施错误保持原样。PR1仅在测试装配登记这些实现，未提前交付工单业务守卫、环节或定时器规则。
+
+授权后在原事务的保存点内复用同一writer：写 `admin.force/is_forced=true` 历史，执行已登记副作用，立即检查结构，再写唯一审计和事件。审计原因文本与历史note一致，事件的 `isForced` 强制为true；失败时状态、历史、副作用、审计和出站事件一起回滚，即使外层捕获异常也不留下半次强迁。随迁列与状态仍在同一UPDATE满足CHECK。该通道不调用账本。
+
+强迁审计不能声明 `mergedInto`；即使同时含合法 `ops/system_ops` 字段，也会在任何迁移写入前拒绝。普通迁移可并入审批审计的约定不适用于人工纠偏。
+
+PR1定点真库验收覆盖当前员工与权限/再验证、白名单、真实guard/effect/结构检查、保存点回滚、强迁历史与ops审计/事件一致性、混合审计绕过反例，以及两个独立连接竞争同目标的三轮输出。Node24下执行 `pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/flow/admin-transition.test.ts`，29/29通过；既有 `src/flow/events.test.ts` 回归4/4通过。服务类型检查与 `pnpm depcheck` 通过；PR1未接生产业务，PR2/PR3仍未开工。
+
+## 10. 已知的限度
+
+- 系统求值 `reevaluate()`、环节记录切换、定时器随状态重设由各域放在自己的副作用里；W5-03 PR1只交受控强迁机制，业务API及真实领域接线归后续PR。
 - “状态列只许 flow 写”没有 lint，靠 `flow.I12` 事后查：它只看有状态历史的对象，一行历史都没有的对象被人直接改了状态，查不出来；对象行已删的历史不比当前值。每条链至多报 500 条。
 - 补 `activity` 行时对象类型取状态机的表名：契约的 `AUDIT_TARGET_TYPES` 里还没有的表（各域接入时往末尾加）会被 `audit.record` 拒绝。
 - 状态机表有哪些列在进程里读一次系统目录后缓存：迁移加了 `lock_version` 之类的列，要重启进程才认。
