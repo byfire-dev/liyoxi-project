@@ -259,41 +259,45 @@ describe("真实订单侧端口、同事务物化", { timeout: 60000 }, () => {
     await evaluate();
     expect(await state()).toMatchObject({ subStatus: "need_fix" });
     // 到期会真实收尾进 takedown；用独立未上线订单验证，不能为后续上线断言复活终态。
-    const expired = await delivered(),
-      expiredTaskId = uuidv7();
-    await h.prisma.launchTask.create({
-      data: {
-        ...task,
-        id: expiredTaskId,
-        entityId: expired.b.entity.id,
-        storeId: expired.b.store.id,
-        orderItemId: expired.id,
-        deliveryTicketId: expired.deliveryTicketIds[0]!,
-        channelAccountId: expired.b.accountId,
-        platform: "douyin",
-        reviewStatus: "need_fix",
-      },
-    });
-    await h.prisma.orderItem.update({
-      where: { id: expired.id },
-      data: { usageEndDate: new Date("2026-01-04") },
-    });
-    const evaluateExpired = () =>
-      h.tx.run((tx) => reevaluate(tx, h.core, expired.b.actor.ctx, expired.deliveryTicketIds[0]!));
-    const expiredState = () =>
-      h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: expired.o.id } });
-    await evaluateExpired();
-    expect(await expiredState()).toMatchObject({ subStatus: "expired_unlaunched" });
-    expect(
-      await h.prisma.deliveryTicket.findUniqueOrThrow({
-        where: { id: expired.deliveryTicketIds[0]! },
-      }),
-    ).toMatchObject({ step: "takedown" });
-    expect(
-      await h.prisma.launchTask.findUniqueOrThrow({ where: { id: expiredTaskId } }),
-    ).toMatchObject({ reviewStatus: "void", voidReason: "usage_expired" });
-    await evaluateExpired();
-    expect(await expiredState()).toMatchObject({ subStatus: "expired_unlaunched" });
+    for (const reviewStatus of ["need_fix", "verifying"] as const) {
+      const expired = await delivered(),
+        expiredTaskId = uuidv7();
+      await h.prisma.launchTask.create({
+        data: {
+          ...task,
+          id: expiredTaskId,
+          entityId: expired.b.entity.id,
+          storeId: expired.b.store.id,
+          orderItemId: expired.id,
+          deliveryTicketId: expired.deliveryTicketIds[0]!,
+          channelAccountId: expired.b.accountId,
+          platform: "douyin",
+          reviewStatus,
+        },
+      });
+      await h.prisma.orderItem.update({
+        where: { id: expired.id },
+        data: { usageEndDate: new Date("2026-01-04") },
+      });
+      const evaluateExpired = () =>
+        h.tx.run((tx) =>
+          reevaluate(tx, h.core, expired.b.actor.ctx, expired.deliveryTicketIds[0]!),
+        );
+      const expiredState = () =>
+        h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: expired.o.id } });
+      await evaluateExpired();
+      expect(await expiredState()).toMatchObject({ subStatus: "expired_unlaunched" });
+      expect(
+        await h.prisma.deliveryTicket.findUniqueOrThrow({
+          where: { id: expired.deliveryTicketIds[0]! },
+        }),
+      ).toMatchObject({ step: "takedown" });
+      expect(
+        await h.prisma.launchTask.findUniqueOrThrow({ where: { id: expiredTaskId } }),
+      ).toMatchObject({ reviewStatus: "void", voidReason: "usage_expired" });
+      await evaluateExpired();
+      expect(await expiredState()).toMatchObject({ subStatus: "expired_unlaunched" });
+    }
     await h.prisma.launchTask.update({
       where: { id: verifyingId },
       data: { reviewStatus: "verifying", voidReason: null },
