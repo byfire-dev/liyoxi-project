@@ -74,7 +74,7 @@ function PushSampleModal({ ticket, api, onClose, onRefresh }: PanelProps & { onC
   );
 }
 export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
-  const [open, setOpen] = useState<"upload" | "qc" | "push">(),
+  const [open, setOpen] = useState<"upload" | "qc" | "push" | "recover">(),
     sample = ticket.currentSample,
     checkRejected = sample?.status === "check_rejected",
     checkFailed =
@@ -190,6 +190,15 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
             </Button>
           </Can>
         ) : null}
+        {sample?.actions.includes("recover_legacy") ? (
+          <Can module="delivery" need="o" action="delivery.sample.push">
+            <Can module="delivery" need="o" action="delivery.sample.qc">
+              <Button type="primary" onClick={() => setOpen("recover")}>
+                恢复小程序查看
+              </Button>
+            </Can>
+          </Can>
+        ) : null}
       </div>
       {open === "upload" ? (
         <SampleUploadModal
@@ -199,9 +208,9 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
           onRefresh={onRefresh}
         />
       ) : null}
-      {open === "qc" && sample ? (
+      {(open === "qc" || open === "recover") && sample ? (
         <QualityModal
-          mode="sample"
+          mode={open === "recover" ? "recover" : "sample"}
           ticket={ticket}
           api={api}
           onClose={() => setOpen(undefined)}

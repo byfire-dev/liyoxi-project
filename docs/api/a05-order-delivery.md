@@ -727,7 +727,7 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `confirmDueRemindAt` | string(date-time) \| null | 是 | 推送后自动提醒商家的时刻（推送 + 2 个自然日，“样片确认截止”一栏） | `pushed_at` + 2 天（纯提醒，不建定时器行，R6） |
 | `watermark` | object \| null | 是 | 明水印版：`{ playableAssetId, state, fileId }`；`fileId` 在 `state = ready` 时才有，交给 `admin.file.downloadUrls`（a01，留痕）下载后经企业微信发送；体检通过前或未生成为空 | `playable_asset`（`kind = sample`、`owner_type = order_item`、`owner_id` = 本单订单项、`source_file_id = sample.file_id`）的 `id`、`state`、`renditions[0].fileId`（06-media.md 4.9；10-delivery.md:1313） |
 | `preview` | object \| null | 是 | 后台预览：`{ url, expiresAt, posterUrl }`；指向原版文件，60 分钟，不留痕；结果脱敏的重放里为空（1.1） | `sample.file_id` 现签；`media_info.cover_file_id` |
-| `actions` | array<string> | 是 | `inspect`（`uploaded`、`production.pipelineState = ready`、调用者不是上传人）；`mark-sent`（`qc_passed` 或 `pushed` 且未登记）；`push`（`qc_passed` 且工单在样片制作）；`request-change`（`pushed`） | 计算 |
+| `actions` | array<string> | 是 | `inspect`（`uploaded`、`production.pipelineState = ready`、调用者不是上传人）；`mark-sent`（`qc_passed` 或 `pushed` 且未登记）；`push`（`qc_passed` 且工单在样片制作）；`recover_legacy`（当前无 weapp 的未决历史版本，工单在样片确认，具备推送/质检权限及可用源质检、水印与当前广告）；`request-change`（`pushed`） | 计算 |
 
 ### 2.7 成片、成片包与补发
 
@@ -2629,19 +2629,24 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 | --- | --- | --- | --- | --- |
 | `includeWecom` | boolean | 否 | 缺省 false；Q9 true 返回 VALIDATION_FAILED | 历史字段保留，新推送不接受企业微信查看渠道 |
 | `markWecomSent` | boolean | 否 | 缺省 false；Q9 true 返回 VALIDATION_FAILED | 推送不再兼带线下发送登记；历史字段/记录保留 |
+| `legacyRecovery` | object | 否 | `{ versionNo: 正整数, reason: 10–200字, quality: SampleInspectBody }` | 显式恢复当前无 weapp 的历史待确认版本；要求推送及质检权限、操作人非原上传人，质检按当前模板重新填写且须通过 |
 
-**响应**：`AdminSampleView`（`status = pushed`）。
+**响应**：`AdminSampleView`（`status = pushed`）与 `replayed`。历史恢复返回新样片的 `sampleId` / `versionNo`，不是路径中的旧版本；同幂等键重放返回原新版本，不重复创建。
 
 **错误**
 
 | 错误码 | HTTP | 何时 |
 | --- | --- | --- |
-| `STATE_NOT_ALLOWED` | 409 | 样片不是 `qc_passed`，或工单不在 `sample_making` |
+| `STATE_NOT_ALLOWED` | 409 | 普通推送不是 `qc_passed + sample_making`；历史恢复不是当前最新无 weapp 的未决 `pushed + sample_confirm`，或已有决定、工单/订单不可操作 |
 | `AD_CHANGED` | 409 | 样片所用广告版本已不是各广告当前确认版本，或有广告位尚未就绪（m05-delivery-publish 定义）；`details.adIds` |
 | `VALIDATION_FAILED` | 400 | includeWecom 或 markWecomSent 为 true；Q9 仅 weapp |
 | `FEATURE_DISABLED` | 403 | 样片开关关闭 |
 | `SAMPLE_PREVIEW_NOT_READY` | 409 | 真正水印版未 ready 或派生文件未 stored |
 | `TICKET_ON_HOLD` | 409 | 工单暂停中 |
+| `SAMPLE_VERSION_STALE` | 409 | 恢复请求版本不是当前版本 |
+| `QC_SELF_INSPECTION` | 409 | 恢复操作人是原上传人 |
+| `CHECKLIST_VERSION_STALE` / `CHECKLIST_NOT_PASSED` | 409 | 恢复质检未使用当前模板，或有缺失、不通过或非法不适用项 |
+| `FILE_NOT_USABLE` | 400 | 源文件、制作记录或水印归属与工单不符 |
 
 **副作用**（同一事务）
 
@@ -2649,7 +2654,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 - `delivery_ticket.step`：`sample_making` → `sample_confirm`（`sample.pushed`，10-delivery.md:175 第 4 行），写 `current_sample_version_no`、首次推送写 `sample_first_pushed_at`，`waiting_on = merchant`；关旧开新环节（样片确认没有员工时限）。
 - 出站事件 `sample.pushed`（载荷带 `deliveryTicketId`、`dramaOrderId`；通知商家：订阅消息 ＋ 短信）、`ticket.step_changed`。推送后 2 个自然日未处理的提醒是纯提醒，由通知规则派生，不建定时器行（R6）。
 
-**说明**：Q9 新推送仅 weapp，推送前核真正水印版 ready/stored。关闭开关不提供替代查看渠道；历史推送快照不回改，不自动迁移。旧 album-only 等待确认记录不能确认，当前没有安全重推/回退链，恢复留给 W5-03/05/08 后继；不可用改快照绕过版本与状态机。独立 markSent 仅作沟通记录，不构成商家确认或一期查看渠道。
+**说明**：Q9 新推送仅 weapp，推送前核真正水印版 ready/stored。关闭开关不提供替代查看渠道；历史推送快照不回改，不自动迁移。显式 `legacyRecovery` 在广告、工单、当前版本、源质检及真实水印核验通过后，将旧版经 `sample.superseded` 失效；复用原文件和广告快照创建下一版本，经 uploaded → qc_passed → pushed 写独立质检、状态历史及恢复原因审计，新快照仅 weapp。工单 sample_confirm 自循环只更新当前版本，不重置环节、轮次、首次推送或 SLA；新版本不继承查看/决定证据。普通推送不隐式走恢复。独立 markSent 仅作沟通记录；通用返工、商家修改意见与广告重开仍由 W5 后继实现。
 
 ### 3.42 admin.sample.requestChange　代录样片修改意见
 

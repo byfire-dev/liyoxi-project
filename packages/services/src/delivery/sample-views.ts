@@ -7,6 +7,10 @@ import type { DeliveryDeps } from "./context.js";
 import { iso, dateOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
 import { sampleEvidence } from "./samples.js";
+import {
+  isLegacySampleQuality,
+  isLegacySampleRecoveryCandidate,
+} from "./sample-legacy-recovery.js";
 import type { AdsUsed, Slots } from "./samples.js";
 import { qcView } from "./quality-views.js";
 const brief = async (tx: Tx, id: string | null) =>
@@ -57,6 +61,33 @@ export async function adminSampleView(
       (await deps.samplePlayback?.(t.entityId))
     )
       actions.push("push");
+  }
+  if (
+    isLegacySampleRecoveryCandidate(t, s) &&
+    actual.ready &&
+    actual.playable &&
+    isLegacySampleQuality(qc, t, s) &&
+    s.uploadedByStaffId !== staff.staff.id &&
+    hasPermission(staff, "delivery.sample.push") &&
+    hasPermission(staff, "delivery.sample.qc") &&
+    (await deps.samplePlayback?.(t.entityId))
+  ) {
+    const latest = await tx.sample.findFirst({
+      where: { deliveryTicketId: t.id },
+      orderBy: { versionNo: "desc" },
+      select: { id: true },
+    });
+    if (
+      latest?.id === s.id &&
+      t.orderItem.orderItemPlacements.every((placement) => {
+        const used = (s.adVersionsUsed as AdsUsed).find(
+            (ad) => ad.slot === placement.slot && ad.adId === placement.adId,
+          ),
+          ad = ads.find((row) => row.id === placement.adId);
+        return used && ad?.status === "confirmed" && ad.confirmedVersionNo === used.versionNo;
+      })
+    )
+      actions.push("recover_legacy");
   }
   return {
     sampleId: s.id,

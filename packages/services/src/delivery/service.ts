@@ -193,8 +193,8 @@ export function createDelivery(deps: DeliveryDeps) {
     ) => {
       assertPermission(staff, "delivery.sample.push", deps.clock.now());
       const data = await deps.tx.run(async (tx) => {
-        await pushSample(tx, deps, ctx, staff, id, body);
-        const { s, t } = await sampleOf(tx, id, staff);
+        const sampleId = await pushSample(tx, deps, ctx, staff, id, body);
+        const { s, t } = await sampleOf(tx, sampleId, staff);
         return adminSampleView(tx, deps, t, s, staff);
       }, options);
       return {

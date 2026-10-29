@@ -172,7 +172,7 @@ stateDiagram-v2
 | 1 | `assigning` | `ticket.assign` | `plan_confirm` | 被分配人是启用的交付经理 | 交付主管 |
 | 2 | `plan_confirm` | `plan.confirmed` | `ad_prep` | 方案已确认，且已确认版本的内容已落到本订单项 | 商家（老板）；系统求值 |
 | 3 | `ad_prep` | `ads.ready` | `sample_making` | 绑定的广告全部就绪 | 系统求值 |
-| 4 | `sample_making` | `sample.pushed` | `sample_confirm` | 当前样片质检通过；真正水印版 ready；所用广告版本是各广告当前确认版本；样片开关开启；新快照仅 `weapp` | 交付经理 |
+| 4 | `sample_making`、`sample_confirm` | `sample.pushed` | `sample_confirm` | 当前样片质检通过；真正水印版 ready；所用广告版本是各广告当前确认版本；样片开关开启；新快照仅 `weapp`。确认步骤的自循环只允许显式恢复当前无 weapp 的历史待确认样片：旧版失效并保留快照，新版重新质检推送；仅更新当前版本，不重置环节、轮次、首次推送或时限 | 交付经理；历史恢复另须样片质检权限且非原上传人 |
 | 5 | `sample_confirm` | `sample.confirmed` | `batch_compose` | 当前已推送版本、广告版本未变、未暂停；开关开启、真正水印版 ready、原快照含 `weapp`；`viewedVia = weapp` 且 `hasViewed = true` | 商家（老板） |
 | 6 | `sample_confirm` | `sample.change_requested`（合成问题） | `sample_making` | 意见非空 | 商家；交付经理代录 |
 | 7 | `sample_confirm` | `sample.change_requested`（广告内容） | `ad_prep` | 该广告还有免费修改次数 | 交付经理代录 |

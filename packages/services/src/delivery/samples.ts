@@ -1,4 +1,5 @@
 import { record as auditRecord } from "../audit/index.js";
+import type { SamplePushBody } from "@liyoxi/contract";
 import type { Prisma, Sample } from "@liyoxi/db";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
@@ -6,7 +7,8 @@ import type { IdentityContext, Tx } from "../kernel/index.js";
 import { manualProductionContext } from "./production-context.js";
 import { productionEvidence } from "./production-guard.js";
 import type { DeliveryDeps, DeliveryViewer } from "./context.js";
-import { checked } from "./machines.js";
+import { moveSample } from "./sample-transitions.js";
+import { recoverLegacySample } from "./sample-legacy-recovery.js";
 import { assertOwner, lockTickets, ticketOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
 import { step, reevaluate } from "./reevaluate.js";
@@ -43,40 +45,6 @@ export async function sampleOf(tx: Tx, id: string, subject?: StaffContext | Deli
   )
     throw new AppError("NOT_FOUND");
   return { s, t };
-}
-async function moveSample(
-  tx: Tx,
-  deps: DeliveryDeps,
-  ctx: IdentityContext,
-  t: TicketRow,
-  s: Sample,
-  event: string,
-  set: Record<string, unknown> = {},
-  created = false,
-) {
-  await deps.flow.transition(tx, ctx, {
-    machine: "sample",
-    stateField: "status",
-    id: s.id,
-    event,
-    created,
-    args: checked(),
-    entityId: t.entityId,
-    storeId: t.storeId,
-    set,
-    payload: { versionNo: s.versionNo },
-    emit: {
-      type: event,
-      payload: {
-        v: 1,
-        sampleId: s.id,
-        deliveryTicketId: t.id,
-        dramaOrderId: t.dramaOrderId,
-        versionNo: s.versionNo,
-        ...(event === "sample.confirmed" ? { viewedVia: set.confirm_viewed_via } : {}),
-      },
-    },
-  });
 }
 export async function createSample(
   tx: Tx,
@@ -262,7 +230,7 @@ export async function pushSample(
   ctx: IdentityContext,
   staff: StaffContext,
   id: string,
-  b: { includeWecom?: boolean; markWecomSent?: boolean },
+  b: SamplePushBody,
 ) {
   const first = await sampleOf(tx, id, staff);
   await lockRows(
@@ -275,7 +243,7 @@ export async function pushSample(
   await lockRows(tx, "sample", [id]);
   const { s, t } = await sampleOf(tx, id, staff);
   unpaused(t);
-  if (t.step !== "sample_making" || s.status !== "qc_passed")
+  if (!b.legacyRecovery && (t.step !== "sample_making" || s.status !== "qc_passed"))
     throw new AppError("STATE_NOT_ALLOWED");
   const ads = s.adVersionsUsed as AdsUsed,
     changed: string[] = [];
@@ -290,6 +258,7 @@ export async function pushSample(
   if (b.includeWecom || b.markWecomSent)
     throw invalid("includeWecom", "第一期样片仅支持在小程序内查看");
   if (!(await deps.samplePlayback?.(t.entityId))) throw new AppError("FEATURE_DISABLED");
+  if (b.legacyRecovery) return recoverLegacySample(tx, deps, ctx, staff, t, s, b.legacyRecovery);
   await productionEvidence(tx, deps.media, s.fileId, true);
   const now = deps.clock.now();
   await moveSample(tx, deps, ctx, t, s, "sample.pushed", {
@@ -303,6 +272,7 @@ export async function pushSample(
     waiting_on: "merchant",
   });
   await deps.assembly.port(orderSidePort).rederive(tx, { orderItemIds: [t.orderItemId] });
+  return s.id;
 }
 export async function sampleEvidence(tx: Tx, deps: DeliveryDeps, t: TicketRow, s: Sample) {
   const rows = await tx.auditLog.findMany({
