@@ -636,8 +636,8 @@ describe("ci.yml", () => {
       "pnpm enums:check",
       MINIO_UP,
       "pnpm exec vitest run packages/services/src/providers/storage/minio.test.ts",
-      // infra 以外的全部测试项目分成三片，这里是第一片；另两片在 test-2、test-3
-      "pnpm test --project '!infra' --shard=1/3",
+      // infra 以外的全部测试项目分成四片，这里是第一片；另三片在 test-2、test-3、test-4
+      "pnpm test --project '!infra' --shard=1/4",
       "pnpm e2e",
       "pnpm e2e:m3",
       // W0-10：api-check、约束名核对读上面建的迁移库；待落地数只减不增要排在“测试”之后（已挂载处理器的清单由
@@ -662,9 +662,10 @@ describe("ci.yml", () => {
       "node infra/ci/four-counts.mjs --require M0,M1",
       "node infra/ci/four-counts.mjs --require M0,M1,M3",
     ],
-    // “测试”的第二、三片：各自生成客户端、建迁移库、起 MinIO
-    "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/3"],
-    "test-3": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=3/3"],
+    // “测试”的第二、三、四片：各自生成客户端、建迁移库、起 MinIO
+    "test-2": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=2/4"],
+    "test-3": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=3/4"],
+    "test-4": [INSTALL, DB_GENERATE, MIGRATE, MINIO_UP, "pnpm test --project '!infra' --shard=4/4"],
     // infra 项目的用例：连库的几份自己建临时库，不用生成的客户端；W0-10 约束名核对的用例只读迁移库，所以先建一份
     "test-infra": [
       INSTALL,
@@ -775,9 +776,10 @@ describe("ci.yml", () => {
   it("根上的 pnpm test 拆在几个任务里跑：infra 项目一份，infra 以外的全部项目分成互补的几片，合起来是全量", () => {
     const runs = commandsStarting("pnpm test");
     expect(runs).toEqual([
-      ["test", "pnpm test --project '!infra' --shard=1/3"],
-      ["test-2", "pnpm test --project '!infra' --shard=2/3"],
-      ["test-3", "pnpm test --project '!infra' --shard=3/3"],
+      ["test", "pnpm test --project '!infra' --shard=1/4"],
+      ["test-2", "pnpm test --project '!infra' --shard=2/4"],
+      ["test-3", "pnpm test --project '!infra' --shard=3/4"],
+      ["test-4", "pnpm test --project '!infra' --shard=4/4"],
       ["test-infra", "pnpm test --project infra"],
     ]);
     // 互补不靠上面那张写死的表：infra 以外的那几条按片号、分母核对
@@ -822,16 +824,14 @@ describe("ci.yml", () => {
     ]
       .filter(([, command]) => command.includes("--shard"))
       .map(([id]) => id);
-    expect(shardJobs).toHaveLength(11);
+    expect(shardJobs).toHaveLength(12);
     for (const id of shardJobs) {
       const commands = commandsOf(id);
       const at = commands.findIndex((command) => command.includes("--shard"));
       for (const before of [DB_GENERATE, MIGRATE, MINIO_UP]) {
         expect(commands.slice(0, at), `${id}：${before}`).toContain(before);
       }
-      if (id.startsWith("test-isolation")) {
-        expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
-      }
+      expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
     }
     // web原冒烟/截图条件保持；web-live仅允许下列精确原后台条件，其他任务不能带条件跳过。
     const conditional = (id: string) =>
@@ -1010,7 +1010,7 @@ describe("本地 Compose 与 CI 的服务容器", () => {
   it("要连库的任务都挂了 PostgreSQL；跑连 Redis 的用例的任务另挂 Redis", () => {
     const servicesOf = (id: string) =>
       [...jobBody(ci, id).matchAll(/^ {6}([\w-]+):\n {8}image: /gm)].map((match) => match[1]);
-    for (const id of ["test", "test-2", "test-3"]) {
+    for (const id of ["test", "test-2", "test-3", "test-4"]) {
       expect(servicesOf(id), id).toEqual(["postgres", "redis"]);
     }
     for (const id of [
