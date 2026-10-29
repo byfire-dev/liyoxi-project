@@ -3,8 +3,14 @@ import { checkProduction } from "@liyoxi/shared";
 import { AppError, isUuid } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
 import type { BoundMediaDeps } from "../context.js";
-import { contextHash, profileOf, readProductionWork } from "../production.js";
+import {
+  contextHash,
+  profileOf,
+  readProductionWork,
+  manualDerivationTarget,
+} from "../production.js";
 import { LabelSchema, checkFacts } from "../production-report.js";
+import { ordinaryChecks } from "./ordinary-checks.js";
 import {
   ProbeInputSchema,
   ProbeOutputSchema,
@@ -21,16 +27,33 @@ import {
 } from "../playable-schemas.js";
 
 const cloudOutput = PlayableOutputSchema;
-/** Revalidate successful job output against the caller transaction's current context and rows. */
-export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, fileId: string) {
+/** Both public readers share the same job, bytes, timestamps and derivation proof. */
+async function verifiedProductionFacts(
+  deps: BoundMediaDeps,
+  tx: Tx,
+  fileId: string,
+  family: "delivery" | "ad",
+) {
   if (!isUuid(fileId)) throw new AppError("VALIDATION_FAILED");
   const facts = await readProductionWork(deps, tx, fileId);
   const { production: record, file, context, parameters } = facts;
+  const ad = family === "ad",
+    adKind = ad && record?.adId ? await deps.production?.readAdKind?.(tx, record.adId) : null;
   const [check, info, job] = await Promise.all([
     tx.mediaCheck.findUnique({ where: { fileId } }),
     tx.mediaInfo.findUnique({ where: { fileId } }),
-    tx.mediaJob.findUnique({
-      where: { dedupeKey: `probe:${fileId}:v${parameters.ruleVersion}:${contextHash(record)}` },
+    tx.mediaJob.findFirst({
+      where: {
+        OR: [
+          { dedupeKey: `probe:${fileId}:v${parameters.ruleVersion}:${contextHash(record)}` },
+          {
+            dedupeKey: {
+              startsWith: `probe:${fileId}:v${parameters.ruleVersion}:${contextHash(record)}:manual:`,
+            },
+          },
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
   ]);
   const output = ProbeOutputSchema.safeParse(job?.output);
@@ -55,7 +78,9 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
       Object.entries(expected).every(([key, value]) => snapshot[key] === value)
     : snapshot === null;
   const recomputed = output.success
-    ? checkProduction(checkFacts(output.data.technical), context, parameters)
+    ? ad
+      ? ordinaryChecks(output.data.technical, "ad", adKind ?? null)
+      : checkProduction(checkFacts(output.data.technical), context, parameters)
     : null;
   const technical =
     !!record &&
@@ -82,32 +107,70 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
     probeInput.data.profile === profileOf(file.category) &&
     probeInput.data.ruleVersion === parameters.ruleVersion &&
     probeInput.data.contextHash === contextHash(record) &&
+    (job.dedupeKey === `probe:${fileId}:v${parameters.ruleVersion}:${contextHash(record)}` ||
+      (job.parentType === "production_record" &&
+        job.parentId === fileId &&
+        job.dedupeKey ===
+          `probe:${fileId}:v${parameters.ruleVersion}:${contextHash(record)}:manual:${job.id}`)) &&
     job.finishedAt?.getTime() === check.checkedAt.getTime() &&
     info.probedAt.getTime() === check.checkedAt.getTime() &&
     info.durationMs === output.data.technical.durationMs &&
     info.displayWidth === output.data.technical.displayWidth &&
     info.displayHeight === output.data.technical.displayHeight;
-  const aiUsed = context?.aiUsed === true;
-  const aiVerified = aiUsed
-    ? record?.aigcState === "verified" && LabelSchema.safeParse(info?.aigcMeta).success
-    : record?.aigcState === "not_required";
+  const declaration = record?.aiUsage as { used?: boolean } | undefined,
+    aiUsed = ad ? declaration?.used === true : context?.aiUsed === true,
+    actualLabel = LabelSchema.safeParse(output.success ? output.data.technical.aigcMeta : null),
+    storedLabel = LabelSchema.safeParse(info?.aigcMeta);
+  const aiVerified = ad
+    ? typeof declaration?.used === "boolean" &&
+      output.success &&
+      !output.data.technical.invalidAigc &&
+      (aiUsed
+        ? record?.aigcState === "verified" &&
+          actualLabel.success &&
+          storedLabel.success &&
+          Object.entries(actualLabel.data).every(
+            ([key, value]) => storedLabel.data[key as keyof typeof storedLabel.data] === value,
+          )
+        : record?.aigcState === "not_required")
+    : aiUsed
+      ? record?.aigcState === "verified" && storedLabel.success
+      : record?.aigcState === "not_required";
   let provenance = record?.source === "manual_upload" && record.derivedFromFileId === null;
+  let automaticRestamp = false;
   if (record?.derivedFromFileId && ["normalized", "restamped"].includes(record.source)) {
     const [origin, source] = await Promise.all([
       tx.fileObject.findUnique({ where: { id: record.derivedFromFileId } }),
       tx.productionRecord.findUnique({ where: { fileId: record.derivedFromFileId } }),
     ]);
     const kind = record.source === "restamped" ? "restamp" : "normalize";
-    const derived = await tx.mediaJob.findUnique({
+    const manual = await tx.mediaJob.findFirst({
       where: {
-        dedupeKey: `${kind}:${record.derivedFromFileId}:v${parameters.ruleVersion}:${contextHash(source)}`,
+        kind,
+        subjectType: "file_object",
+        subjectId: record.derivedFromFileId,
+        parentType: "production_record",
+        parentId: file.id,
+        dedupeKey: { startsWith: `manual:${kind}:${record.derivedFromFileId}:` },
       },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
+    const derived =
+      manual ??
+      (await tx.mediaJob.findUnique({
+        where: {
+          dedupeKey: `${kind}:${record.derivedFromFileId}:v${parameters.ruleVersion}:${contextHash(source)}`,
+        },
+      }));
     const input = DerivationInputSchema.safeParse(derived?.input);
     const result =
       kind === "restamp"
         ? DerivationOutputSchema.safeParse(derived?.output)
         : cloudOutput.safeParse(derived?.output);
+    const manualTarget =
+      input.success && input.data.manual && origin && source && derived
+        ? await manualDerivationTarget(tx, derived, input.data, origin, source)
+        : null;
     provenance =
       !!origin &&
       !!source &&
@@ -119,28 +182,44 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
       origin.category === file.category &&
       !!origin.sha256 &&
       !!origin.sizeBytes &&
-      contextHash(source) === contextHash(record) &&
+      (input.success && input.data.manual
+        ? !!manualTarget
+        : contextHash(source) === contextHash(record)) &&
       derived?.state === "succeeded" &&
       derived.kind === kind &&
       derived.subjectType === "file_object" &&
       derived.subjectId === origin.id &&
       derived.parentType === "production_record" &&
-      derived.parentId === origin.id &&
+      derived.parentId === (input.success && input.data.manual ? file.id : origin.id) &&
       (kind !== "restamp" || (derived.provider === "mediatool" && derived.mode === "local")) &&
       input.success &&
       input.data.fileId === origin.id &&
       input.data.destinationFileId === file.id &&
-      input.data.contextHash === contextHash(record) &&
+      input.data.contextHash === contextHash(source) &&
       input.data.ruleVersion === parameters.ruleVersion &&
       result.success &&
       result.data.fileId === file.id &&
       result.data.sha256 === file.sha256 &&
+      result.data.etag === file.etag &&
       BigInt(result.data.size) === file.sizeBytes;
+    automaticRestamp = provenance && kind === "restamp" && input.success && !input.data.manual;
   }
-  const valid = technical && provenance;
+  const adIdentity =
+    record?.kind === "ad" &&
+    file.category === "ad_video" &&
+    !!record.adId &&
+    isUuid(record.adId) &&
+    !!adKind &&
+    record.orderItemId === null &&
+    record.episodeNo === null &&
+    record.dramaEpisodeMasterId === null &&
+    record.masterSource === null &&
+    record.productionTier === null &&
+    context === null;
+  const valid = technical && provenance && (!ad || adIdentity);
   const ready =
     valid &&
-    !!context &&
+    (ad || !!context) &&
     aiVerified &&
     record?.pipelineState === "ready" &&
     check?.gate === "pass" &&
@@ -314,6 +393,7 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
     valid,
     ready,
     awaitingRestamp,
+    automaticRestamp,
     file: {
       id: file.id,
       entityId: file.entityId,
@@ -327,3 +407,11 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
     playable,
   };
 }
+
+/** Existing sample/final semantics stay fixed, including their required master context. */
+export const deliveryProductionFacts = (deps: BoundMediaDeps, tx: Tx, fileId: string) =>
+  verifiedProductionFacts(deps, tx, fileId, "delivery");
+
+/** Ads use the original probe's ad rule and the owner's actual head/tail kind. */
+export const adProductionFacts = (deps: BoundMediaDeps, tx: Tx, fileId: string) =>
+  verifiedProductionFacts(deps, tx, fileId, "ad");

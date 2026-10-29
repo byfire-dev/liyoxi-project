@@ -113,6 +113,7 @@ export function mixedReadPlan(
     "admin.assetDemand.list": { storeId: input.access.ids.storeId },
     "admin.calendarDay.list": { year: String(input.year) },
     "admin.followUp.list": { entityId: input.access.ids.entityId },
+    "admin.productionRecord.list": { orderItemId: input.access.ids.orderItemId },
     "admin.storeAsset.list": { storeId: input.access.ids.storeId },
     "admin.subscriptionTerm.list": { tab: "expiring" },
     "admin.reconciliation.list": { month: `${input.year}-01` },

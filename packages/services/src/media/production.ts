@@ -1,12 +1,71 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@liyoxi/db";
-import type { FileObject, ProductionRecord } from "@liyoxi/db";
+import type { FileObject, MediaJob, ProductionRecord } from "@liyoxi/db";
+import type { z } from "zod";
 import type { ProductionCheckContext } from "@liyoxi/shared";
 import { AppError, uuidv7, lockRows, isUuid } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { BoundMediaDeps } from "./context.js";
 import type { ProductionWorkFacts } from "./production-types.js";
 import { jobBudget } from "./jobs/policy.js";
+import { DerivationInputSchema } from "./production-job-schemas.js";
+
+/** A manual marker is accepted only with the persisted source/destination identity and context. */
+export async function manualDerivationTarget(
+  tx: Tx,
+  job: Pick<MediaJob, "kind" | "subjectId" | "subjectType" | "parentId" | "parentType">,
+  input: z.infer<typeof DerivationInputSchema>,
+  source: FileObject,
+  record: ProductionRecord,
+) {
+  if (!input.manual) return null;
+  const [file, target] = await Promise.all([
+    tx.fileObject.findUnique({ where: { id: input.destinationFileId } }),
+    tx.productionRecord.findUnique({ where: { fileId: input.destinationFileId } }),
+  ]);
+  const sourceAi = record.aiUsage as { used?: boolean },
+    targetAi = target?.aiUsage as { used?: boolean; tools?: unknown[] } | undefined;
+  if (
+    !file ||
+    !target ||
+    !["normalize", "restamp"].includes(job.kind) ||
+    job.subjectType !== "file_object" ||
+    job.subjectId !== source.id ||
+    job.parentType !== "production_record" ||
+    job.parentId !== file.id ||
+    file.id === source.id ||
+    input.fileId !== source.id ||
+    source.sha256 !== input.manual.sourceSha256 ||
+    input.contextHash !== contextHash(record) ||
+    input.manual.destinationContextHash !== contextHash(target) ||
+    contextHash({ ...target, aiUsage: record.aiUsage }) !== contextHash(record) ||
+    target.source !== (job.kind === "restamp" ? "restamped" : "normalized") ||
+    target.derivedFromFileId !== source.id ||
+    target.uploadedByStaffId !== null ||
+    target.renderItemId !== record.renderItemId ||
+    file.bucket !== source.bucket ||
+    file.category !== source.category ||
+    file.scopeType !== source.scopeType ||
+    file.entityId !== source.entityId ||
+    file.storeId !== source.storeId ||
+    file.uploadBatchId !== null ||
+    file.uploadActorType !== "system" ||
+    file.uploadMode !== "server" ||
+    !["pending", "stored"].includes(file.status) ||
+    file.moderationState === "block" ||
+    file.objectKey !== input.objectKey ||
+    file.ext !== "mp4" ||
+    input.objectKey !== `derived/${file.id}/${job.kind}-v${input.ruleVersion}.mp4` ||
+    (job.kind === "normalize"
+      ? contextHash(target) !== contextHash(record)
+      : sourceAi.used !== false ||
+        targetAi?.used !== true ||
+        !Array.isArray(targetAi.tools) ||
+        targetAi.tools.length === 0)
+  )
+    return null;
+  return { file, record: target };
+}
 export const profileOf = (
   category: string,
 ): "master" | "trailer_src" | "ad" | "sample" | "final" | "asset" =>
@@ -96,6 +155,8 @@ export async function enqueueProbe(
   options: {
     parentBatchId?: string;
     ruleVersion?: number;
+    /** Explicit manual rechecks retain prior evidence and use a fresh job generation. */
+    generation?: string;
   } = {},
 ): Promise<string> {
   if (
@@ -115,11 +176,12 @@ export async function enqueueProbe(
     throw new AppError("VALIDATION_FAILED");
   const hash = contextHash(record),
     now = deps.clock.now();
-  const dedupeKey = `probe:${fileId}:v${ruleVersion}:${hash}`;
+  if (options.generation && !isUuid(options.generation)) throw new AppError("VALIDATION_FAILED");
+  const dedupeKey = `probe:${fileId}:v${ruleVersion}:${hash}${options.generation ? `:manual:${options.generation}` : ""}`;
   await tx.mediaJob.createMany({
     data: [
       {
-        id: uuidv7(),
+        id: options.generation ?? uuidv7(),
         kind: "probe",
         provider: "mediatool",
         mode: "local",
@@ -284,9 +346,38 @@ export async function createDerivedFile(
     etag: string;
     mime?: "video/mp4" | "image/jpeg";
     ext?: "mp4" | "jpg";
+    manual?: { readonly job: MediaJob; readonly sourceRecord: ProductionRecord };
   },
   now: Date,
 ) {
+  if (input.manual) {
+    const parsed = DerivationInputSchema.parse(input.manual.job.input),
+      target = await manualDerivationTarget(
+        tx,
+        input.manual.job,
+        parsed,
+        source,
+        input.manual.sourceRecord,
+      );
+    if (!target || target.file.id !== input.id || target.file.objectKey !== input.objectKey)
+      throw new AppError("STATE_NOT_ALLOWED");
+    if (target.file.status === "pending") {
+      if (target.record.pipelineState !== "uploading") throw new AppError("STATE_NOT_ALLOWED");
+      await tx.fileObject.update({
+        where: { id: input.id },
+        data: {
+          status: "stored",
+          declaredSize: input.size,
+          sizeBytes: input.size,
+          mime: "video/mp4",
+          sha256: input.sha256,
+          etag: input.etag,
+          storedAt: now,
+          updatedAt: now,
+        },
+      });
+    }
+  }
   await tx.fileObject.createMany({
     data: [
       {
@@ -323,7 +414,7 @@ export async function createDerivedFile(
     file.scopeType !== source.scopeType ||
     file.entityId !== source.entityId ||
     file.storeId !== source.storeId ||
-    file.uploadBatchId !== source.uploadBatchId ||
+    file.uploadBatchId !== (input.manual ? null : source.uploadBatchId) ||
     file.sha256 !== input.sha256 ||
     file.sizeBytes !== BigInt(input.size) ||
     file.etag !== input.etag ||

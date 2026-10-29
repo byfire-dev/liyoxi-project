@@ -110,7 +110,10 @@ export function createProductionChecked(deps: ProductionCheckedDeps) {
       return;
     if (record.derivedFromFileId !== first?.derivedFromFileId) throw new AppError("BUSY");
     if (facts.gate === "reject" && facts.awaitingRestamp) return;
-    const relatedSource = record.source === "restamped" && record.derivedFromFileId === sourceId;
+    const relatedSource =
+      facts.automaticRestamp &&
+      record.source === "restamped" &&
+      record.derivedFromFileId === sourceId;
     const now = deps.clock.now();
     const ctx = createIdentityContext({
       actor: { type: "system", job: "media.production.checked" },

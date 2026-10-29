@@ -267,3 +267,10 @@ CLIENT_ERROR_PROJECTS_FILE内容由loadEnv读取，格式为{"projects":[{"dsn":
 HTTP 排空后依次关闭 runtime、模型与预算连接；部分启动失败仍清理已拥有资源。
 `--test-redis-prefix` 的既有 test 专用守卫也约束预算连接，生产 ledger key 保持原样。
 当前 SOURCE 仅轻检查，真实云、账单与 E22 不由本机替身测试证明。
+
+
+## W5-04 人工制作与取料
+
+`routes/admin/production-materials.ts` 挂载本包七条冻结operationId。四制作接口通过进程media公口，素材通过L4组合的拥有者读口，应用层不查库。响应均no-store；normalize/restamp/recheck必须幂等键，materials/download-urls每次重新签发且不存幂等结果。
+
+定点：`pnpm exec vitest run --project api --maxWorkers=1 --no-file-parallelism apps/api/test/production-materials.test.ts`。测试从正式文件登记、完成、搬运、体检生产来源，再调用人工动作和原jobs；覆盖事实scope、本人任务、GET零写和30分钟签名不缓存。

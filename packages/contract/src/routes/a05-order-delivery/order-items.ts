@@ -9,13 +9,17 @@ import {
   AdminOrderItemWriteResultSchema,
 } from "./delivery.schemas.js";
 
-export const adminOrderItemDownloadList = adminMeta({
+import { DownloadRecordQuerySchema, DownloadHistorySchema } from "./production.schemas.js";
+
+export const adminOrderItemDownloadList = adminRoute({
   method: "get",
   path: "/admin/order-items/{orderItemId}/downloads",
   operationId: "admin.orderItem.download.list",
   summary: "成片包、下载授权与下载记录（排障与证据）",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: OrderItemParamSchema, query: DownloadRecordQuerySchema },
+  responses: { ...okResponse(DownloadHistorySchema), ...errorResponses(400, 401, 403, 404, 500) },
 });
 
 export const adminOrderItemLicenseLetterList = adminMeta({
