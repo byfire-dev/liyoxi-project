@@ -389,6 +389,8 @@ describe("真实短事务、竞争和不可退款边界", { timeout: SLOW }, () 
       },
     });
     await h.refresh();
+    // refresh会恢复实钟；此处重冻本例受控时间，真实Redis传输仍受原250ms截止约束。
+    h.clock.set(h.clock.now());
     const results = await Promise.all([
       h.visionStrategy().execute(first.job, signal()),
       pair.execute(second.job, signal()),
