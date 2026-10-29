@@ -388,7 +388,16 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
           createDerivedFile(
             tx,
             { ...facts.file, category, bucket },
-            { id: value.destinationFileId, objectKey: value.objectKey, ...stored.value },
+            {
+              id: value.destinationFileId,
+              objectKey: value.objectKey,
+              ...stored.value,
+              ...(kind === "normalize" &&
+              DerivationInputSchema.parse(value).manual &&
+              facts.production
+                ? { manual: { job, sourceRecord: facts.production } }
+                : {}),
+            },
             deps.clock.now(),
           ),
         );

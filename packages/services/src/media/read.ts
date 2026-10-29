@@ -29,7 +29,7 @@ export async function getAdmin(deps: BoundMediaDeps, actor: MediaActor, fileId: 
   });
 }
 type DeliveryDownloadIntent = {
-  readonly kind: "delivery-download";
+  readonly kind: "delivery-download" | "staff-material";
   readonly fileName: string;
 };
 export function createSigner(deps: BoundMediaDeps) {
@@ -45,7 +45,7 @@ export function createSigner(deps: BoundMediaDeps) {
     });
     const now = deps.clock.now();
     const expiresAt = intent
-      ? new Date(now.getTime() + 900_000)
+      ? new Date(now.getTime() + (intent.kind === "staff-material" ? 1_800_000 : 900_000))
       : readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
     const urlTtlSec = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
     const disposition = intent ? "attachment" : (input.disposition ?? "inline");

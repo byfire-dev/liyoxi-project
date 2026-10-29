@@ -8,7 +8,8 @@ import type { BoundMediaDeps } from "./context.js";
 import type { MediaConvergenceHandler } from "./jobs/types.js";
 import { jobBudget } from "./jobs/policy.js";
 import { link, release } from "./refs.js";
-import { contextHash } from "./production.js";
+import { contextHash, manualDerivationTarget } from "./production.js";
+import { DerivationInputSchema, ProbeInputSchema } from "./production-job-schemas.js";
 import { deliveryProductionFacts } from "./production/facts.js";
 import {
   LocalSamplePlayableInputSchema,
@@ -587,6 +588,8 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
     {
       parentType: "production_record",
       lockSiblings: async (tx, id) => {
+        const record = await tx.productionRecord.findUnique({ where: { fileId: id } });
+        const related = [id, ...(record?.derivedFromFileId ? [record.derivedFromFileId] : [])];
         const file = await tx.fileObject.findUnique({
           where: { id },
           select: { uploadBatchId: true },
@@ -597,7 +600,7 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
           return;
         }
         const before = await tx.playableAsset.findMany({
-          where: { kind: "sample", sourceFileId: id },
+          where: { kind: "sample", sourceFileId: { in: related } },
           select: { id: true },
         });
         await lockRows(
@@ -605,9 +608,9 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
           "playable_asset",
           before.map((one) => one.id),
         );
-        await lockRows(tx, "production_record", [id]);
+        await lockRows(tx, "production_record", related);
         const after = await tx.playableAsset.findMany({
-          where: { kind: "sample", sourceFileId: id },
+          where: { kind: "sample", sourceFileId: { in: related } },
           select: { id: true },
         });
         if (after.some((one) => !before.some((old) => old.id === one.id)))
@@ -619,6 +622,20 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
           tx.fileObject.findUnique({ where: { id: job.subjectId } }),
         ]);
         if (!record || file?.status !== "stored" || file.moderationState === "block") return false;
+        const parsed = DerivationInputSchema.safeParse(job.input);
+        if (parsed.success && parsed.data.manual) {
+          const source = await tx.productionRecord.findUnique({ where: { fileId: file.id } });
+          return !!source && !!(await manualDerivationTarget(tx, job, parsed.data, file, source));
+        }
+        const probe = ProbeInputSchema.safeParse(job.input);
+        if (
+          job.kind === "probe" &&
+          job.parentId === file.id &&
+          probe.success &&
+          job.dedupeKey ===
+            `probe:${file.id}:v${probe.data.ruleVersion}:${probe.data.contextHash}:manual:${job.id}`
+        )
+          return probe.data.fileId === file.id && probe.data.contextHash === contextHash(record);
         return (
           !file.uploadBatchId ||
           (await deps.production?.batchNeedsJob?.(tx, {

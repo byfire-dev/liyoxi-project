@@ -31,6 +31,14 @@ export const DerivationInputSchema = z.strictObject({
   ruleVersion: z.number().int().min(1).max(32767),
   objectKey: z.string().regex(/^derived\/[0-9a-f-]{36}\/(restamp|normalize)-v\d{1,5}\.mp4$/),
   template: z.string().min(1).max(128),
+  /** Versioned manual destination proof; legacy automatic derivations omit it. */
+  manual: z
+    .strictObject({
+      version: z.literal(1),
+      sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      destinationContextHash: z.string().regex(/^[a-f0-9]{64}$/),
+    })
+    .optional(),
 });
 export const DerivationOutputSchema = z.strictObject({
   fileId: z.uuid(),

@@ -105,3 +105,12 @@ export { BankReceiptOcrInputSchema } from "./ocr/receipt.js";
 export type { BankReceiptOcrInput, BankReceiptOcrRead } from "./ocr/receipt.js";
 export { readCancelZipTargets, invalidateZipBundles } from "./cancel-zip.js";
 export type { CancelZipTargets } from "./cancel-zip.js";
+export { createProductionActions } from "./production-actions.js";
+export type { ProductionAccess } from "./production-access.js";
+export {
+  readMaterialAssetFacts,
+  readOrderReferenceFileIds,
+  readMaterialFileFacts,
+  readMaterialCheckouts,
+  checkoutMaterialMaster,
+} from "./material-facts.js";

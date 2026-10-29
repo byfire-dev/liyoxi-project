@@ -72,3 +72,14 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 上游须将该图并入统一预锁，在修改审批事实前一次锁全。恢复在同事务缓存该图，后续求值
 只复用已锁事实，不能在文件锁之后追加旧审批或广告。`plan_confirm` 的最后原因解除时，
 环节 `dueAt`、工单 `stepDueAt` 与员工等待中的方案 `staffDueAt` 同步恢复。
+
+
+## W5-04 制作取料与下载历史
+
+`createProductionMaterials` 的 `list(ctx, staff, ticketId)` 只列当前已提交原片、实际钉住/浮动确认广告、方案/订单参考素材及保留引用的档案媒体。`downloadUrls` 按四类请求联合体选择，严格要求当前本人任务/范围和实际文件安全状态；广告/档案/原片事实由拥有者公开读口注入，广告签发前后均经媒体专用广告 gate 重核实际成功 probe 与 AI 证据。签名事务外执行，之后按既有全局序锁父对象与文件，重读完整选择及版本；变化拒绝返回。每份写access审计，原片同时upsert复合唯一master_checkout并累加实际版本次数。短地址固定30分钟，不存幂等结果。
+
+合法档案/素材复制保留来源文件的storeId，按原category.crossStore政策、同主体及本单目标门店owned关联核验；支持A→B→C复制链，不以直接copiedFromStoreId猜测文件归属。广告仍要求本店文件；同主体无本单目标关联不能借用。原片checkout写入按episodeNo升序，响应保持请求顺序。
+
+`createDownloadRecords({ tx, clock }).list(staff, orderItemId, query)` 合并成片包、下载授权与下载日志事实；授权过期只保留历史含义，不产生当前下载能力，响应没有地址/IP/UA。三条GET均不写库。
+
+验证：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/delivery/materials.db.test.ts`。广告pin/floating选择的纯投影测试不代表完整上传/确认生命周期，完整提交→确认→取料串测由W5-08/09在实际producer交付后补齐。

@@ -68,6 +68,8 @@ admin.deliveryTicket.get | delivery:view | - | 11 11 11 11 11 11 00 00
 admin.deliveryTicket.inspectEpisodes | delivery:edit | delivery.episode.qc | 11 00 11 00 00 00 00 00
 admin.deliveryTicket.inspectPackage | delivery:edit | delivery.episode.qc | 11 00 11 00 00 00 00 00
 admin.deliveryTicket.list | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.deliveryTicket.material.downloadUrls | delivery:view | delivery.download | 11 00 11 11 11 00 00 00
+admin.deliveryTicket.material.list | delivery:view | - | 11 11 11 11 11 11 00 00
 admin.deliveryTicket.pushPackage | delivery:edit | publish.package.push | 11 00 11 00 00 00 00 00
 admin.deliveryTicket.reevaluate | - | flow.ops.manage | 11 00 00 00 00 00 00 00
 admin.deliveryTicket.reissue.create | delivery:edit | delivery.package.reissue | 11 00 11 00 00 00 00 00
@@ -155,6 +157,7 @@ admin.order.cancelRequest.create | - | order.refund.request | 11 11 00 00 00 00 
 admin.order.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11
+admin.orderItem.download.list | delivery:view | - | 11 11 11 11 11 11 00 00
 admin.orderItem.rescheduleLaunch | delivery:edit | delivery.plan.reschedule | 11 00 11 00 00 00 00 00
 admin.outboxDelivery.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.outboxEvent.retry | - | flow.ops.manage | 11 00 00 00 00 00 00 00
@@ -204,6 +207,10 @@ admin.pointPack.update | billing:view | billing.pack.edit | 11 00 00 00 00 11 00
 admin.priceTierRevision.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.pricingChange.create | billing:view | assert-in-handler | 11 11 11 00 00 11 11 11
 admin.pricingChange.list | billing:view | - | 11 11 11 00 00 11 11 11
+admin.productionRecord.list | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.productionRecord.normalize | delivery:view | production.normalize | 11 00 11 00 00 00 00 00
+admin.productionRecord.recheck | delivery:view | production.recheck | 11 00 11 00 00 00 00 00
+admin.productionRecord.restamp | delivery:view | production.restamp | 11 00 11 00 00 00 00 00
 admin.purgeRun.approve | - | files.purge.approve | 11 00 00 00 00 00 00 00
 admin.purgeRun.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.purgeRun.reject | - | files.purge.approve | 11 00 00 00 00 00 00 00

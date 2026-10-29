@@ -257,8 +257,8 @@ export function createDeliveryProductionTools(
     } else providers.storage.put(input.dst, source.body, "video/mp4");
     objects.set(`${input.dst.bucket}/${input.dst.key}`, {
       ...(objects.get(`${input.src.bucket}/${input.src.key}`) ?? { label: null }),
-      width: 720,
-      height: 1280,
+      width: input.template === "normalize" ? 1080 : 720,
+      height: input.template === "normalize" ? 1920 : 1280,
     });
     return transcode(input);
   };
@@ -342,7 +342,7 @@ export async function finishDeliveryProductionForTest(
 }
 /** Master input fixture; its technical facts are produced by the real probe handler too. */
 export async function prepareDeliveryMasterForTest(
-  runtime: Runtime,
+  runtime: Pick<Runtime, "media" | "clock" | "providers" | "tx">,
   prisma: PrismaClient,
   input: { dramaId: string; episodeNo: number; staffId: string },
 ) {

@@ -119,3 +119,8 @@ export {
   createTenantEntitlementAssembly,
   createRuntimeTenantEntitlement,
 } from "./tenant-entitlement-runtime.js";
+
+export { createRuntimeProductionMaterials } from "./production-materials-runtime.js";
+export { createDownloadRecords } from "../delivery/index.js";
+
+export { requireRuntimeProductionAccess } from "./production-access-runtime.js";

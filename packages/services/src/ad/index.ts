@@ -7,3 +7,5 @@ export { claimAdCancelRequest, cancelAd } from "./cancel-write.js";
 export type { AdCancelPointersInput } from "./cancel-pointers.js";
 export { readAdCancelFacts, readQualificationCancelAds } from "./cancel-read-facts.js";
 export type { AdCancelFacts } from "./cancel-read-facts.js";
+
+export { requireAdProductionAccess, readMaterialAdVersions } from "./production-parent-facts.js";

@@ -1,6 +1,5 @@
 // 后台：订购、取消、交付与广告任务 · delivery-tickets（docs/api/a05-order-delivery.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 
 export const adminDeliveryTicketList = adminRoute({
   method: "get",
@@ -203,16 +202,18 @@ export const adminDeliveryTicketInspectPackage = adminRoute({
   },
 });
 
-export const adminDeliveryTicketMaterialList = adminMeta({
+export const adminDeliveryTicketMaterialList = adminRoute({
   method: "get",
   path: "/admin/delivery-tickets/{deliveryTicketId}/materials",
   operationId: "admin.deliveryTicket.material.list",
   summary: "制作素材清单（原片、门店素材、广告）：只列素材与上次取料记录，不签发地址",
   "x-permission": null,
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
+  request: { params: TicketParamSchema },
+  responses: { ...okResponse(MaterialListSchema), ...errorResponses(400, 401, 403, 404, 409, 500) },
 });
 
-export const adminDeliveryTicketMaterialDownloadUrls = adminMeta({
+export const adminDeliveryTicketMaterialDownloadUrls = adminRoute({
   method: "post",
   path: "/admin/delivery-tickets/{deliveryTicketId}/materials/download-urls",
   operationId: "admin.deliveryTicket.material.downloadUrls",
@@ -220,6 +221,17 @@ export const adminDeliveryTicketMaterialDownloadUrls = adminMeta({
   "x-permission": "delivery.download",
   "x-idempotent": "none",
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录（A18）",
+  request: {
+    params: TicketParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: MaterialDownloadBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(MaterialDownloadResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500, 503),
+  },
 });
 
 export const adminDeliveryTicketPushPackage = adminRoute({
@@ -353,6 +365,9 @@ import {
 } from "./delivery.schemas.js";
 
 import {
+  MaterialListSchema,
+  MaterialDownloadBodySchema,
+  MaterialDownloadResultSchema,
   AdminSampleWriteResultSchema,
   EpisodeGridSchema,
   EpisodeRegisterBodySchema,
