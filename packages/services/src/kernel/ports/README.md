@@ -37,3 +37,9 @@ pnpm --filter @liyoxi/services exec vitest run src/kernel/ports/
 # W3-11 CatalogRefPort
 
 catalog.refs 由 config 调用、content 注册真实实现。read(tx,at,ids?) 提供 id/title/genreCodes/isListed/isOrderable；areListed(tx,ids,at) 对不存在的 ID 给 false，对存在的 ID 以当前 shared/catalog 可见/可订条件判定。无 noop fallback，正式 runtime 缺实现不能假成功。
+
+## 员工在办来源
+
+`staffWorkSourcesOf(assembly, { requiredOwners?: [...] })` 通过 `staff.work_sources` 读取拥有者真实来源，并按 `StaffWorkItem.reassignOwner` 分派改派。默认五个必需来源始终为 `profile`、`order`、`delivery`、`publish`、`staff`；可选声明只增加要求，传空数组也不能关闭既有守卫。读取与改派检查缺项并返回 `INTERNAL`，`details.missingSources` 列出缺失来源。
+
+W5-09 PR1允许类型表达 `ad`，已登记时会读入并分派；组合根在真实广告来源落地后可传 `{ requiredOwners: ["ad"] }`，声明后缺广告来源即失败。未声明且未登记广告的既有装配保持兼容；若改派输入实际包含广告对象，缺广告来源同样失败。PR1未给生产装配登记广告占位来源，也未在实际runtime提前声明广告必需。锁由既有调用者持有，原五来源的分派顺序、拥有者重核和结果去重规则保持不变。
