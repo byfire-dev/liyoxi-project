@@ -1,6 +1,7 @@
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import type { MachineBinding } from "../flow/index.js";
 import { implementKeyed } from "../kernel/index.js";
+import { cancelPublishGuard } from "./cancel-review-close.js";
 const pass = Symbol("publish.checked");
 export const checked = () => pass;
 const guards = (rows: ReadonlyArray<readonly [string, string]>) =>
@@ -41,13 +42,18 @@ const launch: MachineBinding = {
     "completed_at",
     "is_live",
     "went_live_at",
+    "void_reason",
   ],
-  guards: guards([
-    ["11:299", "launch.create"],
-    ["11:300", "launch.submit"],
-    ["11:301", "launch.verify_pass"],
-    ["11:302", "launch.return"],
-  ]),
+  guards: {
+    ...guards([
+      ["11:299", "launch.create"],
+      ["11:300", "launch.submit"],
+      ["11:301", "launch.verify_pass"],
+      ["11:302", "launch.return"],
+    ]),
+    [rowKey("11:304", "launch.void")]: cancelPublishGuard,
+    [rowKey("11:305", "launch.settle")]: cancelPublishGuard,
+  },
   activity: (f) => ({
     category: "review",
     action: `publish.launch_task.${f.event.split(".")[1]}`,

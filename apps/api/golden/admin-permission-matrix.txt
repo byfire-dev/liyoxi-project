@@ -37,6 +37,7 @@ admin.billingParam.list | billing:view | - | 11 11 11 00 00 11 11 11
 admin.billingParam.withdraw | billing:view | billing.param.edit | 11 00 00 00 00 11 00 00
 admin.calendarDay.batchImport | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.calendarDay.list | system:view | - | 11 00 00 00 00 00 00 00
+admin.cancelRequest.execute | - | finance.refund.execute | 11 00 00 00 00 00 00 11
 admin.channelAccount.get | - | - | 11 11 11 11 11 11 11 11
 admin.channelAccountSubmission.approve | publish:edit | publish.account.verify | 11 00 00 00 11 00 00 00
 admin.channelAccountSubmission.get | - | - | 11 11 11 11 11 11 11 11

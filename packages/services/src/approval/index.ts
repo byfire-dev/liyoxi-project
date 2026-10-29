@@ -21,6 +21,8 @@ export type {
   WithdrawInput,
 } from "./decide.js";
 export type { RecordExecutedInput } from "./execute.js";
+export { approvalExecutionFactsPort } from "./execute.js";
+export type { ApprovalExecutionFacts } from "./execute.js";
 export { ApprovalError } from "./errors.js";
 export type { ApprovalRefusal } from "./errors.js";
 export {

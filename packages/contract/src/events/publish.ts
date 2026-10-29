@@ -1,6 +1,11 @@
 import { z } from "../zod.js";
-import { IdSchema } from "../common/index.js";
-import { CHANNEL_PLATFORM } from "../enums/index.js";
+import { DateSchema, IdSchema } from "../common/index.js";
+import {
+  CHANNEL_PLATFORM,
+  LAUNCH_TASK_VOID_REASON,
+  TAKEDOWN_TASK_BASIS,
+  TAKEDOWN_TASK_TRIGGER_KIND,
+} from "../enums/index.js";
 const transition = {
   fromState: z.union([z.string(), z.null()]),
   toState: z.string(),
@@ -39,4 +44,37 @@ export const payloads = {
     isLive: z.boolean(),
   }),
   "launch.returned": z.strictObject({ ...launch, reasonCodes: z.array(z.string()) }),
+  "launch.voided": z.strictObject({
+    ...launch,
+    voidReason: z.enum(LAUNCH_TASK_VOID_REASON.values),
+    fromState: z.enum(["pending", "need_fix", "verifying", "passed"]),
+    toState: z.literal("void"),
+    transition: z.literal("launch.void"),
+  }),
+  "launch.settled": z.strictObject({
+    ...launch,
+    fromState: z.enum(["verifying", "need_fix"]),
+    toState: z.literal("passed"),
+    transition: z.literal("launch.settle"),
+  }),
+  "patrol.voided": z.strictObject({
+    v: z.literal(1),
+    patrolTaskId: IdSchema,
+    fromState: z.enum(["pending", "abnormal"]),
+    toState: z.literal("void"),
+    transition: z.literal("patrol.void"),
+  }),
+  "takedown.created": z.strictObject({
+    v: z.literal(1),
+    takedownTaskId: IdSchema,
+    orderItemId: IdSchema,
+    channelAccountId: IdSchema,
+    dueDate: DateSchema,
+    basis: z.enum(TAKEDOWN_TASK_BASIS.values),
+    triggerKind: z.enum(TAKEDOWN_TASK_TRIGGER_KIND.values),
+    node: z.enum(["T-30", "created"]),
+    fromState: z.null(),
+    toState: z.literal("pending_merchant"),
+    transition: z.literal("takedown.create"),
+  }),
 };

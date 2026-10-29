@@ -1579,6 +1579,8 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 
 **响应**：`CancelRequestDetail`（`status = done`，`resultTotals` 为账本实际结果）。
 
+W5-01 的正式执行响应与资金写入在同一事务内生成并保存为幂等回执。`lines[].result.breakdown` 的数量全部取真实账本 `ReturnResult`；当前账本未返回逐批执行明细，故其 `lots` 为 `[]`，不复制提交时预览冒充最终逐批结果。`destination` 仍保留提交时的预览，二者可区分查看。
+
 **错误**
 
 | 错误码 | HTTP | 何时 |
