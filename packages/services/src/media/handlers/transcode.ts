@@ -1,38 +1,30 @@
 import { createHash } from "node:crypto";
-import { z } from "zod";
 import type { MediaJob } from "@liyoxi/db";
 import type { StorageBucket } from "../../providers/types.js";
 import type { BoundMediaDeps } from "../context.js";
 import type { MediaJobHandler, JobOutcome, JobJson } from "../jobs/types.js";
 import { createRemoteMediaHandler } from "../jobs/remote.js";
 import { systemProduceId } from "../jobs/convergence.js";
-import { contextHash, createDerivedFile, json, readProductionWork } from "../production.js";
+import { contextHash, createDerivedFile, readProductionWork } from "../production.js";
 import { LabelSchema, parseLabel, technicalReport } from "../production-report.js";
-import { PlayableInputSchema, playableCurrent, RenditionSchema } from "../production-playables.js";
-import {
-  DerivationInputSchema,
-  DerivationOutputSchema,
-  derivationCurrent,
-  finishDerivation,
-} from "./restamp.js";
-import { saveTechnical } from "./probe.js";
-import { link, release } from "../refs.js";
+import { playableCurrent } from "../production-playables.js";
+import { CloudPlayableInputSchema, PlayableOutputSchema } from "../playable-schemas.js";
+import { finishPlayable } from "./playable-finish.js";
+import { DerivationInputSchema, derivationCurrent, finishDerivation } from "./restamp.js";
 import { lockRows } from "../../kernel/index.js";
 import { failed } from "../../providers/types.js";
 type Kind = "transcode_mp4" | "watermark_sample" | "normalize";
-const outputSchema = DerivationOutputSchema.extend({
-  quality: z.enum(["sd", "hd", "source"]),
-}).strict();
+const outputSchema = PlayableOutputSchema;
 const failure = (code: string, retryable = false): JobOutcome => ({
   state: "failed",
   failure: { code, retryable },
 });
 export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): MediaJobHandler {
-  const schema = kind === "normalize" ? DerivationInputSchema : PlayableInputSchema;
+  const schema = kind === "normalize" ? DerivationInputSchema : CloudPlayableInputSchema;
   const input = (job: MediaJob) => schema.parse(job.input);
   const parsed = (value: unknown) => schema.parse(value);
   const production = deps.production;
-  if (production?.mode === "probe_only")
+  if (production && production.mode !== undefined && production.mode !== "full")
     return {
       kind,
       mode: "remote",
@@ -65,7 +57,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
       current: async (tx, job) => {
         if (job.subjectType !== "file_object") return false;
         if (kind === "normalize") return derivationCurrent(deps, tx, job);
-        const value = PlayableInputSchema.parse(job.input);
+        const value = CloudPlayableInputSchema.parse(job.input);
         if (
           value.fileId !== job.subjectId ||
           (kind === "transcode_mp4" ? value.quality === "source" : value.quality !== "source")
@@ -97,8 +89,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
       },
       finish: async (tx, job, result, ctx) => {
         if (result.state !== "succeeded") return;
-        const output = outputSchema.parse(result.output),
-          value = input(job);
+        const output = outputSchema.parse(result.output);
         if (kind === "normalize")
           return finishDerivation(
             deps,
@@ -117,102 +108,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
             },
             ctx,
           );
-        const playableInput = PlayableInputSchema.parse(value),
-          source = await tx.fileObject.findUniqueOrThrow({ where: { id: job.subjectId } }),
-          now = deps.clock.now();
-        const file = await createDerivedFile(
-          tx,
-          {
-            ...source,
-            bucket: kind === "transcode_mp4" ? "pub" : "media",
-            category: kind === "transcode_mp4" ? "trailer_out" : "sample_wm",
-          },
-          { id: output.fileId, objectKey: playableInput.objectKey, ...output },
-          now,
-        );
-        await saveTechnical(tx, file.id, output.technical, null, now);
-        const playable = await tx.playableAsset.findUniqueOrThrow({
-          where: { id: playableInput.playableAssetId },
-        });
-        const previous =
-          kind === "watermark_sample"
-            ? []
-            : z
-                .array(RenditionSchema)
-                .max(2)
-                .parse(playable.renditions ?? []);
-        const rendition = {
-          quality: output.quality,
-          fileId: output.fileId,
-          width: output.technical.displayWidth!,
-          height: output.technical.displayHeight!,
-          bitrateKbps: output.technical.bitrateKbps,
-        };
-        const renditions = [...previous.filter((r) => r.quality !== rendition.quality), rendition];
-        await tx.playableAsset.update({
-          where: { id: playable.id },
-          data: {
-            renditions: json(renditions),
-            durationMs: output.technical.durationMs,
-            width: output.technical.displayWidth,
-            height: output.technical.displayHeight,
-            ...(kind === "watermark_sample"
-              ? {
-                  watermark: json({
-                    template: playableInput.template,
-                    text: playableInput.watermarks.find((m) => "text" in m)?.text ?? "",
-                  }),
-                }
-              : {}),
-            updatedAt: now,
-          },
-        });
-        await link(deps, tx, {
-          fileId: source.id,
-          entityId: playable.entityId,
-          storeId: playable.storeId,
-          refType: "playable_asset",
-          refId: playable.id,
-          role: "source",
-        });
-        if (kind === "watermark_sample") {
-          const old = await tx.fileRef.findMany({
-            where: {
-              refType: "playable_asset",
-              refId: playable.id,
-              role: "rendition",
-              state: "live",
-              fileId: { not: file.id },
-            },
-          });
-          for (const ref of old)
-            await release(deps, tx, {
-              fileId: ref.fileId,
-              entityId: playable.entityId,
-              storeId: playable.storeId,
-              refType: "playable_asset",
-              refId: playable.id,
-              role: "rendition",
-              keepUntil: new Date(now.getTime() + 30 * 86_400_000),
-            });
-        }
-        await link(deps, tx, {
-          fileId: file.id,
-          entityId: playable.entityId,
-          storeId: playable.storeId,
-          refType: "playable_asset",
-          refId: playable.id,
-          role: "rendition",
-        });
-        if (playable.coverFileId)
-          await link(deps, tx, {
-            fileId: playable.coverFileId,
-            entityId: playable.entityId,
-            storeId: playable.storeId,
-            refType: "playable_asset",
-            refId: playable.id,
-            role: "cover",
-          });
+        return finishPlayable(deps, tx, job, result);
       },
     },
     submission: (value) => {
@@ -327,7 +223,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
       const remote = await native.poll!(job, signal);
       if (remote.state !== "succeeded") return remote;
       const value = input(job),
-        playableInput = kind === "normalize" ? null : PlayableInputSchema.parse(value);
+        playableInput = kind === "normalize" ? null : CloudPlayableInputSchema.parse(value);
       const facts = await deps.tx.run((tx) => readProductionWork(deps, tx, job.subjectId));
       if (
         kind === "normalize" &&

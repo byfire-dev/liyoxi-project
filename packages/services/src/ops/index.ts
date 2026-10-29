@@ -70,6 +70,8 @@ export type {
   AlertCliInput,
   AlertCliResult,
 } from "./alert-actions.js";
+export { createSampleWatermarkActions } from "./sample-watermark-actions.js";
+export type { SampleWatermarkCliInput } from "./sample-watermark-actions.js";
 
 export { createNotifyAssembly, createRuntimeNotify } from "./notify-runtime.js";
 

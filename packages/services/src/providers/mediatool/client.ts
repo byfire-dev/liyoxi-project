@@ -45,6 +45,7 @@ const HARD_TIMEOUT_MS = {
   stampAigc: 90_000,
   health: 5_000,
   watermarkPng: 30_000,
+  watermarkSample: 90_000,
   docText: 10_000,
 } as const;
 const QUEUE_ALLOWANCE_MS = 30_000;
@@ -484,6 +485,100 @@ export function createMediaToolClient(options: MediaToolClientOptions = {}): Med
         );
       }
       return ok({ report, inputSizeBytes: source.sizeBytes, outputSizeBytes: product.sizeBytes });
+    },
+
+    async watermarkSample(input) {
+      if (input.signal?.aborted) return failed("unavailable", "样片水印调用已取消");
+      if (
+        !isRelativeWorkPath(input.path) ||
+        !isRelativeWorkPath(input.outPath) ||
+        input.path.split("/")[0] !== input.outPath.split("/")[0] ||
+        input.path === input.outPath ||
+        !input.outPath.endsWith(".mp4") ||
+        typeof input.text !== "string" ||
+        Buffer.byteLength(input.text) > 256 ||
+        /[\p{Cc}\p{Cf}]/u.test(input.text) ||
+        !/^样片 · 仅供「.{1,20}」确认 · \d{2}-\d{2}$/u.test(input.text) ||
+        (input.timeoutMs !== undefined &&
+          (!Number.isInteger(input.timeoutMs) ||
+            input.timeoutMs < 1000 ||
+            input.timeoutMs > HARD_TIMEOUT_MS.watermarkSample))
+      )
+        return failed("rejected", "样片水印参数或路径不合规");
+      const source = await regularFile(workDir, input.path);
+      if ("ok" in source) return source;
+      if (source.sizeBytes < 1 || source.sizeBytes > 200 * 1024 ** 2)
+        return failed("rejected", "样片源文件超限");
+      const result = interpret(
+        StampResponseSchema,
+        await call(
+          "POST",
+          "/watermarkSample",
+          {
+            path: input.path,
+            outPath: input.outPath,
+            text: input.text,
+            timeoutMs: input.timeoutMs,
+          },
+          waitFor("watermarkSample"),
+          input.signal,
+        ),
+      );
+      if (!result.ok) return result;
+      const product = await regularFile(workDir, input.outPath);
+      if ("ok" in product) return product;
+      const report = result.value.report;
+      const videos = report.streams.filter((stream) => stream.codecType === "video");
+      const audios = report.streams.filter((stream) => stream.codecType === "audio");
+      const video = videos[0];
+      if (
+        product.sizeBytes < 1 ||
+        product.sizeBytes > 200 * 1024 ** 2 ||
+        result.value.inputSizeBytes !== source.sizeBytes ||
+        result.value.outputSizeBytes !== product.sizeBytes ||
+        report.format.sizeBytes !== product.sizeBytes ||
+        !report.moovBeforeMdat ||
+        videos.length !== 1 ||
+        audios.length !== 1 ||
+        video?.codecName !== "h264" ||
+        video.profile !== "High" ||
+        video.pixFmt !== "yuv420p" ||
+        video.rotation !== 0 ||
+        !video.displayWidth ||
+        !video.displayHeight ||
+        audios[0]?.codecName !== "aac"
+      )
+        return failed("rejected", "样片水印产物与回读报告不一致");
+      try {
+        const handle = await open(product.abs, constants.O_RDONLY | constants.O_NOFOLLOW);
+        try {
+          const info = await handle.stat();
+          if (!info.isFile() || info.size !== product.sizeBytes)
+            return failed("rejected", "样片水印产物已改变");
+          const hash = createHash("sha256"),
+            chunk = Buffer.alloc(64 * 1024);
+          let size = 0;
+          while (true) {
+            if (input.signal?.aborted) return failed("unavailable", "样片水印调用已取消");
+            const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
+            if (!bytesRead) break;
+            size += bytesRead;
+            if (size > product.sizeBytes) return failed("rejected", "样片水印产物已改变");
+            hash.update(chunk.subarray(0, bytesRead));
+          }
+          if (size !== product.sizeBytes) return failed("rejected", "样片水印产物已改变");
+          return ok({
+            report,
+            inputSizeBytes: source.sizeBytes,
+            outputSizeBytes: product.sizeBytes,
+            sha256: hash.digest("hex"),
+          });
+        } finally {
+          await handle.close();
+        }
+      } catch {
+        return failed("rejected", "样片水印产物读取失败");
+      }
     },
 
     async watermarkPng(input) {

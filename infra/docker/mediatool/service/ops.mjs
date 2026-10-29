@@ -4,17 +4,20 @@
 //   packages/services/src/render/finalize.ts 的加标参数（-map 0 -c copy -metadata AIGC=… -movflags +faststart+use_metadata_tags）；
 //   packages/services/src/media/probe.ts 的 readRotation（旋转后的显示尺寸）与 seekTo（第 0 秒不写 -ss）。
 // 比参考工程多的是 D5 第 6.6 节的输入约束：协议白名单、强制解复用器、不跟随外部引用、探测上限、硬超时。
-import { rename, rm, stat } from "node:fs/promises";
+import { mkdtemp, rename, rm, stat } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 
 import { moovBeforeMdat, topLevelBoxTypes } from "./boxes.mjs";
 import { RequestError, inputFile, outputFile } from "./paths.mjs";
 import { run } from "./run.mjs";
+import { watermarkPng } from "./watermark.mjs";
 
 export const LIMITS = {
   /** 每次调用的硬超时（D5：30–90 秒）。请求里的 timeoutMs 只能把它调短 */
   probeTimeoutMs: 30_000,
   posterTimeoutMs: 30_000,
   stampTimeoutMs: 90_000,
+  watermarkSampleTimeoutMs: 90_000,
   minTimeoutMs: 1_000,
   /** ffprobe 的输出上限：调用端只收 4MB 以内的 JSON */
   maxReportBytes: 4 * 1024 * 1024,
@@ -57,6 +60,161 @@ function inputArgs(demuxer, abs) {
     "-i",
     `file:${abs}`,
   ];
+}
+
+/** 实际重编码样片水印；所有参数固定，调用者不能传过滤器、编码器或字体。
+ * @param {any} body @param {AbortSignal} [signal]
+ */
+export async function watermarkSample(body, signal) {
+  if (
+    Object.keys(body).some((key) => !["path", "outPath", "text", "timeoutMs"].includes(key)) ||
+    typeof body.text !== "string" ||
+    Buffer.byteLength(body.text) > 256 ||
+    /[\p{Cc}\p{Cf}]/u.test(body.text) ||
+    !/^样片 · 仅供「.{1,20}」确认 · \d{2}-\d{2}$/u.test(body.text) ||
+    (body.timeoutMs !== undefined &&
+      (!Number.isInteger(body.timeoutMs) ||
+        body.timeoutMs < 1000 ||
+        body.timeoutMs > LIMITS.watermarkSampleTimeoutMs))
+  )
+    throw new RequestError("bad_request", "样片水印参数不合规");
+  const left = deadline(LIMITS.watermarkSampleTimeoutMs, body.timeoutMs, signal);
+  const input = await inputFile(body.path);
+  const { out, part } = await outputPair(body.outPath, input);
+  if (!out.endsWith(".mp4") || input.sizeBytes < 1 || input.sizeBytes > 200 * 1024 ** 2)
+    throw new RequestError("bad_request", "样片必须在200MB内，产物必须为MP4");
+  const source = await probeFile(input.abs, input.sizeBytes, ["mov"], left);
+  const videos = source.streams.filter((stream) => stream.codecType === "video");
+  const audios = source.streams.filter((stream) => stream.codecType === "audio");
+  const video = videos[0];
+  if (
+    videos.length !== 1 ||
+    audios.length !== 1 ||
+    video?.attachedPic ||
+    !video?.displayWidth ||
+    !video.displayHeight ||
+    video.displayWidth < 720 ||
+    video.displayWidth > 2160 ||
+    video.displayHeight > 3840 ||
+    !source.format.durationMs ||
+    source.format.durationMs > 20 * 60_000 ||
+    (source.aigc !== null && Buffer.byteLength(source.aigc) > LIMITS.maxAigcBytes)
+  )
+    throw new RequestError("bad_request", "样片媒体边界不合规");
+  const temporary = await mkdtemp(`${dirname(input.abs)}/watermark-`);
+  const parent = String(body.path).split("/").slice(0, -1).join("/");
+  const png = `${parent}/${basename(temporary)}/watermark.png`;
+  try {
+    await watermarkPng(
+      { text: body.text, outPath: png, timeoutMs: Math.min(30_000, left()) },
+      signal,
+    );
+    await rm(part, { force: true });
+    const result = await tool(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-v",
+        "error",
+        "-nostdin",
+        "-y",
+        "-threads",
+        "1",
+        ...inputArgs("mov", input.abs),
+        "-protocol_whitelist",
+        "file",
+        "-f",
+        "image2",
+        "-pattern_type",
+        "none",
+        "-loop",
+        "1",
+        "-framerate",
+        "1",
+        "-i",
+        `file:${temporary}/watermark.png`,
+        "-filter_complex_threads",
+        "1",
+        "-filter_complex",
+        "[0:v:0]setsar=1[base];[1:v:0]format=rgba,colorchannelmixer=aa=0.7[mark];[base][mark]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p[out]",
+        "-map",
+        "[out]",
+        "-map",
+        "0:a:0",
+        "-sn",
+        "-dn",
+        "-map_metadata",
+        "-1",
+        "-map_chapters",
+        "-1",
+        "-metadata:s:v:0",
+        "rotate=0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-profile:v",
+        "high",
+        "-crf",
+        "23",
+        "-pix_fmt",
+        "yuv420p",
+        "-threads",
+        "1",
+        "-r",
+        "30",
+        "-g",
+        "60",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        ...(source.aigc === null ? [] : ["-metadata", `AIGC=${source.aigc}`]),
+        "-movflags",
+        "+faststart+use_metadata_tags",
+        "-fs",
+        String(200 * 1024 ** 2),
+        "-f",
+        "mp4",
+        `file:${part}`,
+      ],
+      left,
+    );
+    if (result.code !== 0) throw new RequestError("encode_failed", "样片水印编码失败", 422);
+    const outputSizeBytes = (await stat(part)).size;
+    if (outputSizeBytes < 1 || outputSizeBytes > 200 * 1024 ** 2)
+      throw new RequestError("output_too_large", "样片水印产物超限", 422);
+    const report = await probeFile(part, outputSizeBytes, ["mov"], left);
+    const outputVideo = report.streams.filter((stream) => stream.codecType === "video");
+    const outputAudio = report.streams.filter((stream) => stream.codecType === "audio");
+    const actual = outputVideo[0];
+    if (
+      outputVideo.length !== 1 ||
+      outputAudio.length !== 1 ||
+      actual?.codecName !== "h264" ||
+      actual.profile !== "High" ||
+      actual.pixFmt !== "yuv420p" ||
+      actual.rotation !== 0 ||
+      actual.displayWidth !== video.displayWidth ||
+      actual.displayHeight !== video.displayHeight ||
+      outputAudio[0]?.codecName !== "aac" ||
+      !report.moovBeforeMdat ||
+      report.aigc !== source.aigc ||
+      !report.format.durationMs ||
+      Math.abs(report.format.durationMs - source.format.durationMs) > 250
+    )
+      throw new RequestError("encode_failed", "样片水印回读与源媒体不一致", 422);
+    left();
+    await rename(part, out);
+    return { report, inputSizeBytes: input.sizeBytes, outputSizeBytes };
+  } finally {
+    await rm(part, { force: true });
+    await rm(temporary, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -198,7 +356,9 @@ function reportOf(demuxer, raw, boxes, sizeBytes) {
       bitRate: int(format.bit_rate),
       tags,
     },
-    streams: (Array.isArray(raw?.streams) ? raw.streams : []).map(streamOf),
+    streams: /** @type {ReturnType<typeof streamOf>[]} */ (
+      (Array.isArray(raw?.streams) ? raw.streams : []).map(streamOf)
+    ),
     // 顶层 box 的顺序，只对 mov 一族有意义
     boxes,
     moovBeforeMdat: moovBeforeMdat(boxes),

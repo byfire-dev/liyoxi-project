@@ -19,6 +19,7 @@ import { createUploadBatches } from "./batches/service.js";
 import { createBatchWorkerHooks } from "./batches/worker.js";
 import { enqueueProbe, enqueueDerivation, productionFacts } from "./production.js";
 import { deliveryProductionFacts } from "./production/facts.js";
+import { ensureSampleWatermark } from "./sample-watermark.js";
 import { prepareDeliveryProduction } from "./production/prepare.js";
 import type { ManualProductionInput } from "./production/prepare.js";
 import {
@@ -220,6 +221,7 @@ export function createMedia(options: MediaDeps) {
       ),
     deliveryProductionFacts: (tx: Parameters<typeof deliveryProductionFacts>[1], fileId: string) =>
       deliveryProductionFacts(deps, tx, fileId),
+    ensureSampleWatermark: (tx: Tx, fileId: string) => ensureSampleWatermark(deps, tx, fileId),
     assertUsableForModel,
     retireDramaMedia: (
       tx: Parameters<typeof retireDramaMedia>[1],

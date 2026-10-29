@@ -138,6 +138,19 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
                             ? "待质检"
                             : "待体检",
               },
+              {
+                label: "水印预览",
+                value:
+                  sample.watermark?.state === "ready"
+                    ? "已就绪"
+                    : sample.watermark?.state === "processing"
+                      ? "生成中"
+                      : sample.watermark?.state === "failed"
+                        ? "生成失败，请联系管理员处理"
+                        : sample.watermark?.state === "retired"
+                          ? "已停用"
+                          : "尚未生成",
+              },
               { label: "不通过原因", value: sample.qc?.rejectReason ?? "—" },
               { label: "质检人", value: sample.qc?.inspectedBy?.name ?? "—" },
             ]}

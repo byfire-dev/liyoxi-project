@@ -34,7 +34,14 @@ function rawTools() {
     return failed("unavailable", "明确的测试替身");
   };
   const raw: ProductionMediaTools = {
-    client: { probe: call, poster: call, stampAigc: call, health: call, watermarkPng: call },
+    client: {
+      probe: call,
+      poster: call,
+      stampAigc: call,
+      health: call,
+      watermarkPng: call,
+      watermarkSample: call,
+    },
     workspace: {
       run: (_job, _signal, action) =>
         action({ path: (name) => `owned/${name}`, download: call, publish: call }),
@@ -45,27 +52,39 @@ function rawTools() {
   return { raw, sent, close };
 }
 describe("W3-04 测试工具装配保留真实边界", { timeout: 60_000 }, () => {
-  it("本地探测配置只装配真实工具与事实读取，不产生主体或云模板占位", async () => {
-    const raw = rawTools();
-    const scope = createRuntimeMediaProduction(
-      {
-        mode: "probe_only",
-        workDir: "/work",
-        socketPath: "/work/.sock/mediatool.sock",
-      },
-      createFakeProviders(),
-      { appEnv: "test", tools: raw.raw },
-    );
-    try {
-      expect(scope.production?.mode).toBe("probe_only");
-      expect(scope.production?.config).toBeNull();
-      expect(scope.production?.readMasterFacts).toBeTypeOf("function");
-      expect((await scope.production!.tool.health()).ok).toBe(false);
-      expect(raw.sent).toHaveBeenCalledTimes(1);
-    } finally {
-      await scope.close();
-    }
-  });
+  it.each(["probe_only", "local_sample_watermark"] as const)(
+    "%s只装配真实工具与事实读取，不产生主体或云模板占位",
+    async (mode) => {
+      const raw = rawTools();
+      const scope = createRuntimeMediaProduction(
+        {
+          mode,
+          workDir: "/work",
+          socketPath: "/work/.sock/mediatool.sock",
+        },
+        createFakeProviders(),
+        { appEnv: "test", tools: raw.raw },
+      );
+      try {
+        expect(scope.production?.mode).toBe(mode);
+        expect(scope.production?.config).toBeNull();
+        expect(scope.production?.readMasterFacts).toBeTypeOf("function");
+        expect((await scope.production!.tool.health()).ok).toBe(false);
+        expect(
+          (
+            await scope.production!.tool.watermarkSample!({
+              path: "source.mp4",
+              outPath: "stamped.mp4",
+              text: "虚构门店",
+            })
+          ).ok,
+        ).toBe(false);
+        expect(raw.sent).toHaveBeenCalledTimes(2);
+      } finally {
+        await scope.close();
+      }
+    },
+  );
   it("stg/prod或缺完整配置在任何工具调用前拒绝注入", () => {
     const raw = rawTools(),
       providers = createFakeProviders();
@@ -90,6 +109,16 @@ describe("W3-04 测试工具装配保留真实边界", { timeout: 60_000 }, () =
     try {
       await expect(
         tx.run(() => scope.production!.tool.probe({ path: "../invalid", demuxers: [], signal })),
+      ).rejects.toMatchObject({ kind: "external_call_in_transaction" });
+      await expect(
+        tx.run(() =>
+          scope.production!.tool.watermarkSample!({
+            path: "../invalid",
+            outPath: "../invalid",
+            text: "虚构门店",
+            signal,
+          }),
+        ),
       ).rejects.toMatchObject({ kind: "external_call_in_transaction" });
       await expect(
         tx.run(() =>

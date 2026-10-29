@@ -1,6 +1,7 @@
 // W0-07b 服务装配：组合根。api、worker 启动时各调一次 assembleServices
 export { assembleServices } from "./assembly.js";
 export { readStoreDraftFacts } from "./ops/index.js";
+export { createSampleWatermarkActions } from "./ops/index.js";
 export { readTenantAdminBillingFacts } from "./billing/index.js";
 export { readEntityStoreProfileFacts } from "./profile/index.js";
 export type { TenantAdminReadDeps } from "./tenant/index.js";

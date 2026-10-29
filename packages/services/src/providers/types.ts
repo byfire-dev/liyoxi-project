@@ -553,6 +553,14 @@ export interface MediaToolClient {
     text: string;
     signal?: AbortSignal;
   }): Promise<ProviderResult<{ sizeBytes: number; width: 720; height: 96; sha256: string }>>;
+  /** 本地隔离工具实际叠加门店水印，保持源显示尺寸并回读 MP4。 */
+  watermarkSample?(input: {
+    path: string;
+    outPath: string;
+    text: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }): Promise<ProviderResult<StampResult & { sha256: string }>>;
 }
 
 export interface MediaWorkSession {

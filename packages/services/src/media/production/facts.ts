@@ -5,13 +5,22 @@ import type { Tx } from "../../kernel/index.js";
 import type { BoundMediaDeps } from "../context.js";
 import { contextHash, profileOf, readProductionWork } from "../production.js";
 import { LabelSchema, checkFacts } from "../production-report.js";
-import { ProbeInputSchema, ProbeOutputSchema } from "../handlers/probe.js";
-import { DerivationInputSchema, DerivationOutputSchema } from "../handlers/restamp.js";
-import { PlayableInputSchema, RenditionSchema } from "../production-playables.js";
+import {
+  ProbeInputSchema,
+  ProbeOutputSchema,
+  DerivationInputSchema,
+  DerivationOutputSchema,
+} from "../production-job-schemas.js";
+import {
+  CloudPlayableInputSchema,
+  LocalSamplePlayableInputSchema,
+  PlayableInputSchema,
+  PlayableOutputSchema,
+  RenditionSchema,
+  localSampleOutputValid,
+} from "../playable-schemas.js";
 
-const cloudOutput = DerivationOutputSchema.extend({
-  quality: z.enum(["sd", "hd", "source"]),
-}).strict();
+const cloudOutput = PlayableOutputSchema;
 /** Revalidate successful job output against the caller transaction's current context and rows. */
 export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, fileId: string) {
   if (!isUuid(fileId)) throw new AppError("VALIDATION_FAILED");
@@ -246,7 +255,33 @@ export async function deliveryProductionFacts(deps: BoundMediaDeps, tx: Tx, file
       ]);
       const input = PlayableInputSchema.safeParse(task?.input),
         result = cloudOutput.safeParse(task?.output);
+      const localInput = LocalSamplePlayableInputSchema.safeParse(task?.input),
+        cloudInput = CloudPlayableInputSchema.safeParse(task?.input);
+      const rendererVerified = localInput.success
+        ? deps.production?.mode === "local_sample_watermark" &&
+          task?.mode === "local" &&
+          task.provider === "mediatool" &&
+          task.externalJobId === null &&
+          task.subjectType === "file_object" &&
+          localInput.data.sourceSha256 === file.sha256 &&
+          localInput.data.contextHash === contextHash(record) &&
+          localInput.data.ruleVersion === parameters.ruleVersion &&
+          localInput.data.specVersion === parameters.specVersion &&
+          watermark.recipe === localInput.data.recipe &&
+          context?.aiUsed === false &&
+          info?.aigcMeta === null &&
+          result.success &&
+          result.data.aigcOrigin === null &&
+          result.data.size === result.data.technical.sizeBytes &&
+          result.data.sha256 !== file.sha256 &&
+          result.data.etag === target?.etag &&
+          target?.objectKey === localInput.data.objectKey &&
+          target.bucket === "media" &&
+          !!info &&
+          localSampleOutputValid(result.data.technical, info, context, parameters)
+        : cloudInput.success && task?.mode === "remote";
       if (
+        rendererVerified &&
         target?.status === "stored" &&
         target.category === "sample_wm" &&
         target.moderationState !== "block" &&

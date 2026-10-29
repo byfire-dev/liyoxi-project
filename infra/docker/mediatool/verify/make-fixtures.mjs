@@ -81,6 +81,27 @@ ffmpeg([
 ]);
 // 同一条片子，moov 在后（不带 faststart 的重封装）
 ffmpeg(["-i", at("portrait.mp4"), "-map", "0", "-c", "copy", "-f", "mp4", at("slowstart.mp4")]);
+// 纯黑画面供视频水印验收；文字是唯一新增画面细节。
+ffmpeg([
+  "-f",
+  "lavfi",
+  "-i",
+  "color=c=black:s=1080x1920:r=30",
+  ...TONE,
+  "-t",
+  "1",
+  ...H264_HIGH,
+  "-pix_fmt",
+  "yuv420p",
+  ...AAC,
+  "-metadata",
+  "comment=private-fixture-metadata",
+  "-movflags",
+  "+faststart",
+  "-f",
+  "mp4",
+  at("watermark-source.mp4"),
+]);
 // 横着编码、带旋转元数据：显示出来是竖的
 ffmpeg([
   ...["-f", "lavfi", "-i", video(ROTATED)],
