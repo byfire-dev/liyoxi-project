@@ -50,6 +50,11 @@ const send = (value: Awaited<ReturnType<typeof input>>) =>
   h.tx.run((tx) => sendReceiptDailyDigest(tx, value, h.deps.assembly));
 
 it("对公日摘要仅当前在职超管：真实受众/同日幂等、bigint总分、安全清单与仅站内", async () => {
+  expect(h.deps.assembly.recurringJob("receipt.daily_digest")).toMatchObject({
+    kind: "receipt.daily_digest",
+    schedule: { every: "day", at: "18:00" },
+    mode: "job",
+  });
   const value = await input();
   const first = await h.make.staff({ staffRoleKey: "super_admin" });
   const second = await h.make.staff({ staffRoleKey: "super_admin" });
@@ -83,6 +88,7 @@ it("对公日摘要仅当前在职超管：真实受众/同日幂等、bigint总
   expect(rows.map((row) => row.staffId)).toEqual([first.id, second.id].sort());
   for (const row of rows) {
     expect(row).toMatchObject({
+      dedupeKey: `receipt.daily_digest:${value.bizDate}:${row.staffId}`,
       bizType: "recon_day",
       bizId: value.reconDayId,
       merchantUserId: null,
