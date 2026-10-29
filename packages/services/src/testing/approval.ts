@@ -11,7 +11,12 @@
 import type { ApprovalKind } from "@liyoxi/contract";
 import type { Prisma, PrismaClient } from "@liyoxi/db";
 
-import { approvalKindPort, createApproval, defineApprovalKind } from "../approval/index.js";
+import {
+  approvalKindPort,
+  approvalExecutionFactsPort,
+  createApproval,
+  defineApprovalKind,
+} from "../approval/index.js";
 import type {
   Approval,
   ApprovalKindRegistration,
@@ -248,6 +253,33 @@ export function sampleApprovalRegistration(
       ...Object.entries(kinds).map(([kind, registration]) =>
         implementKeyed(approvalKindPort, kind, registration),
       ),
+      // The sample kind uses its own real probe rows, so its execution witness
+      // must read those rows as well. Production cancellation facts stay strict.
+      ...(kinds.order_cancel?.domain?.table === SAMPLE_APPROVAL_TABLE
+        ? [
+            implementKeyed(
+              approvalExecutionFactsPort,
+              "order_cancel",
+              async (tx, ctx, input, row) => {
+                if (
+                  ctx.actor.type !== "staff" ||
+                  ctx.actor.id !== row.decidedByStaffId ||
+                  input.domain.type !== "cancel_request" ||
+                  row.kind !== "order_cancel"
+                )
+                  return false;
+                const rows = await tx.$queryRawUnsafe<Array<{ valid: boolean }>>(
+                  `SELECT status = 'done' AND approved > 0 AND executed > 0 AS valid
+             FROM ${SAMPLE_APPROVAL_TABLE}
+             WHERE id = $1::uuid AND approval_request_id = $2::uuid`,
+                  input.domain.id,
+                  row.id,
+                );
+                return rows.length === 1 && rows[0]?.valid === true;
+              },
+            ),
+          ]
+        : []),
       implement(workMinutesPort, fixedWorkMinutes),
     ],
   });

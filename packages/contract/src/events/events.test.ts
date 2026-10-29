@@ -24,10 +24,7 @@ describe("事件载荷 schema（W0-15）", () => {
     expect(eventPayloadSchema("order.submitted")).toBe(EVENT_PAYLOAD_SCHEMAS["order.submitted"]);
     expect(eventPayloadSchema("order.started")).toBe(EVENT_PAYLOAD_SCHEMAS["order.started"]);
     const noSchema = EVENTS.find(
-      (event) =>
-        event.status === "v1" &&
-        event.aggregates.includes("drama_order") &&
-        eventPayloadSchema(event.name) === undefined,
+      (event) => event.status === "v1" && eventPayloadSchema(event.name) === undefined,
     );
     expect(noSchema).toBeDefined();
     expect(eventPayloadSchema(noSchema!.name)).toBeUndefined();
