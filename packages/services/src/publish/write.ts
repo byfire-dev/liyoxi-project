@@ -228,6 +228,13 @@ export async function submitLaunch(
   body: LaunchTaskSubmitBody,
 ) {
   owner(viewer);
+  const first = await taskOf(tx, id);
+  if (first.storeId !== viewer.membership.storeId) throw new AppError("NOT_FOUND");
+  await deps.assembly.port(launchChangedPort)(tx, {
+    orderItemId: first.orderItemId,
+    deliveryTicketId: first.deliveryTicketId,
+    phase: "prelock",
+  });
   const task = await lockTask(tx, id);
   if (task.storeId !== viewer.membership.storeId) throw new AppError("NOT_FOUND");
   submittedLinks(task, body, deps.clock.now());

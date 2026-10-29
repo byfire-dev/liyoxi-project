@@ -55,6 +55,8 @@ export { setPortLogger } from "./kernel/index.js";
 export type { PortLogger } from "./kernel/index.js";
 // W0-16 状态迁移：api、worker 启动时各调一次 createFlow（createEvents 之后），拿到 transition；另有状态列的启动自检
 export { assertStateColumns, createFlow, FlowError } from "./flow/index.js";
+export { createDeliveryM5 } from "./delivery/index.js";
+export type { DeliveryM5, DeliveryM5Deps } from "./delivery/index.js";
 export type { Flow, FlowOptions, TransitionInput, TransitionResult } from "./flow/index.js";
 // W0-21 播种：运行器与六条配置类不变量的 SQL 断言（用法见 seed.ts 开头的注释）
 export { checkSeedAssertions, runSeed, SEED_MODULES, seedAssertions } from "./seed.js";

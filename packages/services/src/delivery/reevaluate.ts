@@ -1,5 +1,9 @@
-import { PlanContentSchema } from "@liyoxi/contract";
-import { getLaunchFacts } from "../publish/index.js";
+import { calendarDate } from "@liyoxi/shared/time";
+import {
+  getLaunchFacts,
+  readDeliveryPublishTargets,
+  closeExpiredDeliveryPublish,
+} from "../publish/index.js";
 import { AppError, createIdentityContext, invariantsOf, lockRows } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
@@ -8,42 +12,12 @@ import { prefillPublishList } from "./publish-list.js";
 import { orderSidePort } from "./ports.js";
 import { dateOf, lockTickets, ticketOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
-/** M5 广告与授权书包接管；M1 的主链没有广告位，本桩不改变任何广告行。 */
-export function adsReady(_ticket: TicketRow) {
-  return true;
-}
+import { prepareReevaluation } from "./reevaluate-locks.js";
+import { closeSystemFollowUps } from "../staff/index.js";
+export { adsReady, planApplied } from "./reevaluate-facts.js";
+import { adsReady, planApplied } from "./reevaluate-facts.js";
+/** W5-06 owns actual letter readiness; this legacy no-letter M1 path stays explicit. */
 export function licenseReady(_ticket: TicketRow) {
-  return true;
-}
-export async function planApplied(tx: Tx, dramaOrderId: string, snapshot: unknown) {
-  const content = PlanContentSchema.parse(snapshot);
-  const rows = await tx.orderItem.findMany({
-    where: { dramaOrderId },
-    include: { orderItemAccounts: true, orderItemPlacements: true },
-  });
-  for (const item of content.items) {
-    const row = rows.find((r) => r.id === item.orderItemId);
-    if (!row || !item.agreedLaunchDate || dateOf(row.agreedLaunchDate) !== item.agreedLaunchDate)
-      return false;
-    const accounts = (a: ReadonlyArray<{ channelAccountId: string; platform: string }>) =>
-      a
-        .map((r) => `${r.platform}:${r.channelAccountId}`)
-        .sort()
-        .join("|");
-    if (accounts(row.orderItemAccounts) !== accounts(item.accounts)) return false;
-    const placements = (a: ReadonlyArray<{ slot: string; adId: string; durationSec: number }>) =>
-      a
-        .map((r) => `${r.slot}:${r.adId}:${r.durationSec}`)
-        .sort()
-        .join("|");
-    if (placements(row.orderItemPlacements) !== placements(item.placements)) return false;
-  }
-  const references = await tx.storeAssetUsage.findMany({
-    where: { usedByType: "drama_order", usedById: dramaOrderId, role: "reference" },
-    select: { storeAssetId: true },
-  });
-  if (content.referenceAssetIds.some((id) => !references.some((r) => r.storeAssetId === id)))
-    return false;
   return true;
 }
 export async function step(
@@ -70,7 +44,7 @@ export async function step(
     set: {
       step_entered_at: now,
       step_due_at: null,
-      waiting_on: to === "in_service" ? "none" : "staff",
+      waiting_on: ["in_service", "archived", "terminated"].includes(to) ? "none" : "staff",
       ...milestone,
     },
     emit: {
@@ -91,13 +65,109 @@ export async function reevaluate(
   ctx: IdentityContext,
   ticketId: string,
 ) {
+  const first = await ticketOf(tx, ticketId);
+  if (["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(first.step))
+    await prepareReevaluation(tx, [ticketId]);
+  else
+    await lockRows(
+      tx,
+      "ad",
+      first.orderItem.orderItemPlacements.map((p) => p.adId),
+      "share",
+    );
   await lockTickets(tx, [ticketId]);
   let moved = 0;
   let launchFacts: Awaited<ReturnType<typeof getLaunchFacts>> | undefined;
   // 每个规则最多一次；允许方案确认后同一次求值再进样片制作。
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     const t = await ticketOf(tx, ticketId);
     if (t.pauseCount > 0) break;
+    if (["awaiting_launch", "launch_verify", "in_service"].includes(t.step)) {
+      const targets = await readDeliveryPublishTargets(tx, [t.orderItemId]);
+      const expired = calendarDate(deps.clock.now()) > dateOf(t.orderItem.usageEndDate)!;
+      const confirmed =
+        targets.takedowns.length > 0 &&
+        targets.takedowns.every((r) => r.merchantConfirmedAt !== null);
+      if (expired || (t.step === "in_service" && confirmed)) {
+        if (!deps.approval)
+          throw new AppError("INTERNAL", { message: "交付到期求值缺少真实审批收尾依赖" });
+        await closeExpiredDeliveryPublish(tx, { ...deps, approval: deps.approval }, ctx, targets, {
+          deliveryTicketId: t.id,
+          now: deps.clock.now(),
+        });
+        if (t.step !== "in_service")
+          await tx.downloadGrant.updateMany({
+            where: { orderItemId: t.orderItemId, state: "active" },
+            data: { state: "revoked", endedAt: deps.clock.now(), updatedAt: deps.clock.now() },
+          });
+        const reissues = await tx.deliveryReissue.findMany({
+          where: { deliveryTicketId: t.id },
+          select: { id: true },
+        });
+        await closeSystemFollowUps(tx, ctx, {
+          subjects: reissues.map((r) => ({
+            subjectType: "delivery_reissue" as const,
+            subjectId: r.id,
+          })),
+          now: deps.clock.now(),
+        });
+        await step(
+          tx,
+          deps,
+          ctx,
+          t,
+          "usage.ended",
+          "takedown",
+          t.step === "in_service" ? "10:186" : "10:187",
+          { usage_ended_at: deps.clock.now() },
+        );
+        moved++;
+        continue;
+      }
+    }
+    if (t.step === "takedown") {
+      const targets = await readDeliveryPublishTargets(tx, [t.orderItemId]);
+      if (targets.takedowns.length > 0 && targets.takedowns.every((r) => r.status === "checked")) {
+        await step(tx, deps, ctx, t, "takedown.all_checked", "archived", "10:188", {
+          archived_at: deps.clock.now(),
+        });
+        moved++;
+        continue;
+      }
+    }
+    if (["sample_making", "sample_confirm"].includes(t.step) && !adsReady(t)) {
+      const samples = await tx.sample.findMany({
+        where: { deliveryTicketId: t.id, status: { in: ["uploaded", "qc_passed", "pushed"] } },
+      });
+      await lockRows(
+        tx,
+        "sample",
+        samples.map((s) => s.id),
+      );
+      for (const s of samples)
+        await deps.flow.transition(tx, ctx, {
+          machine: "sample",
+          stateField: "status",
+          id: s.id,
+          event: "sample.superseded",
+          args: checked(),
+          entityId: t.entityId,
+          storeId: t.storeId,
+          emit: {
+            type: "sample.superseded",
+            payload: {
+              v: 1,
+              sampleId: s.id,
+              deliveryTicketId: t.id,
+              dramaOrderId: t.dramaOrderId,
+              versionNo: s.versionNo,
+            },
+          },
+        });
+      await step(tx, deps, ctx, t, "ad.reopened", "ad_prep", "10:179");
+      moved++;
+      continue;
+    }
     if (t.step === "plan_confirm") {
       const p = t.dramaOrder.deliveryPlan;
       if (!p || !p.confirmedVersionNo) break;
@@ -184,7 +254,17 @@ export async function reevaluateSweep(deps: DeliveryCoreDeps) {
       where: {
         pauseCount: 0,
         step: {
-          in: ["plan_confirm", "ad_prep", "batch_compose", "awaiting_launch", "launch_verify"],
+          in: [
+            "plan_confirm",
+            "ad_prep",
+            "sample_making",
+            "sample_confirm",
+            "batch_compose",
+            "awaiting_launch",
+            "launch_verify",
+            "in_service",
+            "takedown",
+          ],
         },
       },
       select: { id: true },
@@ -197,6 +277,7 @@ export async function reevaluateSweep(deps: DeliveryCoreDeps) {
     const result = await deps.tx.run(async (tx) => {
       const t = await tx.deliveryTicket.findUnique({ where: { id } });
       if (!t) return null;
+      await prepareReevaluation(tx, [id]);
       const result = await reevaluate(tx, deps, ctx, id);
       return result.moved ? { ...result, entityId: t.entityId } : null;
     });

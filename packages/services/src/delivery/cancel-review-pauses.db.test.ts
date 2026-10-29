@@ -387,6 +387,20 @@ describe("取消审批暂停精确恢复", { timeout: 60000 }, () => {
     const o = await paused("ad_prep", 2),
       id = o.deliveryTicketIds[0]!;
     const before = await h.tx.run((t) => h.counts(t, id));
+    const timerRows = async () =>
+      h.prisma.timer.findMany({
+        where: {
+          subjectId: {
+            in: (
+              await h.prisma.deliveryTicketStage.findMany({
+                where: { deliveryTicketId: { in: o.deliveryTicketIds } },
+              })
+            ).map((s) => s.id),
+          },
+        },
+        orderBy: { id: "asc" },
+      });
+    const beforeTimers = await timerRows();
     h.rederiveHook.run = async (t) => {
       await t.dramaOrder.update({ where: { id: o.order.id }, data: { note: "rolled-back" } });
       throw new Error("receiver failed");
@@ -411,19 +425,7 @@ describe("取消审批暂停精确恢复", { timeout: 60000 }, () => {
         .sort()
         .map((id) => expect.objectContaining({ id, pauseCount: 1, step: "ad_prep" })),
     );
-    expect(
-      await h.prisma.timer.count({
-        where: {
-          subjectId: {
-            in: (
-              await h.prisma.deliveryTicketStage.findMany({
-                where: { deliveryTicketId: { in: o.deliveryTicketIds } },
-              })
-            ).map((s) => s.id),
-          },
-        },
-      }),
-    ).toBe(0);
+    expect(await timerRows()).toEqual(beforeTimers);
     expect(await h.tx.run((t) => h.counts(t, id))).toEqual(before);
     expect((await h.prisma.dramaOrder.findUniqueOrThrow({ where: { id: o.order.id } })).note).toBe(
       o.order.note,

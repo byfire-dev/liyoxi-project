@@ -6,8 +6,12 @@ import { PlanContentSchema } from "@liyoxi/contract";
 import { planApplied, reevaluate } from "./reevaluate.js";
 import { lockTickets, ticketInclude } from "./repo.js";
 import { productionViolations } from "./production-invariants.js";
+import { pauseSourceValid, releasePause } from "./pause.js";
+import { workHoursAt } from "../sla/index.js";
+import { prepareReevaluation } from "./reevaluate-locks.js";
 export const DELIVERY_INVARIANT_CODES = [
   "I1",
+  "I2",
   "I3",
   "I4",
   "I5",
@@ -19,18 +23,104 @@ export const DELIVERY_INVARIANT_CODES = [
   "I11",
   "I12",
   "I13",
+  "I14",
   "I15",
 ] as const;
 export async function findDeliveryViolations(tx: Tx, code: string): Promise<InvariantViolation[]> {
   const result: InvariantViolation[] = [],
     bad = (type: string, id: string, entityId: string, detail: Record<string, unknown>) =>
       result.push({ subject: { type, id }, entityId, detail });
+  if (code === "I2") {
+    const rows = await tx.deliveryTicket.findMany({
+      include: ticketInclude,
+      orderBy: { id: "asc" },
+    });
+    // Every healing candidate is prelocked once, before any child/plan/file effect.
+    await prepareReevaluation(
+      tx,
+      rows.map((t) => t.id),
+    );
+    const deps = boundDelivery(),
+      ctx = createIdentityContext({ actor: { type: "system", job: "delivery.pause_self_heal" } });
+    for (const t of rows) {
+      const active = t.deliveryTicketPauses,
+        stale = [] as string[];
+      for (const cause of active) if (!(await pauseSourceValid(tx, cause))) stale.push(cause.id);
+      const summaryMismatch =
+        t.pauseCount !== active.length ||
+        active.length > 0 !== (t.pausedAt !== null) ||
+        (active.length === 0 && t.pauseRemainingMin !== null);
+      if (!summaryMismatch && !stale.length) continue;
+      const stage = t.deliveryTicketStages.find((s) => s.completedAt === null),
+        now = deps.clock.now();
+      let remaining = t.pauseRemainingMin;
+      const pausedAt = active.length
+        ? (t.pausedAt ?? active.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b)).createdAt)
+        : null;
+      if (active.length && remaining === null && stage?.dueAt && pausedAt)
+        remaining =
+          stage.dueAt <= pausedAt
+            ? 0
+            : await deps.sla.workMinutesBetween(tx, {
+                from: pausedAt,
+                to: stage.dueAt,
+                workHours: await workHoursAt(tx, pausedAt),
+              });
+      if (summaryMismatch)
+        await tx.deliveryTicket.update({
+          where: { id: t.id },
+          data: {
+            pauseCount: active.length,
+            pausedAt,
+            pauseRemainingMin: active.length ? remaining : null,
+            updatedAt: now,
+          },
+        });
+      for (const id of stale) await releasePause(tx, deps, ctx, id, "self_heal");
+      const fresh = await tx.deliveryTicket.findUniqueOrThrow({ where: { id: t.id } });
+      if (!fresh.pauseCount) await reevaluate(tx, deps, ctx, t.id);
+      result.push({
+        subject: { type: "delivery_ticket", id: t.id },
+        entityId: t.entityId,
+        detail: {
+          storedPauseCount: t.pauseCount,
+          actualPauseCount: active.length,
+          stalePauseIds: stale,
+          summaryMismatch,
+        },
+        healed: { action: "pause_self_heal", at: now },
+      });
+    }
+  }
+  if (code === "I14")
+    for (const r of await tx.deliveryReissue.findMany({
+      include: { deliveryTicket: { include: { orderItem: true } }, publishedDeliveryRelease: true },
+    })) {
+      const invalidEpisodes =
+        !r.episodeNos.length ||
+        new Set(r.episodeNos).size !== r.episodeNos.length ||
+        r.episodeNos.some((n) => n < 1 || n > r.deliveryTicket.orderItem.episodeCount);
+      const release = r.publishedDeliveryRelease;
+      const invalidPublished =
+        r.status === "published" &&
+        (!release ||
+          release.deliveryTicketId !== r.deliveryTicketId ||
+          release.orderItemId !== r.deliveryTicket.orderItemId ||
+          [...release.changedEpisodeNos].sort((a, b) => a - b).join() !==
+            [...r.episodeNos].sort((a, b) => a - b).join());
+      if (invalidEpisodes || invalidPublished)
+        bad("delivery_reissue", r.id, r.entityId, { invalidEpisodes, invalidPublished });
+    }
   if (["I1", "I3", "I5"].includes(code)) {
     const rows = await tx.deliveryTicket.findMany({
       include: ticketInclude,
       orderBy: { id: "asc" },
     });
     if (code === "I3") {
+      await prepareReevaluation(
+        tx,
+        rows.map((t) => t.id),
+      );
       // full 检查是一个事务：先持有全部低级父锁，避免第二张工单在方案锁之后首次加父锁。
       await lockTickets(
         tx,

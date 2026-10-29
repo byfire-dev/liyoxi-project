@@ -34,11 +34,23 @@ function guard(kind: "sample" | "final"): FileCategoryGuard {
     );
     unpaused(t);
     if (input.storeId !== t.storeId) throw new AppError("NOT_FOUND");
-    if (t.editorId && t.editorId !== actor.staff.staff.id) throw new AppError("PERMISSION_DENIED");
+    if (
+      t.editorId &&
+      t.editorId !== actor.staff.staff.id &&
+      !actor.staff.staff.isLead &&
+      actor.staff.staff.roleKey !== "super_admin"
+    )
+      throw new AppError("PERMISSION_DENIED");
+    const reissue =
+      kind === "final" && ["awaiting_launch", "launch_verify", "in_service"].includes(t.step)
+        ? await tx.deliveryReissue.findFirst({
+            where: { deliveryTicketId: t.id, status: "open", episodeNos: { has: p.episodeNo } },
+          })
+        : null;
     if (
       kind === "sample"
         ? t.step !== "sample_making"
-        : !["batch_compose", "delivering"].includes(t.step) || !!t.deliveredAt
+        : !reissue && (!["batch_compose", "delivering"].includes(t.step) || !!t.deliveredAt)
     )
       throw new AppError("STATE_NOT_ALLOWED");
     if (p.episodeNo > t.orderItem.episodeCount || (kind === "sample" && p.episodeNo !== 1))

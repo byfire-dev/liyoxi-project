@@ -14,12 +14,20 @@ import {
   DELIVERY_PLAN_VERSION_DECISION,
   CHANNEL_PLATFORM,
   ORDER_ITEM_PHASE,
+  DELIVERY_REISSUE_STATUS,
+  EPISODE_OUTPUT_STATUS,
 } from "../../enums/index.js";
 import { zodEnum } from "../../enums/zod.js";
-import { StaffBriefSchema, adminPage } from "../a01-system/structures.js";
+import {
+  StaffBriefSchema,
+  AdminCursorQuerySchema,
+  adminCursorPage,
+  adminPage,
+} from "../a01-system/structures.js";
 import { ApprovalBooleanQuerySchema } from "../a01-system/approvals.schemas.js";
 import { ChannelAccountBriefSchema } from "../m05-delivery-publish/publish.schemas.js";
-import { AdminStoreBriefSchema } from "./public.schemas.js";
+import { AdminStoreBriefSchema, ChecklistResultInputSchema } from "./public.schemas.js";
+import { ActivityItemSchema } from "../a04-content/drama-lifecycle.schemas.js";
 import { SignedUrlSchema } from "../a01-system/files.schemas.js";
 import { ImageRefSchema } from "../m08-support-misc/image.schemas.js";
 const n = z.int().min(0),
@@ -542,6 +550,125 @@ export const DeliveryTicketDetailSchema = DeliveryTicketCardSchema.extend({
 export const DeliveryTicketWriteResultSchema = DeliveryTicketDetailSchema.extend({
   replayed: z.boolean(),
 });
+/** a05 §3.19–3.26、3.37、3.43–3.45；条件守卫由持锁的用例校验。 */
+export const TicketActivityQuerySchema =
+  AdminCursorQuerySchema.strict().openapi("TicketActivityQuery");
+export const TicketActivityPageSchema =
+  adminCursorPage(ActivityItemSchema).openapi("TicketActivityPage");
+export const AssignStaffBodySchema = z
+  .strictObject({
+    staffId: IdSchema,
+    reasonCode: z.enum(["workload", "merchant_request", "staff_change", "other"]).optional(),
+    note: text.max(200).optional(),
+  })
+  .openapi("AssignStaffBody");
+export const ForceTransitionBodySchema = z
+  .strictObject({
+    toStep: zodEnum(DELIVERY_TICKET_STEP),
+    note: text.min(10).max(200),
+    newUsageEndDate: DateSchema.optional(),
+    confirm: z.strictObject({ ticketNo: text.min(1), fromStep: zodEnum(DELIVERY_TICKET_STEP) }),
+  })
+  .openapi("ForceTransitionBody");
+export const ReevaluateBodySchema = z.strictObject({}).openapi("ReevaluateBody");
+export const ReevaluateResultSchema = z
+  .strictObject({
+    transitions: z.array(
+      z.strictObject({
+        event: text,
+        fromStep: zodEnum(DELIVERY_TICKET_STEP),
+        toStep: zodEnum(DELIVERY_TICKET_STEP),
+      }),
+    ),
+    skippedReason: orNull(z.enum(["paused", "terminal"])),
+    ticket: DeliveryTicketCardSchema,
+    replayed: z.boolean(),
+  })
+  .openapi("ReevaluateResult");
+export const TicketRemindBodySchema = z
+  .strictObject({
+    scene: z.enum(["confirm_plan", "confirm_sample", "golive"]),
+  })
+  .openapi("TicketRemindBody");
+export const AdminRemindResultSchema = z
+  .strictObject({
+    scene: z.enum(["confirm_plan", "confirm_sample", "golive", "confirm_ad"]),
+    subjectType: z.enum(["delivery_ticket", "order_item", "ad"]),
+    subjectId: IdSchema,
+    remindedAt: InstantSchema,
+    nextAvailableDate: DateSchema,
+    replayed: z.boolean(),
+  })
+  .openapi("AdminRemindResult");
+export const ReworkBodySchema = z
+  .strictObject({ reason: text.min(1).max(200) })
+  .openapi("ReworkBody");
+export const RescheduleLaunchBodySchema = z
+  .strictObject({
+    agreedLaunchDate: DateSchema,
+    reason: text.min(1).max(200),
+  })
+  .openapi("RescheduleLaunchBody");
+export const AdminOrderItemWriteResultSchema = AdminOrderItemRowSchema.extend({
+  replayed: z.boolean(),
+}).openapi("AdminOrderItemWriteResult");
+export const ReissueParamSchema = z.strictObject({ reissueId: IdSchema });
+export const OrderItemParamSchema = z.strictObject({ orderItemId: IdSchema });
+export const ReissueCreateBodySchema = z
+  .strictObject({
+    episodeNos: z.array(z.int().positive()).min(1).refine(unique),
+    reasonCode: text.min(1),
+    note: text.min(1).max(200),
+  })
+  .openapi("ReissueCreateBody");
+export const ReissueCancelBodySchema = z
+  .strictObject({
+    note: text.max(200).optional(),
+  })
+  .openapi("ReissueCancelBody");
+export const ReissuePublishBodySchema = z
+  .strictObject({
+    precheck: ChecklistResultInputSchema,
+    note: text.max(200).optional(),
+  })
+  .openapi("ReissuePublishBody");
+export const ReissueViewSchema = z
+  .strictObject({
+    reissueId: IdSchema,
+    deliveryTicketId: IdSchema,
+    status: zodEnum(DELIVERY_REISSUE_STATUS),
+    episodeNos: z.array(z.int().positive()),
+    reason: DictRefSchema,
+    note: text,
+    openedBy: StaffBriefSchema,
+    openedAt: InstantSchema,
+    closedAt: at,
+    publishedDeliveryReleaseId: orNull(IdSchema),
+    replacements: z.array(
+      z.strictObject({
+        episodeNo: z.int().positive(),
+        episodeOutputId: IdSchema,
+        status: zodEnum(EPISODE_OUTPUT_STATUS),
+      }),
+    ),
+    actions: z.array(text),
+  })
+  .openapi("ReissueView");
+export const ReissueWriteResultSchema = ReissueViewSchema.extend({
+  replayed: z.boolean(),
+}).openapi("ReissueWriteResult");
+export type TicketActivityQuery = z.infer<typeof TicketActivityQuerySchema>;
+export type AssignStaffBody = z.infer<typeof AssignStaffBodySchema>;
+export type ForceTransitionBody = z.infer<typeof ForceTransitionBodySchema>;
+export type ReevaluateResult = z.infer<typeof ReevaluateResultSchema>;
+export type TicketRemindBody = z.infer<typeof TicketRemindBodySchema>;
+export type AdminRemindResult = z.infer<typeof AdminRemindResultSchema>;
+export type ReworkBody = z.infer<typeof ReworkBodySchema>;
+export type RescheduleLaunchBody = z.infer<typeof RescheduleLaunchBodySchema>;
+export type ReissueCreateBody = z.infer<typeof ReissueCreateBodySchema>;
+export type ReissueCancelBody = z.infer<typeof ReissueCancelBodySchema>;
+export type ReissuePublishBody = z.infer<typeof ReissuePublishBodySchema>;
+export type ReissueView = z.infer<typeof ReissueViewSchema>;
 export type PlanContent = z.infer<typeof PlanContentSchema>;
 export type PlanContentInput = z.infer<typeof PlanContentInputSchema>;
 export type PlanDraftReplaceBody = z.infer<typeof PlanDraftReplaceBodySchema>;

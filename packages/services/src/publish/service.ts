@@ -45,6 +45,7 @@ import {
 } from "./write.js";
 import type { CreateLaunchTasksInput } from "./write.js";
 import { owner, reasonScene, invalid } from "./validate.js";
+import { launchChangedPort } from "./ports.js";
 type PageQuery = { cursor?: string; limit: number };
 type LaunchFilter = { orderId?: string; orderItemId?: string };
 function page<T>(
@@ -374,6 +375,15 @@ export function createPublish(deps: PublishDeps) {
     ) =>
       deps.tx.run(async (tx) => {
         const r = await launchRound(tx, id, staff);
+        const task = await taskOf(tx, r.launchTaskId, staff);
+        await deps.assembly.port(launchChangedPort)(tx, {
+          orderItemId: task.orderItemId,
+          deliveryTicketId: task.deliveryTicketId,
+          phase: "prelock",
+          approvalRequestId: r.approvalRequestId,
+          staffId: staff.staff.id,
+          fileIds: body.evidenceFileIds ?? [],
+        });
         await decisionGuard(tx, staff, r.approvalRequestId, body, true, r.launchTaskId);
         await withDecision(tx, deps, ctx, staff, body, true, () =>
           deps.approval.approve(tx, ctx, {
@@ -394,6 +404,14 @@ export function createPublish(deps: PublishDeps) {
     ) =>
       deps.tx.run(async (tx) => {
         const r = await launchRound(tx, id, staff);
+        const task = await taskOf(tx, r.launchTaskId, staff);
+        await deps.assembly.port(launchChangedPort)(tx, {
+          orderItemId: task.orderItemId,
+          deliveryTicketId: task.deliveryTicketId,
+          phase: "prelock",
+          approvalRequestId: r.approvalRequestId,
+          staffId: staff.staff.id,
+        });
         await decisionGuard(tx, staff, r.approvalRequestId, body, false, r.launchTaskId);
         await reasonScene(tx, body.reasonCodes, "link_verify");
         await withDecision(tx, deps, ctx, staff, body, false, () =>

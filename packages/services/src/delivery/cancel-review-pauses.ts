@@ -5,9 +5,11 @@ import { createTimers, timerKey } from "../timers/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
 import { cancelResumeChecked } from "./machines.js";
 import { reevaluate } from "./reevaluate.js";
+import { prepareReevaluation, readReevaluationTargets } from "./reevaluate-locks.js";
 import { readStageSlaSnapshot } from "./stage-sla.js";
 
 export interface CancelReviewPauseTargets {
+  readonly reevaluation: Awaited<ReturnType<typeof readReevaluationTargets>>;
   readonly approvalRequestIds: readonly string[];
   readonly dramaIds: readonly string[];
   readonly dramaOrderIds: readonly string[];
@@ -56,6 +58,10 @@ export async function readCancelReviewPauseTargets(
     },
   });
   return {
+    reevaluation: await readReevaluationTargets(
+      tx,
+      tickets.map((t) => t.id),
+    ),
     approvalRequestIds: ids(approvalRequestIds),
     dramaIds: ids(tickets.map((t) => t.dramaId)),
     dramaOrderIds: ids(tickets.map((t) => t.dramaOrderId)),
@@ -74,7 +80,7 @@ export async function readCancelReviewPauseTargets(
 }
 function sameTargets(a: CancelReviewPauseTargets, b: CancelReviewPauseTargets) {
   return (Object.keys(a) as (keyof CancelReviewPauseTargets)[]).every(
-    (key) => a[key].join(",") === b[key].join(","),
+    (key) => JSON.stringify(a[key]) === JSON.stringify(b[key]),
   );
 }
 
@@ -91,6 +97,11 @@ export async function releaseCancelReviewPauses(
   },
 ) {
   const { targets, releaseEvent } = input;
+  // The outer owner prelocks this full union before changing approvals or other owners.
+  // On direct calls this also starts at the lowest required rank, before any own lock.
+  await prepareReevaluation(tx, targets.deliveryTicketIds, {
+    approvalRequestIds: targets.approvalRequestIds,
+  });
   await lockRows(tx, "approval_request", targets.approvalRequestIds);
   const checkTargets = async () => {
     if (!sameTargets(targets, await readCancelReviewPauseTargets(tx, targets.approvalRequestIds)))
@@ -105,7 +116,7 @@ export async function releaseCancelReviewPauses(
     ["delivery_plan", targets.deliveryPlanIds],
     ["file_object", targets.coverFileIds],
   ] as const)
-    await lockRows(tx, table, values);
+    await lockRows(tx, table, values, table === "drama" ? "share" : "update");
   await checkTargets();
   const timers = createTimers({ assembly: deps.assembly });
   const resumedTicketIds: string[] = [];
@@ -158,7 +169,7 @@ export async function releaseCancelReviewPauses(
             from: now,
             workHours: hours,
           });
-          dueAt = next.dueAt;
+          dueAt = t.pauseRemainingMin === 0 ? now : next.dueAt;
           slaSnapshot = {
             ...original,
             calendarVersion: next.snapshot.calendarVersion,
@@ -174,6 +185,11 @@ export async function releaseCancelReviewPauses(
             updatedAt: now,
           },
         });
+        if (t.step === "plan_confirm")
+          await tx.deliveryPlan.updateMany({
+            where: { dramaOrderId: t.dramaOrderId },
+            data: { staffDueAt: t.waitingOn === "staff" ? dueAt : null, updatedAt: now },
+          });
         const subject = { type: "delivery_ticket_stage", id: stage.id };
         await timers.cancel(tx, { subject, kinds: ["sla.breach"] });
         if (dueAt && !stage.isBreached) {

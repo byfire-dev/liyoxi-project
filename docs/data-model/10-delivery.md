@@ -192,7 +192,7 @@ stateDiagram-v2
 | 20 | `in_service`、`takedown` | `ticket.terminate` | `takedown` | 同上（已上线、平台原因） | 系统 |
 | 21 | `in_service` | `launch.verify_revoked` | `launch_verify` | 撤销后没有任何已上线的任务，也没有已确认或已核查的下架任务 | 系统 |
 | 22 | 更正白名单内的步骤对 | `admin.force` | 指定步骤 | 目标在白名单内；更正后结构性不变量仍成立 | 超级管理员 |
-
+| 23 | `awaiting_launch`、`launch_verify`、`in_service` | `reissue.opened`、`package.reissued` | 不变 | 补发事实满足第 2.11 节守卫 | 员工 |
 第 17、18 行不改步骤，照常写状态历史（`from_state = to_state`，`state_field = step`）。开工那一行 `from_state` 为空，事件名 `ticket.created`。事件名沿用草案的 `ticket.hold`、`ticket.resume`，以契约的事件目录为准。迁移的副作用（写里程碑、关旧开新环节、登记定时器、发事件）见 d3:832-856。
 
 **第 15、15b、19、20 行与 publish 的收尾**（d3:848-854；11 分组的请求）：这四行的处理器在迁移的同一事务里按顺序调 publish 的端口，逐条处理该订单项未作废的上线任务：
@@ -1371,3 +1371,7 @@ stateDiagram-v2
 | 12 | M110 核对：文档里提到的其他分组的列都是第二轮之后的现名（对照 `lyx_full`）；M93（引用 `store` 的外键一律 Restrict）本分组已满足 | 全文 | M93、M110 |
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A125（发布清单文件的直链 15 分钟）、A142（`episode_output.source` 补 `normalized`；`PlanContent.referenceAssetIds` 只含素材库素材，档案媒体的引用留在订购单上））改了本文少量说明；`ck_episode_output_source` 的取值随之增加 `normalized`，其余表结构未变。
+
+`delivery_ticket.step` 在除归档、终止外的步骤支持 `sla.recalculated` 自循环：`delivery.onCalendarImported` 只在当前环节按新日历版本真实重算后记 from = to 历史，不新增环节或业务状态。
+
+`delivery_ticket.step` 的 `reissue.cancelled` 为所有既有步骤的自循环：仅关闭真实在途补发单，工单到期、归档或终止后仍可按原权限和范围取消，当前成片包不受影响。

@@ -1,4 +1,211 @@
 import type { Tx } from "../kernel/index.js";
+import { EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
+
+/** Only delivery owns these rows; notify asks a boolean before projecting the current fact. */
+export async function deliveryEventCurrentForNotify(
+  tx: Tx,
+  input: { type: string; payload: Record<string, unknown> },
+) {
+  if (input.type === "package.reissue_opened") {
+    const p = EVENT_PAYLOAD_SCHEMAS["package.reissue_opened"].parse(input.payload);
+    const row = await tx.deliveryReissue.findUnique({
+      where: { id: p.deliveryReissueId },
+      include: { deliveryTicket: true },
+    });
+    return (
+      !!row &&
+      row.deliveryTicketId === p.deliveryTicketId &&
+      row.deliveryTicket.orderItemId === p.orderItemId &&
+      row.reasonCode === p.reasonCode &&
+      [...row.episodeNos].sort((a, b) => a - b).join() ===
+        [...p.episodeNos].sort((a, b) => a - b).join()
+    );
+  }
+  if (input.type === "package.reissued") {
+    const p = EVENT_PAYLOAD_SCHEMAS["package.reissued"].parse(input.payload);
+    const row = await tx.deliveryReissue.findUnique({
+      where: { id: p.deliveryReissueId },
+      include: { deliveryTicket: true },
+    });
+    return (
+      !!row &&
+      row.status === "published" &&
+      row.publishedDeliveryReleaseId === p.deliveryReleaseId &&
+      row.deliveryTicketId === p.deliveryTicketId &&
+      row.deliveryTicket.orderItemId === p.orderItemId &&
+      [...row.episodeNos].sort((a, b) => a - b).join() ===
+        [...p.episodeNos].sort((a, b) => a - b).join()
+    );
+  }
+  if (input.type === "order.item.launch_rescheduled") {
+    const p = EVENT_PAYLOAD_SCHEMAS["order.item.launch_rescheduled"].parse(input.payload);
+    const item = await tx.orderItem.findUnique({
+      where: { id: p.orderItemId },
+      select: { dramaOrderId: true, agreedLaunchDate: true },
+    });
+    return (
+      !!item &&
+      item.dramaOrderId === p.dramaOrderId &&
+      item.agreedLaunchDate?.toISOString().slice(0, 10) === p.newDate
+    );
+  }
+  return false;
+}
+export async function reissueEditorForNotify(tx: Tx, id: string) {
+  const row = await tx.deliveryReissue.findUnique({
+    where: { id },
+    include: { deliveryTicket: { include: { editor: true, orderItem: true } } },
+  });
+  const ticket = row?.deliveryTicket;
+  if (
+    !row ||
+    row.status !== "open" ||
+    !ticket ||
+    ticket.pauseCount ||
+    !["awaiting_launch", "launch_verify", "in_service"].includes(ticket.step) ||
+    ticket.editor?.status !== "active" ||
+    ticket.editor.staffRoleKey !== "editor"
+  )
+    return null;
+  return {
+    bizType: "delivery_reissue",
+    bizId: row.id,
+    entityId: row.entityId,
+    storeId: row.storeId,
+    status: row.status,
+    version: 0,
+    name: "成片补发待处理",
+    orderId: ticket.dramaOrderId,
+    orderItemId: ticket.orderItemId,
+    deliveryTicketId: ticket.id,
+    staffIds: [ticket.editor.id],
+    targetDate: ticket.orderItem.usageEndDate.toISOString().slice(0, 10),
+  };
+}
+export async function reissuedReleaseForNotify(tx: Tx, id: string) {
+  const release = await tx.deliveryRelease.findUnique({
+    where: { id },
+    include: { orderItem: true, deliveryTicket: true },
+  });
+  if (
+    !release ||
+    release.kind !== "reissue" ||
+    release.state !== "pushed" ||
+    release.deliveryTicket.pauseCount ||
+    !["awaiting_launch", "launch_verify", "in_service"].includes(release.deliveryTicket.step)
+  )
+    return null;
+  const published = await tx.deliveryReissue.findFirst({
+    where: {
+      status: "published",
+      deliveryTicketId: release.deliveryTicketId,
+      publishedDeliveryReleaseId: id,
+    },
+  });
+  const latest = await tx.deliveryRelease.findFirst({
+    where: { orderItemId: release.orderItemId, state: "pushed" },
+    orderBy: { releaseNo: "desc" },
+    select: { id: true },
+  });
+  if (
+    !published ||
+    latest?.id !== id ||
+    release.orderItem.id !== release.deliveryTicket.orderItemId
+  )
+    return null;
+  return {
+    bizType: "delivery_release",
+    bizId: id,
+    entityId: release.entityId,
+    storeId: release.storeId,
+    status: release.state,
+    version: release.releaseNo,
+    name: "补发成片已更新",
+    orderId: release.deliveryTicket.dramaOrderId,
+    orderItemId: release.orderItemId,
+    deliveryTicketId: release.deliveryTicketId,
+    targetDate: release.orderItem.usageEndDate.toISOString().slice(0, 10),
+  };
+}
+export async function launchRescheduledItemForNotify(tx: Tx, id: string) {
+  const item = await tx.orderItem.findUnique({ where: { id }, include: { deliveryTicket: true } });
+  if (
+    !item ||
+    !item.agreedLaunchDate ||
+    item.usageStartDate ||
+    !["producing", "awaiting_launch"].includes(item.phase) ||
+    !item.deliveryTicket ||
+    ["archived", "terminated", "takedown", "in_service"].includes(item.deliveryTicket.step)
+  )
+    return null;
+  return {
+    bizType: "order_item",
+    bizId: id,
+    entityId: item.entityId,
+    storeId: item.storeId,
+    status: "scheduled",
+    version: 0,
+    name: "约定上线日已调整",
+    orderId: item.dramaOrderId,
+    orderItemId: id,
+    deliveryTicketId: item.deliveryTicket.id,
+    targetDate: item.agreedLaunchDate.toISOString().slice(0, 10),
+  };
+}
+
+export async function manualReminderTargetForNotify(
+  tx: Tx,
+  input: { subjectId: string; scene: string },
+) {
+  const t = await tx.deliveryTicket.findFirst({
+    where: input.scene === "golive" ? { orderItemId: input.subjectId } : { id: input.subjectId },
+    include: { dramaOrder: { include: { deliveryPlan: true } }, launchTasks: true },
+  });
+  if (!t || t.pauseCount) return null;
+  if (input.scene === "confirm_plan")
+    return t.step === "plan_confirm" && t.dramaOrder.deliveryPlan?.status === "pending_confirm"
+      ? { refId: t.dramaOrder.deliveryPlan.id }
+      : null;
+  if (input.scene === "confirm_sample") {
+    const sample = await tx.sample.findFirst({
+      where: { deliveryTicketId: t.id, versionNo: t.currentSampleVersionNo ?? 0, status: "pushed" },
+    });
+    return t.step === "sample_confirm" && sample ? { refId: sample.id } : null;
+  }
+  return input.scene === "golive" &&
+    ["awaiting_launch", "launch_verify"].includes(t.step) &&
+    t.launchTasks.some((l) => !l.isLive && ["pending", "need_fix"].includes(l.reviewStatus))
+    ? { refId: t.id }
+    : null;
+}
+export async function launchReminderForNotify(tx: Tx, id: string) {
+  const row = await tx.deliveryTicket.findUnique({
+    where: { id },
+    include: { launchTasks: true, orderItem: true },
+  });
+  return row
+    ? {
+        bizType: "delivery_ticket",
+        bizId: id,
+        entityId: row.entityId,
+        storeId: row.storeId,
+        status:
+          !row.pauseCount &&
+          ["awaiting_launch", "launch_verify"].includes(row.step) &&
+          row.launchTasks.some((l) => !l.isLive && ["pending", "need_fix"].includes(l.reviewStatus))
+            ? "pending"
+            : "inactive",
+        version: row.lockVersion,
+        name: "约定上线提醒",
+        orderId: row.dramaOrderId,
+        orderItemId: row.orderItemId,
+        deliveryTicketId: id,
+        ...(row.orderItem.agreedLaunchDate
+          ? { targetDate: row.orderItem.agreedLaunchDate.toISOString().slice(0, 10) }
+          : {}),
+      }
+    : null;
+}
 export async function planForNotify(tx: Tx, id: string) {
   const row = await tx.deliveryPlan.findUnique({ where: { id } });
   return row

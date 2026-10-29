@@ -12,6 +12,7 @@ import type { Profile } from "../profile/index.js";
 import type { Sla } from "../sla/index.js";
 import type { StoreMembership } from "../tenant/index.js";
 import type { Publish } from "../publish/index.js";
+import type { Approval } from "../approval/index.js";
 
 export interface DeliveryCoreDeps {
   readonly tx: TxRunner;
@@ -21,6 +22,7 @@ export interface DeliveryCoreDeps {
   readonly events: Pick<Events, "emit">;
   readonly sla: Sla;
   readonly media?: Pick<Media, "link">;
+  readonly approval?: Pick<Approval, "withdraw">;
 }
 export interface DeliveryDeps extends DeliveryCoreDeps {
   readonly media: Pick<

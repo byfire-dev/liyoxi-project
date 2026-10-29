@@ -18,6 +18,9 @@ import { orderSidePort } from "./ports.js";
 import { assertOwner, dateOf, lockTickets, planOf } from "./repo.js";
 import type { PlanRow } from "./repo.js";
 import { assertPlanApplied, reevaluate } from "./reevaluate.js";
+import { lockReevaluationInputs } from "./reevaluate-inputs.js";
+import { holdPlanAmendment, releasePause } from "./pause.js";
+import { syncDeliveryStageSla } from "./stage-sla.js";
 const invalid = (path: string, message: string) =>
   new AppError("VALIDATION_FAILED", { details: { fieldErrors: [{ path, message }] } });
 function afterSale(p: PlanRow) {
@@ -38,6 +41,20 @@ async function lockPlan(
   extraAccounts: readonly string[] = [],
 ) {
   const first = await planOf(tx, id, subject);
+  const adsIn = (p: PlanRow) =>
+    [
+      p.draft,
+      ...p.deliveryPlanVersions
+        .filter((v) => v.versionNo === p.currentVersionNo || v.versionNo === p.confirmedVersionNo)
+        .map((v) => v.contentSnapshot),
+    ].flatMap((c) =>
+      PlanContentSchema.parse(c).items.flatMap((i) => i.placements.map((a) => a.adId)),
+    );
+  const verifyInputs = await lockReevaluationInputs(
+    tx,
+    first.dramaOrder.deliveryTickets.map((t) => t.id),
+    adsIn(first),
+  );
   await lockRows(tx, "drama_order", [first.dramaOrderId]);
   await lockRows(
     tx,
@@ -51,6 +68,7 @@ async function lockPlan(
   // 等父锁时别的写入可能已提交；在父锁保护下刷新草稿与版本，再取得全部选定账号锁。
   const current = await planOf(tx, id, subject),
     content = PlanContentSchema.parse(current.draft);
+  await verifyInputs(adsIn(current));
   const snapshots = current.deliveryPlanVersions
     .filter(
       (v) => v.versionNo === current.currentVersionNo || v.versionNo === current.confirmedVersionNo,
@@ -299,6 +317,38 @@ export async function pushPlan(
     where: { dramaOrderId: p.dramaOrderId, step: "plan_confirm", pauseCount: 0 },
     data: { waitingOn: "merchant", updatedAt: now },
   });
+  if (p.confirmedVersionNo !== null) {
+    const confirmed = p.deliveryPlanVersions.find((v) => v.versionNo === p.confirmedVersionNo);
+    const oldContent = confirmed ? PlanContentSchema.parse(confirmed.contentSnapshot) : null;
+    const currentVersion = await tx.deliveryPlanVersion.findUniqueOrThrow({
+      where: { deliveryPlanId_versionNo: { deliveryPlanId: id, versionNo: no } },
+    });
+    const nextContent = PlanContentSchema.parse(currentVersion.contentSnapshot);
+    for (const ticket of p.dramaOrder.deliveryTickets) {
+      const before = oldContent?.items.find((i) => i.orderItemId === ticket.orderItemId);
+      const after = nextContent.items.find((i) => i.orderItemId === ticket.orderItemId);
+      if (
+        JSON.stringify(before) !== JSON.stringify(after) ||
+        JSON.stringify(oldContent?.focusTags) !== JSON.stringify(nextContent.focusTags) ||
+        JSON.stringify(oldContent?.referenceAssetIds) !==
+          JSON.stringify(nextContent.referenceAssetIds) ||
+        oldContent?.note !== nextContent.note
+      )
+        await holdPlanAmendment(tx, deps, ctx, ticket.id, currentVersion.id);
+    }
+    for (const oldPause of await tx.deliveryTicketPause.findMany({
+      where: {
+        deliveryTicketId: { in: p.dramaOrder.deliveryTickets.map((t) => t.id) },
+        reason: "plan_amendment",
+        refId: { not: currentVersion.id },
+        releasedAt: null,
+      },
+      orderBy: { id: "asc" },
+    }))
+      await releasePause(tx, deps, ctx, oldPause.id, "superseded");
+  }
+  for (const ticket of p.dramaOrder.deliveryTickets)
+    await syncDeliveryStageSla(tx, deps, ticket.id);
 }
 export async function confirmPlan(
   tx: Tx,
@@ -350,6 +400,15 @@ export async function confirmPlan(
       decideClient: viewer.ctx.actor.client,
     },
   });
+  for (const pause of await tx.deliveryTicketPause.findMany({
+    where: {
+      deliveryTicketId: { in: p.dramaOrder.deliveryTickets.map((t) => t.id) },
+      reason: "plan_amendment",
+      releasedAt: null,
+    },
+    orderBy: { id: "asc" },
+  }))
+    await releasePause(tx, deps, viewer.ctx, pause.id, "plan_confirmed");
   const unchanged: string[] = [];
   for (const t of [...p.dramaOrder.deliveryTickets].sort((a, b) => a.id.localeCompare(b.id))) {
     const result = await reevaluate(tx, deps, viewer.ctx, t.id);
@@ -422,4 +481,6 @@ export async function requestPlanChange(
     where: { dramaOrderId: p.dramaOrderId, step: "plan_confirm", pauseCount: 0 },
     data: { waitingOn: "staff", updatedAt: now },
   });
+  for (const ticket of p.dramaOrder.deliveryTickets)
+    await syncDeliveryStageSla(tx, deps, ticket.id, { from: now });
 }

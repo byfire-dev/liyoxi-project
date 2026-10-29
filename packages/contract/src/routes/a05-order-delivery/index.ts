@@ -43,7 +43,17 @@ export {
   adminDeliveryTicketSummary,
   adminDeliveryTicketGet,
   adminDeliveryTicketAssignManager,
+  adminDeliveryTicketActivityList,
+  adminDeliveryTicketAssignEditor,
+  adminDeliveryTicketAssignPublisher,
+  adminDeliveryTicketForceTransition,
+  adminDeliveryTicketReevaluate,
+  adminDeliveryTicketReissueCreate,
+  adminDeliveryTicketRemind,
+  adminDeliveryTicketRework,
 } from "./delivery-tickets.js";
+export { adminOrderItemRescheduleLaunch } from "./order-items.js";
+export * from "./reissues.js";
 export * from "./delivery-plans.js";
 
 export * from "./production.schemas.js";
