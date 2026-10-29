@@ -3,7 +3,7 @@ import { permissionByKey } from "@liyoxi/contract/authz";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
 import { Alert, Button, Checkbox, Radio, Select } from "antd";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { AppServices } from "../../../app/services";
 import { MasterDetailPage } from "../../../components/MasterDetailPage";
@@ -14,7 +14,7 @@ import { findModule } from "../../../lib/menu";
 import { AccessContext, useCan } from "../../../lib/permissions";
 import type { AdminModuleKey } from "../../../lib/menu-types";
 import { DETAIL_QUERY, DICT_QUERY } from "../../../lib/query";
-import { accessResult, AccessFailure, actorScope, writeIntent } from "../staff-access";
+import { accessResult, actorScope, writeIntent } from "../staff-access";
 import { scopeLabel, type Role } from "../staff-model";
 import {
   levelLabels,
@@ -26,6 +26,7 @@ import {
   type RoleBody,
   type RoleDetail,
 } from "./model";
+import { replaceRole } from "./replace";
 
 const route = getRouteApi("/sys/roles");
 export function RolesPage() {
@@ -59,8 +60,38 @@ function RoleWorkspace() {
         }),
       )) as unknown as RoleDetail,
   });
+  // The editor remounts when a global invalidation reads a new lockVersion.
+  // Keep write completion here, while rejecting old actor/role/request contexts.
+  const alive = useRef(true),
+    request = useRef(0),
+    context = useRef({ scope, roleKey });
+  useLayoutEffect(() => {
+    context.current = { scope, roleKey };
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, [scope, roleKey]);
+  const replace = (body: RoleBody, key: string) => {
+    const started = context.current,
+      sequence = ++request.current;
+    return replaceRole(services, String(roleKey), body, key, {
+      current: () => alive.current && context.current === started && request.current === sequence,
+      conflict: async () => {
+        setDirty(false);
+        setNotice("角色已被他人修改，已刷新当前版本。请重新核对后编辑和保存。");
+        await detail.refetch();
+      },
+      saved: async () => {
+        setDirty(false);
+        setNotice("角色已保存；员工刷新页面后生效。");
+        await Promise.all([detail.refetch(), roles.refetch()]);
+      },
+    });
+  };
   const select = (role: string | undefined) => {
     if (dirty && !window.confirm("放弃当前角色尚未保存的修改？")) return;
+    if (role !== roleKey) request.current++;
     setDirty(false);
     setNotice(undefined);
     void navigate({ search: { role } });
@@ -123,18 +154,7 @@ function RoleWorkspace() {
                             role={detail.data}
                             canEdit={canEdit && !detail.data.isLocked}
                             dirtyChange={setDirty}
-                            conflict={async () => {
-                              setDirty(false);
-                              setNotice(
-                                "角色已被他人修改，已刷新当前版本。请重新核对后编辑和保存。",
-                              );
-                              await detail.refetch();
-                            }}
-                            saved={async () => {
-                              setDirty(false);
-                              setNotice("角色已保存；员工刷新页面后生效。");
-                              await Promise.all([detail.refetch(), roles.refetch()]);
-                            }}
+                            replace={replace}
                           />
                         ),
                       }
@@ -151,15 +171,13 @@ function RoleEditor({
   role,
   canEdit,
   dirtyChange,
-  conflict,
-  saved,
+  replace,
 }: {
   services: AppServices;
   role: RoleDetail;
   canEdit: boolean;
   dirtyChange: (value: boolean) => void;
-  conflict: () => Promise<void>;
-  saved: () => Promise<void>;
+  replace: (body: RoleBody, key: string) => Promise<boolean | undefined>;
 }) {
   const [draft, setDraft] = useState(() => roleDraft(role));
   const [editing, setEditing] = useState(false),
@@ -323,30 +341,12 @@ function RoleEditor({
                   setMessage(undefined);
                   const body = { ...draft, lockVersion: role.lockVersion };
                   void intent
-                    .run(body, async (key) =>
-                      accessResult(
-                        await services.api.client.PUT("/api/v1/admin/roles/{roleKey}", {
-                          params: { path: { roleKey: String(role.roleKey) } },
-                          body,
-                          headers: { "Idempotency-Key": key },
-                        }),
-                      ),
-                    )
-                    .then(async (result) => {
-                      if (alive.current && result) {
-                        setEditing(false);
-                        await saved();
-                      }
+                    .run(body, (key) => replace(body, key))
+                    .then((result) => {
+                      if (alive.current && result) setEditing(false);
                     })
-                    .catch(async (error: unknown) => {
-                      if (!alive.current) return;
-                      if (
-                        error instanceof AccessFailure &&
-                        error.failure.symbol === "VERSION_CONFLICT"
-                      ) {
-                        setEditing(false);
-                        await conflict();
-                      } else
+                    .catch((error: unknown) => {
+                      if (alive.current)
                         setMessage(error instanceof Error ? error.message : "保存失败，请重试");
                     })
                     .finally(() => {
