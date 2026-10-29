@@ -531,7 +531,7 @@
 | `admin.reissue.publish` | POST | `/admin/reissues/{reissueId}/publish` | 发布补发：替换行生效，旧成片包被新包取代并重发下载授权 | `publish.package.push` | required | V1.0 | 3.45 |
 | `admin.sample.inspect` | POST | `/admin/samples/{sampleId}/inspect` | 样片质检：逐项清单结果，通过或不通过（注明原因） | `delivery.sample.qc` | required | V1.0 | 3.39 |
 | `admin.sample.markSent` | POST | `/admin/samples/{sampleId}/mark-sent` | 登记已经企业微信向老板发送样片水印版（写 offline_sent_at 与发送人） | `delivery.sample.push` | required | V1.0 | 3.40 |
-| `admin.sample.push` | POST | `/admin/samples/{sampleId}/push` | 推送样片给商家确认（previewChannels：小程序不播放时提供水印版存相册、电脑端或企业微信） | `delivery.sample.push` | required | V1.0 | 3.41 |
+| `admin.sample.push` | POST | `/admin/samples/{sampleId}/push` | 推送小程序样片；显式历史恢复须重新质检并创建新版本，保留原推送快照 | `delivery.sample.push` | required | V1.0 | 3.41 |
 | `admin.sample.requestChange` | POST | `/admin/samples/{sampleId}/request-change` | 交付经理代录修改意见：合成问题（不计次，退回样片制作）或广告内容（计入广告修改次数，退回广告准备） | `delivery.sample.feedback_on_behalf` | required | V1.0 | 3.42 |
 
 ### [后台：发布与巡检](a06-publish.md)

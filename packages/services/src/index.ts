@@ -2,6 +2,12 @@
 export { assembleServices } from "./assembly.js";
 export { readStoreDraftFacts } from "./ops/index.js";
 export { createSampleWatermarkActions } from "./ops/index.js";
+export {
+  createQ9LocalSampleRecovery,
+  Q9LocalSampleRecoveryInputSchema,
+  q9LocalSampleRecoveryEnv,
+} from "./ops/index.js";
+export type { Q9LocalSampleRecoveryInput } from "./ops/index.js";
 export { readTenantAdminBillingFacts } from "./billing/index.js";
 export { readEntityStoreProfileFacts } from "./profile/index.js";
 export type { TenantAdminReadDeps } from "./tenant/index.js";

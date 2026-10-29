@@ -33,8 +33,7 @@ export const adminSamplePush = adminRoute({
   method: "post",
   path: "/admin/samples/{sampleId}/push",
   operationId: "admin.sample.push",
-  summary:
-    "推送样片给商家确认（previewChannels：小程序不播放时提供水印版存相册、电脑端或企业微信）",
+  summary: "推送小程序样片；显式历史恢复须重新质检并创建新版本，保留原推送快照",
   "x-permission": "delivery.sample.push",
   "x-idempotent": "required",
   request: {

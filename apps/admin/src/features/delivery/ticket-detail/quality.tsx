@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Input, Modal, Radio, Select } from "antd";
+import { Alert, Button, Checkbox, Input, Modal, Radio, Select } from "antd";
 import { useState } from "react";
 import { CheckList } from "../../../components/CheckList";
 import { FormField } from "../../../components/FormField";
@@ -111,7 +111,7 @@ function qcBody(template: Template, input: QualityInput): QcBody {
   };
 }
 interface QualityProps {
-  mode: "sample" | "episodes" | "package";
+  mode: "sample" | "recover" | "episodes" | "package";
   ticket: Ticket;
   grid?: Grid;
   api: DetailApi;
@@ -119,7 +119,12 @@ interface QualityProps {
   onRefresh(): void;
 }
 function useQualityTemplate(mode: QualityProps["mode"], api: DetailApi) {
-  const code = mode === "sample" ? "qc.sample" : mode === "episodes" ? "qc.episode" : "qc.package";
+  const code =
+    mode === "sample" || mode === "recover"
+      ? "qc.sample"
+      : mode === "episodes"
+        ? "qc.episode"
+        : "qc.package";
   return useQuery({
     queryKey: [...DETAIL_KEY, "checklist", code],
     queryFn: () => api.template(code),
@@ -133,7 +138,7 @@ export function QualityModal(props: QualityProps) {
   const identity = JSON.stringify([
     ticket.deliveryTicketId,
     mode,
-    mode === "sample"
+    mode === "sample" || mode === "recover"
       ? [ticket.currentSample?.sampleId, ticket.currentSample?.versionNo]
       : grid?.episodes.map((e) => {
           const output = e.latest ?? e.current;
@@ -153,12 +158,21 @@ function QualityForm({
   onRefresh,
   template,
 }: QualityProps & { template: ReturnType<typeof useQualityTemplate> }) {
-  const title = mode === "sample" ? "样片质检" : mode === "episodes" ? "逐集质检" : "成片包质检";
+  const title =
+    mode === "recover"
+      ? "恢复小程序查看"
+      : mode === "sample"
+        ? "样片质检"
+        : mode === "episodes"
+          ? "逐集质检"
+          : "成片包质检";
   const outputs =
     grid?.episodes.flatMap((e) => (e.latest ? [e.latest] : e.current ? [e.current] : [])) ?? [];
   const [input, setInput] = useState(emptyQuality),
     [selected, setSelected] = useState(() => outputs.map((e) => e.episodeOutputId));
   const [exceptions, setExceptions] = useState<Record<string, QualityInput>>({});
+  const [recoveryReason, setRecoveryReason] = useState("");
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
   const write = useDeliveryWrite(() => {
     onRefresh();
     onClose();
@@ -166,18 +180,38 @@ function QualityForm({
   const problem = !template.data
     ? "质检模板尚未就绪"
     : qualityProblem(template.data, input.results, input.reason) ||
+      (mode === "recover" &&
+        (input.results.some((r) => r.result === "fail")
+          ? "质检通过后才能恢复小程序查看"
+          : recoveryReason.trim().length < 10 || recoveryReason.trim().length > 200
+            ? "请填写 10–200 字的恢复原因"
+            : !recoveryChecked
+              ? "请确认复核并推送新版本"
+              : null)) ||
       (mode === "episodes" && !selected.length ? "请选择待质检的集" : null) ||
       Object.values(exceptions)
         .map((e) => qualityProblem(template.data!, e.results, e.reason))
         .find(Boolean);
   const allowed =
-    mode === "sample"
-      ? ticket.currentSample?.actions.includes("inspect")
-      : ticket.actions.includes(mode === "episodes" ? "inspect-episodes" : "inspect-package");
+    mode === "recover"
+      ? ticket.currentSample?.actions.includes("recover_legacy")
+      : mode === "sample"
+        ? ticket.currentSample?.actions.includes("inspect")
+        : ticket.actions.includes(mode === "episodes" ? "inspect-episodes" : "inspect-package");
   const submit = () => {
     if (!template.data || problem) return;
     const body = qcBody(template.data, input);
-    if (mode === "episodes") {
+    if (mode === "recover") {
+      const sample = ticket.currentSample!;
+      const recovery = {
+        versionNo: sample.versionNo,
+        reason: recoveryReason.trim(),
+        quality: body,
+      };
+      void write.submit({ mode, sampleId: sample.sampleId, ...recovery }, (key) =>
+        api.recoverLegacySample(sample.sampleId, recovery, key),
+      );
+    } else if (mode === "episodes") {
       const episodeBody: EpisodeQcBody = {
         episodeOutputIds: selected,
         checklistVersionNo: body.checklistVersionNo,
@@ -218,11 +252,33 @@ function QualityForm({
             <Can
               module="delivery"
               need="o"
-              action={mode === "sample" ? "delivery.sample.qc" : "delivery.episode.qc"}
+              action={
+                mode === "sample" || mode === "recover"
+                  ? "delivery.sample.qc"
+                  : "delivery.episode.qc"
+              }
             >
-              <Button type="primary" disabled={!!problem} loading={write.pending} onClick={submit}>
-                提交质检
-              </Button>
+              {mode === "recover" ? (
+                <Can module="delivery" need="o" action="delivery.sample.push">
+                  <Button
+                    type="primary"
+                    disabled={!!problem}
+                    loading={write.pending}
+                    onClick={submit}
+                  >
+                    复核并推送新版本
+                  </Button>
+                </Can>
+              ) : (
+                <Button
+                  type="primary"
+                  disabled={!!problem}
+                  loading={write.pending}
+                  onClick={submit}
+                >
+                  提交质检
+                </Button>
+              )}
             </Can>
           ) : null}
         </div>
@@ -239,6 +295,33 @@ function QualityForm({
           {ticket.store.storeName ?? "未命名门店"} · {ticket.dramaTitle} · 清单第{" "}
           {template.data?.versionNo ?? "—"} 版
         </p>
+        {mode === "recover" ? (
+          <>
+            <Alert
+              type="info"
+              title="复核原视频后生成新版本，推送到小程序等待商家确认。旧版本及其记录保留，商家需要重新查看并勾选确认。"
+            />
+            <FormField label="恢复原因" value={recoveryReason} maxLength={200}>
+              {(field) => (
+                <Input.TextArea
+                  {...field}
+                  rows={2}
+                  value={recoveryReason}
+                  maxLength={200}
+                  disabled={write.pending}
+                  onChange={(e) => setRecoveryReason(e.target.value)}
+                />
+              )}
+            </FormField>
+            <Checkbox
+              checked={recoveryChecked}
+              disabled={write.pending}
+              onChange={(e) => setRecoveryChecked(e.target.checked)}
+            >
+              我已重新查看原视频，确认复核后推送新版本
+            </Checkbox>
+          </>
+        ) : null}
         {template.isError ? (
           <Alert
             type="error"

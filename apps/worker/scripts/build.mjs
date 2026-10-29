@@ -54,6 +54,7 @@ const options = {
     "staging-pay-qr": "src/cli/staging-pay-qr.ts",
     "analytics-repartition": "src/cli/analytics-repartition.ts",
     "sample-watermark": "src/cli/sample-watermark.ts",
+    "q9-local-sample-recovery": "src/cli/q9-local-sample-recovery.ts",
   },
   outdir,
   bundle: true,

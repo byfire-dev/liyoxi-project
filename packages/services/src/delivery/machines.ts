@@ -4,6 +4,8 @@ import { implementKeyed, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 const pass = Symbol("delivery.checked");
 export const checked = () => pass;
+const legacySampleRecoveryPass = Symbol("delivery.legacy_sample_recovery");
+export const legacySampleRecoveryChecked = () => legacySampleRecoveryPass;
 export const cancelResumeChecked = (approvalRequestId: string) => ({ pass, approvalRequestId });
 const holdPass = Symbol("delivery.cancel_hold");
 export const cancelHoldChecked = (approvalRequestId: string) => ({ holdPass, approvalRequestId });
@@ -89,6 +91,10 @@ const ticket: MachineBinding = {
   ],
   guards: {
     ...guards(rows.filter(([ref]) => ref !== "10:196")),
+    [rowKey("10:175", "sample.pushed")]: async (_tx, facts) =>
+      facts.from === "sample_confirm"
+        ? facts.to === "sample_confirm" && facts.args === legacySampleRecoveryPass
+        : facts.from === "sample_making" && facts.args === pass,
     [rowKey("10:189", "ticket.hold")]: async (tx, facts) => {
       const args = facts.args as ReturnType<typeof cancelHoldChecked> | undefined;
       if (args?.holdPass !== holdPass) return false;

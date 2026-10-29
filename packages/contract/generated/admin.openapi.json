@@ -28978,6 +28978,29 @@
           "includeWecom": {
             "type": "boolean"
           },
+          "legacyRecovery": {
+            "additionalProperties": false,
+            "properties": {
+              "quality": {
+                "$ref": "#/components/schemas/SampleInspectBody"
+              },
+              "reason": {
+                "maxLength": 200,
+                "minLength": 10,
+                "type": "string"
+              },
+              "versionNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "versionNo",
+              "reason",
+              "quality"
+            ],
+            "type": "object"
+          },
           "markWecomSent": {
             "type": "boolean"
           }
@@ -70645,7 +70668,7 @@
             "description": "内部错误"
           }
         },
-        "summary": "推送样片给商家确认（previewChannels：小程序不播放时提供水印版存相册、电脑端或企业微信）",
+        "summary": "推送小程序样片；显式历史恢复须重新质检并创建新版本，保留原推送快照",
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "delivery.sample.push",

@@ -168,6 +168,53 @@ test("样片或同 key 清单版本更新清除旧结论，预览 URL 更新保�
   await clean();
 });
 
+test("历史样片恢复要求重新质检、原因和明确确认，换版本清除旧结论", async ({ page }) => {
+  const clean = await openProbe(page, "sample-recovery");
+  const submit = page.getByRole("button", { name: "复核并推送新版本", exact: true });
+  const check = page.getByRole("checkbox", { name: "逐项核对画面", exact: true });
+  const acknowledge = page.getByRole("checkbox", {
+    name: "我已重新查看原视频，确认复核后推送新版本",
+    exact: true,
+  });
+  const reason = page.getByRole("textbox", { name: "恢复原因", exact: true });
+  await expect(submit).toBeDisabled();
+  await check.check();
+  await reason.fill("历史样片恢复小程序内查看与确认");
+  await expect(submit).toBeDisabled();
+  await acknowledge.check();
+  await expect(submit).toBeEnabled();
+  await change(page, "preview");
+  await expect(submit).toBeEnabled();
+  await change(page, "sample-version");
+  await expect(check).not.toBeChecked();
+  await expect(acknowledge).not.toBeChecked();
+  await expect(reason).toHaveValue("");
+  await expect(submit).toBeDisabled();
+  expect((await snapshot(page)).sent).toEqual([]);
+  await check.check();
+  await reason.fill("复核当前样片并恢复小程序查看");
+  await acknowledge.check();
+  await expect(submit).toBeEnabled();
+  await expect(acknowledge).toBeChecked();
+  await page.screenshot({
+    path: "dist/e2e-shots/q9-legacy-recovery.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+  await submit.click();
+  await expect.poll(async () => (await snapshot(page)).sent.length).toBe(1);
+  expect((await snapshot(page)).sent[0]).toMatchObject({
+    method: "recoverLegacySample",
+    id: "00000000-0000-7000-8000-000000000911",
+    body: {
+      versionNo: 2,
+      reason: "复核当前样片并恢复小程序查看",
+      quality: { checklistVersionNo: 1, results: [{ key: "picture", result: "pass" }] },
+    },
+  });
+  await clean();
+});
+
 test("剧集新输出重新选择实际目标并清除旧默认结论与单集例外", async ({ page }) => {
   const clean = await openProbe(page, "episode-qc");
   await page.getByRole("checkbox", { name: "逐项核对画面", exact: true }).check();

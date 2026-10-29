@@ -10,6 +10,7 @@ type Body<K extends keyof operations> = operations[K] extends {
 export type DraftBody = Body<"admin.deliveryPlan.draft.replace">;
 export type FileBody = Body<"admin.file.create">;
 export type QcBody = Body<"admin.sample.inspect">;
+export type LegacyRecoveryBody = NonNullable<Body<"admin.sample.push">["legacyRecovery"]>;
 export type EpisodesBody = Body<"admin.deliveryTicket.episodeOutput.create">;
 export type EpisodeQcBody = Body<"admin.deliveryTicket.inspectEpisodes">;
 export class DeliveryFailure extends Error {
@@ -117,6 +118,14 @@ export function createTicketDetailApi(services: Pick<AppServices, "api">) {
         .POST("/api/v1/admin/samples/{sampleId}/push", {
           params: { path: { sampleId } },
           body: {},
+          headers: { "Idempotency-Key": key },
+        })
+        .then(unwrap),
+    recoverLegacySample: (sampleId: string, body: LegacyRecoveryBody, key: string) =>
+      c
+        .POST("/api/v1/admin/samples/{sampleId}/push", {
+          params: { path: { sampleId } },
+          body: { legacyRecovery: body },
           headers: { "Idempotency-Key": key },
         })
         .then(unwrap),
