@@ -6,8 +6,14 @@ import type { EmitContext, Events } from "../events/index.js";
 import type { Assembly, Clock, Tx } from "../kernel/index.js";
 import { bindingsOf, workMinutesPort } from "./bindings.js";
 import { selectColumns } from "./repo.js";
-import { transition } from "./transition.js";
-import type { TransitionInput, TransitionResult } from "./transition.js";
+import { adminTransition, transition } from "./transition.js";
+import type {
+  AdminStaffReader,
+  AdminTransitionInput,
+  TransitionInput,
+  TransitionResult,
+} from "./transition.js";
+import type { StaffContext } from "../authz/index.js";
 
 export interface FlowOptions {
   /** 装配结果：状态机的登记与工作分钟端口的实现从这里取 */
@@ -16,6 +22,7 @@ export interface FlowOptions {
   readonly clock: Clock;
   /** 出站事件（createEvents 给的） */
   readonly events: Pick<Events, "emit">;
+  readonly adminStaffReader?: AdminStaffReader;
 }
 
 export interface Flow {
@@ -27,7 +34,17 @@ export interface Flow {
   ): Promise<TransitionResult>;
 }
 
-export function createFlow(options: FlowOptions): Flow {
+/** 原Flow保持普通迁移能力，既有仅transition的测试替身无需伪造强迁方法。 */
+export interface AdminFlow extends Flow {
+  adminTransition<const N extends string>(
+    tx: Tx,
+    ctx: EmitContext,
+    staff: StaffContext,
+    input: AdminTransitionInput<N>,
+  ): Promise<TransitionResult>;
+}
+
+export function createFlow(options: FlowOptions): AdminFlow {
   const bindings = bindingsOf(options.assembly);
   const workMinutes = options.assembly.port(workMinutesPort);
   // 状态机表各有哪些列（有没有 lock_version、updated_at，随迁列在不在）：第一次迁移时读一遍系统目录，之后用缓存
@@ -45,6 +62,10 @@ export function createFlow(options: FlowOptions): Flow {
     workMinutes,
     columns,
     fresh,
+    ...(options.adminStaffReader ? { adminStaffReader: options.adminStaffReader } : {}),
   };
-  return { transition: (tx, ctx, input) => transition(tx, deps, ctx, input) };
+  return {
+    transition: (tx, ctx, input) => transition(tx, deps, ctx, input),
+    adminTransition: (tx, ctx, staff, input) => adminTransition(tx, deps, ctx, staff, input),
+  };
 }
