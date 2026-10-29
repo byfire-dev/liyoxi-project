@@ -18,7 +18,8 @@ import { bindFileRefTypes } from "./invariants.js";
 import { createUploadBatches } from "./batches/service.js";
 import { createBatchWorkerHooks } from "./batches/worker.js";
 import { enqueueProbe, enqueueDerivation, productionFacts } from "./production.js";
-import { deliveryProductionFacts } from "./production/facts.js";
+import { createProductionActions } from "./production-actions.js";
+import { deliveryProductionFacts, adProductionFacts } from "./production/facts.js";
 import { ensureSampleWatermark } from "./sample-watermark.js";
 import { prepareDeliveryProduction } from "./production/prepare.js";
 import type { ManualProductionInput } from "./production/prepare.js";
@@ -162,6 +163,7 @@ export function createMedia(options: MediaDeps) {
     ],
   });
   return {
+    productionActions: createProductionActions(deps),
     ocr: createQualificationOcr(deps),
     enqueueBankReceiptOcr: (
       tx: Tx,
@@ -221,6 +223,8 @@ export function createMedia(options: MediaDeps) {
       ),
     deliveryProductionFacts: (tx: Parameters<typeof deliveryProductionFacts>[1], fileId: string) =>
       deliveryProductionFacts(deps, tx, fileId),
+    adProductionFacts: (tx: Parameters<typeof adProductionFacts>[1], fileId: string) =>
+      adProductionFacts(deps, tx, fileId),
     ensureSampleWatermark: (tx: Tx, fileId: string) => ensureSampleWatermark(deps, tx, fileId),
     assertUsableForModel,
     retireDramaMedia: (
@@ -272,6 +276,13 @@ export function createMedia(options: MediaDeps) {
         await signRead(
           { fileId: input.fileId, audience: "merchant", disposition: "attachment" },
           { kind: "delivery-download", fileName: input.fileName },
+        )
+      ).signed,
+    signMaterialDownload: async (input: DeliveryDownloadSignInput) =>
+      (
+        await signRead(
+          { fileId: input.fileId, disposition: "attachment", audience: "staff" },
+          { kind: "staff-material", fileName: input.fileName },
         )
       ).signed,
     assertReadableByStaff: (

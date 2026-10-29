@@ -264,3 +264,16 @@ worker配置接线另由独立伴随合入，不能把本源码装配当预发�
 ### 无主体财务回单（W4-18）
 
 后台 pay_receipt 未指定 entity/store 时，只允许当前本人、all 范围、finance.receipt.confirm 加 finance.refund.execute 或 finance.recon.resolve 且完成再次验证，派生本人 secure/platform 文件。拒绝代门店上传；invoice 仍要求主体。platform/pay_receipt 的后台元数据与签名读取同样限 all，包含原上传人降级为 own/group 的情况；消费退款/对账仍走各域状态及本人文件守卫，不放宽资金操作。两新增真实 DB 目标和原 billing-upload 相邻目标已通过；真实云未验。
+
+
+## W5-04 人工制作入口
+
+`media.productionActions` 提供 `list(actor, query)`、`normalize(actor, fileId, body, { idem })`、`restamp(...)` 和 `recheck(...)`。记录主键始终为文件ID。范围由L4注入的 `ProductionAccess` 调用真实订单项/广告拥有者，GET只读并在分页前裁剪，不输出 `media_info.raw`。
+
+人工规格化/补标先建立真实pending文件与uploading制作行，新任务以新行为parent；版本化输入同时核来源SHA和来源/目标上下文，复用原runner租约、预算、外部工具和回读。人工补标仅更正新行声明。显式manual输入与旧自动restamp分开，只有旧自动来源可被原checked订阅者替换；人工产物须由剪辑师登记并重新QC。重检用新generation任务，回读仍核当前规则与完整生产证据；真实上一轮人工任务失败/取消且无进行中任务时，checking留痕可经新意图恢复重检，列表按同一事实重新下发动作。
+
+`adProductionFacts` 复用与成片相同的任务、输入、摘要、时刻和来源链证据，广告 gate 沿原 probe 的片头/片尾规则与 AI 回读重算；不要求广告带原片上下文。原 `deliveryProductionFacts` 的样片/成片规则保持原行为。
+
+`signMaterialDownload` 是内部员工取料窄口，固定1800秒，外呼在事务外，回读核真实文件版本；业务范围、当前集合、访问审计和master_checkout由delivery同事务收口。商家下载窄口保持900秒。
+
+验证：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/media/production-actions.db.test.ts`。替身只替换codec/cloud/storage IO，不能证明真实云和外部合规验收。

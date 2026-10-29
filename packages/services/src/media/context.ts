@@ -18,6 +18,7 @@ import type { MediaAssetsDeps } from "./assets/types.js";
 import type { MediaActor } from "./actor.js";
 import type { RetentionOptions } from "./retention/options.js";
 import type { QualificationOcrOptions } from "./ocr/service.js";
+import type { ProductionAccess } from "./production-access.js";
 export type FileRow = FileObject;
 export type { MediaActor } from "./actor.js";
 export interface FileCategoryGuard {
@@ -30,6 +31,7 @@ export interface MediaDeps {
   readonly assets?: MediaAssetsDeps;
   readonly batches?: MediaBatchDeps;
   readonly production?: MediaProductionDeps;
+  readonly productionAccess?: ProductionAccess;
   readonly jobOwnerId?: string;
   readonly jobHandlers?: readonly MediaJobHandler[];
   readonly jobConvergenceHandlers?: readonly MediaConvergenceHandler[];

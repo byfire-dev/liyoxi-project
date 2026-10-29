@@ -55,6 +55,8 @@ import { createFlowOps, createAlertActions } from "./ops/index.js";
 import type { FlowOps, AlertActions } from "./ops/index.js";
 import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
+import { requireRuntimeProductionAccess } from "./ops/index.js";
+import { readProductionMasterVersion } from "./content/index.js";
 import {
   createOrderService,
   bindCancelRequests,
@@ -753,6 +755,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
       ...(modelBudget ? { modelBudget: modelBudget.admission } : {}),
     }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
+    productionAccess: {
+      require: requireRuntimeProductionAccess,
+      master: readProductionMasterVersion,
+      staff: async (tx, id) => (await staffBriefs(tx, [id]))[0] ?? null,
+    },
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,

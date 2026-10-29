@@ -994,7 +994,7 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `media` | object \| null | 是 | 探测事实 `{ durationMs, width, height, displayWidth, displayHeight, vcodec, acodec, bitrateKbps, isFaststart }` | `media_info` 同名列 |
 | `uploadedBy` | `StaffBrief` \| null | 是 | 上传员工；系统产物为空 | `production_record.uploaded_by_staff_id` |
 | `createdAt` | string(date-time) | 是 | 登记时间 | `production_record.created_at` |
-| `actions` | array<string> | 是 | `normalize`（成片或广告，`ready` 或 `rejected`）；`restamp`（`ai_usage.used = false`，`ready` 或 `rejected`）；`recheck`（`ready` 或 `rejected`） | 计算 |
+| `actions` | array<string> | 是 | `normalize`（成片或广告，`ready` 或 `rejected`）；`restamp`（`ai_usage.used = false`，`ready` 或 `rejected`）；`recheck`（`ready` 或 `rejected`；真实人工重检任务失败/取消且无进行中任务时可恢复重检） | 计算 |
 
 #### `ProductionJobAccepted`
 
@@ -2046,7 +2046,7 @@ W5-01 的正式执行响应与资金写入在同一事务内生成并保存为�
 
 **副作用**：无（不签发地址、不写取料记录）。
 
-**说明**：原片只列当前版本；参考素材分素材库（`storeAssets`）与门店档案媒体（`profileMedia`）两组列出；下载与取料留痕走 3.28。
+**说明**：原片只列已提交批次中就绪的当前版本；参考素材分素材库（`storeAssets`）与门店档案媒体（`profileMedia`）两组列出；下载与取料留痕走 3.28。
 
 ### 3.28 admin.deliveryTicket.material.downloadUrls　签发制作素材下载地址
 
@@ -2095,7 +2095,7 @@ W5-01 的正式执行响应与资金写入在同一事务内生成并保存为�
 - `kind = master`：逐集 upsert `master_checkout`（键 `(order_item_id, episode_no, staff_id)`，写 `drama_episode_master_id` = 当前原片版本、`checked_out_at`、`checkout_count + 1`），之后上传成片时据此认定所用原片版本（06-media.md:807）。
 - 每个文件写一条访问流审计（`audit_log.stream = access`、`target_type = file_object`、`meta.fileCategory`、`meta.urlTtlSec`）。
 
-**说明**：门店素材与档案媒体的下载地址 30 分钟（图片按对齐窗口；音视频同样 30 分钟，员工下载口径）。档案媒体已从档案移除（`store_profile_media.removed_at` 非空）但订购单仍引用的，照常签发。
+**说明**：本员工取料窄口的门店素材与档案媒体下载地址固定 30 分钟（不沿通用图片窗口扩大有效期）。签名在事务外生成，之后在访问审计与原片取料同一事务中重新核对本人任务、父对象范围、当前集合和真实文件版本；任一变化拒绝返回地址。档案媒体已从档案移除（`store_profile_media.removed_at` 非空）但订购单仍引用的，照常签发。
 
 ### 3.29 admin.deliveryTicket.episodeOutput.list　成片剧集
 
@@ -3542,7 +3542,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 
 **副作用**：`production_record.pipeline_state`：`ready` / `rejected` → `checking`（06-media.md:784）；登记体检任务 `media_job`（`kind = probe`，父对象为本行）；`ops` 流审计。体检完成后照常发 `media.production.checked`，版本行的状态由 delivery 的订阅者跟进。
 
-**说明**：重检期间该文件不可质检（`PRODUCTION_NOT_READY`）；已经质检通过、已推送的版本不因重检回退，只在结论变为拒收时由订阅者告警给交付经理（待 x01 定义订阅行为）。
+**说明**：重检期间该文件不可质检（`PRODUCTION_NOT_READY`）。规则升级等导致上次人工重检任务真实失败或取消时，入口在原锁内核对当前文件上下文、该人工任务终态与不存在更新进行中任务，允许新意图发起新一轮实际体检；不把 `checking` 直接写成通过，成功仍仅由原 probe 回读/规则守卫产生。已经质检通过、已推送的版本不因重检回退，只在结论变为拒收时由订阅者告警给交付经理（待 x01 定义订阅行为）。
 
 ## 4. 枚举
 

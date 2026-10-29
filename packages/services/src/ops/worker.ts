@@ -56,6 +56,8 @@ import {
 } from "../content/index.js";
 import { createDramaPricing } from "../billing/index.js";
 import { staffBriefs } from "../staff/index.js";
+import { requireRuntimeProductionAccess } from "./production-access-runtime.js";
+import { readProductionMasterVersion } from "../content/index.js";
 import { latestStaffWecomInviteKey } from "../audit/index.js";
 import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 import { createSmsHealth, smsTemplateReader, sendSystemAlert } from "../notify/index.js";
@@ -679,6 +681,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
       modelBudget: modelBudget.admission,
     }),
     batches: createRuntimeMediaBatches({ clock, events, media: () => media }),
+    productionAccess: {
+      require: requireRuntimeProductionAccess,
+      master: readProductionMasterVersion,
+      staff: async (tx, id) => (await staffBriefs(tx, [id]))[0] ?? null,
+    },
     ...(mediaProduction.production ? { production: mediaProduction.production } : {}),
     tx,
     clock,

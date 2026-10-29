@@ -10,6 +10,7 @@ import {
   json,
   readProductionWork,
   requiredJson,
+  manualDerivationTarget,
 } from "../production.js";
 import { LabelSchema, parseLabel, technicalReport } from "../production-report.js";
 import { saveTechnical } from "./probe.js";
@@ -28,7 +29,7 @@ export async function derivationCurrent(deps: BoundMediaDeps, tx: Tx, job: Media
   if (
     !input.success ||
     job.parentType !== "production_record" ||
-    job.parentId !== job.subjectId ||
+    job.parentId !== (input.data.manual ? input.data.destinationFileId : job.subjectId) ||
     job.subjectType !== "file_object" ||
     input.data.fileId !== job.subjectId ||
     input.data.objectKey !==
@@ -37,12 +38,20 @@ export async function derivationCurrent(deps: BoundMediaDeps, tx: Tx, job: Media
     return false;
   await lockRows(tx, "file_object", [job.subjectId, input.data.destinationFileId]);
   const facts = await readProductionWork(deps, tx, job.subjectId);
+  const target =
+    input.data.manual && facts.production
+      ? await manualDerivationTarget(tx, job, input.data, facts.file, facts.production)
+      : null;
   return (
     facts.file.status === "stored" &&
     facts.file.moderationState !== "block" &&
     facts.production !== null &&
     contextHash(facts.production) === input.data.contextHash &&
-    facts.parameters.ruleVersion === input.data.ruleVersion
+    facts.parameters.ruleVersion === input.data.ruleVersion &&
+    (!input.data.manual ||
+      (!!target &&
+        ["pending", "stored"].includes(target.file.status) &&
+        ["uploading", "checking"].includes(target.record.pipelineState)))
   );
 }
 export async function finishDerivation(
@@ -64,32 +73,51 @@ export async function finishDerivation(
   await createDerivedFile(
     tx,
     facts.file,
-    { id: output.fileId, objectKey: input.objectKey, ...output },
+    {
+      id: output.fileId,
+      objectKey: input.objectKey,
+      ...output,
+      ...(input.manual ? { manual: { job, sourceRecord: facts.production } } : {}),
+    },
     now,
   );
   const { fileId: _id, createdAt: _created, updatedAt: _updated, ...context } = facts.production;
-  await tx.productionRecord.createMany({
-    data: [
-      {
-        ...context,
-        fileId: output.fileId,
-        source: job.kind === "restamp" ? "restamped" : "normalized",
-        derivedFromFileId: facts.file.id,
+  if (input.manual) {
+    const target = await manualDerivationTarget(tx, job, input, facts.file, facts.production);
+    if (!target) throw new Error("人工媒体派生上下文不一致");
+    await tx.productionRecord.update({
+      where: { fileId: output.fileId },
+      data: {
         pipelineState: "checking",
         aigcState: output.technical.aigcMeta ? "verified" : "pending",
         aigcOrigin: output.aigcOrigin,
-        uploadedByStaffId: null,
-        aiUsage: requiredJson(facts.production.aiUsage),
-        similarity: json(facts.production.similarity),
-        createdAt: now,
         updatedAt: now,
       },
-    ],
-    skipDuplicates: true,
-  });
+    });
+  } else
+    await tx.productionRecord.createMany({
+      data: [
+        {
+          ...context,
+          fileId: output.fileId,
+          source: job.kind === "restamp" ? "restamped" : "normalized",
+          derivedFromFileId: facts.file.id,
+          pipelineState: "checking",
+          aigcState: output.technical.aigcMeta ? "verified" : "pending",
+          aigcOrigin: output.aigcOrigin,
+          uploadedByStaffId: null,
+          aiUsage: requiredJson(facts.production.aiUsage),
+          similarity: json(facts.production.similarity),
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      skipDuplicates: true,
+    });
   const derived = await tx.productionRecord.findUniqueOrThrow({ where: { fileId: output.fileId } });
   if (
-    contextHash(derived) !== contextHash(facts.production) ||
+    contextHash(derived) !==
+      (input.manual?.destinationContextHash ?? contextHash(facts.production)) ||
     derived.derivedFromFileId !== facts.file.id
   )
     throw new Error("媒体派生上下文不一致");
@@ -117,7 +145,7 @@ export async function finishDerivation(
   });
   return [
     await enqueueProbe(deps, tx, output.fileId, {
-      parentBatchId: facts.file.uploadBatchId ?? undefined,
+      parentBatchId: input.manual ? undefined : (facts.file.uploadBatchId ?? undefined),
     }),
   ];
 }
@@ -151,6 +179,11 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
           etag: facts.file.etag!,
         });
         if (!source.ok) return failure("MEDIA_SOURCE_CHANGED", source.reason === "unavailable");
+        if (
+          source.value.size !== size ||
+          (facts.file.sha256 && source.value.sha256 !== facts.file.sha256)
+        )
+          return failure("MEDIA_SOURCE_CHANGED");
         const before = await production.tool.probe({
           path: work.path("source.mp4"),
           demuxers: ["mov"],
@@ -210,7 +243,14 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
           createDerivedFile(
             tx,
             facts.file,
-            { id: input.destinationFileId, objectKey: input.objectKey, ...result.value },
+            {
+              id: input.destinationFileId,
+              objectKey: input.objectKey,
+              ...result.value,
+              ...(input.manual && facts.production
+                ? { manual: { job, sourceRecord: facts.production } }
+                : {}),
+            },
             deps.clock.now(),
           ),
         );
