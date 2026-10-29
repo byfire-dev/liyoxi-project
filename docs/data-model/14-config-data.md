@@ -592,11 +592,13 @@ Banner 各有独立的时间窗与启停，保存即生效，到结束时间自�
 | --- | --- | --- | --- |
 | `release.partner`、`release.notice_faq`、`release.trial_episodes`、`release.delegate_publish` | bool | 关 | d6:1731 |
 | `weapp.video.trailer.enabled` | bool | **关**（d5:1489、d7:512 写的是开，按 ADR-028 改） | catalogue notes；04:195 |
-| `weapp.video.sample.enabled` | bool | 关 | d7:513 |
+| `weapp.video.sample.enabled` | bool | 开（仅缺省/新 seed；不覆盖已有显式 false） | Q9；[变更工作包](../plan/changes/plan-q9-sample-player.md) |
 | `weapp.video.ad.enabled` | bool | 开 | d7:514 |
 | `weapp.trailer.autoplay`、`weapp.trailer.feed` | bool | 关 | d7:515-516 |
 | `notify.sms.enabled`、`notify.wx.enabled`、`analytics.ingest.enabled`、`export.enabled` | bool | 开 | d6:1733 |
 | `client.min_version` | json（字符串） | `"0.0.0"` | d7:518 |
+
+样片开关默认值变更不伴随数据迁移：reference seed 只插缺失键，数据库已有 false 与规则继续生效；关停时样片不转向其他查看渠道。
 
 **不变量**：`config.N19`（补）：库里的键都在代码登记表里，值类型与登记一致（启动自检，每日复核）。
 

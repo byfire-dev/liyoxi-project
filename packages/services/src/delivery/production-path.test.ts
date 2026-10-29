@@ -212,12 +212,12 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
       (o) => h.delivery.samplePush(qc.ctx, qc.staff, s.sampleId, {}, o),
       ["preview", "decision.feedbackImages"],
     );
-    expect(pushed.previewChannels).toEqual(["album", "portal"]);
+    expect(pushed.previewChannels).toEqual(["weapp"]);
     expect(pushed.durationMs).toBe(60000);
     const before = await h.tx.run((tx) => h.counts(tx, s.sampleId));
     const page = SampleViewSchema.parse(await h.delivery.merchantSample(o.viewer, item.id));
-    expect(page.confirmableVia).toEqual([]);
-    expect(page.playable?.sources).toEqual([]);
+    expect(page.confirmableVia).toEqual(["weapp"]);
+    expect(page.playable?.sources).toHaveLength(1);
     expect(await h.tx.run((tx) => h.counts(tx, s.sampleId))).toEqual(before);
     await expect(
       h.delivery.sampleConfirm(o.viewer, s.sampleId, {
@@ -226,13 +226,13 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         hasViewed: true,
       }),
     ).rejects.toMatchObject({
-      error: "SAMPLE_NOT_VIEWABLE",
-      details: { requiredEvidence: "album_saved" },
+      error: "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
+      details: { previewChannels: ["weapp"] },
     });
     await evidence(s.sampleId, o);
-    expect((await h.delivery.merchantSample(o.viewer, item.id)).confirmableVia).toEqual(["album"]);
+    expect((await h.delivery.merchantSample(o.viewer, item.id)).confirmableVia).toEqual(["weapp"]);
     const key = uuidv7(),
-      body = { versionNo: 1, viewedVia: "album", hasViewed: true },
+      body = { versionNo: 1, viewedVia: "weapp", hasViewed: true },
       idem = () =>
         createIdempotencyContext({
           mode: "required",
@@ -496,14 +496,11 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     ).rejects.toMatchObject({ error: "CHECKLIST_VERSION_STALE" });
     expect(await h.tx.run((tx) => h.counts(tx, sample.sampleId))).toEqual(before);
     await h.delivery.sampleInspect(qc.ctx, qc.staff, sample.sampleId, c);
-    await h.delivery.samplePush(qc.ctx, qc.staff, sample.sampleId, {
-      includeWecom: true,
-      markWecomSent: true,
-    });
+    await h.delivery.samplePush(qc.ctx, qc.staff, sample.sampleId, {});
     await expect(
       h.delivery.sampleConfirm(o.viewer, sample.sampleId, {
         versionNo: 1,
-        viewedVia: "wecom",
+        viewedVia: "weapp",
         hasViewed: true,
       }),
     ).rejects.toMatchObject({
@@ -512,7 +509,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     });
     await h.delivery.sampleConfirm(o.viewer, sample.sampleId, {
       versionNo: 2,
-      viewedVia: "wecom",
+      viewedVia: "weapp",
       hasViewed: true,
     });
     const now = h.clock.now(),
@@ -613,7 +610,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
       }),
     ).toBe(1);
   });
-  it("推送后播放开关关闭不改快照，GET 零写；原 weapp 确认需实际查看证据及明确勾选", async () => {
+  it("Q9推送后关闭不改快照，GET零写；历史相册证据不恢复播放和确认", async () => {
     const { o, editor, qc, id, item } = await ready(),
       f = await file(o, "sample_video", editor);
     await h.finish(f.id, true);
@@ -641,8 +638,7 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         hasViewed: true,
       }),
     ).rejects.toMatchObject({
-      error: "SAMPLE_NOT_VIEWABLE",
-      details: { requiredEvidence: "album_or_portal" },
+      error: "FEATURE_DISABLED",
     });
     await evidence(s.sampleId, o);
     await expect(
@@ -651,16 +647,106 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         viewedVia: "weapp",
         hasViewed: false,
       }),
+    ).rejects.toMatchObject({ error: "FEATURE_DISABLED" });
+    await expect(
+      delivery.sampleConfirm(o.viewer, s.sampleId, {
+        versionNo: 1,
+        viewedVia: "weapp",
+        hasViewed: true,
+      }),
+    ).rejects.toMatchObject({ error: "FEATURE_DISABLED" });
+    enabled = true;
+    await expect(
+      delivery.sampleConfirm(o.viewer, s.sampleId, {
+        versionNo: 1,
+        viewedVia: "weapp",
+        hasViewed: false,
+      }),
     ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
-    expect(
-      (
-        await delivery.sampleConfirm(o.viewer, s.sampleId, {
+  });
+  it("Q9关闭或缺失开关依赖拒绝新推送，企业微信请求不能产生另一种查看入口", async () => {
+    const { o, editor, qc, id } = await ready(),
+      f = await file(o, "sample_video", editor);
+    await h.finish(f.id, true);
+    const sample = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
+      fileId: f.id,
+      adSlots: [],
+    });
+    await h.delivery.sampleInspect(qc.ctx, qc.staff, sample.sampleId, await checks("qc.sample"));
+    const before = await h.tx.run((tx) => h.counts(tx, sample.sampleId));
+    const enabledView = DeliveryTicketDetailSchema.parse(await h.delivery.get(qc.staff, id));
+    expect(enabledView.currentSample?.actions).toContain("push");
+    for (const samplePlayback of [undefined, async () => false]) {
+      const disabled = createDelivery({ ...h.deps, samplePlayback });
+      const disabledView = DeliveryTicketDetailSchema.parse(await disabled.get(qc.staff, id));
+      expect(disabledView.currentSample?.actions).not.toContain("push");
+      await expect(
+        disabled.samplePush(qc.ctx, qc.staff, sample.sampleId, {}),
+      ).rejects.toMatchObject({ error: "FEATURE_DISABLED" });
+    }
+    for (const body of [{ includeWecom: true }, { markWecomSent: true }])
+      await expect(
+        h.delivery.samplePush(qc.ctx, qc.staff, sample.sampleId, body),
+      ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
+    expect(await h.tx.run((tx) => h.counts(tx, sample.sampleId))).toEqual(before);
+    expect(await h.delivery.samplePush(qc.ctx, qc.staff, sample.sampleId, {})).toMatchObject({
+      previewChannels: ["weapp"],
+      offlineSentAt: null,
+    });
+    expect(o.items[0]).toBeDefined();
+  });
+  it("Q9历史album-only待确认和已确认快照保持事实，不签播放地址或借旧证据确认", async () => {
+    const { o, editor, qc, id, item } = await ready(),
+      f = await file(o, "sample_video", editor);
+    await h.finish(f.id, true);
+    const sample = await h.delivery.sampleCreate(editor.ctx, editor.staff, id, {
+      fileId: f.id,
+      adSlots: [],
+    });
+    await h.delivery.sampleInspect(qc.ctx, qc.staff, sample.sampleId, await checks("qc.sample"));
+    await h.delivery.samplePush(qc.ctx, qc.staff, sample.sampleId, {});
+    // Historical pre-Q9 facts are seeded explicitly; new writes never produce these channels.
+    await h.prisma.sample.update({
+      where: { id: sample.sampleId },
+      data: { previewChannels: ["album", "portal"] },
+    });
+    await evidence(sample.sampleId, o);
+    const before = await h.tx.run((tx) => h.counts(tx, sample.sampleId));
+    const pending = await h.delivery.merchantSample(o.viewer, item.id);
+    expect(pending).toMatchObject({
+      previewChannels: ["album", "portal"],
+      confirmableVia: [],
+      actions: [],
+    });
+    expect(pending.playable?.sources).toEqual([]);
+    expect(pending.viewEvidence.albumSavedAt).not.toBeNull();
+    for (const viewedVia of ["album", "portal", "weapp", "wecom"])
+      await expect(
+        h.delivery.sampleConfirm(o.viewer, sample.sampleId, {
           versionNo: 1,
-          viewedVia: "weapp",
+          viewedVia,
           hasViewed: true,
-        })
-      ).status,
-    ).toBe("confirmed");
+        }),
+      ).rejects.toMatchObject({ error: "SAMPLE_VIEW_CHANNEL_NOT_OFFERED" });
+    expect(await h.tx.run((tx) => h.counts(tx, sample.sampleId))).toEqual(before);
+    await h.prisma.sample.update({
+      where: { id: sample.sampleId },
+      data: {
+        status: "confirmed",
+        decidedAt: h.clock.now(),
+        decidedByUserId: o.user.id,
+        decideClient: "weapp",
+        confirmViewedVia: "album",
+        viewedAckAt: h.clock.now(),
+        viewedAckByUserId: o.user.id,
+      },
+    });
+    const historical = await h.delivery.merchantSample(o.viewer, item.id);
+    expect(historical).toMatchObject({
+      previewChannels: ["album", "portal"],
+      decision: { viewedVia: "album" },
+    });
+    expect(historical.playable?.sources).toEqual([]);
   });
   it("真实剧目 AI × 声明正反强制 used/forcedByDrama，分类重放及样片/成片 fallback 不越过 pending", async () => {
     const { o, editor, qc, id, item } = await ready();
@@ -683,13 +769,10 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
           healthy.sampleId,
           await checks("qc.sample"),
         );
-        await h.delivery.samplePush(qc.ctx, qc.staff, healthy.sampleId, {
-          includeWecom: true,
-          markWecomSent: true,
-        });
+        await h.delivery.samplePush(qc.ctx, qc.staff, healthy.sampleId, {});
         await h.delivery.sampleConfirm(o.viewer, healthy.sampleId, {
           versionNo: healthy.versionNo,
-          viewedVia: "wecom",
+          viewedVia: "weapp",
           hasViewed: true,
         });
       }

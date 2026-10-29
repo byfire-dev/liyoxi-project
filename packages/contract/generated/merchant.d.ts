@@ -1431,7 +1431,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 确认样片 {versionNo, viewedVia, hasViewed}，推进到批量合成 */
+        /** 确认小程序样片 {versionNo, viewedVia: weapp, hasViewed: true}，推进到批量合成 */
         post: operations["m.sample.confirm"];
         delete?: never;
         options?: never;
@@ -1448,7 +1448,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 签发水印版样片的 15 分钟直链（保存到相册查看）；每次写访问审计，首次访问回写 sample.first_viewed_at */
+        /** 历史样片相册接口：第一期仅小程序内查看，鉴权及版本校验后拒绝签发 */
         post: operations["m.sample.downloadUrls"];
         delete?: never;
         options?: never;

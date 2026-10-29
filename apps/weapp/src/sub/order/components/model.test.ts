@@ -3,7 +3,7 @@ import { ApiError, type RequestLayer } from "@/lib/request";
 import { createDeliveryGuard } from "@/stores/delivery";
 import { deliveryError } from "./model";
 import { changeBody } from "../plan/model";
-import { sampleConfirmation, saveSample } from "../sample/model";
+import { sampleConfirmation } from "../sample/model";
 import { submitBody, mergeTaskPages } from "../../publish/tasks/model";
 import { readLaunchRecord } from "../launch-record/model";
 import { createDeliveryApi } from "./delivery-api";
@@ -97,44 +97,15 @@ describe("已合DTO与页面提交", () => {
     expect(() => changeBody(["ad", "ad"], "note")).toThrow();
     expect(() => changeBody(["ad"], " ")).toThrow();
   });
-  it("未保存不可确认，确认渠道必须取服务器第一项，包括旧weapp兜底", () => {
-    expect(() => sampleConfirmation(sample, true)).toThrow("先保存");
-    const viewed = { ...sample, confirmableVia: ["weapp", "album"] as ("weapp" | "album")[] };
-    expect(() => sampleConfirmation(viewed, false)).toThrow();
-    expect(sampleConfirmation(viewed, true)).toEqual({
+  it("样片只提交weapp并强制勾选；拒绝旧相册渠道与关闭开关", () => {
+    expect(() => sampleConfirmation(sample, false)).toThrow("我已查看");
+    expect(() => sampleConfirmation(sample, true, false)).toThrow("联系服务经理");
+    expect(() => sampleConfirmation({ ...sample, confirmableVia: ["album"] }, true)).toThrow();
+    expect(sampleConfirmation(sample, true)).toEqual({
       versionNo: 2,
       viewedVia: "weapp",
       hasViewed: true,
     });
-  });
-  it("每次重新签名，平台保存成功后重GET而不沿用签发响应", async () => {
-    const { api, send } = makeApi();
-    send.mockImplementation(async (path) =>
-      path.endsWith("/download-urls") ? { url: "fresh" } : { ...sample, confirmableVia: ["album"] },
-    );
-    const save = vi.fn(async () => {});
-    expect((await saveSample(api, sample, save, () => true))?.confirmableVia).toEqual(["album"]);
-    await saveSample(api, sample, save, () => true);
-    expect(send.mock.calls.filter(([p]) => p.endsWith("/download-urls"))).toHaveLength(2);
-    expect(send.mock.calls.filter(([p]) => p.endsWith("/sample"))).toHaveLength(2);
-    expect(send.mock.calls.filter(([p]) => p.endsWith("/download-urls"))[0]?.[1]).toEqual({
-      method: "POST",
-    });
-  });
-  it("签名后切店不落相册、不GET证据；相册失败保留重试提示", async () => {
-    const { api, send } = makeApi();
-    let valid = true;
-    send.mockImplementation(async () => {
-      valid = false;
-      return { url: "late" };
-    });
-    const save = vi.fn(async () => {});
-    expect(await saveSample(api, sample, save, () => valid)).toBeNull();
-    expect(save).not.toHaveBeenCalled();
-    send.mockResolvedValue({ url: "fresh" });
-    save.mockRejectedValue(new Error("保存失败，可重试"));
-    await expect(saveSample(api, sample, save, () => true)).rejects.toThrow("重试");
-    expect(send).toHaveBeenCalledTimes(2);
   });
   it("合集与逐集请求体严格分支，拒重复集号", () => {
     const base = {
@@ -165,7 +136,7 @@ describe("已合DTO与页面提交", () => {
   });
   it.each([
     ["PLAN_VERSION_STALE", "方案已更新"],
-    ["SAMPLE_NOT_VIEWABLE", "先保存"],
+    ["SAMPLE_NOT_VIEWABLE", "联系服务经理"],
     ["DOWNLOAD_GRANT_INVALID", "下载授权已过期"],
     ["LINK_INVALID", "episodeUrls[1].url：请使用 HTTPS"],
   ])("按%s给提示", (error, text) => {

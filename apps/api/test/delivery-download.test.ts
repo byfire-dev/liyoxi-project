@@ -18,7 +18,6 @@ import {
 } from "@liyoxi/services";
 import {
   ChecklistItemsSchema,
-  DownloadUrlSchema,
   EpisodeDownloadUrlSchema,
   ReleaseViewSchema,
   DeliveryReleaseDetailSchema,
@@ -333,7 +332,7 @@ const signed = async (response: Response) => {
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   return data(response);
 };
-it("四条实际登录HTTP链：保存证据消费、真实900秒附件、幂等none独立留痕、GET零写与publish范围", async () => {
+it("四条实际登录HTTP链：Q9相册零签拒绝、勾选确认、成片900秒附件留痕、GET零写与publish范围", async () => {
   for (const op of [
     "m.sample.downloadUrls",
     "m.orderItem.release.get",
@@ -380,25 +379,41 @@ it("四条实际登录HTTP链：保存证据消费、真实900秒附件、幂等
   ).toBe(409);
   const sampleKey = uuidv7(),
     before = await writes();
-  const first = DownloadUrlSchema.parse(
-    await signed(await request("m.sample.downloadUrls", {}, own(), sampleKey)),
-  );
-  expect(first.fileName).toBe("接口测试剧_样片_第1版.mp4");
-  expect(first.expiresAt).toBe(new Date(api.clock.now().getTime() + 900000).toISOString());
-  const viewed = (await prisma.sample.findUniqueOrThrow({ where: { id: sampleId } })).firstViewedAt;
-  api.clock.advance(1000);
-  await signed(await request("m.sample.downloadUrls", {}, own(), sampleKey));
+  const signCalls = (api.runtime.providers.storage as FakeStorage).callsOf("presignGet").length;
+  for (let i = 0; i < 2; i++) {
+    const denied = await request("m.sample.downloadUrls", {}, own(), sampleKey);
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toMatchObject({ error: "FEATURE_DISABLED" });
+    api.clock.advance(1000);
+  }
   expect(
     (await prisma.sample.findUniqueOrThrow({ where: { id: sampleId } })).firstViewedAt,
-  ).toEqual(viewed);
+  ).toBeNull();
   expect(
     await prisma.auditLog.count({
-      where: { action: "delivery.sample.album_download", targetId: sampleId },
+      where: {
+        action: "delivery.sample.album_download",
+        targetId: sampleId,
+      },
     }),
-  ).toBe(2);
-  expect((await writes()).slice(1)).toEqual(before.slice(1));
+  ).toBe(0);
+  expect(await writes()).toEqual(before);
+  expect((api.runtime.providers.storage as FakeStorage).callsOf("presignGet")).toHaveLength(
+    signCalls,
+  );
+  const unchecked = await request("m.sample.confirm", {
+    versionNo: 1,
+    viewedVia: "weapp",
+    hasViewed: false,
+  });
+  expect(await unchecked.json()).toMatchObject({ error: "VALIDATION_FAILED" });
+  expect(await writes()).toEqual(before);
   await data(
-    await request("m.sample.confirm", { versionNo: 1, viewedVia: "album", hasViewed: true }),
+    await request("m.sample.confirm", {
+      versionNo: 1,
+      viewedVia: "weapp",
+      hasViewed: true,
+    }),
   );
   finalFileId = await knownFile("final_episode", 2);
   const outputs = await data(

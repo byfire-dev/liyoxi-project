@@ -72,7 +72,7 @@ async function pushReplacement(r: Awaited<ReturnType<typeof sampleReady>>) {
   });
   return replacement;
 }
-it("合法历史change_requested旧版在新版真实推送后拒绝，零签/零证据；新版仍可保存", async () => {
+it("合法历史change_requested旧版在新版真实推送后拒绝，零签/零证据；新版相册同样拒绝", async () => {
   const r = await sampleReady(h),
     replacement = await pushReplacement(r),
     before = await snapshot(h),
@@ -82,33 +82,34 @@ it("合法历史change_requested旧版在新版真实推送后拒绝，零签/�
   });
   expect(await snapshot(h)).toEqual(before);
   expect(h.fake.storage.callsOf("presignGet")).toHaveLength(calls);
-  expect(await r.downloads.sampleUrl(r.o.viewer, replacement.sampleId, meta)).toMatchObject({
-    fileName: "测试短剧1_样片_第2版.mp4",
-  });
+  await expect(r.downloads.sampleUrl(r.o.viewer, replacement.sampleId, meta)).rejects.toMatchObject(
+    {
+      error: "FEATURE_DISABLED",
+    },
+  );
+  expect(await snapshot(h)).toEqual(before);
+  expect(h.fake.storage.callsOf("presignGet")).toHaveLength(calls);
 }, 60000);
-it("签名期间新版真实推送推进当前版，锁后拒绝旧地址且零audit/firstViewedAt写", async () => {
-  const r = await sampleReady(h);
-  let afterReplacement: Awaited<ReturnType<typeof snapshot>> | undefined,
-    signed = 0;
+it("相册请求不进入签名回调，不能在外部IO中修改当前版本或写查看事实", async () => {
+  const r = await sampleReady(h),
+    before = await snapshot(h);
+  let signed = 0;
   const downloads = createDeliveryDownloads({
     ...h.deps,
     media: {
       deliveryProductionFacts: h.media.deliveryProductionFacts,
       signDeliveryDownload: async (input) => {
         signed++;
-        const address = await h.media.signDeliveryDownload(input);
         await pushReplacement(r);
-        afterReplacement = await snapshot(h);
-        return address;
+        return h.media.signDeliveryDownload(input);
       },
     },
   });
   await expect(downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
-    error: "STATE_NOT_ALLOWED",
+    error: "FEATURE_DISABLED",
   });
-  expect(signed).toBe(1);
-  expect(afterReplacement).toBeDefined();
-  expect(await snapshot(h)).toEqual(afterReplacement);
+  expect(signed).toBe(0);
+  expect(await snapshot(h)).toEqual(before);
   expect(
     await h.prisma.auditLog.count({
       where: {

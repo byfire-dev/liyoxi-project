@@ -172,8 +172,8 @@ stateDiagram-v2
 | 1 | `assigning` | `ticket.assign` | `plan_confirm` | 被分配人是启用的交付经理 | 交付主管 |
 | 2 | `plan_confirm` | `plan.confirmed` | `ad_prep` | 方案已确认，且已确认版本的内容已落到本订单项 | 商家（老板）；系统求值 |
 | 3 | `ad_prep` | `ads.ready` | `sample_making` | 绑定的广告全部就绪 | 系统求值 |
-| 4 | `sample_making` | `sample.pushed` | `sample_confirm` | 当前样片质检通过；所用广告版本是各广告当前确认版本；有可用的查看方式 | 交付经理 |
-| 5 | `sample_confirm` | `sample.confirmed` | `batch_compose` | 版本号等于当前已推送版本；广告版本未变 | 商家（老板） |
+| 4 | `sample_making` | `sample.pushed` | `sample_confirm` | 当前样片质检通过；真正水印版 ready；所用广告版本是各广告当前确认版本；样片开关开启；新快照仅 `weapp` | 交付经理 |
+| 5 | `sample_confirm` | `sample.confirmed` | `batch_compose` | 当前已推送版本、广告版本未变、未暂停；开关开启、真正水印版 ready、原快照含 `weapp`；`viewedVia = weapp` 且 `hasViewed = true` | 商家（老板） |
 | 6 | `sample_confirm` | `sample.change_requested`（合成问题） | `sample_making` | 意见非空 | 商家；交付经理代录 |
 | 7 | `sample_confirm` | `sample.change_requested`（广告内容） | `ad_prep` | 该广告还有免费修改次数 | 交付经理代录 |
 | 8 | `sample_making`、`sample_confirm` | `ad.reopened` | `ad_prep` | 存在未钉住且广告不处于“已确认”的广告位 | 系统求值 |
@@ -540,7 +540,7 @@ stateDiagram-v2
 
 ### 2.7 `sample` 样片版本
 
-样片每个版本一行，流程视角：质检、推送、查看方式、商家决定与修改意见。归属：门店维度。主键：`id uuid`。不是只增表。业务状态机（machine = `sample`）。锁顺序：`lock_rank = 260`（履约子表）。
+样片每个版本一行，流程视角：质检、推送、查看方式、商家决定与修改意见。归属：门店维度。主键：`id uuid`。不是只增表。业务状态机（machine = `sample`）。锁顺序：`lock_rank = 260`（履约子表）。Q9 当期业务规则覆盖旧默认（[变更工作包](../plan/changes/plan-q9-sample-player.md)）：新推送只写 `[weapp]`；确认只接受 `weapp` 且必须勾选。四种枚举、旧字段、CHECK、推送快照和已确认记录为历史兼容保留，不自动迁移或改写既有决定；数据库约束仍允许历史非勾选 weapp 已确认记录，新写入的更严格要求由服务守卫保证。旧版无 `weapp` 的待确认记录不能确认，也不能仅改快照假装已经重推；安全恢复链待 W5-03/05/08 后继。
 
 | 列 | 类型 | 空 | 默认 | 说明 | 出处 |
 | --- | --- | --- | --- | --- | --- |
@@ -559,7 +559,7 @@ stateDiagram-v2
 | `qc_record_id` | uuid | 可 | — | 最近一次质检记录，指向 `qc_record`；未质检为空 | d3:1431 |
 | `pushed_by_staff_id` | uuid | 可 | — | 推送人（交付经理），指向 `staff` | d3:1432 |
 | `pushed_at` | timestamptz | 可 | — | 推送时间 | d3:1433 |
-| `preview_channels` | text[] | 否 | `{}` | 推送时确定的查看方式，至少 1 种：`weapp` 小程序内播放、`album` 在小程序里保存水印版到相册、`portal` 电脑端下载页预览（扫码登录）、`wecom` 交付经理经企业微信发送水印版。前三种由系统按推送时的开关 `weapp.video.sample.enabled` 写入：开时写 `weapp`，关时写 `album`、`portal`；交付经理只能额外勾选 `wecom`。推送后开关再变，不回改已推送版本 | d3:1434、1532-1536；03:325；d5:1490；M62 |
+| `preview_channels` | text[] | 否 | `{}` | 推送时确定的查看方式：历史取值保留 `weapp`、`album`、`portal`、`wecom`。Q9 新推送仅 `[weapp]`，必须开启 `weapp.video.sample.enabled`，不接受 `includeWecom`；关停时拒绝推送。历史快照不回改 | d3:1434、1532-1536；03:325；d5:1490；M62 |
 | `offline_sent_at` | timestamptz | 可 | — | 交付经理标记“已经企业微信发送水印版”的时间 | d3:1435 |
 | `offline_sent_by_staff_id` | uuid | 可 | — | 标记“已发送”的员工，指向 `staff` | d3:1436 |
 | `first_viewed_at` | timestamptz | 可 | — | 商家首次经下载页预览或相册保存访问样片文件的时间。访问写 `audit_log` 的访问流，由 delivery 的访问用例同事务回写这一列 | M27 |
@@ -641,8 +641,8 @@ stateDiagram-v2
 | `uploaded` | `sample.check_rejected` | `check_rejected` | 收到 `media.production.checked`（`gate = reject`） | 系统 |
 | `uploaded` | `sample.qc_failed` | `qc_rejected` | 文件体检已通过；质检人不是上传人；清单版本是当前启用的版本 | 交付经理 |
 | `uploaded` | `sample.qc_passed` | `qc_passed` | 同上 | 交付经理 |
-| `qc_passed` | `sample.pushed` | `pushed` | 工单迁移表第 4 行的守卫；推送时由系统按开关写入 `preview_channels`，交付经理可加 `wecom`（须已标记发送） | 交付经理 |
-| `pushed` | `sample.confirmed` | `confirmed` | 工单迁移表第 5 行的守卫；`confirm_viewed_via` 在 `preview_channels` 内，不可在小程序内播放时须勾选“我已查看”并有对应的提供或访问记录 | 商家（老板） |
+| `qc_passed` | `sample.pushed` | `pushed` | 工单迁移表第 4 行的守卫；Q9 只写 `[weapp]`，关停或 `includeWecom` 拒绝 | 交付经理 |
+| `pushed` | `sample.confirmed` | `confirmed` | 工单迁移表第 5 行的守卫；仅 `confirm_viewed_via = weapp`，原 `preview_channels` 含 `weapp`，强制勾选“我已查看”；不要求播放完毕，不再以相册/portal/企业微信记录放行 | 商家（老板） |
 | `pushed` | `sample.change_requested`（合成问题） | `change_requested` | 意见非空 | 商家；交付经理代录 |
 | `pushed` | `sample.change_requested`（广告内容） | `superseded` | 该广告还有免费修改次数 | 交付经理代录 |
 | `uploaded`、`qc_passed`、`pushed` | `sample.superseded` | `superseded` | 上传了新版本，或绑定的广告被重新打开（工单迁移表第 8 行） | 系统 |
@@ -1322,7 +1322,7 @@ stateDiagram-v2
 
 | # | 问题 | 默认做法 | 由谁定 |
 | --- | --- | --- | --- |
-| 1 | 小程序内不能播放样片时，`wecom`（交付经理经企业微信发送水印版）是否足以作为确认证据（03:325；M62） | 四种查看方式都登记：`weapp`、`album`、`portal`、`wecom`。`album`、`portal` 的访问写审计访问流并回写 `first_viewed_at`；`wecom` 只有员工标记的 `offline_sent_at`。不是 `weapp` 的确认一律要求勾选“我已查看”。法务若不认可 `wecom`，从 `ck_sample_preview_channels`、`ck_sample_confirm_viewed_via` 里去掉该取值（09 分组 `ad_version` 同改） | 法务 |
+| 1 | Q9 已明确一期样片仅小程序内查看且必须勾选；自声明的证据效力、类目/提审/真机仍未验 | 新写入仅 weapp + hasViewed=true，关停拒绝；历史四枚举/字段/CHECK/快照/已确认记录保留，不自动迁移或删历史取值。恢复链待 W5-03/05/08 后继 | 法务 + 产品 |
 
 ## 7. 修订记录
 

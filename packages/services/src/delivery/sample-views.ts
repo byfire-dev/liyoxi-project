@@ -53,7 +53,8 @@ export async function adminSampleView(
       s.status === "qc_passed" &&
       actual.ready &&
       actual.playable &&
-      hasPermission(staff, "delivery.sample.push")
+      hasPermission(staff, "delivery.sample.push") &&
+      (await deps.samplePlayback?.(t.entityId))
     )
       actions.push("push");
   }
@@ -140,7 +141,7 @@ export async function merchantSampleView(tx: Tx, deps: DeliveryDeps, t: TicketRo
   const e = await sampleEvidence(tx, deps, t, s),
     qc = s.qcRecordId ? await tx.qcRecord.findUnique({ where: { id: s.qcRecordId } }) : null,
     q = await qcView(tx, qc);
-  const p = (await deps.media.deliveryProductionFacts(tx, s.fileId)).playable,
+  const p = e.production.playable,
     info = await tx.mediaInfo.findUnique({ where: { fileId: s.fileId } });
   // 地址在事务结束后签；传给签发器的内部 file id 不放入返回 DTO。
   return {
@@ -204,12 +205,14 @@ export async function merchantSampleView(tx: Tx, deps: DeliveryDeps, t: TicketRo
       sampleRoundNo: t.sampleRoundNo,
       agreedLaunchDate: dateOf(t.orderItem.agreedLaunchDate),
       actions:
-        s.status === "pushed" && t.step === "sample_confirm" && !t.pauseCount ? ["confirm"] : [],
+        s.status === "pushed" && t.step === "sample_confirm" && !t.pauseCount && e.possible.length
+          ? ["confirm"]
+          : [],
     },
     files: {
       poster: p?.coverFileId ?? info?.coverFileId ?? null,
       renditions:
-        p && e.enabled && s.previewChannels.includes("weapp")
+        p && e.possible.includes("weapp")
           ? (p.renditions as Array<{
               fileId: string;
               quality: string;

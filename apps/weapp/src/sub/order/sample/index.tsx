@@ -5,7 +5,6 @@ import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
-import { Cover } from "@/components/Cover";
 import { DescList } from "@/components/DescList";
 import { FooterBar } from "@/components/FooterBar";
 import { Note } from "@/components/Note";
@@ -13,11 +12,10 @@ import { PageBody } from "@/components/PageBody";
 import { Section } from "@/components/Section";
 import { Sheet } from "@/components/Sheet";
 import { flagOn, useBootstrapStore } from "@/stores/bootstrap";
-import { withPrivacy } from "@/lib/runtime";
-import { saveVideoUrl } from "@/lib/platform.taro";
 import { deliveryRequest } from "../components/delivery-runtime";
 import { createSampleApi } from "./api";
-import { saveSample, sampleConfirmation } from "./model";
+import { sampleConfirmation, sampleIdentity, samplePlaybackBlocker } from "./model";
+import { SamplePlayer } from "./player";
 import { useDeliveryResource } from "../components/resource";
 import {
   DeliveryEmpty,
@@ -36,33 +34,22 @@ function SampleContent({ id }: { id: string }) {
     if (!id) throw new Error("缺少订单项编号，请从订单详情打开");
     return api.sample(id);
   });
-  const [acknowledged, setAcknowledged] = useState<string | null>(null),
-    [confirmVersion, setConfirmVersion] = useState<string | null>(null);
+  const [review, setReview] = useState({ key: "", acknowledged: false, confirm: false });
   const s = r.data;
-  const version = s ? `${s.sampleId}:${s.versionNo}` : null;
-  const checked = Boolean(version && acknowledged === version),
-    confirm = Boolean(version && confirmVersion === version);
+  const version = s ? sampleIdentity(s) : null;
   useBootstrapStore((v) => v.data.flags);
-  const albumOffered = Boolean(
-    s?.previewChannels.includes("album") ||
-    (s?.previewChannels.includes("weapp") && !flagOn("weapp.video.sample.enabled")),
-  );
-  const save = () =>
-    r.run(null, async (current) => {
-      if (!s) return;
-      const result = await withPrivacy(async () => {
-        if (!current()) return;
-        return saveSample(api, s, saveVideoUrl, current);
-      });
-      if (!current()) return;
-      if (!result.ok) throw new Error("请同意隐私指引后再保存样片");
-      if (result.value) r.replace(result.value, current);
-      if (current()) void Taro.showToast({ title: "已保存，请到相册查看", icon: "none" });
-    });
+  const enabled = flagOn("weapp.video.sample.enabled"),
+    blocker = samplePlaybackBlocker(s, enabled),
+    canView = !blocker && Boolean(s?.confirmableVia.includes("weapp")),
+    canConfirm = Boolean(s?.actions.includes("confirm"));
+  const reviewKey = `${version ?? ""}:${canView}`;
+  if (review.key !== reviewKey) setReview({ key: reviewKey, acknowledged: false, confirm: false });
+  const checked = review.key === reviewKey && review.acknowledged,
+    confirm = review.key === reviewKey && review.confirm;
   const decide = () =>
     r.run("sample_confirm", async (current) => {
       if (!s) return;
-      const body = sampleConfirmation(s, checked);
+      const body = sampleConfirmation(s, checked, flagOn("weapp.video.sample.enabled"));
       await api.confirmSample(
         s.sampleId,
         body,
@@ -71,13 +58,10 @@ function SampleContent({ id }: { id: string }) {
       if (!current()) return;
       r.replace(await api.sample(id), current);
       if (current()) {
-        setConfirmVersion(null);
-        setAcknowledged(null);
+        setReview({ key: reviewKey, acknowledged: false, confirm: false });
         void Taro.showToast({ title: "样片已确认", icon: "none" });
       }
     });
-  const canView = Boolean(s?.confirmableVia.length),
-    canConfirm = Boolean(s?.actions.includes("confirm"));
   return (
     <View className="delivery-page" id={!r.loading ? "delivery-ready" : undefined}>
       <PageBody>
@@ -88,34 +72,31 @@ function SampleContent({ id }: { id: string }) {
               title={s.dramaTitle}
               extra={<DeliveryStatus column="sample.status" value={s.status} />}
             >
-              <View className="delivery-row">
-                <View className="delivery-cover">
-                  <Cover title={s.dramaTitle} />
-                </View>
-                <DescList
-                  items={[
-                    { label: "当前样片", value: `第 ${s.versionNo} 版` },
-                    {
-                      label: "时长",
-                      value: `${Math.floor(s.durationMs / 60000)} 分 ${Math.floor(s.durationMs / 1000) % 60} 秒`,
-                    },
-                    { label: "推送时间", value: appDateTimeFormat.dateTime(s.pushedAt) },
-                  ]}
+              <DescList
+                items={[
+                  { label: "当前样片", value: `第 ${s.versionNo} 版` },
+                  {
+                    label: "时长",
+                    value: `${Math.floor(s.durationMs / 60000)} 分 ${Math.floor(s.durationMs / 1000) % 60} 秒`,
+                  },
+                  { label: "推送时间", value: appDateTimeFormat.dateTime(s.pushedAt) },
+                ]}
+              />
+              {!blocker ? (
+                <SamplePlayer
+                  key={version}
+                  sample={s}
+                  blocked={confirm || r.busy}
+                  reload={() => api.sample(id)}
+                  replace={r.replace}
                 />
-              </View>
+              ) : (
+                <Note>{blocker}</Note>
+              )}
             </Card>
-            <Note>样片不在小程序内播放。请保存到相册，查看完整内容后确认。</Note>
+            {!blocker ? <Note>请在小程序内查看当前版本样片，确认前勾选“我已查看”。</Note> : null}
             <Button size="sm" variant="secondary" disabled={r.busy} onClick={r.refresh}>
               刷新样片
-            </Button>
-            <Button
-              block
-              variant="outline"
-              loading={r.busy}
-              disabled={!albumOffered}
-              onClick={save}
-            >
-              保存样片到相册查看
             </Button>
             <Section title="质检摘要">
               <Card>
@@ -132,12 +113,14 @@ function SampleContent({ id }: { id: string }) {
                 <Checkbox
                   checked={checked}
                   disabled={!canView || r.busy}
-                  onChange={(v) => setAcknowledged(v ? version : null)}
+                  onChange={(v) => setReview({ key: reviewKey, acknowledged: v, confirm: false })}
                 >
                   我已查看第 {s.versionNo} 版样片
                 </Checkbox>
                 <View className="delivery-caption">
-                  {canView ? "请确认已查看当前版本的完整样片" : "请先保存样片到相册查看"}
+                  {canView
+                    ? "请确认已查看当前版本的完整样片"
+                    : (blocker ?? "当前样片不可确认，请刷新或联系服务经理")}
                 </View>
               </Card>
             ) : null}
@@ -150,7 +133,7 @@ function SampleContent({ id }: { id: string }) {
                 <Button
                   block
                   disabled={!checked || !canView || r.busy}
-                  onClick={() => setConfirmVersion(version)}
+                  onClick={() => setReview({ ...review, confirm: true })}
                 >
                   确认样片
                 </Button>
@@ -161,7 +144,7 @@ function SampleContent({ id }: { id: string }) {
               title="确认样片"
               description={`确认已查看第 ${s.versionNo} 版样片`}
               onClose={() => {
-                if (!r.busy) setConfirmVersion(null);
+                if (!r.busy) setReview({ ...review, confirm: false });
               }}
               closeOnOverlayClick={!r.busy}
               footer={

@@ -1,11 +1,17 @@
-/** W120 商家五页十五态；本域独立离线数据，旧场景保持。 */
+/** 交付域固定离线场景，样片含Q9关闭与历史渠道状态。 */
 const id = "00000000-0000-4000-8000-000000000020";
 export const DELIVERY_SCENES = [
   ...["plan-pending", "plan-revising", "plan-confirmed", "plan-change"].map((name) => ({
     name,
     route: `sub/order/plan/index?deliveryPlanId=${id}`,
   })),
-  ...["sample-unsaved", "sample-viewed", "sample-confirmed"].map((name) => ({
+  ...[
+    "sample-unsaved",
+    "sample-viewed",
+    "sample-confirmed",
+    "sample-disabled",
+    "sample-legacy",
+  ].map((name) => ({
     name,
     route: `sub/order/sample/index?orderItemId=${id}`,
   })),

@@ -636,7 +636,11 @@ export async function runM1Chain({
       body: await checks("qc.sample"),
     });
     await call("admin.sample.push", admin, { params: sampleParams, body: {} });
-    const signed = await call("m.sample.downloadUrls", headers, { params: sampleParams, body: {} });
+    const sampleView = await call("m.orderItem.sample.get", headers, {
+      params: { orderItemId: scope.orderItemId },
+    });
+    const signed = sampleView.playable?.sources[0];
+    assert.ok(signed?.url, "样片小程序播放地址缺失");
     const actual = externalIO
       ? await externalIO.readSigned(signed.url)
       : support.providers.storage.fetch(signed.url);
@@ -645,12 +649,13 @@ export async function runM1Chain({
     assert.deepEqual(actual.body, support.productionVideo.bytes);
     await call("m.sample.confirm", headers, {
       params: sampleParams,
-      body: { versionNo: sample.versionNo, viewedVia: "album", hasViewed: true },
+      body: { versionNo: sample.versionNo, viewedVia: "weapp", hasViewed: true },
     });
     await support.drainEvents();
     const state = await support.readState({ ...scope, sampleId: sample.sampleId });
     assert.equal(state.sample?.status, "confirmed");
-    assert.ok(state.sample?.firstViewedAt);
+    assert.ok(state.sample?.viewedAckAt);
+    assert.equal(state.sample?.firstViewedAt, null);
     assert.equal(state.ticket?.step, "batch_compose");
     return sample.sampleId;
   });

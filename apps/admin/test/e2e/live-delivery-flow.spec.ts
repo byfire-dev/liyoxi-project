@@ -16,7 +16,7 @@ async function passChecks(dialog: Locator) {
   expect(await checks.count()).toBeGreaterThan(0);
   for (const check of await checks.all()) await check.check();
 }
-test("交付真实主路径：分配/方案确认/两人样片质检/保存留证/两集成片及包质检", async ({
+test("交付真实主路径：分配/方案确认/两人样片质检/小程序水印查看及勾选确认/两集成片及包质检", async ({
   page,
   browser,
 }) => {
@@ -190,26 +190,64 @@ test("交付真实主路径：分配/方案确认/两人样片质检/保存留�
         `/api/v1/admin/delivery-tickets/${f.scope.ticketId}`,
       ),
       sample = current.currentSample;
-    const save = await page.request.post(`/api/v1/m/samples/${sample.sampleId}/download-urls`, {
-      data: {},
-      headers: f.ownerHeaders,
+    expect(sample.firstViewedAt).toBeNull();
+    expect(sample.watermark).toMatchObject({ state: "ready", fileId: expect.any(String) });
+    const samplePath = `/api/v1/m/order-items/${f.scope.itemId}/sample`;
+    const previewResponse = await page.request.get(samplePath, { headers: f.ownerHeaders });
+    expect(previewResponse.status()).toBe(200);
+    expect(previewResponse.headers()["cache-control"]).toBe("no-store");
+    const preview = (await previewResponse.json()).data;
+    expect(preview).toMatchObject({
+      sampleId: sample.sampleId,
+      versionNo: sample.versionNo,
+      previewChannels: ["weapp"],
+      confirmableVia: ["weapp"],
+      firstViewedAt: null,
+      viewedAckAt: null,
+      viewEvidence: { albumSavedAt: null, portalViewedAt: null },
+      playable: { playableId: sample.watermark.playableAssetId, kind: "sample", autoplay: false },
     });
-    expect(save.status()).toBe(200);
-    expect(save.headers()["cache-control"]).toBe("no-store");
-    const download = (await save.json()).data;
-    expect(new URL(download.url).origin).toBe("http://127.0.0.1:9100");
-    expect(new URL(download.url).searchParams.get("X-Amz-Expires")).toBe("900");
-    const actual = await fetch(download.url);
+    expect(preview.playable.sources).toHaveLength(1);
+    const source = preview.playable.sources[0];
+    expect(source.quality).toBe("source");
+    expect(new URL(source.url).origin).toBe("http://127.0.0.1:9100");
+    expect(new URL(source.url).searchParams.get("X-Amz-Expires")).toBe("3600");
+    const actual = await fetch(source.url);
     expect(actual.status).toBe(200);
+    const contentLength = Number(actual.headers.get("content-length"));
+    expect(contentLength).toBeGreaterThan(0);
     const sampleBytes = Buffer.from(await actual.arrayBuffer());
-    expect(sampleBytes.byteLength).toBe(Number(download.sizeBytes));
+    expect(sampleBytes.byteLength).toBe(contentLength);
     expect(createHash("sha256").update(sampleBytes).digest("hex")).not.toBe(
       deliveryVideo().manifest.sha256,
     );
+    const blockedDownload = await page.request.post(
+      `/api/v1/m/samples/${sample.sampleId}/download-urls`,
+      {
+        data: {},
+        headers: f.ownerHeaders,
+      },
+    );
+    expect(blockedDownload.status()).toBe(403);
+    expect(await blockedDownload.json()).toMatchObject({ error: "FEATURE_DISABLED" });
+    const unchecked = await page.request.post(`/api/v1/m/samples/${sample.sampleId}/confirm`, {
+      data: { versionNo: sample.versionNo, viewedVia: "weapp", hasViewed: false },
+      headers: { ...f.ownerHeaders, "Idempotency-Key": crypto.randomUUID() },
+    });
+    expect(unchecked.status()).toBe(400);
+    expect(await unchecked.json()).toMatchObject({ error: "VALIDATION_FAILED" });
+    const unread = await apiData(page.request, samplePath, undefined, f.ownerHeaders);
+    expect(unread).toMatchObject({
+      sampleId: sample.sampleId,
+      status: "pushed",
+      firstViewedAt: null,
+      viewedAckAt: null,
+      viewEvidence: { albumSavedAt: null, portalViewedAt: null },
+    });
     await apiData(
       page.request,
       `/api/v1/m/samples/${sample.sampleId}/confirm`,
-      { versionNo: sample.versionNo, viewedVia: "album", hasViewed: true },
+      { versionNo: sample.versionNo, viewedVia: "weapp", hasViewed: true },
       f.ownerHeaders,
     );
     await page.reload();

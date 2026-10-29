@@ -1,11 +1,6 @@
 import { ChecklistItemsSchema, COMPARE_FIELDS, DramaSnapshotSchema } from "@liyoxi/contract";
 import { addDays, calendarDate } from "@liyoxi/shared/time";
-import {
-  createDelivery,
-  createTickets,
-  prepareTicketAssignees,
-  createDeliveryDownloads,
-} from "../../delivery/index.js";
+import { createDelivery, createTickets, prepareTicketAssignees } from "../../delivery/index.js";
 import { createDocs } from "../../docs/index.js";
 import { createIdentity } from "../../identity/index.js";
 import { AppError, createIdentityContext, uuidv7 } from "../../kernel/index.js";
@@ -57,6 +52,8 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       media: runtime.media,
       profile,
       publish,
+      samplePlayback: (entityId) =>
+        runtime.config.flags.isEnabled("weapp.video.sample.enabled", { entityId }),
       sla: createSla({ clock, assembly }),
     });
     const identity = createIdentity({
@@ -341,9 +338,10 @@ export async function finishW120LiveFixture(
     ...runtime,
     profile,
     publish: createPublish(runtime),
+    samplePlayback: (entityId) =>
+      runtime.config.flags.isEnabled("weapp.video.sample.enabled", { entityId }),
     sla: createSla({ clock, assembly }),
   });
-  const downloads = createDeliveryDownloads(runtime);
   const checks = async (code: string) => {
     const template = await tx.run((db) =>
       db.checklistTemplate.findFirstOrThrow({ where: { code, status: "active" } }),
@@ -429,13 +427,9 @@ export async function finishW120LiveFixture(
       );
       await delivery.sampleInspect(qcCtx, qc, sample.sampleId, sampleChecks);
       await delivery.samplePush(qcCtx, qc, sample.sampleId, {});
-      const signed = await downloads.sampleUrl(viewer, sample.sampleId, {
-        requestId: `w120-download:${sample.sampleId}`,
-        ip: "127.0.0.1",
-        userAgent: "W120 actual download",
-        sessionId: null,
-        authMethod: null,
-      });
+      const sampleView = await delivery.merchantSample(viewer, item.id);
+      const signed = sampleView.playable?.sources[0];
+      if (!signed?.url) throw new Error("W120 小程序样片播放地址缺失");
       const physical = await fetch(signed.url, { signal }),
         proof = await media.downloadFacts(sampleFile, true);
       const downloaded = new Uint8Array(await physical.arrayBuffer());
@@ -447,7 +441,7 @@ export async function finishW120LiveFixture(
         throw new Error("W120 样片真实下载失败");
       await delivery.sampleConfirm(viewer, sample.sampleId, {
         versionNo: 1,
-        viewedVia: "album",
+        viewedVia: "weapp",
         hasViewed: true,
       });
       const finalFile = await media.upload(actor, merchant.store.id, item.id, "final_episode", 2);

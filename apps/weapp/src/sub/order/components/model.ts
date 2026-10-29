@@ -11,7 +11,7 @@ export function deliveryError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.error === "PLAN_VERSION_STALE") return "方案已更新，请查看最新版本后再确认";
     if (error.error === "SAMPLE_VERSION_STALE") return "样片已更新，请查看最新版本";
-    if (error.error === "SAMPLE_NOT_VIEWABLE") return "请先保存样片到相册查看，再确认已查看";
+    if (error.error === "SAMPLE_NOT_VIEWABLE") return "当前样片不可查看，请刷新或联系服务经理";
     if (error.error === "DOWNLOAD_GRANT_INVALID") return "下载授权已过期，请联系服务经理";
     if (error.error === "LINK_INVALID") {
       const details = error.details as { field?: string; reason?: string } | null;

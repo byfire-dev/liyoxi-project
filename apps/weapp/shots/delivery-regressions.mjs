@@ -1,6 +1,109 @@
 import { expect } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 const button = (page, label) => page.locator(".lyx-button").filter({ hasText: label });
 const calls = (page) => page.evaluate(() => globalThis.__LYX_DELIVERY_CALLS__);
+// 浏览器现场生成短视频，运输替身只提供同源媒体；实际使用H5 video的播放事件与控制API。
+async function samplePlaybackRegression(page) {
+  const runtimeErrors = [],
+    captureError = (error) => runtimeErrors.push(error.message);
+  page.on("pageerror", captureError);
+  const control = page.locator(".sample-player__controls .lyx-button");
+  const media = await page.evaluate(async () => {
+    Object.defineProperty(navigator, "connection", {
+      configurable: true,
+      value: {
+        type: "4g",
+        addEventListener() {},
+        removeEventListener() {},
+      },
+    });
+    const canvas = globalThis.document.createElement("canvas");
+    canvas.width = 90;
+    canvas.height = 160;
+    const stream = canvas.captureStream(12),
+      chunks = [];
+    const recorder = new globalThis.MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8" });
+    return new Promise((resolve) => {
+      recorder.ondataavailable = (event) => chunks.push(event.data);
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const reader = new globalThis.FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.readAsDataURL(new Blob(chunks, { type: "video/webm" }));
+      };
+      recorder.start();
+      let frame = 0;
+      const draw = setInterval(() => {
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#F6F3EE";
+        ctx.fillRect(0, 0, 90, 160);
+        ctx.fillStyle = "#C4501B";
+        ctx.fillRect(10, 20 + (frame++ % 80), 70, 40);
+      }, 80);
+      setTimeout(() => {
+        clearInterval(draw);
+        recorder.stop();
+      }, 1800);
+    });
+  });
+  await page.route("**/sample-preview.mp4", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "video/webm",
+      body: Buffer.from(media, "base64"),
+    }),
+  );
+  await control.click();
+  await expect(page.getByText("使用移动网络播放", { exact: true })).toBeVisible();
+  await expect(page.locator("video")).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: fileURLToPath(new URL("./dist/png/delivery__sample-mobile.png", import.meta.url)),
+  });
+  await button(page, "暂不播放").click();
+  await expect(page.locator("video")).toHaveCount(0);
+  await control.click();
+  await button(page, "继续播放样片").click();
+  const video = page.locator(".sample-player video");
+  await expect(video).toBeVisible();
+  const frameBox = await page.locator(".sample-player__frame").boundingBox(),
+    videoBox = await video.boundingBox();
+  expect(frameBox.height / frameBox.width).toBeCloseTo(16 / 9, 2);
+  for (const edge of ["x", "y", "width", "height"])
+    expect(Math.abs(frameBox[edge] - videoBox[edge])).toBeLessThan(1);
+  await expect.poll(() => video.evaluate((node) => node.currentTime)).toBeGreaterThan(0.05);
+  await control.click();
+  const pausedAt = await video.evaluate((node) => node.currentTime);
+  await page.waitForTimeout(160);
+  expect(Math.abs((await video.evaluate((node) => node.currentTime)) - pausedAt)).toBeLessThan(0.1);
+  await page.screenshot({
+    path: fileURLToPath(new URL("./dist/png/delivery__sample-player.png", import.meta.url)),
+  });
+  await button(page, "定位片头").click();
+  await expect.poll(() => video.evaluate((node) => node.currentTime)).toBeLessThan(0.15);
+  await control.click();
+  await expect.poll(() => video.evaluate((node) => node.currentTime)).toBeGreaterThan(0.05);
+  const before = (await calls(page)).length;
+  await video.evaluate((node) => node.dispatchEvent(new Event("error")));
+  await expect.poll(async () => (await calls(page)).length).toBe(before + 1);
+  await expect(video).toBeVisible();
+  await video.evaluate((node) => node.dispatchEvent(new Event("error")));
+  await expect(page.getByText("样片播放失败，请重新获取播放地址", { exact: true })).toBeVisible();
+  expect((await calls(page)).length).toBe(before + 1);
+  await page.screenshot({
+    path: fileURLToPath(new URL("./dist/png/delivery__sample-retry.png", import.meta.url)),
+  });
+  await control.click();
+  await expect.poll(async () => (await calls(page)).length).toBe(before + 2);
+  await expect(video).toBeVisible();
+  await control.click();
+  await page.locator(".lyx-checkbox").click();
+  await page.locator(".lyx-footer-bar .lyx-button").click();
+  await expect(video).toHaveCount(0);
+  expect((await calls(page)).some((call) => call.path.endsWith("/download-urls"))).toBe(false);
+  expect(runtimeErrors).toEqual([]);
+  page.off("pageerror", captureError);
+}
 export async function deliveryNavigationRegression(page, shotPath) {
   await page.evaluate(() => {
     globalThis.__LYX_DELIVERY_SHOT__ = "sample-empty";
@@ -48,27 +151,37 @@ export async function deliveryRegression(page, scene) {
   }
   if (scene === "sample-viewed") {
     await page.locator(".lyx-footer-bar .lyx-button").click();
-    await page.locator(".lyx-sheet .lyx-button").click();
+    const submit = page.locator(".lyx-sheet .lyx-button");
+    const confirmPath = "/m/samples/00000000-0000-4000-8000-000000000020/confirm";
+    await page.evaluate((path) => globalThis.__LYX_DELIVERY_CONTROL__.fail(path), confirmPath);
+    await submit.click();
+    await expect(page.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+    await submit.evaluate((node) => {
+      node.click();
+      node.click();
+    });
     await expect(page.locator(".lyx-sheet")).toBeHidden();
     const list = await calls(page),
-      write = list.find((c) => c.path.endsWith("/confirm"));
-    expect(write.data).toEqual({ versionNo: 2, viewedVia: "album", hasViewed: true });
-    expect(write.key).toBeTruthy();
-    expect(list.filter((c) => c.path.endsWith("/sample")).length).toBeGreaterThan(2);
+      writes = list.filter((c) => c.path === confirmPath);
+    expect(writes).toHaveLength(2);
+    expect(writes[0].data).toEqual({ versionNo: 2, viewedVia: "weapp", hasViewed: true });
+    expect(writes[0].key).toBeTruthy();
+    expect(writes[1].key).toBe(writes[0].key);
+    expect(list.filter((c) => c.path.endsWith("/sample")).length).toBeGreaterThan(1);
+    expect(list.some((c) => c.path.endsWith("/download-urls"))).toBe(false);
     await page.evaluate(() => globalThis.__LYX_DELIVERY_CONTROL__.nextSample());
     await button(page, "刷新样片").click();
     await expect(page.getByText("我已查看第 3 版样片", { exact: true })).toBeVisible();
     await expect(page.locator(".lyx-checkbox")).not.toHaveClass(/lyx-checkbox--checked/);
-    await expect(page.locator(".lyx-checkbox")).toHaveClass(/lyx-checkbox--disabled/);
-    const path = "/m/samples/00000000-0000-4000-8000-000000000021/download-urls";
+    await expect(page.locator(".lyx-footer-bar .lyx-button")).toHaveClass(/lyx-button--disabled/);
+    const path = "/m/order-items/00000000-0000-4000-8000-000000000020/sample";
+    const readsBefore = (await calls(page)).filter((c) => c.path === path).length;
     await page.evaluate((path) => globalThis.__LYX_DELIVERY_CONTROL__.hold(path), path);
-    await button(page, "保存样片到相册查看").evaluate((node) => {
-      node.click();
-      node.click();
-    });
+    await button(page, "刷新样片").click();
     await page.waitForFunction(
-      (path) => globalThis.__LYX_DELIVERY_CALLS__.some((c) => c.path === path),
-      path,
+      ({ path, count }) =>
+        globalThis.__LYX_DELIVERY_CALLS__.filter((c) => c.path === path).length > count,
+      { path, count: readsBefore },
     );
     const before = (await calls(page)).length;
     await page.evaluate(() => globalThis.__LYX_DELIVERY_CONTROL__.clerk());
@@ -76,9 +189,21 @@ export async function deliveryRegression(page, scene) {
     await page.evaluate(() => globalThis.__LYX_DELIVERY_CONTROL__.release(true));
     await page.waitForTimeout(100);
     expect((await calls(page)).length).toBe(before);
-    expect((await calls(page)).filter((c) => c.path === path)).toHaveLength(1);
+    expect((await calls(page)).filter((c) => c.path === path)).toHaveLength(readsBefore + 1);
     await expect(page.getByText("迟到保存失败", { exact: true })).toHaveCount(0);
   }
+  if (scene.startsWith("sample-")) {
+    await expect(button(page, "保存样片到相册查看")).toHaveCount(0);
+    await expect(page.locator("video")).toHaveCount(0);
+    expect((await calls(page)).some((c) => c.path.endsWith("/download-urls"))).toBe(false);
+    if (scene === "sample-legacy" || scene === "sample-disabled") {
+      await expect(page.getByText(/请联系服务经理/).first()).toBeVisible();
+      await expect(page.locator(".lyx-checkbox")).toHaveClass(/lyx-checkbox--disabled/);
+      await expect(page.locator(".lyx-footer-bar .lyx-button")).toHaveClass(/lyx-button--disabled/);
+      await expect(button(page, "播放样片")).toHaveCount(0);
+    }
+  }
+  if (scene === "sample-unsaved") await samplePlaybackRegression(page);
   if (scene === "tasks-submit") {
     await button(page, "提交核验").click();
     await expect(page.locator(".lyx-sheet"), "collection submit").toBeHidden();

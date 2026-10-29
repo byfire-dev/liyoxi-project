@@ -287,20 +287,15 @@ export async function pushSample(
   }
   if (changed.length)
     throw new AppError("AD_CHANGED", { details: { adIds: [...new Set(changed)] } });
-  if (b.includeWecom && !s.offlineSentAt && !b.markWecomSent)
-    throw new AppError("PREVIEW_OFFLINE_NOT_SENT");
+  if (b.includeWecom || b.markWecomSent)
+    throw invalid("includeWecom", "第一期样片仅支持在小程序内查看");
+  if (!(await deps.samplePlayback?.(t.entityId))) throw new AppError("FEATURE_DISABLED");
   await productionEvidence(tx, deps.media, s.fileId, true);
-  const enabled = (await deps.samplePlayback?.(t.entityId)) ?? false,
-    now = deps.clock.now(),
-    channels = enabled ? ["weapp"] : ["album", "portal"];
-  if (b.includeWecom) channels.push("wecom");
+  const now = deps.clock.now();
   await moveSample(tx, deps, ctx, t, s, "sample.pushed", {
     pushed_at: now,
     pushed_by_staff_id: staff.staff.id,
-    preview_channels: channels,
-    ...(b.markWecomSent && !s.offlineSentAt
-      ? { offline_sent_at: now, offline_sent_by_staff_id: staff.staff.id }
-      : {}),
+    preview_channels: ["weapp"],
   });
   await step(tx, deps, ctx, t, "sample.pushed", "sample_confirm", "10:175", {
     current_sample_version_no: s.versionNo,
@@ -322,18 +317,12 @@ export async function sampleEvidence(tx: Tx, deps: DeliveryDeps, t: TicketRow, s
   const album = rows.find((r) => r.action === "delivery.sample.album_download")?.createdAt ?? null,
     portal = rows.find((r) => r.action === "delivery.sample.portal_preview")?.createdAt ?? null,
     enabled = (await deps.samplePlayback?.(t.entityId)) ?? false;
-  const possible = ["weapp", "album", "portal", "wecom"].filter(
-    (c) =>
-      s.previewChannels.includes(c) &&
-      (c === "weapp"
-        ? enabled || !!album || !!portal
-        : c === "album"
-          ? !!album
-          : c === "portal"
-            ? !!portal
-            : !!s.offlineSentAt),
-  );
-  return { album, portal, enabled, possible };
+  const production = await deps.media.deliveryProductionFacts(tx, s.fileId);
+  const possible =
+    enabled && s.previewChannels.includes("weapp") && production.ready && production.playable
+      ? ["weapp"]
+      : [];
+  return { album, portal, enabled, possible, production };
 }
 export async function confirmSample(
   tx: Tx,
@@ -372,7 +361,7 @@ export async function confirmSample(
       },
     });
   if (s.status !== "pushed" || t.step !== "sample_confirm") throw new AppError("STATE_NOT_ALLOWED");
-  if (!s.previewChannels.includes(b.viewedVia))
+  if (b.viewedVia !== "weapp" || !s.previewChannels.includes("weapp"))
     throw new AppError("SAMPLE_VIEW_CHANNEL_NOT_OFFERED", {
       details: { previewChannels: s.previewChannels },
     });
@@ -383,23 +372,9 @@ export async function confirmSample(
   }
   if (changed.length)
     throw new AppError("AD_CHANGED", { details: { adIds: [...new Set(changed)] } });
-  const e = await sampleEvidence(tx, deps, t, s);
-  if (!e.possible.includes(b.viewedVia))
-    throw new AppError("SAMPLE_NOT_VIEWABLE", {
-      details: {
-        viewedVia: b.viewedVia,
-        requiredEvidence:
-          b.viewedVia === "weapp"
-            ? "album_or_portal"
-            : b.viewedVia === "wecom"
-              ? "wecom_sent"
-              : b.viewedVia === "album"
-                ? "album_saved"
-                : "portal_viewed",
-      },
-    });
-  if ((b.viewedVia !== "weapp" || !e.enabled) && !b.hasViewed)
-    throw invalid("hasViewed", "请先勾选‘我已查看’");
+  if (!(await deps.samplePlayback?.(t.entityId))) throw new AppError("FEATURE_DISABLED");
+  if (b.hasViewed !== true) throw invalid("hasViewed", "请先勾选‘我已查看’");
+  await productionEvidence(tx, deps.media, s.fileId, true);
   const now = deps.clock.now();
   await moveSample(tx, deps, viewer.ctx, t, s, "sample.confirmed", {
     decided_at: now,
