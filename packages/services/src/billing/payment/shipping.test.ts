@@ -75,6 +75,20 @@ it("真实运输先提交unknown才事务外POST，确认与done一致；重放�
   };
   const delivered = await source.deliver(own.event);
   expect(delivered.outcome).toBe("done");
+  expect(
+    await w.prisma.outboxDelivery.findUniqueOrThrow({
+      where: {
+        outboxEventId_subscriber: {
+          outboxEventId: own.event.id,
+          subscriber: "billing.uploadShippingInfo",
+        },
+      },
+    }),
+  ).toMatchObject({
+    subscriber: "billing.uploadShippingInfo",
+    status: "done",
+    consumedAt: expect.any(Date),
+  });
   expect(await delivered.repeat()).toBe("stale");
   await source.prepare(own.event);
   expect(await receipt(own.receipt.id)).toMatchObject({

@@ -1,3 +1,4 @@
+import { orderRefundProjection } from "../refund/order-projection.js";
 import { orderInvoiceFacts } from "../invoices/projection.js";
 import { invoiceItemName } from "../invoices/parameters.js";
 import {
@@ -580,7 +581,7 @@ export async function adminOrderView(
         uploadedBy: await uploadedBy(tx, r),
       })),
     ),
-    refundRequests: [],
+    refundRequests: await orderRefundProjection(tx, staff.scope, o.id),
     invoice: (await orderInvoiceFacts(tx, o, deps.clock.now())).invoice,
     openExceptions: exceptions.map((r) => ({
       paymentExceptionId: r.id,

@@ -8,7 +8,10 @@ import {
   TEST_KEYRING,
   useSeededDatabase,
 } from "@liyoxi/services/testing";
-import { runRefundAbandonTxnCommand } from "../src/cli/refund-abandon-txn-command.js";
+import {
+  refundAbandonTxnCommand,
+  runRefundAbandonTxnCommand,
+} from "../src/cli/refund-abandon-txn-command.js";
 
 const db = useSeededDatabase("worker", { label: "refundcli", max: 1 });
 async function* stdin(value: unknown) {
@@ -46,6 +49,7 @@ it("参数/非JSON/取消先拒绝且不创建运行时，凭据与正文不回�
 });
 
 it("真实stdin运输认证两份opaque会话，错误凭证零资金写；双人成功永久凭证且运行时收口", async () => {
+  expect(refundAbandonTxnCommand.name).toBe("refund_abandon_txn");
   const h = createRefundHarnessForTest(await db.prisma());
   try {
     const r = await h.approved();
@@ -94,7 +98,7 @@ it("真实stdin运输认证两份opaque会话，错误凭证零资金写；双�
         providers: h.provider,
       });
       const closed = vi.spyOn(runtime, "close");
-      const code = await runRefundAbandonTxnCommand({
+      const code = await refundAbandonTxnCommand.run({
         argv: [],
         runtime: () => runtime,
         stdin: stdin(value),

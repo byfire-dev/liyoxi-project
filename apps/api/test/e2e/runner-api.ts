@@ -18,6 +18,8 @@ export type M1Result<K extends Operation> = Operations[K] extends {
   ? R
   : never;
 interface Input<K extends Operation> {
+  /** 本轮具名意图可显式原key；缺省保持每次新key。 */
+  readonly key?: string;
   readonly body?: Body<K>;
   readonly params?: Readonly<Record<string, string>>;
   readonly query?: Readonly<Record<string, string | number | boolean>>;
@@ -47,7 +49,9 @@ export function createM1Caller(api: M1Api) {
       ...(input.body === undefined ? {} : { json: input.body }),
       headers: {
         ...headers,
-        ...(route["x-idempotent"] === "required" ? { "Idempotency-Key": randomUUID() } : {}),
+        ...(route["x-idempotent"] === "required"
+          ? { "Idempotency-Key": input.key ?? randomUUID() }
+          : {}),
       },
     });
     const raw: unknown = await response.json();
