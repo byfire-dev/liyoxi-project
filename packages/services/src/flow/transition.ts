@@ -15,8 +15,10 @@ import { calendarDate } from "@liyoxi/shared/time";
 
 import { record as recordAudit } from "../audit/index.js";
 import type { AuditEntry, AuditRequestMeta } from "../audit/index.js";
+import { assertPermission } from "../authz/index.js";
+import type { StaffContext } from "../authz/index.js";
 import type { EmitContext, EmitInput, Events } from "../events/index.js";
-import { actorColumns, AppError, isUuid, lockRows, uuidv7 } from "../kernel/index.js";
+import { actorColumns, AppError, isUuid, lockRows, savepoint, uuidv7 } from "../kernel/index.js";
 import type { Clock, Tx } from "../kernel/index.js";
 import {
   NO_ACTIVITY_MACHINES,
@@ -88,6 +90,27 @@ export type TransitionInput<N extends string = string> = ChainRef & {
   readonly args?: unknown;
 };
 
+/** 人工纠偏的独立能力；事件、强迁标记和新建标记均不由调用方控制。 */
+export type AdminTransitionInput<N extends string = string> = ChainRef &
+  Omit<
+    TransitionInput<N>,
+    "machine" | "stateField" | "event" | "created" | "to" | "note" | "audit" | "emit"
+  > & {
+    readonly to: string;
+    readonly note: string;
+    readonly audit: AuditEntry;
+    readonly emit: TransitionEvent<N>;
+  };
+export interface AdminStaffFact {
+  readonly id: string;
+  readonly status: string;
+  readonly roleKey: string;
+  readonly staffGroupId: string | null;
+  readonly isLead: boolean;
+}
+/** flow先统一持staff20 SHARE锁，再调用同事务只读owner能力，返回当前身份；不向上查询员工表。 */
+export type AdminStaffReader = (tx: Tx, staffId: string) => Promise<AdminStaffFact | null>;
+
 export interface TransitionResult {
   /** 写下的那一行状态历史的 id */
   readonly id: string;
@@ -109,7 +132,10 @@ export interface TransitionDeps {
   readonly columns: (tx: Tx) => Promise<ReadonlyMap<string, ReadonlySet<string>>>;
   /** 各事务里经 created 新建的行（“表:id”）：同一事务里它们之后的迁移也不加锁 */
   readonly fresh: WeakMap<Tx, Set<string>>;
+  readonly adminStaffReader?: AdminStaffReader;
 }
+
+const adminCapability = Symbol("flow.admin_transition.authorized");
 
 function refuse(reason: FlowRefusal, message: string): never {
   throw new FlowError(reason, message);
@@ -124,12 +150,92 @@ export async function transition<const N extends string>(
   ctx: EmitContext,
   input: TransitionInput<N>,
 ): Promise<TransitionResult> {
+  if (input.event === ADMIN_FORCE_EVENT) refuse("unknown_event", "人工纠偏不走 transition()");
+  return applyTransition(tx, deps, ctx, input);
+}
+
+export async function adminTransition<const N extends string>(
+  tx: Tx,
+  deps: TransitionDeps,
+  ctx: EmitContext,
+  staff: StaffContext,
+  input: AdminTransitionInput<N>,
+): Promise<TransitionResult> {
+  if (ctx.actor.type !== "staff" || ctx.actor.id !== staff.staff.id || ctx.actor.client !== "admin")
+    throw new AppError("PERMISSION_DENIED");
+  assertPermission(staff, "flow.admin.transition", deps.clock.now());
+  const note = typeof input.note === "string" ? input.note.trim() : "";
+  if ([...note].length < 10 || [...note].length > 200)
+    throw new AppError("VALIDATION_FAILED", { message: "人工纠偏原因须为10至200字" });
+  if (!deps.adminStaffReader) refuse("binding", "人工纠偏缺少真实员工身份读口");
+  await lockRows(tx, "staff", [staff.staff.id], "share");
+  const current = await deps.adminStaffReader(tx, staff.staff.id);
+  if (
+    !current ||
+    current.id !== staff.staff.id ||
+    current.status !== "active" ||
+    current.roleKey !== staff.staff.roleKey ||
+    current.staffGroupId !== staff.staff.staffGroupId ||
+    current.isLead !== staff.staff.isLead
+  )
+    throw new AppError("PERMISSION_DENIED");
+  if (
+    !input.audit ||
+    "mergedInto" in input.audit ||
+    input.audit.stream !== "ops" ||
+    input.audit.category !== "system_ops" ||
+    input.audit.target?.type !== input.machine ||
+    input.audit.target.id !== input.id
+  )
+    refuse("audit_required", "人工纠偏必须提供本对象的ops/system_ops审计");
+  if (!input.emit || "none" in input.emit) refuse("event_required", "人工纠偏必须提供真实出站事件");
+  const freshBefore = deps.fresh.get(tx);
+  const freshSnapshot = freshBefore ? new Set(freshBefore) : undefined;
+  try {
+    return await savepoint(tx, () =>
+      applyTransition(
+        tx,
+        deps,
+        ctx,
+        {
+          ...input,
+          event: ADMIN_FORCE_EVENT,
+          created: false,
+          note,
+          audit: {
+            ...input.audit,
+            reason: { code: input.audit.reason?.code ?? ADMIN_FORCE_EVENT, text: note },
+          },
+        },
+        adminCapability,
+      ),
+    );
+  } catch (error) {
+    if (freshSnapshot) deps.fresh.set(tx, freshSnapshot);
+    else deps.fresh.delete(tx);
+    throw error;
+  }
+}
+
+/** 普通迁移与受控强迁共用的唯一状态、历史、审计与事件writer。 */
+async function applyTransition<const N extends string>(
+  tx: Tx,
+  deps: TransitionDeps,
+  ctx: EmitContext,
+  input: TransitionInput<N>,
+  capability?: typeof adminCapability,
+): Promise<TransitionResult> {
   const { machine, stateField, id, event } = input;
+  const forced = capability === adminCapability;
+  if ((event === ADMIN_FORCE_EVENT) !== forced) refuse("unknown_event", "人工纠偏只能使用受控通道");
   const name = `${machine}.${stateField}`;
   const chain = findChain(machine, stateField) ?? refuse("unknown_chain", `迁移表里没有 ${name}`);
   if (!isUuid(id)) refuse("unknown_chain", "对象 id 要是小写的 UUID");
-  if (event === ADMIN_FORCE_EVENT) refuse("unknown_event", "人工纠偏不走 transition()");
   if (!chain.rows.some((row) => row.event === event)) {
+    if (forced)
+      throw new AppError("CORRECTION_NOT_ALLOWED", {
+        details: { reason: "chain_not_allowed", allowedSteps: [], failedInvariants: [] },
+      });
     refuse("unknown_event", `${name} 上没有事件码 ${JSON.stringify(event)}`);
   }
   // 审计与事件都不能靠缺省：先查，免得写到一半才发现
@@ -170,6 +276,10 @@ export async function transition<const N extends string>(
   }
   const check = checkTransition(chain, { from, event, to: created ? current : input.to });
   if (!check.ok) {
+    if (forced)
+      throw new AppError("CORRECTION_NOT_ALLOWED", {
+        details: { reason: check.reason, allowedSteps: check.candidates, failedInvariants: [] },
+      });
     if (check.reason === "target_required") {
       refuse(
         "ambiguous",
@@ -207,6 +317,8 @@ export async function transition<const N extends string>(
   // 3. 守卫：行标了守卫而没有登记实现，不放行
   const key = rowKey(row.ref, row.event);
   const guard = binding.guards?.[key];
+  if (forced && (!guard || !binding.effects?.[key] || !binding.adminTransition?.checkInvariants))
+    refuse("binding", "人工纠偏必须登记本行守卫、副作用与领域结构检查");
   if (guard === undefined && row.guard) {
     refuse(
       "guard_missing",
@@ -214,6 +326,10 @@ export async function transition<const N extends string>(
     );
   }
   if (guard !== undefined && !(await guard(tx, facts))) {
+    if (forced)
+      throw new AppError("CORRECTION_NOT_ALLOWED", {
+        details: { reason: "guard", allowedSteps: [to], failedInvariants: [] },
+      });
     throw new AppError("STATE_NOT_ALLOWED", {
       details: { machine, stateField, state: from, event, reason: "guard" },
     });
@@ -278,10 +394,20 @@ export async function transition<const N extends string>(
     elapsedSeconds: elapsedMs === null ? null : Math.max(0, Math.floor(elapsedMs / 1000)),
     elapsedWorkMin,
     requestId: ctx.requestId,
+    isForced: forced,
   });
 
   // 6. 副作用
   await binding.effects?.[key]?.(tx, facts);
+  if (forced) {
+    const failed = await binding.adminTransition!.checkInvariants(tx, facts);
+    if (!Array.isArray(failed) || failed.some((name) => typeof name !== "string" || !name.trim()))
+      refuse("binding", "人工纠偏结构检查必须明确返回违规名称数组");
+    if (failed.length)
+      throw new AppError("CORRECTION_NOT_ALLOWED", {
+        details: { reason: "structural_invariant", allowedSteps: [to], failedInvariants: failed },
+      });
+  }
 
   // 7. 审计：恰一行（并入别的行的除外）
   const auditId = await writeAudit(tx, ctx, input, binding, facts);
@@ -292,7 +418,13 @@ export async function transition<const N extends string>(
     const emitted = await deps.events.emit(tx, ctx, {
       type: emit.type,
       aggregate: emit.aggregate === undefined ? { type: machine, id } : emit.aggregate,
-      payload: { ...emit.payload, fromState: from, toState: to, transition: event },
+      payload: {
+        ...emit.payload,
+        ...(forced ? { isForced: true } : {}),
+        fromState: from,
+        toState: to,
+        transition: event,
+      },
       dedupeKey: emit.dedupeKey,
       entityId,
       storeId,
