@@ -17,7 +17,7 @@ import type { ApprovalDeps } from "./context.js";
 import { approve, reject, withdraw } from "./decide.js";
 import type { ApproveInput, DecisionResult, RejectInput, WithdrawInput } from "./decide.js";
 import { ApprovalError } from "./errors.js";
-import { recordExecuted } from "./execute.js";
+import { approvalExecutionFactsPort, recordExecuted } from "./execute.js";
 import type { RecordExecutedInput } from "./execute.js";
 import { bindApprovalKinds } from "./invariants.js";
 import { approvalKindPort } from "./kinds.js";
@@ -130,6 +130,7 @@ export function createApproval(options: ApprovalOptions): Approval {
     events: options.events,
     bizNo: options.bizNo,
     kinds,
+    executionFacts: options.assembly.portEntries(approvalExecutionFactsPort),
     fresh: new WeakMap(),
     ...(options.sla === undefined || options.timers === undefined
       ? {}

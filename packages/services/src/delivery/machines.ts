@@ -1,4 +1,5 @@
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
+import { Prisma } from "@liyoxi/db";
 import type { MachineBinding, TransitionFacts } from "../flow/index.js";
 import { implementKeyed, uuidv7 } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
@@ -9,6 +10,35 @@ export const legacySampleRecoveryChecked = () => legacySampleRecoveryPass;
 export const cancelResumeChecked = (approvalRequestId: string) => ({ pass, approvalRequestId });
 const holdPass = Symbol("delivery.cancel_hold");
 export const cancelHoldChecked = (approvalRequestId: string) => ({ holdPass, approvalRequestId });
+const terminatePass = Symbol("delivery.cancel_terminate");
+export const cancelTerminateChecked = (cancelRequestId: string, approvalRequestId: string) => ({
+  terminatePass,
+  cancelRequestId,
+  approvalRequestId,
+});
+const terminateGuard = async (tx: Tx, facts: TransitionFacts) => {
+  const args = facts.args as ReturnType<typeof cancelTerminateChecked> | undefined;
+  if (args?.terminatePass !== terminatePass) return false;
+  const request = await tx.cancelRequest.findUnique({ where: { id: args.cancelRequestId } });
+  const ticket = await tx.deliveryTicket.findUnique({ where: { id: facts.subjectId } });
+  return (
+    !!request &&
+    !!ticket &&
+    request.status === "pending_execution" &&
+    request.closedAt === null &&
+    request.approvalRequestId === args.approvalRequestId &&
+    request.entityId === ticket.entityId &&
+    request.storeId === ticket.storeId &&
+    !!(await tx.cancelRequestLine.findFirst({
+      where: {
+        cancelRequestId: request.id,
+        targetType: "order_item",
+        targetId: ticket.orderItemId,
+        executedAt: null,
+      },
+    }))
+  );
+};
 const guards = (rows: ReadonlyArray<readonly [string, string]>) =>
   Object.fromEntries(
     rows.map(([ref, event]) => [
@@ -55,6 +85,15 @@ async function stage(tx: Tx, f: TransitionFacts) {
     });
   }
 }
+async function terminateStage(tx: Tx, f: TransitionFacts) {
+  if (f.from !== f.to) return stage(tx, f);
+  // 10:192 permits takedown → takedown. Keep its visit/entry time while
+  // cancelling the previous stage clock together with ticket.step_due_at.
+  await tx.deliveryTicketStage.updateMany({
+    where: { deliveryTicketId: f.subjectId, completedAt: null },
+    data: { dueAt: null, slaSnapshot: Prisma.DbNull, updatedAt: f.now },
+  });
+}
 const rows = [
   ["10:196", "ticket.created"],
   ["10:172", "ticket.assign"],
@@ -88,8 +127,11 @@ const ticket: MachineBinding = {
     "pause_count",
     "paused_at",
     "pause_remaining_min",
+    "terminated_at",
   ],
   guards: {
+    [rowKey("10:191", "ticket.terminate")]: terminateGuard,
+    [rowKey("10:192", "ticket.terminate")]: terminateGuard,
     ...guards(rows.filter(([ref]) => ref !== "10:196")),
     [rowKey("10:175", "sample.pushed")]: async (_tx, facts) =>
       facts.from === "sample_confirm"
@@ -142,7 +184,11 @@ const ticket: MachineBinding = {
       );
     },
   },
-  effects: Object.fromEntries(rows.map(([ref, event]) => [rowKey(ref, event), stage])),
+  effects: {
+    ...Object.fromEntries(rows.map(([ref, event]) => [rowKey(ref, event), stage])),
+    [rowKey("10:191", "ticket.terminate")]: terminateStage,
+    [rowKey("10:192", "ticket.terminate")]: terminateStage,
+  },
   activity: (f) => ({
     category: "delivery",
     action: `delivery.ticket.${f.event.split(".")[1]}`,

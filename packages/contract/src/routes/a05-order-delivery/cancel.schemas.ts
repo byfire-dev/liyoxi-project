@@ -3,6 +3,9 @@ import { z } from "../../zod.js";
 import { IdSchema, DateSchema, InstantSchema } from "../../common/index.js";
 import { CANCEL_REQUEST_LINE_STAGE, PRODUCTION_MODEL } from "../../enums/index.js";
 import { zodEnum } from "../../enums/zod.js";
+import { StaffBriefSchema } from "../a01-system/structures.js";
+import { ApprovalDecisionViewSchema } from "../a01-system/approvals.schemas.js";
+import { AdminStoreBriefSchema } from "./public.schemas.js";
 const points = z.int().nonnegative();
 const inputId = IdSchema.transform((v) => v.toLowerCase());
 export const CancelReasonSchema = z.enum([
@@ -157,3 +160,109 @@ export type CancelExecuteBody = z.infer<typeof CancelExecuteBodySchema>;
 export type CancelRejectBody = z.infer<typeof CancelRejectBodySchema>;
 export type CancelWithdrawBody = z.infer<typeof CancelWithdrawBodySchema>;
 export type CancelVoidBody = z.infer<typeof CancelVoidBodySchema>;
+
+const resultTotals = z.strictObject({
+  returnedPoints: points,
+  convertedPoints: points,
+  forfeitedPoints: points,
+});
+export const CancelRequestDetailSchema = z
+  .strictObject({
+    cancelRequestId: IdSchema,
+    requestNo: z.string(),
+    kind: z.enum(["order_cancel", "ad_cancel", "qualification_cancel"]),
+    store: AdminStoreBriefSchema,
+    target: z.strictObject({
+      type: z.enum(["drama_order", "ad", "store"]),
+      id: IdSchema,
+      no: z.string(),
+      label: z.string(),
+    }),
+    reasonCode: CancelReasonSchema,
+    lineCount: points,
+    totalBasePoints: points,
+    totalDeductPoints: points,
+    totalRefundPoints: points,
+    isFullReturn: z.boolean(),
+    status: z.enum(["pending_approval", "pending_execution", "done", "not_executed"]),
+    closeReason: z.enum(["rejected", "withdrawn", "voided"]).nullable(),
+    approvalStatus: z.enum(["pending", "approved", "rejected", "withdrawn"]),
+    submittedAt: InstantSchema,
+    requester: StaffBriefSchema.nullable(),
+    isSystemSubmitted: z.boolean(),
+    approvalDueAt: InstantSchema.nullable(),
+    decidedAt: InstantSchema.nullable(),
+    execDueAt: InstantSchema.nullable(),
+    executedAt: InstantSchema.nullable(),
+    isOverdue: z.boolean(),
+    note: z.string(),
+    lines: z.array(
+      CancelQuoteLineSchema.safeExtend({
+        cancelRequestLineId: IdSchema,
+        result: resultTotals
+          .extend({
+            executedAt: InstantSchema,
+            breakdown: ReturnBreakdownSchema,
+          })
+          .nullable(),
+        targetState: z.string(),
+      }),
+    ),
+    destination: ReturnBreakdownSchema,
+    resultTotals: resultTotals.nullable(),
+    approval: ApprovalDecisionViewSchema,
+    confirmChecks: z.array(z.string()),
+    execution: z
+      .strictObject({
+        executedBy: StaffBriefSchema.nullable(),
+        isExecutedBySystem: z.boolean(),
+        executedAt: InstantSchema,
+        execConfirmChecks: z.array(z.string()),
+      })
+      .nullable(),
+    closeNote: z.string().nullable(),
+    recheckLog: z.strictObject({
+      approve: CancelRecheckEntrySchema.nullable(),
+      execute: CancelRecheckEntrySchema.nullable(),
+    }),
+    order: z
+      .strictObject({
+        orderId: IdSchema,
+        orderNo: z.string(),
+        status: z.string(),
+        subStatus: z.string().nullable(),
+        planName: z.string(),
+        discountBp: points,
+      })
+      .nullable(),
+    ad: z
+      .strictObject({
+        adId: IdSchema,
+        adNo: z.string(),
+        type: z.string(),
+        durationSec: points,
+        status: z.string(),
+        planName: z.string(),
+        discountBp: points,
+      })
+      .nullable(),
+    serviceTickets: z.array(
+      z.strictObject({
+        serviceTicketId: IdSchema,
+        ticketNo: z.string(),
+        status: z.string(),
+      }),
+    ),
+    timeline: z.array(
+      z.strictObject({
+        at: InstantSchema,
+        action: z.enum(["submitted", "approved", "rejected", "withdrawn", "voided", "executed"]),
+        actorName: z.string().nullable(),
+        note: z.string().nullable(),
+      }),
+    ),
+    lockVersion: points,
+    actions: z.array(z.string()),
+  })
+  .openapi("CancelRequestDetail");
+export type CancelRequestDetail = z.infer<typeof CancelRequestDetailSchema>;

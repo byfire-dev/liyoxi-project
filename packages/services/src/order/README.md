@@ -1,5 +1,15 @@
 # order：订剧、选剧单与订单读侧
 
+## 统一取消执行（W5-01）
+
+`createCancelExecution(deps).execute(actor, id, body, idem)` 是后台 `admin.cancelRequest.execute` 的用例入口，沿用唯一 `executeCancel` 事务叶，支持订单、广告与资质整店取消。执行前验证当前员工启用状态、真实权限、再验证和门店范围；C50 已有回执也先核当前授权。事务里预读、依全局顺序预锁并复读整张目标图，核审批关系、确认单号/退款数和全部明细最新报价；有任一变化整笔回滚，仅在独立小事务里为仍待执行的申请追加 `recheck.execute` 证据，原幂等键可重试。
+
+交付、发布、媒体和员工模块各经所属公口关闭暂停/工单、补发与系统跟进、下载授权、发布清单与巡检，建立或保留必要下架核验，并失效已有 ZIP 和释放文件引用。新 ZIP、下载接口、广告 producer 不在此包。所有 owner 收尾先于首笔积分退回；`billing.release/refund` 使用原冻结单/取消明细操作键与真实账本规则。订单项/广告终态和实际 returned/converted/forfeited 在同次 UPDATE 落库，订单取消指针与派生状态也在同次迁移更新，满足数据库约束。已上线项仍保持 live，记录提前使用止日，待真实下架核验。
+
+`resultSnapshot` 和完整 `CancelRequestDetail` 来自实际 ReturnResult，分摊预览保留在原快照。账本未返回实际逐批明细，因此结果 breakdown 的 `lots=[]`，不复制预览来冒充实际；三个去向数与 qty 为真实账本值。完整 DTO 在资金事务内组装并作为 C50 持久回执，`replayed` 仅在通用响应 meta。审批执行事实通过 `approval.execution_facts` 端口由 order 提供，approval 不反向读取上层表。
+
+本包目标：`cancel-execute.property/concurrency/fault.test.ts` 共26条，覆盖六阶段、原路/转加购/作废、零退款、两个真实客户端各3轮、整笔故障回滚和幂等；`apps/api/test/order-cancel-execute.test.ts` 7条验证实际鉴权、stepup、范围、职责分离和C50。只有未实现的 W5-02 提交审批输入用合法 approved/pending_execution 快照准备；订单、开工、账本、方案/样片/制作及媒体检验均走真实公共服务与 Provider 协议。W5-02 应补真实申请 producer 后直接消费本执行入口；W5-03/08 只扩各自领域事实，不复制资金逻辑。
+
 广告取消财务代撤（A15）：活跃发起人的广告已确认/取消且指针按库约束清空时，真实财务可在完整目标图预锁及再验证后撤回；owner 在关闭回调再次核终局事实。只从 order 公口建立真实事务上下文；直接泛 approval、缺预锁或关联错配严格拒绝，外来指针不清理。本人、停用发起人代撤及实际 system 失效路径不变，无新 HTTP 或 M5 producer。
 
 W1-15a 交 `m.order.quote`、`m.order.create`；a 的 #91 已合主干；W1-15b 交选剧单与读侧 12 条。公开入口为 `createOrderService`、`OrderActor`、`OrderDeps`，API 只转交真实商家身份、当前门店和 `idemOf`。
@@ -90,7 +100,7 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 
 ## 广告取消内部写链（W210 所属准备）
 
-`createAdCancel` 注入真实 approval/flow/ledger/events/timers/sla 与 TxRunner；提交、批准、驳回、撤回、作废、执行只处理 `ad_cancel`。六回调与执行时限读取由 order 静态注册；回调只接受本 Tx 的真实用例绑定，不缓存另一运行时。Tx-first 同名函数供同事务调用，`executeCancel` 是唯一执行入口。facade 在事务确实回滚后另开小事务保存复核失败日志；直接 Tx 调用者须在其外层回滚后履行同一日志责任。
+`createAdCancel` 注入真实 approval/flow/ledger/events/timers/sla 与 TxRunner；提交、批准、驳回、撤回、作废仍只处理 `ad_cancel`。W5-01 将唯一 `executeCancel` 扩展到 `order_cancel`、`ad_cancel`、`qualification_cancel`，未增加订单提交审批 producer。六回调与执行时限读取由 order 静态注册；回调只接受本 Tx 的真实用例绑定，不缓存另一运行时。Tx-first 同名函数供同事务调用。facade 在事务确实回滚后另开小事务保存复核失败日志，且仅更新仍在对应待审批/待执行状态的申请，避免覆盖已完成记录；直接 Tx 调用者须在其外层回滚后履行同一日志责任。
 
 提交先认真实启用员工和权限，审批引擎在自己的 validate 中进入真实整图锁和账户 Tf 核算，再建审批/header/line/自有指针。批准保留审批引擎 pending/self/version 原守卫，校验回显并复核；待执行保存原工作日 SLA 与真实 approval_request execution timer。自动路径只由真实提交中开关与全额原批次释放条件触发，系统 approve 后直接 auto_execute，不伪造 pending_execution。
 

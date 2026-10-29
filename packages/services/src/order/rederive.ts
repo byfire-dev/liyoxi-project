@@ -122,12 +122,20 @@ async function deriveItem(tx: Tx, deps: OrderBinding, id: string, facts: Input["
   }
 }
 
-export async function deriveOrder(tx: Tx, deps: OrderBinding, id: string): Promise<void> {
+export async function deriveOrder(
+  tx: Tx,
+  deps: OrderBinding,
+  id: string,
+  options: { closedCancelRequestId?: string } = {},
+): Promise<void> {
   const o = await tx.dramaOrder.findUniqueOrThrow({
     where: { id },
     include: { orderItems: { orderBy: { id: "asc" } }, store: true, openCancelRequest: true },
   });
-  const status = orderStatus(o.orderItems, o.openCancelRequestId !== null),
+  if (options.closedCancelRequestId && o.openCancelRequestId !== options.closedCancelRequestId)
+    throw new AppError("PRECONDITION_CHANGED");
+  const hasCancel = o.openCancelRequestId !== null && !options.closedCancelRequestId;
+  const status = orderStatus(o.orderItems, hasCancel),
     today = calendarDate(deps.clock.now());
   const items = await Promise.all(
     o.orderItems.map(async (item) => {
@@ -154,7 +162,7 @@ export async function deriveOrder(tx: Tx, deps: OrderBinding, id: string): Promi
     status,
     items,
     qualificationStatus: o.store.qualificationStatus,
-    cancelRequestStatus: o.openCancelRequest?.status,
+    cancelRequestStatus: hasCancel ? o.openCancelRequest?.status : undefined,
   });
   if (status !== o.status) {
     const now = deps.clock.now();
@@ -179,6 +187,7 @@ export async function deriveOrder(tx: Tx, deps: OrderBinding, id: string): Promi
         sub_status: subStatus,
         status_changed_at: now,
         closed_at: ["ended", "cancelled", "refunded"].includes(status) ? now : null,
+        ...(options.closedCancelRequestId ? { open_cancel_request_id: null } : {}),
       },
       emit: { type: "order.status_changed", payload: { v: 1, dramaOrderId: id } },
     });

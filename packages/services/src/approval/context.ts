@@ -9,6 +9,7 @@ import { AppError } from "../kernel/index.js";
 import type { BizNoIssuer, Clock, Tx } from "../kernel/index.js";
 
 import type { ApprovalSlaBinding } from "./sla.js";
+import type { ApprovalExecutionFacts } from "./execution-facts.js";
 
 import { ApprovalError } from "./errors.js";
 import type { ApprovalKindRegistration, ApprovalRow } from "./kinds.js";
@@ -22,6 +23,7 @@ export interface ApprovalDeps {
   readonly bizNo: Pick<BizNoIssuer, "next">;
   /** 已校验过的登记，键是 kind */
   readonly kinds: ReadonlyMap<string, ApprovalKindRegistration>;
+  readonly executionFacts?: ReadonlyMap<string, ApprovalExecutionFacts>;
   /** 各事务里刚提交的审批单：同一事务里对它的决定不再加锁（别的事务看不见它） */
   readonly fresh: WeakMap<Tx, Set<string>>;
   readonly sla?: ApprovalSlaBinding;

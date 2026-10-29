@@ -3,11 +3,111 @@ import { managedStore } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
+import { readCancelReviewExecuteTargets } from "../delivery/index.js";
+import { lockSystemFollowUpCloseTargets } from "../staff/index.js";
 import { CLOSED_CANCEL_ITEMS } from "./cancel-quote.js";
 
 const sorted = (ids: readonly string[]) => [...new Set(ids)].sort();
 type LockedCancelGraph = { readonly ids: readonly string[]; readonly signature: string };
 const lockedGraphs = new WeakMap<Tx, Map<string, LockedCancelGraph>>();
+/** Unified execution graph. Read every owner before taking any business/account lock. */
+export async function readCancelExecutionGraph(tx: Tx, requestId: string) {
+  const request = await tx.cancelRequest.findUniqueOrThrow({
+    where: { id: requestId },
+    include: { cancelRequestLines: { orderBy: { id: "asc" } }, approvalRequest: true },
+  });
+  const selectedItemIds = sorted(
+    request.cancelRequestLines.filter((l) => l.targetType === "order_item").map((l) => l.targetId),
+  );
+  const adIds = sorted(
+    request.cancelRequestLines.filter((l) => l.targetType === "ad").map((l) => l.targetId),
+  );
+  const selected = await tx.orderItem.findMany({
+    where: { id: { in: selectedItemIds } },
+    select: { dramaOrderId: true },
+  });
+  const bindings = await adBindings(tx, adIds);
+  const orderIds = sorted([...selected.map((i) => i.dramaOrderId), ...bindings.orderIds]);
+  // Parent derivation reads every sibling, so the whole parent/item union is stable.
+  const items = await tx.orderItem.findMany({
+    where: { dramaOrderId: { in: orderIds } },
+    select: { id: true, dramaId: true },
+    orderBy: { id: "asc" },
+  });
+  const delivery = await readCancelReviewExecuteTargets(tx, selectedItemIds);
+  return {
+    requestId,
+    staffIds: sorted(
+      [
+        ...delivery.staffIds,
+        request.approvalRequest.requesterStaffId,
+        request.approvalRequest.decidedByStaffId,
+      ].filter((id): id is string => id !== null),
+    ),
+    approvalIds: sorted([request.approvalRequestId, ...delivery.approvalRequestIds]),
+    lineIds: request.cancelRequestLines.map((l) => l.id),
+    entityId: request.entityId,
+    storeId: request.storeId,
+    adIds,
+    orderIds,
+    itemIds: sorted(items.map((i) => i.id)),
+    dramaIds: sorted([...items.map((i) => i.dramaId), ...delivery.dramaIds]),
+    bindings: bindings.bindings,
+    delivery,
+  };
+}
+export type CancelExecutionGraph = Awaited<ReturnType<typeof readCancelExecutionGraph>>;
+export async function prelockCancelExecutionGraph(
+  tx: Tx,
+  graph: CancelExecutionGraph,
+  staffId: string,
+) {
+  await lockRows(tx, "staff", sorted([...graph.staffIds, staffId]), "share");
+  await lockRows(tx, "approval_request", graph.approvalIds);
+  await lockRows(tx, "cancel_request", [graph.requestId]);
+  await lockRows(tx, "cancel_request_line", graph.lineIds);
+  // A concurrent executor may have finished while we waited on the low locks.
+  // Its now closed children are irrelevant to a serialized result replay.
+  if (
+    (
+      await tx.cancelRequest.findUniqueOrThrow({
+        where: { id: graph.requestId },
+        select: { status: true },
+      })
+    ).status === "done"
+  )
+    return;
+  for (const [table, values] of [
+    ["entity", [graph.entityId]],
+    ["store", [graph.storeId]],
+    ["drama", graph.dramaIds],
+    ["ad", graph.adIds],
+    ["drama_order", graph.orderIds],
+    ["order_item", graph.itemIds],
+    ["delivery_ticket", graph.delivery.deliveryTicketIds],
+    ["channel_account", graph.delivery.channelAccountIds],
+    ["delivery_release", graph.delivery.deliveryReleaseIds],
+    ["launch_task", graph.delivery.launchTaskIds],
+    ["patrol_task", graph.delivery.patrolTaskIds],
+    ["takedown_task", graph.delivery.takedownTaskIds],
+    ["zip_bundle", graph.delivery.zipBundleIds],
+    ["file_object", graph.delivery.fileObjectIds],
+  ] as const)
+    await lockRows(tx, table, values);
+  if (JSON.stringify(graph) !== JSON.stringify(await readCancelExecutionGraph(tx, graph.requestId)))
+    throw new AppError("PRECONDITION_CHANGED", { message: "取消执行目标图已变化，请重试整个事务" });
+  await lockSystemFollowUpCloseTargets(tx, graph.delivery.followUpIds);
+  // Timer children have no global rank. Parents now exclude competing producers.
+  await tx.$queryRaw`SELECT id FROM timer WHERE
+    (subject_type = 'approval_request' AND subject_id = ANY(${graph.approvalIds}::uuid[])) OR
+    (subject_type = 'ad' AND subject_id = ANY(${graph.adIds}::uuid[])) OR
+    (subject_type = 'drama_order' AND subject_id = ANY(${graph.orderIds}::uuid[])) OR
+    (subject_type = 'delivery_ticket' AND subject_id = ANY(${graph.delivery.deliveryTicketIds}::uuid[])) OR
+    (subject_type = 'delivery_ticket_stage' AND subject_id IN
+      (SELECT id FROM delivery_ticket_stage WHERE delivery_ticket_id = ANY(${graph.delivery.deliveryTicketIds}::uuid[]))) OR
+    (subject_type = 'takedown_task' AND subject_id = ANY(${graph.delivery.takedownTaskIds}::uuid[]))
+    ORDER BY id FOR UPDATE`;
+}
 export async function assertAdCancelTargetsLocked(tx: Tx, requestId: string) {
   const locked = lockedGraphs.get(tx)?.get(requestId);
   if (!locked) throw new AppError("INTERNAL", { message: "取消目标必须已完整预锁" });

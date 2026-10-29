@@ -775,7 +775,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     assembly,
     clock,
     flow,
-    cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla },
+    cancel: { tx, clock, flow, events, approval, ledger, timers, sla: deliveryCore.sla, assembly },
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const workerPurchaseDeps: BillingPurchaseDeps = {

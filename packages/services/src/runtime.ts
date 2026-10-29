@@ -57,15 +57,16 @@ import { createAuditRead } from "./audit/index.js";
 import { bindDelivery } from "./delivery/index.js";
 import {
   createOrderService,
+  createCancelExecution,
   bindOrder,
   bindOrderStart,
   readUnassignedStoreOrderIds,
   syncUnassignedStoreOrders,
   readBillingPendingCancels,
 } from "./order/index.js";
-import { createBillingApprovalRefs } from "./support/index.js";
+import { createBillingApprovalRefs, readCancelApprovalRefs } from "./support/index.js";
 import { assignDeliveryManager } from "./profile/index.js";
-import type { OrderService } from "./order/index.js";
+import type { OrderService, CancelExecution } from "./order/index.js";
 import { bindPublish } from "./publish/index.js";
 // 进程运行时（W0-22）：api 与 worker 启动时各建一次。环境 → 日志 → 数据库与 Redis 连接 → 事务入口、业务单号、
 // 配置读侧、健康检查 → 服务装配。应用层只经 @liyoxi/services 的入口拿到它，不引 @liyoxi/db（硬性规则 5）。
@@ -293,6 +294,7 @@ export interface Runtime {
   readonly serverErrors?: ServerErrorReporter;
   readonly webhooks: Webhooks;
   readonly order: OrderService;
+  readonly cancelRequests: CancelExecution;
   readonly stagingPay: ReturnType<typeof createStagingPayEntry>;
   readonly billing: BillingPurchase & {
     invoices: ReturnType<typeof createInvoices>;
@@ -931,7 +933,19 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     assembly,
     clock,
     flow,
-    cancel: { tx, clock, flow, events, approval, ledger, timers, sla },
+    cancel: { tx, clock, flow, events, approval, ledger, timers, sla, assembly },
+  });
+  const cancelRequests = createCancelExecution({
+    tx,
+    clock,
+    flow,
+    events,
+    approval,
+    ledger,
+    timers,
+    sla,
+    assembly,
+    readApprovalRefs: readCancelApprovalRefs,
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const unbindOrderStart = bindOrderStart({
@@ -1162,6 +1176,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     ...(serverErrors ? { serverErrors } : {}),
     webhooks,
     order,
+    cancelRequests,
     billing,
     stagingPay,
     billingParameters: createParameterChanges({
