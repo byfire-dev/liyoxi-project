@@ -8449,11 +8449,220 @@
         },
         "type": "object"
       },
+      "CancelRequestCard": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw",
+                "void",
+                "execute"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "approvalDueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvalStatus": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ],
+            "type": "string"
+          },
+          "cancelRequestId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "closeReason": {
+            "enum": [
+              "rejected",
+              "withdrawn",
+              "voided",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "execDueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isFullReturn": {
+            "type": "boolean"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "isSystemSubmitted": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "order_cancel",
+              "ad_cancel",
+              "qualification_cancel"
+            ],
+            "type": "string"
+          },
+          "lineCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reasonCode": {
+            "enum": [
+              "merchant_request",
+              "store_closed",
+              "platform_fault",
+              "qualification_final"
+            ],
+            "type": "string"
+          },
+          "requestNo": {
+            "type": "string"
+          },
+          "requester": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending_approval",
+              "pending_execution",
+              "done",
+              "not_executed"
+            ],
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "target": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "no": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "drama_order",
+                  "ad",
+                  "store"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id",
+              "no",
+              "label"
+            ],
+            "type": "object"
+          },
+          "totalBasePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalDeductPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalRefundPoints": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cancelRequestId",
+          "requestNo",
+          "kind",
+          "store",
+          "target",
+          "reasonCode",
+          "lineCount",
+          "totalBasePoints",
+          "totalDeductPoints",
+          "totalRefundPoints",
+          "isFullReturn",
+          "status",
+          "closeReason",
+          "approvalStatus",
+          "submittedAt",
+          "requester",
+          "isSystemSubmitted",
+          "approvalDueAt",
+          "decidedAt",
+          "execDueAt",
+          "executedAt",
+          "isOverdue",
+          "actions"
+        ],
+        "type": "object"
+      },
       "CancelRequestDetail": {
         "additionalProperties": false,
         "properties": {
           "actions": {
             "items": {
+              "enum": [
+                "approve",
+                "reject",
+                "withdraw",
+                "void",
+                "execute"
+              ],
               "type": "string"
             },
             "type": "array"
@@ -8502,7 +8711,29 @@
             ]
           },
           "approval": {
-            "$ref": "#/components/schemas/ApprovalDecisionView"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalDecisionView"
+              },
+              {
+                "properties": {
+                  "actions": {
+                    "items": {
+                      "enum": [
+                        "approve",
+                        "reject",
+                        "withdraw",
+                        "void",
+                        "execute"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            ]
           },
           "approvalDueAt": {
             "format": "date-time",
@@ -9422,6 +9653,63 @@
           "timeline",
           "lockVersion",
           "actions"
+        ],
+        "type": "object"
+      },
+      "CancelRequestSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "inProgressCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "monthDoneCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "monthRejectedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "monthReturnedPoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overdueCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tabs": {
+            "additionalProperties": false,
+            "properties": {
+              "pending_approval": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pending_execution": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "processed": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "pending_approval",
+              "pending_execution",
+              "processed"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "tabs",
+          "monthReturnedPoints",
+          "monthDoneCount",
+          "inProgressCount",
+          "monthRejectedCount",
+          "overdueCount"
         ],
         "type": "object"
       },
@@ -40441,6 +40729,696 @@
         "x-permission": "sys.param.edit"
       }
     },
+    "/api/v1/admin/cancel-requests": {
+      "get": {
+        "operationId": "admin.cancelRequest.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reasonCode",
+            "required": false,
+            "schema": {
+              "enum": [
+                "merchant_request",
+                "store_closed",
+                "platform_fault",
+                "qualification_final"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requesterId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "me"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdueOnly",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "pending_approval",
+              "enum": [
+                "pending_approval",
+                "pending_execution",
+                "processed",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "urgency",
+              "enum": [
+                "urgency",
+                "-submittedAt",
+                "execDueAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/CancelRequestCard"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "取消申请列表（订购取消、广告取消、资质相关取消）：页签（待审批、待执行、已处理）、单号、商家、类型",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/cancel-requests/summary": {
+      "get": {
+        "operationId": "admin.cancelRequest.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reasonCode",
+            "required": false,
+            "schema": {
+              "enum": [
+                "merchant_request",
+                "store_closed",
+                "platform_fault",
+                "qualification_final"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "requesterId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "me"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdueOnly",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "submittedTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "取消申请页签计数与指标：本月退回积分与笔数、审批与执行中、本月驳回",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/cancel-requests/{cancelRequestId}": {
+      "get": {
+        "operationId": "admin.cancelRequest.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cancelRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          }
+        },
+        "summary": "取消申请详情：逐行核算（阶段、已扣、扣除比例、退回）、账本去向、审批与执行结果",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/cancel-requests/{cancelRequestId}/approve": {
+      "post": {
+        "operationId": "admin.cancelRequest.approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cancelRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "requestNo": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "totalRefundPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "requestNo",
+                      "totalRefundPoints"
+                    ],
+                    "type": "object"
+                  },
+                  "confirmChecks": {
+                    "items": {
+                      "enum": [
+                        "stage_rule_amount_checked"
+                      ],
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "confirm",
+                  "confirmChecks"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "通过取消申请（订购取消、广告取消、资质相关取消），进入待执行",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.refund.approve"
+      }
+    },
     "/api/v1/admin/cancel-requests/{cancelRequestId}/execute": {
       "post": {
         "operationId": "admin.cancelRequest.execute",
@@ -40599,6 +41577,419 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "finance.refund.execute"
+      }
+    },
+    "/api/v1/admin/cancel-requests/{cancelRequestId}/reject": {
+      "post": {
+        "operationId": "admin.cancelRequest.reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cancelRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "reasonCodes": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "note"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "驳回取消申请（说明必填），关联订购单、广告与工单恢复",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "finance.refund.approve",
+        "x-step-up": "skip"
+      }
+    },
+    "/api/v1/admin/cancel-requests/{cancelRequestId}/void": {
+      "post": {
+        "operationId": "admin.cancelRequest.void",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cancelRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "note"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "作废已审批未执行的取消申请（说明必填），工单恢复",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.refund.request"
+      }
+    },
+    "/api/v1/admin/cancel-requests/{cancelRequestId}/withdraw": {
+      "post": {
+        "operationId": "admin.cancelRequest.withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cancelRequestId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "撤回尚未审批的取消申请（提交人本人；发起人已停用或对象失效时代撤）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
       }
     },
     "/api/v1/admin/channel-account-submissions/{channelAccountSubmissionId}": {
@@ -56755,6 +58146,790 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/orders/{orderId}/cancel-quote": {
+      "post": {
+        "operationId": "admin.order.cancelQuote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "manualDeducts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "deductNote": {
+                          "maxLength": 200,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "deductPoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "orderItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "orderItemId",
+                        "deductPoints",
+                        "deductNote"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "orderItemIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "reasonCode": {
+                    "enum": [
+                      "merchant_request",
+                      "store_closed",
+                      "platform_fault"
+                    ],
+                    "type": "string"
+                  },
+                  "terminationDate": {
+                    "format": "date",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reasonCode"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "blockers": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "orderItemId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "reason": {
+                                "enum": [
+                                  "item_closed",
+                                  "live_not_refundable",
+                                  "item_expired",
+                                  "in_other_request",
+                                  "ad_confirmed",
+                                  "ad_cancelled",
+                                  "ad_in_use"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "orderItemId",
+                              "reason"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "destination": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "backToOriginal": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "convertedToAddon": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "forfeited": {
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "lots": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "expiresAt": {
+                                    "format": "date-time",
+                                    "type": "string"
+                                  },
+                                  "lotKind": {
+                                    "enum": [
+                                      "plan",
+                                      "addon"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "qty": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "route": {
+                                    "enum": [
+                                      "original",
+                                      "converted",
+                                      "forfeited"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "lotKind",
+                                  "qty",
+                                  "route"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array"
+                            },
+                            "qty": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "qty",
+                            "backToOriginal",
+                            "convertedToAddon",
+                            "forfeited",
+                            "lots"
+                          ],
+                          "type": "object"
+                        },
+                        "expect": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "totalRefundPoints": {
+                              "minimum": 0,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "totalRefundPoints"
+                          ],
+                          "type": "object"
+                        },
+                        "lines": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "capturedAt": {
+                                "format": "date-time",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "chargePoints": {
+                                "exclusiveMinimum": 0,
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "deductNote": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "deductPoints": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "episodeCount": {
+                                "minimum": 0,
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "isManualDeduct": {
+                                "type": "boolean"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "mode": {
+                                "enum": [
+                                  "release",
+                                  "refund",
+                                  "terminate_only"
+                                ],
+                                "type": "string"
+                              },
+                              "platforms": {
+                                "items": {
+                                  "enum": [
+                                    "douyin",
+                                    "wechat_channels"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              "preview": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "backToOriginal": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "convertedToAddon": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "forfeited": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  },
+                                  "lots": {
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "expiresAt": {
+                                          "format": "date-time",
+                                          "type": "string"
+                                        },
+                                        "lotKind": {
+                                          "enum": [
+                                            "plan",
+                                            "addon"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "qty": {
+                                          "minimum": 0,
+                                          "type": "integer"
+                                        },
+                                        "route": {
+                                          "enum": [
+                                            "original",
+                                            "converted",
+                                            "forfeited"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "lotKind",
+                                        "qty",
+                                        "route"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "qty": {
+                                    "minimum": 0,
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "qty",
+                                  "backToOriginal",
+                                  "convertedToAddon",
+                                  "forfeited",
+                                  "lots"
+                                ],
+                                "type": "object"
+                              },
+                              "priorRequestedPoints": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "productionModel": {
+                                "enum": [
+                                  "standard",
+                                  "advanced",
+                                  "top",
+                                  null
+                                ],
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "ratioBp": {
+                                "maximum": 10000,
+                                "minimum": 0,
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "reasonClass": {
+                                "enum": [
+                                  "merchant",
+                                  "platform",
+                                  "qualification"
+                                ],
+                                "type": "string"
+                              },
+                              "refundPoints": {
+                                "minimum": 0,
+                                "type": "integer"
+                              },
+                              "stage": {
+                                "enum": [
+                                  "pending_start",
+                                  "plan_confirm",
+                                  "ad_and_sample",
+                                  "sample_pending",
+                                  "post_sample",
+                                  "live",
+                                  "ad_unassigned",
+                                  "ad_in_production"
+                                ],
+                                "type": "string"
+                              },
+                              "stepAtSubmit": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "targetId": {
+                                "format": "uuid",
+                                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                                "type": "string"
+                              },
+                              "targetType": {
+                                "enum": [
+                                  "order_item",
+                                  "ad"
+                                ],
+                                "type": "string"
+                              },
+                              "terminationDate": {
+                                "format": "date",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "usageEndDate": {
+                                "format": "date",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "usageEndSource": {
+                                "enum": [
+                                  "license",
+                                  "early_end",
+                                  "expired",
+                                  null
+                                ],
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "usageStartDate": {
+                                "format": "date",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "targetType",
+                              "targetId",
+                              "label",
+                              "episodeCount",
+                              "productionModel",
+                              "platforms",
+                              "mode",
+                              "stage",
+                              "stepAtSubmit",
+                              "reasonClass",
+                              "chargePoints",
+                              "priorRequestedPoints",
+                              "ratioBp",
+                              "isManualDeduct",
+                              "deductPoints",
+                              "deductNote",
+                              "refundPoints",
+                              "terminationDate",
+                              "usageStartDate",
+                              "usageEndDate",
+                              "usageEndSource",
+                              "capturedAt",
+                              "preview"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "needsManualDeduct": {
+                          "type": "boolean"
+                        },
+                        "quotedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "reasonCode": {
+                          "enum": [
+                            "merchant_request",
+                            "store_closed",
+                            "platform_fault",
+                            "qualification_final"
+                          ],
+                          "type": "string"
+                        },
+                        "totalBasePoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "totalDeductPoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "totalRefundPoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "quotedAt",
+                        "reasonCode",
+                        "lines",
+                        "totalBasePoints",
+                        "totalDeductPoints",
+                        "totalRefundPoints",
+                        "destination",
+                        "needsManualDeduct",
+                        "blockers",
+                        "expect"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          }
+        },
+        "summary": "取消预览：按剧逐行核算（阶段、已扣、扣除比例、退回）与账本去向；切换原因即重算",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "试算（A20）",
+        "x-permission": "order.refund.request"
+      }
+    },
+    "/api/v1/admin/orders/{orderId}/cancel-requests": {
+      "post": {
+        "operationId": "admin.order.cancelRequest.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "expect": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "totalRefundPoints": {
+                        "minimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "totalRefundPoints"
+                    ],
+                    "type": "object"
+                  },
+                  "manualDeducts": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "deductNote": {
+                          "maxLength": 200,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "deductPoints": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "orderItemId": {
+                          "format": "uuid",
+                          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "orderItemId",
+                        "deductPoints",
+                        "deductNote"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "note": {
+                    "maxLength": 200,
+                    "minLength": 5,
+                    "type": "string"
+                  },
+                  "orderItemIds": {
+                    "items": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "reasonCode": {
+                    "enum": [
+                      "merchant_request",
+                      "store_closed",
+                      "platform_fault"
+                    ],
+                    "type": "string"
+                  },
+                  "serviceTicketId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "terminationDate": {
+                    "format": "date",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reasonCode",
+                  "note",
+                  "expect"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CancelRequestDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "发起订购取消（原因、说明 ≥5 字）：同事务建取消申请与审批单，订单进入售后处理中、工单暂停",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.refund.request"
       }
     },
     "/api/v1/admin/outbox-deliveries": {

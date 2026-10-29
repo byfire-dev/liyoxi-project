@@ -126,7 +126,11 @@ export async function deriveOrder(
   tx: Tx,
   deps: OrderBinding,
   id: string,
-  options: { closedCancelRequestId?: string } = {},
+  options: {
+    closedCancelRequestId?: string;
+    openedCancelRequestId?: string;
+    suppressEvent?: boolean;
+  } = {},
 ): Promise<void> {
   const o = await tx.dramaOrder.findUniqueOrThrow({
     where: { id },
@@ -134,7 +138,14 @@ export async function deriveOrder(
   });
   if (options.closedCancelRequestId && o.openCancelRequestId !== options.closedCancelRequestId)
     throw new AppError("PRECONDITION_CHANGED");
-  const hasCancel = o.openCancelRequestId !== null && !options.closedCancelRequestId;
+  if (options.openedCancelRequestId && o.openCancelRequestId !== null)
+    throw new AppError("ORDER_IN_AFTER_SALE", { details: { orderId: id } });
+  const hasCancel =
+    !!options.openedCancelRequestId ||
+    (o.openCancelRequestId !== null && !options.closedCancelRequestId);
+  const cancel = options.openedCancelRequestId
+    ? await tx.cancelRequest.findUniqueOrThrow({ where: { id: options.openedCancelRequestId } })
+    : o.openCancelRequest;
   const status = orderStatus(o.orderItems, hasCancel),
     today = calendarDate(deps.clock.now());
   const items = await Promise.all(
@@ -162,7 +173,7 @@ export async function deriveOrder(
     status,
     items,
     qualificationStatus: o.store.qualificationStatus,
-    cancelRequestStatus: hasCancel ? o.openCancelRequest?.status : undefined,
+    cancelRequestStatus: hasCancel ? cancel?.status : undefined,
   });
   if (status !== o.status) {
     const now = deps.clock.now();
@@ -188,8 +199,13 @@ export async function deriveOrder(
         status_changed_at: now,
         closed_at: ["ended", "cancelled", "refunded"].includes(status) ? now : null,
         ...(options.closedCancelRequestId ? { open_cancel_request_id: null } : {}),
+        ...(options.openedCancelRequestId
+          ? { open_cancel_request_id: options.openedCancelRequestId }
+          : {}),
       },
-      emit: { type: "order.status_changed", payload: { v: 1, dramaOrderId: id } },
+      emit: options.suppressEvent
+        ? { none: true, primary: "cancel.executed" }
+        : { type: "order.status_changed", payload: { v: 1, dramaOrderId: id } },
     });
   } else if (subStatus !== o.subStatus) {
     await tx.dramaOrder.update({

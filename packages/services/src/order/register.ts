@@ -10,7 +10,7 @@ import {
   implementKeyed as notifyReaderImplementation,
   notifyReadPort as currentNotifyReadPort,
 } from "../kernel/index.js";
-import { orderForNotify, orderConsentFacts } from "./notify-facts.js";
+import { orderForNotify, orderConsentFacts, orderRejectedForNotify } from "./notify-facts.js";
 import { chainKey, machinePort, rowKey } from "../flow/index.js";
 import {
   defineRegistration,
@@ -30,6 +30,8 @@ import { readCancelReviewCause } from "./cancel-review-facts.js";
 import { approvalExecutionFactsPort, approvalKindPort } from "../approval/index.js";
 import { cancelExecutionCompleted } from "./cancel-execution.js";
 import { adCancelKind, cancelRequestBinding, cancelRequestChain } from "./ad-cancel-kind.js";
+import { orderCancelKind, qualificationCancelKind } from "./cancel-kinds.js";
+import { handleRejectedStale } from "./qualification-followup.js";
 import type { SyncStoreManager } from "../profile/index.js";
 import { orderSidePort } from "../delivery/index.js";
 import { boundOrder } from "./binding.js";
@@ -70,6 +72,7 @@ export const syncOrderManager: SyncStoreManager = async (tx, input) => {
 export const registration = defineRegistration("order", {
   timerHandlers: [
     { kind: "order.start", critical: true, rearmAfterSkip: true, handle: handleOrderStart },
+    { kind: "order.rejected_stale", critical: false, handle: handleRejectedStale },
   ],
   subscribers: [
     {
@@ -100,6 +103,8 @@ export const registration = defineRegistration("order", {
     implement(adminStoreListOrderPort, readProfileStoreLastOrders),
     implement(entityAdCancelClosePort, entityAdCancelCloser),
     implementKeyed(approvalKindPort, "ad_cancel", adCancelKind),
+    implementKeyed(approvalKindPort, "order_cancel", orderCancelKind),
+    implementKeyed(approvalKindPort, "qualification_cancel", qualificationCancelKind),
     implementKeyed(approvalExecutionFactsPort, "order_cancel", cancelExecutionCompleted),
     implementKeyed(approvalExecutionFactsPort, "qualification_cancel", cancelExecutionCompleted),
     implementKeyed(machinePort, cancelRequestChain, cancelRequestBinding),
@@ -124,6 +129,11 @@ export const registration = defineRegistration("order", {
     ),
     notifyReaderImplementation(currentNotifyReadPort, "orderConsentFacts", orderConsentFacts),
     notifyReaderImplementation(currentNotifyReadPort, "orderForNotify", orderForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "orderRejectedForNotify",
+      orderRejectedForNotify,
+    ),
 
     implement(orderSidePort, {
       readCancelReviewCause,

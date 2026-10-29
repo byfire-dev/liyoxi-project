@@ -147,16 +147,17 @@ export interface TransitionRecord {
   readonly elapsedSeconds: number | null;
   readonly elapsedWorkMin: number | null;
   readonly requestId: string | null;
+  readonly isForced: boolean;
 }
 
-/** 写一行状态历史。is_forced 恒为假（人工纠偏不走这里），on_behalf_of_user_id V1.0 不写；seq、created_at 由库给 */
+/** 唯一历史writer；is_forced由flow受控通道确定，on_behalf_of_user_id V1.0不写。 */
 export async function insertTransition(tx: Tx, row: TransitionRecord): Promise<void> {
   await tx.$executeRawUnsafe(
     `INSERT INTO status_transition (id, machine, subject_id, state_field, entity_id, store_id, from_state, to_state,
        event, actor_type, actor_id, client, reason_code, note, payload, is_forced, occurred_at, biz_date,
        elapsed_seconds, elapsed_work_min, request_id)
      VALUES ($1::uuid, $2, $3::uuid, $4, $5::uuid, $6::uuid, $7, $8,
-       $9, $10, $11::uuid, $12, $13, $14, $15::jsonb, false, $16::timestamptz, $17::date,
+       $9, $10, $11::uuid, $12, $13, $14, $15::jsonb, $21::boolean, $16::timestamptz, $17::date,
        $18::int, $19::int, $20)`,
     row.id,
     row.machine,
@@ -178,6 +179,7 @@ export async function insertTransition(tx: Tx, row: TransitionRecord): Promise<v
     row.elapsedSeconds,
     row.elapsedWorkMin,
     row.requestId,
+    row.isForced,
   );
 }
 

@@ -68,6 +68,10 @@ export interface MachineBinding {
   readonly guards?: Readonly<Record<string, Guard>>;
   /** 副作用，键同上 */
   readonly effects?: Readonly<Record<string, Effect>>;
+  /** 人工纠偏后，同事务检查本领域相关结构；缺登记不能进行强迁。 */
+  readonly adminTransition?: {
+    readonly checkInvariants: (tx: Tx, facts: TransitionFacts) => Promise<readonly string[]>;
+  };
 }
 
 /** 守卫与副作用的键：按文档行登记，不按事件码（同一组“当前状态、事件码、新状态”可以来自几行文档，守卫各不相同） */
@@ -121,11 +125,13 @@ export function bindingsOf(
       problems.push(`${key}：迁移表里没有这条链（键用 chainKey(状态机, 状态列)）`);
       continue;
     }
-    const rows = new Set(
-      chain.rows
-        .filter((row) => row.event !== ADMIN_FORCE_EVENT)
-        .map((row) => rowKey(row.ref, row.event)),
-    );
+    const rows = new Set(chain.rows.map((row) => rowKey(row.ref, row.event)));
+    if (
+      binding.adminTransition &&
+      (!chain.rows.some((row) => row.event === ADMIN_FORCE_EVENT) ||
+        typeof binding.adminTransition.checkInvariants !== "function")
+    )
+      problems.push(`${key}：人工纠偏检查必须属于已有更正白名单的链，并提供真实结构检查`);
     for (const kind of ["guards", "effects"] as const) {
       for (const row of Object.keys(binding[kind] ?? {})) {
         if (!rows.has(row))

@@ -1,47 +1,20 @@
-import { createIdentityContext, lockRows } from "../kernel/index.js";
+import { createIdentityContext } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
-import { storeGate, storeLocation } from "../profile/index.js";
+import { storeLocation } from "../profile/index.js";
 import { boundOrderStart } from "./start-binding.js";
 import type { OrderStartBinding } from "./start-binding.js";
 import { lockManagerBusiness, prepareStartStaff } from "./start-locks.js";
-import { armOrderStart, updateStartSubStatus } from "./start-timer.js";
+import { currentCancelRequests } from "./cancel-binding.js";
+import type { CancelDeps } from "./cancel-context.js";
+import { qualificationDecided } from "./qualification-followup.js";
 
 export async function onQualificationDecided(
   tx: Tx,
   deps: OrderStartBinding,
   event: DeliveredEvent,
+  cancel: CancelDeps | undefined = currentCancelRequests(),
 ) {
-  if (!["store.qualification.approved", "store.qualification.rejected"].includes(event.type))
-    return;
-  const { storeId, entityId } = event.payload;
-  if (typeof storeId !== "string" || typeof entityId !== "string") return;
-  await lockRows(tx, "store", [storeId]);
-  const store = await tx.store.findFirst({ where: { id: storeId, entityId } });
-  if (!store || store.lifecycle !== "active") return;
-  // 延迟事件必须按当前事实决定，不能拿旧 approved 载荷越过当前资质结论。
-  const full = (await storeGate(tx, storeId)) === "full";
-  if (!full && store.qualificationStatus !== "rejected") return;
-  const rows = await tx.dramaOrder.findMany({
-    where: { storeId, entityId, status: "pending_start", openCancelRequestId: null },
-    orderBy: { id: "asc" },
-  });
-  await lockRows(
-    tx,
-    "drama_order",
-    rows.map((o) => o.id),
-  );
-  for (const row of rows) {
-    const order = await tx.dramaOrder.findUniqueOrThrow({ where: { id: row.id } });
-    if (order.status !== "pending_start" || order.openCancelRequestId) continue;
-    if (full) await armOrderStart(tx, deps, order);
-    await updateStartSubStatus(
-      tx,
-      order.id,
-      full ? "starting" : "qualification_rejected",
-      deps.clock.now(),
-    );
-  }
-  // rejected_stale 与终局整店取消入口按任务 M5 留桩，本包不登记或假调用。
+  return qualificationDecided(tx, deps, event, cancel);
 }
 
 export async function onSubscriptionActivated(

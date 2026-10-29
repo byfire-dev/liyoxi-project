@@ -1,12 +1,29 @@
 // 后台：订购、取消、交付与广告任务 · cancel-requests（docs/api/a05-order-delivery.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 import { adminRoute } from "../builders.js";
 import { z } from "../../zod.js";
 import { IdSchema, okResponse, errorResponses } from "../../common/index.js";
-import { CancelExecuteBodySchema, CancelRequestDetailSchema } from "./cancel.schemas.js";
+import {
+  CancelExecuteBodySchema,
+  CancelRequestDetailSchema,
+  CancelRequestListQuerySchema,
+  CancelRequestFiltersSchema,
+  CancelRequestListSchema,
+  CancelRequestSummarySchema,
+  CancelApproveBodySchema,
+  CancelRejectBodySchema,
+  CancelWithdrawBodySchema,
+  CancelVoidBodySchema,
+} from "./cancel.schemas.js";
+const params = z.object({ cancelRequestId: IdSchema });
+const detailResponses = {
+  ...okResponse(CancelRequestDetailSchema),
+  ...errorResponses(400, 401, 403, 404, 409, 503),
+};
 
-export const adminCancelRequestList = adminMeta({
+export const adminCancelRequestList = adminRoute({
+  request: { query: CancelRequestListQuerySchema },
+  responses: { ...okResponse(CancelRequestListSchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/admin/cancel-requests",
   operationId: "admin.cancelRequest.list",
@@ -16,7 +33,9 @@ export const adminCancelRequestList = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminCancelRequestSummary = adminMeta({
+export const adminCancelRequestSummary = adminRoute({
+  request: { query: CancelRequestFiltersSchema },
+  responses: { ...okResponse(CancelRequestSummarySchema), ...errorResponses(400, 401, 403) },
   method: "get",
   path: "/admin/cancel-requests/summary",
   operationId: "admin.cancelRequest.summary",
@@ -25,7 +44,9 @@ export const adminCancelRequestSummary = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminCancelRequestGet = adminMeta({
+export const adminCancelRequestGet = adminRoute({
+  request: { params },
+  responses: { ...okResponse(CancelRequestDetailSchema), ...errorResponses(400, 401, 403, 404) },
   method: "get",
   path: "/admin/cancel-requests/{cancelRequestId}",
   operationId: "admin.cancelRequest.get",
@@ -34,7 +55,12 @@ export const adminCancelRequestGet = adminMeta({
   "x-idempotent-reason": "纯查询（GET 不写库，A19）",
 });
 
-export const adminCancelRequestApprove = adminMeta({
+export const adminCancelRequestApprove = adminRoute({
+  request: {
+    params,
+    body: { required: true, content: { "application/json": { schema: CancelApproveBodySchema } } },
+  },
+  responses: detailResponses,
   method: "post",
   path: "/admin/cancel-requests/{cancelRequestId}/approve",
   operationId: "admin.cancelRequest.approve",
@@ -60,7 +86,12 @@ export const adminCancelRequestExecute = adminRoute({
   "x-idempotent": "required",
 });
 
-export const adminCancelRequestReject = adminMeta({
+export const adminCancelRequestReject = adminRoute({
+  request: {
+    params,
+    body: { required: true, content: { "application/json": { schema: CancelRejectBodySchema } } },
+  },
+  responses: detailResponses,
   method: "post",
   path: "/admin/cancel-requests/{cancelRequestId}/reject",
   operationId: "admin.cancelRequest.reject",
@@ -70,7 +101,12 @@ export const adminCancelRequestReject = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminCancelRequestVoid = adminMeta({
+export const adminCancelRequestVoid = adminRoute({
+  request: {
+    params,
+    body: { required: true, content: { "application/json": { schema: CancelVoidBodySchema } } },
+  },
+  responses: detailResponses,
   method: "post",
   path: "/admin/cancel-requests/{cancelRequestId}/void",
   operationId: "admin.cancelRequest.void",
@@ -79,7 +115,12 @@ export const adminCancelRequestVoid = adminMeta({
   "x-idempotent": "required",
 });
 
-export const adminCancelRequestWithdraw = adminMeta({
+export const adminCancelRequestWithdraw = adminRoute({
+  request: {
+    params,
+    body: { required: true, content: { "application/json": { schema: CancelWithdrawBodySchema } } },
+  },
+  responses: detailResponses,
   method: "post",
   path: "/admin/cancel-requests/{cancelRequestId}/withdraw",
   operationId: "admin.cancelRequest.withdraw",

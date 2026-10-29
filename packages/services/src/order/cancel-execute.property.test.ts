@@ -100,6 +100,32 @@ async function execute(p: CancelFixture) {
     expect(line.stage === "live" ? ["live"] : ["cancelled", "refunded", "terminated"]).toContain(
       item.phase,
     );
+    const itemEvents = await h.prisma.outboxEvent.findMany({
+      where: {
+        aggregateId: item.id,
+        eventType: { in: ["order.item.cancelled", "order.item.refunded", "order.item.terminated"] },
+      },
+    });
+    if (line.stage === "live") expect(itemEvents).toHaveLength(0);
+    else {
+      expect(itemEvents).toHaveLength(1);
+      expect(itemEvents[0]).toMatchObject({
+        eventType: `order.item.${item.phase}`,
+        payload: {
+          orderItemId: item.id,
+          dramaOrderId: item.dramaOrderId,
+          cancelRequestId: r.id,
+          toState: item.phase,
+          ...(item.phase === "terminated"
+            ? {}
+            : {
+                returnedPoints: result.returnedPoints,
+                convertedPoints: result.convertedPoints,
+                forfeitedPoints: result.forfeitedPoints,
+              }),
+        },
+      });
+    }
     const hold = await h.prisma.pointHold.findUniqueOrThrow({ where: { id: line.pointHoldId } });
     expect(hold.returnedQty + hold.forfeitedQty).toBe(line.refundPoints);
     expect(
