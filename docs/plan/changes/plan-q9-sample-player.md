@@ -52,4 +52,6 @@ Q9 不扩展修改意见、按时间点反馈、M5 其他接口/页面、portal�
 
 补齐 API 索引官方生成（`python3 tools/api-check/gen_registries.py`、`gen_permissions.py`），并将后台真实交付验收从旧相册签发改为小程序水印地址及勾选确认。复用本轮合法媒体，单 worker 执行 `pnpm admin:e2e:live --test-file test/e2e/live-delivery-flow.spec.ts`（附复用媒体参数）：登录准备及交付主路径 2 项通过，45.5 秒；覆盖真实水印字节、旧相册拒绝、未勾选拒绝且零写、勾选确认及两集成片/包质检，独立测试库已清理。远端隔离分片曾出现未修改的 ASR 回调用例任务取消，本地仅该组合定点 2 项通过，尚不能确认 CI 取消原因，未修改 250ms 守卫或降低验收规则；以修正提交的完整 CI 为准。
 
+CI 另暴露原 ASR HTTP 超时测试的建连竞态：20ms 期限先启动，服务端收齐请求才计数，慢调度可正确超时但尚未收包。仅修该测试的计时夹具：保留真实 loopback，收到请求后推进受控计时器，19ms 未结束、20ms 返回原完整超时结果，客户端调用及服务端收包均恰好一次；finally 关闭自有请求并恢复计时器。`pnpm --filter @liyoxi/services exec vitest run src/providers/asr/tencent.test.ts --maxWorkers=1 --no-file-parallelism` 51 项通过。该窄修正由调度纳入 CI 收尾偏差，不改 ASR 生产代码、250ms admission 守卫、CI 并发或验收阈值。
+
 部署、真实类目/提审、iOS/安卓真机、法务以及最低版本控制与真实混跑均未执行，仍按第 2 节及原外部台账后续处理。

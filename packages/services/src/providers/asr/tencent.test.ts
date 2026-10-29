@@ -375,18 +375,50 @@ describe("腾讯 ASR 异步协议：真实本地 HTTP", () => {
       code: "transport",
     });
     expect(transport).toHaveBeenCalledTimes(1);
+    let received!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      received = resolve;
+    });
     const http = await local((_req, res) => {
       res.writeHead(200);
       res.write('{"Response":');
+      received();
     });
-    expect(await driver({ ...http, timeoutMs: 20 }).provider.submit({ url })).toEqual({
-      ok: false,
-      reason: "unavailable",
-      message: "录音转写调用超时",
-      acceptance: "unknown",
-      code: "timeout",
-    });
-    expect(http.calls()).toBe(1);
+    const timeoutTransport = vi.fn(http.fetch);
+    const owned = driver({ fetch: timeoutTransport, timeoutMs: 20 });
+    // 先确认真实 HTTP 已收到请求，再推进期限，不依赖 CI 在 20ms 内完成建连。
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const pending = owned.provider.submit({ url });
+      let settled = false;
+      void pending.then(() => {
+        settled = true;
+      });
+      await Promise.race([
+        ready,
+        pending.then(() => {
+          throw new Error("录音转写调用在到达本地HTTP前结束");
+        }),
+      ]);
+      await vi.advanceTimersByTimeAsync(19);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await pending).toEqual({
+        ok: false,
+        reason: "unavailable",
+        message: "录音转写调用超时",
+        acceptance: "unknown",
+        code: "timeout",
+      });
+      expect(http.calls()).toBe(1);
+      expect(timeoutTransport).toHaveBeenCalledTimes(1);
+    } finally {
+      try {
+        await owned.close();
+      } finally {
+        vi.useRealTimers();
+      }
+    }
   });
   it("在途取消真实响应流：未知受理；close 等待自有请求 finally 后拒绝晚调用", async () => {
     let received!: () => void;
