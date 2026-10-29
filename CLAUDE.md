@@ -120,11 +120,14 @@
 
 ## 7. 分支、提交、PR、复审与合并
 
-出处：08 第 5.3 节。
+出处：08 第 5.3 节；[main 与 integration 分离记录](docs/plan/changes/main-integration-separation.md)（业主 2026-10-27 授权）。
 
 | 项 | 规则 |
 | --- | --- |
 | 分支 | `feat/<工作包编号>-<短名>`；修复 `fix/*`；验证 `spike/*`。从最新 main 切。不直接推 main；main 的保护规则已设，平台强制经 PR、必过检查 `required` 与合并前同步 main，对管理员同样生效（`docs/plan/owner-checklist.md` 第 2 节 E15 行） |
+| main | 本地 `main` 只跟踪经原 PR 流程发布的远端 `main`，不承载未发布成果。远端 PR 合入后，只用 `git merge --ff-only origin/main` 更新本地 `main`；不能快进时保留现场、查清分叉，不把未发布分支或 integration 合入 `main` |
+| integration | 未发布成果的保存与本地联调使用 `codex/integration-<主题>`，按已授权范围普通合并并保留历史。integration 中的状态和通过记录不表示已远端发布，不替代工作包的实际 main 依赖、当前 PR 的 CI 或里程碑退出条件 |
+| 开工核对 | 先核当前分支、工作树状态与提交关系，不从目录名推断正在使用 main。以调度已核实的最新 `origin/main` 及实际 main 交付物核对任务书依赖和移交；依赖只在 integration 中存在时，仍按第 3 节的未发布依赖处理 |
 | 提交 | conventional commits：`type(scope): 中文一句话`。默认：一句话以中文开头；要带工作包编号就放句末，如 `feat(db): 首版迁移（W0-05）`（W0-04 定；以大写拉丁字母开头会被 commitlint 的大小写规则拒掉） |
 | 粒度 | 一个工作包一个 PR。体量上限（默认）：甲类一个机制、非生成非测试代码约 600 行；乙类 20 条接口；丙类 8 页。超过时拆不拆由调度会话定 |
 | 契约先行 | 一个域的 Zod 结构随该域第一个后端 PR 合入；页面包在契约合入后开工 |
