@@ -156,7 +156,12 @@ export function requestsHarness(prisma: PrismaClient) {
   /** W5-08's ad request producer is not upstream yet. Existing legal ad facts use real holds;
    * qualification events and all cancellation input still come from their production services.
    */
-  async function unassignedAd(w: Awaited<ReturnType<typeof qualificationOrder>>) {
+  async function unassignedAd(w: {
+    entity: { id: string };
+    store: { id: string };
+    user: { id: string };
+    b: { term: { discountBp: number } };
+  }) {
     const id = uuidv7(),
       now = h.clock.now(),
       adNo = `GG20260105${++adSequence}`;

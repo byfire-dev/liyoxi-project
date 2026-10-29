@@ -2,7 +2,7 @@
 
 ## W5-03 PR2 本地实现
 
-PR1 公共 `AdminFlow.adminTransition` 已由 #208 合入 actual main（`e57f2619`）。本节描述本地 PR2 源码，验证仍进行中；PR2 尚未 actual main，PR3 order 对账尚未开工。W5-04/05/06 只有在完整 PR2 代码验收并 actual main 后才能消费，其他原下游仍等 W5-03 整包。
+PR1 公共 `AdminFlow.adminTransition` 已由 #208 合入 actual main（`e57f2619`）。本地 PR2 的发布登记预留 #211，机制、正式生成对账与本地验证已收口，待 ROOT 提交发布、CI 和 actual main；PR3 order 对账尚未开工。W5-04/05/06 只有在完整 PR2 代码验收并 actual main 后才能消费，其他原下游仍等 W5-03 整包。
 
 `createDeliveryM5(deps: DeliveryM5Deps)` 为本包十一条 HTTP 提供用例公口：`activityList`、`assignEditor`、`assignPublisher`、`forceTransition`、`reevaluate`、`reissueCreate`、`remind`、`rework`、`rescheduleLaunch`、`reissueCancel`、`reissuePublish`。只读入口接收真实员工上下文与范围；写入口接收身份、员工、资源、typed body 和既有幂等选项，返回实际 DTO 与 `replayed`。HTTP 只做 typed 输入、正式鉴权与响应投影；纠偏沿 PR1 中央再验证、确认、白名单和事务保存点，不接账本。
 
@@ -16,7 +16,9 @@ M1 delivery 的 `flow.reevaluate_sweep` / `flow_reevaluate_sweep` 保持原唯�
 
 本片三个既有进度事件通过 delivery 的 keyed reader 接通知：补发发起重读当前启用剪辑师；补发发布重读当前有效补发包；改期重读当前订单项日期。通知只消费布尔有效性及安全投影，不直接查询这些业务表；同一个 scene 的重验按 `bizType` 精确选 reader，避免把补发通知重验成当前发布人的工单。商家 `m.order_progress` 沿原仅站内通道，人工催办与再次改期使用真实事件 id 区分合法新发生，并对同一事件重放去重。
 
-通知小片前，调度已回传 HTTP 原 7/7、生命周期原 9/9 加 `early_end` 定点 1/1、stage-SLA 原 12/12 加日历窗口定点 1/1、production-actions 7/7、publish 6/6；取消暂停回归中原 timer 零假设改成完整快照后定点通过。此前 services/API 类型、分层、机器表、窄 ESLint 与格式检查通过。新增通知与跨日催办断言、通知小片后的最终类型及官方生成仍待验，以上本地结果不代表 CI 或 actual main。
+调度已回传真实 HTTP 10/10（含三个冻结通知事件与跨日催办）、生命周期原 9/9、`early_end` 与真实广告全链各定点 1/1、stage-SLA 最终 14/14、取消暂停/持有及制作动作 63/63、发布回归 6/6。actual W5-02 合流后，真实带广告的公开 create→withdraw 新定点 1/1（14 旧例未重复）、批准/撤回/执行 HTTP 3/3，通过资金、placement、原环节与三个时限断言。权限 golden 正式回放 4/4 且仅增 11 行；契约、登记、计划/状态检查通过，669 项精确分为 444 typed、220 meta-only、5 registry-only，x01 114 行无差异。`contract:compat` exit 0 但实际比较 0 份，不宣称已有在役版本兼容证据。
+
+最终 services/API/contract 三包类型通过，分层检查 4569 modules、0 violations；精确 typed inventory 契约定点 4/4（39 skip），主干合流后通知与跨日催办四定点 4/4（6 skip）。机器表与格式检查通过。三原桩随本地 PR2 回填“已回补”，待 ROOT 提交发布、CI/actual；本地结果不代表实际合入，不解除下游等待条件。
 
 ## 既有取消暂停公口
 

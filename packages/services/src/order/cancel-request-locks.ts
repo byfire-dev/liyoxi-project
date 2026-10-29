@@ -130,38 +130,52 @@ export async function prelockCancelDecision(
 ) {
   const g = graph.execution,
     p = graph.pauses,
+    r = p.reevaluation,
     d = g.delivery;
+  // Closing a cancellation can resume delivery and close other accounts' pending launch work.
+  // Read and lock that owner's complete graph before either decision writer changes facts.
   for (const [table, ids, mode] of [
-    ["staff", cancelIds([...g.staffIds, ...actorIds]), "share"],
-    ["approval_request", g.approvalIds, "update"],
+    ["staff", cancelIds([...g.staffIds, ...r.staffIds, ...actorIds]), "share"],
+    ["approval_request", cancelIds([...g.approvalIds, ...r.approvalRequestIds]), "update"],
     ["cancel_request", [g.requestId], "update"],
     ["cancel_request_line", g.lineIds, "update"],
     ["entity", [g.entityId], "update"],
     ["store", [g.storeId], "update"],
-    ["drama", cancelIds([...g.dramaIds, ...p.dramaIds]), "update"],
-    ["ad", g.adIds, "update"],
-    ["drama_order", cancelIds([...g.orderIds, ...p.dramaOrderIds]), "update"],
-    ["order_item", cancelIds([...g.itemIds, ...p.orderItemIds]), "update"],
-    ["delivery_ticket", cancelIds([...d.deliveryTicketIds, ...p.deliveryTicketIds]), "update"],
-    ["channel_account", d.channelAccountIds, "update"],
-    ["delivery_plan", p.deliveryPlanIds, "update"],
-    ["delivery_release", d.deliveryReleaseIds, "update"],
-    ["launch_task", d.launchTaskIds, "update"],
-    ["patrol_task", d.patrolTaskIds, "update"],
-    ["takedown_task", d.takedownTaskIds, "update"],
-    ["zip_bundle", d.zipBundleIds, "update"],
-    ["file_object", cancelIds([...d.fileObjectIds, ...p.coverFileIds]), "update"],
-  ] as const)
+    ["drama", cancelIds([...g.dramaIds, ...p.dramaIds, ...r.dramaIds]), "update"],
+    ["ad", cancelIds([...g.adIds, ...r.adIds]), "update"],
+    ["drama_order", cancelIds([...g.orderIds, ...p.dramaOrderIds, ...r.dramaOrderIds]), "update"],
+    ["order_item", cancelIds([...g.itemIds, ...p.orderItemIds, ...r.orderItemIds]), "update"],
+    [
+      "delivery_ticket",
+      cancelIds([...d.deliveryTicketIds, ...p.deliveryTicketIds, ...r.deliveryTicketIds]),
+      "update",
+    ],
+    ["channel_account", cancelIds([...d.channelAccountIds, ...r.channelAccountIds]), "update"],
+    ["delivery_plan", cancelIds([...p.deliveryPlanIds, ...r.deliveryPlanIds]), "update"],
+    ["delivery_release", cancelIds([...d.deliveryReleaseIds, ...r.deliveryReleaseIds]), "update"],
+    ["launch_task", cancelIds([...d.launchTaskIds, ...r.launchTaskIds]), "update"],
+    ["patrol_task", cancelIds([...d.patrolTaskIds, ...r.patrolTaskIds]), "update"],
+    ["sample", r.sampleIds, "update"],
+    ["takedown_task", cancelIds([...d.takedownTaskIds, ...r.takedownTaskIds]), "update"],
+    ["zip_bundle", cancelIds([...d.zipBundleIds, ...r.zipBundleIds]), "update"],
+    [
+      "file_object",
+      cancelIds([...d.fileObjectIds, ...p.coverFileIds, ...r.fileObjectIds]),
+      "update",
+    ],
+  ] as const) {
+    if (table === "zip_bundle")
+      await lockSystemFollowUpCloseTargets(tx, cancelIds([...d.followUpIds, ...r.followUpIds]));
     await lockRows(tx, table, ids, mode);
-  await lockSystemFollowUpCloseTargets(tx, d.followUpIds);
+  }
   if (JSON.stringify(graph) !== JSON.stringify(await readCancelDecisionGraph(tx, g.requestId)))
     throw new AppError("PRECONDITION_CHANGED", { message: "取消决定目标图已变化，请重试整个事务" });
   await tx.$queryRaw`SELECT id FROM timer WHERE
-    (subject_type = 'approval_request' AND subject_id = ANY(${g.approvalIds}::uuid[])) OR
-    (subject_type = 'drama_order' AND subject_id = ANY(${g.orderIds}::uuid[])) OR
-    (subject_type = 'ad' AND subject_id = ANY(${g.adIds}::uuid[])) OR
+    (subject_type = 'approval_request' AND subject_id = ANY(${cancelIds([...g.approvalIds, ...r.approvalRequestIds])}::uuid[])) OR
+    (subject_type = 'drama_order' AND subject_id = ANY(${cancelIds([...g.orderIds, ...p.dramaOrderIds, ...r.dramaOrderIds])}::uuid[])) OR
+    (subject_type = 'ad' AND subject_id = ANY(${cancelIds([...g.adIds, ...r.adIds])}::uuid[])) OR
     (subject_type = 'delivery_ticket_stage' AND subject_id IN
-      (SELECT id FROM delivery_ticket_stage WHERE delivery_ticket_id = ANY(${d.deliveryTicketIds}::uuid[])))
+      (SELECT id FROM delivery_ticket_stage WHERE delivery_ticket_id = ANY(${cancelIds([...d.deliveryTicketIds, ...p.deliveryTicketIds, ...r.deliveryTicketIds])}::uuid[])))
     ORDER BY id FOR UPDATE`;
   const entries = witnesses.get(tx) ?? new Map<string, CancelDecisionGraph>();
   entries.set(g.requestId, graph);
