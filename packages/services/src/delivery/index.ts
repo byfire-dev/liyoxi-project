@@ -33,3 +33,12 @@ export type { DeliveryStageSlaDeps } from "./stage-sla.js";
 export { readCancelReviewHoldTargets, holdCancelReviewPauses } from "./cancel-review-hold.js";
 export type { CancelReviewHoldTargets } from "./cancel-review-hold.js";
 export { lockCurrentSampleWatermarkTarget } from "./sample-watermark.js";
+export {
+  readCancelReviewExecuteTargets,
+  closeCancelReviewDelivery,
+} from "./cancel-review-execute.js";
+export type {
+  CancelReviewExecuteTargets,
+  CancelReviewExecuteDeps,
+  CancelReviewExecuteInput,
+} from "./cancel-review-execute.js";

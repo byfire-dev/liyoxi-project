@@ -23,7 +23,15 @@ const guard: NonNullable<MachineBinding["guards"]>[string] = (_tx, facts) =>
   Promise.resolve(typeof facts.args === "object" && facts.args !== null && passes.has(facts.args));
 export const adCancelChain = chainKey("ad", "status");
 export const adCancelBinding: MachineBinding = {
-  companions: ["cancelled_at", "cancel_reason_code", "open_cancel_request_id"],
+  companions: [
+    "cancelled_at",
+    "cancel_reason_code",
+    "open_cancel_request_id",
+    "refund_requested_points",
+    "returned_points",
+    "converted_points",
+    "forfeited_points",
+  ],
   guards: { [rowKey("09:808", "ad.cancel")]: guard, [rowKey("09:809", "ad.cancel")]: guard },
 };
 export async function claimAdCancelRequest(
@@ -48,7 +56,7 @@ export async function claimAdCancelRequest(
   if (changed.count !== 1) throw new AppError("AD_CANCEL_IN_PROGRESS");
 }
 /** Caller owns the stable request/line/ad/binding graph and the sole account lock.
- * State goes first; the real ledger callback and all four quantities remain in this transaction.
+ * Close business timers first, then write final state and all actual quantities in one UPDATE.
  */
 export async function cancelAd(
   tx: Tx,
@@ -75,6 +83,24 @@ export async function cancelAd(
     ["producing", "revising", "pending_confirm"].includes(ad.status) ||
     (ad.status === "returned" && ad.returnedFrom === "producing");
   if (!unassigned && !producing) throw new AppError("AD_NOT_CANCELLABLE");
+  const subject = { type: "ad", id: ad.id };
+  for (const purpose of ["first", "rev"])
+    await deps.timers.cancel(tx, {
+      subject,
+      kinds: ["sla.breach"],
+      keyPrefix: `${timerKey("sla.breach", subject, purpose)}:`,
+    });
+  await deps.timers.cancel(tx, {
+    subject,
+    kinds: ["ad.returned_stale"],
+    keyPrefix: `${timerKey("ad.returned_stale", subject)}:`,
+  });
+  const result = await returnPoints();
+  if (
+    result.returnedPoints + result.convertedPoints + result.forfeitedPoints !==
+    input.refundPoints
+  )
+    throw new AppError("PRECONDITION_CHANGED", { message: "账本实际退回数量不一致" });
   const pass = Object.freeze({});
   passes.add(pass);
   const transitioned = await deps.flow.transition(tx, ctx, {
@@ -87,6 +113,10 @@ export async function cancelAd(
       cancelled_at: input.now,
       cancel_reason_code: input.reasonCode,
       open_cancel_request_id: null,
+      refund_requested_points: ad.refundRequestedPoints + input.refundPoints,
+      returned_points: ad.returnedPoints + result.returnedPoints,
+      converted_points: ad.convertedPoints + result.convertedPoints,
+      forfeited_points: ad.forfeitedPoints + result.forfeitedPoints,
     },
     entityId: ad.entityId,
     storeId: ad.storeId,
@@ -94,33 +124,6 @@ export async function cancelAd(
     audit: { mergedInto: { approvalRequestId: input.approvalRequestId } },
     emit: { none: true, primary: "cancel.executed" },
     args: pass,
-  });
-  const result = await returnPoints();
-  if (
-    result.returnedPoints + result.convertedPoints + result.forfeitedPoints !==
-    input.refundPoints
-  )
-    throw new AppError("PRECONDITION_CHANGED", { message: "账本实际退回数量不一致" });
-  await tx.ad.update({
-    where: { id: ad.id },
-    data: {
-      refundRequestedPoints: ad.refundRequestedPoints + input.refundPoints,
-      returnedPoints: ad.returnedPoints + result.returnedPoints,
-      convertedPoints: ad.convertedPoints + result.convertedPoints,
-      forfeitedPoints: ad.forfeitedPoints + result.forfeitedPoints,
-    },
-  });
-  const subject = { type: "ad", id: ad.id };
-  for (const purpose of ["first", "rev"])
-    await deps.timers.cancel(tx, {
-      subject,
-      kinds: ["sla.breach"],
-      keyPrefix: `${timerKey("sla.breach", subject, purpose)}:`,
-    });
-  await deps.timers.cancel(tx, {
-    subject,
-    kinds: ["ad.returned_stale"],
-    keyPrefix: `${timerKey("ad.returned_stale", subject)}:`,
   });
   await deps.events.emit(tx, ctx, {
     type: "ad.cancelled",

@@ -26,6 +26,7 @@ import { adminFeatureFlagHandlers } from "./admin/feature-flags.js";
 import { adminChecklistTemplateHandlers } from "./admin/checklist-templates.js";
 import { adminCalendarDayHandlers } from "./admin/calendar-days.js";
 import { orderHandlers } from "./order.js";
+import { adminOrderCancelExecuteHandlers } from "./admin/order-cancel-execute.js";
 import { publishHandlers } from "./publish.js";
 import { deliveryHandlers } from "./delivery.js";
 import { deliveryDownloadHandlers } from "./delivery-download.js";
@@ -86,6 +87,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminDramaPricingHandlers,
   ...adminFlowOpsHandlers,
   ...orderHandlers,
+  ...adminOrderCancelExecuteHandlers,
   // W1-03：协议清单与版本正文（两条公开路由）
   ...agreementHandlers,
   ...mallHandlers,

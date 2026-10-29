@@ -36,6 +36,7 @@ export * from "./error-details.js";
 export * from "./orders.js";
 export * from "./order-read.schemas.js";
 export * from "./cancel.schemas.js";
+export { adminCancelRequestExecute } from "./cancel-requests.js";
 
 export {
   adminDeliveryTicketList,

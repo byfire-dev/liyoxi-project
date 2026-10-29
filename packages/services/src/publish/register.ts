@@ -21,6 +21,7 @@ import {
 } from "../kernel/index.js";
 import { accountKind, launchKind } from "./write.js";
 import { publishMachines } from "./machines.js";
+import { cancelReviewPublishMachines } from "./cancel-review-close.js";
 import { launchChangedPort, launchHandlerPort } from "./ports.js";
 import { findPublishViolations, PUBLISH_INVARIANT_CODES } from "./invariants.js";
 import { launchInclude, accountInclude } from "./repo.js";
@@ -61,6 +62,7 @@ export const registration = defineRegistration("publish", {
     notifyFactImplementation(currentNotifyRead, "accountNoticeFact", accountNoticeFact),
     notifyFactImplementation(currentNotifyRead, "launchNoticeFact", launchNoticeFact),
     ...publishMachines,
+    ...cancelReviewPublishMachines,
     implementKeyed(approvalKindPort, "channel_account", accountKind),
     implementKeyed(approvalKindPort, "launch_link", launchKind),
     implementKeyed(notifyReadPort, "channelAccountForNotify", channelAccountForNotify),
