@@ -8,9 +8,11 @@
 | 依据 | 数据模型 `10-delivery.md`（方案、样片、成片包、下载授权与记录、发布清单）、`11-publish.md`（渠道账号与核验提交、上线任务与回填、巡检、下架任务）、`13-notify-docs.md` 2.13–2.14 与第 4 节（授权书与版次）；`09-order-ad.md`（订单项、发布账号、广告位、广告）；草案 d3-flow.md 第 8、10–15 节与附录 B，d5-media.md 第 7.4–7.5、8 节与第 12 节接口清单，d6-notify-docs-data.md 第 3.6 节与接口清单，d7-platform.md 4.10–4.11；接口裁决 A1–A146（第二轮按第十节 A76–A120 修订，第三轮按第十二节 A127–A146 修订）；通用约定 C1–C87；事件目录 x01-events-jobs；设计规范第 11、12 节 |
 | 状态 | 第三轮修订（2026-10-03） |
 
+> Q9 当期覆盖（2026-10-29）：样片一期仅小程序内查看、确认必须勾选。四渠道 enum/历史字段/快照保留，旧修订记录不代表当前默认。见 [Q9 工作包](../plan/changes/plan-q9-sample-player.md)；不表示法务、提审或真机通过。
+
 ## 1. 概览
 
-本文是老板在小程序里完成“交付与发布”的全部接口：绑定并维护发布用的渠道账号；确认服务经理推送的交付方案或提出修改；查看并确认样片（V1.0 默认不在小程序内播放，改为保存水印版到相册或到电脑端下载页预览）；查看成片包、重新生成下载授权、逐集签发下载地址并回报“已存相册”；复制发布清单；按订单查看上线任务、回填上线链接提交核验、查看上线记录；确认已下架；查看与下载《定制内容授权书》。店员没有这些能力点，全部接口对店员返回 403。
+本文是老板在小程序里完成“交付与发布”的全部接口：绑定并维护发布用的渠道账号；确认服务经理推送的交付方案或提出修改；在小程序内查看水印样片并勾选确认（Q9 第一期仅 weapp）；查看成片包、重新生成下载授权、逐集签发下载地址并回报“已存相册”；复制发布清单；按订单查看上线任务、回填上线链接提交核验、查看上线记录；确认已下架；查看与下载《定制内容授权书》。店员没有这些能力点，全部接口对店员返回 403。
 
 | operationId | 方法 路径 | 用途 | 鉴权 | 幂等 |
 | --- | --- | --- | --- | --- |
@@ -22,9 +24,9 @@
 | `m.deliveryPlan.confirm` | `POST /m/delivery-plans/{deliveryPlanId}/confirm` | 确认方案 | member；`delivery.confirm_plan` | required |
 | `m.deliveryPlan.requestChange` | `POST /m/delivery-plans/{deliveryPlanId}/request-change` | 联系服务经理修改 / 补充修改意见 | member；`delivery.confirm_plan` | required |
 | `m.orderItem.sample.get` | `GET /m/order-items/{orderItemId}/sample` | 样片确认页 | member；`delivery.confirm_sample` | none（查询） |
-| `m.sample.confirm` | `POST /m/samples/{sampleId}/confirm` | 确认样片 | member；`delivery.confirm_sample` | required |
+| `m.sample.confirm` | `POST /m/samples/{sampleId}/confirm` | 确认小程序样片 {versionNo, viewedVia: weapp, hasViewed: true}，推进到批量合成 | member；`delivery.confirm_sample` | required |
 | `m.sample.requestChange` | `POST /m/samples/{sampleId}/request-change` | 对样片提出修改意见（合成问题） | member；`delivery.confirm_sample` | required |
-| `m.sample.downloadUrls` | `POST /m/samples/{sampleId}/download-urls` | 签发水印版样片直链（存相册查看） | member；`delivery.confirm_sample` | none（签发短时地址） |
+| `m.sample.downloadUrls` | `POST /m/samples/{sampleId}/download-urls` | 历史样片相册接口：第一期仅小程序内查看，鉴权及版本校验后拒绝签发 | member；`delivery.confirm_sample` | none（签发短时地址） |
 | `m.orderItem.release.get` | `GET /m/order-items/{orderItemId}/release` | 当前成片包与下载授权 | member；`delivery.download` | none（查询） |
 | `m.orderItem.downloadGrant.create` | `POST /m/order-items/{orderItemId}/download-grants` | 重新生成下载授权 | member；`delivery.download` | required |
 | `m.orderItem.downloadUrls` | `POST /m/order-items/{orderItemId}/download-urls` | 签发单集下载直链并留痕 | member；`delivery.download` | none（签发短时地址） |
@@ -56,14 +58,14 @@
 | 对商家显示的员工称呼 | `COALESCE(staff.display_name, staff.name)`（03 分组 2.3：`display_name` 是对商家展示的称呼）。下文写作“员工称呼” |
 | 字典项 | 响应里的字典项一律返回 `DictRef`（`{ code, name }`，C85、C87），字段名不带 `Code` / `Codes` 后缀（如题材 `genres`、异常原因 `abnormalReason`）；快照与业务行里存编码，名称按当前字典取 `dict_item.name`（按 `dict_item.dict_type_key` + `dict_item.code`），停用的字典项照常返回名称（读历史不看 `is_enabled`）。本文的请求不收字典编码 |
 | 清单条目名称 | 质检、核验、巡检的逐项结论取对应记录的结论数组（`[{ key, result, note }]`），条目名称取 `checklist_template.items[].label`（按记录上的清单编码与版本号），只返回 `merchantVisible = true` 的条目（14 分组 `checklist_template.items`） |
-| 签名地址 | 一律 `{ url, expiresAt }`（C60，类型写作 `SignedUrl`，a01 定义、本文引用，C87；带 `fileId` 的图片用 m08 的 `ImageRef`；可播放资产用 m06-ad 2.8 的 `Playable`；单独签发的下载地址用本文 2.1 的 `DownloadUrl`）。随数据返回、不留痕的：海报与封面、修改意见截图、发布清单封面（30 分钟对齐窗口，C61）、样片小程序内播放（60 分钟）。单独签发、逐次留痕的：保存样片（15 分钟）、单集下载（15 分钟）、授权书 PDF（5 分钟）（C61） |
+| 签名地址 | 一律 `{ url, expiresAt }`（C60，类型写作 `SignedUrl`，a01 定义、本文引用，C87；带 `fileId` 的图片用 m08 的 `ImageRef`；可播放资产用 m06-ad 2.8 的 `Playable`；单独签发的下载地址用本文 2.1 的 `DownloadUrl`）。随数据返回、不留痕的：海报与封面、修改意见截图、发布清单封面（30 分钟对齐窗口，C61）、样片小程序内播放（60 分钟）。单独签发、逐次留痕的：单集下载（15 分钟）、授权书 PDF（5 分钟）（C61）；样片相册签发由 Q9 禁用，原记录只作历史事实 |
 | 结果脱敏 | 幂等为 `required` 且响应带签名地址的 5 条路由（`m.deliveryPlan.confirm`、`m.deliveryPlan.requestChange`、`m.sample.confirm`、`m.sample.requestChange`、`m.takedownTask.confirm`）按 C50 的“结果脱敏”处理：幂等记录只存置空后的结果，置空的字段路径登记为 `x-redact-on-replay`（A80、A124），各接口的“幂等”栏逐条列出；这些字段在 schema 里可空；响应另带 `replayed: boolean`（首次执行为 `false`，同键重放为 `true`），端上见到 `true` 时重新调对应的 GET 取地址 |
-| 访问留痕 | 本文签发接口写的访问审计一律 `audit_log.stream = access`、`category = file_access`，动作名见各接口（保存样片 `delivery.sample.album_download`、授权书 PDF `docs.license_letter.download`）；样片的“已查看”证据按 `action` + `target_id` 核对，与 m06（`ad.version.album_download`）、p01（`delivery.sample.portal_preview`）同一写法 |
+| 访问留痕 | 本文签发接口写的访问审计一律 `audit_log.stream = access`、`category = file_access`，动作名见各接口（保存样片 `delivery.sample.album_download`、授权书 PDF `docs.license_letter.download`）；样片旧访问记录按原字段保留；Q9 确认只接受 weapp + 强制勾选，不再以相册/portal/企业微信证据放行，广告规则保持 |
 | 日期与天数 | 日期 `YYYY-MM-DD`，“今天”“剩余天数”“距上线天数”按北京时间算（C35） |
 | 待办深链 | 首页待办（m04 `m.todo.list` 3.2）的链接参数取本文资源的 id：`deliveryPlanId`（方案确认，3.5）、`orderItemId`（样片、成片包与发布清单、上线记录，3.8、3.12、3.16）、`launchTaskId`（回填链接，3.19、3.20）、`takedownTaskId`（确认下架，3.23）、`channelAccountId`（账号核验未通过，3.1、3.3）；路由键由 m04 定 |
 | 订阅消息点位 | 端上在点击时请求订阅（d6-notify-docs-data.md:855-868）：确认方案 `plan_confirm`、确认样片 `sample_confirm`、下载成片 `package_download`、回填链接 `link_submit`、确认已下架 `offline_confirm`；订阅结果由端上报给 m08 的 `m.subscribeResult.create`，本文接口不处理 |
 | 文件引用 | 请求里的 `fileId`（主页截图、修改意见截图）必须是当前用户在当前门店上下文登记、已入库（`file_object.status = stored`）、未被拦截（`file_object.moderation_state <> block`）、分类符合用途的文件，否则 400 `FILE_NOT_USABLE`（m03-profile-asset 定义，`files.link()` 的统一出口）；张数与重复只在契约层校验，返回 `VALIDATION_FAILED` |
-| 受平台约束的改动 | 样片默认不在小程序内播放、不做“按时间点提意见”（设计规范 11 节；A31）；小程序内没有整包下载，只有逐集存相册，整包引导到电脑端下载页（设计规范 11 节；05-risks-and-open-issues.md 1.5）；授权书不写“正式授权书以双方签章版本为准”（设计规范 11 节） |
+| 受平台约束的改动 | Q9 样片仅小程序内查看且确认必须勾选；仍不做“按时间点提意见”（设计规范 11 节；A31）；小程序内没有整包下载，只有逐集存相册，整包引导到电脑端下载页（设计规范 11 节；05-risks-and-open-issues.md 1.5）；授权书不写“正式授权书以双方签章版本为准”（设计规范 11 节） |
 
 ### 1.2 本文登记给其他模块的守卫计数
 
@@ -252,22 +254,22 @@
 | `status` | enum(见 4.3) | 是 | `pushed` 待确认、`confirmed` 已确认、`change_requested` 已提出修改、`superseded` 已被取代（重新制作中） | `sample.status` |
 | `durationMs` | integer | 是 | 时长 | `sample.duration_ms`（推送过的版本必有） |
 | `pushedAt` | string(date-time) | 是 | 推送时间 | `sample.pushed_at` |
-| `previewChannels` | array<enum(`weapp`,`album`,`portal`,`wecom`)> | 是 | 推送时确定的查看方式：开关开时为 `weapp`，关时为 `album`、`portal`，交付经理可加 `wecom`（须已登记“已发送”）；推送后不回改 | `sample.preview_channels` |
+| `previewChannels` | array<enum(`weapp`,`album`,`portal`,`wecom`)> | 是 | 历史快照原样返回；Q9 新推送只写 weapp，开关关闭拒绝推送；推送后不回改 | `sample.preview_channels` |
 | `adSlots` | array<object> | 是 | 广告位标记 `[{ slot, startMs, endMs, label }]`（“片头贴片 00:00～00:05 · 品牌露出”） | `sample.ad_slots`（`SampleAdSlots`） |
 | `adsUsed` | array<object> | 是 | 本版所用广告 `[{ slot, adId, versionNo }]`，供“广告内容的修改到‘我的广告’提出”跳转（A31） | `sample.ad_versions_used` |
 | `qcSummary` | array<`ChecklistItemView`> | 是 | 面向商家的质检结果（“画面与音画 已质检”） | `sample.qc_record_id` → `qc_record.results`，条目名取 `qc_record.checklist_code`、`qc_record.checklist_version_no` 对应的模板 |
-| `firstViewedAt` | string(date-time) \| null | 是 | 首次经相册保存或下载页预览访问的时间（两种途径合并，只作展示） | `sample.first_viewed_at` |
+| `firstViewedAt` | string(date-time) \| null | 是 | 历史相册保存或下载页预览访问时间，只作展示；Q9 GET 不新增访问记录 | `sample.first_viewed_at` |
 | `viewEvidence` | object | 是 | 按途径分开的查看证据 `{ albumSavedAt, portalViewedAt }`（各为 string(date-time) \| null）：本版首次保存到相册、首次在电脑端预览的时间 | `albumSavedAt` = 本版最早一条访问审计（`audit_log.stream = access`、`action = delivery.sample.album_download`、`target_type = sample`、`target_id` = 本版）的 `created_at`；`portalViewedAt` 同上，`action = delivery.sample.portal_preview`（p01 写） |
 | `offlineSentAt` | string(date-time) \| null | 是 | 交付经理已经企业微信发送水印版的时间（`wecom` 的证据） | `sample.offline_sent_at` |
-| `confirmableVia` | array<enum(`PreviewChannel`)> | 是 | 此刻有证据、可以提交确认的查看方式，按 `weapp`、`album`、`portal`、`wecom` 的顺序；端上把第一个作为 `m.sample.confirm` 的 `viewedVia` 提交，页面不另设选择控件；为空时“确认通过”置灰，提示先保存到相册或在电脑上查看 | 按 3.9 的证据规则计算：`weapp` = `previewChannels` 含 `weapp`，且开关此刻为开或已有 `albumSavedAt` / `portalViewedAt`（开关被关闭后的兜底，见 3.8）；`album` = 含 `album` 且 `albumSavedAt` 非空；`portal` = 含 `portal` 且 `portalViewedAt` 非空；`wecom` = 含 `wecom` 且 `offlineSentAt` 非空 |
+| `confirmableVia` | array<enum(`PreviewChannel`)> | 是 | 当期只有 weapp 或空数组；确认时提交 weapp，必须另行勾选 | 开关开启、原快照含 weapp、真正水印版 ready，且该样片 pushed/工单 sample_confirm/未暂停时给 weapp；否则为空。确认仍须重验当前版本、广告等守卫，历史查看证据不再提供其他渠道 |
 | `viewedAckAt` | string(date-time) \| null | 是 | 商家勾选“我已查看”的时间 | `sample.viewed_ack_at` |
 | `decision` | object \| null | 是 | 决定：`{ decidedAt, viewedVia, feedbackKind, feedbackNote, feedbackImages, isOnBehalf }`；`feedbackImages` 为 `array<{ fileId, url, expiresAt }>`，`url`、`expiresAt` 只在结果脱敏的重放里为 null；`isOnBehalf` 为真表示交付经理代录 | `sample.decided_at`、`sample.confirm_viewed_via`、`sample.feedback_kind`、`sample.feedback_note`、`sample.feedback_file_ids`（现签 30 分钟）、`sample.on_behalf_staff_id` 非空 |
-| `playable` | `Playable`（m06-ad 2.8）\| null | 是 | 水印版资产就绪时返回（封面取 `playable.posterUrl`，不受开关影响）；`sources` 只在 `previewChannels` 含 `weapp` 且开关 `weapp.video.sample.enabled` 此刻为开时有值，否则 `sources = []`、`expiresAt = null`（C62），端上按 `previewChannels` 显示“保存样片到相册查看”“在电脑上预览”；资产未就绪为 null；结果脱敏时整体置空 | `playable_asset`（`kind = sample`、`source_file_id = sample.file_id`、`state = ready`） |
+| `playable` | `Playable`（m06-ad 2.8）\| null | 是 | 真正水印版 ready 才返回；播放源只在开关开启、原快照含 weapp 且当前版本/门店/订单等播放守卫满足时现签。关闭时 sources=[]、expiresAt=null；不显示替代查看出口。结果脱敏时整体置空 | `playable_asset` 的真实水印派生文件 ready/stored；不接受指向原文件的同步桩 |
 | `ticketStep` | enum(同 `delivery_ticket.step`) | 是 | 所属工单当前步骤 | `delivery_ticket.step` |
 | `isPaused` | boolean | 是 | 工单暂停中（取消审批中、方案修订待确认），为真时确认与提意见不可用 | `delivery_ticket.pause_count` > 0 |
 | `sampleRoundNo` | integer | 是 | 返修轮次 | `delivery_ticket.sample_round_no` |
 | `agreedLaunchDate` | string(date) \| null | 是 | 约定上线日（“于 10 月 12 日一次性上线”） | `order_item.agreed_launch_date` |
-| `actions` | array<string> | 是 | `confirm`、`request-change`：`status = pushed` 且工单未暂停 | 计算 |
+| `actions` | array<string> | 是 | confirm 还须满足 Q9 可确认守卫；request-change 按原所属后继能力，不因 Q9 新增 | 计算 |
 
 ### 2.5 成片包与下载
 
@@ -810,7 +812,7 @@
 | 幂等 | none（纯查询；不写访问记录，A19） |
 | 乐观锁 | 无 |
 | 限流 | `m.global` |
-| 开关 | `weapp.video.sample.enabled`（默认关）：关时 `playable.sources = []`、`expiresAt = null`（对象照常返回，带封面），页面展示封面、时长、广告位标记（文字列表）、质检摘要与两个替代出口；开时且该版本的 `previewChannels` 含 `weapp`，`sources` 有值 |
+| 开关 | `weapp.video.sample.enabled`（缺省/新 seed 开，不覆盖库中显式 false）：关时仍返回历史事实，但 playable.sources=[]、expiresAt=null、confirmableVia=[]；不出替代查看出口 |
 | 对应画板 | M:Sample（M23）；M:OrderDetail（“去确认样片”） |
 | 出处 | 路线图 `m05.sample.get`；d3-flow.md:3510；d5-media.md:1502；d7-platform.md:805-810；design-spec.md:853 |
 
@@ -829,10 +831,11 @@
 **副作用**：无。
 
 **说明**：
-- 受平台约束（设计规范 11 节；05-risks-and-open-issues.md 1.2）：V1.0 样片默认不在小程序内播放，不做播放器与“点进度条取时间点”。替代出口：“保存样片到相册查看”（`previewChannels` 含 `album`，调 `m.sample.downloadUrls`）；“在电脑上预览”（含 `portal`，走电脑端下载页扫码，扫码后调 m02 的 `m.portalTicket.lookup`）；含 `wecom` 时提示“样片已由服务经理通过企业微信发送给您”。回到小程序勾选“我已查看第 N 版样片”后确认或提意见；确认时提交的 `viewedVia` 取 `confirmableVia` 的第一个，页面不设选择查看方式的控件（design-spec.md:853）。
-- 开关打开且推送时写了 `weapp` 时 `playable.sources` 有值（小程序内播放不需留痕），地址过期换新走 m06 的 `m.playable.get`。
-- 开关在推送后被关闭的兜底（d7-platform.md:810“日后被迫关闭，交付主流程也不停”；数据模型规定已推送版本的 `preview_channels` 不回改，10-delivery.md:562）：该版本的 `previewChannels` 只有 `weapp`（或 `weapp`、`wecom`）而开关此刻为关时，`m.sample.downloadUrls` 照常签发水印版供保存到相册（写同样的访问审计），端上照常显示“保存样片到相册查看”；确认时 `viewedVia` 仍提交 `weapp`（推送时登记的方式，`ck_sample_confirmed` 要求在 `preview_channels` 内），但须 `hasViewed = true` 且已有相册保存或电脑端预览的记录（3.9）。下载页的样片预览按同一兜底放行由 p01 配合。
-- 规则提示“合成问题修改不计次，改广告内容计入修改次数”与“广告内容的修改请到‘我的广告’提出”（A31）是端上文案，跳转用 `adsUsed`。
+- Q9 第一期仅在小程序内查看，确认必须勾选“我已查看第 N 版样片”。GET 只读、不写观看记录；勾选是自声明，不要求播放完毕。
+- 播放地址到期或播放错误后，重新调用本 GET 取得现签；不调用当前未落地的 `m.playable.get`。本页私有 Taro Video 实现 9:16、点击播放、移动网络流量 Sheet、广告位定位、离开暂停与版本/门店切换废弃。
+- 历史四渠道字段与已确认记录保留；旧版 previewChannels 不含 weapp 的待确认样片无可确认渠道，页面提示联系服务经理。目前没有安全重推/回退链，待 W5-03/05/08 后继，不自动改快照或迁移。
+- 关停不转相册、portal 或企业微信；所有样片相册下载签发服务端禁用，portal 样片接口当前未落地且本次不实现。
+- A31 原修改意见/广告跳转规则留在原所属包，不由 Q9 扩展。
 
 ### 3.9 m.sample.confirm　确认样片
 
@@ -845,7 +848,7 @@
 | 幂等 | required（状态迁移，A17；与 C82 示例一致）；结果脱敏：`x-redact-on-replay` = [`playable`, `decision.feedbackImages[].url`, `decision.feedbackImages[].expiresAt`] |
 | 乐观锁 | 不带 `lockVersion`（10-delivery.md:645 的守卫没有列锁版本，C53）；请求带业务版本号 `versionNo` |
 | 限流 | `m.global` |
-| 开关 | `weapp.video.sample.enabled` 决定推送时写入的 `preview_channels`；本接口按该版本的 `preview_channels` 校验，开关此刻的值只用于 `viewedVia = weapp` 的兜底（见下） |
+| 开关 | `weapp.video.sample.enabled` 此刻必须开启；关闭返回 FEATURE_DISABLED，不使用其他渠道兜底 |
 | 对应画板 | M:Sample（“确认通过”） |
 | 出处 | 路线图 `m05.sample.confirm`；d3-flow.md:838、1538-1541、3510；10-delivery.md:176、645；d6-notify-docs-data.md:864；C82 |
 
@@ -860,8 +863,8 @@
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
 | `versionNo` | integer | 是 | ≥ 1 | 确认的版本号 |
-| `viewedVia` | enum | 是 | `weapp`、`album`、`portal`、`wecom`，须在该版本的 `preview_channels` 内 | 查看方式。端上取 `SampleView.confirmableVia` 的第一个，不让商家选择。落 `sample.confirm_viewed_via` |
-| `hasViewed` | boolean | 是 | `viewedVia` 不是 `weapp` 时必须为 `true`；兜底情形（见下）的 `weapp` 同样必须为 `true` | 勾选“我已查看第 N 版样片”（旧稿 `ackViewed` 按 C39 改名）。为真且尚未勾选过时落 `sample.viewed_ack_at`、`sample.viewed_ack_by_user_id` |
+| `viewedVia` | enum | 是 | 历史 enum 保留四值；Q9 新确认只接受 weapp，且原 preview_channels 必须含 weapp | 页面提交 weapp，落 `sample.confirm_viewed_via` |
+| `hasViewed` | boolean | 是 | 必须为 true，包括 weapp | 勾选“我已查看第 N 版样片”；写 viewed_ack_at、viewed_ack_by_user_id。不要求看完或上传播放进度 |
 
 **响应**（`SampleWriteResult`）：`SampleView` 的全部字段（`status = confirmed`），另加 `replayed: boolean`（见 1.1“结果脱敏”）。
 
@@ -872,8 +875,9 @@
 | `TICKET_ON_HOLD` | 409 | 工单暂停中（取消审批中或方案修订待确认，`delivery_ticket.pause_count` > 0），`details.reasons` 给出原因 |
 | `SAMPLE_VERSION_STALE` | 409 | `versionNo` 不等于本行版本号，或本行已被更新的推送版本取代；`details` 给出当前版本的 `sampleId` 与版本号 |
 | `AD_CHANGED` | 409 | 本版所用的广告版本已不是各广告当前的确认版本（广告被重新打开或换了确认版本，d3-flow.md:838）；工单随后由系统求值回到广告准备 |
-| `SAMPLE_VIEW_CHANNEL_NOT_OFFERED` | 409 | `viewedVia` 不在该版本的 `preview_channels` 内 |
-| `SAMPLE_NOT_VIEWABLE` | 409 | 声明的查看方式没有对应的提供或访问记录：`album` 要求本版有 `action = delivery.sample.album_download` 的访问审计，`portal` 要求有 `action = delivery.sample.portal_preview` 的访问审计，`wecom` 要求 `sample.offline_sent_at` 非空；`weapp` 在开关此刻为关时（兜底）要求前两种访问审计至少有一条 |
+| `FEATURE_DISABLED` | 403 | 样片播放开关关闭 |
+| `SAMPLE_VIEW_CHANNEL_NOT_OFFERED` | 409 | 非 weapp，或原推送快照不含 weapp；历史相册/portal/企业微信记录不放行 |
+| `SAMPLE_PREVIEW_NOT_READY` | 409 | 真正水印版未 ready，或派生文件尚未 stored；原文件播放桩不算就绪 |
 | `STATE_NOT_ALLOWED` | 409 | 本行不是 `pushed`（已确认、已提意见） |
 | `VALIDATION_FAILED` | 400 | 需要勾选而 `hasViewed` 为假（`fieldErrors` 指向 `hasViewed`，文案“请先勾选‘我已查看’”） |
 
@@ -884,10 +888,10 @@
 - 出站事件 `sample.confirmed`（载荷按 x01：`sampleId`、`deliveryTicketId`、`dramaOrderId`、`versionNo`、`viewedVia` 与迁移键）、`ticket.step_changed`。
 
 **说明**：
-- 证据只核对、不写：查看证据由 `m.sample.downloadUrls`（相册保存）与下载页的 `portal.sample.playbackUrls` 写入（C60），本接口只读 `audit_log`（`stream = access`、`target_type = sample`、`target_id` = 本版，按 `action` 区分 `delivery.sample.album_download` 与 `delivery.sample.portal_preview`，与 m06、p01 的写法一致）与 `sample.offline_sent_at`。核对规则与 `SampleView.confirmableVia` 的计算同源，端上按后者提交不会撞上 `SAMPLE_NOT_VIEWABLE`。
-- `viewedVia = weapp` 的兜底：开关此刻为开时不要求证据（小程序内播放不留痕，与数据模型一致）；开关在推送后被关闭时，要求 `hasViewed = true` 且有相册保存或电脑端预览的访问审计（见 3.8）。
-- 这种确认方式的证据效力待法务结论（B4；10-delivery.md 第 6 节第 1 项），见第 6 节第 1 项。
-- 点击时端上请求订阅点位 `sample_confirm`。
+- 服务端重验老板身份、当前门店、当前推送版本、广告当前确认版本、工单步骤与暂停、开关和真实水印 ready，不仅依赖页面按钮。失败不得写决定、状态、历史或事件。
+- hasViewed=true 为对当前版本的自声明，写 viewedAckAt；不伪造播放完成或首次播放证据。firstViewedAt 仅为历史访问时间。旧历史确认保持原样，不重新判无效。
+- 确认证据效力、真实类目、提审与真机仍未验，见第 6 节第 1 项及 Q9 工作包。
+- 点击时端上请求订阅点位 sample_confirm。
 
 ### 3.10 m.sample.requestChange　对样片提出修改意见
 
@@ -939,45 +943,11 @@
 
 **说明**：提交后端上提示“剪辑师将在 1 个工作日内调整，并重新发送样片给您确认”。
 
-### 3.11 m.sample.downloadUrls　保存样片到相册（签发直链）
+### 3.11 m.sample.downloadUrls　历史样片相册签发入口（Q9 禁用）
 
 `POST /m/samples/{sampleId}/download-urls`
 
-| 项 | 内容 |
-| --- | --- |
-| 鉴权 | `member`；能力点 `delivery.confirm_sample`；已停用门店 403 `STORE_ARCHIVED` |
-| 店员视图 | `none` |
-| 幂等 | none（签发短时地址，结果不进幂等记录，避免回放过期地址，A18、A19） |
-| 乐观锁 | 无 |
-| 限流 | `m.sign`（签发类，每用户每小时 600 次；A130、C68） |
-| 开关 | 无（是否可用由该版本的 `preview_channels` 决定；`weapp.video.sample.enabled` 此刻的值只用于 3.8 的兜底） |
-| 对应画板 | M:Sample（“保存样片到相册查看”） |
-| 出处 | 路线图 `m05.sample.download`（改写为 `download-urls`，C60）；d5-media.md:1608、2097；d7-platform.md:807；10-delivery.md:565 |
-
-**请求**
-
-| 位置 | 字段 | 类型 | 必填 | 约束 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| 路径 | `sampleId` | string(uuid) | 是 | 属当前门店 | 样片版本 |
-
-请求体：无（空对象；只有水印版一份文件）。
-
-**响应**：`DownloadUrl`（2.1；原 `SampleDownloadUrl`，第三轮与 m06 的 `AdDownloadUrl` 合并，A132）。`url` 为水印版直链（`playable_asset.renditions[0].fileId` 现签，15 分钟，C61）；`fileName` 为 `剧名_样片_第N版.mp4`（由剧名与 `sample.version_no` 生成）；`sizeBytes` 取该文件的 `file_object.size_bytes`。响应头 `Cache-Control: no-store`（C18）。
-
-**错误**
-
-| 错误码 | HTTP | 何时 |
-| --- | --- | --- |
-| `SAMPLE_VIEW_CHANNEL_NOT_OFFERED` | 409 | 该版本的 `preview_channels` 不含 `album`（推送时开关为开，只有小程序内播放），且不属于 3.8 的兜底（开关此刻仍为开） |
-| `SAMPLE_PREVIEW_NOT_READY` | 409 | 水印版尚未生成（`playable_asset.state` 不是 `ready`） |
-| `STATE_NOT_ALLOWED` | 409 | 本行不是 `pushed`、`confirmed`、`change_requested`（已被取代的旧版本不再提供） |
-
-**副作用**（同一事务）：
-- 写一行访问审计：`audit_log.stream = access`、`category = file_access`、`action = delivery.sample.album_download`、`actor_type = merchant`、`actor_id` = 本人、`client = weapp`、`target_type = sample`、`target_id` = 本版、`entity_id`、`store_id`、`ip`、`user_agent`、`meta = { fileCategory: sample_wm, urlTtlSec: 900 }`（与 m06 `ad.version.album_download`、p01 `delivery.sample.portal_preview` 同一写法）。它是 `viewedVia = album`（及兜底的 `weapp`）的查看证据。
-- `sample.first_viewed_at` 为空时回写为当前时间（M27；“已查看”证据只在这里与下载页的预览签发里写，A19）。
-- 不改状态，不发出站事件。
-
-**说明**：端上下载存相册复用逐集下载的状态机，队列里只有一项（d7-platform.md:849）；本接口不写 `delivery_download_log`，也没有回报接口。
+保留既有 operationId、路径与历史 DownloadUrl 类型，Q9 第一期完成原鉴权及版本校验后，服务端统一返回 403 FEATURE_DISABLED，不签发样片水印版地址、不写相册访问审计或 first_viewed_at。关闭播放开关也不恢复本入口。页面不显示保存样片按钮；该规则不影响成片逐集下载或广告下载。
 
 ### 3.12 m.orderItem.release.get　当前成片包
 
@@ -1709,7 +1679,7 @@ V1.1，细节待设计：商家每周上传作品数据截图，发布专员审�
 | `TICKET_ON_HOLD` | 45103 | 409 | 交付工单暂停中（取消审批中、方案修订待确认），属于这张工单的对象一律拒绝操作（d3-flow.md:879）。后台的样片、成片接口同样返回它；a06 的链接核验只有通过与撤销返回它，退回按数据模型不检查暂停（11-publish.md:302），不返回 | `{ reasons: ('cancel_review'\|'plan_amendment')[] }` |
 | `SAMPLE_VERSION_STALE` | 45104 | 409 | 操作的样片不是当前已推送的版本 | `{ currentSampleId: string \| null, currentVersionNo: integer \| null }` |
 | `AD_CHANGED` | 45105 | 409 | 样片所用的广告版本已不是当前确认版本，不能确认（d3-flow.md:838，沿用草案名） | `{ adIds: string[] }` |
-| `SAMPLE_NOT_VIEWABLE` | 45106 | 409 | 声明的查看方式没有对应的提供或访问记录（d3-flow.md:1541 的 `422 SAMPLE_NOT_VIEWABLE` 按 C24 改为 409） | `{ viewedVia, requiredEvidence: 'album_saved'\|'portal_viewed'\|'wecom_sent'\|'album_or_portal' }`（`album_or_portal` 用于开关被关闭后的 `weapp` 兜底） |
+| `SAMPLE_NOT_VIEWABLE` | 45106 | 409 | 历史查看证据错误定义保留；Q9 新样片确认不再以相册/portal/企业微信记录放行 | 原 requiredEvidence 等细节仅历史兼容，不表示关停兜底仍可用 |
 | `SAMPLE_VIEW_CHANNEL_NOT_OFFERED` | 45107 | 409 | 该样片版本推送时没有提供这种查看方式 | `{ previewChannels: PreviewChannel[] }`（该版本提供的查看方式；与 m06 `AD_PREVIEW_CHANNEL_UNAVAILABLE` 同一枚举） |
 | `SAMPLE_PREVIEW_NOT_READY` | 45108 | 409 | 样片水印版尚未生成，请稍后再试 | 无 |
 | `DOWNLOAD_GRANT_INVALID` | 45109 | 409 | 下载授权已过期、已被重新生成或已撤销（d7-platform.md:832）。下载页的 `portal.orderItem.downloadUrls` 同样返回它 | `{ reason: DownloadGrantInvalidReason, expiresAt: string \| null, canRegenerate: boolean }` |
@@ -1731,7 +1701,7 @@ V1.1，细节待设计：商家每周上传作品数据截图，发布专员审�
 
 | # | 问题 | 默认做法 | 由谁定 |
 | --- | --- | --- | --- |
-| 1 | 样片不在小程序内播放时，“存相册或电脑端查看 + 小程序勾选已查看”是否足以作为老板确认样片的证据；`wecom`（企业微信发送水印版）是否可作证据（B4；10-delivery.md 第 6 节） | 四种查看方式都接受；不是 `weapp` 的一律要求勾选并核对访问或提供记录（3.9）；开关在推送后被关闭时，只提供 `weapp` 的版本以相册保存或电脑端预览记录为证（3.8）。法务不认可 `wecom` 时，接口拒收该取值（`SAMPLE_VIEW_CHANNEL_NOT_OFFERED`） | 产品 + 法务 |
+| 1 | Q9 已明确样片仅小程序内查看且确认必须勾选；自声明的证据效力及类目、提审、真机仍未验（B4） | 当期仅 weapp + hasViewed=true，关停拒绝确认；历史 enum、字段与记录保留，不使用其他渠道兜底 | 产品 + 法务 |
 | 2 | 方案页“定制方式 按门店重新制作画面、场景与植入”在数据模型里没有来源（定制方式的定义是 B1） | 本文不返回；页面去掉这一行或写成与实际能力一致的静态说明（设计规范 11 节“写进剧情”一类文案要收敛） | 产品 + 法务 |
 | 3 | 上线记录是否向商家展示核验人、巡检人姓名（proto-merchant-a.md:616） | 展示对商家的称呼（`staff.display_name`，空时 `name`），与服务经理名片一致 | 产品 |
 | 4 | 已作废的授权书（人工作废并重出、订单项取消）是否在商家端列出 | 缺省隐藏，`includeVoided=true` 可看；作废后重出的新信照常列出 | 产品 + 法务 |

@@ -9,6 +9,8 @@
 
 ---
 
+> Q9 当期覆盖（2026-10-29）：样片一期仅小程序内查看、确认必须勾选，新推送仅 weapp；开关缺省/新 seed 开、不覆盖已有显式 false。关停拒绝推送/播放签发/确认，GET 只读事实但无 sources/confirmableVia；禁样片相册签发，portal 样片接口未落地且本次不实现。历史四渠道/字段/快照/确认记录保留，不自动迁移；后文旧评审、迁移设想及时间点反馈不代表当前一期范围。以 [03 §3.8](../../03-key-designs.md)、[Q9 工作包](../../plan/changes/plan-q9-sample-player.md)及现行 m05 为准。
+
 ## 0. 一页结论
 
 1. **四个私有桶，按“暴露面”切分**：`secure`（证照、回单、发票、授权书、许可文件、留证、导出、印章）、`asset`（门店素材、档案媒体、工单附件）、`media`（原片、广告、样片、成片、成片包）、`pub`（预告片、海报、Banner，唯一挂 CDN 的桶，客户端不可写）。任何桶都不开公有读。`secure`、`asset`、`media` 开启版本控制，误删可在 30–90 天内恢复。
@@ -1424,7 +1426,7 @@ xlsx 在 V1.0 不抽取文本：npm 上的 `xlsx` 有未修复的高危漏洞、
 | 资产 | 谁能拿到（以 D4 §9.4 为准） | 地址 | 有效期 |
 | --- | --- | --- | --- |
 | 预告片 | 所有人（含游客），前提：剧已上架、`weapp.video.trailer.enabled` 为开 | 两档 MP4 的 CDN 鉴权地址 | 2 小时（CDN 域名级配置） |
-| 样片（水印版） | 该订购项所属主体的老板（小程序内须 `weapp.video.sample.enabled` 为开；下载页不受该开关约束）；V1.1 加被授权的管理员 / 服务商 | COS 预签名 MP4 | 播放 60 分钟；保存到相册 15 分钟 |
+| 样片（水印版） | 该订购项所属主体的老板；开关开启、原快照含 weapp、当前版本与订单守卫及真正水印 ready | COS 预签名 MP4；GET 样片现签 | 播放 60 分钟；Q9 禁用样片相册签发，portal 未落地 |
 | 样片（原版）、成片预览 | 有该工单数据范围的员工 | COS 预签名 MP4 | 30 分钟 |
 | 广告 | 所属门店的老板（小程序内须 `weapp.video.ad.enabled` 为开）；有任务数据范围的员工 | COS 预签名 MP4 | 60 分钟 |
 
@@ -1486,40 +1488,22 @@ xlsx 在 V1.0 不抽取文本：npm 上的 `xlsx` 有未修复的高危漏洞、
 
 | 开关 | 默认 | 关闭后的表现 | 替代途径（V1.0 随版本一起做） |
 | --- | --- | --- | --- |
-| `weapp.video.trailer.enabled` | 开 | 商城与详情不返回预告片地址，只有海报与剧情简介（纯图文形态） | 无需替代 |
-| `weapp.video.sample.enabled` | **关** | 样片确认页不内嵌播放器：展示封面、时长、广告位标记（文字列表）、质检摘要，以及两个按钮 | ①“保存样片到相册查看”（下载水印版并存相册，与成片下载同一套代码）；②“在电脑上预览”（下载页的样片预览页）。确认与提出修改意见仍在小程序里提交，时间点改为手动选择 |
+| `weapp.video.trailer.enabled` | 关（ADR-028） | 商城与详情不返回预告片地址，只有海报与剧情简介（纯图文形态） | 无需替代 |
+| `weapp.video.sample.enabled` | 开（仅缺省/新 seed，不覆盖已有显式 false） | 只读事实但无播放源、无可确认渠道；拒绝新推送/播放签发/确认 | Q9 无相册/portal/企业微信查看替代出口；历史记录不变 |
 | `weapp.video.ad.enabled` | 开 | “我的广告”详情不内嵌播放器 | 同上两条途径 |
 | `weapp.trailer.autoplay` | **关** | 点击播放 | — |
 | `weapp.trailer.feed` | **关** | 不提供“预告片模式”全屏滑动流，只有列表与详情页内播放 | — |
 
 - 三个 `weapp.video.*` 开关互相独立：被要求整改预告片时，不会连带关掉样片与广告。
-- 样片在小程序内默认不播放，是首次提审的保守形态：主流程（样片确认，PRD §5.2 步骤 5）不依赖小程序内播放整集视频，所以这个开关无论是关着上线，还是日后被迫关闭，交付都不停。是否打开由产品与法务决定（§20 Q4）；打开应随一次正常的版本提审进行，让审核看到的形态与线上一致。
+- Q9 样片内播由业主明确；关停会暂停样片确认，不声称交付仍可经其他渠道继续。旧版无 weapp 的待确认样片提示联系服务经理；当前没有安全重推/回退链，恢复待 W5-03/05/08 后继。类目、提审、真机及法务仍未验。
 - 开关是产品形态的选择，不用于对审核与线上展示不同内容（与 D6 §4.4 一致）。
 - 服务端对受开关控制的接口同样拦截并返回 `FEATURE_DISABLED`，不只靠端上隐藏入口。
 
 ### 7.5 带区间标注的播放器所需数据
 
-样片（`GET /m/order-items/{id}/sample`，D3 的接口；播放部分由本设计的 `playback.sampleView()` 提供）：
+样片使用 m05 §2.4 的 SampleView/Playable，与真实契约同源，不另造 play/alternatives/feedback DTO。广告位数据是 sample.ad_slots 的 slot/startMs/endMs/label，用于本页广告位定位。样片私有 Taro Video 为 9:16、点击播放，移动网络先显示流量 Sheet，离开暂停，版本/店切换废弃旧实例与勾选。到期或错误重试重新 GET 样片现签，不调用未落地的 m.playable.get。
 
-```json
-{
-  "version": 2,
-  "play": { "playableId": "9001", "mp4Url": "…", "posterUrl": "…", "durationMs": 125000, "expiresAt": "…" },
-  "alternatives": { "saveToAlbum": true, "portal": true },
-  "markers": [
-    { "type": "ad_head", "fromMs": 0,      "toMs": 5000,   "label": "片头贴片 · 品牌露出" },
-    { "type": "ad_tail", "fromMs": 115000, "toMs": 125000, "label": "片尾贴片 · 到店优惠与地址" }
-  ],
-  "feedback": [
-    { "round": 1, "kind": "ad_content", "atMs": 118000, "text": "价格写错了", "screenshots": ["…"], "by": "merchant" }
-  ],
-  "qcSummary": [ { "code": "av_sync", "label": "画面与音画", "result": "pass" } ]
-}
-```
-
-- `weapp.video.sample.enabled` 为关时 `play.mp4Url` 为空，端上按 `alternatives` 渲染按钮。
-- `markers` 来自 D3 的 `sample.ad_slots`。默认值由 `packages/shared` 的纯函数 `deriveAdSlots(durationMs, headAdMs, tailAdMs)` 给出：片头 `[0, headAdMs]`，片尾 `[durationMs − tailAdMs, durationMs]`；剪辑师可改。约束（服务端校验）：`0 ≤ fromMs < toMs ≤ durationMs`，区间互不重叠。
-- 修改意见：`atMs` 可空（PRD §6.9-6“文字 + 截图 + 时间点”）；截图 0–3 张（原型 Sample 没画截图，以 PRD 为准【默认处理】）。
+确认必须 hasViewed=true、viewedVia=weapp、原快照含 weapp，且当前版本/老板/广告/暂停/真实水印 ready 守卫成立；勾选是自声明，不要求看完。Q9 不扩展修改意见、时间点反馈或其他 M5 功能。
 
 广告（`GET /m/ads/{id}`）：`segments = [{ index, fromMs, toMs, label }]`，来自 D3 的 `ad_video_version.segments`。原型 AdDetail 是“预置分段选择”，PRD §6.4.3-3 是“时间点标注”——两者都支持：修改意见可带 `segmentIndex` 或自由的 `fromMs / toMs`【默认处理】。
 
@@ -1605,11 +1589,11 @@ sequenceDiagram
 7. 补发后（新的成片包），页面只提示并默认勾选“有变更的集”（`changed_episodes`）。
 8. 页面主推“在电脑上下载”（§8.3）：抖音与视频号的整部发布多在电脑端操作，手机逐集存 80 次再逐集选 80 次体验很差【ext-wechat §7.2】。
 
-样片“保存到相册查看”复用同一套代码：`POST /m/order-items/{id}/sample/download` 签发水印版的 15 分钟直链并写访问审计。
+Q9 一期不复用成片保存链查看样片；所有样片 album-download 签发服务端 FEATURE_DISABLED，不新增访问审计或 first_viewed_at。成片逐集下载不受此变更影响。
 
 ### 8.3 电脑端下载页：扫码登录
 
-下载页（`apps/portal`）在 V1.0 承担三件事：成片逐集 / 整包下载、发布清单查看、样片与广告的只读预览。它的登录方式是“电脑显示二维码，小程序扫码确认”，登录后的身份就是扫码的那位商家用户（D4 的 `user_sessions.client = 'portal'`），不是一种新的身份。
+下载页（`apps/portal`）在 V1.0 承担成片逐集 / 整包下载、发布清单查看及广告只读预览；Q9 一期排除样片 portal 预览，相关两接口当前未落地且本次不实现。它的登录方式是“电脑显示二维码，小程序扫码确认”，登录后的身份就是扫码的那位商家用户（D4 的 `user_sessions.client = 'portal'`），不是一种新的身份。
 
 ```mermaid
 sequenceDiagram
@@ -2094,7 +2078,7 @@ V1.0 已为此留好的东西：体检模块（就是 V1.1 的验收器）、`pr
 | `POST /m/stores/{id}/qualification/docs` | 上传证照并识别回显 | 老板 |
 | `GET /m/order-items/{id}/delivery` | 成片清单与授权状态 | 老板 |
 | `POST /m/order-items/{id}/downloads/episodes/{no}` | 取单集直链 | 老板 |
-| `POST /m/order-items/{id}/sample/download` | 取样片水印版直链（保存到相册查看） | 老板 |
+| `POST /m/order-items/{id}/sample/download` | 历史草案路径；正式 m.sample.downloadUrls 由 Q9 禁用，返回 FEATURE_DISABLED | 老板 |
 | `POST /m/downloads/ack` | 回报保存结果 | 本人 |
 | `POST /m/order-items/{id}/download-grants` | 重新生成授权 | 老板 |
 | `GET /m/portal-logins/{ticket}`、`POST /m/portal-logins/{ticket}/approve` | 扫码后查看并确认下载页登录（表与实现归 D4） | 老板 |

@@ -20085,7 +20085,7 @@
    "conventions.md:484"
   ],
   "version": "V1.0",
-  "notes": "/m/order-items/{orderItemId}/sample 是 samples 资源在订单项下的单例别名（A5 第三类）。只回元数据，不写访问记录（A19）。受平台约束：样片默认不在小程序内播放（weapp.video.sample.enabled 默认关，d7:513；05-risks-and-open-issues.md:78），页面不做播放器与“点进度条取时间点”，改为保存水印版到相册（m.sample.downloadUrls）或到电脑端下载页预览（m.portalTicket.lookup），回到小程序勾选“已查看”后确认或提意见（design-spec.md:853）。playable 引用 m06-ad 2.8：资产就绪即返回（带封面），开关打开且该版本 preview_channels 含 weapp 时 sources 有值，否则 sources = []（C62）；换新地址走 m.playable.get。第二轮补 viewEvidence（按途径的证据时间，读 audit_log）与 confirmableVia（可提交的查看方式）。"
+  "notes": "Q9 第一期：仅小程序内查看样片。GET 不写访问记录，不伪造 firstViewedAt；原推送快照含 weapp、当前开关开启且真实水印就绪才签发 sources。通过重新 GET 本接口刷新到期播放地址，不调用未实现的 m.playable.get。confirmableVia 还要求 pushed、sample_confirm 且未暂停；确认端再次校验当前版本与广告等守卫。旧四种查看方式及历史证据只读保留；旧非 weapp 待确认版无播放/确认出口，安全恢复另待 M5。"
  },
  {
   "id": "m05.performance-report.list",
@@ -20145,7 +20145,7 @@
   "doc": "m05-delivery-publish",
   "method": "POST",
   "path": "/m/samples/{sampleId}/confirm",
-  "summary": "确认样片 {versionNo, viewedVia, hasViewed}，推进到批量合成",
+  "summary": "确认小程序样片 {versionNo, viewedVia: weapp, hasViewed: true}，推进到批量合成",
   "xAuth": "member",
   "capability": "delivery.confirm_sample",
   "permission": null,
@@ -20184,7 +20184,7 @@
    "wf-api1-findings.md:158"
   ],
   "version": "V1.0",
-  "notes": "原路线图“natural（版本号与广告版本守卫）”按 A17 改 required（与 C82 示例一致）。布尔 ackViewed 改 hasViewed（C39、C82；复核意见 43），落 sample.viewed_ack_at。请求体带 versionNo，守卫没有列 lock_version，不带 lockVersion（C53）。viewedVia 须在该版本的 preview_channels 内；不在小程序内播放时须勾选“我已查看”且有对应的提供或访问记录（10-delivery.md:645）。这种确认方式的证据效力待法务（05-risks-and-open-issues.md:253，B4）。请求订阅点位 sample_confirm（d6:864）。第二轮：证据按 audit_log.action（delivery.sample.album_download / delivery.sample.portal_preview）+ target_id 核对；开关推送后被关闭、版本只提供 weapp 时，weapp 须勾选并有相册或电脑端访问记录。结果脱敏 x-redact-on-replay = [playable, decision.feedbackImages[].url, decision.feedbackImages[].expiresAt]（A80）。"
+  "notes": "Q9 第一期只接受原推送快照含 weapp、viewedVia = weapp、hasViewed = true；开关关闭则 FEATURE_DISABLED。老板、当前版本、暂停、广告版本及真实水印就绪均须通过，成功写 viewed_ack_at。勾选为自主声明，不要求播放完毕。旧四种枚举与已确认事实保留，不能据此以旧渠道作新确认。"
  },
  {
   "id": "m05.sample.download",
@@ -20192,7 +20192,7 @@
   "doc": "m05-delivery-publish",
   "method": "POST",
   "path": "/m/samples/{sampleId}/download-urls",
-  "summary": "签发水印版样片的 15 分钟直链（保存到相册查看）；每次写访问审计，首次访问回写 sample.first_viewed_at",
+  "summary": "历史样片相册接口：第一期仅小程序内查看，鉴权及版本校验后拒绝签发",
   "xAuth": "member",
   "capability": "delivery.confirm_sample",
   "permission": null,
@@ -20224,7 +20224,7 @@
    "wf-api1-findings.md:164"
   ],
   "version": "V1.0",
-  "notes": "改写：POST /m/samples/{sampleId}/download → …/download-urls（A19、C60）。“已查看”证据只在这里与下载页 POST /portal/samples/{sampleId}/playback-urls 写入（first_viewed_at，10-delivery.md:565；复核意见 48）；m.sample.confirm 只核对证据存在。草案写作 POST /m/order-items/{id}/sample/download。下载存相册复用逐集下载的端上状态机（d7:849）。访问审计 category = file_access、action = delivery.sample.album_download、meta { fileCategory: sample_wm, urlTtlSec: 900 }；开关推送后被关闭、版本只提供 weapp 时照常签发（兜底）。 第三轮：响应改为本文定义的 DownloadUrl（与 m06 AdDownloadUrl 合并，A132）；限流 m.sign（A130）。"
+  "notes": "Q9 第一期保留历史路径及协议，完成原老板、门店归属和当前版本状态守卫后返回 FEATURE_DISABLED（403）；不签发水印下载地址，不调用 Provider、不写访问审计或 firstViewedAt。关闭开关不再启用相册兜底。"
  },
  {
   "id": "m05.sample.request-change",

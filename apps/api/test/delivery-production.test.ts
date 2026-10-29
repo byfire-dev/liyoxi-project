@@ -232,7 +232,7 @@ it("十 API 真实状态/角色/范围/两读 no-store；包 guard 为真实缺�
   });
   expect(await privateData(await req("admin.sample.push", {}, undefined, pushKey))).toMatchObject({
     status: "pushed",
-    previewChannels: ["album", "portal"],
+    previewChannels: ["weapp"],
     preview: { url: expect.any(String) },
   });
   expect(await privateData(await req("admin.sample.push", {}, undefined, pushKey))).toMatchObject({
@@ -291,7 +291,7 @@ it("十 API 真实状态/角色/范围/两读 no-store；包 guard 为真实缺�
     ),
   );
   const confirmKey = uuidv7(),
-    confirmBody = { versionNo: 1, viewedVia: "album", hasViewed: true };
+    confirmBody = { versionNo: 1, viewedVia: "weapp", hasViewed: true };
   expect(
     await privateData(await req("m.sample.confirm", confirmBody, undefined, confirmKey)),
   ).toMatchObject({ status: "confirmed", ticketStep: "batch_compose" });
@@ -418,8 +418,16 @@ it("C18 播放开启时首次确认含真实签名播放地址且 no-store，重
   expect(await privateData(await req("admin.sample.push", {}))).toMatchObject({
     previewChannels: ["weapp"],
   });
+  const unchecked = await req("m.sample.confirm", {
+    versionNo: 1,
+    viewedVia: "weapp",
+    hasViewed: false,
+  });
+  expect(unchecked.status).toBe(400);
+  expect(await unchecked.json()).toMatchObject({ error: "VALIDATION_FAILED" });
+  expect((await prisma.sample.findUniqueOrThrow({ where: { id: sample } })).status).toBe("pushed");
   const key = uuidv7(),
-    b = { versionNo: 1, viewedVia: "weapp", hasViewed: false },
+    b = { versionNo: 1, viewedVia: "weapp", hasViewed: true },
     first = await privateData(await req("m.sample.confirm", b, undefined, key));
   expect(first).toMatchObject({
     status: "confirmed",

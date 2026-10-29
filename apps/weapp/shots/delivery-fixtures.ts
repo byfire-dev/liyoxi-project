@@ -1,5 +1,6 @@
 import { ApiError } from "../src/lib/request";
 import { useSessionStore } from "../src/stores/session";
+import { useBootstrapStore } from "../src/stores/bootstrap";
 import type { Data } from "../src/lib/account-api";
 import type { RequestLayer } from "../src/lib/request";
 export const DELIVERY_ID = "00000000-0000-4000-8000-000000000020";
@@ -67,8 +68,8 @@ export const sample: NonNullable<Data<"m.orderItem.sample.get">> = {
   status: "pushed",
   durationMs: 120000,
   pushedAt: now,
-  previewChannels: ["album"],
-  adSlots: [],
+  previewChannels: ["weapp"],
+  adSlots: [{ slot: "opening", startMs: 0, endMs: 5000, label: "品牌露出" }],
   adsUsed: [],
   qcSummary: [
     { key: "video", label: "画面与声音", result: "pass", note: "完整可查看" },
@@ -77,15 +78,34 @@ export const sample: NonNullable<Data<"m.orderItem.sample.get">> = {
   firstViewedAt: null,
   viewEvidence: { albumSavedAt: null, portalViewedAt: null },
   offlineSentAt: null,
-  confirmableVia: [],
+  confirmableVia: ["weapp"],
   viewedAckAt: null,
   decision: null,
-  playable: null,
+  playable: {
+    playableId: DELIVERY_ID,
+    kind: "sample",
+    durationMs: 120000,
+    width: 720,
+    height: 1280,
+    posterUrl: null,
+    sources: [
+      {
+        quality: "source",
+        url: "/sample-preview.mp4",
+        width: 720,
+        height: 1280,
+        bitrateKbps: null,
+      },
+    ],
+    expiresAt: "2099-10-07T03:00:00Z",
+    autoplay: false,
+    muted: false,
+  },
   ticketStep: "sample_confirm",
   isPaused: false,
   sampleRoundNo: 1,
   agreedLaunchDate: "2026-10-20",
-  actions: ["download", "confirm"],
+  actions: ["confirm"],
 };
 export const release: NonNullable<Data<"m.orderItem.release.get">> = {
   deliveryReleaseId: DELIVERY_ID,
@@ -196,6 +216,29 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
     r = structuredClone(release),
     t = structuredClone(task),
     list = structuredClone(tasks);
+  if (scene.startsWith("sample-")) {
+    const bootstrap = useBootstrapStore.getState();
+    bootstrap.apply(
+      {
+        flags: {
+          ...bootstrap.data.flags,
+          "weapp.video.sample.enabled": scene !== "sample-disabled",
+        },
+      },
+      Date.now(),
+    );
+  }
+  if (scene === "sample-legacy") {
+    s.previewChannels = ["album", "portal", "wecom"];
+    s.confirmableVia = [];
+    s.playable!.sources = [];
+    s.playable!.expiresAt = null;
+  }
+  if (scene === "sample-disabled") {
+    s.confirmableVia = [];
+    s.playable!.sources = [];
+    s.playable!.expiresAt = null;
+  }
   if (scene === "plan-revising") {
     p.status = "revising";
     p.actions = ["request-change"];
@@ -212,7 +255,7 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
     s.actions = [];
     s.decision = {
       decidedAt: now,
-      viewedVia: "album",
+      viewedVia: "weapp",
       feedbackKind: null,
       feedbackNote: null,
       feedbackImages: [],
@@ -287,7 +330,9 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
       s.versionNo++;
       s.sampleId = "00000000-0000-4000-8000-000000000021";
       s.status = "pushed";
-      s.confirmableVia = [];
+      s.decision = null;
+      s.viewedAckAt = null;
+      s.confirmableVia = ["weapp"];
       s.actions = ["confirm"];
     },
     fail(path: string) {
@@ -342,16 +387,6 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
     }
     if (path.startsWith("/m/delivery-plans/")) return structuredClone(p);
     if (path.endsWith("/sample")) return scene === "sample-empty" ? null : structuredClone(s);
-    if (path.includes("/samples/") && path.endsWith("/download-urls")) {
-      s.confirmableVia = ["album"];
-      s.viewEvidence.albumSavedAt = now;
-      return {
-        url: "https://example.test/sample.mp4",
-        fileName: "烟火里的重逢_样片_第2版.mp4",
-        sizeBytes: "12000000",
-        expiresAt: "2026-10-07T02:15:00Z",
-      };
-    }
     if (path.includes("/samples/") && path.endsWith("/confirm")) {
       s.status = "confirmed";
       s.actions = [];

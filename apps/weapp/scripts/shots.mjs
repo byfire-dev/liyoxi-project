@@ -804,7 +804,6 @@ async function shoot(target) {
           await page.waitForTimeout(350);
         }
         if (target.scene === "sample-viewed") {
-          await page.locator(".lyx-button").filter({ hasText: "保存样片到相册查看" }).click();
           await page.waitForFunction(
             () =>
               !globalThis.document
@@ -814,18 +813,18 @@ async function shoot(target) {
           await page.locator(".lyx-checkbox").click();
           const calls = await page.evaluate(() => globalThis.__LYX_DELIVERY_CALLS__);
           if (
-            calls.filter((c) => c.path.endsWith("/sample")).length < 2 ||
-            calls.filter((c) => c.path.endsWith("/download-urls")).length !== 1
+            calls.filter((c) => c.path.endsWith("/sample")).length !== 1 ||
+            calls.some((c) => c.path.endsWith("/download-urls"))
           )
-            throw new Error("保存样片后没有重取查看证据");
+            throw new Error("样片应在小程序内查看并自主勾选，不应调用下载签名");
         }
         await page.waitForTimeout(2100);
         if (target.scene === "sample-unsaved") {
           if (
-            !(await page.locator(".lyx-checkbox--disabled").count()) ||
+            (await page.locator(".lyx-checkbox--checked").count()) ||
             !(await page.locator(".lyx-footer-bar .lyx-button--disabled").count())
           )
-            throw new Error("未保存样片可确认");
+            throw new Error("未勾选我已查看即可确认样片");
         }
       }
       if (target.kind === "delivery") {

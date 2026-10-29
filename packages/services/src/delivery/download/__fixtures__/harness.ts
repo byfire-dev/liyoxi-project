@@ -61,7 +61,7 @@ async function knownFile(
   await h.finish(entry.fileId, category === "sample_video");
   return h.prisma.fileObject.findUniqueOrThrow({ where: { id: entry.fileId } });
 }
-export async function sampleReady(h: Harness, samplePlayback = async () => false) {
+export async function sampleReady(h: Harness, samplePlayback = async () => true) {
   const poster = await h.make.fileObject(),
     o = await h.order(true, 1, poster.id, 2),
     editor = await h.staff(),
@@ -104,11 +104,10 @@ export async function sampleReady(h: Harness, samplePlayback = async () => false
 }
 export async function packageReady(h: Harness) {
   const ready = await sampleReady(h),
-    { a, downloads, o, sample, item, id, editor, qc } = ready;
-  await downloads.sampleUrl(o.viewer, sample.sampleId, meta);
+    { a, o, sample, item, id, editor, qc } = ready;
   await a.sampleConfirm(o.viewer, sample.sampleId, {
     versionNo: 1,
-    viewedVia: "album",
+    viewedVia: "weapp",
     hasViewed: true,
   });
   const file = await knownFile(h, o, editor, "final_episode", 2),

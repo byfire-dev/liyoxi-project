@@ -8,6 +8,8 @@
 | 依据 | 数据模型 `09-order-ad.md`（订购单、订单项、广告位、取消申请与明细、广告、版本、修改轮次）、`10-delivery.md`（工单、环节、暂停、方案、样片、成片、质检、成片包、补发、下载授权与记录）、`13-notify-docs.md` 2.9、2.13、2.14（人工催办、授权书与版次）；另读 `03-staff-authz-audit.md` 2.12（审批单）、`06-media.md` 2.9、2.10（制作留痕、取料记录）、`07-billing-ledger.md`（价目、冻结单）；草案 `d3-flow.md` 第 5–11、16、17 节与附录 A、B，`d5-media.md` 第 12 节，`d6-notify-docs-data.md` 第 3.6 节，`d1-ledger.md` 第 5 节，`d4-identity.md` 第 7 节；接口裁决 A1–A156（第二轮按第十节 A76–A120、第三轮按第十二节 A127–A146、第四轮按第十四节 A151–A156 修订）；通用约定 C1–C87；事件目录 `x01-events-jobs`；设计规范第 11、12 节；原型梳理 `proto-admin-a.md` 第 2–6、9 节，`proto-admin-b.md` 第 4、5 节，`proto-admin-c.md` 第 6 节，`proto-admin-d.md` 第 2 节 |
 | 状态 | 第四轮修订（2026-10-03） |
 
+> Q9 样片当期覆盖（2026-10-29）：新推送仅 weapp；includeWecom/markWecomSent=true 拒绝，关闭开关或真实水印未就绪拒绝。四种历史 enum/字段/快照与已确认记录保留，不自动迁移；广告查看规则不变。见 [Q9 工作包](../plan/changes/plan-q9-sample-player.md)。
+
 ## 1. 概览
 
 本文是运营后台围绕“订购—交付—广告—取消”的全部接口。订购单是商家确认订购后生成的头单，一单多部剧，每部剧一个订单项，开工后一部剧一张交付工单；订购单与订单项的状态由工单步骤和在途取消推导，后台没有直接改它们的接口。交付经理在工单上分配、推方案、质检与推送样片、代录修改意见；剪辑师登记样片与成片、制作广告版本；发布专员推送成片包、发布补发。取消与终止走“试算 → 发起 → 财务审批 → 财务执行”，申请、审批、执行都挂在 `cancel-requests` 这一个资源上（A14、A63）；退款管理页与“我的待审批”页跨文档引用本文的 operationId。
@@ -2613,7 +2615,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 | 幂等 | required |
 | 乐观锁 | 不带；锁序：涉及的广告 `FOR SHARE` → 订购单 → 订单项 → 工单 → 样片（d3-flow.md:942） |
 | 对应画板 | A:TicketDetail（“推送商家”；渠道“小程序订阅消息与短信”） |
-| 出处 | 路线图 `a05.samples.push`；10-delivery.md:644、175、562；d3-flow.md:837、1532-1536；设计规范 11 节（样片默认不在小程序内播放） |
+| 出处 | 路线图 `a05.samples.push`；10-delivery.md:644、175、562；d3-flow.md:837、1532-1536；设计规范 11 节（Q9 一期仅小程序内查看） |
 
 **请求**
 
@@ -2625,8 +2627,8 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 
 | 字段 | 类型 | 必填 | 约束 | 说明 |
 | --- | --- | --- | --- | --- |
-| `includeWecom` | boolean | 否 | 缺省 false | 是否把“企业微信发送水印版”列为查看方式 |
-| `markWecomSent` | boolean | 否 | 缺省 false | 推送弹窗里点了“已发送”：本次一并登记 `offline_sent_at` |
+| `includeWecom` | boolean | 否 | 缺省 false；Q9 true 返回 VALIDATION_FAILED | 历史字段保留，新推送不接受企业微信查看渠道 |
+| `markWecomSent` | boolean | 否 | 缺省 false；Q9 true 返回 VALIDATION_FAILED | 推送不再兼带线下发送登记；历史字段/记录保留 |
 
 **响应**：`AdminSampleView`（`status = pushed`）。
 
@@ -2636,16 +2638,18 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 | --- | --- | --- |
 | `STATE_NOT_ALLOWED` | 409 | 样片不是 `qc_passed`，或工单不在 `sample_making` |
 | `AD_CHANGED` | 409 | 样片所用广告版本已不是各广告当前确认版本，或有广告位尚未就绪（m05-delivery-publish 定义）；`details.adIds` |
-| `PREVIEW_OFFLINE_NOT_SENT` | 409 | `includeWecom = true`，但既未登记过发送、本次也没有 `markWecomSent` |
+| `VALIDATION_FAILED` | 400 | includeWecom 或 markWecomSent 为 true；Q9 仅 weapp |
+| `FEATURE_DISABLED` | 403 | 样片开关关闭 |
+| `SAMPLE_PREVIEW_NOT_READY` | 409 | 真正水印版未 ready 或派生文件未 stored |
 | `TICKET_ON_HOLD` | 409 | 工单暂停中 |
 
 **副作用**（同一事务）
 
-- `sample.status`：`qc_passed` → `pushed`（`sample.pushed`，10-delivery.md:644），同一条 UPDATE 写 `pushed_by_staff_id`、`pushed_at`、`preview_channels`（开关 `weapp.video.sample.enabled` 开时 `weapp`，关时 `album`、`portal`；`includeWecom` 时加 `wecom`），`markWecomSent` 时一并写 `offline_sent_at`、`offline_sent_by_staff_id`。
+- `sample.status`：`qc_passed` → `pushed`（`sample.pushed`，10-delivery.md:644），同一条 UPDATE 写 `pushed_by_staff_id`、`pushed_at`、`preview_channels = [weapp]`；关停拒绝、不得写入相册/portal/企业微信查看渠道。
 - `delivery_ticket.step`：`sample_making` → `sample_confirm`（`sample.pushed`，10-delivery.md:175 第 4 行），写 `current_sample_version_no`、首次推送写 `sample_first_pushed_at`，`waiting_on = merchant`；关旧开新环节（样片确认没有员工时限）。
 - 出站事件 `sample.pushed`（载荷带 `deliveryTicketId`、`dramaOrderId`；通知商家：订阅消息 ＋ 短信）、`ticket.step_changed`。推送后 2 个自然日未处理的提醒是纯提醒，由通知规则派生，不建定时器行（R6）。
 
-**说明**：查看方式里的 `weapp`、`album`、`portal` 由系统按开关写入，交付经理只能额外勾选 `wecom`（10-delivery.md:562）；推送后开关再变，不回改已推送版本。水印播放版（`playable_asset`，属主为订单项，按 `sample.file_id` 找，10-delivery.md:1313）由 media 在体检通过后生成，推送不等它就绪；商家端在就绪前保存相册会得到 `SAMPLE_PREVIEW_NOT_READY`（m05-delivery-publish）。
+**说明**：Q9 新推送仅 weapp，推送前核真正水印版 ready/stored。关闭开关不提供替代查看渠道；历史推送快照不回改，不自动迁移。旧 album-only 等待确认记录不能确认，当前没有安全重推/回退链，恢复留给 W5-03/05/08 后继；不可用改快照绕过版本与状态机。独立 markSent 仅作沟通记录，不构成商家确认或一期查看渠道。
 
 ### 3.42 admin.sample.requestChange　代录样片修改意见
 
@@ -3254,7 +3258,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 - `ad.status`：`producing` / `revising` → `pending_confirm`（`ad.push_version`）；修改中时在途的修改轮次写 `fulfilled_by_version_no`；取消当前的 `sla.breach`（首版或该轮修改），首版推送后 `first_due_at` 不再变。迁移审计行 `action = ad.push_version`、`meta.versionNo`（1.1）。
 - 出站事件 `ad.version_pushed`（通知商家；推送后 2 个自然日未确认的提醒是纯提醒，不建定时器行，R6）。
 
-**说明**：查看方式与样片同一口径（A97）：`weapp`、`album`、`portal` 由系统按开关写入，员工只能补 `wecom`；开关关闭时系统已写入 `album`、`portal`，总有可用的查看方式；数据模型已按 A97 回写（09-order-ad.md:862“前三种由系统按推送时的开关写入……员工只能补 `wecom`”，904 写明“已发送”由交付经理单独登记，A142）。`wecom` 的“已发送”由交付经理登记（3.57），剪辑师推送时只决定是否列入；初稿推送请求体里的 `markWecomSent` 删除，因为剪辑师不是企业微信的发送人。商家端如何按查看方式确认见 m06-ad。
+**说明**：以下是广告的既有口径（A97）；Q9 仅改变样片，不改变广告：`weapp`、`album`、`portal` 由系统按开关写入，员工只能补 `wecom`；开关关闭时系统已写入 `album`、`portal`，总有可用的查看方式；数据模型已按 A97 回写（09-order-ad.md:862“前三种由系统按推送时的开关写入……员工只能补 `wecom`”，904 写明“已发送”由交付经理单独登记，A142）。`wecom` 的“已发送”由交付经理登记（3.57），剪辑师推送时只决定是否列入；初稿推送请求体里的 `markWecomSent` 删除，因为剪辑师不是企业微信的发送人。商家端如何按查看方式确认见 m06-ad。
 
 ### 3.59 admin.ad.remind　催办商家确认广告
 
@@ -3675,7 +3679,7 @@ M1（W1-16a）同步桩只处理匹配上下文的人工上传、已入库且 AI
 
 | # | 问题 | 默认做法 | 由谁定 |
 | --- | --- | --- | --- |
-| 1 | 样片与广告不在小程序内播放时，“保存到相册、电脑端预览、企业微信发送 ＋ 小程序勾选已查看”能否作为老板确认的证据（B4；10-delivery.md 第 6 节）。查看方式的写法已由 A97 定：系统按开关写入，员工只能补企业微信 | 四种方式都登记（3.41、3.57、3.58）。法务不认可 `wecom` 时，推送请求不再接受 `includeWecom`，“已发送”只作沟通记录 | 产品 + 法务 |
+| 1 | Q9 样片已明确仅 weapp + 必须勾选；类目/提审/真机与法务仍未验。广告沿既有四渠道口径 | 样片新推送只 weapp，关停拒绝；独立发送记录只作沟通，历史字段/快照保留，不自动迁移 | 产品 + 法务 |
 | 2 | ~~取消申请的审批人能否同时是执行人~~（已定，A156） | 14 分组补参数 `refund.require_distinct_executor`，默认 false（不限制）；为 true 时 3.15 返回 403 `REFUND_EXECUTOR_CONFLICT`（a07 定义） | 已关闭 |
 | 3 | ~~取消与退款的驳回原因字典~~（已定，A156） | 14 分组在 `reject_reason` 下补场景“取消与退款驳回”，播种 4 项（不符合退款规则、金额核算有误、说明不充分、其他，proto-admin-d.md:126）；3.12 的 `reasonCodes` 选填 | 已关闭 |
 | 4 | 样片确认后至上线前取消（`post_sample`）的扣除比例：快照为 null 时由客服填写扣除数与依据、财务核定（05-risks-and-open-issues.md:209） | 按此实现：试算标 `needsManualDeduct`，发起时必填扣除数与说明 | 业务 + 财务 |

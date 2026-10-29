@@ -1,0 +1,42 @@
+.sample-player {
+  display: flex;
+  flex-direction: column;
+  gap: $lyx-space-8;
+}
+.sample-player__frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: $lyx-radius-lg;
+  background: $lyx-color-bg-inverse;
+  color: $lyx-color-text-inverse;
+}
+.sample-player__video,
+.sample-player__poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.sample-player__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: $lyx-font-size-heading;
+}
+.sample-player__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $lyx-space-8;
+}
+.sample-player__time {
+  color: $lyx-color-text-secondary;
+  font-size: $lyx-font-size-tag;
+}
+.sample-player__slots {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: $lyx-space-8;
+}

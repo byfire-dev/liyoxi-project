@@ -8,9 +8,11 @@
 | 依据 | 数据模型 `02-identity-tenant.md` 2.4 `portal_session`、2.15 `portal_ticket`；`10-delivery.md` 2.7 `sample`、2.10 `delivery_release`、2.12 `download_grant`、2.13 `delivery_download_log`、2.14–2.15 发布清单；`06-media.md` 2.1 `file_object`、2.4 `media_info`（封面帧兜底）、2.11 `playable_asset`、2.12 `zip_bundle`；`13-notify-docs.md` 2.13–2.14 授权书与版次、第 4 节 `letter_snapshot`；`09-order-ad.md` 2.3 `order_item`、2.8 `ad`、2.9 `ad_version`；`03-staff-authz-audit.md` 2.10 `audit_log`、2.11 `auth_event`；`14-config-data.md` 2.9 `analytics_event`。草案 d7-platform.md 第 6 节（下载页最小形态与票据），d5-media.md 第 7、8 节与第 12 节接口清单，d4-identity.md 第 3.7 节与附录 A、B，d6-notify-docs-data.md 3.5.4、3.6（验真页）。接口裁决 A1–A150（`api-rulings.md`）；通用约定 C1–C87（`conventions.md`）；资源登记表 `resources.json` |
 | 状态 | 第二轮修订（2026-10-03） |
 
+> Q9 当期覆盖（2026-10-29）：第一期样片仅在小程序内查看；portal 两条样片接口当前未落地，本次不实现，不作为关闭内播后的兜底。本文保留的 PortalSampleView、PendingSampleBrief、sample_pending 和旧样片修订记录为历史设计/契约资料，不表示当前可用。广告预览、成片下载及 portal 会话按其原包推进。见 [Q9 工作包](../plan/changes/plan-q9-sample-player.md)。
+
 ## 1. 概览
 
-下载页让老板在电脑上拿到整部剧：电脑显示二维码与两位配对数字，老板在小程序里扫码并点选同一个数字（`m.portalTicket.lookup` / `m.portalTicket.approve`，归 m02-tenant），电脑凭只在本页内存里的 `pollSecret` 换出一个 2 小时的只读会话。会话期间可以看本门店名下可下载的订购项、逐集或打包下载、复制发布清单、预览待确认的样片与广告（只读，确认与修改意见回小程序提交）。授权书验真页不需要会话，任何人扫授权书 PDF 页脚的二维码即可核对。下载页不出现价格、套餐、积分、购买入口与任何付款引导（d7-platform.md:1275；d5-media.md:1647）。
+下载页让老板在电脑上拿到整部剧：电脑显示二维码与两位配对数字，老板在小程序里扫码并点选同一个数字（`m.portalTicket.lookup` / `m.portalTicket.approve`，归 m02-tenant），电脑凭只在本页内存里的 `pollSecret` 换出一个 2 小时的只读会话。会话期间可以看本门店名下可下载的订购项、逐集或打包下载、复制发布清单、预览广告（只读，确认与修改意见回小程序提交）；样片 portal 预览由 Q9 从一期排除。授权书验真页不需要会话，任何人扫授权书 PDF 页脚的二维码即可核对。下载页不出现价格、套餐、积分、购买入口与任何付款引导（d7-platform.md:1275；d5-media.md:1647）。
 
 | operationId | 方法 路径 | 用途 | 鉴权 | 幂等 |
 | --- | --- | --- | --- | --- |
@@ -23,8 +25,8 @@
 | `portal.orderItem.release.get` | `GET /portal/order-items/{orderItemId}/release` | 成片下载页数据 | portal；`delivery.download` | none（查询） |
 | `portal.orderItem.downloadUrls` | `POST /portal/order-items/{orderItemId}/download-urls` | 签发单集、ZIP、发布清单文件的直链并留痕 | portal；`delivery.download` | none（签发短时地址） |
 | `portal.orderItem.publishList.get` | `GET /portal/order-items/{orderItemId}/publish-list` | 发布清单（复制） | portal；`delivery.download` | none（查询） |
-| `portal.orderItem.sample.get` | `GET /portal/order-items/{orderItemId}/sample` | 样片预览页元数据 | portal；`sample.view` | none（查询） |
-| `portal.sample.playbackUrls` | `POST /portal/samples/{sampleId}/playback-urls` | 签发样片水印版播放地址并留痕 | portal；`sample.view` | none（签发短时地址） |
+| `portal.orderItem.sample.get` | `GET /portal/order-items/{orderItemId}/sample` | 历史样片元数据设计；当前未落地，Q9 不实现 | portal；`sample.view` | none（查询） |
+| `portal.sample.playbackUrls` | `POST /portal/samples/{sampleId}/playback-urls` | 历史样片签发设计；当前未落地，Q9 不实现 | portal；`sample.view` | none（签发短时地址） |
 | `portal.ad.list` | `GET /portal/ads` | 本门店待确认的广告 | portal；`ad.view` | none（查询） |
 | `portal.ad.get` | `GET /portal/ads/{adId}` | 广告预览页元数据 | portal；`ad.view` | none（查询） |
 | `portal.ad.playbackUrls` | `POST /portal/ads/{adId}/playback-urls` | 签发广告播放地址（源文件，不加水印，A97）并留痕 | portal；`ad.view` | none（签发短时地址） |
@@ -52,7 +54,7 @@
 | 不出现的字段 | 价格、积分、套餐、付款相关的任何字段都不返回（d7-platform.md:1275；d5-media.md:1647）：广告不返回 `ad.charge_points` 等计价列，订购项不返回计价快照 |
 | 维护 | 停机维护期间下载页显示静态维护页，不调接口（A65）；网关对 `/portal/*` 返回 503 `MAINTENANCE`（C72） |
 | 限流 | `portal.ticket`（建票据每 IP 10 张 / 分；轮询每票据 60 次 / 分；换会话每票据 5 次）、`portal.global`（每会话 300 次 / 分）、`telemetry`（错误上报）、`portal.verify`（验真，按 IP）（C68） |
-| 开关 | 本文接口不受 `weapp.video.*` 开关拦截（不返回 `FEATURE_DISABLED`），下载页的预览是小程序内不能播放时的替代出口（d5-media.md:1427）。但**能否在电脑上预览取决于该版本推送时写定的查看方式**（`sample.preview_channels`、`ad_version.preview_channels`，推送时按开关写入、之后不回改，10-delivery.md:562；A97）：含 `portal` 即可预览；推送时开关为开、只写了 `weapp`（或 `weapp`、`wecom`）的版本，若开关此刻已被关闭，按 m05-delivery-publish 3.8、m06-ad 2.9 的同一兜底放行（读 `weapp.video.sample.enabled` / `weapp.video.ad.enabled` 按会话门店求值的此刻值）；开关此刻仍为开的，只能在小程序内播放，下载页给出“请在小程序内观看”。下文称这一规则为“开关兜底” |
+| 开关 | 广告/成片按原规则；Q9 样片不适用本文旧“开关兜底”，无 portal 样片入口或签发。样片关闭时不恢复相册、portal 或企业微信查看确认；不由本 PR 实现未来 portal handler |
 | 对应画板 | 下载页没有原型（05-risks-and-open-issues.md:271；design-spec.md 第 12 节“原型没有的页面”）。下文“对应画板”写 d7-platform.md:1270 的页面编号：① 扫码登录页 `/`、② 可下载清单 `/items`、③ 成片下载 `/items/:id`、④ 样片 / 广告只读预览 `/preview/:kind/:id`、⑤ 会话失效说明页；另有 `/a` 扫一扫落地页、`/v` 授权书验真页 |
 
 ## 2. 公共结构
@@ -190,7 +192,7 @@ DownloadBlocker =
 
 1. 订购项的交付工单在样片确认步：`delivery_ticket.step = sample_confirm`。已终止的工单（`step = terminated`）不算：取消执行把工单置 `terminated` 时不动样片行（10-delivery.md:191 第 19 行；样片状态机没有随工单终止的迁移，10-delivery.md:638-649），样片会一直停在 `pushed`，不排除就会把已取消订单的样片列成“待确认”，而小程序确认必然失败。
 2. 当前推送版本（`delivery_ticket.current_sample_version_no`）对应的 `sample` 行 `status = pushed`（`delivery.I7`）。
-3. 该版本可在电脑上预览：`preview_channels` 含 `portal`（10-delivery.md:562），或属于开关兜底（1.1；只有 `weapp` 或 `weapp`、`wecom`，而 `weapp.video.sample.enabled` 此刻为关，m05-delivery-publish 3.8）。
+3. 历史设计按 preview_channels 判断电脑预览；Q9 当前不提供样片 portal 预览，不使用开关兜底，本结构未表示接口已经落地。
 
 #### `PortalReleaseView`（`portal.orderItem.release.get`）
 
@@ -719,82 +721,17 @@ DownloadBlocker =
 
 **说明**：复制读生效成片包的 `delivery_release.publish_list_text`，不读打包时生成的清单文件（06-media.md:979）；推送后修订清单会同步更新这段文本（10-delivery.md:1159）。“下载清单文件”按钮（`hasPublishList` 为真时显示）点击后先调 3.8 的 `kind = publish_list`（只查不建，不触发打包）：`ready` 用返回的 15 分钟直链下载服务端文件（写下载记录）；其余状态由浏览器用本接口的 `text` 生成文本文件（不留痕，10-delivery.md:1071）。页面因此不需要事先知道 ZIP 是否就绪。
 
-### 3.10 portal.orderItem.sample.get　样片预览页
+### 3.10 portal.orderItem.sample.get　历史样片元数据设计（当前未落地）
 
 `GET /portal/order-items/{orderItemId}/sample`
 
-| 项 | 内容 |
-| --- | --- |
-| 鉴权 | `portal`；能力点 `sample.view` |
-| 幂等 | none（纯查询；不写访问记录、不回写首次查看时间，A19） |
-| 乐观锁 | 无 |
-| 限流 | `portal.global` |
-| 开关 | 不受开关拦截；能否在电脑上播放看推送时写定的 `previewChannels`，`weapp.video.sample.enabled` 此刻的值只用于开关兜底（1.1；m05-delivery-publish 3.8） |
-| 对应画板 | 原型无：④ 样片只读预览；② 可下载清单的“待确认样片” |
-| 出处 | 路线图 `p01.sample.get`；d5-media.md:1427、1490、1521、1645、2119；d7-platform.md:1270、1275、810；d3-flow.md:1536、1540；10-delivery.md:191、562、565、645；06-media.md:403；design-spec.md:853；04-adr.md:190（ADR-027）；A19、C60；m06-ad 2.8 |
+该 operationId 与 PortalSampleView 等历史结构保留；当前没有真实处理器，Q9 第一期不实现此接口，也不提供样片电脑端入口。不得将元数据路由登记、历史草案响应或 enum 保留描述为功能已可用。
 
-**请求**
-
-| 位置 | 字段 | 类型 | 必填 | 约束 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| 路径 | `orderItemId` | string(uuid) | 是 | 属会话门店 | 订购项（`samples` 在订购项下的单例别名，A5 第三类） |
-
-**响应**：`PortalSampleView`。返回最近一次推送给商家的版本（`version_no = delivery_ticket.current_sample_version_no`），不论它此刻是否已被确认、提意见或取代；不含播放地址。
-
-**错误**：无（订购项没有交付工单、或从未推送过样片时 404 `NOT_FOUND`）。
-
-**副作用**：无。
-
-**说明**：
-- 只读：不能确认、不能提修改意见（d5-media.md:1645；d7-platform.md:1275）。页面写明“请回到小程序确认或提出修改意见”，确认走小程序 `m.sample.confirm`（`viewedVia = portal`，m05）。
-- 受平台约束（design-spec.md:853）：样片默认不在小程序内播放，替代出口之一就是在下载页观看；回小程序勾选“我已查看”后确认或提意见。能否在电脑上播放取决于推送时写定的查看方式，而不是开关此刻的值：推送时开关为关的版本含 `portal`，可以播放；推送时开关为开（只有 `weapp`）而之后因平台整改被关闭的版本，按开关兜底放行（1.1），在这里看过后回小程序以 `viewedVia = weapp` 确认，m05 3.9 以 3.11 签发时写的电脑端预览记录为证（本接口只读、不写记录）；开关此刻仍为开的，`previewBlocker = channel_not_offered`，页面提示“请在小程序内观看”。
-- 订购项已取消、退回或终止（工单 `terminated`）时 `previewBlocker = order_closed`，页面提示“该订单已关闭，无需再确认样片”；取消执行不动样片行，所以要单独判断（10-delivery.md:191）。
-- d4-identity.md:509、2152 写“下载页只有下载类接口、预览为扩展点”，与 ADR-027（04-adr.md:190）、d5、d7 不一致，以 ADR-027 为准。
-
-### 3.11 portal.sample.playbackUrls　签发样片播放地址
+### 3.11 portal.sample.playbackUrls　历史样片播放签发设计（当前未落地）
 
 `POST /portal/samples/{sampleId}/playback-urls`
 
-| 项 | 内容 |
-| --- | --- |
-| 鉴权 | `portal`；能力点 `sample.view`；必须带 `X-LYX-Portal: 1` 且 `Origin` 等于下载页源 |
-| 幂等 | none（签发短时地址，A18、A19；每次签发都留痕，结果不进幂等记录） |
-| 乐观锁 | 无（`sample.first_viewed_at` 只在为空时写，带条件的 UPDATE） |
-| 限流 | `portal.global` |
-| 开关 | 不受开关拦截；`weapp.video.sample.enabled` 此刻的值只用于开关兜底（1.1；m05-delivery-publish 3.8） |
-| 对应画板 | 原型无：④ 样片只读预览（点击播放、地址过期后续播） |
-| 出处 | 路线图 `p01.samples.playback-urls`；d5-media.md:1427、1490；d3-flow.md:1536、1540；d7-platform.md:810；10-delivery.md:191、562、565、645、1254；rulings.md:40（M27）；05-risks-and-open-issues.md:253（B4）；A18、A19；C60–C62；m05-delivery-publish 3.8、3.9、3.11 |
-
-**请求**
-
-| 位置 | 字段 | 类型 | 必填 | 约束 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| 路径 | `sampleId` | string(uuid) | 是 | 属会话门店 | 样片版本 id（取自 `PortalSampleView.sampleId`；一个版本只有一份水印版，路径即指明文件） |
-
-请求体：无（空对象）。
-
-**响应**：`Playable`（m06-ad 2.8）：`kind = sample`，`sources` 一档指向水印版（`playable_asset.renditions`），地址 60 分钟（C61）；过期后再调本接口换新（每次都留痕）。
-
-**错误**
-
-| 错误码 | HTTP | 何时 |
-| --- | --- | --- |
-| `STATE_NOT_ALLOWED` | 409 | 订购项已关闭：工单 `delivery_ticket.step = terminated`，或 `order_item.phase` 在 `cancelled`、`refunded`、`terminated`（`previewBlocker = order_closed`）；本版不是 `pushed`、`confirmed`、`change_requested`（已被取代的旧版本不再提供，`superseded`） |
-| `SAMPLE_VIEW_CHANNEL_NOT_OFFERED` | 409 | 该版本的 `preview_channels` 不含 `portal`，且不属于开关兜底（推送时开关为开、此刻仍为开，只能在小程序内播放）（m05 定义，`details.previewChannels`） |
-| `SAMPLE_PREVIEW_NOT_READY` | 409 | 水印版尚未生成（`playable_asset.state` 不是 `ready`）（m05 定义） |
-| `NOT_FOUND` | 404 | 样片不存在、不属会话门店，或尚未推送 |
-
-守卫按上表顺序核对，与 `PortalSampleView.previewBlocker` 的取值顺序一致。
-
-**副作用**（同一事务）：
-- 写一行访问审计：`audit_log.stream = access`、`category = file_access`、`action = delivery.sample.portal_preview`、`actor_type = merchant`、`actor_id` = 授权老板、`client = portal`、`target_type = sample`、`target_id` = 本版、`entity_id`、`store_id`、`session_id = portal_session.id`、`auth_method = portal`、`ip`、`user_agent`、`meta = { fileCategory: sample_wm, urlTtlSec: 3600 }`（10-delivery.md:1254；03-staff-authz-audit.md:560、951）；必填的 `summary`（如“在电脑上预览第 N 版样片”）、`actor_name`（“商家”）、`actor_role`（“老板”）由 `audit.record` 按操作人补全（03-staff-authz-audit.md 2.10）。
-- `sample.first_viewed_at` 为空时回写为当前时间（M27；10-delivery.md:565）。它不是状态列，不触发状态迁移，不写 `status_transition`，不发出站事件。
-
-**说明**：
-- 这次访问是 `sample.status`：`pushed` → `confirmed` 守卫里“查看方式为 `portal` 时有对应的访问记录”的证据（10-delivery.md:645；d3-flow.md:1540）；A19 规定样片的“已查看”证据只在这类 POST 里写。`m.sample.confirm` 按 `audit_log.action = delivery.sample.portal_preview`、`target_id` = 本版核对（m05 3.9）；开关兜底下以 `viewedVia = weapp` 确认时，同一条记录也是证据。
-- 开关兜底（1.1）：版本只有 `weapp`（或 `weapp`、`wecom`）而 `weapp.video.sample.enabled` 此刻为关时照常签发，写同样的访问审计（与 m05 3.11 `m.sample.downloadUrls` 的兜底同一口径）。
-- 允许的状态取 `pushed`、`confirmed`、`change_requested`，与小程序 `m.sample.downloadUrls` 一致（决定之后仍可回看）；路线图切片已按此改（第二轮）。
-- 这种确认方式的证据效力待法务（05-risks-and-open-issues.md:253 B4；第 6 节第 1 项）。
+当前没有真实处理器，Q9 不实现、不签发 portal 样片播放源、不写新 portal 观看证据或 first_viewed_at。小程序样片关闭时不经本接口兜底；已有历史 preview_channels、访问审计及已确认记录保持原样。新确认仅 weapp + hasViewed=true，不以 portal 访问记录放行。
 
 ### 3.12 portal.ad.list　待确认的广告
 
@@ -1057,7 +994,7 @@ V1.1，细节待设计。用途：电脑端上传大文件的登记，流程与�
 
 | # | 问题 | 默认做法 | 由谁定 |
 | --- | --- | --- | --- |
-| 1 | 样片、广告经下载页预览后回小程序勾选确认，证据效力是否足够（05-risks-and-open-issues.md:253 B4）；开关在推送后被关闭时，以 `weapp` 登记、凭电脑端预览记录确认的兜底是否可接受 | 按数据模型：每次签发写访问审计（样片另回写首次查看时间），确认时由 m05、m06 核对（3.11、3.14）；兜底与 m05-delivery-publish 3.8、m06-ad 2.9 同一口径（m05 第 6 节第 1 项同题） | 产品 + 法务 |
+| 1 | 广告经下载页预览回小程序确认的证据效力仍待法务；Q9 样片仅小程序内查看并强制勾选，portal 样片两接口当前未落地 | 广告按 m06 原规则；样片不使用 portal 或关停兜底，不新增 first_viewed_at，历史访问/确认记录保留 | 产品 + 法务 |
 | 2 | 验真页被授权方名称的脱敏规则：design-spec.md 的脱敏表没有企业名称 | 按 A100：保留前 2 个字与后 4 个字，中间每个字替换为 `*`；不足 7 个字时只留首字。信用代码按设计规范“留前 12 位与末 2 位”（约定第 15 节同题） | 法务 |
 
 ## 7. 修订记录

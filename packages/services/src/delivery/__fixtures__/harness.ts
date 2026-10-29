@@ -173,6 +173,7 @@ export function harness(
       events,
       media,
       profile,
+      samplePlayback: async () => true,
       sla: createSla({ clock, assembly }),
     },
     unbindDelivery = bindDelivery(deps),

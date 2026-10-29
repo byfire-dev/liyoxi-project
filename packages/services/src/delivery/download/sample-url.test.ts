@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { DownloadUrlSchema } from "@liyoxi/contract";
 import { useSeededDatabase } from "../../testing/index.js";
 import { productionHarness as harness } from "../__fixtures__/production-tools.js";
 import type { ProductionHarness as Harness } from "../__fixtures__/production-tools.js";
@@ -13,170 +12,98 @@ beforeAll(async () => {
 afterAll(async () => {
   await h?.close();
 });
-it("真实上传/质检/推送后，签发两次各留访问证据，首次时间不覆盖且原a确认可消费", async () => {
-  const r = await sampleReady(h),
-    { o, sample, a, downloads } = r;
+it("Q9真实上传/质检/推送仅weapp；两次旧相册请求零签名/零访问记录，确认必须勾选", async () => {
+  const { o, sample, a, downloads } = await sampleReady(h);
+  expect(sample.previewChannels).toEqual(["weapp"]);
+  const before = await snapshot(h),
+    calls = h.fake.storage.callsOf("presignGet").length;
+  for (let i = 0; i < 2; i++) {
+    await expect(downloads.sampleUrl(o.viewer, sample.sampleId, meta)).rejects.toMatchObject({
+      error: "FEATURE_DISABLED",
+    });
+    h.clock.advance(1000);
+  }
+  expect(await snapshot(h)).toEqual(before);
+  expect(h.fake.storage.callsOf("presignGet")).toHaveLength(calls);
+  expect(
+    (await h.prisma.sample.findUniqueOrThrow({ where: { id: sample.sampleId } })).firstViewedAt,
+  ).toBeNull();
   await expect(
     a.sampleConfirm(o.viewer, sample.sampleId, {
       versionNo: 1,
-      viewedVia: "album",
+      viewedVia: "weapp",
+      hasViewed: false,
+    }),
+  ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
+  expect(await snapshot(h)).toEqual(before);
+  expect(
+    await a.sampleConfirm(o.viewer, sample.sampleId, {
+      versionNo: 1,
+      viewedVia: "weapp",
       hasViewed: true,
     }),
-  ).rejects.toMatchObject({ error: "SAMPLE_NOT_VIEWABLE" });
-  const first = DownloadUrlSchema.parse(await downloads.sampleUrl(o.viewer, sample.sampleId, meta));
-  expect(first).toMatchObject({
-    fileName: "测试短剧1_样片_第1版.mp4",
-    sizeBytes: "1234",
-    expiresAt: new Date(h.clock.now().getTime() + 900000).toISOString(),
-  });
-  const viewed = (await h.prisma.sample.findUniqueOrThrow({ where: { id: sample.sampleId } }))
-    .firstViewedAt;
-  const before = await snapshot(h);
-  h.clock.advance(1000);
-  const second = await downloads.sampleUrl(o.viewer, sample.sampleId, meta);
-  expect(second.url).not.toBe(first.url);
-  expect(
-    (await h.prisma.sample.findUniqueOrThrow({ where: { id: sample.sampleId } })).firstViewedAt,
-  ).toEqual(viewed);
-  const rows = await h.prisma.auditLog.findMany({
-    where: { targetId: sample.sampleId, action: "delivery.sample.album_download" },
-  });
-  expect(rows).toHaveLength(2);
-  for (const row of rows)
-    expect(row).toMatchObject({
-      stream: "access",
-      category: "file_access",
-      actorType: "merchant",
-      actorId: o.user.id,
-      client: "weapp",
-      targetType: "sample",
-      entityId: o.entity.id,
-      storeId: o.store.id,
-      ip: meta.ip,
-      userAgent: meta.userAgent,
-      authMethod: "weapp",
-      meta: { fileCategory: "sample_wm", urlTtlSec: 900 },
-    });
-  const after = await snapshot(h);
-  expect(after.slice(1, 4)).toEqual(before.slice(1, 4));
-  expect(
-    (
-      await a.sampleConfirm(o.viewer, sample.sampleId, {
-        versionNo: 1,
-        viewedVia: "album",
-        hasViewed: true,
-      })
-    ).status,
-  ).toBe("confirmed");
+  ).toMatchObject({ status: "confirmed", viewedAckAt: h.clock.now().toISOString() });
 }, 60000);
-it("推送快照仅weapp且播放开关仍开拒绝，关闭后相册兜底的证据可确认weapp", async () => {
+it("播放关闭后旧相册入口仍拒绝，没有相册兜底、签名或确认写入", async () => {
   let enabled = true;
   const r = await sampleReady(h, async () => enabled);
-  expect(r.sample.previewChannels).toEqual(["weapp"]);
   const before = await snapshot(h),
     calls = h.fake.storage.callsOf("presignGet").length;
-  await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
-    error: "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
-    details: { previewChannels: ["weapp"] },
-  });
-  expect(await snapshot(h)).toEqual(before);
-  expect(h.fake.storage.callsOf("presignGet")).toHaveLength(calls);
   enabled = false;
-  await r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta);
+  await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
+    error: "FEATURE_DISABLED",
+  });
+  const view = await r.a.merchantSample(r.o.viewer, r.item.id);
+  expect(view).toMatchObject({ previewChannels: ["weapp"], confirmableVia: [], actions: [] });
+  expect(view.playable?.sources).toEqual([]);
+  await expect(
+    r.a.sampleConfirm(r.o.viewer, r.sample.sampleId, {
+      versionNo: 1,
+      viewedVia: "weapp",
+      hasViewed: true,
+    }),
+  ).rejects.toMatchObject({ error: "FEATURE_DISABLED" });
+  expect(await snapshot(h)).toEqual(before);
+  // GET may sign the poster only; the disabled legacy operation never signs a video.
+  const watermark = await h.prisma.playableAsset.findFirstOrThrow({
+    where: { sourceFileId: r.file.id },
+  });
+  const sourceId = (watermark.renditions as Array<{ fileId: string }>)[0]!.fileId;
+  const file = await h.prisma.fileObject.findUniqueOrThrow({ where: { id: sourceId } });
   expect(
-    (
-      await r.a.sampleConfirm(r.o.viewer, r.sample.sampleId, {
-        versionNo: 1,
-        viewedVia: "weapp",
-        hasViewed: true,
-      })
-    ).status,
-  ).toBe("confirmed");
+    h.fake.storage
+      .callsOf("presignGet")
+      .slice(calls)
+      .some((c) => (c.input as { key: string }).key === file.objectKey),
+  ).toBe(false);
 }, 60000);
-it("Provider失败和证据事务失败均零业务写，签名在业务事务外", async () => {
+it("旧operation不进入Provider，Provider故障或签后变化没有发生机会且零业务写", async () => {
   const r = await sampleReady(h),
     before = await snapshot(h);
-  h.fake.storage.failNext("presignGet");
-  await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toThrow();
-  expect(await snapshot(h)).toEqual(before);
-  let calls = 0,
-    active = false;
+  let signed = 0;
   const service = createDeliveryDownloads({
     ...h.deps,
-    tx: {
-      run: (fn, options) => {
-        const n = ++calls;
-        return h.tx.run(async (tx) => {
-          active = true;
-          try {
-            const value = await fn(tx);
-            if (n === 2) throw new Error("证据收尾故障");
-            return value;
-          } finally {
-            active = false;
-          }
-        }, options);
-      },
-    },
     media: {
       deliveryProductionFacts: h.media.deliveryProductionFacts,
-      signDeliveryDownload: async (input) => {
-        expect(active).toBe(false);
-        return h.media.signDeliveryDownload(input);
+      signDeliveryDownload: async () => {
+        signed++;
+        throw new Error("Provider must not be called");
       },
     },
   });
-  await expect(service.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toThrow(
-    "证据收尾故障",
-  );
+  await expect(service.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
+    error: "FEATURE_DISABLED",
+  });
+  expect(signed).toBe(0);
   expect(await snapshot(h)).toEqual(before);
 }, 60000);
-it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或playable未ready不签", async () => {
+it("旧operation保留实时老板/归属/门店归档和版本守卫；确认重新核真实水印就绪", async () => {
   const r = await sampleReady(h),
     before = await snapshot(h);
-  let invalidatedFileId: string | undefined;
-  const invalidated = createDeliveryDownloads({
-    ...h.deps,
-    media: {
-      deliveryProductionFacts: h.media.deliveryProductionFacts,
-      signDeliveryDownload: async (input) => {
-        const signed = await h.media.signDeliveryDownload(input);
-        invalidatedFileId = input.fileId;
-        await h.prisma.fileObject.update({
-          where: { id: input.fileId },
-          data: { moderationState: "block" },
-        });
-        return signed;
-      },
-    },
-  });
-  await expect(invalidated.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
-    error: "SAMPLE_PREVIEW_NOT_READY",
-  });
-  expect(await snapshot(h)).toEqual(before);
-  if (!invalidatedFileId) throw new Error("签名后失效反例必须命中真实水印文件");
-  await h.prisma.fileObject.update({
-    where: { id: invalidatedFileId },
-    data: { moderationState: "none" },
-  });
-  const revoked = createDeliveryDownloads({
-    ...h.deps,
-    media: {
-      deliveryProductionFacts: h.media.deliveryProductionFacts,
-      signDeliveryDownload: async (input) => {
-        const signed = await h.media.signDeliveryDownload(input);
-        await h.prisma.entityMember.update({
-          where: { id: r.o.member.id },
-          data: { role: "clerk" },
-        });
-        return signed;
-      },
-    },
-  });
-  await expect(revoked.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
+  await h.prisma.entityMember.update({ where: { id: r.o.member.id }, data: { role: "clerk" } });
+  await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
     error: "ROLE_FORBIDDEN",
   });
-  expect(await snapshot(h)).toEqual(before);
   await h.prisma.entityMember.update({ where: { id: r.o.member.id }, data: { role: "owner" } });
   await h.prisma.store.update({
     where: { id: r.o.store.id },
@@ -204,10 +131,24 @@ it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或pla
     },
   });
   const p = await h.prisma.playableAsset.findFirstOrThrow({ where: { sourceFileId: r.file.id } });
+  const output = (p.renditions as Array<{ fileId: string }>)[0]!.fileId;
+  await h.prisma.fileObject.update({ where: { id: output }, data: { moderationState: "block" } });
+  await expect(
+    r.a.sampleConfirm(r.o.viewer, r.sample.sampleId, {
+      versionNo: 1,
+      viewedVia: "weapp",
+      hasViewed: true,
+    }),
+  ).rejects.toMatchObject({ error: "SAMPLE_PREVIEW_NOT_READY" });
+  await h.prisma.fileObject.update({ where: { id: output }, data: { moderationState: "none" } });
   await h.prisma.playableAsset.update({ where: { id: p.id }, data: { state: "processing" } });
-  await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
-    error: "SAMPLE_PREVIEW_NOT_READY",
-  });
+  await expect(
+    r.a.sampleConfirm(r.o.viewer, r.sample.sampleId, {
+      versionNo: 1,
+      viewedVia: "weapp",
+      hasViewed: true,
+    }),
+  ).rejects.toMatchObject({ error: "SAMPLE_PREVIEW_NOT_READY" });
   await h.prisma.playableAsset.update({ where: { id: p.id }, data: { state: "ready" } });
   await h.prisma.sample.update({
     where: { id: r.sample.sampleId },
@@ -216,4 +157,7 @@ it("签后文件失效/撤销老板角色与门店归档均拒绝，旧版或pla
   await expect(r.downloads.sampleUrl(r.o.viewer, r.sample.sampleId, meta)).rejects.toMatchObject({
     error: "STATE_NOT_ALLOWED",
   });
+  // Restore the deliberately invalidated state before comparing the no-write evidence.
+  await h.prisma.sample.update({ where: { id: r.sample.sampleId }, data: { status: "pushed" } });
+  expect(await snapshot(h)).toEqual(before);
 }, 60000);

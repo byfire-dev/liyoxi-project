@@ -66,9 +66,9 @@ export const FLAGS = [
   flag(
     "weapp.video.sample.enabled",
     "bool",
-    false,
+    true,
     "client",
-    "关：样片确认页不内嵌播放器，改为存相册查看与在电脑上预览",
+    "开：仅在小程序内查看样片并勾选确认；关：暂停样片播放、推送与确认",
   ),
   flag("weapp.video.ad.enabled", "bool", true, "client", "关：广告详情不内嵌播放器"),
   flag("weapp.trailer.autoplay", "bool", false, "client", "关：预告片点击才播放，不自动播放"),
