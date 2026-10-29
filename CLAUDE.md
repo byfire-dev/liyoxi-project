@@ -268,6 +268,8 @@
 | `pnpm e2e:m2`；`pnpm demo:m2` | 共用 M1 二十集真实接口主链和 M2 生命周期/运输恢复；本机单路上传，明确 `CI=true` 才用原 M1 四路，90秒判据不变。本机分段目标不代替完整链或十连；说明与实际结果见 [M2 演示手册](docs/plan/demo/m2.md) 与 [合流回顾](docs/plan/retro/m2.md)。 |
 | `pnpm e2e:m3`；`node infra/ci/m3-repeat.mjs --times 10` | M3 的真实接口合流目标；与 M1 共用顺序执行、独立会话、90秒总墙钟和失败摘要，M3产物另存 `apps/api/dist/m3-e2e-repeat/`。失败不重试、不把超时或被中止的轮次记绿；本轮资源由主链自然收尾。真实云、预发与真机仍按外部台账单列。 |
 | `pnpm demo:m3` | M3的隔离演示入口，调用同一正式接口主链；连续两次核演示种子与业务数量，第二次零新增，拒绝生产库。说明见 [M3 演示手册](docs/plan/demo/m3.md) 与 [合流回顾](docs/plan/retro/m3.md)。 |
+| `pnpm e2e:m4` | M4 独立资金接口主链；单 worker、文件不并行，真实 Hono 与假渠道正式签名协议，覆盖支付退款、调整延长、三人线下收款、发票、差异对账、三模式及受控配置24小时边界。每轮独立测试库和 Redis 前缀，初始化、主链、全量不变量与自然清理合计 ≤90 秒。真实资金和云端联调仍单列未验。 |
+| `pnpm demo:m4` | 本轮新隔离库走同一 M4 接口链，在核心退款完成后，用原 key 重放原付款/退款意图及两份签名通知，核业务零新增、演示种子零新增和字典保留；不接收目标业务库，生产环境拒绝。实际执行与主干十轮验收见 W4-19 状态，假通道不表示真实实付。 |
 | `node infra/ci/check-stubs.mjs` | 留桩门禁：34 个计划行精确关联功能留桩文件及既有未来页面登记，检查模板键、回补点和合法 M0–M8，M0/M1 必须已回补；删除文件、页面或只改计划回补点都失败。 |
 | `pnpm test:fault` | 故障注入套件：各包的并发、性质与故障注入用例一条命令跑完（按文件名圈：`*.concurrency.test.ts`、`*.property.test.ts`、名字是 `fault` 的目录与文件、幂等与租约的用例；它们也都在 `pnpm test` 里）。前提同 `pnpm test`。造什么、看什么的清单在 [docs/plan/m0-exit.md](docs/plan/m0-exit.md) 第 4 节 |
 | `pnpm plan:summaries` | 现生成台账三张汇总：`docs/plan/stubs/`、`changes/`、`external-verification/` 下各一份 `SUMMARY.md`（不入库，被 git 忽略，不用提交）。单项文件不合规时报错并指出是哪个文件的哪一项；CI 的“台账单项文件核对”只做这道核对（`node infra/ci/plan-summaries.mjs --check`，不写文件）。口径见 [脚本](infra/ci/plan-summaries.mjs) 开头的注释 |

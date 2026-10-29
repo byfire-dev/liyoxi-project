@@ -48,7 +48,13 @@ beforeAll(async () => {
   prisma = await handle.prisma();
   await redis.flush();
   channel = createQueueChannel({ redisUrl: process.env.REDIS_URL!, prefix: `${redis.prefix}bull` });
-  await channel.ping();
+  // 先等连接建立，再用关闭后的即时探活断言验证借用队列仍存活。
+  await vi.waitFor(
+    async () => {
+      expect(await channel.ping()).toBe(true);
+    },
+    { timeout: 2000, interval: 10 },
+  );
 });
 async function close(one: ReturnType<typeof buildWorkerServicesForTest>) {
   await one.shutdownMediaJobs?.();
