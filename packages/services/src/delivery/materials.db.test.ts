@@ -208,8 +208,8 @@ async function profileReference(orderId: string) {
     lockVersion: before?.lockVersion ?? 0,
     groups: { door: [{ fileId }] },
   });
-  // Historical association only: the current order producer does not yet register
-  // drama_order/reference. The file above and profile insert/removal are real services.
+  // Historical profile association only: the order has no profile-media input.
+  // The file above and profile insert/removal are real services.
   await h.prisma.fileRef.create({
     data: {
       id: uuidv7(),
@@ -248,13 +248,17 @@ describe("制作素材的当前事实、签名与取料留痕", { timeout: 60_00
       file2 = await h.stored(),
       asset = await h.media.assets.create(h.owner, { type: "image", fileIds: [file.id, file2.id] });
     await h.tx.run((tx) =>
-      linkAssetReferences(tx, {
-        entityId: p.order.entityId,
-        storeId: p.order.storeId,
-        ids: [asset.storeAssetId],
-        orderId: p.order.id,
-        now: h.clock.now(),
-      }),
+      linkAssetReferences(
+        tx,
+        {
+          entityId: p.order.entityId,
+          storeId: p.order.storeId,
+          ids: [asset.storeAssetId],
+          orderId: p.order.id,
+          now: h.clock.now(),
+        },
+        h.media.link,
+      ),
     );
     const profileId = await profileReference(p.order.id);
     const otherOrder = await parent(),
@@ -434,13 +438,17 @@ describe("制作素材的当前事实、签名与取料留痕", { timeout: 60_00
     });
     const p = await parent({ entityId: h.merchant.entity.id, storeId: target.id });
     await h.tx.run((tx) =>
-      linkAssetReferences(tx, {
-        entityId: p.order.entityId,
-        storeId: p.order.storeId,
-        ids: [copied.id],
-        orderId: p.order.id,
-        now: h.clock.now(),
-      }),
+      linkAssetReferences(
+        tx,
+        {
+          entityId: p.order.entityId,
+          storeId: p.order.storeId,
+          ids: [copied.id],
+          orderId: p.order.id,
+          now: h.clock.now(),
+        },
+        h.media.link,
+      ),
     );
     expect((await h.prisma.fileObject.findUniqueOrThrow({ where: { id: file.id } })).storeId).toBe(
       h.merchant.store.id,

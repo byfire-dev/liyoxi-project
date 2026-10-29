@@ -6,7 +6,9 @@
 
 `order.onReferencesClosed` 是本fix新增的1项M3关键订阅者（x01总订阅者34→35，M3 6→7），消费现有 `order.status_changed` 与 `cancel.executed`。它在出站消费自己的短事务回读真实父单终态和closedAt，按订单160→文件410整体锁定，仅释放本单当前live参考；未全终态不释放，重复消费不写业务行。取消事件通过真实申请明细定位全部父单，覆盖父状态事件被抑制的路径。保留基准为closedAt加90天，实际 `media.release` 继续按当前时钟最低期和已有keepUntil取最大值，迟到消费不会缩短留存；原素材引用或其他live引用仍阻挡清理。不新增扫描循环、不扩财务锁图。
 
-定向验收源为 `src/order/reference-files.db.test.ts`：真实上传/素材创建、多素材交错UUID的全部文件、文本、跨店、底层拦截及真实link后故障回滚；三种终态、当前非终态拒绝释放、真实免审取消事件与重复零写。验证结果以本fix实际PR/CI为准。后台投影在W5-04 actual后复用其owner事实并串测正式取料链。历史usage缺file_ref回填与订单档案媒体producer缺输入约定均未实施；GET不补写、不自动复制档案。
+`adminGet` 的参考文件投影以本单live `file_ref` 全集为准，复用W5-04已交付的media素材/文件、profile档案公口识别来源（素材usage优先，档案匹配包含已移除行）。未知来源不借档案分支签名；文本素材没有文件时仍只有usage。缩略图在事务外通过媒体公口签发，签名前后重读负责门店范围、本单引用、来源归属及文件/封面当前安全事实；当前不可读文件保留元数据、thumbnail为空，签名期间范围或事实变化拒绝旧URL。保留复制素材的crossStore政策，原文件和封面仍核各自真实范围；GET不登记引用、不写访问审计或取料记录。
+
+定向验收源为 `src/order/reference-files.db.test.ts`：真实上传/素材创建、多素材交错UUID的全部文件、文本、跨店、底层拦截及真实link后故障回滚；三种终态、当前非终态拒绝释放、真实免审取消事件与重复零写。`apps/api/test/order-reference-files.test.ts` 走真实图片上传、素材创建、下单双关联、后台详情零写与缩略图、正式开工handler实际扣减、W5-04材料签发；另核已移除的历史档案引用及签名期间file/ref/scope变化。`delivery/materials.db.test.ts` 保留品牌素材A→B→C实际复制后本单取料的覆盖。验证结果以本fix实际PR/CI为准。历史usage缺file_ref回填与订单档案媒体producer缺输入约定均未实施；GET不补写、不自动复制档案。
 
 ## 统一取消执行（W5-01）
 
