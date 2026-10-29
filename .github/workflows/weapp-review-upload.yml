@@ -1,0 +1,115 @@
+# 只准备送审版本；设体验、提交审核、发布均由业主另行操作。
+name: weapp-review-upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 已在main且CI全绿的完整40位提交
+        type: string
+        required: true
+      version:
+        description: X.Y.Z（每段0或无前导零的1至6位数字）
+        type: string
+        default: 0.1.0
+        required: true
+      execute:
+        description: 确认冻结、外部核对及机器人2上传（不提交审核）
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-stg
+  cancel-in-progress: false
+
+jobs:
+  weapp-review-upload:
+    name: weapp-review-upload
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.STG_WEAPP_REVIEW_UPLOAD_ENABLED == 'true' && vars.STG_FREEZE == 'true' && inputs.execute == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      EXPECTED_SHA: ${{ inputs.commit }}
+      REVIEW_VERSION: ${{ inputs.version }}
+      REVIEW_EXECUTE: ${{ inputs.execute }}
+      STG_FREEZE: ${{ vars.STG_FREEZE }}
+      STG_WEAPP_REVIEW_UPLOAD_ENABLED: ${{ vars.STG_WEAPP_REVIEW_UPLOAD_ENABLED }}
+      APP_ENV: test
+      DATABASE_URL: postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi
+      REDIS_URL: redis://localhost:6389/0
+    services:
+      postgres:
+        image: postgres:17-trixie
+        env:
+          POSTGRES_USER: liyoxi
+          POSTGRES_PASSWORD: lyx-local-dev
+          POSTGRES_DB: liyoxi
+        ports: ["5442:5432"]
+        options: >-
+          --health-cmd "pg_isready -U liyoxi -d liyoxi"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 30
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6389:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - name: 先校验输入字面值
+        run: |
+          node --input-type=module -e 'if(!/^[a-f0-9]{40}$/.test(process.env.EXPECTED_SHA)||!/^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/.test(process.env.REVIEW_VERSION))throw Error("提交或版本无效");'
+      - name: 检出指定提交及完整main历史
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 执行源码前先核确实属于main
+        run: git merge-base --is-ancestor "$EXPECTED_SHA" origin/main && test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: 装pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: 固定锁安装并生成DB客户端
+        run: pnpm install --frozen-lockfile && pnpm db:generate
+      - name: 同检出正式探活目标导出挂载清单
+        env:
+          LYX_TEST_SESSION: reviewupload
+        run: rm -f apps/api/dist/mounted-operations.json && pnpm exec vitest run apps/api/test/probes.test.ts --maxWorkers=1 && test -s apps/api/dist/mounted-operations.json
+      - name: 核同提交images与mixed成功
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node infra/ci/release-check-fetch.mjs
+      - name: 只取已核成功run的同源发布摘要
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: images-release-${{ inputs.commit }}
+          path: ${{ runner.temp }}/images-release
+          run-id: ${{ steps.release.outputs.images-run-id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+      - name: 出包核对通过后打标签并用机器人2上传
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STG_NODE_USER: ${{ vars.STG_SSH_USER }}
+          STG_NODE_HOST: ${{ vars.STG_SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.STG_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.STG_SSH_KNOWN_HOSTS }}
+        run: node infra/deploy/review-workflow.mjs
+      - name: 清理本轮SSH文件
+        if: always()
+        run: rm -f "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"

@@ -22,6 +22,7 @@ import { orderApi } from "../private/api";
 import { useOrderResource } from "../private/resource";
 import { OrderReferenceRead } from "../private/reference-ui";
 import { deliveryEntry, deliveryItemEntries } from "../components/navigation";
+import { formatOrderTimelineTime } from "./timeline";
 import "./index.scss";
 const timelineNames: Record<string, string> = {
   submitted: "已订购（积分冻结）",
@@ -153,7 +154,7 @@ function Detail({ id }: { id: string }) {
                         title: timelineNames[t.key],
                         state:
                           t.state === "done" ? "done" : t.state === "current" ? "current" : "todo",
-                        time: t.at ? appDateTimeFormat.dateTime(t.at) : undefined,
+                        time: formatOrderTimelineTime(t.at),
                       }))}
                   />
                   {deliveryItemEntries(item, owner).map((action) => (

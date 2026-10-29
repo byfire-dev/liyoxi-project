@@ -8,13 +8,16 @@ import {
   applyReceipt,
   snapshotTables,
   openTerm,
+  createFakeWechatPay,
+  pendingWechatReceipt,
 } from "../../testing/index.js";
 import type { PaymentHarness } from "../../testing/index.js";
 import { benefitsOf, quotePlan } from "../catalog/index.js";
 import { billingInvariants } from "../invariants.js";
 import { subscriptionInvariants } from "./invariants.js";
 import { paymentInvariants } from "../payment/invariants.js";
-import { AppError, uuidv7 } from "../../kernel/index.js";
+import { AppError, createIdentityContext, uuidv7 } from "../../kernel/index.js";
+import { advanceDueAccounts, getWalletView, recordChannelSuccess } from "../index.js";
 import { listTermsDueForReminder, renewalApplicable } from "./reminders.js";
 import { createBillingDailyProjection } from "../reporting/daily.js";
 import { sweepSubscriptionDaily } from "../sweep.js";
@@ -266,6 +269,179 @@ it("十三个月真实周期开通、降级续费和下期升级按锚点接续�
   expect(await run("billing.I11")).toEqual([]);
   expect(await run("billing.I13")).toEqual([]);
   await invariant(h, entityId);
+}, 30000);
+
+it("十三个固定月末的钱包、积分负债、递延收入与MRR逐行等于独立手算", async () => {
+  const h = createPaymentHarness(await db.prisma());
+  h.clock.set(new Date("2026-01-31T04:00:00.000Z"));
+  // 与原十三个月目标相同的五期合法输入；只增加本例可预约数量，不改生产参数。
+  await h.prisma.billingParam.create({
+    data: {
+      id: uuidv7(),
+      key: "maxScheduledTerms",
+      changeId: uuidv7(),
+      value: 5,
+      effectiveAt: h.clock.now(),
+      createdAt: h.clock.now(),
+    },
+  });
+  const { entity } = await h.make.merchant({ verified: true });
+  const provider = createFakeWechatPay({ clock: h.clock });
+  const identity = { appid: "wx0000000000000000", mchid: "1900000109" };
+  provider.useWireFormat(identity);
+  const ctx = createIdentityContext({ actor: { type: "system", job: "lyxtest.monthly" } });
+  for (const [code, months, intent] of [
+    ["pro", 3, undefined],
+    ["basic", 3, undefined],
+    ["flagship", 3, "renew_next_term"],
+    ["pro", 3, undefined],
+    ["basic", 1, undefined],
+  ] as const) {
+    const plan = await h.prisma.plan.findUniqueOrThrow({ where: { code } });
+    const quoted = await h.tx.run((tx) =>
+      quotePlan(
+        tx,
+        entity.id,
+        h.clock.now(),
+        { planId: plan.id, months, ...(intent ? { intent } : {}) },
+        async () => ({
+          ...policy,
+          channels: [{ code: "wechat_jsapi", isEnabled: true, isRecommended: true, hintKey: null }],
+        }),
+      ),
+    );
+    // 只准备未收款输入；成功交易、paid、履约及账本一律由正式服务写入。
+    const pending = await pendingPlanOrder(h, { entityId: entity.id, channel: "wechat_jsapi" });
+    expect(pending.status).toBe("pending_payment");
+    const order = await h.prisma.billingOrder.update({
+      where: { id: pending.id },
+      data: {
+        type: quoted.quote.orderType,
+        amountFen: quoted.content.payFen,
+        contentSnapshot: quoted.content,
+      },
+    });
+    const receipt = await pendingWechatReceipt(h, order);
+    expect(receipt.status).toBe("created");
+    expect(
+      await provider.createJsapiOrder({
+        outTradeNo: receipt.outTradeNo,
+        description: "十三个月末独立手算",
+        amountFen: receipt.amountFen,
+        payerOpenid: receipt.payerOpenid!,
+        attach: receipt.attach!,
+        expireAt: order.expiresAt,
+      }),
+    ).toMatchObject({ ok: true });
+    const paid = provider.pay(receipt.outTradeNo);
+    if (paid.kind !== "transaction") throw new Error("月末用例需要可信收款事实");
+    await h.tx.run((tx) =>
+      recordChannelSuccess(tx, { clock: h.clock, events: h.events, ...identity }, ctx, {
+        paymentTxnId: receipt.id,
+        transaction: paid.transaction,
+      }),
+    );
+    expect((await applyReceipt(h, receipt)).result).toMatchObject({
+      status: "applied",
+      fulfillment: { status: "done" },
+    });
+  }
+  const terms = await h.prisma.subscriptionTerm.findMany({
+    where: { entityId: entity.id },
+    orderBy: { termNo: "asc" },
+  });
+  expect(
+    terms.map((term) => [
+      term.startDate.toISOString().slice(0, 10),
+      term.endDate.toISOString().slice(0, 10),
+    ]),
+  ).toEqual([
+    ["2026-01-31", "2026-04-29"],
+    ["2026-04-30", "2026-07-30"],
+    ["2026-07-31", "2026-10-30"],
+    ["2026-10-31", "2027-01-30"],
+    ["2027-01-31", "2027-02-27"],
+  ]);
+  // 固定自然月末/次日、期内累计未消费积分及成本；不从quote、schedule或被测日期函数推导。
+  // 每行：月末、闭日任务日期、可用/负债积分、积分负债分、未发计划递延分、MRR分。
+  const monthEnds = [
+    ["2026-01-31", "2026-02-01", 6600, 600000, 7800000, 600000],
+    ["2026-02-28", "2026-03-01", 13200, 1200000, 7200000, 600000],
+    ["2026-03-31", "2026-04-01", 19800, 1800000, 6600000, 600000],
+    ["2026-04-30", "2026-05-01", 3000, 300000, 6300000, 300000],
+    ["2026-05-31", "2026-06-01", 6000, 600000, 6000000, 300000],
+    ["2026-06-30", "2026-07-01", 9000, 900000, 5700000, 300000],
+    ["2026-07-31", "2026-08-01", 14400, 1200000, 4500000, 1200000],
+    ["2026-08-31", "2026-09-01", 28800, 2400000, 3300000, 1200000],
+    ["2026-09-30", "2026-10-01", 43200, 3600000, 2100000, 1200000],
+    ["2026-10-31", "2026-11-01", 6600, 600000, 1500000, 600000],
+    ["2026-11-30", "2026-12-01", 13200, 1200000, 900000, 600000],
+    ["2026-12-31", "2027-01-01", 19800, 1800000, 300000, 600000],
+    ["2027-01-31", "2027-02-01", 3000, 300000, 0, 300000],
+  ] as const;
+  const projection = createBillingDailyProjection({ ledger: h.ledger });
+  for (const [monthEnd, closedOn, points, liabilityFen, deferredFen, mrrFen] of monthEnds) {
+    h.clock.set(new Date(`${monthEnd}T23:59:59.999+08:00`));
+    const advanced = await advanceDueAccounts({
+      db: h.prisma,
+      tx: h.tx,
+      clock: h.clock,
+      ledger: h.ledger,
+    });
+    expect(advanced.failed, monthEnd).toEqual([]);
+    expect(advanced.skipped, monthEnd).toBe(0);
+    expect(await getWalletView(h.prisma, entity.id, h.clock.now()), monthEnd).toMatchObject({
+      subscription: { status: "active" },
+      points: {
+        spendablePoints: points,
+        planAvailablePoints: points,
+        addonAvailablePoints: 0,
+        heldPoints: 0,
+      },
+    });
+    h.clock.set(new Date(`${closedOn}T00:05:00.000+08:00`));
+    expect(
+      await sweepSubscriptionDaily(
+        { ledger: h.ledger, snapshot: projection.snapshot },
+        {
+          scheduledFor: h.clock.now(),
+          signal: new AbortController().signal,
+          runTx: (run) => h.tx.run(run),
+        },
+      ),
+      monthEnd,
+    ).toEqual({ processed: 1, through: monthEnd });
+    expect(
+      await h.prisma.billingEntityDaily.findUniqueOrThrow({
+        where: {
+          bizDate_entityId: { entityId: entity.id, bizDate: new Date(`${monthEnd}T00:00:00.000Z`) },
+        },
+      }),
+      monthEnd,
+    ).toMatchObject({
+      subStatus: "active",
+      planAvailablePoints: points,
+      addonAvailablePoints: 0,
+      heldPoints: 0,
+      liabilityPoints: points,
+      liabilityValueFen: liabilityFen,
+      deferredPlanFeeFen: deferredFen,
+      mrrFen,
+    });
+  }
+  h.clock.set(new Date("2027-02-28T00:00:00.000+08:00"));
+  expect(
+    await advanceDueAccounts({ db: h.prisma, tx: h.tx, clock: h.clock, ledger: h.ledger }),
+  ).toMatchObject({
+    advanced: 1,
+    skipped: 0,
+    failed: [],
+  });
+  expect(await getWalletView(h.prisma, entity.id, h.clock.now())).toMatchObject({
+    subscription: { status: "expired" },
+    points: { spendablePoints: 0, planAvailablePoints: 0, heldPoints: 0 },
+  });
+  await invariant(h, entity.id);
 }, 30000);
 
 it("月差60元与1积分的零折算月免收，跨月入账及后续整月成本与实付守恒", async () => {

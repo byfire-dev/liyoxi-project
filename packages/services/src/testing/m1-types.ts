@@ -115,6 +115,8 @@ export interface M1Support {
   sharedScope(): M1SharedScope;
 }
 export interface M1SupportOptions {
+  /** 仅本机test独立scope：沿API测试相同假通道身份，默认M1不装配支付。 */
+  readonly wechatPay?: { readonly appid: string; readonly mchid: string };
   readonly attach?: M1Attachment;
   /** 仅 test/nonattach owner：本轮固定私网、正式迁移补种、实钟；不进公开报告。 */
   readonly ownerNetwork?: M1OwnerNetwork;

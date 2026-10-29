@@ -14,7 +14,7 @@
 
 | 路径（节点上） | 是什么 |
 | --- | --- |
-| `/opt/liyoxi/infra/` | 从仓库拷来的 `infra/compose`、`infra/deploy`、`infra/bootstrap`，布局与仓库相同 |
+| `/opt/liyoxi/infra/` | 从仓库拷来的 `infra/compose`、`infra/deploy`、`infra/bootstrap` 及单个 `infra/ci/probe-during-deploy.mjs`，布局与仓库相同；不复制整包 CI 工具 |
 | `/opt/liyoxi/secrets/` | 密钥文件，目录 0700 只有 root 能进，文件 0400。清单在 [secrets.manifest.json](../deploy/secrets.manifest.json) |
 | `/opt/liyoxi/node.env` | 这台节点自己的非敏感设置：镜像仓库前缀与可选 Provider 选择/公开标量 |
 | `/opt/liyoxi/release.env` | 现在该跑哪个版本。由节点步骤 `up` 写，systemd 重启容器时读 |
@@ -28,7 +28,7 @@
 
 ```sh
 # 本机，在仓库的检出里（main 的最新提交）
-git archive --format=tar HEAD infra/compose infra/deploy infra/bootstrap | ssh <登录用户>@<节点> 'mkdir -p ~/lyx-src && tar -x -C ~/lyx-src'
+git archive --format=tar HEAD infra/compose infra/deploy infra/bootstrap infra/ci/probe-during-deploy.mjs | ssh <登录用户>@<节点> 'mkdir -p ~/lyx-src && tar -x -C ~/lyx-src'
 # 节点上：先只看不做
 cd ~/lyx-src && sudo bash infra/bootstrap/node-init.sh --dry-run --deploy-key ~/lyx-deploy.pub --registry <镜像仓库前缀，以 / 结尾>
 # 看过没问题，去掉 --dry-run 再跑一遍
@@ -41,7 +41,7 @@ cd ~/lyx-src && sudo bash infra/bootstrap/node-init.sh --dry-run --deploy-key ~/
 | 正式执行的末行 | `节点初始化完成。…` |
 | 输出里“停下：…什么都没有改” | 核对没过，按它说的原因处理后重跑。参考工程在跑、8080 被占：先弄清是谁，不要绕过。网段相撞：改 `infra/compose/env/stg.env` 的 `LYX_NODE_SUBNET` 与 `LYX_TRUSTED_PROXY_CIDRS`（走 PR） |
 
-它做的事：建目录；拷脚本；写 `node.env`；建发布用户 `lyx-deploy`（不设口令）并写它的 `authorized_keys`（一行：只能执行 `node-step.sh`，不给终端，不许转发）与 sudoers（只放行以 root 执行这一个脚本）；装六个 systemd 单元（不启用、不启动）。不拉镜像、不起容器、不写密钥、不碰 nginx。
+它做的事：先检查资源核对 probe 源文件完整，缺失即在写入前停下；建目录；拷脚本，并只将该 probe 安装到 `infra/ci/`（目录0755、文件0644）；写 `node.env`；建发布用户 `lyx-deploy`（不设口令）并写它的 `authorized_keys`（一行：只能执行 `node-step.sh`，不给终端，不许转发）与 sudoers（只放行以 root 执行这一个脚本）；装六个 systemd 单元（不启用、不启动）。不拉镜像、不起容器、不写密钥、不碰 nginx。
 
 - `--nginx-oom` 单列：另装一份 systemd 覆盖文件，让内存见底时别先杀宿主机 nginx。这是动别人的服务，业主同意才带；nginx 下次重启后生效，脚本不重启它。撤掉：`sudo rm /etc/systemd/system/nginx.service.d/lyx-oom.conf && sudo systemctl daemon-reload`。
 - 误报参考工程的进程（命令行里恰好带参考工程名、又与它无关）：确认之后设 `LYX_REF_NAME=<不会命中的名字>` 重跑，并把这件事记下来。

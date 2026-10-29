@@ -5,13 +5,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { makeTempDir, repoRoot, run, writeFiles } from "./helpers.js";
 
-// 测试隔离的全量分片跑（infra/ci/isolation-shard.mjs）：必过检查里 test-isolation 与它的另三片各跑一片。
+// 测试隔离的全量分片跑（infra/ci/isolation-shard.mjs）：必过检查里 test-isolation 与它的另七片各跑一片。
 // 钉在这里：范围与不分片的那一遍（pnpm test:isolation --scope connected）相同；各片互不重叠、合起来是全部；
-// 每片另带的两份用例都在；实际跑的文件数对不上即失败。真起两个会话跑一片太重，不在用例里跑（CI 的四个任务就是实跑）。
+// 每片另带的两份用例都在；实际跑的文件数对不上即失败。真起两个会话跑一片太重，不在用例里跑（CI 的八个任务就是实跑）。
 
 const SCRIPT = join(repoRoot, "infra/ci/isolation-shard.mjs");
 const WHOLE = join(repoRoot, "packages/services/src/testing/isolation.mjs");
-const SHARDS = 4;
+const SHARDS = 8;
 const ANCHORS = [
   "packages/db/src/testing/parallel.test.ts",
   "packages/services/src/testing/redis-isolation.test.ts",
@@ -73,7 +73,7 @@ describe("范围：与不分片的那一遍相同", () => {
 });
 
 describe("分法：互不重叠，合起来是全部", () => {
-  it("四片的并集等于全部，没有哪个文件出现两次；各片的文件数最多差一个", () => {
+  it("八片的并集等于全部，没有哪个文件出现两次；各片的文件数最多差一个", () => {
     const all = listed();
     const parts = Array.from({ length: SHARDS }, (_, at) => part(at + 1));
     expect(parts.flat().sort()).toEqual([...all].sort());
@@ -167,6 +167,7 @@ describe("用法", () => {
       ["--shard", "2"],
       ["--shard", "0/4"],
       ["--shard", "5/4"],
+      ["--shard", "9/8"],
       ["--shard", "1/4", "--scope", "all"],
       ["--shard", "1/4", "--project", "db"],
       ["--shard", "1/4", "--workers", "0"],
