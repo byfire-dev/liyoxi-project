@@ -65,6 +65,8 @@ async function race<T>(
   // 栅栏自己没立起来（加锁语句出错）就直接报出来，不干等
   await Promise.race([holding, keeper]);
   const pending = calls.map((call) => call());
+  // 立即观察预期的竞争失败，避免放行后先于 keeper 完成而成为未处理拒绝。
+  const settled = Promise.allSettled(pending);
   const deadline = Date.now() + 10_000;
   while ((await waiting()) < calls.length && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 5));
@@ -72,7 +74,7 @@ async function race<T>(
   const blocked = await waiting();
   open();
   await keeper;
-  const results = await Promise.allSettled(pending);
+  const results = await settled;
   expect(blocked, "各方都该撞到锁上").toBe(calls.length);
   return results;
 }
