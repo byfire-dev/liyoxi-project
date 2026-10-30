@@ -16,6 +16,12 @@ onlyBuiltDependencies:
 # 发布未满 7 天的版本不安装，单位是分钟（02 第 5.1 节第 2 条；ADR-035）
 minimumReleaseAge: 10080
 
+# ADR-035：仅此安全修复提前准入；已核发布时间 2026-10-27T14:09:15.471Z。
+# 截止 2026-11-03T14:09:15.471Z，届时自然满 7 天、checker 按普通规则并提示撤除。
+# gate-change 的独立复审与调度均须明确确认必要性和边界；不放宽其他版本或可信级别。
+minimumReleaseAgeExclude:
+  - "node-forge@1.4.2"
+
 # 一个包的发布可信级别不得低于它更早发布的版本（按发布日期比，不按版本号）
 trustPolicy: no-downgrade
 
