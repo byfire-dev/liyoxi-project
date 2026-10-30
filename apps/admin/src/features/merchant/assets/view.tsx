@@ -323,7 +323,9 @@ function MerchantAssetsContent({
       ) : (
         <EmptyState title="选择一条素材查看详情" />
       )}
-      {intent && intent.errorScope === errorScope && !rows.isError && !detail.isError ? (
+      {intent &&
+      ((intent.value.kind === "delete" && deleteReads.paused()) ||
+        (intent.errorScope === errorScope && !rows.isError && !detail.isError)) ? (
         <AssetEditor
           key={intent.id}
           intent={intent.value}
