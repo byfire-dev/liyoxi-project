@@ -6,7 +6,7 @@
 | 原因 | 13分组规定06收敛只创建queued，07渲染任务才提交真实ready文件、current指针及issued；N6③要求effective信有ready版。06初次全链真实到live后full报告N6=1、errors=0，不能用伪ready、删③或放宽原零违规断言通过。分片让07消费已合核心，再完成原N6正式登记与整包验收。 |
 | 影响的包 | W5-06整体甲/L，PR1/PR2各一轮独审；仅W5-07对06改为等PR1核心actual。03.PR3、08及其他原下游仍等06整包，07其他前置不变。06非末片保持进行中；原M5进入/退出、外部验收、冻结metadata与既有不变量不变。 |
 | 类别 | 拆并、顺序（同编号两PR，包数不变） |
-| PR | —（调度创建后回填） |
+| PR | [#218](https://github.com/byfire-dev/liyoxi-project/pull/218)（PR1；代码验收、当前CI与实际合入以发布页为准，PR2仍待07 actual） |
 
 ## 1. 逐片交付与依赖
 
