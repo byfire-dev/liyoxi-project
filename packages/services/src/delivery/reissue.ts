@@ -4,7 +4,7 @@ import { calendarDate } from "@liyoxi/shared/time";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
-import { staffBriefs, createReissueFollowUp } from "../staff/index.js";
+import { createReissueFollowUp } from "../staff/index.js";
 import { readCancelZipTargets, invalidateZipBundles } from "../media/index.js";
 import type { DeliveryDeps } from "./context.js";
 import { checked } from "./machines.js";
@@ -12,33 +12,7 @@ import { writeDeliveryRelease, releaseAdminView } from "./packages.js";
 import { publishListFacts } from "./publish-list.js";
 import { productionReady, quality, unpaused } from "./quality.js";
 import { dateOf, lockTickets, ticketOf } from "./repo.js";
-
-async function reissueView(tx: Tx, r: DeliveryReissue) {
-  const reason = await tx.dictItem.findUnique({
-    where: { dictTypeKey_code: { dictTypeKey: "reissue_reason", code: r.reasonCode } },
-  });
-  const rows = await tx.episodeOutput.findMany({
-    where: { deliveryReissueId: r.id },
-    orderBy: [{ revisionNo: "desc" }, { id: "desc" }],
-  });
-  return {
-    reissueId: r.id,
-    deliveryTicketId: r.deliveryTicketId,
-    status: r.status,
-    episodeNos: r.episodeNos,
-    reason: { code: r.reasonCode, name: reason?.name ?? r.reasonCode },
-    note: r.note,
-    openedBy: (await staffBriefs(tx, [r.openedByStaffId]))[0]!,
-    openedAt: r.openedAt.toISOString(),
-    closedAt: r.closedAt?.toISOString() ?? null,
-    publishedDeliveryReleaseId: r.publishedDeliveryReleaseId,
-    actions: r.status === "open" ? ["cancel", "publish"] : [],
-    replacements: r.episodeNos.flatMap((n) => {
-      const e = rows.find((r) => r.episodeNo === n);
-      return e ? [{ episodeNo: n, episodeOutputId: e.id, status: e.status }] : [];
-    }),
-  };
-}
+import { reissueView } from "./reissue-view.js";
 async function reissueOf(tx: Tx, id: string, staff: StaffContext) {
   const r = await tx.deliveryReissue.findUnique({ where: { id } });
   if (!r) throw new AppError("NOT_FOUND");
@@ -142,7 +116,7 @@ export async function createReissue(
       reasonCode: r.reasonCode,
     },
   });
-  return reissueView(tx, r);
+  return reissueView(tx, deps, t, r, staff, deps.clock.now());
 }
 export async function cancelReissue(
   tx: Tx,
@@ -178,7 +152,7 @@ export async function cancelReissue(
     data: { status: "cancelled", closedAt: deps.clock.now(), updatedAt: deps.clock.now() },
   });
   await history(tx, deps, ctx, t, "reissue.cancelled", { ...result, note: body.note ?? r.note });
-  return reissueView(tx, result);
+  return reissueView(tx, deps, t, result, staff, deps.clock.now());
 }
 export async function publishReissue(
   tx: Tx,
@@ -344,5 +318,8 @@ export async function publishReissue(
       grantExpiresAt: expiresAt.toISOString(),
     },
   });
-  return { reissue: await reissueView(tx, result), release: await releaseAdminView(tx, release) };
+  return {
+    reissue: await reissueView(tx, deps, t, result, staff, deps.clock.now()),
+    release: await releaseAdminView(tx, release),
+  };
 }

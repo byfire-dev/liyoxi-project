@@ -394,6 +394,28 @@ export const AdminSampleViewSchema = z.strictObject({
   preview: orNull(z.strictObject({ ...SignedUrlSchema.shape, posterUrl: orNull(SignedUrlSchema) })),
   actions: z.array(text),
 });
+export const ReissueViewSchema = z
+  .strictObject({
+    reissueId: IdSchema,
+    deliveryTicketId: IdSchema,
+    status: zodEnum(DELIVERY_REISSUE_STATUS),
+    episodeNos: z.array(z.int().positive()),
+    reason: DictRefSchema,
+    note: text,
+    openedBy: StaffBriefSchema,
+    openedAt: InstantSchema,
+    closedAt: at,
+    publishedDeliveryReleaseId: orNull(IdSchema),
+    replacements: z.array(
+      z.strictObject({
+        episodeNo: z.int().positive(),
+        episodeOutputId: IdSchema,
+        status: zodEnum(EPISODE_OUTPUT_STATUS),
+      }),
+    ),
+    actions: z.array(text),
+  })
+  .openapi("ReissueView");
 export const DeliveryTicketDetailSchema = DeliveryTicketCardSchema.extend({
   pauses: z.array(
     z.strictObject({
@@ -512,7 +534,7 @@ export const DeliveryTicketDetailSchema = DeliveryTicketCardSchema.extend({
       grantExpiresAt: at,
     }),
   ),
-  openReissue: orNull(z.strictObject({ deliveryReissueId: IdSchema, status: text })),
+  openReissue: orNull(z.strictObject({ ...ReissueViewSchema.shape, deliveryReissueId: IdSchema })),
   openUploadBatches: z.array(
     z.strictObject({
       uploadBatchId: IdSchema,
@@ -632,28 +654,6 @@ export const ReissuePublishBodySchema = z
     note: text.max(200).optional(),
   })
   .openapi("ReissuePublishBody");
-export const ReissueViewSchema = z
-  .strictObject({
-    reissueId: IdSchema,
-    deliveryTicketId: IdSchema,
-    status: zodEnum(DELIVERY_REISSUE_STATUS),
-    episodeNos: z.array(z.int().positive()),
-    reason: DictRefSchema,
-    note: text,
-    openedBy: StaffBriefSchema,
-    openedAt: InstantSchema,
-    closedAt: at,
-    publishedDeliveryReleaseId: orNull(IdSchema),
-    replacements: z.array(
-      z.strictObject({
-        episodeNo: z.int().positive(),
-        episodeOutputId: IdSchema,
-        status: zodEnum(EPISODE_OUTPUT_STATUS),
-      }),
-    ),
-    actions: z.array(text),
-  })
-  .openapi("ReissueView");
 export const ReissueWriteResultSchema = ReissueViewSchema.extend({
   replayed: z.boolean(),
 }).openapi("ReissueWriteResult");
