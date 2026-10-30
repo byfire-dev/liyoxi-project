@@ -151,6 +151,35 @@ export default {
 - `copy-login-wechat-page`、`copy-error-message-word`（W1-05）不连库：在仓库外摆一棵树（真的小程序页面清单与契约的错误码定义，见 `selftest/lib/copy.mjs`），照根脚本 `lint:copy` 的原文跑，规则表用仓库里真的那一份。要本仓库的依赖已安装（检查脚本用根上的 `typescript`）。后一例改哪条规则、哪个错误码是现取的，规则表加行不用改它。
 - `plan-summaries-bad-stub-status`、`four-counts-milestone-stub-left`（W0-30）不连库，命令取自 `ci.yml` 里的那一步。前一例在仓库外摆一棵最小的 `docs/plan`，把一份留桩的状态改成表外的值。后一例把留桩目录换成仓库外的一份（真的那几份原样拷过去，再加一份“应在已退出的里程碑回补”的）；已挂载清单在全新检出里没有，按“要求的里程碑的接口都挂上了”另写一份，要求哪个里程碑取自 CI 那一步的 `--require`，不写死。
 
+### node-forge 1.4.2 的单次安全修复提前准入
+
+ADR-035 允许安全修复逐项登记例外，要求两方确认。本次由调度按
+`CLAUDE.md` 第7节、[现行合并规则](../../docs/plan/README.md#35-合并由调度会话做)
+裁定走独立 `gate-change`；独立复审须明确确认例外必要性与以下边界，调度据复审结论决定合并。
+这里登记的是可审查规则，不表示独审或合并已经完成。
+
+- 仅 `node-forge@1.4.2`。官方 npm 发布时间固定为 `2026-10-27T14:09:15.471Z`，
+  提前窗口截止 `2026-11-03T14:09:15.471Z`（北京时间11月3日22:09:15.471）。
+  官方[安全公告](https://github.com/digitalbazaar/forge/security/advisories/GHSA-rhr8-3pm8-cq29)
+  说明 `<=1.4.0` 的 ASN.1 问题影响 PKCS#12；1.4.1修复安全问题，
+  [1.4.2](https://github.com/digitalbazaar/forge/blob/main/CHANGELOG.md)修复随后的Buffer PEM兼容回归。
+- `pnpm-workspace.yaml` 只加精确 `minimumReleaseAgeExclude: ["node-forge@1.4.2"]`
+  的逐行列表形式；pnpm10.34.5支持精确版本selector，见[官方配置说明](https://pnpm.io/10.x/settings#minimumreleaseageexclude)。
+  `minimumReleaseAge: 10080`、可信级别、安装脚本白名单与高危审计保持原规则。
+  不接受包名通配、版本范围、其他包/版本、多条selector、重复键或别名。
+- `release-age-policy.mjs` 固定唯一版本及两个时间；checker仍从registry读实际发布时间，
+  缺失、无效或与该固定记录不符即拒绝。`--since`不绕过配置核对；无精确配置时没有提前权限。
+  运行命令只用实际 `Date.now()`，不增加可伪造核对时间的环境变量或CLI参数。
+- 截止前日志明确标出安全例外，不能写成“所有版本已满7天”。到期瞬间及之后按普通7天规则核对，
+  不延长例外，不阻断正常冻结安装。即使精确selector暂未撤除，它也只匹配已经自然成熟的这一版。
+  调度在该版自然满7天后提交独立门禁清理PR，撤除YAML精确selector；再删除这次固定policy分支及对应例外测试，
+  保留7天、异常timestamp和无通配反例。若上游撤版/公布新风险，停止新增安装，由调度另行核实，不扩大本次窗口。
+
+定向核验：`pnpm exec vitest run --project infra infra/ci/test/release-age.test.ts --maxWorkers=1 --no-file-parallelism`。
+旧的6天版本、未成熟pnpm、未知版本、非法来源、降阈值、任意exclude与`--since`反例继续覆盖；
+新增用固定时钟核对截止前1毫秒、截止瞬间/之后、改日期、非目标版本和配置边界。
+测试registry仅监听本机回环，不访问互联网。此门禁PR不装包、不改锁文件或业务实现；依赖前置另行交付。
+
 ## 5. 门禁改动分类
 
 脚本与清单以 main 上的版本为准：CI 从 main 检出它们来判 PR 的差异，PR 改它们不影响对自己的判定。本地试跑：
