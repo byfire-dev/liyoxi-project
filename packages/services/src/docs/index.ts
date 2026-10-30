@@ -58,3 +58,21 @@ export type {
 } from "./ports.js";
 export { scheduledDocsSweep, scheduledConsentDigest, sweepAgreementVersions } from "./jobs.js";
 export type { DocsJobDeps } from "./jobs.js";
+export {
+  reconcileLetters,
+  ensureLetters,
+  licenseContentFingerprint,
+  canonicalLicenseJson,
+  LICENSE_TEMPLATE_VERSION,
+} from "./license-convergence.js";
+export { LicenseLetterSnapshotSchema, parseLicenseLetterSnapshot } from "./license-facts.js";
+export { findN6Violations, findN16Violations } from "./license-invariants.js";
+export type {
+  LicenseAccountFact,
+  LicenseFacts,
+  LicenseFactPort,
+  LicenseScopeFact,
+  LicenseSnapshotPort,
+  LicenseConvergenceDeps,
+  LicenseLetterSnapshot,
+} from "./license-facts.js";

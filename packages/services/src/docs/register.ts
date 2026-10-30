@@ -1,14 +1,41 @@
 import { boundN5Violations } from "./transaction-invariant.js";
 import { docsPiiFields } from "./pii-fields.js";
 // docs 模块的登记（W1-03）：两条不变量。调度与落库由 ops（W0-24）。
-// 本模块在 M1 没有订阅者、定时器、周期任务：docs.sweep、evidence.consent_digest 随 M2，授权书随 M5。
+// 协议任务随 M2；M5 授权当前事实由 ops 的实例 scope 注入，静态登记缺依赖须明确失败。
 import { defineRegistration, fileRefTypePort, implementKeyed } from "../kernel/index.js";
 import { findN13Violations, findN4Violations } from "./invariants.js";
+import { chainKey, machinePort, rowKey } from "../flow/index.js";
+import type { Guard } from "../flow/index.js";
+import { isLicenseFactsChecked } from "./license-convergence.js";
 
 const unboundJob = async (): Promise<never> => {
   throw new TypeError("文书周期任务缺少当前运行时依赖");
 };
+const unboundLicense = async (): Promise<never> => {
+  throw new TypeError("授权事实缺少当前运行时依赖");
+};
 export const registration = defineRegistration("docs", {
+  subscribers: [
+    {
+      name: "docs.onLicenseFacts",
+      critical: true,
+      events: [
+        "order.started",
+        "order.item.cancelled",
+        "order.item.refunded",
+        "order.item.terminated",
+        "order.item.went_live",
+        "order.item.live_revoked",
+        "order.item.usage_end_changed",
+        "ticket.held",
+        "ticket.resumed",
+        "ticket.terminated",
+        "ticket.archived",
+        "plan.confirmed",
+      ],
+      handle: unboundLicense,
+    },
+  ],
   recurringJobs: [
     {
       kind: "docs.sweep",
@@ -32,6 +59,27 @@ export const registration = defineRegistration("docs", {
     },
   ],
   portImplementations: [
+    implementKeyed(machinePort, chainKey("license_letter", "status"), {
+      companions: ["period_start", "period_end", "voided_at", "void_reason"],
+      guards: Object.fromEntries(
+        [
+          ["13:942", "license_letter.create"],
+          ["13:944", "license_letter.go_live"],
+          ["13:946", "license_letter.revoke_live"],
+          ["13:947", "license_letter.void"],
+          ["13:948", "license_letter.void"],
+          ["13:949", "license_letter.void"],
+        ].map(([ref, event]) => [
+          rowKey(ref!, event!),
+          (async (_tx, facts) => isLicenseFactsChecked(facts.args)) satisfies Guard,
+        ]),
+      ),
+      activity: () => ({
+        category: "docs",
+        action: "docs.license.reconcile",
+        summary: "对齐当前授权事实",
+      }),
+    }),
     docsPiiFields,
     implementKeyed(fileRefTypePort, "agreement_version", {
       // 已生效/历史协议均是法定证据；草稿也只按当前source/pdf列保护，替换掉的旧文件不占用。
@@ -83,6 +131,7 @@ export const registration = defineRegistration("docs", {
     }),
   ],
   invariants: [
+    { code: "docs.N16", severity: "P2", modes: ["full"], heal: "none", run: unboundLicense },
     {
       code: "docs.N5",
       severity: "P2",

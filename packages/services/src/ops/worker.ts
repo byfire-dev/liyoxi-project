@@ -63,6 +63,7 @@ import { createConfig, bindAgreementNoticeLink } from "../config/index.js";
 import { createSmsHealth, smsTemplateReader, sendSystemAlert } from "../notify/index.js";
 import { keyringFromEnv } from "../security/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./docs-runtime.js";
+import { createDocsLicenseAssembly, createRuntimeDocsLicense } from "./docs-license-runtime.js";
 import { createRuntimeNotify, createNotifyAssembly } from "./notify-runtime.js";
 import { readAgreementNoticeLink } from "../docs/index.js";
 // 任务进程的服务装配（W0-23）：apps/worker 启动时调一次，拿到四个循环与两个队列消费者要调的用例函数。
@@ -226,6 +227,7 @@ export interface WorkerServicesOptions {
   readonly logger?: ProviderLogger;
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
+    readonly PORTAL_PUBLIC_ORIGIN?: Env["PORTAL_PUBLIC_ORIGIN"];
     readonly WECHAT_PAY?: Env["WECHAT_PAY"];
     readonly STAGING_PAY?: Env["STAGING_PAY"];
     readonly MAIL_TENCENT?: Env["MAIL_TENCENT"];
@@ -402,7 +404,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
-  const invitationScope = createInvitationAssembly(docsScope.assembly);
+  const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
+  const invitationScope = createInvitationAssembly(docsLicenseScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
   const refundScope = createRefundAssembly(invoiceScope.assembly);
@@ -716,6 +719,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     bumpAgreement: () => docsConfig.cache.bump("agreement"),
   });
   docsScope.attach(docsServices.jobs);
+  docsLicenseScope.attach(
+    createRuntimeDocsLicense({
+      clock,
+      flow,
+      events,
+      portalOrigin: options.keys?.PORTAL_PUBLIC_ORIGIN,
+      keyring: () => keyringFromEnv(options.keys ?? {}),
+    }),
+  );
   const closeMediaJobs = () => {
     mediaAssetsScope.close();
     mediaScope.close();
@@ -995,7 +1007,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     ...(ownsModels ? { closeModelDrivers: () => modelDrivers!.close() } : {}),
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
-    closeDocs: () => docsScope.close(),
+    closeDocs: async () => {
+      await docsLicenseScope.close();
+      await docsScope.close();
+    },
     runProbes: async (beat) => {
       if (!probe) throw new Error("探针读侧未配置");
       const result = await probe.run(beat);

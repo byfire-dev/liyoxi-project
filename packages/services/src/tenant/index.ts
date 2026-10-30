@@ -95,3 +95,5 @@ export {
   createReferralCodeIn,
   setReferralCodeStatusIn,
 } from "./referral-codes.js";
+export { readLicenseeFacts } from "./license-facts.js";
+export type { LicenseeFacts } from "./license-facts.js";

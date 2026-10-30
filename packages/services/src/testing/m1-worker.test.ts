@@ -5,6 +5,7 @@ import type { M1WorkerBacklog } from "./m1-observe.js";
 import { createM1WorkerResources, M1WorkerAttachmentSchema } from "./m1-worker.js";
 import { assertM1SharedScope } from "./m1-shared.js";
 import { createM1Support } from "./m1-support.js";
+import { M1_LICENSE_TEST_INPUTS } from "./m1-license-inputs.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -34,6 +35,25 @@ it("后台worker纯守卫：错误能力/环境先拒，未知与死信不能排
       },
     },
   };
+  const explicitOwnerInput = {
+    ...attach,
+    scope: { ...attach.scope, licenseTestInputs: M1_LICENSE_TEST_INPUTS },
+  };
+  expect(M1WorkerAttachmentSchema.parse(explicitOwnerInput).scope.licenseTestInputs).toEqual(
+    M1_LICENSE_TEST_INPUTS,
+  );
+  expect(() => assertM1SharedScope(explicitOwnerInput.scope)).not.toThrow();
+  expect(M1WorkerAttachmentSchema.parse(attach).scope.licenseTestInputs).toBeUndefined();
+  for (const licenseTestInputs of [
+    { portalPublicOrigin: "https://production.example.invalid" },
+    { ...M1_LICENSE_TEST_INPUTS, legalEntity: "unsolicited" },
+  ])
+    expect(
+      M1WorkerAttachmentSchema.safeParse({
+        ...attach,
+        scope: { ...attach.scope, licenseTestInputs },
+      }).success,
+    ).toBe(false);
   expect(M1WorkerAttachmentSchema.safeParse({ ...attach, version: "dev" }).success).toBe(false);
   expect(() => assertM1SharedScope({ ...attach.scope, databaseName: "liyoxi" })).toThrow("自有");
   vi.stubEnv("APP_ENV", "prod");

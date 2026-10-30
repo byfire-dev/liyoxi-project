@@ -50,3 +50,5 @@ export type { ContentAdminReadDeps } from "./admin-read.js";
 export { listDramasLicenseEndingOn } from "./reminder.js";
 export { readTemplatePriceCandidates } from "./price-candidates.js";
 export { readMaterialMasters, readProductionMasterVersion } from "./material-facts.js";
+export { readLicenseScope } from "./license-facts.js";
+export type { LicenseScope } from "./license-facts.js";

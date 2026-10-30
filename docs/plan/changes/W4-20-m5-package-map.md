@@ -29,7 +29,7 @@
 
 ## 2. 十六包、具体依赖与验收边界
 
-W4-20交书后的W5-03分片按[三片变更](W5-03-three-phase-handoff.md)更新以下行；冻结资源集合与16包编号不变。
+W4-20交书后的W5-03分片按[三片变更](W5-03-three-phase-handoff.md)、W5-06分片按[两片移交](W5-06-two-phase-handoff.md)更新以下行；冻结资源集合与16包编号不变。
 
 | 编号 | 组 | 标题 | 级别/规模 | 具体代码依赖（均须 actual main） | API/新页/x01/桩 | 验收概要 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -38,8 +38,8 @@ W4-20交书后的W5-03分片按[三片变更](W5-03-three-phase-handoff.md)更�
 | W5-03 | G5-A | 交付暂停改派改期补发与环节 SLA | 甲/L（PR1甲、PR2/3乙） | W5-01、W1-16a、W1-17、W2-03、W2-05、W2-17；逐片见下表 | 11/0/3/3 | 同编号PR1公共adminTransition；PR2交十一API、暂停/SLA/补发与两项M5 x01/三桩，沿M1 delivery求值循环；PR3等02/05/06实际公口后补order/M5对账，三片齐才完成。 |
 | W5-04 | G5-A | 制作人工入口、取料与下载记录 | 乙/L | W5-03、W3-01、W3-03、W3-04、W3-07、W3-14；03仅等PR2验收actual | 7/0/0/0 | 事实查询/规格化/重检/补标四入口和 master_checkout，真实签发取料及下载来源；沿 M3 流水线与处理器，不复制算法或自动采纳衍生产物。 |
 | W5-05 | G5-A | 样片反馈与订单后续事实 | 乙/M | W5-02、W5-03、W5-04、W1-15、W1-16b、W1-20、W2-05、W2-17；03仅等PR2验收actual | 4/0/2/0 | 查看证据、过期版拒绝、商家compose反馈与markSent；后台代录整条API归08；重传确认链、订单后台试算/活动、日历与许可缩短；R4只读提醒与场景落地。 |
-| W5-06 | G5-B | 授权事实收敛与注入事实端口 | 甲/L | W5-03、W5-05、W2-12、X-03；03仅等PR2验收actual | 0/0/1/0 | 一个 ensureLetters/收敛机制，锁订单项→信件，按当前事实处理重复/乱序/账号移除/取消；docs L1不读L3表，delivery.getLicenseFacts 注入单源，N6/N16真实检查。 |
-| W5-07 | G5-B | 授权书 PDF、签名适配、修订与查询 | 乙/M | W5-06、W5-02、W3-01、W3-03、W1-16b | 8/0/2/1 | 不可变版次/指纹、事务外渲染签名、租约与attempt fencing、真实成品hash和私有下载审计；certificate/stamp准确区分，docs队列并发2与原sweep恢复；回补订单售后/授权投影。 |
+| W5-06 | G5-B | 授权事实收敛与注入事实端口 | 甲/L（同编号PR1/PR2） | W5-03、W5-05、W2-12、X-03；03仅等PR2验收actual；本包PR2另等07完整actual | 0/0/1/0 | PR1交唯一ensureLetters/事实收敛、快照、实际订阅者、正式N16和完整N6函数/真DB定点，尚不正式登记N6；07完整renderer/consumer及docs任务scope排空actual后，PR2正式登记完整N6并验真实M1 full零违规，两片齐才完成。 |
+| W5-07 | G5-B | 授权书 PDF、签名适配、修订与查询 | 乙/M | W5-06、W5-02、W3-01、W3-03、W1-16b；06仅等PR1核心验收actual | 8/0/2/1 | 不可变版次/指纹、事务外渲染签名、租约与attempt fencing、真实成品hash和私有下载审计；certificate/stamp准确区分，docs并发2与原sweep恢复，实际docs任务/ready/issued的scope排空交回06.PR2；回补订单售后/授权投影。 |
 | W5-08 | G5-B | 商家广告生命周期、计费与订购事实 | 乙/L | W5-01、W5-02、W5-03、W5-05、W5-06、W5-07、W2-10、W2-17、W3-07、W3-14、W4-05、W4-07 | 12/0/1/4 | 含admin.sample.requestChange整条代录API的compose/ad_content两支与既有可选feedbackTimeMs；复用05商家compose公共口；广告正式创建/提交/确认/修改、真实冻结和扣减、免费次数快照/超额再扣；广告取消复用01/02；选广告、身份/档案计数及广告/授权就绪读口真实，取消不能复活。 |
 | W5-09 | G5-B | 后台广告任务、版本与查看证据 | 甲/M（PR1甲＋PR2乙） | W5-08、W5-04、W2-03、W2-17 | 10/0/1/0 | 实际指派/退回/版本登记推送/四种查看证据/代录修改/催办，R5、SLA主体ad；同编号PR1甲只扩ad可表达的typed来源/分派支持及对应test，保原已投产五来源required失败语义，不能提前强制ad或注册恒零；actual后PR2乙交本10API、真实ad来源countOpen/list/reassign及移交，并在注册到位后启用ad完整性要求，两PR齐才完成，计数不恒0。 |
 | W5-10 | G5-C | 我的短剧与既有订购样片增量 | 丙/M | W5-02、W5-03、W5-05、W5-07、W5-08、W1-18、W1-20 | 0/1/0/2 | 我的短剧新页；checkout选广告、sample反馈与查看证据/失效版、商家订单详情售后授权既有增量；不新增播放器/商家time字段，后台经理既有可选feedbackTimeMs保留；平台购买约束/服务端actions。 |
@@ -211,8 +211,8 @@ R4样片提醒/查询与场景由05单写；R5广告确认提醒由09单写，�
 | flow.adminTransition公共入口 | W5-03 PR1单owner，actual后PR2消费；真实前置为W0-12/14/15/16与W1-01a | 普通transition仍拒admin.force；仅现白名单纠偏、强迁历史/审计/事件，0业务API。 |
 | delivery通用DTO/reevaluate/ports/register、原M1求值循环 | W5-03 PR2；04→05在PR2及前包actual后仅交接自身结构/薄路由子集，06/08新增私有适配叶后串行合入口 | 不并行写同一共享文件；算法不复制，flow.reevaluate_sweep不重登记。 |
 | order/M5 flow.reconcile_sweep | W5-03 PR3；等02/05/06 actual公口后补既定循环实现 | 与M1 delivery求值分开；取消/授权/使用期writer不复制，名字/模块/里程碑不变。 |
-| 授权当前事实端口/ensureLetters/收敛 | W5-06；07调用06机制，08调用ready reader | docs L1不读order/delivery L3表；逆向事实只注入，不借改layers放行。 |
-| docs队列、渲染/签名、版次存储与下载 | W5-07；06只产生revision事实，07接消费 | 并发2；已有docs.sweep只扩；certificate/stamp保真、不可把原字节标为数字签名。 |
+| 授权当前事实端口/ensureLetters/收敛 | W5-06 PR1核心验收actual后放行07；07完整actual后06.PR2登记完整N6，08仍等06整包并调用07 ready reader | docs L1不读order/delivery L3表；PR1完整N6函数仅定点、非正式登记，不设空实现；逆向事实只注入，不借改layers放行。 |
+| docs队列、渲染/签名、版次存储与下载 | W5-07；06.PR1只产生queued事实，07交真实consumer、ready/issued及scope排空后供06.PR2正式full验证 | 并发2；已有docs.sweep只扩；outbox为空不代表render结束；certificate/stamp保真、不可把原字节标为数字签名。 |
 | 广告schema/模型/merchant-facts与order广告读口 | W5-08；09在08 actual后仅增admin/private version叶与所属API结构 | identity/profile不直接读ad表；引用与查看证据按真实版本，冻结报价/免费次数。 |
 | 广告staff在办typed来源与R5/SLA | W5-09；PR1甲typed表达/分派兼容 actual后PR2乙接真实ad并启用完整性 | `countOpen/list/reassign`真实落地，不注册恒零来源；W2-03框架不重写。 |
 | 页面菜单/app.config/route模块、聚合导出与生成物 | 各页包各自完成必要菜单/单源登记，由当期调度协调同文件单owner串行合并，不等W5-15；15仅最终归属核对 | 不让并行页面作者覆盖同文件、不手改pages/generated；原登记组保留。 |
@@ -221,7 +221,7 @@ R4样片提醒/查询与场景由05单写；R5广告确认提醒由09单写，�
 
 M5内部拓扑可按以下层次读取，层内不代表必须并行（共享面仍单owner串行）：
 
-`03.PR1 → 03.PR2（另等01及原前置） → 04 → 05 → 06 → 07`；`01 → 02`；`{03.PR2,02,05,06} → 03.PR3 → 03整包`；其后仍按各书依赖到`08 → 09 → 10–14 → 15 → 16`。
+`03.PR1 → 03.PR2（另等01及原前置） → 04 → 05 → 06.PR1 → 07 → 06.PR2（06整包）`；`01 → 02`；`{03.PR2,02,05,06整包} → 03.PR3 → 03整包`；其后仍按各书依赖到`08 → 09 → 10–14 → 15 → 16`。
 
 这是展示主边，完整有向边以第2节逐项及分片依赖为准；例如04/05/06仅依03.PR2，05还依02，10/12不必等09，其他原下游仍等03整包。所有具体外部W/X编号已存在；不从待合分支借源码。W5-01/06各保单机制；W5-03的公共机制甲、交付核心乙、order对账乙，以及W5-09的typed兼容甲与后继10API乙分别成PR，不因共享边界把甲与页面/大CRUD混成一PR。
 

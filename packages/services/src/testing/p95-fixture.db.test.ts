@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import { PlanContentSchema } from "@liyoxi/contract";
 import { createIdentityContext } from "../kernel/index.js";
 import { runInvariants } from "../ops/index.js";
+import { licenseContentFingerprint, parseLicenseLetterSnapshot } from "../docs/index.js";
 import { createTenant } from "../tenant/index.js";
 import { createFactories } from "./data/factories/index.js";
 import { createP95Fixture } from "./p95-fixture.js";
@@ -47,6 +48,8 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
       drama: 6,
       drama_copyright_revision: 6,
       drama_episode: 18,
+      license_letter: 12,
+      license_letter_revision: 12,
     });
     expect(seeded.generation?.mode).toBe("prototype_uuid_graph_copy");
     expect(seeded.generation?.prototypeRelay.expanded).toBeGreaterThan(0);
@@ -82,6 +85,12 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
       });
       const tickets = await tx.deliveryTicket.findMany();
       const prototype = seeded.scopes[0]!;
+      const allLetters = await tx.licenseLetter.findMany({ include: { revisions: true } });
+      expect(new Set(allLetters.map((letter) => letter.letterNo)).size).toBe(12);
+      expect(new Set(allLetters.map((letter) => letter.verifyCode)).size).toBe(12);
+      const prototypeLetterIds = allLetters
+        .filter((letter) => letter.entityId === prototype.entityId)
+        .flatMap((letter) => [letter.id, ...letter.revisions.map((revision) => revision.id)]);
       let expectedEvents: number | undefined, expectedDeliveries: number | undefined;
       for (const owned of seeded.scopes) {
         const entity = await tx.entity.findUniqueOrThrow({ where: { id: owned.entityId } });
@@ -148,12 +157,77 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
         expectedDeliveries ??= deliveries.length;
         expect(events).toHaveLength(expectedEvents);
         expect(deliveries).toHaveLength(expectedDeliveries);
+        const ownedLetters = allLetters.filter((letter) => letter.entityId === owned.entityId);
+        expect(ownedLetters).toHaveLength(4);
+        const store = await tx.store.findUniqueOrThrow({ where: { id: owned.storeId } });
+        const account = await tx.channelAccount.findUniqueOrThrow({
+          where: { id: owned.channelAccountId },
+        });
+        for (const letter of ownedLetters) {
+          expect(letter.status).toBe("pending_effective");
+          expect(letter.currentRevisionId).toBeNull();
+          expect(letter.revisions.length).toBe(1);
+          const revision = letter.revisions[0]!;
+          expect([
+            revision.renderStatus,
+            revision.fileId,
+            revision.pdfSha256,
+            revision.platformSignedAt,
+            revision.merchantSignedAt,
+          ]).toEqual(["queued", null, null, null, null]);
+          const snapshot = parseLicenseLetterSnapshot(revision.letterSnapshot);
+          const consent = await tx.agreementConsent.findFirstOrThrow({
+            where: {
+              bizType: "drama_order",
+              bizId: letter.dramaOrderId,
+              agreementKey: "custom_license",
+              scene: "order_submit",
+            },
+          });
+          const order = await tx.dramaOrder.findUniqueOrThrow({
+            where: { id: letter.dramaOrderId },
+          });
+          expect(snapshot.licensee.creditCode === uscc).toBe(true);
+          expect([
+            snapshot.licensee.name,
+            snapshot.licensee.store,
+            snapshot.account.accountId,
+            snapshot.account.name,
+            snapshot.account.platform,
+            snapshot.consent.consentNo,
+            snapshot.consent.by,
+            snapshot.orderNo,
+            snapshot.letterNo,
+            snapshot.revNo,
+          ]).toEqual([
+            entity.name,
+            store.name,
+            account.accountUid,
+            account.accountName,
+            account.platform,
+            String(consent.seq),
+            `${consent.operatorNameMask ?? ""}（${consent.phoneMask}）`,
+            order.orderNo,
+            letter.letterNo,
+            revision.revNo,
+          ]);
+          const verify = new URL(snapshot.verifyUrl);
+          expect(verify.origin).toBe("https://portal.example.invalid");
+          expect(verify.searchParams.get("code") === letter.verifyCode).toBe(true);
+          expect(verify.searchParams.get("rev")).toBe(String(revision.revNo));
+          expect(licenseContentFingerprint(snapshot) === revision.contentFp).toBe(true);
+        }
         if (owned.entityId !== prototype.entityId)
-          expect(
-            JSON.stringify(events, (_key, value: unknown) =>
-              typeof value === "bigint" ? value.toString() : value,
-            ),
-          ).not.toContain(prototype.entityId);
+          for (const original of [
+            prototype.entityId,
+            prototype.channelAccountId,
+            ...prototypeLetterIds,
+          ])
+            expect(
+              JSON.stringify(events, (_key, value: unknown) =>
+                typeof value === "bigint" ? value.toString() : value,
+              ),
+            ).not.toContain(original);
         const ownedPlans = plans.filter((p) => owned.orderIds.includes(p.dramaOrderId));
         expect(ownedPlans).toHaveLength(4);
         for (const plan of ownedPlans) {

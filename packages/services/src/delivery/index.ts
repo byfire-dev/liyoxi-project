@@ -49,3 +49,4 @@ export { requireProductionAccess } from "./production-parent-facts.js";
 export { createProductionMaterials } from "./materials.js";
 export type { ProductionMaterialsDeps } from "./materials.js";
 export { createDownloadRecords } from "./download-records.js";
+export { createLicenseFacts } from "./license-facts.js";
