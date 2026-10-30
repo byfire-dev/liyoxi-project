@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProviderName } from "../../providers/types.js";
-import {
-  ALL_PROVIDER_METHODS,
-  callWithSample,
-  createFakeProviders,
-  FAKE_CERT_SERIAL,
-  tickFakes,
-} from "./index.js";
+import { ALL_PROVIDER_METHODS, callWithSample, createFakeProviders, tickFakes } from "./index.js";
 import type { FakeControl } from "./index.js";
 
 // 十二个替身共有的能力（W0-19 任务书 第 10 节第 5 项）：记录调用、可注入失败与延迟、跟随可拨时钟；
@@ -475,12 +469,12 @@ describe("其余替身各自的预置与记录", () => {
     });
   });
 
-  it("esign：按带数字签名的样子返回，签署时刻取替身的时钟", async () => {
-    const { clock, fakes } = setup();
+  it("esign：替身如实返回图片章方式，不冒充数字签名", async () => {
+    const { fakes } = setup();
     const pdf = new TextEncoder().encode("%PDF-授权书");
     expect(await fakes.esign.seal({ pdf })).toEqual({
       ok: true,
-      value: { pdf, mode: "certificate", certSerial: FAKE_CERT_SERIAL, signedAt: clock.now() },
+      value: { pdf, mode: "stamp" },
     });
     expect(fakes.esign.sealed).toEqual([pdf]);
   });

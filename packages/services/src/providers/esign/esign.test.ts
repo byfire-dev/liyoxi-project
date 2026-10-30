@@ -14,7 +14,7 @@ import {
   TEST_PASSPHRASE,
   unsupportedEcP12,
   verifyTestPdf,
-} from "./__fixtures__/test-material.js";
+} from "../../testing/index.js";
 
 const NOW = new Date("2026-10-30T03:00:00.789Z");
 const SERIALIZED_NOW = new Date("2026-10-30T03:00:00Z");

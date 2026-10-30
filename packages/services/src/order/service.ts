@@ -97,7 +97,7 @@ export function createOrderService(deps: OrderDeps) {
     },
     async get(actor: OrderActor, id: string) {
       owner(actor);
-      return signDetail(deps, await deps.tx.run((tx) => detail(tx, actor, id)));
+      return signDetail(deps, await deps.tx.run((tx) => detail(tx, actor, id, deps.clock.now())));
     },
     async itemList(actor: OrderActor, input: MerchantOrderItemQuery) {
       owner(actor);

@@ -4,7 +4,7 @@ import { createHash, generateKeyPairSync, verify, X509Certificate } from "node:c
 
 import forge from "node-forge";
 
-import type { P12Material } from "../material.js";
+import type { P12Material } from "../providers/index.js";
 
 export const TEST_PASSPHRASE = "TEST ONLY runtime material";
 const keyPair = () => {
@@ -19,7 +19,9 @@ const keyPair = () => {
   };
 };
 
-export function createTestMaterial() {
+export function createTestMaterial(validAt?: Date) {
+  if (validAt && !Number.isFinite(validAt.getTime()))
+    throw new TypeError("TEST ONLY certificate clock invalid");
   const rootKey = keyPair();
   const leafKey = keyPair();
   const root = forge.pki.createCertificate();
@@ -37,8 +39,12 @@ export function createTestMaterial() {
   const leaf = forge.pki.createCertificate();
   leaf.publicKey = leafKey.publicKey;
   leaf.serialNumber = "1234abcd";
-  leaf.validity.notBefore = new Date("2026-10-01T00:00:00Z");
-  leaf.validity.notAfter = new Date("2027-10-01T00:00:00Z");
+  leaf.validity.notBefore = validAt
+    ? new Date(validAt.getTime() - 86400000)
+    : new Date("2026-10-01T00:00:00Z");
+  leaf.validity.notAfter = validAt
+    ? new Date(validAt.getTime() + 366 * 86400000)
+    : new Date("2027-10-01T00:00:00Z");
   leaf.setSubject([{ name: "commonName", value: "TEST ONLY signer" }]);
   leaf.setIssuer(root.subject.attributes);
   leaf.setExtensions([

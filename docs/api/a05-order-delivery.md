@@ -825,6 +825,13 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `readyAt` | string(date-time) \| null | 是 | 出件时间 | `license_letter_revision.ready_at` |
 | `createdAt` | string(date-time) | 是 | 入队时间 | `license_letter_revision.created_at` |
 | `actions` | array<string> | 是 | `rerender`（`failed`，有 `order.license_letter.manage`） | 计算 |
+| `renderIssue` | `LicenseRenderIssue` \| null | 是 | 本版次的缺字诊断，结构见下文 | 判权后按有效认领读取审计投影 |
+
+`renderIssue` 为必有的 `LicenseRenderIssue | null`：最新有效失败认领的缺字诊断；
+成功、再次认领、作废后为空。缺字项包含具体字符 `character`、`U+` 码点 `codePoint`、
+固定字段路径 `fields`（最多4项）；`missing` 最多32个不同码点，
+`totalMissingCodePoints` 是总数，`truncated` 标识超出部分。诊断不含整段主体资料，
+服务重启后仍按同版次持久结果读取。类型结构以实际契约为准。
 
 #### `AdminLicenseLetterView`
 

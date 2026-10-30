@@ -1,3 +1,5 @@
+import { licenseLetterHandlers } from "./license-letters.js";
+import { adminLicenseLetterHandlers } from "./admin/license-letters.js";
 import { billingRefundHookHandlers } from "./billing-refund-hook.js";
 import { billingInvoiceHandlers } from "./billing-invoices.js";
 import { billingWechatHookHandlers } from "./billing-wechat-hooks.js";
@@ -91,6 +93,8 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminDramaPricingHandlers,
   ...adminFlowOpsHandlers,
   ...orderHandlers,
+  ...licenseLetterHandlers,
+  ...adminLicenseLetterHandlers,
   ...adminOrderCancelExecuteHandlers,
   ...adminOrderCancelRequestHandlers,
   // W1-03：协议清单与版本正文（两条公开路由）

@@ -671,6 +671,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/license-letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 定制内容授权书列表（?orderId=）：剧名、状态（待生效/生效中/已失效）、规格、授权期限、订单号、生成时间；按剧目 × 发布账号各 1 份 */
+        get: operations["m.licenseLetter.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/license-letters/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 合同页“定制内容授权书 · N”的计数；查询参数同列表（除分页） */
+        get: operations["m.licenseLetter.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/license-letters/{licenseLetterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 授权书详情（预览）：授权方、被授权方、下单门店、剧名与集数、许可信息、授权平台与账号、授权期限、权利范围、专属声明、验真码 */
+        get: operations["m.licenseLetter.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/license-letters/{licenseLetterId}/download-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发授权书 PDF 的 5 分钟读地址，每次写访问审计 */
+        post: operations["m.licenseLetter.downloadUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/mall-config": {
         parameters: {
             query?: never;
@@ -3666,6 +3734,132 @@ export interface components {
             linkKind: "collection" | "episodes";
             reportedEpisodeCount: number;
         };
+        LicenseLetterCard: {
+            accountName: string;
+            canDownload: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            currentRevNo: number | null;
+            /** @enum {string} */
+            displayStatus: "pending_effective" | "effective" | "expired" | "voided";
+            dramaTitle: string;
+            episodeCount: number;
+            isRendering: boolean;
+            /** Format: date-time */
+            issuedAt: string | null;
+            letterNo: string;
+            /** Format: uuid */
+            licenseLetterId: string;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            /** Format: date */
+            periodEndDate: string;
+            /** Format: date */
+            periodStartDate: string | null;
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels";
+            renderIssue: components["schemas"]["LicenseRenderIssue"];
+            /** @enum {string} */
+            status: "pending_effective" | "effective" | "voided";
+            /** Format: uuid */
+            storeId: string;
+            /** @enum {string|null} */
+            voidReason: "cancelled" | "terminated" | "account_removed" | "manual" | null;
+            /** Format: date-time */
+            voidedAt: string | null;
+        };
+        LicenseLetterDetail: components["schemas"]["LicenseLetterCard"] & {
+            preview: components["schemas"]["LicenseLetterPreview"];
+            revisions: {
+                /** Format: date-time */
+                issuedAt: string;
+                /** @enum {string} */
+                reason: "initial" | "go_live" | "period_changed" | "correction" | "resign";
+                revNo: number;
+            }[];
+        };
+        LicenseLetterDownloadBody: {
+            revNo?: number;
+        };
+        LicenseLetterDownloadUrl: {
+            /** Format: date-time */
+            expiresAt: string;
+            fileName: string;
+            revNo: number;
+            /** Format: uri */
+            url: string;
+        };
+        LicenseLetterPage: {
+            hasMore: boolean;
+            items: components["schemas"]["LicenseLetterCard"][];
+            nextCursor: string | null;
+        };
+        LicenseLetterPreview: {
+            account: {
+                accountId: string;
+                name: string;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels";
+            };
+            clauses: {
+                key: string;
+                text: string;
+                title: string;
+            }[];
+            consent: {
+                agreementName: string;
+                consentNo: string;
+                /** Format: date-time */
+                consentedAt: string;
+                operatorMask: string;
+            };
+            contentFp: string;
+            dramaName: string;
+            episodes: number;
+            /** Format: date-time */
+            issuedAt: string;
+            licenseeCreditCodeMask: string;
+            licenseeName: string;
+            licensorCreditCodeMask: string;
+            licensorName: string;
+            period: {
+                /** Format: date */
+                endDate: string;
+                /** Format: date */
+                startDate: string | null;
+                startText: string;
+                territory: string;
+            };
+            permits: {
+                kind: string;
+                number: string;
+                platform: string;
+            }[];
+            revNo: number;
+            /** @enum {string} */
+            signMode: "platform_cert" | "esign_seal" | "stamp";
+            storeName: string;
+            /** Format: uri */
+            verifyUrl: string;
+        } | null;
+        LicenseLetterSummary: {
+            all: number;
+            effective: number;
+        };
+        LicenseRenderIssue: {
+            /** @enum {string} */
+            kind: "missing_glyph";
+            missing: {
+                character: string;
+                codePoint: string;
+                fields: string[];
+            }[];
+            totalMissingCodePoints: number;
+            truncated: boolean;
+        } | null;
         MaintenanceNotice: {
             body: string;
             expectedEndAt: string | null;
@@ -8924,6 +9118,344 @@ export interface operations {
             };
             /** @description 外部能力不可用、系统繁忙或停机维护 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.licenseLetter.list": {
+        parameters: {
+            query?: {
+                orderId?: string;
+                storeId?: string;
+                includeVoided?: boolean;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LicenseLetterPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.licenseLetter.summary": {
+        parameters: {
+            query?: {
+                orderId?: string;
+                storeId?: string;
+                includeVoided?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LicenseLetterSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.licenseLetter.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                licenseLetterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LicenseLetterDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.licenseLetter.downloadUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                licenseLetterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicenseLetterDownloadBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LicenseLetterDownloadUrl"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

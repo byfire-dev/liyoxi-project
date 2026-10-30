@@ -381,3 +381,8 @@ export function createProviders(options: CreateProvidersOptions): Providers {
 }
 
 export { createWechatPayNotificationCrypto } from "./wechat-pay/notification.js";
+
+export { createPlatformCertEsign } from "./esign/provider.js";
+export { createSsmMaterialSource } from "./esign/ssm-material.js";
+
+export type { P12Material } from "./esign/material.js";

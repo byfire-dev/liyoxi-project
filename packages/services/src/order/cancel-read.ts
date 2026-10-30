@@ -6,9 +6,13 @@ import {
   CancelRequestListSchema,
   CancelRequestSummarySchema,
   ReturnBreakdownSchema,
+  OrderCancelRequestCardSchema,
+  OrderDetailSchema,
 } from "@liyoxi/contract";
 import type {
   AdminPage,
+  AdminOrderDetail,
+  OrderDetail,
   CancelRequestCard,
   CancelRequestDetail,
   CancelRequestFilters,
@@ -18,7 +22,7 @@ import type {
 import type { Prisma } from "@liyoxi/db";
 import { calendarDate, dayRange } from "@liyoxi/shared/time";
 import { hasPermission, managedStore, satisfiesLevel, taskScope } from "../authz/index.js";
-import type { StaffContext } from "../authz/index.js";
+import type { DataScope, StaffContext } from "../authz/index.js";
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import type { CancelActor, CancelDeps } from "./cancel-context.js";
@@ -330,4 +334,112 @@ export async function summarizeCancelRequests(
     ).length,
     overdueCount: rows.filter(({ overdue }) => overdue).length,
   });
+}
+
+/** Caller already owns order access. Repeat exact order/entity/store/scope before exposing cancellation history. */
+async function orderCancellationRows(
+  tx: Tx,
+  input: {
+    orderId: string;
+    entityId: string;
+    storeId: string;
+    scope?: DataScope;
+  },
+  matchLines: boolean,
+) {
+  const order = await tx.dramaOrder.findFirst({
+    where: {
+      id: input.orderId,
+      entityId: input.entityId,
+      storeId: input.storeId,
+      ...(input.scope ? { store: managedStore(input.scope) } : {}),
+    },
+    select: { orderItems: { select: { id: true } } },
+  });
+  if (!order) throw new AppError("NOT_FOUND");
+  const itemIds = order.orderItems.map((item) => item.id);
+  const rows = await tx.cancelRequest.findMany({
+    where: {
+      entityId: input.entityId,
+      storeId: input.storeId,
+      ...(matchLines
+        ? { cancelRequestLines: { some: { targetType: "order_item", targetId: { in: itemIds } } } }
+        : { dramaOrderId: input.orderId }),
+    },
+    include,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  for (const row of rows) checkRelations(row);
+  return { rows, itemIds: new Set(itemIds) };
+}
+
+/** Merchant cancellation history includes qualification-wide requests, but only this order's actual lines and sum. */
+export async function readOrderAfterSales(
+  tx: Tx,
+  input: {
+    orderId: string;
+    entityId: string;
+    storeId: string;
+  },
+): Promise<OrderDetail["afterSales"]> {
+  const { rows, itemIds } = await orderCancellationRows(tx, input, true);
+  return rows.map((row) => {
+    const lines = row.cancelRequestLines.filter(
+      (line) => line.targetType === "order_item" && itemIds.has(line.targetId),
+    );
+    if (row.status === "done")
+      for (const line of lines) {
+        const result = ReturnBreakdownSchema.parse(line.resultSnapshot);
+        if (
+          !row.executedAt ||
+          !line.executedAt ||
+          result.qty !== line.refundPoints ||
+          result.backToOriginal !== line.returnedPoints ||
+          result.convertedToAddon !== line.convertedPoints ||
+          result.forfeited !== line.forfeitedPoints
+        )
+          throw new AppError("PRECONDITION_CHANGED");
+      }
+    return OrderDetailSchema.shape.afterSales.element.parse({
+      cancelRequestId: row.id,
+      requestNo: row.approvalRequest.requestNo!,
+      status: row.status,
+      closeReason: row.closeReason,
+      reasonCode: row.reasonCode,
+      submittedAt: row.createdAt.toISOString(),
+      executedAt: row.executedAt?.toISOString() ?? null,
+      kind: row.kind,
+      totalRefundPoints: lines.reduce((sum, line) => sum + line.refundPoints, 0),
+      lines: lines.map((line) => ({
+        orderItemId: line.targetId,
+        mode: line.mode,
+        refundPoints: line.refundPoints,
+        returnedPoints: line.returnedPoints,
+        convertedPoints: line.convertedPoints,
+        forfeitedPoints: line.forfeitedPoints,
+      })),
+    });
+  });
+}
+
+/** Admin order cards retain the existing direct-order predicate; full cancellation details stay behind their own authorization. */
+export async function readOrderCancelCards(
+  tx: Tx,
+  input: {
+    orderId: string;
+    entityId: string;
+    storeId: string;
+    scope: DataScope;
+    now: Date;
+  },
+): Promise<AdminOrderDetail["cancelRequests"]> {
+  const { rows } = await orderCancellationRows(tx, input, false);
+  const cards = [];
+  for (const row of rows)
+    cards.push(
+      OrderCancelRequestCardSchema.parse(
+        await projectCancelRequestDetail(tx, { clock: { now: () => input.now } }, row, []),
+      ),
+    );
+  return cards;
 }

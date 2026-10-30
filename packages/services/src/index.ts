@@ -426,3 +426,17 @@ export {
 export type { InvoiceDeps, InvoiceRuntimeDeps } from "./billing/index.js";
 
 export { createRuntimeProductionMaterials, createDownloadRecords } from "./ops/index.js";
+
+export { createDocsRenderRuntime, createLicenseRenderingEngine } from "./ops/index.js";
+export type { DocsRenderRuntime, LicenseRenderingEngine } from "./ops/index.js";
+export {
+  createLicensePdfRenderer,
+  claimLicenseRevision,
+  failLicenseRevision,
+  reconcileLetters,
+} from "./docs/index.js";
+export type { LicenseRenderQueueDeps } from "./docs/index.js";
+
+export type { LicenseViewer } from "./docs/index.js";
+
+export type { LicenseTemplateCatalog } from "./docs/index.js";

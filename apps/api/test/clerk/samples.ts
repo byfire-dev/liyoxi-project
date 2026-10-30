@@ -4,6 +4,7 @@ import { orderClerkSamples } from "./order-samples.js";
 import { messageClerkSamples } from "./messages-samples.js";
 import { reportingClerkSamples } from "./reporting-samples.js";
 import { assetsClerkSamples } from "./assets-samples.js";
+import { licenseClerkSamples } from "./license-samples.js";
 import { createIdentityContext } from "@liyoxi/services";
 import { merchantServicesOf } from "../../src/merchant/services.js";
 import { uuidv7 } from "@liyoxi/services";
@@ -115,6 +116,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   },
   ...messageClerkSamples,
   ...reportingClerkSamples,
+  ...licenseClerkSamples,
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),
   ...(
     [

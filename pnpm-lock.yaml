@@ -144,6 +144,18 @@ importers:
       '@prisma/client':
         specifier: 7.9.1
         version: 7.9.1(prisma@7.9.1(@types/node@24.19.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@5.9.3))(typescript@5.9.3)
+      '@react-pdf/renderer':
+        specifier: 4.9.0
+        version: 4.9.0(react@19.3.0)
+      '@signpdf/placeholder-pdf-lib':
+        specifier: 3.4.0
+        version: 3.4.0(pdf-lib@1.17.1)
+      '@signpdf/signer-p12':
+        specifier: 3.4.0
+        version: 3.4.0(node-forge@1.4.2)
+      '@signpdf/signpdf':
+        specifier: 3.4.0
+        version: 3.4.0
       bullmq:
         specifier: 6.3.9
         version: 6.3.9(ioredis@6.0.0)(pg@8.23.0)
@@ -156,6 +168,12 @@ importers:
       mammoth:
         specifier: 1.13.0
         version: 1.13.0
+      node-forge:
+        specifier: 1.4.2
+        version: 1.4.2
+      pdf-lib:
+        specifier: 1.17.1
+        version: 1.17.1
       pdfjs-dist:
         specifier: 6.3.289
         version: 6.3.289
@@ -165,9 +183,18 @@ importers:
       pino:
         specifier: 10.3.1
         version: 10.3.1
+      qrcode:
+        specifier: 1.5.4
+        version: 1.5.4
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
       sanitize-html:
         specifier: 2.17.7
         version: 2.17.7
+      tencentcloud-sdk-nodejs-common:
+        specifier: 4.1.220
+        version: 4.1.220
       tencentcloud-sdk-nodejs-ocr:
         specifier: 4.1.322
         version: 4.1.322

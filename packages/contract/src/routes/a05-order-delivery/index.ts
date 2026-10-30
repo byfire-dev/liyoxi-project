@@ -75,3 +75,7 @@ export {
 export { adminOrderItemDownloadList } from "./order-items.js";
 
 export * from "./order-m5.schemas.js";
+
+export * from "./license-letters.js";
+export * from "./license-letter-revisions.js";
+export { adminOrderItemLicenseLetterList } from "./order-items.js";

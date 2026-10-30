@@ -11,6 +11,8 @@ import { dayRange } from "@liyoxi/shared/time";
 import { managedStore } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
 import { getWalletView } from "../billing/index.js";
+import { readLicenseOrderProjection } from "../docs/index.js";
+import { readOrderCancelCards } from "./cancel-read.js";
 import { paramsAt } from "../config/index.js";
 import { getTicketBriefsByOrder, getPlanBriefByOrder } from "../delivery/index.js";
 import { AppError } from "../kernel/index.js";
@@ -133,7 +135,7 @@ async function card(tx: Tx, o: Order) {
         }
       : null,
     actions: [],
-  }); // cancel 依赖 M5；当前没有可执行的取消接口。
+  });
 }
 export async function adminList(tx: Tx, scope: DataScope, query: AdminOrderListQuery, at: Date) {
   const base = await adminOrderWhere(tx, scope, query, at),
@@ -183,7 +185,12 @@ export async function adminSummary(tx: Tx, scope: DataScope, query: AdminOrderFi
 export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date) {
   const o = await tx.dramaOrder.findFirst({ where: { id, store: managedStore(scope) }, include });
   if (!o) throw new AppError("NOT_FOUND");
-  const common = await detail(tx, { membership: { storeId: o.storeId, entityId: o.entityId } }, id),
+  const common = await detail(
+      tx,
+      { membership: { storeId: o.storeId, entityId: o.entityId } },
+      id,
+      at,
+    ),
     tickets = await getTicketBriefsByOrder(tx, id),
     plan = await getPlanBriefByOrder(tx, id),
     wallet = await getWalletView(tx, o.entityId, at),
@@ -262,6 +269,7 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
   const consent = await tx.agreementConsent.findUniqueOrThrow({
     where: { id: o.agreementConsentId },
   });
+  const licenseLetters = await readLicenseOrderProjection(tx, { orderId: id, now: at, scope });
   return AdminOrderDetailSchema.parse({
     ...(await card(tx, o)),
     startedAt: iso(o.startedAt),
@@ -295,8 +303,8 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
       consentedAt: a.consentedAt,
       method: consent.method,
     })),
-    licenseLetterCount: 0,
-    licenseLetters: [],
+    licenseLetterCount: licenseLetters.length,
+    licenseLetters,
     merchant: {
       contactName: o.store.storeProfileStore?.contactName ?? null,
       contactPhoneMask: o.store.storeProfileStore?.contactPhoneMask ?? null,
@@ -309,7 +317,13 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
       addonAvailablePoints: wallet.points.addonAvailablePoints,
       sourceType: o.store.entity.sourceType,
     },
-    cancelRequests: [],
+    cancelRequests: await readOrderCancelCards(tx, {
+      orderId: id,
+      entityId: o.entityId,
+      storeId: o.storeId,
+      scope,
+      now: at,
+    }),
     lockVersion: o.lockVersion,
   });
 }

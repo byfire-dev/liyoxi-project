@@ -313,10 +313,33 @@ export async function readableByStaff(
   tx: Tx,
   staff: StaffContext,
   fileId: string,
-  deps?: Pick<BoundMediaDeps, "assets">,
+  deps?: Pick<BoundMediaDeps, "assets" | "licenseAccess">,
 ): Promise<FileRow> {
   const file = await tx.fileObject.findFirst({ where: { id: fileId, ...inStaffScope(staff) } });
   if (!file) throw notFound();
+  // Authorization PDFs use order visibility, even for staff who can read finance/service documents.
+  // The docs bridge returns false only when this is not a license revision file at all.
+  if (
+    file.category === "legal_doc" &&
+    deps?.licenseAccess &&
+    (await deps.licenseAccess(tx, { fileId, staff }))
+  )
+    return file;
+  if (
+    file.category === "legal_doc" &&
+    file.scopeType === "entity" &&
+    file.uploadActorType === "system"
+  )
+    throw notFound();
+  if (
+    file.category === "legal_doc" &&
+    !deps?.licenseAccess &&
+    (await tx.fileRef.findFirst({
+      where: { fileId, refType: "license_letter_revision" },
+      select: { fileId: true },
+    }))
+  )
+    throw notFound();
   if (file.category === "account_proof") {
     if (!canReadCategory(staff, file)) throw notFound();
     const refs = await tx.fileRef.findMany({

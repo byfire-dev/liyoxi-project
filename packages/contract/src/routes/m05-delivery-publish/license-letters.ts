@@ -1,8 +1,19 @@
 // 商家端：交付与发布 · license-letters（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  LicenseLetterQuerySchema,
+  LicenseLetterFilterSchema,
+  LicenseLetterParamSchema,
+  LicenseLetterPageSchema,
+  LicenseLetterSummarySchema,
+  LicenseLetterDetailSchema,
+  LicenseLetterDownloadBodySchema,
+  LicenseLetterDownloadUrlSchema,
+} from "./license.schemas.js";
 
-export const mLicenseLetterList = merchantMeta({
+export const mLicenseLetterList = merchantRoute({
   method: "get",
   path: "/m/license-letters",
   operationId: "m.licenseLetter.list",
@@ -11,9 +22,14 @@ export const mLicenseLetterList = merchantMeta({
   "x-capability": "contract.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: LicenseLetterQuerySchema },
+  responses: {
+    ...okResponse(LicenseLetterPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const mLicenseLetterSummary = merchantMeta({
+export const mLicenseLetterSummary = merchantRoute({
   method: "get",
   path: "/m/license-letters/summary",
   operationId: "m.licenseLetter.summary",
@@ -21,9 +37,14 @@ export const mLicenseLetterSummary = merchantMeta({
   "x-capability": "contract.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: LicenseLetterFilterSchema },
+  responses: {
+    ...okResponse(LicenseLetterSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const mLicenseLetterGet = merchantMeta({
+export const mLicenseLetterGet = merchantRoute({
   method: "get",
   path: "/m/license-letters/{licenseLetterId}",
   operationId: "m.licenseLetter.get",
@@ -32,9 +53,14 @@ export const mLicenseLetterGet = merchantMeta({
   "x-capability": "contract.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: LicenseLetterParamSchema },
+  responses: {
+    ...okResponse(LicenseLetterDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
-export const mLicenseLetterDownloadUrls = merchantMeta({
+export const mLicenseLetterDownloadUrls = merchantRoute({
   method: "post",
   path: "/m/license-letters/{licenseLetterId}/download-urls",
   operationId: "m.licenseLetter.downloadUrls",
@@ -43,4 +69,15 @@ export const mLicenseLetterDownloadUrls = merchantMeta({
   "x-clerk-view": "none",
   "x-idempotent": "none",
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
+  request: {
+    params: LicenseLetterParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LicenseLetterDownloadBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(LicenseLetterDownloadUrlSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });

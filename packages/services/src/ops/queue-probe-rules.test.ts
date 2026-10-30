@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import type { QueueObservation } from "../kernel/index.js";
 import { queueProbeRules } from "./queue-probe-rules.js";
 
-it("五队列数量/最老/全局暂停严格边界，失败数仅detail，不完整和缺测走未知", async () => {
+it("六队列数量/最老/全局暂停严格边界，失败数仅detail，不完整和缺测走未知", async () => {
   const at = new Date("2026-10-13T00:00:00Z");
   let facts: QueueObservation;
   const clear = (): QueueObservation => ({
@@ -21,6 +21,7 @@ it("五队列数量/最老/全局暂停严格边界，失败数仅detail，不�
     notify: 500,
     media_job: 100,
     promote: 100,
+    docs: 50,
   } as const;
   for (const queue of Object.keys(expected) as (keyof typeof expected)[]) {
     const calls: number[] = [],
@@ -71,5 +72,5 @@ it("五队列数量/最老/全局暂停严格边界，失败数仅detail，不�
     })[0]!.sample(at),
   ).rejects.toThrow("unavailable");
   expect(queueProbeRules([])).toEqual([]);
-  expect(() => queueProbeRules(["docs"])).toThrow("阈值");
+  expect(() => queueProbeRules(["export"])).toThrow("阈值");
 });

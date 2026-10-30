@@ -5,6 +5,8 @@ import type { Tx } from "../kernel/index.js";
 import { claimDeliveries, consumeDelivery } from "../events/index.js";
 import { runTimer, TIMER_LEASE_SEC } from "../timers/index.js";
 import type { M1OrderScope } from "./m1-types.js";
+import { setTimeout as pause } from "node:timers/promises";
+import { assertM1ReadyDocuments, readM1DocsBacklog } from "./m1-docs.js";
 
 function guard(ok: unknown): asserts ok {
   if (!ok) throw new Error("M1 运输认领不属于本轮业务范围或尚未虚拟到期");
@@ -130,6 +132,18 @@ export function m1Transport(
             tx.outboxEvent.count({ where: { publishedAt: null } }),
           );
           if (unpublished > 0) continue;
+          const docs = await runtime.tx.run(readM1DocsBacklog);
+          guard(docs.docsFailed === 0);
+          if (docs.docsPending) {
+            if (performance.now() >= deadline) throw new Error("M1 docs实际运输排空超过三十秒");
+            await pause(25);
+            round--; // Waiting for the real consumer is not another outbox expansion round.
+            continue;
+          }
+          // Ready commit creates issued events; observe again before proving terminal objects.
+          if (await runtime.tx.run((tx) => tx.outboxEvent.count({ where: { publishedAt: null } })))
+            continue;
+          await assertM1ReadyDocuments(runtime);
           return { expanded, consumed };
         }
         for (const ref of claimed) {
@@ -143,7 +157,13 @@ export function m1Transport(
               runtime.events.subscribers.get(ref.subscriber),
           );
           const outcome = await consumeDelivery(
-            { tx: runtime.tx, subscribers: runtime.events.subscribers, alerts },
+            {
+              tx: runtime.tx,
+              subscribers: runtime.events.subscribers,
+              alerts,
+              beforeConsume: (reference, delivered) =>
+                runtime.docsRender.beforeConsume(reference, delivered),
+            },
             ref,
           );
           if (outcome !== "done")

@@ -5,6 +5,7 @@ import { EVENTS, JOBS, TIMERS } from "@liyoxi/contract/registry";
 import type { Tx } from "../kernel/index.js";
 import type { Runtime } from "../runtime.js";
 import type { M1MediaScope, M1OrderScope } from "./m1-types.js";
+import { assertM1ReadyDocuments, readM1DocsBacklog } from "./m1-docs.js";
 
 export async function waitM1Worker<T>(
   read: () => Promise<T | null>,
@@ -34,7 +35,16 @@ export async function waitM1Worker<T>(
 
 /** Full owned DB, bounded distinct kinds. Unknown rows cannot silently disappear via relay. */
 export async function readM1WorkerBacklog(
-  tx: Pick<Tx, "outboxEvent" | "outboxDelivery" | "timer" | "mediaJob">,
+  tx: Pick<
+    Tx,
+    | "outboxEvent"
+    | "outboxDelivery"
+    | "timer"
+    | "mediaJob"
+    | "licenseLetterRevision"
+    | "licenseLetter"
+    | "fileRef"
+  >,
   now: Date,
 ) {
   const [events, deliveries, timers, jobs] = await Promise.all([
@@ -80,7 +90,9 @@ export async function readM1WorkerBacklog(
     tx.outboxEvent.count({ where: { publishedAt: { not: null } } }),
     tx.outboxDelivery.count({ where: { status: "done" } }),
   ]);
+  const docs = await readM1DocsBacklog(tx);
   return {
+    ...docs,
     kinds,
     unpublished,
     unsettled,
@@ -96,7 +108,7 @@ export async function readM1WorkerBacklog(
 export type M1WorkerBacklog = Awaited<ReturnType<typeof readM1WorkerBacklog>>;
 
 export const m1WorkerSettled = (row: M1WorkerBacklog) =>
-  row.unpublished + row.unsettled + row.dueTimers + row.mediaPending === 0;
+  row.unpublished + row.unsettled + row.dueTimers + row.mediaPending + row.docsPending === 0;
 
 export function assertM1WorkerKnown(backlog: M1WorkerBacklog, subscribers: readonly string[]) {
   const known: Record<keyof M1WorkerBacklog["kinds"], readonly string[]> = {
@@ -111,7 +123,7 @@ export function assertM1WorkerKnown(backlog: M1WorkerBacklog, subscribers: reado
       backlog.kinds[key].some((value) => !known[key].includes(value))
     )
       throw new Error("M1 后台worker存在未知类型或种类扫描不完整");
-  if (backlog.deadDeliveries || backlog.deadTimers || backlog.mediaFailed)
+  if (backlog.deadDeliveries || backlog.deadTimers || backlog.mediaFailed || backlog.docsFailed)
     throw new Error("M1 后台worker存在死信或失败任务");
 }
 
@@ -181,6 +193,7 @@ export function m1WorkerObserver(
         const row = await readBacklog();
         return m1WorkerSettled(row) ? row : null;
       });
+      await assertM1ReadyDocuments(runtime, signal);
       return {
         expanded: Math.max(0, after.published - before.published),
         consumed: Math.max(0, after.consumed - before.consumed),

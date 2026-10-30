@@ -1,3 +1,14 @@
+import type { LicenseTemplateCatalog } from "./docs/index.js";
+import { isLicenseOwner, licenseStoreVisible } from "./tenant/index.js";
+import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./ops/index.js";
+import type { LicenseRenderingEngine, DocsRenderRuntime } from "./ops/index.js";
+import {
+  createLicenseRead,
+  createLicenseAdmin,
+  readLicenseTemplateClauses,
+  assertLicenseFileVisible,
+  rerenderLicenseRevision,
+} from "./docs/index.js";
 import { createWechatPaymentSource, bindPaymentChannel } from "./billing/index.js";
 import {
   createRuntimeMediaAssets,
@@ -252,6 +263,10 @@ export const DB_POOLS: Readonly<Record<AssemblyEntry, DbPoolSettings>> = {
 };
 
 export interface RuntimeOptions {
+  /** Explicit local/test worker capability; API never loads signing material. */
+  readonly licenseRendering?: LicenseRenderingEngine;
+  /** Public text only, explicit local/test fixture; no private signing material. */
+  readonly licenseTemplateCatalog?: LicenseTemplateCatalog;
   /** 仅进程入口提供自有dist目录；测试/借用装配不自动启用服务端出口。 */
   readonly serverErrorRoot?: URL;
   /** API自有ASR/LLM/OCR的成对生命周期；close须缓存同一Promise，整套providers借用不消费。 */
@@ -297,6 +312,9 @@ export interface Runtime {
   >;
   readonly sessionMutex: SessionMutex;
   readonly docs: Docs;
+  readonly docsRender: DocsRenderRuntime;
+  readonly licenseRead: ReturnType<typeof createLicenseRead>;
+  readonly licenseAdmin: ReturnType<typeof createLicenseAdmin>;
   readonly docsAdmin: ReturnType<typeof createRuntimeDocs>["admin"];
   readonly documentConverter: ReturnType<typeof createDocumentConverter> | null;
   readonly smsInit: ReturnType<typeof createSmsInit>;
@@ -380,6 +398,10 @@ export interface Runtime {
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   const { entry, env, version } = options;
+  if (options.licenseRendering && (entry !== "worker" || !["local", "test"].includes(env.APP_ENV)))
+    throw new TypeError("测试签署能力仅允许本地或测试worker");
+  if (options.licenseTemplateCatalog && !["local", "test"].includes(env.APP_ENV))
+    throw new TypeError("测试授权书正文仅允许本地或测试环境");
   const ownsModels =
     options.providers === undefined &&
     ((entry === "api" && (!!env.ASR_TENCENT || !!env.LLM_DOMESTIC)) || !!env.OCR_TENCENT);
@@ -741,6 +763,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         })
       : undefined;
   const media = createMedia({
+    licenseAccess: assertLicenseFileVisible,
     ocr: {
       provider: providers.ocr,
       sessionMutex,
@@ -796,16 +819,56 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     config,
     bumpAgreement: () => config.cache.bump("agreement"),
   });
-  docsScope.attach(docsServices.jobs);
-  docsLicenseScope.attach(
-    createRuntimeDocsLicense({
-      clock,
-      flow,
-      events,
-      portalOrigin: env.PORTAL_PUBLIC_ORIGIN,
-      keyring: () => options.billingKeyring ?? loadKeyring(env),
-    }),
-  );
+  const licenseConvergence = createRuntimeDocsLicense({
+    clock,
+    flow,
+    events,
+    portalOrigin: env.PORTAL_PUBLIC_ORIGIN,
+    keyring: () => options.billingKeyring ?? loadKeyring(env),
+  });
+  const docsRender = createDocsRenderRuntime({
+    tx,
+    clock,
+    convergence: licenseConvergence,
+    media,
+    channel: mediaChannel,
+    logger,
+    allowStamp: ["local", "test"].includes(env.APP_ENV),
+    ...(options.entry === "worker"
+      ? {
+          engine: createLicenseRenderingEngine({
+            appEnv: env.APP_ENV,
+            clock,
+            fontDir: env.LYX_PDF_FONT_DIR,
+            ssm: env.ESIGN_SSM,
+            override: options.licenseRendering,
+          }),
+        }
+      : {}),
+  });
+  docsScope.attach({
+    ...docsServices.jobs,
+    licenseQueue: docsRender.queue,
+    enqueueLicenseRevision: docsRender.enqueue,
+  });
+  docsLicenseScope.attach(licenseConvergence);
+  const licenseRead = createLicenseRead({
+    tx,
+    clock,
+    facts: licenseConvergence.facts,
+    snapshot: licenseConvergence.snapshot,
+    ownerAccess: isLicenseOwner,
+    clauses: (version, keys) =>
+      readLicenseTemplateClauses(version, keys, options.licenseTemplateCatalog),
+    signDownload: (input) => media.signLicenseDownload(input),
+  });
+  const licenseAdmin = createLicenseAdmin({
+    tx,
+    clock,
+    convergence: licenseConvergence,
+    storeVisible: licenseStoreVisible,
+    rerender: (tx, ctx, input) => rerenderLicenseRevision(tx, docsRender.queue, ctx, input),
+  });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -1197,6 +1260,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   return {
     sessionMutex,
     licenseLetters: docsLicenseScope,
+    docsRender,
+    licenseRead,
+    licenseAdmin,
     docs: docsServices.docs,
     docsAdmin: docsServices.admin,
     documentConverter,
@@ -1272,11 +1338,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
-        await settle([
-          () => docsLicenseScope.close(),
-          () => docsScope.close(),
-          () => documentConverter?.close(),
-        ]);
+        await settle([() => docsRender.close()]);
+        await settle([() => docsScope.close()]);
+        await settle([() => docsLicenseScope.close(), () => documentConverter?.close()]);
         await settle([
           () => staffScope.close(),
           () => media.jobs.shutdown(),

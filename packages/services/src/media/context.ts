@@ -19,6 +19,7 @@ import type { MediaActor } from "./actor.js";
 import type { RetentionOptions } from "./retention/options.js";
 import type { QualificationOcrOptions } from "./ocr/service.js";
 import type { ProductionAccess } from "./production-access.js";
+import type { StaffContext } from "../authz/index.js";
 export type FileRow = FileObject;
 export type { MediaActor } from "./actor.js";
 export interface FileCategoryGuard {
@@ -26,6 +27,11 @@ export interface FileCategoryGuard {
   registered?(tx: Tx, fileId: string, actor: MediaActor, input: RegisterInput): Promise<void>;
 }
 export interface MediaDeps {
+  /** Only docs-owned ready authorization PDFs; false means another legal-document kind. */
+  readonly licenseAccess?: (
+    tx: Tx,
+    input: { fileId: string; staff: StaffContext },
+  ) => Promise<boolean>;
   readonly ocr?: QualificationOcrOptions;
   readonly retention?: RetentionOptions;
   readonly assets?: MediaAssetsDeps;

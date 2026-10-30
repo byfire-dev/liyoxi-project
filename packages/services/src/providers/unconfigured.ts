@@ -300,8 +300,9 @@ export function createStampEsign(): EsignProvider {
   return {
     status: "stamp",
     configured: true,
-    async seal({ pdf }) {
-      return ok({ pdf, mode: "stamp" });
+    async seal({ pdf, signal }) {
+      if (signal?.aborted) return failed("unavailable", "图片章调用已取消");
+      return ok({ pdf: new Uint8Array(pdf), mode: "stamp" });
     },
   };
 }

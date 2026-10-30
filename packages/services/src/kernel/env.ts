@@ -18,6 +18,7 @@
 import { createPrivateKey, X509Certificate } from "node:crypto";
 import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { BlockList, isIP } from "node:net";
+import { isAbsolute, normalize } from "node:path";
 
 import { z } from "zod";
 
@@ -53,6 +54,11 @@ export const ENV_KEYS: readonly string[] = [
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
   "PORTAL_PUBLIC_ORIGIN",
+  "LYX_PDF_FONT_DIR",
+  "ESIGN_SSM_REGION",
+  "ESIGN_SSM_SECRET_NAME",
+  "ESIGN_SSM_VERSION_ID",
+  "ESIGN_SSM_STS_CREDENTIALS_FILE",
   "STAGING_PAY_ENTITY_IDS",
   "BACKUP_FILE",
   "ALERTS_FILE",
@@ -213,7 +219,17 @@ function readWechatPay(source: EnvSource, issues: EnvIssue[]): WechatPayEnvConfi
   });
 }
 
+export interface EsignSsmEnvConfig {
+  readonly region: string;
+  readonly secretName: string;
+  readonly versionId: string;
+  readonly stsCredentialsFile: string;
+}
+
 export interface Env {
+  /** Description only: loadEnv never opens the worker STS credential file. */
+  readonly ESIGN_SSM?: EsignSsmEnvConfig;
+  readonly LYX_PDF_FONT_DIR?: string;
   readonly WECHAT_PAY?: WechatPayEnvConfig;
   /** 独立可选的严格模型配置；本片只解析，不装配或启用驱动。 */
   readonly ASR_TENCENT?: AsrTencentEnvConfig;
@@ -1399,6 +1415,54 @@ function readServerErrors(source: EnvSource, issues: EnvIssue[]): ServerErrorsCo
   return undefined;
 }
 
+function readEsignSsm(source: EnvSource, issues: EnvIssue[]): EsignSsmEnvConfig | undefined {
+  const keys = [
+    "ESIGN_SSM_REGION",
+    "ESIGN_SSM_SECRET_NAME",
+    "ESIGN_SSM_VERSION_ID",
+    "ESIGN_SSM_STS_CREDENTIALS_FILE",
+  ] as const;
+  const values = keys.map((key) => read(source, key));
+  if (values.every((value) => value === undefined)) return undefined;
+  const [region, secretName, versionId, stsCredentialsFile] = values;
+  const valid = [
+    region !== undefined && /^ap-[a-z]+(?:-[a-z]+)*$/.test(region),
+    secretName !== undefined && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(secretName),
+    versionId !== undefined &&
+      /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(versionId) &&
+      !/^ssm_/i.test(versionId),
+    stsCredentialsFile !== undefined && validEsignPath(stsCredentialsFile),
+  ];
+  valid.forEach((value, index) => {
+    if (!value)
+      issues.push({ key: keys[index]!, reason: "须完整配置固定SSM版本与worker临时身份文件描述" });
+  });
+  return valid.every(Boolean)
+    ? Object.freeze({
+        region: region!,
+        secretName: secretName!,
+        versionId: versionId!,
+        stsCredentialsFile: stsCredentialsFile!,
+      })
+    : undefined;
+}
+function validEsignPath(value: string): boolean {
+  return (
+    value.length <= 4096 &&
+    isAbsolute(value) &&
+    normalize(value) === value &&
+    !/[\p{Cc}]/u.test(value)
+  );
+}
+function readPdfFontDir(source: EnvSource, issues: EnvIssue[]): string | undefined {
+  const value = read(source, "LYX_PDF_FONT_DIR");
+  if (value !== undefined && !validEsignPath(value)) {
+    issues.push({ key: "LYX_PDF_FONT_DIR", reason: "须为绝对规范字体目录" });
+    return undefined;
+  }
+  return value;
+}
+
 export function loadEnv(
   source: EnvSource = process.env,
   options: { groups?: readonly EnvGroup[] } = {},
@@ -1408,6 +1472,8 @@ export function loadEnv(
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
   const portalPublicOrigin = readPortalPublicOrigin(source, issues);
+  const esignSsm = readEsignSsm(source, issues);
+  const pdfFontDir = readPdfFontDir(source, issues);
   const stagingPay = readStagingPay(source, appEnv, issues);
   const alerts = readAlerts(source, issues);
   const serverErrors = readServerErrors(source, issues);
@@ -1490,6 +1556,8 @@ export function loadEnv(
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
     ...(portalPublicOrigin ? { PORTAL_PUBLIC_ORIGIN: portalPublicOrigin } : {}),
+    ...(esignSsm ? { ESIGN_SSM: esignSsm } : {}),
+    ...(pdfFontDir ? { LYX_PDF_FONT_DIR: pdfFontDir } : {}),
     ...(stagingPay ? { STAGING_PAY: stagingPay } : {}),
     ...(alerts ? { ALERTS: alerts } : {}),
     ...(serverErrors ? { SERVER_ERRORS: serverErrors } : {}),

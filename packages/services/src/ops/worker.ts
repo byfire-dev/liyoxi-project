@@ -1,3 +1,6 @@
+import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
+import type { LicenseRenderingEngine } from "./docs-render-runtime.js";
+import { assertLicenseFileVisible } from "../docs/index.js";
 import { createBillingApprovalRefs } from "../support/index.js";
 import type { BillingPurchaseDeps } from "../billing/index.js";
 import {
@@ -189,6 +192,7 @@ export function connectWorkerDatabase(connectionString: string): {
 }
 
 export interface WorkerServicesOptions {
+  readonly licenseRendering?: LicenseRenderingEngine;
   readonly serverErrorSource?: Readonly<{ release: string; artifactRoot: URL }>;
   readonly sessionMutex?: SessionMutex;
   readonly probe?: {
@@ -227,6 +231,8 @@ export interface WorkerServicesOptions {
   readonly logger?: ProviderLogger;
   /** loadEnv 的密钥与本地存储配置（把 env 整个传进来即可）：启动自检及 Provider 装配用。 */
   readonly keys?: {
+    readonly LYX_PDF_FONT_DIR?: Env["LYX_PDF_FONT_DIR"];
+    readonly ESIGN_SSM?: Env["ESIGN_SSM"];
     readonly PORTAL_PUBLIC_ORIGIN?: Env["PORTAL_PUBLIC_ORIGIN"];
     readonly WECHAT_PAY?: Env["WECHAT_PAY"];
     readonly STAGING_PAY?: Env["STAGING_PAY"];
@@ -257,6 +263,10 @@ export interface WorkerServicesOptions {
 }
 
 export interface WorkerServices {
+  renderLicenseRevision(ref: { revisionId: string }): Promise<void>;
+  readonly pauseDocs?: () => Promise<void>;
+  readonly resumeDocs?: () => void;
+  readonly shutdownDocs?: () => Promise<void>;
   readonly serverErrors?: ServerErrorReporter;
   readonly closeServerErrors?: () => Promise<void>;
   readonly sessionMutex?: SessionMutex;
@@ -653,6 +663,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    licenseAccess: assertLicenseFileVisible,
     ...(options.sessionMutex
       ? {
           ocr: {
@@ -718,16 +729,35 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     config: docsConfig,
     bumpAgreement: () => docsConfig.cache.bump("agreement"),
   });
-  docsScope.attach(docsServices.jobs);
-  docsLicenseScope.attach(
-    createRuntimeDocsLicense({
+  const licenseConvergence = createRuntimeDocsLicense({
+    clock,
+    flow,
+    events,
+    portalOrigin: options.keys?.PORTAL_PUBLIC_ORIGIN,
+    keyring: () => keyringFromEnv(options.keys ?? {}),
+  });
+  const docsRender = createDocsRenderRuntime({
+    tx,
+    clock,
+    convergence: licenseConvergence,
+    media,
+    channel,
+    logger,
+    allowStamp: ["local", "test"].includes(options.appEnv),
+    engine: createLicenseRenderingEngine({
+      appEnv: options.appEnv,
       clock,
-      flow,
-      events,
-      portalOrigin: options.keys?.PORTAL_PUBLIC_ORIGIN,
-      keyring: () => keyringFromEnv(options.keys ?? {}),
+      fontDir: options.keys?.LYX_PDF_FONT_DIR,
+      ssm: options.keys?.ESIGN_SSM,
+      override: options.licenseRendering,
     }),
-  );
+  });
+  docsScope.attach({
+    ...docsServices.jobs,
+    licenseQueue: docsRender.queue,
+    enqueueLicenseRevision: docsRender.enqueue,
+  });
+  docsLicenseScope.attach(licenseConvergence);
   const closeMediaJobs = () => {
     mediaAssetsScope.close();
     mediaScope.close();
@@ -774,7 +804,10 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   };
   const delivery = {
     tx,
-    beforeConsume: shippingScope.beforeConsume,
+    beforeConsume: async (...args: Parameters<typeof shippingScope.beforeConsume>) => {
+      await shippingScope.beforeConsume(...args);
+      await docsRender.beforeConsume(...args);
+    },
     subscribers: events.subscribers,
     channel,
     alerts,
@@ -1007,9 +1040,15 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     ...(ownsModels ? { closeModelDrivers: () => modelDrivers!.close() } : {}),
     disableModelBudget: () => modelBudget.disable(),
     closeModelBudget: () => modelBudget.close(),
+    renderLicenseRevision: docsRender.process,
+    pauseDocs: docsRender.pause,
+    resumeDocs: docsRender.resume,
+    shutdownDocs: docsRender.pause,
     closeDocs: async () => {
+      const results = await Promise.allSettled([docsRender.close(), docsScope.close()]);
       await docsLicenseScope.close();
-      await docsScope.close();
+      const failure = results.find((result) => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
     },
     runProbes: async (beat) => {
       if (!probe) throw new Error("探针读侧未配置");

@@ -1,7 +1,8 @@
 import { createHash, randomInt } from "node:crypto";
-import type { Prisma } from "@liyoxi/db";
+import type { LicenseLetter, Prisma } from "@liyoxi/db";
 import { AppError, createIdentityContext, lockRows, uuidv7 } from "../kernel/index.js";
-import type { Tx } from "../kernel/index.js";
+import type { IdentityContext, Tx } from "../kernel/index.js";
+import { recordLicenseRenderResult } from "./license-render-result.js";
 import { record } from "../audit/index.js";
 import type {
   LicenseAccountFact,
@@ -54,6 +55,7 @@ async function snapshot(
   account: LicenseAccountFact,
   letter: { letterNo: string; verifyCode: string },
   revNo: number,
+  metadata?: Pick<LicenseLetterSnapshot, "issuedAt" | "verifyUrl">,
 ): Promise<LicenseLetterSnapshot> {
   const origin = deps.snapshot.portalOrigin;
   if (!origin) throw new AppError("PROVIDER_UNAVAILABLE", { message: "授权快照缺少验真地址配置" });
@@ -111,8 +113,8 @@ async function snapshot(
     orderNo: facts.orderNo,
     letterNo: letter.letterNo,
     revNo,
-    issuedAt: now.toISOString(),
-    verifyUrl: url.toString(),
+    issuedAt: metadata?.issuedAt ?? now.toISOString(),
+    verifyUrl: metadata?.verifyUrl ?? url.toString(),
   });
 }
 
@@ -142,6 +144,16 @@ export async function reconcileLetters(
     where: { orderItemId: { in: ids } },
     orderBy: { id: "asc" },
   });
+  return reconcileLockedLetters(tx, deps, facts, letters, triggerRef);
+}
+
+async function reconcileLockedLetters(
+  tx: Tx,
+  deps: LicenseConvergenceDeps,
+  facts: readonly LicenseFacts[],
+  letters: LicenseLetter[],
+  triggerRef: string,
+) {
   deps.assertOpen?.();
   let created = 0,
     revised = 0,
@@ -184,6 +196,7 @@ export async function reconcileLetters(
           payload: { v: 1, licenseLetterId: letter.id, voidReason },
         },
       });
+      await clearVoidedIssue(tx, ctx, letter);
       voided++;
     }
     for (const account of [...wanted].sort((a, b) =>
@@ -339,3 +352,123 @@ export async function reconcileLetters(
   return { created, revised, voided, complete: true };
 }
 export const ensureLetters = reconcileLetters;
+
+
+async function clearVoidedIssue(tx: Tx, ctx: IdentityContext, letter: LicenseLetter) {
+  const latest = await tx.licenseLetterRevision.findFirst({
+    where: { licenseLetterId: letter.id }, orderBy: { revNo: "desc" },
+  });
+  if (latest) await recordLicenseRenderResult(tx, ctx, {
+    licenseLetterId: letter.id, revisionId: latest.id,
+    entityId: letter.entityId, storeId: letter.storeId,
+    fence: { attempt: latest.renderAttemptNo, leaseUntil: latest.renderLeaseUntil }, outcome: "voided",
+  });
+}
+
+/** Reads before locks are references only; all item/letter facts are reread under the shared lock order. */
+async function lockManualLetter(tx: Tx, deps: LicenseConvergenceDeps, id: string) {
+  deps.assertOpen?.();
+  const ref = await tx.licenseLetter.findUnique({ where: { id } });
+  if (!ref) throw new AppError("NOT_FOUND");
+  const facts = await deps.facts.getLicenseFacts(tx, [ref.orderItemId]);
+  const keys = await tx.licenseLetter.findMany({
+    where: { orderItemId: ref.orderItemId }, orderBy: { id: "asc" }, select: { id: true },
+  });
+  await lockRows(tx, "license_letter", keys.map((row) => row.id));
+  const letters = await tx.licenseLetter.findMany({
+    where: { orderItemId: ref.orderItemId }, orderBy: { id: "asc" },
+  });
+  const letter = letters.find((row) => row.id === id), fact = facts[0];
+  if (!letter || !fact) throw new AppError("NOT_FOUND");
+  deps.assertOpen?.();
+  if (letter.status === "voided") throw new AppError("STATE_NOT_ALLOWED");
+  return { letter, fact, letters, facts };
+}
+
+export function licenseLetterMatchesFacts(letter: LicenseLetter, fact: LicenseFacts): boolean {
+  return licenseEligible(fact.phase) &&
+    fact.accounts.some((account) => account.channelAccountId === letter.channelAccountId && account.platform === letter.platform) &&
+    letter.entityId === fact.entityId && letter.storeId === fact.storeId &&
+    letter.dramaId === fact.dramaId && letter.dramaOrderId === fact.orderId &&
+    letter.status === (fact.usageStartDate ? "effective" : "pending_effective") &&
+    day(letter.periodStart) === fact.usageStartDate && day(letter.periodEnd) === fact.usageEndDate;
+}
+
+const manualNote = (note: string) => {
+  if (!note.trim() || Array.from(note).length > 200) throw new AppError("VALIDATION_FAILED");
+};
+export async function correctLicenseLetter(
+  tx: Tx, deps: LicenseConvergenceDeps, ctx: IdentityContext,
+  input: {
+    licenseLetterId: string;
+    correctionKinds: readonly ("licensee_name" | "store_name" | "account_name" | "other")[];
+    note: string;
+  },
+) {
+  manualNote(input.note);
+  if (!input.correctionKinds.length || input.correctionKinds.some((kind) =>
+    !["licensee_name", "store_name", "account_name", "other"].includes(kind)))
+    throw new AppError("VALIDATION_FAILED");
+  const { letter, fact } = await lockManualLetter(tx, deps, input.licenseLetterId);
+  if (!licenseLetterMatchesFacts(letter, fact))
+    throw new AppError("PRECONDITION_CHANGED", { message: "授权法律事实已变化，请先对齐当前授权" });
+  const latest = await tx.licenseLetterRevision.findFirst({
+    where: { licenseLetterId: letter.id }, orderBy: { revNo: "desc" },
+  });
+  if (!latest) throw new AppError("PRECONDITION_CHANGED");
+  const old = parseLicenseLetterSnapshot(latest.letterSnapshot);
+  const account = fact.accounts.find((row) => row.channelAccountId === letter.channelAccountId)!;
+  // Metadata belongs to a revision. Preserve it for comparison before deciding there is a business change.
+  const comparison = await snapshot(tx, deps, fact, account, letter, latest.revNo, old);
+  if (licenseContentFingerprint(comparison) === latest.contentFp)
+    throw new AppError("LICENSE_LETTER_UNCHANGED");
+  const revNo = latest.revNo + 1, revisionId = uuidv7(), now = deps.clock.now();
+  const verifyUrl = new URL(comparison.verifyUrl);
+  verifyUrl.searchParams.set("rev", String(revNo));
+  const value = parseLicenseLetterSnapshot({ ...comparison, revNo, issuedAt: now.toISOString(), verifyUrl: verifyUrl.toString() });
+  await tx.licenseLetterRevision.create({ data: {
+    id: revisionId, licenseLetterId: letter.id, revNo, reason: "correction",
+    triggerRef: `guard-${ctx.requestId ?? revisionId}`.slice(0, 80),
+    letterSnapshot: JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue,
+    contentFp: licenseContentFingerprint(value), templateVersion: LICENSE_TEMPLATE_VERSION,
+    renderStatus: "queued", createdAt: now, updatedAt: now,
+  } });
+  await record(tx, ctx.actor, { requestId: ctx.requestId, ip: ctx.ip, userAgent: ctx.userAgent,
+    authMethod: null, sessionId: null }, {
+    stream: "ops", category: "docs", action: "docs.license.correct", summary: "更正并重出授权书",
+    target: { type: "license_letter", id: letter.id }, entityId: letter.entityId, storeId: letter.storeId,
+    reason: { code: "correction", text: input.note }, meta: { correctionKinds: [...input.correctionKinds], revisionId },
+  });
+  await deps.events.emit(tx, ctx, {
+    type: "license_letter.revision_queued", aggregate: { type: "license_letter", id: letter.id },
+    payload: { v: 1, licenseLetterId: letter.id, revisionId, reason: "correction" },
+    entityId: letter.entityId, storeId: letter.storeId,
+  });
+  deps.assertOpen?.();
+  return { licenseLetterId: letter.id, revisionId, revNo };
+}
+
+export async function voidLicenseLetter(
+  tx: Tx, deps: LicenseConvergenceDeps, ctx: IdentityContext,
+  input: { licenseLetterId: string; note: string },
+) {
+  manualNote(input.note);
+  const { letter, facts, letters } = await lockManualLetter(tx, deps, input.licenseLetterId);
+  await deps.flow.transition(tx, ctx, {
+    machine: "license_letter", stateField: "status", id: letter.id, event: "license_letter.void",
+    to: "voided", ref: "13:949", args: checked, entityId: letter.entityId, storeId: letter.storeId,
+    set: { voided_at: deps.clock.now(), void_reason: "manual" },
+    emit: { type: "license_letter.voided", payload: { v: 1, licenseLetterId: letter.id, voidReason: "manual" } },
+  });
+  await clearVoidedIssue(tx, ctx, letter);
+  await record(tx, ctx.actor, { requestId: ctx.requestId, ip: ctx.ip, userAgent: ctx.userAgent,
+    authMethod: null, sessionId: null }, {
+    stream: "ops", category: "docs", action: "docs.license.void", summary: "作废并重出授权书",
+    target: { type: "license_letter", id: letter.id }, entityId: letter.entityId, storeId: letter.storeId,
+    reason: { code: "manual", text: input.note },
+  });
+  const current = letters.map((row) => row.id === letter.id ? { ...row, status: "voided" } : row);
+  await reconcileLockedLetters(tx, deps, facts, current, `guard-${ctx.requestId ?? uuidv7()}`.slice(0, 80));
+  const replacement = current.find((row) => row.channelAccountId === letter.channelAccountId && row.status !== "voided");
+  return { licenseLetterId: letter.id, reissuedLicenseLetterId: replacement?.id ?? null };
+}

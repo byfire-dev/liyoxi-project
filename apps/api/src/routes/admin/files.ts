@@ -120,6 +120,7 @@ export const adminFileHandlers = [
     ),
   ),
   defineAdminHandler(adminFileDownloadUrls, null, async (c, staff) => {
+    c.header("Cache-Control", "no-store");
     const signed = await c.var.runtime.media.downloadUrls(
       { identity: c.var.identity!, staff: staff.ctx },
       { fileId: c.req.valid("param").fileId, ...c.req.valid("json") },

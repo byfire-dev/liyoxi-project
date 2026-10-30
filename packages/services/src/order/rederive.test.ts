@@ -325,7 +325,7 @@ describe("真实订单侧端口、同事务物化", { timeout: 60000 }, () => {
   it("读侧来自真实公开工单/方案/阶段，GET聚合不写", async () => {
     const o = await h.orderFixture(),
       before = await counts(o.o.id);
-    const view = await h.tx.run((tx) => detail(tx, o.b.actor, o.o.id));
+    const view = await h.tx.run((tx) => detail(tx, o.b.actor, o.o.id, h.clock.now()));
     expect(view.items[0]).toMatchObject({
       ticketStep: "plan_confirm",
       timeline: expect.arrayContaining([

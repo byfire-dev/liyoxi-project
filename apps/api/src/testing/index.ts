@@ -54,6 +54,12 @@ import type { PipelineEntry, PipelineSlot } from "../routing/pipeline.js";
 import { HANDLERS } from "../routes/index.js";
 
 export interface TestApiOptions {
+  /** Explicit test deployment origin; authorization snapshots never invent a verification host. */
+  readonly portalPublicOrigin?: string;
+  /** Explicit fake-key fixture compatibility; default API login keyring remains unchanged. */
+  readonly merchantKeyring?: security.Keyring;
+  /** Public technical template text only; signer/materials remain worker-owned. */
+  readonly licenseTemplateCatalog?: RuntimeOptions["licenseTemplateCatalog"];
   /** 仅测试支付装配身份，渠道IO仍用原FakeWechatPay。默认未配不变。 */
   readonly wechatPay?: { appid: string; mchid: string };
   /** 仅公知假FILE经loadEnv所得完整事实；优先于旧身份简写，渠道IO仍用FakeWechatPay。 */
@@ -137,6 +143,7 @@ export function useTestApi(): TestApiHandle {
       assertTestDatabaseUrl(databaseUrl);
       const env = {
         ...loadEnv(),
+        ...(options.portalPublicOrigin ? { PORTAL_PUBLIC_ORIGIN: options.portalPublicOrigin } : {}),
         // 三份密钥用现造的假密钥：后台登录、敏感字段的用例才跑得起来
         ...fakeKeyEnv(),
         DATABASE_URL: databaseUrl,
@@ -177,6 +184,9 @@ export function useTestApi(): TestApiHandle {
         providers,
         ...(options.qualificationOcr ? { billingKeyring: TEST_API_KEYRING } : {}),
         documentWorkerUrl: options.documentConverterWorkerUrl,
+        ...(options.licenseTemplateCatalog
+          ? { licenseTemplateCatalog: options.licenseTemplateCatalog }
+          : {}),
         logger: createLogger({
           svc: "api",
           env: env.APP_ENV,
@@ -187,7 +197,10 @@ export function useTestApi(): TestApiHandle {
       });
       runtimes.push(runtime);
       // 商家端的登录：测试密钥环与 appid（要在建应用之前给，鉴权链的中间件建应用时就取服务）
-      provideMerchantDeps(runtime, { keyring: TEST_API_KEYRING, appid: TEST_WEAPP_APPID });
+      provideMerchantDeps(runtime, {
+        keyring: options.merchantKeyring ?? TEST_API_KEYRING,
+        appid: TEST_WEAPP_APPID,
+      });
       const api = createApp({
         runtime,
         handlers: options.handlers ?? HANDLERS,

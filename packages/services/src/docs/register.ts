@@ -16,6 +16,7 @@ const unboundLicense = async (): Promise<never> => {
 };
 export const registration = defineRegistration("docs", {
   subscribers: [
+    { name: "docs.onRevisionQueued", events: ["license_letter.revision_queued"], handle: unboundLicense },
     {
       name: "docs.onLicenseFacts",
       critical: true,
@@ -81,6 +82,15 @@ export const registration = defineRegistration("docs", {
       }),
     }),
     docsPiiFields,
+    implementKeyed(fileRefTypePort, "license_letter_revision", {
+      inUse: async (tx, fileId) => (await tx.licenseLetterRevision.findMany({
+        where: { fileId }, select: { id: true },
+      })).map((row) => ({ fileId, refId: row.id, role: "pdf" })),
+      roles: { pdf: { categories: ["legal_doc"], retentionDays: null, canRelease: async () => false } },
+      readColumns: async (tx) => (await tx.licenseLetterRevision.findMany({
+        where: { fileId: { not: null } }, select: { id: true, fileId: true },
+      })).map((row) => ({ fileId: row.fileId!, refId: row.id, role: "pdf" })),
+    }),
     implementKeyed(fileRefTypePort, "agreement_version", {
       // 已生效/历史协议均是法定证据；草稿也只按当前source/pdf列保护，替换掉的旧文件不占用。
       inUse: async (tx, fileId) =>
