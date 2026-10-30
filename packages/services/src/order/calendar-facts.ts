@@ -216,7 +216,7 @@ export async function onOrderCalendarImported(
         });
       }
     }
-    const breached = revision?.breachedAt ?? row.firstBreachedAt;
+    const breached = revision ? revision.breachedAt : row.firstBreachedAt;
     if (!breached)
       await deps.timers.arm(tx, {
         kind: "sla.breach",

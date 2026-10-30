@@ -173,6 +173,82 @@ describe("W5-05 订单后续真实事实", { timeout: 120000 }, () => {
     assertSnapshotsEqual(before, await snapshotTables(h.prisma, REQUEST_TABLES));
   });
 
+  it("活动流按真实方案确认的双迁移动作关联历史，普通审计不借用迁移，跨页结果一致", async () => {
+    const p = await h.atStage("ad_and_sample"),
+      ticket = await h.prisma.deliveryTicket.findUniqueOrThrow({
+        where: { orderItemId: p.items[0]!.id },
+      }),
+      ctx = p.b.actor.ctx;
+    const histories = await h.prisma.statusTransition.findMany({
+      where: {
+        machine: "delivery_ticket",
+        subjectId: ticket.id,
+        requestId: ctx.requestId,
+        event: { in: ["plan.confirmed", "ads.ready"] },
+      },
+      orderBy: { seq: "asc" },
+    });
+    expect(histories.map((r) => [r.event, r.fromState, r.toState])).toEqual([
+      ["plan.confirmed", "plan_confirm", "ad_prep"],
+      ["ads.ready", "ad_prep", "sample_making"],
+    ]);
+    const ordinary = await h.tx.run((tx) =>
+      record(
+        tx,
+        ctx.actor,
+        { requestId: ctx.requestId, ip: null, userAgent: null, authMethod: null, sessionId: null },
+        {
+          stream: "activity",
+          category: "delivery",
+          action: "delivery.ticket.remind",
+          summary: "同一请求内普通催办记录",
+          target: { type: "delivery_ticket", id: ticket.id },
+          entityId: p.b.entity.id,
+          storeId: p.b.store.id,
+        },
+      ),
+    );
+    const before = await snapshotTables(h.prisma, REQUEST_TABLES),
+      all = await h.order.activityList(SYSTEM_SCOPE, p.out.orderId, { limit: 100 }),
+      ticketRows = all.items.filter((r) => r.targetId === ticket.id);
+    const confirmed = ticketRows.find((r) => r.action === "delivery.ticket.confirmed")!,
+      ready = ticketRows.find((r) => r.action === "delivery.ticket.ready")!;
+    expect(confirmed.transition).toMatchObject({
+      event: "plan.confirmed",
+      fromState: "plan_confirm",
+      toState: "ad_prep",
+    });
+    expect(ready.transition).toMatchObject({
+      event: "ads.ready",
+      fromState: "ad_prep",
+      toState: "sample_making",
+    });
+    expect(ticketRows.find((r) => r.activityId === ordinary.id)?.transition).toBeNull();
+    const expected = new Map(
+      [confirmed, ready, ticketRows.find((r) => r.activityId === ordinary.id)!].map((r) => [
+        r.activityId,
+        r.transition,
+      ]),
+    );
+    let cursor: string | undefined;
+    const found = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      const page = await h.order.activityList(SYSTEM_SCOPE, p.out.orderId, {
+        limit: 1,
+        ...(cursor ? { cursor } : {}),
+      });
+      for (const row of page.items)
+        if (expected.has(row.activityId)) {
+          expect(row.transition).toEqual(expected.get(row.activityId));
+          found.add(row.activityId);
+        }
+      if (!page.hasMore) break;
+      cursor = page.nextCursor!;
+    }
+    expect(found.size).toBe(3);
+    assertSnapshotsEqual(before, await snapshotTables(h.prisma, REQUEST_TABLES));
+  });
+
   it("日历跨节假日真实重排取消执行及首版广告时限，重复/乱序不新增timer，作废不复活", async () => {
     const actor = await h.staff();
     await h.param("sla.review.refund_execute", { amount: 2, unit: "work_days" }, actor);

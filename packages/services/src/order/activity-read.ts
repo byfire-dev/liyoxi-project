@@ -1,7 +1,7 @@
 import { z, ActivityItemSchema, OrderActivityQuerySchema } from "@liyoxi/contract";
 import { managedStore } from "../authz/index.js";
 import type { DataScope } from "../authz/index.js";
-import type { Prisma } from "@liyoxi/db";
+import type { AuditLog, Prisma, StatusTransition } from "@liyoxi/db";
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 
@@ -13,6 +13,43 @@ const cursorSchema = z.strictObject({
     .regex(/^\d{1,19}$/)
     .refine((v) => BigInt(v) <= 9223372036854775807n),
 });
+
+/** The actions written by the existing machine bindings (including their explicit overrides). */
+function transitionAction(t: StatusTransition): string | null {
+  if (t.machine === "drama_order" || t.machine === "order_item")
+    return `order.${t.machine === "drama_order" ? "order" : "item"}.${t.event === "order.start" ? "start" : "submit"}`;
+  if (t.machine === "approval_request")
+    return t.event === "sla.recalculated"
+      ? "approval.request.recalculate"
+      : ["submit", "approve", "reject", "withdraw"].includes(t.event)
+        ? `approval.request.${t.event}`
+        : null;
+  const objects: Readonly<Record<string, string>> = {
+    delivery_ticket: "ticket",
+    delivery_plan: "plan",
+    sample: "sample",
+  };
+  const object = objects[t.machine];
+  return object
+    ? `delivery.${object}.${t.event === "admin.force" ? "force_transition" : t.event.split(".")[1]}`
+    : null;
+}
+
+type ActivityKey = Pick<
+  AuditLog,
+  "requestId" | "targetType" | "targetId" | "action" | "actorType" | "actorId" | "client"
+>;
+const activityKey = (r: ActivityKey) =>
+  JSON.stringify([
+    r.requestId,
+    r.targetType,
+    r.targetId,
+    r.action,
+    r.actorType,
+    r.actorId,
+    r.client,
+  ]);
+const MAX_REQUEST_FACTS = 1000;
 /** Authorize the parent first, then read only actual descendants through the target index. */
 export async function orderActivity(tx: Tx, scope: DataScope, id: string, raw: unknown) {
   const query = OrderActivityQuerySchema.parse(raw);
@@ -90,23 +127,59 @@ export async function orderActivity(tx: Tx, scope: DataScope, id: string, raw: u
     take: query.limit + 1,
   });
   const visible = rows.slice(0, query.limit),
+    requests = visible.flatMap((r) =>
+      r.requestId && r.targetType && r.targetId
+        ? [{ requestId: r.requestId, targetType: r.targetType, targetId: r.targetId }]
+        : [],
+    ),
+    peers = await tx.auditLog.findMany({
+      where: { stream: { in: ["ops", "activity"] }, OR: requests },
+      orderBy: { seq: "asc" },
+      take: MAX_REQUEST_FACTS + 1,
+      select: {
+        id: true,
+        requestId: true,
+        targetType: true,
+        targetId: true,
+        action: true,
+        actorType: true,
+        actorId: true,
+        client: true,
+      },
+    }),
     transitions = await tx.statusTransition.findMany({
       where: {
-        OR: visible.flatMap((r) =>
-          r.requestId && r.targetType && r.targetId
-            ? [{ requestId: r.requestId, machine: r.targetType, subjectId: r.targetId }]
-            : [],
-        ),
+        OR: requests.map((r) => ({
+          requestId: r.requestId,
+          machine: r.targetType,
+          subjectId: r.targetId,
+        })),
       },
-      orderBy: { seq: "desc" },
+      orderBy: { seq: "asc" },
+      take: MAX_REQUEST_FACTS + 1,
     });
+  const candidates = new Map<string, StatusTransition[]>();
+  for (const t of transitions) {
+    const action = transitionAction(t);
+    if (!action) continue;
+    const key = activityKey({ ...t, action, targetType: t.machine, targetId: t.subjectId });
+    candidates.set(key, [...(candidates.get(key) ?? []), t]);
+  }
+  const matched = new Map<string, StatusTransition>();
+  for (const [key, histories] of candidates) {
+    // Read all same-request peers before pairing: paging must not change the ordinal.
+    // An unmatched/merged audit is ambiguous, so leave it without a transition.
+    const activities = peers.filter((r) => activityKey(r) === key);
+    if (
+      peers.length > MAX_REQUEST_FACTS ||
+      transitions.length > MAX_REQUEST_FACTS ||
+      activities.length !== histories.length
+    )
+      continue;
+    activities.forEach((r, i) => matched.set(r.id, histories[i]!));
+  }
   const result = visible.map((row) => {
-    const t = transitions.find(
-      (r) =>
-        r.requestId === row.requestId &&
-        r.machine === row.targetType &&
-        r.subjectId === row.targetId,
-    );
+    const t = matched.get(row.id);
     return ActivityItemSchema.parse({
       activityId: row.id,
       occurredAt: row.createdAt.toISOString(),
