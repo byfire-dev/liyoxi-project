@@ -68,6 +68,7 @@ export async function readMaterialFileFacts(tx: Tx, fileIds: readonly string[]) 
       etag: true,
       deletedAt: true,
       erasedAt: true,
+      mediaInfo: { select: { coverFileId: true } },
       productionRecord: { select: { pipelineState: true } },
     },
     orderBy: { id: "asc" },

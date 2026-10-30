@@ -1,11 +1,13 @@
 import { AppError } from "../kernel/index.js";
 import type { Assembly, Clock } from "../kernel/index.js";
 import type { Flow } from "../flow/index.js";
+import type { Media } from "../media/index.js";
 import type { CancelDeps } from "./cancel-context.js";
 export interface OrderBinding {
   readonly assembly: Assembly;
   readonly clock: Clock;
   readonly flow: Flow;
+  readonly media?: Pick<Media, "release" | "readRefRetention">;
   readonly cancel?: CancelDeps;
 }
 const scopes: Array<{ binding: OrderBinding }> = [];

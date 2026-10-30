@@ -1,5 +1,6 @@
 import { AppError, lockRows, uuidv7 } from "../../kernel/index.js";
 import type { Tx, MerchantFactsQuery } from "../../kernel/index.js";
+import type { LinkInput } from "../context.js";
 import { assetSelectable } from "./steps.js";
 /** 只排除软删除与复制素材，审核、处理、角色和成员状态不改变上传历史。 */
 export function countStoreOriginalAssets(tx: Tx, input: { entityId: string; storeId: string }) {
@@ -43,12 +44,39 @@ export async function assertAssetReferences(
         },
       });
   }
+  if (lock) {
+    // 账本420之后 link 只能重入；跨素材一次锁齐410，避免文件UUID交错导致倒序。
+    const files = await tx.storeAssetFile.findMany({
+      where: { storeAssetId: { in: ids } },
+      select: { fileId: true },
+    });
+    await lockRows(
+      tx,
+      "file_object",
+      files.map((file) => file.fileId),
+    );
+  }
 }
 export async function linkAssetReferences(
   tx: Tx,
   input: { entityId: string; storeId: string; ids: readonly string[]; orderId: string; now: Date },
+  linkFile: (tx: Tx, input: LinkInput) => Promise<void>,
 ) {
   await assertAssetReferences(tx, input);
+  const files = await tx.storeAssetFile.findMany({
+    where: { storeAssetId: { in: [...input.ids] } },
+    orderBy: { fileId: "asc" },
+    select: { fileId: true },
+  });
+  for (const fileId of new Set(files.map((file) => file.fileId)))
+    await linkFile(tx, {
+      fileId,
+      entityId: input.entityId,
+      storeId: input.storeId,
+      refType: "drama_order",
+      refId: input.orderId,
+      role: "reference",
+    });
   await tx.storeAssetUsage.createMany({
     data: input.ids.map((id) => ({
       id: uuidv7(),

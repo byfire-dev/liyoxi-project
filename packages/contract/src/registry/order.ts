@@ -22,6 +22,7 @@ export const registry = defineRegistry("order", {
     event("cancel.voided", "cancel_request"),
   ],
   subscribers: [
+    subscriber("order.onReferencesClosed", "M3", "critical"),
     subscriber("order.onQualificationDecided", "M1", "critical"),
     subscriber("order.onSubscriptionActivated", "M1", "critical"),
     subscriber("order.onLicenseShortened", "M5"),

@@ -18,7 +18,9 @@ import {
   implementKeyed,
   implementMerchantFacts,
   lockRows,
+  fileRefTypePort,
 } from "../kernel/index.js";
+import { handleOrderReferencesClosed, orderReferenceFileType } from "./file-refs.js";
 import { orderManagerPort } from "../profile/index.js";
 import { implementAdminProfileFacts, adminStoreListOrderPort } from "../profile/index.js";
 import { readProfileStoreLastOrders } from "./profile-list.js";
@@ -91,6 +93,12 @@ export const registration = defineRegistration("order", {
       handle: (tx, event) => onOrderCalendarImported(tx, boundOrderStart(), event),
     },
     {
+      name: "order.onReferencesClosed",
+      critical: true,
+      events: ["order.status_changed", "cancel.executed"],
+      handle: handleOrderReferencesClosed,
+    },
+    {
       name: "order.onQualificationDecided",
       critical: true,
       events: ["store.qualification.approved", "store.qualification.rejected"],
@@ -114,6 +122,7 @@ export const registration = defineRegistration("order", {
     },
   ],
   portImplementations: [
+    implementKeyed(fileRefTypePort, "drama_order", orderReferenceFileType),
     implementAdminProfileFacts("order", readProfileAdminOrderFacts),
     implement(adminStoreListOrderPort, readProfileStoreLastOrders),
     implement(entityAdCancelClosePort, entityAdCancelCloser),

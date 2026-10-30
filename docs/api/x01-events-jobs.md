@@ -3,7 +3,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 范围 | 出站事件目录（事件名、聚合、触发、载荷、订阅者）；定时器、周期任务、进程内循环、队列任务、回调处理与命令行；数据模型状态机表里非接口触发的迁移由谁负责；事件的版本与兼容。不定义 HTTP 接口，各接口文档的“触发的状态迁移”一栏引用本文的事件名与定时器 kind（C81、C84） |
-| 数量 | 出站事件 220 个（V1.0 发出），另有不发 7 个、预留 1 个；订阅者 34 个；定时器 18 个 kind（24 种 kind × 主体组合）；周期任务 25 个；进程内循环 11 个；非 HTTP 迁移归属 195 行 |
+| 数量 | 出站事件 220 个（V1.0 发出），另有不发 7 个、预留 1 个；订阅者 35 个；定时器 18 个 kind（24 种 kind × 主体组合）；周期任务 25 个；进程内循环 11 个；非 HTTP 迁移归属 195 行 |
 | 依据 | 裁决 A40、A95、A96、A102、A136、A137、A141、A143、A144；约定 C51、C79、C84；数据模型 01 分组 2.3–2.5、3.3、3.4，02–15 分组的状态机表与第 5 节；草案 d1:1720、d2:1172-1188、d3:905-918、2700-2735、2905-2981、d4:450-460、1940-1979、d5:2139、d6:140-154、226-275、1825-1858、d7:1570-1595、d8:540-569、d9:695-726 |
 | 状态 | 第三轮修订（2026-10-03）；数据模型行号按现行文件 |
 
@@ -140,6 +140,7 @@
 | `docs.onRevisionQueued` | docs | 否 | `license_letter.revision_queued` | 把授权书版次的渲染任务放进 docs 队列（d6:1297） | docs.sweep 每 5 分钟重投停在 queued 的版次 |
 | `order.onQualificationDecided` | order | 是 | `store.qualification.approved`、`store.qualification.rejected` | 资质通过：为该门店待开工、无在途取消的订购单逐单登记 order.start；非终局驳回：登记 order.rejected_stale；终局驳回：生成整店取消申请（qualification_cancel）（09:211；d3:2713） | order.pending_start_sweep 每 5 分钟；flow.reconcile_sweep ② |
 | `order.onSubscriptionActivated` | order | 是 | `billing.subscription.activated` | 套餐开通后按城市轮询为门店分配交付经理（d3:2735、§6.3） | 开工时兜底分配（d3:599） |
+| `order.onReferencesClosed` | order | 是 | `order.status_changed`、`cancel.executed` | 回读真实订单终态与 closed_at，在消费短事务释放本单参考文件，保留至少90天；取消事件覆盖父状态事件被抑制的路径；未全终态不释放，重复零业务写（09:1162） | 既有关键出站投递重试及死信重投；不新增循环 |
 | `order.onLicenseShortened` | order | 否 | `drama.license_shortened` | 告警并给内容运营与交付经理生成人工待办，不自动改订单（d8:235、5.3 第 6 条，默认做法） | 无 |
 | `publish.onLicenseExtended` | publish | 是 | `drama.license_extended` | 扇出：为受影响的订单项各登记一条 usage.resync（d3:1798、2734） | flow.reconcile_sweep ③（止日对账，每小时） |
 | `profile.onTenantLifecycle` | profile | 否 | `entity.abandoned`、`entity.closed`、`store.archived`、`store.draft_deleted`、`store.restored` | 门店停用、删除草稿门店、恢复、主体放弃或关闭时收尾档案与资质轮次（04:670-684） | profile.I1–I10 每日校验 |
@@ -340,7 +341,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `order.submitted` | d3:2712 | `drama_order` | 09:196、351：`m.order.create` | `dramaOrderId` uuid 订购单；`entityId` uuid 主体；`storeId` uuid 门店；`orderItemIds` array<uuid> 订单项；`totalPoints` integer(积分) 冻结合计；`placedByUserId` uuid 下单人；＋迁移键 | `notify.onEvent`：m.order_submitted；`analytics.fromOutbox`：order_submit |
 | `order.started` | d3:2714 | `drama_order` | 09:197、352 开工：定时器 `order.start` | `dramaOrderId` uuid 订购单；`entityId` uuid 主体；`storeId` uuid 门店；`orderItemIds` array<uuid> 开工的订单项；`deliveryTicketIds` array<uuid> 同事务建的工单；＋迁移键 | ★`docs.onLicenseFacts`：对齐授权书；`notify.onEvent`：通知商家；通知交付经理或主管 |
-| `order.status_changed` | d3:2716 | `drama_order` | 09:183-201 推导出的订购单状态变化：随订单项与在途取消的写入（各接口、定时器 `order.start`、取消执行） | `dramaOrderId` uuid 订购单；＋迁移键 | 无（工作台为读侧查询，V1.0 无订阅者） |
+| `order.status_changed` | d3:2716 | `drama_order` | 09:183-201 推导出的订购单状态变化：随订单项与在途取消的写入（各接口、定时器 `order.start`、取消执行） | `dramaOrderId` uuid 订购单；＋迁移键 | `order.onReferencesClosed` ★ |
 | `order.rejected_stale` | 本稿补（d3 N4，d3:698） | `drama_order` | 定时器 `order.rejected_stale` 到点且仍待开工、门店资质仍为驳回 | `dramaOrderId` uuid 订购单；`storeId` uuid 门店；`rejectedAt` string(date-time) 驳回时间 | `notify.onEvent`：s.kf_todo：客服待办“待开工订购超期未补正” |
 | `order.item.cancelled` | d3:2715 | `order_item` | 09:353 取消执行（release）：`admin.cancelRequest.execute`、`cancel.auto_execute` | `orderItemId` uuid 订单项；`dramaOrderId` uuid 订购单；`cancelRequestId` uuid 取消申请；`returnedPoints` integer(积分) 回到原批次；`convertedPoints` integer(积分) 转加购；`forfeitedPoints` integer(积分) 不予退回；＋迁移键 | ★`docs.onLicenseFacts`：对齐授权书；`notify.onEvent`：通知商家 |
 | `order.item.refunded` | d3:2715 | `order_item` | 09:354 取消执行且实际退回 > 0：`admin.cancelRequest.execute`；09:358 平台原因终止过的订单项归档（系统求值） | `orderItemId` uuid 订单项；`dramaOrderId` uuid 订购单；`cancelRequestId` uuid? 取消申请；`returnedPoints` integer(积分) 回到原批次；`convertedPoints` integer(积分) 转加购；`forfeitedPoints` integer(积分) 不予退回；＋迁移键 | ★`docs.onLicenseFacts`：对齐授权书；`notify.onEvent`：通知商家 |
@@ -353,7 +354,7 @@
 | `cancel.approved` | 本稿补 | `cancel_request` | 09:548：`admin.cancelRequest.approve` | `cancelRequestId` uuid 取消申请；`execDueAt` string(date-time) 执行截止时间；＋迁移键 | 无 |
 | `cancel.rejected` | 本稿补 | `cancel_request` | 09:549：`admin.cancelRequest.reject` | `cancelRequestId` uuid 取消申请；＋迁移键 | 无 |
 | `cancel.withdrawn` | 本稿补 | `cancel_request` | 09:550：`admin.cancelRequest.withdraw`；对象失效时系统代撤（如主体关闭 `admin.entity.close` 撤回其下待审批的取消申请） | `cancelRequestId` uuid 取消申请；＋迁移键 | 无 |
-| `cancel.executed` | 本稿补（迁移码 cancel.execute、cancel.auto_execute） | `cancel_request` | 09:551：`admin.cancelRequest.execute`；09:553：`cancel.auto_execute`（免审批，随 `admin.order.cancelRequest.create`、`admin.ad.cancelRequest.create` 的提交事务） | `cancelRequestId` uuid 取消申请；`isAutoExecuted` boolean 免审批自动执行；＋迁移键 | 无（各订单项、广告的结果另由 order.item.*、ad.cancelled 发出） |
+| `cancel.executed` | 本稿补（迁移码 cancel.execute、cancel.auto_execute） | `cancel_request` | 09:551：`admin.cancelRequest.execute`；09:553：`cancel.auto_execute`（免审批，随 `admin.order.cancelRequest.create`、`admin.ad.cancelRequest.create` 的提交事务） | `cancelRequestId` uuid 取消申请；`isAutoExecuted` boolean 免审批自动执行；＋迁移键 | `order.onReferencesClosed` ★（仅真实终态订单的参考留存；各订单项、广告的业务结果仍由各自事件表达） |
 | `cancel.voided` | 本稿补 | `cancel_request` | 09:552：`admin.cancelRequest.void`；对象失效时系统 | `cancelRequestId` uuid 取消申请；＋迁移键 | 无 |
 | `ad.requested` | d3:2721 | `ad` | 09:801：`m.ad.create` | `adId` uuid 广告；`entityId` uuid 主体；`storeId` uuid 门店；`adType` enum(ad.type) 类型；`points` integer(积分) 冻结数；＋迁移键 | `notify.onEvent`：通知交付经理；`analytics.fromOutbox`：ad_request_submit |
 | `ad.assigned` | d3:2721 | `ad` | 09:802：`admin.ad.assign` | `adId` uuid 广告；`editorId` uuid 剪辑师；＋迁移键 | `notify.onEvent`：通知剪辑师 |

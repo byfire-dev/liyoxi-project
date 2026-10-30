@@ -29,6 +29,7 @@ import { listOrders, listItems, itemDetail, itemSummary, signItems } from "./mer
 import { adminList, adminSummary, adminDetail } from "./admin-read.js";
 import { adminQuote } from "./admin-quote.js";
 import { orderActivity } from "./activity-read.js";
+import { signOrderReferenceFiles } from "./reference-files.js";
 export function createOrderService(deps: OrderDeps) {
   const newDays = async () =>
     (await deps.config.siteConfig.published("home_recommend"))?.content.newDays ?? null;
@@ -51,7 +52,8 @@ export function createOrderService(deps: OrderDeps) {
     },
     async adminGet(scope: DataScope, id: string) {
       const at = deps.clock.now();
-      return deps.tx.run((tx) => adminDetail(tx, scope, id, at));
+      const view = await deps.tx.run((tx) => adminDetail(tx, scope, id, at));
+      return signOrderReferenceFiles(deps, scope, view);
     },
     async cartList(actor: OrderActor) {
       owner(actor);

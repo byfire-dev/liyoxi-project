@@ -19,7 +19,7 @@ export interface OrderDeps {
   ledger: Ledger;
   docs: Docs;
   content: Content;
-  media: Pick<Media, "signRead">;
+  media: Pick<Media, "signRead" | "link">;
   events: Events;
   timers: Timers;
   config: Config;
