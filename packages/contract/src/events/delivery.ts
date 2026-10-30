@@ -58,6 +58,10 @@ export const payloads = {
   "sample.qc_passed": z.strictObject(sample),
   "sample.qc_failed": z.strictObject(sample),
   "sample.pushed": z.strictObject(sample),
+  "sample.change_requested": z.strictObject({
+    ...sample,
+    feedbackKind: z.enum(["compose", "ad_content"]),
+  }),
   "sample.confirmed": z.strictObject({
     ...sample,
     viewedVia: z.enum(["weapp", "album", "portal", "wecom"]),

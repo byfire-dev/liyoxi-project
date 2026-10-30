@@ -382,7 +382,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 451 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 455 条中商家端与后台路由进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
     // 最新 main 补 W3-01 两条后台文件操作与 W2-21 两条微信回调；W3-11 补站点/Banner/搜索 11 条；W2-03 补员工全量 18 条；W3-02 补批量上传 8 条；W3-10 补版权/调价 9 条；W2-12 PR2 补协议管理 8 条；W3-09 补短剧生命周期 19 条。
     // 已合 main 补素材/需求 20 条；W3-15 补原 ASR 回调的正式结构 1 条。
@@ -397,6 +397,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
     // W5-01 补取消执行一条及完整CancelRequestDetail；W5-02 补其余九条及Card/Summary，原条目保持。
     // W5-03 PR2 补活动流、指派、纠偏/求值、返工/改期、催办与补发十一条，旧具名结构不减少。
     // W5-04 补制作人工入口四条、素材两条及下载历史一条；旧路由与具名结构保持。
+    // W5-05 补样片compose/markSent、后台试算及订单活动四条，保留原精确清单。
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.accountChangeRequest.approve",
       "admin.accountChangeRequest.create",
@@ -555,10 +556,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.merchantUser.disable",
       "admin.merchantUser.enable",
       "admin.merchantUser.forceLogout",
+      "admin.order.activity.list",
       "admin.order.cancelQuote",
       "admin.order.cancelRequest.create",
       "admin.order.get",
       "admin.order.list",
+      "admin.order.quote",
       "admin.order.summary",
       "admin.orderItem.download.list",
       "admin.orderItem.rescheduleLaunch",
@@ -646,6 +649,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.role.list",
       "admin.role.replace",
       "admin.sample.inspect",
+      "admin.sample.markSent",
       "admin.sample.push",
       "admin.session.current.delete",
       "admin.siteConfig.draft.replace",
@@ -819,6 +823,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.qualificationSubmission.list",
       "m.sample.confirm",
       "m.sample.downloadUrls",
+      "m.sample.requestChange",
       "m.session.create",
       "m.session.current.delete",
       "m.session.phoneLogin",
@@ -850,12 +855,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.subscribeResult.create",
       "m.wallet.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(213);
+    expect(allMetaOnlyRoutes).toHaveLength(209);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 109,
+        paths: 110,
         schemas: [
           "AnalyticsEventBatch",
           "AnalyticsIngestResult",
@@ -868,6 +873,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "DownloadGrantView",
           "ReleaseView",
           "SampleConfirmBody",
+          "SampleRequestChangeBody",
           "SampleView",
           "SampleWriteResult",
           "AddressView",
@@ -1017,7 +1023,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 300,
+        paths: 303,
         schemas: [
           "DownloadHistory",
           "DownloadRecord",
@@ -1129,6 +1135,9 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "RescheduleLaunchBody",
           "ReworkBody",
           "TicketActivityPage",
+          "OrderActivityPage",
+          "AdminOrderQuoteBody",
+          "OrderQuoteResult",
           "TicketRemindBody",
           "AdminSampleWriteResult",
           "EpisodeGrid",

@@ -1,5 +1,13 @@
 # order：订剧、选剧单与订单读侧
 
+## W5-05 订单后续事实
+
+`order.adminQuote`只读取当前套餐价目、billing `priceAt` / `paramsAt` 与content可订提示，复用 `quoteDramaItem`；草稿/下架剧可试算，无价格返回null。`order.activityList`先按managedStore确认本单，再按本单真实订单项/工单/方案/样片/授权书/取消与审批对象读取ops/activity日志；游标绑定订单及(createdAt,seq)，不返回原始审计JSON，不写业务。
+
+`order.onCalendarImported`持日历共享锁，按当前批次与计算窗口重算未完成广告首版/修改轮次、待执行取消时限并重排原sla.breach。`order.onLicenseShortened`只读当前版权修订及未结束订单，沿staff owned creator给当前可访问的内容运营与交付经理建立order_item系统待办，告警保留不可分派目标；订单止日与资金不变。同事务audit事实按当前revision/订单项/owner持久去重，用户内容不带技术键。
+
+当前content写口仍拒绝shorten/改早correction。测试历史版权数据仅为初始条件，随后验证真实emit/expand/consume及待办list/complete，不表示缩短API已开放，不实现M6使用期writer。新机制定点为 `src/order/m5-facts.db.test.ts`；实际结果以W5-05状态页为准。
+
 ## 参考文件与终态留存补漏
 
 现有 `referenceStoreAssetIds` 仍是唯一订购参考输入。提交在账户420之前按素材370、全部文件410整体排他预锁，再沿真实 `media.link` 为每个实际素材文件登记 `drama_order/reference`，素材使用记录仍按素材写入；文本素材没有文件时仅保留usage。底层文件不可用保留 `FILE_NOT_USABLE` 出口，任一link失败与资金、订单、同意和关联整笔回滚。不会将肖像授权材料加入参考文件。

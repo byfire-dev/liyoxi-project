@@ -22,6 +22,7 @@ import {
   adminSamplePush,
   mOrderItemSampleGet,
   mSampleConfirm,
+  mSampleRequestChange,
   adminDeliveryTicketEpisodeOutputList,
   adminDeliveryTicketEpisodeOutputCreate,
   adminDeliveryTicketInspectEpisodes,
@@ -79,6 +80,19 @@ const privateOk = <T>(c: Context<ApiEnv>, data: T) => {
   return ok(c, data);
 };
 export const deliveryHandlers = [
+  defineHandler(mSampleRequestChange, async (c) =>
+    privateOk(
+      c,
+      SampleWriteResultSchema.parse(
+        await deliveryOf(c.var.runtime).sampleRequestChange(
+          viewer(c),
+          c.req.valid("param").sampleId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
   defineAdminHandler(adminDeliveryTicketSampleCreate, edit, async (c, s) =>
     privateOk(
       c,

@@ -380,6 +380,6 @@ it("显式恢复历史快照生成新版和独立 QC；并发/重放只一版，
     confirmableVia: ["weapp"],
     decision: null,
     playable: { sources: [{ url: expect.stringContaining("https://") }] },
-    actions: ["confirm"],
+    actions: ["confirm", "request-change"],
   });
 }, 120_000);

@@ -35,7 +35,7 @@ export * from "./error-details.js";
 export * from "./delivery-plans.js";
 
 export * from "./sample.schemas.js";
-export { mSampleConfirm, mSampleDownloadUrls } from "./samples.js";
+export { mSampleConfirm, mSampleRequestChange, mSampleDownloadUrls } from "./samples.js";
 export {
   mOrderItemSampleGet,
   mOrderItemReleaseGet,

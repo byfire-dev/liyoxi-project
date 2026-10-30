@@ -465,6 +465,15 @@ export const CLERK_SAMPLES: readonly Sample[] = [
         headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
       }),
   })),
+  {
+    operationId: "m.sample.requestChange",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/samples/${uuidv7()}/request-change`, {
+        method: "POST",
+        json: { feedbackKind: "compose", note: "样片字幕请上移", imageFileIds: [] },
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+      }),
+  },
   ...mallClerkSamples,
   ...orderClerkSamples,
   ...assetsClerkSamples,

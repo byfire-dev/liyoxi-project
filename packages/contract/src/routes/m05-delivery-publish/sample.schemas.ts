@@ -10,6 +10,18 @@ const n = z.int().nonnegative(),
 export const SampleConfirmBodySchema = z
   .strictObject({ versionNo: z.int().positive(), viewedVia: via, hasViewed: z.boolean() })
   .openapi("SampleConfirmBody");
+export const SampleRequestChangeBodySchema = z
+  .strictObject({
+    feedbackKind: z.literal("compose"),
+    note: z.string().trim().min(1).max(200),
+    imageFileIds: z
+      .array(IdSchema)
+      .max(3)
+      .refine((ids) => new Set(ids).size === ids.length, { message: "截图不能重复" })
+      .optional(),
+  })
+  .openapi("SampleRequestChangeBody");
+export type SampleRequestChangeBody = z.infer<typeof SampleRequestChangeBodySchema>;
 export const SampleViewSchema = z
   .strictObject({
     sampleId: IdSchema,

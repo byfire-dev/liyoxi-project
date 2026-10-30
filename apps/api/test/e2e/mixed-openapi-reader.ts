@@ -77,6 +77,7 @@ const details: Readonly<Record<string, keyof MixedPrivateAccess["ids"]>> = {
   "admin.store.qualification.get": "storeId",
   "m.order.get": "orderId",
   "admin.order.get": "orderId",
+  "admin.order.activity.list": "orderId",
   "m.orderItem.get": "orderItemId",
   "m.orderItem.release.get": "orderItemId",
   "m.orderItem.sample.get": "orderItemId",

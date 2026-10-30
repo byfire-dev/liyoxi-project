@@ -1,5 +1,7 @@
 // 后台：订购、取消、交付与广告任务 · samples（docs/api/a05-order-delivery.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
+import { z } from "../../zod.js";
+import { AdminSampleViewSchema } from "./delivery.schemas.js";
 import { adminMeta } from "../meta-only.js";
 
 export const adminSampleInspect = adminRoute({
@@ -20,13 +22,19 @@ export const adminSampleInspect = adminRoute({
   "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
-export const adminSampleMarkSent = adminMeta({
+export const adminSampleMarkSent = adminRoute({
+  request: {
+    params: SampleParamSchema,
+    body: { required: true, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: { ...okResponse(AdminSampleViewSchema), ...errorResponses(400, 401, 403, 404, 409) },
   method: "post",
   path: "/admin/samples/{sampleId}/mark-sent",
   operationId: "admin.sample.markSent",
   summary: "登记已经企业微信向老板发送样片水印版（写 offline_sent_at 与发送人）",
   "x-permission": "delivery.sample.push",
   "x-idempotent": "required",
+  "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
 export const adminSamplePush = adminRoute({

@@ -152,10 +152,12 @@ admin.mediaJob.retry | - | media.job.retry | 11 00 00 00 00 11 00 00
 admin.merchantUser.disable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
 admin.merchantUser.enable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
 admin.merchantUser.forceLogout | merchant:view | merchant.user.force_logout | 11 11 00 00 00 00 00 00
+admin.order.activity.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.cancelQuote | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.order.cancelRequest.create | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.order.get | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
+admin.order.quote | billing:view | - | 11 11 11 00 00 11 11 11
 admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11
 admin.orderItem.download.list | delivery:view | - | 11 11 11 11 11 11 00 00
 admin.orderItem.rescheduleLaunch | delivery:edit | delivery.plan.reschedule | 11 00 11 00 00 00 00 00
@@ -243,6 +245,7 @@ admin.role.get | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.role.replace | - | sys.role.edit | 11 00 00 00 00 00 00 00
 admin.sample.inspect | delivery:edit | delivery.sample.qc | 11 00 11 00 00 00 00 00
+admin.sample.markSent | delivery:edit | delivery.sample.push | 11 00 11 00 00 00 00 00
 admin.sample.push | delivery:edit | delivery.sample.push | 11 00 11 00 00 00 00 00
 admin.session.current.delete | - | - | 11 11 11 11 11 11 11 11
 admin.siteConfig.draft.replace | ops:edit | - | 11 00 00 00 00 11 00 00

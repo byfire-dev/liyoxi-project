@@ -74,3 +74,5 @@ export {
   readSystemFollowUpCloseTargets,
   lockSystemFollowUpCloseTargets,
 } from "./cancel-follow-ups.js";
+
+export { createLicenseFollowUp } from "./license-follow-up.js";

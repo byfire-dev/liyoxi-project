@@ -1,5 +1,11 @@
 # delivery 交付生命周期与同事务暂停收尾
 
+## W5-05 商家样片意见
+
+`sampleRequestChange`严格只收compose/note与0–3个不重复截图；重新锁定当前样片和工单，拒绝旧版、暂停和无归属/不可用截图。反馈/引用、10:646样片迁移、10:177工单新round及新stage/SLA同事务完成。`sampleMarkSent`保持原delivery.sample.push权限与scope，只记录线下已发送，已有值不覆盖，不生成商家确认或查看证据。证据读取抽至sample-view-evidence叶，GET不写播放事实；R4沿既有notify.remind_scan/scenario登记，不另建timer。
+
+必要窄扩界为sample binding补反馈列及10:646、ticket binding补sample_round_no/10:177、moveSample补正式feedbackKind负载。既有迁移守卫保持。机制定点为 `src/delivery/sample-feedback.db.test.ts`，实际结果以W5-05状态页为准；后台两支代录归W5-08。
+
 ## W5-03 PR2 本地实现
 
 PR1 公共 `AdminFlow.adminTransition` 已由 #208 合入 actual main（`e57f2619`）。本地 PR2 的发布登记预留 #211，机制、正式生成对账与本地验证已收口，待 ROOT 提交发布、CI 和 actual main；PR3 order 对账尚未开工。W5-04/05/06 只有在完整 PR2 代码验收并 actual main 后才能消费，其他原下游仍等 W5-03 整包。

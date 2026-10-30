@@ -1,5 +1,9 @@
 # apps/api：接口进程的骨架
 
+## W5-05 样片意见与订单后续
+
+`routes/delivery.ts`挂商家compose意见，`routes/admin/sample-order-m5.ts`挂后台报价、订单活动与markSent。四条均按原权限和幂等元数据接真实服务，查询与签名响应no-store。定点HTTP：`pnpm exec vitest run --project api --maxWorkers=1 --no-file-parallelism apps/api/test/sample-order-m5.test.ts`；机制与外部未验边界见W5-05状态页。
+
 W0-22 交付骨架，W0-22b 交付限流与中间件的装配顺序。各域的接口包往后只写“一条契约路由配一个薄壳处理器”，其余由骨架给。依据：[约定](../../docs/api/00-conventions.md) C1、C7、C17–C27、C47–C50、C75；[h01](../../docs/api/h01-hooks.md) 第 2.5、3.11–3.15 节；D7 第 2.2、2.3、3.1、9.1、9.5 节；任务书 `docs/plan/tasks/W0-22.md`。
 
 ## 1. 这里有什么
