@@ -201,7 +201,7 @@ beforeAll(async () => {
   };
   const before = await prisma.storeProfile.findUnique({ where: { storeId: order.storeId } });
   await mediaPatch(before?.lockVersion ?? 0, { product: [{ fileId: profileFileId }] });
-  // Explicit historical order association only: the order reference producer is not delivered.
+  // Explicit historical profile association only: the order has no profile-media input.
   await prisma.fileRef.create({
     data: {
       id: uuidv7(),

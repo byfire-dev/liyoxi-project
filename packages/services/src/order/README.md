@@ -1,5 +1,15 @@
 # order：订剧、选剧单与订单读侧
 
+## 参考文件与终态留存补漏
+
+现有 `referenceStoreAssetIds` 仍是唯一订购参考输入。提交在账户420之前按素材370、全部文件410整体排他预锁，再沿真实 `media.link` 为每个实际素材文件登记 `drama_order/reference`，素材使用记录仍按素材写入；文本素材没有文件时仅保留usage。底层文件不可用保留 `FILE_NOT_USABLE` 出口，任一link失败与资金、订单、同意和关联整笔回滚。不会将肖像授权材料加入参考文件。
+
+`order.onReferencesClosed` 是本fix新增的1项M3关键订阅者（x01总订阅者34→35，M3 6→7），消费现有 `order.status_changed` 与 `cancel.executed`。它在出站消费自己的短事务回读真实父单终态和closedAt，按订单160→文件410整体锁定，仅释放本单当前live参考；未全终态不释放，重复消费不写业务行。取消事件通过真实申请明细定位全部父单，覆盖父状态事件被抑制的路径。保留基准为closedAt加90天，实际 `media.release` 继续按当前时钟最低期和已有keepUntil取最大值，迟到消费不会缩短留存；原素材引用或其他live引用仍阻挡清理。不新增扫描循环、不扩财务锁图。
+
+`adminGet` 的参考文件投影以本单live `file_ref` 全集为准，复用W5-04已交付的media素材/文件、profile档案公口识别来源（素材usage优先，档案匹配包含已移除行）。未知来源不借档案分支签名；文本素材没有文件时仍只有usage。缩略图在事务外通过媒体公口签发，签名前后重读负责门店范围、本单引用、来源归属及文件/封面当前安全事实；当前不可读文件保留元数据、thumbnail为空，签名期间范围或事实变化拒绝旧URL。保留复制素材的crossStore政策，原文件和封面仍核各自真实范围；GET不登记引用、不写访问审计或取料记录。
+
+定向验收源为 `src/order/reference-files.db.test.ts`：真实上传/素材创建、多素材交错UUID的全部文件、文本、跨店、底层拦截及真实link后故障回滚；三种终态、当前非终态拒绝释放、真实免审取消事件与重复零写。`apps/api/test/order-reference-files.test.ts` 走真实图片上传、素材创建、下单双关联、后台详情零写与缩略图、正式开工handler实际扣减、W5-04材料签发；另核已移除的历史档案引用及签名期间file/ref/scope变化。`delivery/materials.db.test.ts` 保留品牌素材A→B→C实际复制后本单取料的覆盖。验证结果以本fix实际PR/CI为准。历史usage缺file_ref回填与订单档案媒体producer缺输入约定均未实施；GET不补写、不自动复制档案。
+
 ## 统一取消执行（W5-01）
 
 `createCancelExecution(deps).execute(actor, id, body, idem)` 是后台 `admin.cancelRequest.execute` 的用例入口，沿用唯一 `executeCancel` 事务叶，支持订单、广告与资质整店取消。执行前验证当前员工启用状态、真实权限、再验证和门店范围；C50 已有回执也先核当前授权。事务里预读、依全局顺序预锁并复读整张目标图，核审批关系、确认单号/退款数和全部明细最新报价；有任一变化整笔回滚，仅在独立小事务里为仍待执行的申请追加 `recheck.execute` 证据，原幂等键可重试。

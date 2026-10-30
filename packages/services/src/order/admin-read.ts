@@ -17,6 +17,7 @@ import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { dictRefs } from "./quote.js";
 import { detail } from "./read.js";
+import { readOrderReferenceFiles } from "./reference-files.js";
 const iso = (d: Date | null) => d?.toISOString() ?? null;
 const date = (d: Date | null) => d?.toISOString().slice(0, 10) ?? null;
 // 订单范围按其负责门店；不使用让剪辑师/发布专员因任务看到门店的宽 storeScope。
@@ -268,7 +269,9 @@ export async function adminDetail(tx: Tx, scope: DataScope, id: string, at: Date
     focus: common.focus,
     note: o.note,
     expectedLaunchDate: date(o.expectedLaunchDate),
-    referenceFiles: [],
+    referenceFiles: (await readOrderReferenceFiles(tx, scope, id)).entries.map(
+      (entry) => entry.view,
+    ),
     subscriptionTerm: {
       subscriptionTermId: o.subscriptionTermId,
       startDate: date(o.subscriptionTerm.startDate),
