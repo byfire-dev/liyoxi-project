@@ -28,6 +28,7 @@ import { ticketCard, ticketDetail } from "./views.js";
 import { createReissue, cancelReissue, publishReissue } from "./reissue.js";
 import { ticketActivities } from "./ticket-activities.js";
 import { prepareReevaluation } from "./reevaluate-locks.js";
+import { canRemindTicket, ticketReminderApplicable } from "./m5-read.js";
 
 export interface DeliveryM5Deps extends DeliveryDeps {
   readonly flow: AdminFlow;
@@ -352,37 +353,18 @@ export function createDeliveryM5(deps: DeliveryM5Deps) {
         await lockTickets(tx, [id]);
         const t = await ticketOf(tx, id, staff);
         unpaused(t);
-        if (!(
-          staff.staff.isLead ||
-          staff.staff.roleKey === "super_admin" ||
-          t.deliveryManagerId === staff.staff.id ||
-          (body.scene === "golive" && t.publisherId === staff.staff.id)
-        ))
-          throw new AppError("PERMISSION_DENIED");
-        const scene = body.scene,
-          p = t.dramaOrder.deliveryPlan;
-        if (
-          (scene === "confirm_plan" &&
-            !(t.step === "plan_confirm" && p?.status === "pending_confirm")) ||
-          (scene === "confirm_sample" &&
-            !(
-              t.step === "sample_confirm" &&
-              (await tx.sample.count({
-                where: {
-                  deliveryTicketId: id,
-                  versionNo: t.currentSampleVersionNo ?? 0,
-                  status: "pushed",
-                },
-              }))
-            )) ||
-          (scene === "golive" &&
-            !(
-              ["awaiting_launch", "launch_verify"].includes(t.step) &&
-              t.launchTasks.some(
-                (l) => !l.isLive && ["pending", "need_fix"].includes(l.reviewStatus),
-              )
-            ))
-        )
+        if (!canRemindTicket(t, staff, body.scene)) throw new AppError("PERMISSION_DENIED");
+        const scene = body.scene;
+        const currentSamplePushed =
+          scene === "confirm_sample" &&
+          (await tx.sample.count({
+            where: {
+              deliveryTicketId: id,
+              versionNo: t.currentSampleVersionNo ?? 0,
+              status: "pushed",
+            },
+          })) > 0;
+        if (!ticketReminderApplicable(t, scene, currentSamplePushed))
           throw new AppError("REMIND_NOT_APPLICABLE");
         const now = deps.clock.now(),
           bizDate = calendarDate(now),

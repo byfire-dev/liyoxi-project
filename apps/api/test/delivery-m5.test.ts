@@ -1,7 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { ChecklistItemsSchema, EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
+import {
+  ChecklistItemsSchema,
+  DeliveryTicketDetailSchema,
+  DeliveryTicketWriteResultSchema,
+  EVENT_PAYLOAD_SCHEMAS,
+} from "@liyoxi/contract";
 import { createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
-import { createFactories, signInAsStaff } from "@liyoxi/services/testing";
+import { createFactories, prepareOrderFixture, signInAsStaff } from "@liyoxi/services/testing";
 import type { SignedInStaff } from "@liyoxi/services/testing";
 import { HANDLERS } from "../src/routes/index.js";
 import { deliveryOf } from "../src/routes/delivery.js";
@@ -62,6 +67,23 @@ async function data(response: Response) {
 async function error(response: Response, status: number, symbol: string) {
   expect(response.status, await response.clone().text()).toBe(status);
   expect(await response.json()).toMatchObject({ error: symbol });
+}
+function getTicket(id: string, actor = admin) {
+  return api.request(`/api/v1/admin/delivery-tickets/${id}`, {
+    headers: actor.headers,
+    peer: `198.19.53.${++peer}`,
+  });
+}
+async function readTicket(id: string, actor = admin) {
+  return DeliveryTicketDetailSchema.parse(await data(await getTicket(id, actor)));
+}
+function postAdmin(path: string, json: unknown, actor = admin) {
+  return api.request(`/api/v1/admin${path}`, {
+    method: "POST",
+    json,
+    headers: { ...actor.headers, "Idempotency-Key": uuidv7() },
+    peer: `198.19.53.${++peer}`,
+  });
 }
 const dateAfter = (days: number) =>
   new Date(api.clock.now().getTime() + days * 86_400_000).toISOString().slice(0, 10);
@@ -217,6 +239,100 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
     }
   });
 
+  it("admin.deliveryTicket.get 的 M5 动作按实际权限和步骤投影，读取不增加业务事实", async () => {
+    const f = await fixture("sample_making"),
+      noCorrection = await fixture();
+    await data(
+      await request("admin.deliveryTicket.assignEditor", f.ticket.id, { staffId: editor.staff.id }),
+    );
+    const writes = async () => [
+      await prisma.auditLog.count(),
+      await prisma.outboxEvent.count(),
+      await prisma.statusTransition.count(),
+      await prisma.manualReminderLog.count(),
+      await prisma.deliveryReissue.count(),
+    ];
+    const before = await writes();
+    const privileged = await readTicket(f.ticket.id);
+    expect(privileged.actions).toEqual(
+      expect.arrayContaining([
+        "assign-editor",
+        "assign-publisher",
+        "reevaluate",
+        "force-transition",
+      ]),
+    );
+    for (const action of ["rework", "reissue", "remind"])
+      expect(privileged.actions).not.toContain(action);
+    expect(privileged).toMatchObject({ openReissue: null, remindScenes: [] });
+    const ownEditor = await readTicket(f.ticket.id, editor);
+    expect(ownEditor.actions).not.toContain("assign-editor");
+    expect(ownEditor.actions).not.toContain("assign-publisher");
+    expect(ownEditor.actions).not.toContain("force-transition");
+    expect(ownEditor.actions).not.toContain("reevaluate");
+    await error(await getTicket(f.ticket.id, outside), 404, "NOT_FOUND");
+    expect((await readTicket(noCorrection.ticket.id)).actions).not.toContain("force-transition");
+    expect(await writes()).toEqual(before);
+  });
+
+  it("真实开工与取消申请产生的暂停由 GET 读回，求值仅报告暂停并保留合法指派", async () => {
+    const merchant = await make.merchant();
+    const input = await prepareOrderFixture(prisma, api.runtime, api.clock, {
+      entityId: merchant.entity.id,
+      storeId: merchant.store.id,
+      memberId: merchant.owner.id,
+      merchantUserId: merchant.user.id,
+    });
+    const order = await api.runtime.order.create(input.actor, input.input);
+    const timer = await prisma.timer.findFirstOrThrow({
+      where: { kind: "order.start", subjectId: order.orderId },
+    });
+    expect(
+      await api.runtime.tx.run((tx) =>
+        api.runtime.assembly.timerHandler("order.start")!.handle(tx, {
+          id: timer.id,
+          kind: timer.kind,
+          subjectType: timer.subjectType,
+          subjectId: timer.subjectId,
+          payload: null,
+        }),
+      ),
+    ).toBe("fired");
+    const ticket = await prisma.deliveryTicket.findFirstOrThrow({
+      where: { dramaOrderId: order.orderId },
+    });
+    const quote = await data(
+      await postAdmin(`/orders/${order.orderId}/cancel-quote`, {
+        reasonCode: "merchant_request",
+      }),
+    );
+    const cancel = await data(
+      await postAdmin(`/orders/${order.orderId}/cancel-requests`, {
+        reasonCode: "merchant_request",
+        note: "商家提出取消，核对暂停的真实读侧事实",
+        expect: quote.expect,
+      }),
+    );
+    const paused = await readTicket(ticket.id);
+    expect(paused.isPaused).toBe(true);
+    expect(paused.pauseReasons).toContain("cancel_review");
+    expect(paused.remindScenes).toEqual([]);
+    expect(paused.actions).toEqual(
+      expect.arrayContaining(["assign-editor", "assign-publisher", "reevaluate"]),
+    );
+    for (const action of ["force-transition", "rework", "reissue", "remind", "push-package"])
+      expect(paused.actions).not.toContain(action);
+    expect(
+      await data(await request("admin.deliveryTicket.reevaluate", ticket.id, {})),
+    ).toMatchObject({ skippedReason: "paused", transitions: [] });
+    await data(
+      await postAdmin(`/cancel-requests/${String(cancel.cancelRequestId)}/withdraw`, {
+        note: "本轮只读验证结束，恢复真实暂停",
+      }),
+    );
+    expect((await readTicket(ticket.id)).isPaused).toBe(false);
+  });
+
   it("首次指派不造空来源改派行；改派、角色、员工集合与原 key 重放均真实", async () => {
     const f = await fixture(),
       first = uuidv7();
@@ -311,7 +427,7 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
         now: api.clock.now(),
       }),
       ownPublisherTicket = await fixture();
-    expect(
+    const assignedPublisher = DeliveryTicketWriteResultSchema.parse(
       await data(
         await request(
           "admin.deliveryTicket.assignPublisher",
@@ -320,7 +436,10 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
           leadPublisher,
         ),
       ),
-    ).toMatchObject({ publisher: { staffId: peerPublisher.staff.id } });
+    );
+    expect(assignedPublisher).toMatchObject({ publisher: { staffId: peerPublisher.staff.id } });
+    expect(assignedPublisher.actions).toContain("assign-publisher");
+    expect(assignedPublisher.actions).not.toContain("assign-editor");
     const page = await data(
       await request("admin.deliveryTicket.activity.list", f.ticket.id, undefined, manager),
     );
@@ -514,6 +633,11 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
     const f = await fixture("plan_confirm", "pending_confirm"),
       key = uuidv7(),
       body = { scene: "confirm_plan" };
+    expect(await readTicket(f.ticket.id, manager)).toMatchObject({
+      remindScenes: ["confirm_plan"],
+      actions: expect.arrayContaining(["remind"]),
+    });
+    expect((await readTicket(f.ticket.id, publisher)).remindScenes).toEqual([]);
     await error(
       await request("admin.deliveryTicket.remind", f.ticket.id, body, outside),
       404,
@@ -527,6 +651,9 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
       subjectId: f.ticket.id,
       replayed: false,
     });
+    const reminded = await readTicket(f.ticket.id, manager);
+    expect(reminded.remindScenes).toEqual([]);
+    expect(reminded.actions).not.toContain("remind");
     const count = await prisma.outboxEvent.count({ where: { eventType: "manual_reminder.sent" } });
     expect(
       await data(await request("admin.deliveryTicket.remind", f.ticket.id, body, manager, key)),
@@ -685,6 +812,7 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
         roleKey: "super_admin",
         now: api.clock.now(),
       });
+      expect((await readTicket(f.ticket.id, nextDayActor)).remindScenes).toEqual(["confirm_plan"]);
       const nextDay = await data(
         await request("admin.deliveryTicket.remind", f.ticket.id, body, nextDayActor),
       );
@@ -733,6 +861,7 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
     );
     const f = await fixture("awaiting_launch", "confirmed"),
       key = uuidv7();
+    expect((await readTicket(f.ticket.id, manager)).actions).toContain("reissue");
     const opened = await data(
       await request("admin.deliveryTicket.reissue.create", f.ticket.id, body, manager, key),
     );
@@ -743,6 +872,23 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
       openedBy: { staffId: manager.staff.id },
       replayed: false,
     });
+    const refreshed = await readTicket(f.ticket.id, manager);
+    expect(refreshed.openReissue).toMatchObject({
+      deliveryReissueId: reissueId,
+      reissueId,
+      deliveryTicketId: f.ticket.id,
+      status: "open",
+      episodeNos: [1],
+      reason: { code: reasonCode },
+      note: body.note,
+      openedBy: { staffId: manager.staff.id },
+      replacements: [],
+      actions: ["cancel"],
+    });
+    expect(refreshed.actions).not.toContain("reissue");
+    // The assigned publisher can read the same open request, but cannot cancel it or publish missing rows.
+    expect((await readTicket(f.ticket.id, publisher)).openReissue?.actions).toEqual([]);
+    await error(await getTicket(f.ticket.id, outside), 404, "NOT_FOUND");
     expect(
       await data(
         await request("admin.deliveryTicket.reissue.create", f.ticket.id, body, manager, key),
@@ -777,6 +923,7 @@ describe("W5-03 十一条真实 HTTP", { timeout: 120000 }, () => {
         ),
       ),
     ).toMatchObject({ status: "cancelled" });
+    expect((await readTicket(f.ticket.id, manager)).openReissue).toBeNull();
     expect(
       await data(
         await request(

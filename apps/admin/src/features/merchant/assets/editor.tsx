@@ -12,6 +12,7 @@ import type { AccessSnapshot } from "../../../lib/permissions";
 import { DICT_QUERY } from "../../../lib/query";
 import { formError, merchantScope, status, text } from "../detail/model";
 import { AssetConfirm } from "./confirm";
+import type { AssetDeleteReads } from "./delete-reads";
 import { ASSET_READ_KEY, insightLabels, typeLabels } from "./model";
 import { StoredFiles, newUploadSlot, uploadAssetType } from "./upload";
 import type { AssetWriteApi } from "./write-api";
@@ -31,6 +32,7 @@ export function AssetEditor({
   access,
   close,
   refresh,
+  deleteReads,
   notice,
 }: {
   intent: AssetIntent;
@@ -39,6 +41,7 @@ export function AssetEditor({
   access: AccessSnapshot | null;
   close(): void;
   refresh(): Promise<unknown>;
+  deleteReads?: AssetDeleteReads;
   notice(value: string): void;
 }) {
   const [draft, setDraft] = useState(() => assetDraft(intent)),
@@ -74,6 +77,7 @@ export function AssetEditor({
         api={api}
         close={close}
         refresh={refresh}
+        deleteReads={deleteReads}
         notice={notice}
         spec={{
           title,

@@ -322,6 +322,44 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
     });
     expect(created.coverage.missingEpisodeNos).toEqual([]);
     expect(created.coverage.duplicateEpisodeNos).toEqual([]);
+    expect(created.items.map((item) => item.episodeNo).sort()).toEqual([1, 2]);
+    // uploaded 是等待体检的当前分桶；后台可在关闭/恢复之间推进为 checked。
+    const uploadedFacts = (batch: z.infer<typeof UploadBatchDetailSchema>) => ({
+      uploadBatchId: batch.uploadBatchId,
+      expectedCount: batch.expectedCount,
+      uploadedOrChecked: batch.counts.uploaded + batch.counts.checked,
+      counts: {
+        total: batch.counts.total,
+        pending: batch.counts.pending,
+        rejected: batch.counts.rejected,
+        skipped: batch.counts.skipped,
+        replaced: batch.counts.replaced,
+      },
+      items: batch.items
+        .map(({ uploadBatchItemId, fileId, episodeNo, fileStatus, state }) => ({
+          uploadBatchItemId,
+          fileId,
+          episodeNo,
+          fileStatus,
+          state,
+        }))
+        .sort((a, b) => (a.episodeNo ?? 0) - (b.episodeNo ?? 0)),
+    });
+    const expectedUploaded = {
+      uploadBatchId: created.uploadBatchId,
+      expectedCount: 2,
+      uploadedOrChecked: 2,
+      counts: { total: 2, pending: 0, rejected: 0, skipped: 0, replaced: 0 },
+      items: created.items
+        .map(({ uploadBatchItemId, fileId, episodeNo }) => ({
+          uploadBatchItemId,
+          fileId,
+          episodeNo,
+          fileStatus: "stored",
+          state: expect.stringMatching(/^(?:uploaded|checked)$/u),
+        }))
+        .sort((a, b) => (a.episodeNo ?? 0) - (b.episodeNo ?? 0)),
+    };
     const sequence = batchDialog.getByRole("checkbox", {
       name: "我已逐集核对顺序建议",
       exact: true,
@@ -336,11 +374,11 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
             `/api/v1/admin/upload-batches/${created.uploadBatchId}`,
           );
           expect(response.status()).toBe(200);
-          return UploadBatchDetailSchema.parse((await response.json()).data).counts.uploaded;
+          return uploadedFacts(UploadBatchDetailSchema.parse((await response.json()).data));
         },
         { timeout: 120_000 },
       )
-      .toBe(2);
+      .toEqual(expectedUploaded);
     await batchDialog
       .locator(".lyx-confirm__footer")
       .getByRole("button", { name: "关闭", exact: true })
@@ -371,7 +409,7 @@ test("W312 五页内容主流程：真实原片批次、许可版权源文件、
     const recovered = UploadBatchDetailSchema.parse((await recoveredResponse.json()).data);
     expect(recovered.uploadBatchId).toBe(created.uploadBatchId);
     expect(recovered.expectedCount).toBe(2);
-    expect(recovered.counts.uploaded).toBe(2);
+    expect(uploadedFacts(recovered)).toEqual(expectedUploaded);
     expect(recovered.items.map((item) => item.episodeNo).sort()).toEqual([1, 2]);
     await expect(reopened.getByRole("button", { name: "提交原片批次", exact: true })).toBeVisible({
       timeout: 120_000,

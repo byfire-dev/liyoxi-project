@@ -267,7 +267,9 @@ describe("可选事务外消费准备", () => {
         "INSERT INTO outbox_delivery(outbox_event_id,subscriber) VALUES($1::uuid,'lyxtest.onGone')",
         eventId,
       );
+      await hasten(eventId);
       const unknown = pick((await claim()).claimed, eventId, "lyxtest.onGone");
+      expect(unknown).toBeDefined();
       expect(await consumeDelivery(prepared, unknown)).toBe("deferred");
       expect(called).toBe(0);
       expect(await row(eventId, "lyxtest.onGone")).toMatchObject({
@@ -448,7 +450,10 @@ describe("退避与死信（验收 7）", () => {
         "INSERT INTO outbox_delivery (outbox_event_id, subscriber) VALUES ($1::uuid, 'lyxtest.onGone')",
         eventId,
       );
+      // TIMESTAMPTZ(3) 可能向上取整；明确置到期，避免紧接的 now() 仍早于默认时间。
+      await hasten(eventId);
       const first = pick((await claim()).claimed, eventId, "lyxtest.onGone");
+      expect(first).toBeDefined();
       expect(await consumeDelivery(deps, first)).toBe("deferred");
       expect(await row(eventId, "lyxtest.onGone")).toMatchObject({
         status: "retry",

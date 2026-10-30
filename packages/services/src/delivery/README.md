@@ -12,6 +12,10 @@ PR1 公共 `AdminFlow.adminTransition` 已由 #208 合入 actual main（`e57f261
 
 `createDeliveryM5(deps: DeliveryM5Deps)` 为本包十一条 HTTP 提供用例公口：`activityList`、`assignEditor`、`assignPublisher`、`forceTransition`、`reevaluate`、`reissueCreate`、`remind`、`rework`、`rescheduleLaunch`、`reissueCancel`、`reissuePublish`。只读入口接收真实员工上下文与范围；写入口接收身份、员工、资源、typed body 和既有幂等选项，返回实际 DTO 与 `replayed`。HTTP 只做 typed 输入、正式鉴权与响应投影；纠偏沿 PR1 中央再验证、确认、白名单和事务保存点，不接账本。
 
+工单详情的 M5 读侧沿实际权限和步骤返回 `assign-editor`、`assign-publisher`、`remind`、`rework`、`reissue`、`reevaluate`、`force-transition`。发布专员主管的 `delivery=view` 仍可按其独立权限改派发布人；剪辑指派与返工/补发保留各自编辑门槛。暂停允许指派与重新求值（后者返回 `skippedReason=paused`），不开放纠偏、返工、补发或催办。动作投影不消费再验证窗口，点击后由原写口核验。
+
+`remindScenes` 与催办写口共享负责人和生命周期判定，再按北京时间当天的真实 `manual_reminder_log` 排除已催办场景。`openReissue` 读取当前真实在途补发，共用 `ReissueView` 的集号、最新替换行与动作；保留旧 `deliveryReissueId`，另带标准 `reissueId`。取消须具备原权限且为发起人或主管；发布还要求未暂停、合法步骤/使用期、完整替换集、真实通过质检和制作就绪。GET 不生成记录、签名或推进状态，发布时仍由原事务复核全部条件。
+
 负责人通过显式指派变更。样片和剧集登记不再隐式写 `editor_id`；`assignEditor` / `assignPublisher` 在真实员工集合内复核启用角色，首次指派不写 `from_staff_id` 为空的改派记录，改派写真实来源和原因。范围以服务端上下文为准，选人下拉候选不替代授权。调用方准备制作前置时应先指派对应剪辑师，不依赖首次上传认领。
 
 环节 SLA 使用注入时钟与既有工作日历，统一维护 `delivery_ticket_stage.due_at/sla_snapshot`、工单 `step_due_at` 与方案 `staff_due_at`。暂停保留第一原因加入时的剩余工作分钟，部分解除保留原快照，最后原因解除才恢复；日历导入重算当前有效环节，旧 timer 的截止、身份、快照或投递版本不符时跳过。正式 `delivery.onCalendarImported` 与原 `sla.breach × delivery_ticket_stage` 使用同一实现，纯商家提醒不创建 SLA timer。
