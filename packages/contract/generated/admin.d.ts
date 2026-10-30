@@ -7685,9 +7685,30 @@ export interface components {
                 usageEndedAt: string | null;
             };
             openReissue: {
+                actions: string[];
+                closedAt: string | null;
                 /** Format: uuid */
                 deliveryReissueId: string;
-                status: string;
+                /** Format: uuid */
+                deliveryTicketId: string;
+                episodeNos: number[];
+                note: string;
+                /** Format: date-time */
+                openedAt: string;
+                openedBy: components["schemas"]["StaffBrief"];
+                publishedDeliveryReleaseId: string | null;
+                reason: components["schemas"]["DictRef"];
+                /** Format: uuid */
+                reissueId: string;
+                replacements: {
+                    episodeNo: number;
+                    /** Format: uuid */
+                    episodeOutputId: string;
+                    /** @enum {string} */
+                    status: "uploaded" | "check_rejected" | "qc_passed" | "qc_rejected" | "replaced";
+                }[];
+                /** @enum {string} */
+                status: "open" | "published" | "cancelled";
             } | null;
             openUploadBatches: {
                 createdBy: components["schemas"]["StaffBrief"];

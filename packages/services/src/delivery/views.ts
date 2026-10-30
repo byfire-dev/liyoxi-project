@@ -10,6 +10,8 @@ import type { DeliveryDeps } from "./context.js";
 import { qcView } from "./quality-views.js";
 import { adminSampleView } from "./sample-views.js";
 import { publishListFacts } from "./publish-list.js";
+import { ticketM5Actions, ticketReminderScenes } from "./m5-read.js";
+import { reissueView } from "./reissue-view.js";
 import { iso, dateOf } from "./repo.js";
 import type { PlanRow, TicketRow } from "./repo.js";
 type Item = PlanRow["dramaOrder"]["orderItems"][number];
@@ -504,12 +506,18 @@ export async function ticketDetail(
       },
       orderBy: { createdAt: "desc" },
     }),
-    list = await publishListFacts(tx, t);
+    list = await publishListFacts(tx, t),
+    reissue = await tx.deliveryReissue.findFirst({
+      where: { deliveryTicketId: t.id, status: "open" },
+    }),
+    openReissue = reissue ? await reissueView(tx, deps, t, reissue, staff, now) : null,
+    remindScenes = await ticketReminderScenes(tx, t, staff, now, samples);
   return {
     ...card,
     actions: [
       ...card.actions,
       ...ticketProductionActions(t, staff),
+      ...ticketM5Actions(t, staff, now, openReissue !== null, remindScenes),
       ...(t.step === "delivering" && !t.pauseCount && hasPermission(staff, "publish.package.push")
         ? ["push-package"]
         : []),
@@ -663,7 +671,7 @@ export async function ticketDetail(
           grantExpiresAt: iso(grant?.expiresAt ?? null),
         }
       : null,
-    openReissue: null, // M5 无创建入口，保持留桩。
+    openReissue: openReissue ? { ...openReissue, deliveryReissueId: openReissue.reissueId } : null,
     openUploadBatches: await Promise.all(
       batches.map(async (b) => ({
         uploadBatchId: b.id,
@@ -685,6 +693,6 @@ export async function ticketDetail(
       pendingCount: tasks.filter((r) => r.reviewStatus === "pending").length,
       tasks,
     },
-    remindScenes: [],
+    remindScenes,
   };
 }
