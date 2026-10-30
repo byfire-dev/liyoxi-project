@@ -337,6 +337,43 @@ Node 24 于 2026-10-20 进入维护期（支持到 2028-04），Node 26 于 2026
 | --- | --- | --- | --- | --- |
 | `semver@6.3.1` | `eslint-plugin-react-hooks` 7.1.1 → `@babel/core` 的传递依赖 | 它发布于 2023-07-10，没带来源证明；而发布日期更早的 7.5.1–7.5.4（2023-05 至 2023-07）带了。检查只比发布日期，不看版本线 | `@babel/core` 7.29.7 声明的范围是 `^6.3.1`，6 线上只有 6.3.1 满足，没有别的版本可换。它是 6 线的最后一个版本，发布已三年；npmmirror 与 npmjs 上的发布时间、发布账号一致 | W0-01，2026-10-04；待业主过目 PR 时确认 |
 
+### 5.6 W5-07 签署独立前置准入（2026-10-30）
+
+仅装入 `packages/services`；任务边界见[独立前置](plan/changes/W5-07-signing-dependencies.md)。
+11个精确候选的 npmjs 与 npmmirror 元数据已逐项核对：版本、发布时间、integrity、许可、engines及peer均一致。
+renderer/react与原5.5/X-03同版，未升级其他工作区。直接依赖如下，锁文件由pnpm10.34.5正规生成：
+
+| 包名 | 精确版本 | 官方发布时间 UTC | 范围与许可 |
+| --- | --- | --- | --- |
+| `@react-pdf/renderer` | 4.9.0 | 2026-08-27T22:59:33.090Z | 运行；MIT |
+| `react` | 19.3.0 | 2026-09-09T17:21:30.071Z | 运行；MIT |
+| `@types/react` | 19.3.0 | 2026-09-09T18:08:49.750Z | 开发类型；MIT |
+| `@signpdf/signpdf` | 3.4.0 | 2026-10-19T15:46:19.971Z | 运行；MIT |
+| `@signpdf/placeholder-pdf-lib` | 3.4.0 | 2026-10-19T15:46:53.467Z | 运行；MIT |
+| `pdf-lib` | 1.17.1 | 2021-11-06T22:29:49.065Z | 运行；MIT |
+| `@signpdf/signer-p12` | 3.4.0 | 2026-10-19T15:45:48.484Z | 运行；MIT |
+| `node-forge` | 1.4.2 | 2026-10-27T14:09:15.471Z | 运行；BSD-3-Clause（选择双许可中的此项） |
+| `@types/node-forge` | 1.3.14 | 2025-08-20T18:41:20.874Z | 开发类型；MIT |
+| `qrcode` | 1.5.4 | 2024-08-05T21:52:58.518Z | 运行；MIT |
+| `@types/qrcode` | 1.5.6 | 2025-10-24T04:28:45.136Z | 开发类型；MIT |
+
+官方元数据入口：[npmjs](https://registry.npmjs.org/)、[npmmirror](https://registry.npmmirror.com/)；
+每包使用其精确名称查询 `versions[版本]`、`time[版本]` 与 `dist.integrity`。
+`node-forge<=1.4.0` 的[ASN.1高危问题](https://github.com/digitalbazaar/forge/security/advisories/GHSA-rhr8-3pm8-cq29)
+影响PKCS#12路径；1.4.1修安全问题，1.4.2修随后PEM Buffer回归。
+仅该1.4.2使用[PR216](https://github.com/byfire-dev/liyoxi-project/pull/216)已合安全例外，截止
+`2026-11-03T14:09:15.471Z`（北京时间22:09:15.471），届时按自然成熟的普通7天规则；不扩大例外。
+本次未改可信级别、安装脚本白名单、高危审计或必过名单。
+
+实际解析新增75个锁版本：74个正常成熟、1个上述固定例外；原有packages条目/完整性无删除或改写。
+`@signpdf/utils@3.4.0`仅为签署库内部传递依赖，本源码不直接引它。
+renderer4.9.0的React peer包含19；placeholder-pdf-lib的pdf-lib peer包含1.17.1；
+signer-p12的node-forge peer `^1.3.3`包含1.4.2。renderer/reconciler固定的旧scheduler RC是其上游声明，未另选新RC或改写依赖。
+生产audit无high/critical，4 low/9 moderate保留，不据此放松审计。
+
+此处只准入标准RSA-P12/X.509链/SHA-256 detached CMS/PKCS#7技术实现与QR生成依赖，
+不证明真实机构证书、CA授权、法务、阅读器或微信签后验收；E8/E11/V12不关闭。
+
 ## 6. 与参考工程的差异
 
 | 方面 | 参考工程 | 本项目 | 原因 |
