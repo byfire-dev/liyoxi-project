@@ -87,6 +87,8 @@ API 内部公口为 `runtime.licenseLetters.reconcileLetters/ensureLetters(tx, i
 
 完整 `findN6Violations` 从当前候选与已有未作废信共同发现全部缺信、法律事实不符与多余信，①②经同一 writer 自愈并返回实际 healed；③有效信缺 ready 指针、ready 文件登记哈希不符及版次不连续只报告。PR1 以真实依赖直接测试该公口，**正式 Assembly 尚不登记 N6**，不返回空 run 或声称 full 已有 N6。N16 正式登记并独立核订单/订单项/账号存在性与归属，缺 reader 或缺外部引用不能降为零违规。每个 API/worker 的 subscriber、N16 与关闭均为独立 closure，关闭拒绝新操作并等待在途操作结束。
 
+N6的当前集合检查①②③保留未作废过滤；ready文件哈希与版号连续性独立按本次主体scope读取全部状态的历史信及版次，包含取消/移出后的voided信，只报告、不改历史证据。对应异常历史测试在真实取消后明确注入queued版号缺口及错误ready哈希声明，文件字节和登记哈希由真实media公口生成；这是损坏证据反例，不是渲染、签名或生产ready验收。
+
 W5-06 同编号分为两个 PR：PR1 交事实、writer、真实 subscriber、N16 和完整 N6 函数；PR2 紧接07真实 renderer/consumer actual 后启用完整 N6，验证真实 M1 full 零违规。07 只依赖06PR1，03/08仍等06整包；本说明不改变 M5 退出或既有 CI。第一次 M1 真实链实际到达 live，full 的138项检查、0错误中出现1条 N6③：06只生成 queued、07尚无 ready。这是已暴露的交付依赖，③语义保持，不造 ready、不改原零违规断言；PR1 的 full 零违规不等于已检查 N6。
 
 07 沿业主缺字裁定：该版出件暂停并明确缺字，修改资料或字体后重试；此出件行为尚待07落地，06不生成替代文字或伪 ready。

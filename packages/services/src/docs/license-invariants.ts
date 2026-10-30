@@ -49,28 +49,53 @@ export async function findN6Violations(
     ids.filter((id) => found.has(id)),
   );
   const letters = await tx.licenseLetter.findMany({
-    where: { orderItemId: { in: ids }, status: { not: "voided" } },
-    include: { currentRevision: true, revisions: { orderBy: { revNo: "asc" } } },
+    where: {
+      orderItemId: { in: ids },
+      status: { not: "voided" },
+      ...(scope.entityIds ? { entityId: { in: [...scope.entityIds] } } : {}),
+    },
+    include: { currentRevision: true },
     orderBy: { id: "asc" },
   });
   const violations: InvariantViolation[] = [];
-  const ready = await tx.licenseLetterRevision.findMany({
-    where: { licenseLetterId: { in: letters.map((letter) => letter.id) }, renderStatus: "ready" },
-    select: { id: true, licenseLetterId: true, fileId: true, pdfSha256: true },
+  // Historical evidence remains verifiable after cancellation or account removal. Read it within
+  // the requested entity scope, independently of current candidates; never heal historical rows.
+  const history = await tx.licenseLetter.findMany({
+    where: scope.entityIds ? { entityId: { in: [...scope.entityIds] } } : {},
+    select: {
+      id: true,
+      entityId: true,
+      revisions: {
+        select: { id: true, revNo: true, renderStatus: true, fileId: true, pdfSha256: true },
+        orderBy: { revNo: "asc" },
+      },
+    },
+    orderBy: { id: "asc" },
   });
+  const ready = history.flatMap((letter) =>
+    letter.revisions.filter((revision) => revision.renderStatus === "ready"),
+  );
   const files = await deps.readFiles(
     tx,
     ready.flatMap((revision) => (revision.fileId ? [revision.fileId] : [])),
   );
-  for (const revision of ready) {
-    const letter = letters.find((row) => row.id === revision.licenseLetterId)!;
-    const file = files.find((row) => row.id === revision.fileId);
-    if (!file || !file.sha256 || file.sha256 !== revision.pdfSha256)
+  for (const letter of history) {
+    if (letter.revisions.some((revision, index) => revision.revNo !== index + 1))
       violations.push({
         subject: { type: "license_letter", id: letter.id },
         entityId: letter.entityId,
-        detail: { problem: "ready_pdf_hash_mismatch", revisionId: revision.id },
+        detail: { problem: "revision_sequence_gap" },
       });
+    for (const revision of letter.revisions) {
+      if (revision.renderStatus !== "ready") continue;
+      const file = files.find((row) => row.id === revision.fileId);
+      if (!file || !file.sha256 || file.sha256 !== revision.pdfSha256)
+        violations.push({
+          subject: { type: "license_letter", id: letter.id },
+          entityId: letter.entityId,
+          detail: { problem: "ready_pdf_hash_mismatch", revisionId: revision.id },
+        });
+    }
   }
   const repair = new Set<string>();
   for (const id of ids) {
@@ -128,12 +153,6 @@ export async function findN6Violations(
           subject: { type: "license_letter", id: letter.id },
           entityId: item.entityId,
           detail: { problem: "effective_without_ready_revision" },
-        });
-      if (letter.revisions.some((revision, index) => revision.revNo !== index + 1))
-        violations.push({
-          subject: { type: "license_letter", id: letter.id },
-          entityId: item.entityId,
-          detail: { problem: "revision_sequence_gap" },
         });
     }
   }

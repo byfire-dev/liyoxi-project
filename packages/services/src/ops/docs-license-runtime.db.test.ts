@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
   createLicenseConvergenceFixture,
   assembleForTest,
@@ -13,7 +14,12 @@ import {
 import { claimDeliveries, consumeDelivery } from "../events/index.js";
 import type { DeliveryRef } from "../events/index.js";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
-import { findN6Violations, findN16Violations } from "../docs/index.js";
+import {
+  findN6Violations,
+  findN16Violations,
+  licenseContentFingerprint,
+  parseLicenseLetterSnapshot,
+} from "../docs/index.js";
 import { createDocsLicenseAssembly } from "./docs-license-runtime.js";
 
 const db = useSeededDatabase("services", { max: 1 }),
@@ -202,6 +208,105 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
         where: { licenseLetter: { orderItemId: f.order.itemId } },
       }),
     ).toBe(evidence);
+
+    // Explicit historical corruption injection, not a renderer, signature or production-ready
+    // fixture. Two already-voided letters get independent faults: queued rev 1→3, and a ready
+    // record whose asserted PDF digest disagrees with bytes actually stored by the media owner.
+    const originals = await prisma.licenseLetterRevision.findMany({
+      where: { licenseLetter: { orderItemId: f.order.itemId } },
+    });
+    const voided = await letters(f),
+      removed = voided.find((letter) => letter.voidReason === "account_removed")!,
+      cancelledLetter = voided.find((letter) => letter.id !== removed.id)!;
+    const faultData = (letterId: string, revNo: number) => {
+      const source = originals.find((revision) => revision.licenseLetterId === letterId)!;
+      const snapshot = parseLicenseLetterSnapshot(source.letterSnapshot),
+        url = new URL(snapshot.verifyUrl);
+      url.searchParams.set("rev", String(revNo));
+      const value = { ...snapshot, revNo, verifyUrl: url.toString() };
+      return {
+        id: uuidv7(),
+        licenseLetterId: letterId,
+        revNo,
+        reason: "correction",
+        triggerRef: "fault:n6-history-evidence",
+        letterSnapshot: JSON.parse(JSON.stringify(value)),
+        contentFp: licenseContentFingerprint(value),
+        templateVersion: source.templateVersion,
+        renderStatus: "queued",
+        createdAt: f.clock.now(),
+        updatedAt: f.clock.now(),
+      };
+    };
+    await prisma.licenseLetterRevision.create({ data: faultData(cancelledLetter.id, 3) });
+    const bytes = new TextEncoder().encode(
+      "%PDF-1.4\n% N6 historical corruption input only\n%%EOF\n",
+    );
+    const file = await f.runtime.media.putSystemFile({
+      category: "legal_doc",
+      entityId: f.merchant.entity.id,
+      storeId: null,
+      objectKey: `lyxtest/n6-history/${uuidv7()}.pdf`,
+      fileName: "n6-history-fault.pdf",
+      body: bytes,
+    });
+    expect(file.sha256).toBe(createHash("sha256").update(bytes).digest("hex"));
+    const wrongHash = createHash("sha256").update("different historical bytes").digest("hex");
+    expect(wrongHash).not.toBe(file.sha256);
+    await prisma.licenseLetterRevision.create({
+      data: {
+        ...faultData(removed.id, 2),
+        renderStatus: "ready",
+        fileId: file.fileId,
+        pdfSha256: wrongHash,
+        signMode: "stamp",
+        platformSignedAt: f.clock.now(),
+        readyAt: f.clock.now(),
+      },
+    });
+    const historicalRows = () =>
+      prisma.licenseLetter.findMany({
+        where: { orderItemId: f.order.itemId },
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          status: true,
+          currentRevisionId: true,
+          lockVersion: true,
+          revisions: {
+            orderBy: { revNo: "asc" },
+            select: { id: true, revNo: true, renderStatus: true, fileId: true, pdfSha256: true },
+          },
+        },
+      });
+    const beforeHistoryCheck = await historicalRows();
+    expect(
+      beforeHistoryCheck.every(
+        (letter) => letter.status === "voided" && letter.currentRevisionId === null,
+      ),
+    ).toBe(true);
+    const historicalViolations = await f.runtime.tx.run((tx) =>
+      findN6Violations(tx, f.licenseDeps, { entityIds: [f.merchant.entity.id] }),
+    );
+    expect(historicalViolations.map((row) => row.detail.problem).sort()).toEqual([
+      "ready_pdf_hash_mismatch",
+      "revision_sequence_gap",
+    ]);
+    expect(
+      historicalViolations.every(
+        (row) => row.entityId === f.merchant.entity.id && row.healed === undefined,
+      ),
+    ).toBe(true);
+    const other = await createFactories({ db: prisma, clock: f.clock }).merchant({
+      verified: true,
+    });
+    expect(
+      await f.runtime.tx.run((tx) =>
+        findN6Violations(tx, f.licenseDeps, { entityIds: [other.entity.id] }),
+      ),
+    ).toEqual([]);
+    expect(await historicalRows()).toEqual(beforeHistoryCheck);
+    expect(f.runtime.assembly.invariant("docs.N6")).toBeUndefined();
   });
 
   it("N6从当前候选发现全部缺信并真实heal；N16核真实归属，缺owner引用不能当零违规", async () => {
