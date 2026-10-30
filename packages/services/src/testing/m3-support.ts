@@ -5,6 +5,7 @@ import { DEMO_SEED_STEPS, runDemoSeed } from "../demo-seed.js";
 import { loadKeyring } from "../security/index.js";
 import type { DemoSeedReport } from "../demo-seed.js";
 import { createM1Support } from "./m1-support.js";
+import { prepareM1LicenseInputs } from "./m1-license-inputs.js";
 import { seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import type { M1Support, M1SupportOptions } from "./m1-types.js";
 import { M3_JOB_SELECT, readM3Facts, resolveM3Scope } from "./m3-facts.js";
@@ -67,6 +68,8 @@ export async function createM3Support(options: M3SupportOptions = {}): Promise<M
     },
     async seedPrerequisites() {
       assertOwned();
+      const inputs = base.sharedScope().licenseTestInputs;
+      if (!inputs) throw new Error("M3 缺少本轮owner明确授权的法定测试输入");
       const runtime = base.runtime;
       const report = await runDemoSeed({
         ...runtime,
@@ -80,6 +83,15 @@ export async function createM3Support(options: M3SupportOptions = {}): Promise<M
         notices: createNotices({ clock: base.clock, events: runtime.events }),
         params: runtime.config.params,
       });
+      // 跳过旧内容造数时，仍须准备本轮owner授权的虚构平台法定输入。
+      await runtime.tx.run((tx) =>
+        prepareM1LicenseInputs({
+          db: tx,
+          clock: base.clock,
+          env: runtime.env,
+          inputs,
+        }),
+      );
       const baseline = await seedM1ProfileDefaults(runtime);
       // 旧 content 种子还包含共享字典；只复用数据，不调用任何旧剧目/文件造数。
       const dictionaries = await runtime.tx.run((tx) =>

@@ -11,6 +11,7 @@ import { createProfile } from "../profile/index.js";
 import { loadKeyring } from "../security/index.js";
 import { createTenant } from "../tenant/index.js";
 import { createFactories } from "./data/factories/index.js";
+import { prepareM1LicenseInputs } from "./m1-license-inputs.js";
 import { openSealed, testSealer } from "./data/seal.js";
 import type { TransactionConsentFact } from "../kernel/index.js";
 import { createCodecDemoMasterPreparer } from "./demo-masters.js";
@@ -451,6 +452,14 @@ export async function completeP95Prototype(
   )
     throw new Error("P95 合法图补全仅接受本轮 APPtest 隔离库");
   await completeContent(input);
+  const inputs = support.sharedScope().licenseTestInputs;
+  if (!inputs) throw new Error("P95原型需要owner显式授权的法定测试输入");
+  await prepareM1LicenseInputs({
+    db: input.db,
+    clock: support.clock,
+    env: support.runtime.env,
+    inputs,
+  });
   await completePaidConsents(support, scope);
   await completeP95Qualification(input, scope);
   await completeFileRefs(input);

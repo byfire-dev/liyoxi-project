@@ -593,12 +593,12 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `samples` | array<{ `sampleId`, `versionNo`, `status`, `uploadedAt`, `pushedAt` }> | 是 | 样片版本历史，按版本号倒序 | `sample` |
 | `episodeProgress` | object | 是 | 成片区：`{ totalEpisodes, currentPassedCount, uploadedCount, rejectedCount, packageQc: QcRecordView \| null }`（“成片包 80 集 · 待批量合成”） | `order_item.episode_count`；`episode_output` 按 `is_current`、`status` 计数；`qc_record`（`target_type = delivery_ticket`）最近一条 |
 | `release` | object \| null | 是 | 生效中的成片包：`{ deliveryReleaseId, releaseNo, kind, pushedAt, episodeCount, totalBytes, savedEpisodeCount, grantExpiresAt }`；`totalBytes` 为 string(bigint) | `delivery_release`（`state = pushed`）；`delivery_download_log`（`client_ack = saved`）不同集数；`download_grant.expires_at`（`state = active`） |
-| `openReissue` | `ReissueView` \| null | 是 | 在途补发单 | `delivery_reissue`（`status = open`） |
+| `openReissue` | (`ReissueView` & { `deliveryReissueId`: uuid }) \| null | 是 | 在途补发单；`deliveryReissueId` 保留旧读侧字段，与标准 `reissueId` 相同 | `delivery_reissue`（`status = open`） |
 | `openUploadBatches` | array<{ `uploadBatchId`, `state`, `scope`, `expectedCount`, `createdBy`: StaffBrief, `expiresAt` }> | 是 | 本订单项在途的成片批次（刷新页面后找回批次续传；做法同 a04 `MediaReadiness.openUploadBatches`） | `upload_batch`（`purpose = final_release`、`target_id` = 本订单项、`state` ∈ {`matching`,`uploading`,`verifying`,`ready`}，`ix_upload_batch_purpose_target_id`） |
 | `publishList` | object \| null | 是 | 发布清单（详情在 a06 `admin.deliveryTicket.publishList.get`）：`{ publishListId, savedAt, isComplete }`；进入成片交付前为空 | `publish_list`（`uq_publish_list_delivery_ticket_id`）；`isComplete` 由 publish 模块的完整性判定给出（与 3.33 守卫的 `publish_list_incomplete` 同一函数） |
 | `launch` | object | 是 | 上线任务：`{ taskCount, liveCount, verifyingCount, needFixCount, pendingCount, tasks }`；`tasks` 为 `array<{ launchTaskId, channelAccountId, platform, accountName, reviewStatus, isLive, currentRoundNo, currentLaunchSubmissionId }>`，供跳转 a06 的核验详情；`currentLaunchSubmissionId` 在 `currentRoundNo = 0` 时为空 | `launch_task` 按 `is_live`、`review_status` 计数（`void_reason` 为空）；`tasks` 取未作废的行联 `channel_account.account_name`；`currentLaunchSubmissionId` = `launch_submission`（`launch_task_id`、`round_no = current_round_no`，`uq_launch_submission_launch_task_id_round_no`） |
 | `remindScenes` | array<enum(`confirm_plan`,`confirm_sample`,`golive`)> | 是 | 此刻可催办且今天未催办的场景（行内按钮点后变“已提醒”） | 3.23 的守卫；`manual_reminder_log` 当日行 |
-| `actions` | array<string> | 是 | `assign-manager`；`assign-editor`；`assign-publisher`；`remind`（`remindScenes` 非空）；`rework`（批量合成或成片交付、未暂停、主管）；`reissue`（待上线、上线核验、使用中，未暂停、无在途补发）；`push-package`（成片交付）；`reevaluate`（`flow.ops.manage`）；`force-transition`（`flow.admin.transition`） | 计算 |
+| `actions` | array<string> | 是 | `assign-manager`；`assign-editor`；`assign-publisher`；`remind`（`remindScenes` 非空）；`rework`（批量合成或成片交付、未交付、未暂停、主管）；`reissue`（待上线、上线核验、使用中，使用期内、未暂停、无在途补发）；`push-package`（成片交付）；`reevaluate`（`flow.ops.manage`，暂停或终态时只返回跳过原因）；`force-transition`（`flow.admin.transition`，未暂停且有当前步骤的纠偏白名单目标）。各动作同时按实际路由模块等级与权限投影，不用编辑等级替代发布主管的查看等级指派权限 | 计算 |
 
 #### `PlanItemContentView`
 
@@ -804,7 +804,7 @@ a02 2.3 为交付侧来源暂定的归属角色与可见条件，本文确认照
 | `closedAt` | string(date-time) \| null | 是 | 发布或取消时间 | `delivery_reissue.closed_at` |
 | `publishedDeliveryReleaseId` | string(uuid) \| null | 是 | 发布生成的成片包 | `delivery_reissue.published_delivery_release_id` |
 | `replacements` | array<{ `episodeNo`, `episodeOutputId`, `status` }> | 是 | 已登记的替换行（每集取最新修订） | `episode_output`（`delivery_reissue_id` = 本单） |
-| `actions` | array<string> | 是 | `publish`（`open`，有 `publish.package.push`，每集都有质检通过的替换行）；`cancel`（`open`，调用者是发起人或主管） | 计算 |
+| `actions` | array<string> | 是 | `publish`（`open`，有 `publish.package.push` 与发布编辑等级，未暂停且在合法补发步骤及使用期内，每集最新替换行都有真实通过质检与制作就绪，合并后当前集完整）；`cancel`（`open`，有 `delivery.package.reissue` 与交付编辑等级，调用者是发起人或主管）。写时仍重新核验 | 计算 |
 
 ### 2.8 授权书
 

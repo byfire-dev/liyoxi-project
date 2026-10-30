@@ -8,6 +8,7 @@ import { seedPlaceholderFinanceConfig } from "../billing/index.js";
 import { loadKeyring } from "../security/index.js";
 import { createPublish } from "../publish/index.js";
 import { createNotices } from "../config/index.js";
+import { licenseContentFingerprint, parseLicenseLetterSnapshot } from "../docs/index.js";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
 import { runInvariants } from "../ops/index.js";
 import { createM1Support } from "./m1-support.js";
@@ -97,6 +98,8 @@ const TABLES = [
   "delivery_plan_version",
   "delivery_ticket",
   "delivery_ticket_stage",
+  "license_letter",
+  "license_letter_revision",
   "timer",
   "status_transition",
   "audit_log",
@@ -135,7 +138,10 @@ export async function createP95Fixture(options: {
     !Number.isSafeInteger(options.seed)
   )
     throw new Error("P95规模/种子不合法");
-  const support = await createM1Support({ runId: options.runId });
+  const support = await createM1Support({
+    runId: options.runId,
+    portalPublicOrigin: "https://portal.example.invalid",
+  });
   const { runtime, clock } = support;
   assertTestDatabaseUrl(runtime.env.DATABASE_URL);
   const db: PrismaClient = createPrismaClient({
@@ -431,7 +437,7 @@ export async function createP95Fixture(options: {
         const names = metadata.map((c) => c.column_name);
         columns.set(
           table,
-          names.filter((c) => c !== "seq"),
+          names.filter((c) => c !== "seq" || table === "agreement_consent"),
         );
         let where: string, params: unknown[];
         if (table === "merchant_user") {
@@ -449,6 +455,9 @@ export async function createP95Fixture(options: {
             table === "agreement_consent"
               ? [scope.entityId, scope.merchantUserId]
               : [scope.entityId];
+        } else if (table === "license_letter_revision") {
+          where = "license_letter_id IN (SELECT id FROM license_letter WHERE entity_id=$1::uuid)";
+          params = [scope.entityId];
         } else if (table === "outbox_delivery") {
           where = "outbox_event_id IN (SELECT id FROM outbox_event WHERE entity_id=$1::uuid)";
           params = [scope.entityId];
@@ -478,6 +487,26 @@ export async function createP95Fixture(options: {
         );
       }
       scopes.push({ ...scope, orderIds, channelAccountId: fixture.channelAccountId });
+      // The prototype must have been produced by the real subscriber. Copy queued history only.
+      const prototypeLetters = raw.get("license_letter")!,
+        prototypeRevisions = raw.get("license_letter_revision")!;
+      if (
+        prototypeLetters.length !== orderIds.length ||
+        prototypeRevisions.length !== orderIds.length ||
+        prototypeLetters.some(
+          (r) => r["current_revision_id"] !== null || r["status"] !== "pending_effective",
+        ) ||
+        prototypeRevisions.some(
+          (r) =>
+            r["render_status"] !== "queued" ||
+            r["file_id"] !== null ||
+            r["pdf_sha256"] !== null ||
+            r["platform_signed_at"] !== null ||
+            r["merchant_signed_at"] !== null,
+        )
+      )
+        throw new Error("P95只复制真实原型的首版queued授权历史，不接受ready/PDF/签署证据");
+      const verifyCodes = new Set(prototypeLetters.map((r) => String(r["verify_code"])));
       const count = Math.ceil(options.scale * 500);
       let state = options.seed >>> 0;
       const random = () => {
@@ -486,6 +515,13 @@ export async function createP95Fixture(options: {
       };
       for (let start = 1; start < count; start += 20) {
         const batches = new Map<string, Row[]>();
+        const consentRows = raw.get("agreement_consent")!,
+          batchEnd = Math.min(start + 20, count);
+        // Reserve from the actual identity sequence once per batch. Append-only consents are inserted once.
+        const reserved = await db.$queryRawUnsafe<{ seq: bigint }[]>(
+          "SELECT nextval(pg_get_serial_sequence('agreement_consent','seq')) AS seq FROM generate_series(1,$1::int)",
+          (batchEnd - start) * consentRows.length,
+        );
         for (let n = start; n < Math.min(start + 20, count); n++) {
           const ids = new Map<string, string>();
           for (const rows of raw.values())
@@ -518,6 +554,69 @@ export async function createP95Fixture(options: {
             cloneUscc = fakeUscc(200000 + n),
             entityName = `P95主体${n}`,
             uscc = testSealer.uscc("entity.uscc_enc", cloneUscc);
+          const consentSeq = new Map(
+            consentRows.map((row, i) => [
+              String(row["id"]),
+              String(reserved[(n - start) * consentRows.length + i]!.seq),
+            ]),
+          );
+          for (const letter of prototypeLetters) {
+            const sourceOrder = raw
+              .get("drama_order")!
+              .find((r) => r["id"] === letter["drama_order_id"])!;
+            const orderNo = labels.get(String(sourceOrder["order_no"]))!;
+            const suffix = /^T?SQ[0-9]+(-[1-9][0-9]*-(?:DY|SPH)(?:-[1-9][0-9]*)?)$/.exec(
+              String(letter["letter_no"]),
+            )?.[1];
+            if (!suffix) throw new Error("P95原型授权编号结构无效");
+            labels.set(String(letter["letter_no"]), `SQ${orderNo.replace(/^T?LYX/, "")}${suffix}`);
+            let verifyCode: string;
+            do {
+              verifyCode = uuidv7().replaceAll("-", "").slice(-16);
+            } while (verifyCodes.has(verifyCode));
+            verifyCodes.add(verifyCode);
+            labels.set(String(letter["verify_code"]), verifyCode);
+          }
+          const revisionCopies = new Map<
+            string,
+            { snapshot: ReturnType<typeof parseLicenseLetterSnapshot>; fp: string }
+          >();
+          for (const revision of prototypeRevisions) {
+            const letter = prototypeLetters.find((r) => r["id"] === revision["license_letter_id"])!;
+            const consent = consentRows.find(
+              (r) =>
+                r["biz_id"] === letter["drama_order_id"] &&
+                r["agreement_key"] === "custom_license" &&
+                r["scene"] === "order_submit",
+            );
+            if (!consent || !consentSeq.has(String(consent["id"])))
+              throw new Error("P95授权克隆缺真实订单同意");
+            const source = parseLicenseLetterSnapshot(revision["letter_snapshot"]);
+            const url = new URL("/v", runtime.env.PORTAL_PUBLIC_ORIGIN!);
+            url.searchParams.set("code", labels.get(String(letter["verify_code"]))!);
+            url.searchParams.set("rev", String(revision["rev_no"]));
+            const snapshot = parseLicenseLetterSnapshot({
+              ...source,
+              licensee: { ...source.licensee, name: entityName, creditCode: cloneUscc },
+              account: {
+                ...source.account,
+                accountId: labels.get(source.account.accountId) ?? source.account.accountId,
+              },
+              consent: {
+                ...source.consent,
+                consentNo: consentSeq.get(String(consent["id"]))!,
+                by: `${consent["operator_name_mask"] ?? ""}（${sealed.mask}）`,
+              },
+              orderNo: labels.get(source.orderNo)!,
+              letterNo: labels.get(source.letterNo)!,
+              revNo: Number(revision["rev_no"]),
+              verifyUrl: url.toString(),
+            });
+            const fp = licenseContentFingerprint(snapshot);
+            labels.set(source.verifyUrl, snapshot.verifyUrl);
+            labels.set(String(revision["content_fp"]), fp);
+            revisionCopies.set(ids.get(String(revision["id"]))!, { snapshot, fp });
+          }
           for (const table of TABLES) {
             const rows = raw.get(table)!.map((row) => mapped(row, ids, labels) as Row);
             if (table === "merchant_user")
@@ -532,13 +631,21 @@ export async function createP95Fixture(options: {
             if (table === "agreement_consent")
               for (const row of rows) {
                 const snapshot = testSealer.phone("agreement_consent.phone_enc", phone);
+                const source = consentRows.find((one) => ids.get(String(one["id"])) === row["id"]);
+                if (!source) throw new Error("P95克隆同意缺原型身份");
                 Object.assign(row, {
                   phone_enc: snapshot.enc,
                   phone_mask: snapshot.mask,
+                  seq: consentSeq.get(String(source["id"]))!,
                   ...(row["entity_id"]
                     ? { entity_name: entityName, uscc_enc: uscc.enc, uscc_mask: uscc.mask }
                     : {}),
                 });
+              }
+            if (table === "license_letter_revision")
+              for (const row of rows) {
+                const copy = revisionCopies.get(String(row["id"]))!;
+                Object.assign(row, { letter_snapshot: copy.snapshot, content_fp: copy.fp });
               }
             if (table === "entity")
               for (const row of rows)

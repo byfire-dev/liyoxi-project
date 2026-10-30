@@ -52,6 +52,7 @@ export * from "./billing-payment.js";
 
 // W1-15a：完整订剧前置，供真实 API / clerk 测试复用。
 export * from "./order.fixture.js";
+export { createLicenseConvergenceFixture } from "./license-convergence.fixture.js";
 export { createW501Publish, prepareW501AdCancel } from "./w501.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。

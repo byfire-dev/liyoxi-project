@@ -359,6 +359,7 @@ describe("键名清单", () => {
       "AUTH_KEYS_FILE",
       "ADMIN_IP_ALLOWLIST",
       "CERT_DOMAINS",
+      "PORTAL_PUBLIC_ORIGIN",
       "STAGING_PAY_ENTITY_IDS",
       "BACKUP_FILE",
       "ALERTS_FILE",

@@ -17,6 +17,7 @@ import { assertM1SharedScope, createM1HttpStorage, createM1RealClock } from "./m
 import { readM1WorkerBacklog } from "./m1-observe.js";
 import { createM1BackupIo } from "./m1-backup.js";
 import { createM1WechatCallbackIo, M1_LOCAL_WECHAT } from "./m1-wechat.js";
+import { M1_LICENSE_TEST_INPUTS } from "./m1-license-inputs.js";
 
 /** IPC input accepts public local fixture configuration only, never arbitrary provider URLs/keys. */
 export const M1WorkerAttachmentSchema = z.strictObject({
@@ -26,6 +27,9 @@ export const M1WorkerAttachmentSchema = z.strictObject({
     redisPrefix: z.string().max(100),
     ownerToken: z.string().regex(/^[a-f0-9]{32}$/),
     startedAt: z.iso.datetime(),
+    licenseTestInputs: z
+      .strictObject({ portalPublicOrigin: z.literal(M1_LICENSE_TEST_INPUTS.portalPublicOrigin) })
+      .optional(),
   }),
   chainId: z.string().regex(/^[a-z0-9]{1,12}$/),
   version: z.string().regex(/^[a-f0-9]{40}$/),
@@ -61,6 +65,9 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     LOG_LEVEL: "warn",
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
+    ...(attach.scope.licenseTestInputs
+      ? { PORTAL_PUBLIC_ORIGIN: attach.scope.licenseTestInputs.portalPublicOrigin }
+      : {}),
   });
   for (const [value, protocols, service] of [
     [env.DATABASE_URL, ["postgres:", "postgresql:"], "postgres"],
@@ -193,6 +200,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
       mediaProductionTools: tools.tools,
       keys: {
         ...fakeKeyEnv(),
+        ...(env.PORTAL_PUBLIC_ORIGIN ? { PORTAL_PUBLIC_ORIGIN: env.PORTAL_PUBLIC_ORIGIN } : {}),
         MEDIA_PRODUCTION: tools.env,
         BACKUP: backup.config,
         ALERTS: { oncallPhones: [oncallPhone] },

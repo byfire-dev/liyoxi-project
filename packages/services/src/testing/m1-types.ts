@@ -10,6 +10,7 @@ import type { M1StateIds, readM1State } from "./m1-state.js";
 import type { Redis } from "ioredis";
 import type { ModelBudgetTransport } from "../media/index.js";
 import type { createMinioStorage, PresignedPost } from "../providers/index.js";
+import type { M1LicenseTestInputs } from "./m1-license-inputs.js";
 
 export interface M1HttpObjectIO {
   upload(post: PresignedPost, bytes: Uint8Array): Promise<number>;
@@ -23,6 +24,8 @@ export interface M1SharedScope {
   readonly redisPrefix: string;
   readonly ownerToken: string;
   readonly startedAt: string;
+  /** Test owner explicitly authorizes this fictional input for the protected local attachment. */
+  readonly licenseTestInputs?: M1LicenseTestInputs;
 }
 export interface M1Attachment {
   readonly scope: M1SharedScope;
@@ -115,6 +118,8 @@ export interface M1Support {
   sharedScope(): M1SharedScope;
 }
 export interface M1SupportOptions {
+  /** Only a new APP_ENV=test owner; local attachments receive explicit inputs through their scope. */
+  readonly portalPublicOrigin?: M1LicenseTestInputs["portalPublicOrigin"];
   /** 仅本机test独立scope：沿API测试相同假通道身份，默认M1不装配支付。 */
   readonly wechatPay?: { readonly appid: string; readonly mchid: string };
   readonly attach?: M1Attachment;

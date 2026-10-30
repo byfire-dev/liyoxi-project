@@ -52,6 +52,7 @@ export const ENV_KEYS: readonly string[] = [
   "AUTH_KEYS_FILE",
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
+  "PORTAL_PUBLIC_ORIGIN",
   "STAGING_PAY_ENTITY_IDS",
   "BACKUP_FILE",
   "ALERTS_FILE",
@@ -280,6 +281,8 @@ export interface Env {
   readonly ADMIN_IP_ALLOWLIST?: readonly string[];
   /** 仅显式域名的 TLS 证书检查；缺配不会猜测部署域名。 */
   readonly CERT_DOMAINS?: readonly string[];
+  /** 授权书版次的验真链接根地址；缺配不推导域名，创建快照时由文书服务受控拒绝。 */
+  readonly PORTAL_PUBLIC_ORIGIN?: string;
   /** 仅预发显式候选主体；配置名单不启用自动退款或任何资金动作。 */
   readonly STAGING_PAY?: Readonly<{ entityIds: readonly string[] }>;
   readonly BACKUP?: BackupEnvConfig;
@@ -1164,6 +1167,34 @@ function readCertDomains(source: EnvSource, issues: EnvIssue[]): readonly string
   return Object.freeze([...new Set(domains)]);
 }
 
+function readPortalPublicOrigin(source: EnvSource, issues: EnvIssue[]): string | undefined {
+  const value = read(source, "PORTAL_PUBLIC_ORIGIN");
+  if (value === undefined) return undefined;
+  // 先校验原始形状，避免 URL 将空查询、点路径、反斜线或控制字符归一化后接受。
+  const matched = /^https:\/\/([a-z0-9.-]+)(?::[0-9]{1,5})?\/?$/i.exec(value);
+  const host = matched?.[1]?.toLowerCase();
+  const labels = host?.split(".") ?? [];
+  if (
+    host &&
+    host.length <= 253 &&
+    labels.length >= 2 &&
+    /[a-z]/.test(labels.at(-1)!) &&
+    labels.every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+  ) {
+    try {
+      const parsed = new URL(value);
+      if (parsed.hostname === host) return parsed.origin;
+    } catch {
+      // 只返回固定键名与原因，不回显配置值。
+    }
+  }
+  issues.push({
+    key: "PORTAL_PUBLIC_ORIGIN",
+    reason: "须为HTTPS DNS根地址，不含账号密码、路径、查询或片段",
+  });
+  return undefined;
+}
+
 function readStagingPay(
   source: EnvSource,
   appEnv: string | undefined,
@@ -1376,6 +1407,7 @@ export function loadEnv(
   const appEnv = read(source, "APP_ENV");
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
+  const portalPublicOrigin = readPortalPublicOrigin(source, issues);
   const stagingPay = readStagingPay(source, appEnv, issues);
   const alerts = readAlerts(source, issues);
   const serverErrors = readServerErrors(source, issues);
@@ -1457,6 +1489,7 @@ export function loadEnv(
     REDIS_URL,
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
+    ...(portalPublicOrigin ? { PORTAL_PUBLIC_ORIGIN: portalPublicOrigin } : {}),
     ...(stagingPay ? { STAGING_PAY: stagingPay } : {}),
     ...(alerts ? { ALERTS: alerts } : {}),
     ...(serverErrors ? { SERVER_ERRORS: serverErrors } : {}),

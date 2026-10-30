@@ -6,8 +6,10 @@ import type { PresignedPost } from "../providers/index.js";
 import type { M1Attachment, M1SharedScope } from "./m1-types.js";
 import type { AdjustableClock } from "./clock.js";
 import type { FakeStorage } from "./providers/index.js";
+import { assertM1LicenseTestInputs } from "./m1-license-inputs.js";
 
 export function assertM1SharedScope(scope: M1SharedScope): void {
+  if (scope.licenseTestInputs !== undefined) assertM1LicenseTestInputs(scope.licenseTestInputs);
   if (
     !/^[a-z0-9]{1,12}$/.test(scope.runId) ||
     scope.databaseName !==

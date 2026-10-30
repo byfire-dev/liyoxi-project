@@ -124,3 +124,4 @@ export { createRuntimeProductionMaterials } from "./production-materials-runtime
 export { createDownloadRecords } from "../delivery/index.js";
 
 export { requireRuntimeProductionAccess } from "./production-access-runtime.js";
+export { createDocsLicenseAssembly, createRuntimeDocsLicense } from "./docs-license-runtime.js";

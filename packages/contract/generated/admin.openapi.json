@@ -13559,18 +13559,126 @@
                   {
                     "additionalProperties": false,
                     "properties": {
+                      "actions": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "closedAt": {
+                        "anyOf": [
+                          {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
                       "deliveryReissueId": {
                         "format": "uuid",
                         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                         "type": "string"
                       },
+                      "deliveryTicketId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "episodeNos": {
+                        "items": {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "note": {
+                        "type": "string"
+                      },
+                      "openedAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "openedBy": {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      "publishedDeliveryReleaseId": {
+                        "anyOf": [
+                          {
+                            "format": "uuid",
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "reason": {
+                        "$ref": "#/components/schemas/DictRef"
+                      },
+                      "reissueId": {
+                        "format": "uuid",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                        "type": "string"
+                      },
+                      "replacements": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "episodeNo": {
+                              "exclusiveMinimum": 0,
+                              "type": "integer"
+                            },
+                            "episodeOutputId": {
+                              "format": "uuid",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                              "type": "string"
+                            },
+                            "status": {
+                              "enum": [
+                                "uploaded",
+                                "check_rejected",
+                                "qc_passed",
+                                "qc_rejected",
+                                "replaced"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "episodeNo",
+                            "episodeOutputId",
+                            "status"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
                       "status": {
+                        "enum": [
+                          "open",
+                          "published",
+                          "cancelled"
+                        ],
                         "type": "string"
                       }
                     },
                     "required": [
-                      "deliveryReissueId",
-                      "status"
+                      "reissueId",
+                      "deliveryTicketId",
+                      "status",
+                      "episodeNos",
+                      "reason",
+                      "note",
+                      "openedBy",
+                      "openedAt",
+                      "closedAt",
+                      "publishedDeliveryReleaseId",
+                      "replacements",
+                      "actions",
+                      "deliveryReissueId"
                     ],
                     "type": "object"
                   },

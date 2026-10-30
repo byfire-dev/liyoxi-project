@@ -48,3 +48,10 @@ export {
 export { createCancelRequests } from "./cancel-requests.js";
 export { bindCancelRequests } from "./cancel-binding.js";
 export type { CancelRequests } from "./cancel-requests.js";
+export {
+  lockOrderLicenseItems,
+  readOrderLicenseFacts,
+  listLicenseCandidateItemIds,
+  readLicenseOrderItemIds,
+} from "./license-facts.js";
+export type { OrderLicenseFact, LicenseCandidateItemsQuery } from "./license-facts.js";
