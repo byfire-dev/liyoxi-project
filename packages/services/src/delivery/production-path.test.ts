@@ -633,6 +633,14 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     expect(off.previewChannels).toEqual(["weapp"]);
     expect(off.playable?.sources).toEqual([]);
     expect(off.confirmableVia).toEqual([]);
+    expect(off.actions).toEqual([]);
+    expect(await h.tx.run((tx) => h.counts(tx, s.sampleId))).toEqual(before);
+    await expect(
+      delivery.sampleRequestChange(o.viewer, s.sampleId, {
+        feedbackKind: "compose",
+        note: "播放关闭时不能通过写口绕过查看入口",
+      }),
+    ).rejects.toMatchObject({ error: "FEATURE_DISABLED" });
     expect(await h.tx.run((tx) => h.counts(tx, s.sampleId))).toEqual(before);
     await expect(
       delivery.sampleConfirm(o.viewer, s.sampleId, {
@@ -723,6 +731,12 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
     });
     expect(pending.playable?.sources).toEqual([]);
     expect(pending.viewEvidence.albumSavedAt).not.toBeNull();
+    await expect(
+      h.delivery.sampleRequestChange(o.viewer, sample.sampleId, {
+        feedbackKind: "compose",
+        note: "旧相册证据不能打开当前版本反馈",
+      }),
+    ).rejects.toMatchObject({ error: "SAMPLE_VIEW_CHANNEL_NOT_OFFERED" });
     for (const viewedVia of ["album", "portal", "weapp", "wecom"])
       await expect(
         h.delivery.sampleConfirm(o.viewer, sample.sampleId, {

@@ -258,8 +258,9 @@ export async function merchantSampleView(tx: Tx, deps: DeliveryDeps, t: TicketRo
         s.status === "pushed" &&
         t.step === "sample_confirm" &&
         !t.pauseCount &&
-        s.versionNo === t.currentSampleVersionNo
-          ? [...(e.possible.length ? ["confirm"] : []), "request-change"]
+        s.versionNo === t.currentSampleVersionNo &&
+        e.possible.includes("weapp")
+          ? ["confirm", "request-change"]
           : [],
     },
     files: {

@@ -66,6 +66,14 @@ export async function requestChange(
   await currentSample(tx, t, s);
   if (s.versionNo !== t.currentSampleVersionNo) await stale(tx, t);
   if (s.status !== "pushed" || t.step !== "sample_confirm") throw new AppError("STATE_NOT_ALLOWED");
+  if (!s.previewChannels.includes("weapp"))
+    throw new AppError("SAMPLE_VIEW_CHANNEL_NOT_OFFERED", {
+      details: { previewChannels: s.previewChannels },
+    });
+  if (!(await deps.samplePlayback?.(t.entityId))) throw new AppError("FEATURE_DISABLED");
+  const production = await deps.media.deliveryProductionFacts(tx, s.fileId);
+  if (!production.ready || !production.production || !production.playable)
+    throw new AppError("SAMPLE_PREVIEW_NOT_READY");
   const fileIds = b.imageFileIds ?? [];
   await lockRows(tx, "file_object", fileIds);
   // media.link revalidates storage/moderation/category; merchant ownership is stricter here.

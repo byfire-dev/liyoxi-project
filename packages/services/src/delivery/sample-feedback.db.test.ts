@@ -36,13 +36,18 @@ afterAll(async () => {
   await h?.close();
 });
 
-async function sample(pushed = true, withAd = false) {
+async function sample(
+  pushed = true,
+  withAd = false,
+  beforeProduction?: (o: M5Order) => Promise<void>,
+) {
   const f = await prepared(
-      h,
-      false,
-      withAd ? (o, editor) => confirmedPlacementAd(h, o, editor) : undefined,
-    ),
-    fileId = await productionFile(h, f.o, f.editor, "sample_video"),
+    h,
+    false,
+    withAd ? (o, editor) => confirmedPlacementAd(h, o, editor) : undefined,
+  );
+  await beforeProduction?.(f.o);
+  const fileId = await productionFile(h, f.o, f.editor, "sample_video"),
     s = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
       fileId,
       adSlots: [],
@@ -184,8 +189,11 @@ describe("商家样片反馈与独立发送登记", { timeout: 60_000 }, () => {
   });
 
   it("真实推送→compose同事务写决定/引用/轮次/新SLA，同key重放不增账；新样片可确认", async () => {
-    const f = await sample(true, true),
-      fileIds = [await attachment(f.o), await attachment(f.o), await attachment(f.o)].reverse(),
+    let earlierFileId = "";
+    const f = await sample(true, true, async (o) => {
+        earlierFileId = await attachment(o);
+      }),
+      fileIds = [earlierFileId, await attachment(f.o), await attachment(f.o)].reverse(),
       body = {
         feedbackKind: "compose" as const,
         note: "  字幕靠下遮挡，请上移  ",
@@ -195,6 +203,7 @@ describe("商家样片反馈与独立发送登记", { timeout: 60_000 }, () => {
       before = await snapshot(f.sampleId, f.id),
       ad = await h.prisma.ad.findUniqueOrThrow({ where: { id: f.placement!.ad.id } }),
       result = await h.delivery.sampleRequestChange(f.o.viewer, f.sampleId, body, { idem: key() });
+    expect(earlierFileId < f.fileId).toBe(true);
     expect(result).toMatchObject({
       sampleId: f.sampleId,
       status: "change_requested",
