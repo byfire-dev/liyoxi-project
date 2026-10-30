@@ -72,3 +72,27 @@ pnpm --filter @liyoxi/services exec vitest run src/docs/
 `docs.sweep` 每五分钟仅补 pending→active 与原 active→superseded、人数快照及审计；读路径到点即按唯一 currentVersions 解析。M5 授权书 queued 重投/渲染租约分支不在本包实现。摘要按前一北京时间自然日、seq 顺序、所有列求 SHA-256，secure 桶仅保存固定元数据且用 ifAbsent/内容身份防覆盖；次日重算。摘要不一致调用 evidence.consent_digest_mismatch（P1），对象不可读/写等能力故障调用 evidence.consent_digest_unavailable（P2），并使本次任务真实失败。告警事实落库沿已actual main的独立W224前置；实际API默认Assembly任务已验证P1-only摘要不一致与P2不可读取的真实alert_event行。调用替身仍只证明端口调用，不替代该组合根证据。
 
 两项 job 与不变量索引使用当前 API/worker Assembly 副本，关闭只取消和等待本实例已接受的任务；不设置全局最后绑定。测试支撑 docs-admin.ts 只布置虚构员工/合法 stored 输入/草稿事实。正文验收实际构建并启动 PR1 converter 产物；已有转换字段的 lifecycle fixture 只证明业务状态与引用，不冒充真实处理、云对象存储或法务验收。
+
+## 6. W5-06 当前授权事实
+
+`reconcileLetters(tx, deps, itemIds, triggerRef)` 与 `ensureLetters` 是同一批次 writer。L4 `createRuntimeDocsLicense` 经 delivery 的纯注入桥组合 order/publish/content/tenant 所属 reader，docs 只读自己的同意、信件和版次表。先按全批次取得父单160、订单项170，再锁全批次既有信件240；同一事务不能先对齐一项、取得更高锁后再追加新项。调用方须在计费账户等后续锁之前完成必要预锁与对齐，不能在资金锁内补新信件锁。
+
+API 内部公口为 `runtime.licenseLetters.reconcileLetters/ensureLetters(tx, itemIds, triggerRef)`。`complete` 仅表示当前法律事实已对齐，**不表示 PDF ready、广告可启动或可交付**；实际就绪守卫由 W5-08 结合 W5-07 的真实 ready 版次接入。本包不接 packagePush/reevaluate 的未来守卫。
+
+唯一既有订阅者 `docs.onLicenseFacts` 消费12类开工、订单项、工单与确认信号；事件只提供目标，事务内回读当前阶段与实际选定账号。制作中、待上线、已上线、正常结束保留应有信件；移出账号和取消/退款/终止作废，重选建新信/编号/验真码，旧信不复活。自动换版只比较 status、periodStart、periodEnd；同法律事实重放零写。建信、版次 queued、审计/状态历史和正式事件在同一事务提交。
+
+每个 queued 版次固定真实法定主体、门店、剧目许可/地域、账号、历史交易同意及验真地址。可选非secret `PORTAL_PUBLIC_ORIGIN` 只接受 HTTPS DNS 根地址，API/worker 缺配仍可启动，只有创建新版快照受控失败；作废旧信不需要该配置或新快照资料。它不表示验真页面已交付。USCC 明文仅存在内部法定快照，不回显到普通错误或日志。
+
+07 应直接复用 `LicenseLetterSnapshotSchema/parseLicenseLetterSnapshot`、`canonicalLicenseJson`、`licenseContentFingerprint` 与 `LICENSE_TEMPLATE_VERSION`，不以 Prisma Json 当作已验证快照。规范 JSON 按 UTF16 码元排序键、无空白、UTF8 字节 SHA-256，数组顺序保留；版本正文条款键固定于 v1。当前 ready 指针、渲染/签名/下载及 issued 事件仍归07。
+
+完整 `findN6Violations` 从当前候选与已有未作废信共同发现全部缺信、法律事实不符与多余信，①②经同一 writer 自愈并返回实际 healed；③有效信缺 ready 指针、ready 文件登记哈希不符及版次不连续只报告。PR1 以真实依赖直接测试该公口，**正式 Assembly 尚不登记 N6**，不返回空 run 或声称 full 已有 N6。N16 正式登记并独立核订单/订单项/账号存在性与归属，缺 reader 或缺外部引用不能降为零违规。每个 API/worker 的 subscriber、N16 与关闭均为独立 closure，关闭拒绝新操作并等待在途操作结束。
+
+N6的当前集合检查①②③保留未作废过滤；ready文件哈希与版号连续性独立按本次主体scope读取全部状态的历史信及版次，包含取消/移出后的voided信，只报告、不改历史证据。对应异常历史测试在真实取消后明确注入queued版号缺口及错误ready哈希声明，文件字节和登记哈希由真实media公口生成；这是损坏证据反例，不是渲染、签名或生产ready验收。
+
+W5-06 同编号分为两个 PR：PR1 交事实、writer、真实 subscriber、N16 和完整 N6 函数；PR2 紧接07真实 renderer/consumer actual 后启用完整 N6，验证真实 M1 full 零违规。07 只依赖06PR1，03/08仍等06整包；本说明不改变 M5 退出或既有 CI。第一次 M1 真实链实际到达 live，full 的138项检查、0错误中出现1条 N6③：06只生成 queued、07尚无 ready。这是已暴露的交付依赖，③语义保持，不造 ready、不改原零违规断言；PR1 的 full 零违规不等于已检查 N6。
+
+07 沿业主缺字裁定：该版出件暂停并明确缺字，修改资料或字体后重试；此出件行为尚待07落地，06不生成替代文字或伪 ready。
+
+测试的真实链为 Fake 外部渠道成功事实→正式付款履约→两账号绑定审核→订购及历史同意→实际开工→首次方案确认→真实取消审批执行→正式 relay/lease/consume。日期改变、正常 ended、确认后重选当前没有本包可调用的完整 producer，明确以纯注入事实测试 writer，不 SQL 造阶段/资金成功/PDF ready。W5-07/08、M6 和真实法律正文/证书验收仍未完成。
+
+PR1分片后原M1真实20集制作/交付/上线链已复验，实际正式Assembly的137项full检查零违规、零错误，原90秒预算不变；其中没有N6。完整N6公口的自愈与③只报告另有真实依赖定点验证，PR2仍须在07 actual后正式登记并跑包含N6的原full断言，不能用PR1这次绿色替代。

@@ -48,6 +48,7 @@ import {
 } from "./identity/index.js";
 import type { SubscribeResults } from "./notify/index.js";
 import { createDocsAssembly, createRuntimeDocs } from "./ops/index.js";
+import { createDocsLicenseAssembly, createRuntimeDocsLicense } from "./ops/index.js";
 import type { Docs } from "./docs/index.js";
 import { createClientErrorForwarder, createServerErrorReporter } from "./ops/index.js";
 import type { ClientErrorForwarder, ServerErrorReporter } from "./ops/index.js";
@@ -290,6 +291,10 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly licenseLetters: Pick<
+    ReturnType<typeof createDocsLicenseAssembly>,
+    "reconcileLetters" | "ensureLetters"
+  >;
   readonly sessionMutex: SessionMutex;
   readonly docs: Docs;
   readonly docsAdmin: ReturnType<typeof createRuntimeDocs>["admin"];
@@ -500,7 +505,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
-  const invitationScope = createInvitationAssembly(docsScope.assembly);
+  const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
+  const invitationScope = createInvitationAssembly(docsLicenseScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
@@ -791,6 +797,15 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     bumpAgreement: () => config.cache.bump("agreement"),
   });
   docsScope.attach(docsServices.jobs);
+  docsLicenseScope.attach(
+    createRuntimeDocsLicense({
+      clock,
+      flow,
+      events,
+      portalOrigin: env.PORTAL_PUBLIC_ORIGIN,
+      keyring: () => options.billingKeyring ?? loadKeyring(env),
+    }),
+  );
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
@@ -1181,6 +1196,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     : undefined;
   return {
     sessionMutex,
+    licenseLetters: docsLicenseScope,
     docs: docsServices.docs,
     docsAdmin: docsServices.admin,
     documentConverter,
@@ -1256,7 +1272,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
-        await settle([() => docsScope.close(), () => documentConverter?.close()]);
+        await settle([
+          () => docsLicenseScope.close(),
+          () => docsScope.close(),
+          () => documentConverter?.close(),
+        ]);
         await settle([
           () => staffScope.close(),
           () => media.jobs.shutdown(),

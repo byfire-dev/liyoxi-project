@@ -74,6 +74,12 @@ it("同源码两次真实HTTP装配保留同库与MinIO，错归属拒绝且每�
       createM1Support({ attach: { ...attach, scope: { ...scope, ownerToken: "b".repeat(32) } } }),
     ).rejects.toThrow("自有Redis能力");
     first = await createM1HttpBridge({ attach });
+    expect(scope.licenseTestInputs).toEqual({
+      portalPublicOrigin: "https://portal.example.invalid",
+    });
+    expect(first.support.runtime.env.PORTAL_PUBLIC_ORIGIN).toBe(
+      scope.licenseTestInputs?.portalPublicOrigin,
+    );
     const admin = await bootstrapM1Admin(first.api);
     const call = createM1Caller(first.api);
     expect(

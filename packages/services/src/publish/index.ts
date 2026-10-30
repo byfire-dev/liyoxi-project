@@ -21,3 +21,5 @@ export {
   resyncDeliveryPublishExpiry,
 } from "./delivery-lifecycle.js";
 export type { DeliveryPublishTargets } from "./delivery-lifecycle.js";
+export { readLicenseAccounts } from "./license-facts.js";
+export type { LicenseAccountFact } from "./license-facts.js";

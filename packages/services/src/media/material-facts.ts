@@ -66,6 +66,7 @@ export async function readMaterialFileFacts(tx: Tx, fileIds: readonly string[]) 
       sizeBytes: true,
       objectKey: true,
       etag: true,
+      sha256: true,
       deletedAt: true,
       erasedAt: true,
       mediaInfo: { select: { coverFileId: true } },

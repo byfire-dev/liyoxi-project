@@ -44,6 +44,11 @@ import {
 } from "./m1-production.js";
 import type { M1Support, M1SupportOptions } from "./m1-types.js";
 import { assertM1OwnerNetwork } from "./m1-owner-network.js";
+import {
+  assertM1LicenseTestInputs,
+  M1_LICENSE_TEST_INPUTS,
+  prepareM1LicenseInputs,
+} from "./m1-license-inputs.js";
 
 const localUrl = (
   url: string,
@@ -75,11 +80,20 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       throw new Error("M1 attach 必须显式local/独立链标识/对应版本，且禁止可拨时钟");
   } else if (process.env.APP_ENV !== "test")
     throw new Error("M1 接口重放仅在 APP_ENV=test 的新隔离库执行");
+  if (options.portalPublicOrigin !== undefined && attach)
+    throw new Error("测试授权验真地址只允许独立test owner，不能注入local attach");
+  const licenseTestInputs = attach
+    ? attach.scope.licenseTestInputs
+    : {
+        portalPublicOrigin: options.portalPublicOrigin ?? M1_LICENSE_TEST_INPUTS.portalPublicOrigin,
+      };
+  if (licenseTestInputs) assertM1LicenseTestInputs(licenseTestInputs);
   const base = loadEnv({
     APP_ENV: attach ? "local" : "test",
     LOG_LEVEL: "warn",
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
+    ...(licenseTestInputs ? { PORTAL_PUBLIC_ORIGIN: licenseTestInputs.portalPublicOrigin } : {}),
   });
   const isolationId = attach?.scope.runId ?? options.runId ?? randomBytes(6).toString("hex");
   if (!ownerNetwork) {
@@ -418,6 +432,8 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       profileDefaults: M1_PROFILE_DEFAULTS,
       async seedDemo() {
         assertOwned();
+        if (!licenseTestInputs)
+          throw new Error("M1 local attach 缺少test owner显式授权的法定测试输入");
         if ((await apiRuntime.config.params.get("order.start_delay_minutes")) !== 0)
           throw new Error("M1 演示要求当前开工延迟为 0；拒绝覆盖已有参数");
         // Match the official demo CLI's one seed instant; HTTP/jobs keep their real runtime clock.
@@ -439,6 +455,15 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
             observer?.waitForBatch,
           ),
           params: apiRuntime.config.params,
+        });
+        assertOwned();
+        if (!redis || (await redis.get(ownerKey)) !== ownerToken)
+          throw new Error("M1 法定测试输入的owner能力已失效");
+        await prepareM1LicenseInputs({
+          db: readDb,
+          clock: seedClock,
+          env,
+          inputs: licenseTestInputs,
         });
         const baseline = await seedM1ProfileDefaults(apiRuntime);
         return {
@@ -521,6 +546,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           redisPrefix,
           ownerToken,
           startedAt: startedAt.toISOString(),
+          ...(licenseTestInputs ? { licenseTestInputs } : {}),
         };
       },
       close,
