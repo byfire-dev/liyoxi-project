@@ -35,7 +35,12 @@ import {
   createProfileQualificationConsistency,
 } from "../../profile/index.js";
 import { createInvitationAssembly } from "../invitation-runtime.js";
-import { createNotifyAssembly, createRuntimeNotify } from "../index.js";
+import {
+  createDocsLicenseAssembly,
+  createRuntimeDocsLicense,
+  createNotifyAssembly,
+  createRuntimeNotify,
+} from "../index.js";
 import { bindOps } from "../binding.js";
 import { runInvariants } from "./run.js";
 import { selectChecks } from "./select.js";
@@ -117,11 +122,15 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
   const profileScope = createProfileConsistencyAssembly(invitationScope.assembly);
   let profileCommits: ReturnType<typeof createProfileConsistencyTransactions>;
   const mediaScope = createMediaAssembly(profileScope.assembly);
-  const assembly = mediaScope.assembly;
+  const docsLicenseScope = createDocsLicenseAssembly(mediaScope.assembly);
+  const assembly = docsLicenseScope.assembly;
   beforeAll(async () => {
     const config = createConfig({ db: prisma, clock, redis: null });
     const events = createEvents({ tx, clock, assembly });
     const flow = createFlow({ assembly, clock, events });
+    docsLicenseScope.attach(
+      createRuntimeDocsLicense({ clock, flow, events, keyring: () => TEST_KEYRING }),
+    );
     const media = createMedia({
       tx,
       clock,
@@ -186,6 +195,7 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
     });
   });
   afterAll(async () => {
+    await docsLicenseScope.close();
     mediaScope.close();
     await profileScope.close();
     invitationScope.close();
@@ -207,6 +217,7 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
           "config.N17",
           "config.N19",
           "config.N20",
+          "docs.N16",
           "events.I8",
           "flow.I12",
           "sla.N8",

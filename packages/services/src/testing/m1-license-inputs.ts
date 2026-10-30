@@ -10,6 +10,7 @@ export const M1_LICENSE_TEST_INPUTS = {
   portalPublicOrigin: "https://portal.example.invalid",
 } as const;
 export type M1LicenseTestInputs = typeof M1_LICENSE_TEST_INPUTS;
+type M1LicenseInputDb = Pick<PrismaClient, "$queryRaw" | "paramValue" | "staff">;
 
 export function assertM1LicenseTestInputs(value: unknown): asserts value is M1LicenseTestInputs {
   if (
@@ -23,7 +24,7 @@ export function assertM1LicenseTestInputs(value: unknown): asserts value is M1Li
     throw new Error("M1 授权测试输入必须由owner明确传递固定虚构验真地址");
 }
 
-export async function assertM1LicenseTestDatabase(db: PrismaClient, databaseUrl: string) {
+export async function assertM1LicenseTestDatabase(db: M1LicenseInputDb, databaseUrl: string) {
   assertTestDatabaseUrl(databaseUrl);
   const actual = await db.$queryRaw<{ name: string }[]>`SELECT current_database() AS name`;
   if (new URL(databaseUrl).pathname !== `/${actual[0]?.name}`)
@@ -32,7 +33,7 @@ export async function assertM1LicenseTestDatabase(db: PrismaClient, databaseUrl:
 
 /** Caller must first verify its owned scope; the borrowed client must target that exact test DB. */
 export async function prepareM1LicenseInputs(input: {
-  db: PrismaClient;
+  db: M1LicenseInputDb;
   clock: Clock;
   env: Pick<Env, "APP_ENV" | "DATABASE_URL" | "PORTAL_PUBLIC_ORIGIN">;
   inputs: M1LicenseTestInputs;
