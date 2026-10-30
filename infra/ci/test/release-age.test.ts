@@ -3,10 +3,11 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { git, makeTempRepo, repoRoot, runAsync, writeFiles } from "./helpers.js";
+import { git, makeTempRepo, repoRoot, run, runAsync, writeFiles } from "./helpers.js";
 
 const script = join(repoRoot, "infra/ci/check-release-age.mjs");
 const DAY_MS = 86_400_000;
@@ -44,7 +45,45 @@ afterEach(() => {
 });
 
 const WORKSPACE = 'packages:\n  - "packages/*"\n\nminimumReleaseAge: 10080\n';
+const FORGE_WORKSPACE = `${WORKSPACE}minimumReleaseAgeExclude:\n  - "node-forge@1.4.2"\n`;
 const MANIFEST = '{\n  "name": "fixture",\n  "packageManager": "pnpm@10.0.1"\n}\n';
+
+// 直接调用无 I/O 的 policy，时钟固定；不给生产命令增加可伪造核对时间的参数。
+function policy<T>(method: string, input: unknown): T {
+  const moduleUrl = pathToFileURL(join(repoRoot, "infra/ci/release-age-policy.mjs")).href;
+  const result = run(
+    "node",
+    [
+      "--input-type=module",
+      "--eval",
+      `import { ${method} } from ${JSON.stringify(moduleUrl)};\n` +
+        `process.stdout.write(JSON.stringify(${method}(${JSON.stringify(input)})));`,
+    ],
+    repoRoot,
+  );
+  expect(result.status).toBe(0);
+  return JSON.parse(result.stdout) as T;
+}
+
+interface ReleaseResult {
+  error: string | null;
+  ageMs: number | null;
+  exempt: boolean;
+}
+
+const FORGE_PUBLISHED = "2026-10-27T14:09:15.471Z";
+const FORGE_EXPIRES = "2026-11-03T14:09:15.471Z";
+const BEFORE_EXPIRY = Date.parse(FORGE_EXPIRES) - 1;
+
+function releasePolicy(overrides: Record<string, unknown> = {}): ReleaseResult {
+  return policy<ReleaseResult>("checkVersionReleaseAge", {
+    key: "node-forge@1.4.2",
+    published: FORGE_PUBLISHED,
+    nowMs: BEFORE_EXPIRY,
+    exceptionConfigured: true,
+    ...overrides,
+  });
+}
 
 /** 照 pnpm 锁文件 9.0 版的样子拼一份，keys 是 “包名@版本” */
 function lockfile(keys: readonly string[]): string {
@@ -150,10 +189,103 @@ describe("pnpm-workspace.yaml 的设置", () => {
     expect(result.stderr).toContain(message);
   });
 
-  it("本仓库：有 minimumReleaseAge: 10080，没有 minimumReleaseAgeExclude", () => {
+  it("本仓库：保留 minimumReleaseAge: 10080，只登记本次精确安全例外", () => {
     const workspace = readFileSync(join(repoRoot, "pnpm-workspace.yaml"), "utf8");
     expect(workspace).toMatch(/^minimumReleaseAge: 10080$/m);
-    expect(workspace).not.toMatch(/^minimumReleaseAgeExclude\s*:/m);
+    const result = policy<{ violations: string[]; exceptionConfigured: boolean }>(
+      "checkWorkspaceReleaseAge",
+      workspace,
+    );
+    expect(result.violations).toEqual([]);
+    expect(result.exceptionConfigured).toBe(true);
+  });
+});
+
+describe("仅 node-forge@1.4.2 的单次限时安全修复例外", () => {
+  it("到期前一毫秒生效；没有精确配置仍按7天拒绝", () => {
+    expect(releasePolicy()).toMatchObject({ error: null, exempt: true });
+    expect(releasePolicy({ exceptionConfigured: false }).error).toContain("未满 7 天");
+  });
+
+  it.each([0, 1, DAY_MS])("期满后 %s 毫秒按普通规则通过，不延长例外", (elapsed) => {
+    const nowMs = Date.parse(FORGE_EXPIRES) + elapsed;
+    expect(releasePolicy({ nowMs })).toMatchObject({ error: null, exempt: false });
+    expect(releasePolicy({ nowMs, exceptionConfigured: false })).toMatchObject({
+      error: null,
+      exempt: false,
+    });
+  });
+
+  it.each(["node-forge@1.4.1", "node-forge@1.4.3", "other@1.4.2", "pnpm@10.34.5"])(
+    "%s 不被本次例外覆盖",
+    (key) => expect(releasePolicy({ key }).error).toContain("未满 7 天"),
+  );
+
+  it.each([
+    "invalid",
+    "2026-02-31T14:09:15.471Z",
+    "2026-10-26T14:09:15.471Z",
+    "2026-10-28T14:09:15.471Z",
+    "2026-11-02T14:09:15.471Z",
+    0,
+    null,
+  ])("registry 发布时间 %s 拒绝；不能据修改日期扩大窗口", (published) => {
+    expect(releasePolicy({ published }).error).toMatch(/无效|不一致/);
+  });
+
+  it("未到官方发布时间不生效", () => {
+    const nowMs = Date.parse(FORGE_PUBLISHED) - 1;
+    expect(releasePolicy({ nowMs }).error).toContain("未满 7 天");
+  });
+
+  it.each([
+    "node-forge",
+    "node-forge@^1.4.2",
+    "node-forge@1.4.*",
+    "node-forge@1.4.1",
+    "other@1.4.2",
+    "node-forge@1.4.2 || 1.4.3",
+    '"node-forge@1.4.2"\n  - other@1.4.2',
+  ])("不接受 selector %s", (selector) => {
+    const workspace = `${WORKSPACE}minimumReleaseAgeExclude:\n  - ${selector}\n`;
+    const result = policy<{ violations: string[]; exceptionConfigured: boolean }>(
+      "checkWorkspaceReleaseAge",
+      workspace,
+    );
+    expect(result.exceptionConfigured).toBe(false);
+    expect(result.violations.join("\n")).toContain("只允许本次精确");
+  });
+
+  it.each([
+    `${FORGE_WORKSPACE}minimumReleaseAgeExclude:\n  - "node-forge@1.4.2"\n`,
+    `${FORGE_WORKSPACE}minimumReleaseAge: 0\n`,
+    `${WORKSPACE}minimumReleaseAgeExclude: ["node-forge@1.4.2"]\n`,
+    `${WORKSPACE}minimumReleaseAgeExclude: *shared\n`,
+  ])("重复键/流式/别名配置拒绝", (workspace) => {
+    const result = policy<{ violations: string[] }>("checkWorkspaceReleaseAge", workspace);
+    expect(result.violations.length).toBeGreaterThan(0);
+  });
+
+  it("真实checker仍核registry日期；配置例外不能掩盖篡改发布时间", async () => {
+    published.set("pnpm", { "10.0.1": daysAgo(30) });
+    published.set("node-forge", { "1.4.2": "2026-10-26T14:09:15.471Z" });
+    const result = await check(project({ keys: ["node-forge@1.4.2"], workspace: FORGE_WORKSPACE }));
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("registry 发布时间与本次已核记录不一致");
+  });
+
+  it("真实checker使用固定官方日期；日志如实区分例外和自然成熟", async () => {
+    published.set("pnpm", { "10.0.1": daysAgo(30) });
+    published.set("node-forge", { "1.4.2": FORGE_PUBLISHED });
+    const result = await check(project({ keys: ["node-forge@1.4.2"], workspace: FORGE_WORKSPACE }));
+    expect(result.status).toBe(0);
+    if (Date.now() < Date.parse(FORGE_EXPIRES)) {
+      expect(result.stdout).toContain("1 个使用限时安全修复例外");
+      expect(result.stdout).toContain(FORGE_EXPIRES);
+    } else {
+      expect(result.stdout).toContain("2 个版本都已发布满 7 天");
+      expect(result.stdout).toContain("按普通规则核对");
+    }
   });
 });
 
