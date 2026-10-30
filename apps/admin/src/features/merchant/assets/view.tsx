@@ -2,7 +2,7 @@ import { STORE_ASSET_TYPE, STORE_ASSET_USABILITY } from "@liyoxi/contract";
 import { formatDurationMs } from "@liyoxi/shared/format/duration";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Select, Space } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppServices } from "../../../app/services";
 import { InfoList } from "../../../components/InfoList";
 import { QueryTablePage, type QueryColumn } from "../../../components/QueryTablePage";
@@ -14,6 +14,7 @@ import { merchantScope, moment, status, text } from "../detail/model";
 import { createAssetReadApi, type AssetDetail, type AssetRow } from "./api";
 import { AssetActions } from "./actions";
 import { AssetDemands } from "./demands";
+import { createAssetDeleteReads } from "./delete-reads";
 import { AssetEditor } from "./editor";
 import { createAssetWriteApi } from "./write-api";
 import { assetPermission, type AssetIntent } from "./write-model";
@@ -40,14 +41,28 @@ interface AssetViewProps {
   change(next: Record<string, string>): void;
 }
 export function MerchantAssetsView(props: AssetViewProps) {
+  const [notice, setNotice] = useState<string>();
   return (
     <MerchantAssetsContent
       key={`${merchantScope(props.access)}:${props.storeId}:${JSON.stringify(assetSearch(props.search))}`}
       {...props}
+      notice={notice}
+      setNotice={setNotice}
     />
   );
 }
-function MerchantAssetsContent({ services, storeId, access, search, change }: AssetViewProps) {
+function MerchantAssetsContent({
+  services,
+  storeId,
+  access,
+  search,
+  change,
+  notice,
+  setNotice,
+}: AssetViewProps & {
+  notice: string | undefined;
+  setNotice(value: string | undefined): void;
+}) {
   const wire = assetSearch(search),
     api = createAssetReadApi(services),
     writes = createAssetWriteApi(services),
@@ -55,7 +70,19 @@ function MerchantAssetsContent({ services, storeId, access, search, change }: As
     permitted = canReadAssets(access);
   const context = JSON.stringify(wire),
     [intent, setIntent] = useState<{ id: string; value: AssetIntent; errorScope: string }>(),
-    [notice, setNotice] = useState<string>();
+    [, updateDetail] = useState(0),
+    active = useRef(false),
+    [deleteReads] = useState(() =>
+      createAssetDeleteReads(services.queryClient, scope, storeId, wire.assetId, () =>
+        updateDetail((value) => value + 1),
+      ),
+    );
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   const refresh = () =>
     services.queryClient.invalidateQueries({ queryKey: [...ASSET_READ_KEY, scope, storeId] });
   const rows = useQuery({
@@ -82,7 +109,7 @@ function MerchantAssetsContent({ services, storeId, access, search, change }: As
       if (!picked) throw new Error("请选择当前页可见素材");
       return api.detail(picked, storeId, signal);
     },
-    enabled: permitted && !!picked,
+    enabled: () => permitted && !!picked && !deleteReads.paused(),
     ...DETAIL_QUERY,
     placeholderData: undefined,
   });
@@ -266,7 +293,9 @@ function MerchantAssetsContent({ services, storeId, access, search, change }: As
         empty={{ title: "暂无可见素材", filteredTitle: "没有符合条件的素材" }}
       />
       {wire.assetId ? (
-        !picked ? (
+        deleteReads.paused() ? (
+          <p aria-busy="true">正在确认删除结果…</p>
+        ) : !picked ? (
           <EmptyState
             title="所选素材不在当前页可见结果中"
             description="请从当前列表重新选择；不会请求其他门店的素材地址。"
@@ -303,6 +332,28 @@ function MerchantAssetsContent({ services, storeId, access, search, change }: As
           access={access}
           close={() => setIntent(undefined)}
           refresh={refresh}
+          deleteReads={
+            intent.value.kind === "delete"
+              ? {
+                  ...deleteReads,
+                  async committed() {
+                    await deleteReads.committed();
+                    if (active.current) {
+                      setIntent(undefined);
+                      setNotice("素材已删除，已刷新列表");
+                      change(assetSearch({ ...wire, assetId: undefined }));
+                    }
+                  },
+                  async dismiss() {
+                    if (active.current) {
+                      setNotice("删除结果尚未确认，已返回素材列表。请刷新列表核对后再操作。");
+                      change(assetSearch({ ...wire, assetId: undefined }));
+                    }
+                    await deleteReads.dismiss();
+                  },
+                }
+              : undefined
+          }
           notice={setNotice}
         />
       ) : null}
