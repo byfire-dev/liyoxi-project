@@ -7,6 +7,7 @@ import type {
   SampleCreateBody,
   SampleInspectBody,
   SamplePushBody,
+  SampleRequestChangeBody,
   EpisodeRegisterBody,
   InspectEpisodesBody,
   PushPackageBody,
@@ -29,6 +30,10 @@ import {
   urgency,
   qcView,
 } from "./views.js";
+import {
+  requestChange as requestSampleChange,
+  markSent as markSampleSent,
+} from "./sample-feedback.js";
 import { createSample, inspectSample, pushSample, confirmSample, sampleOf } from "./samples.js";
 import {
   adminSampleView,
@@ -199,6 +204,52 @@ export function createDelivery(deps: DeliveryDeps) {
       }, options);
       return {
         ...(options.idem?.replayed ? data : await signAdminSample(deps, data)),
+        replayed: options.idem?.replayed ?? false,
+      };
+    },
+    sampleMarkSent: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertPermission(staff, "delivery.sample.push", deps.clock.now());
+      await deps.tx.run((tx) => sampleOf(tx, id, staff));
+      const data = await deps.tx.run(async (tx) => {
+        await markSampleSent(tx, deps, ctx, staff, id);
+        const { s, t } = await sampleOf(tx, id, staff);
+        return adminSampleView(tx, deps, t, s, staff);
+      }, options);
+      if (options.idem?.replayed) {
+        const view = { ...data } as typeof data & { replayed?: boolean };
+        delete view.replayed;
+        return view;
+      }
+      return signAdminSample(deps, data);
+    },
+    sampleRequestChange: async (
+      viewer: DeliveryViewer,
+      id: string,
+      body: SampleRequestChangeBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      assertOwner(viewer);
+      await deps.tx.run((tx) => sampleOf(tx, id, viewer));
+      const raw = await deps.tx.run(async (tx) => {
+        await requestSampleChange(tx, deps, viewer, id, body);
+        const { s, t } = await sampleOf(tx, id, viewer);
+        return (await merchantSampleView(tx, deps, t, s)).view;
+      }, options);
+      return {
+        ...(options.idem?.replayed
+          ? { ...raw, playable: null }
+          : await signMerchantSample(
+              deps,
+              await deps.tx.run(async (tx) => {
+                const { s, t } = await sampleOf(tx, id, viewer);
+                return merchantSampleView(tx, deps, t, s);
+              }),
+            )),
         replayed: options.idem?.replayed ?? false,
       };
     },

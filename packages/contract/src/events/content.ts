@@ -78,6 +78,7 @@ export const payloads = {
   "drama.created": dramaCreatedPayload,
   "drama.tier_changed": dramaTierChangedPayload,
   "drama.license_extended": dramaLicenseExtendedPayload,
+  "drama.license_shortened": dramaLicenseExtendedPayload,
   "drama.license_scope_changed": dramaLicenseScopeChangedPayload,
   "drama.delisted": dramaDelistedPayload,
   "drama.listed": dramaListedPayload,

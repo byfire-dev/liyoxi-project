@@ -58,7 +58,7 @@ export const UPLOAD_CATEGORIES = {
     { merchant: true, admin: true, crossStore: true },
   ),
   channel_screenshot: category("asset", "store", image, { merchant: true }),
-  ticket_attachment: category("asset", "store", image),
+  ticket_attachment: category("asset", "store", image, { merchant: true }),
   video_cover: category("asset", "store", image),
   drama_master: category("media", "platform", video),
   trailer_src: category("media", "platform", video, { admin: true }),

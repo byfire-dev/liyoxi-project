@@ -50,6 +50,11 @@ export function assertMerchantCategory(actor: MediaActor, input: RegisterInput):
   if (input.category === "pay_receipt") {
     if (!(hasCapability(standing, "plan.purchase") || hasCapability(standing, "points.topup")))
       throw new AppError("ROLE_FORBIDDEN");
+  } else if (input.category === "ticket_attachment") {
+    // ticket.* is one registered group key; this checks exact keys, never a prefix wildcard.
+    const capabilities = ["ticket.*", "delivery.confirm_sample", "ad.confirm"] as const;
+    if (standing === "clerk" || !capabilities.some((key) => hasCapability(standing, key)))
+      throw new AppError(standing === "archivedOwner" ? "STORE_ARCHIVED" : "ROLE_FORBIDDEN");
   } else
     assertCapability(
       standing,

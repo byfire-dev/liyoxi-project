@@ -1,5 +1,5 @@
 import type { SamplePushBody } from "@liyoxi/contract";
-import type { Prisma, Sample } from "@liyoxi/db";
+import type { Prisma } from "@liyoxi/db";
 import type { StaffContext } from "../authz/index.js";
 import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
@@ -9,7 +9,6 @@ import type { DeliveryDeps, DeliveryViewer } from "./context.js";
 import { moveSample } from "./sample-transitions.js";
 import { recoverLegacySample } from "./sample-legacy-recovery.js";
 import { assertOwner, lockTickets, ticketOf } from "./repo.js";
-import type { TicketRow } from "./repo.js";
 import { step, reevaluate } from "./reevaluate.js";
 import { lockReevaluationInputs } from "./reevaluate-inputs.js";
 import { orderSidePort } from "./ports.js";
@@ -259,26 +258,7 @@ export async function pushSample(
   await deps.assembly.port(orderSidePort).rederive(tx, { orderItemIds: [t.orderItemId] });
   return s.id;
 }
-export async function sampleEvidence(tx: Tx, deps: DeliveryDeps, t: TicketRow, s: Sample) {
-  const rows = await tx.auditLog.findMany({
-    where: {
-      stream: "access",
-      targetType: "sample",
-      targetId: s.id,
-      action: { in: ["delivery.sample.album_download", "delivery.sample.portal_preview"] },
-    },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-  });
-  const album = rows.find((r) => r.action === "delivery.sample.album_download")?.createdAt ?? null,
-    portal = rows.find((r) => r.action === "delivery.sample.portal_preview")?.createdAt ?? null,
-    enabled = (await deps.samplePlayback?.(t.entityId)) ?? false;
-  const production = await deps.media.deliveryProductionFacts(tx, s.fileId);
-  const possible =
-    enabled && s.previewChannels.includes("weapp") && production.ready && production.playable
-      ? ["weapp"]
-      : [];
-  return { album, portal, enabled, possible, production };
-}
+export { sampleEvidence } from "./sample-view-evidence.js";
 export async function confirmSample(
   tx: Tx,
   deps: DeliveryDeps,

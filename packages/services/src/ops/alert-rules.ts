@@ -11,6 +11,7 @@ export const EVENT_ALERT_RULES = [
   "timer.failed",
   "outbox.exhausted",
   "order.start_capture_failed",
+  "order.license_shortened",
   "order.pending_start_missing",
   "webhook.dead",
   "webhook.failing",

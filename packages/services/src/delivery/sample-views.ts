@@ -6,7 +6,7 @@ import { staffBriefs } from "../staff/index.js";
 import type { DeliveryDeps } from "./context.js";
 import { iso, dateOf } from "./repo.js";
 import type { TicketRow } from "./repo.js";
-import { sampleEvidence } from "./samples.js";
+import { sampleEvidence } from "./sample-view-evidence.js";
 import {
   isLegacySampleQuality,
   isLegacySampleRecoveryCandidate,
@@ -89,6 +89,25 @@ export async function adminSampleView(
     )
       actions.push("recover_legacy");
   }
+  const latest = await tx.sample.findFirst({
+    where: { deliveryTicketId: t.id },
+    orderBy: { versionNo: "desc" },
+    select: { id: true },
+  });
+  if (
+    !t.pauseCount &&
+    !s.offlineSentAt &&
+    ["qc_passed", "pushed"].includes(s.status) &&
+    actual.ready &&
+    actual.playable &&
+    hasPermission(staff, "delivery.sample.push") &&
+    latest?.id === s.id &&
+    ((s.status === "qc_passed" && t.step === "sample_making") ||
+      (s.status === "pushed" &&
+        t.step === "sample_confirm" &&
+        s.versionNo === t.currentSampleVersionNo))
+  )
+    actions.push("mark-sent");
   return {
     sampleId: s.id,
     deliveryTicketId: t.id,
@@ -236,8 +255,11 @@ export async function merchantSampleView(tx: Tx, deps: DeliveryDeps, t: TicketRo
       sampleRoundNo: t.sampleRoundNo,
       agreedLaunchDate: dateOf(t.orderItem.agreedLaunchDate),
       actions:
-        s.status === "pushed" && t.step === "sample_confirm" && !t.pauseCount && e.possible.length
-          ? ["confirm"]
+        s.status === "pushed" &&
+        t.step === "sample_confirm" &&
+        !t.pauseCount &&
+        s.versionNo === t.currentSampleVersionNo
+          ? [...(e.possible.length ? ["confirm"] : []), "request-change"]
           : [],
     },
     files: {

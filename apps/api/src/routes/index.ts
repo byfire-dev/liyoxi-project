@@ -31,6 +31,7 @@ import { adminOrderCancelRequestHandlers } from "./admin/order-cancel-requests.j
 import { publishHandlers } from "./publish.js";
 import { deliveryHandlers } from "./delivery.js";
 import { adminDeliveryM5Handlers } from "./admin/delivery-m5.js";
+import { adminSampleOrderM5Handlers } from "./admin/sample-order-m5.js";
 import { adminProductionMaterialsHandlers } from "./admin/production-materials.js";
 import { deliveryDownloadHandlers } from "./delivery-download.js";
 // 全部处理器的清单（W0-22）。各域的接口包：在本目录下建自己的文件（一条契约路由配一个 defineHandler），
@@ -141,6 +142,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...deliveryHandlers,
   ...adminDeliveryM5Handlers,
   ...adminProductionMaterialsHandlers,
+  ...adminSampleOrderM5Handlers,
   ...deliveryDownloadHandlers,
   ...adminProfileHandlers,
   ...adminFollowUpHandlers,

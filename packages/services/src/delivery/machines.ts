@@ -118,6 +118,7 @@ const rows = [
   ["10:174", "ads.ready"],
   ["10:175", "sample.pushed"],
   ["10:176", "sample.confirmed"],
+  ["10:177", "sample.change_requested"],
   ["10:180", "episodes.all_passed"],
   ["10:182", "package.pushed"],
   ["10:183", "launch.changed"],
@@ -148,6 +149,7 @@ const ticket: MachineBinding = {
     "current_sample_version_no",
     "sample_first_pushed_at",
     "sample_confirmed_at",
+    "sample_round_no",
     "delivered_at",
     "editor_id",
     "pause_count",
@@ -268,6 +270,9 @@ export const deliveryMachines = [
       "confirm_viewed_via",
       "viewed_ack_at",
       "viewed_ack_by_user_id",
+      "feedback_kind",
+      "feedback_note",
+      "feedback_file_ids",
     ],
     guards: guards([
       ["10:640", "sample.uploaded"],
@@ -276,6 +281,7 @@ export const deliveryMachines = [
       ["10:643", "sample.qc_passed"],
       ["10:644", "sample.pushed"],
       ["10:645", "sample.confirmed"],
+      ["10:646", "sample.change_requested"],
       ["10:648", "sample.superseded"],
     ]),
     activity: (f) => ({

@@ -32,6 +32,7 @@ export async function moveSample(
     stateField: "status",
     id: s.id,
     event,
+    ...(event === "sample.change_requested" ? { ref: "10:646", to: "change_requested" } : {}),
     created,
     meta: sampleAuditMeta(ctx),
     args: checked(),
@@ -48,6 +49,7 @@ export async function moveSample(
         dramaOrderId: t.dramaOrderId,
         versionNo: s.versionNo,
         ...(event === "sample.confirmed" ? { viewedVia: set.confirm_viewed_via } : {}),
+        ...(event === "sample.change_requested" ? { feedbackKind: set.feedback_kind } : {}),
       },
     },
   });

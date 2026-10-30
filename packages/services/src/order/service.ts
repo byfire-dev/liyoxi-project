@@ -1,4 +1,8 @@
-import { OrderQuoteBodySchema, OrderCreateBodySchema } from "@liyoxi/contract";
+import {
+  OrderQuoteBodySchema,
+  OrderCreateBodySchema,
+  AdminOrderQuoteBodySchema,
+} from "@liyoxi/contract";
 import type { OrderQuoteBody, OrderCreateBody } from "@liyoxi/contract";
 import type { IdempotencyContext } from "../kernel/index.js";
 import { owner } from "./checks.js";
@@ -23,10 +27,20 @@ import { AppError } from "../kernel/index.js";
 import { cartItems, addCart, removeCart, acceptCartPrice, signCart } from "./cart.js";
 import { listOrders, listItems, itemDetail, itemSummary, signItems } from "./merchant-read.js";
 import { adminList, adminSummary, adminDetail } from "./admin-read.js";
+import { adminQuote } from "./admin-quote.js";
+import { orderActivity } from "./activity-read.js";
 export function createOrderService(deps: OrderDeps) {
   const newDays = async () =>
     (await deps.config.siteConfig.published("home_recommend"))?.content.newDays ?? null;
   return {
+    async adminQuote(input: unknown) {
+      const parsed = AdminOrderQuoteBodySchema.parse(input),
+        at = deps.clock.now();
+      return deps.tx.run((tx) => adminQuote(tx, deps, parsed, at));
+    },
+    async activityList(scope: DataScope, id: string, input: unknown) {
+      return deps.tx.run((tx) => orderActivity(tx, scope, id, input));
+    },
     async adminList(scope: DataScope, input: AdminOrderListQuery) {
       const at = deps.clock.now();
       return deps.tx.run((tx) => adminList(tx, scope, input, at));

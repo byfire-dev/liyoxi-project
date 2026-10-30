@@ -1,5 +1,13 @@
 # order：订剧、选剧单与订单读侧
 
+## W5-05 订单后续事实
+
+`order.adminQuote`只读取当前套餐价目、billing `priceAt` / `paramsAt` 与content可订提示，复用 `quoteDramaItem`；草稿/下架剧可试算，无价格返回null。`order.activityList`先按managedStore确认本单，再按本单真实订单项/工单/方案/样片/授权书/取消与审批对象读取ops/activity日志；游标绑定订单及(createdAt,seq)，不返回原始审计JSON，不写业务。
+
+`order.onCalendarImported`持日历共享锁，按当前批次与计算窗口重算未完成广告首版/修改轮次、待执行取消时限并重排原sla.breach。`order.onLicenseShortened`只读当前版权修订及未结束订单，沿staff owned creator给当前可访问的内容运营与交付经理建立order_item系统待办，告警保留不可分派目标；订单止日与资金不变。同事务audit事实按当前revision/订单项/owner持久去重，用户内容不带技术键。
+
+当前content写口仍拒绝shorten/改早correction。测试历史版权数据仅为初始条件，随后验证真实emit/expand/consume及待办list/complete，不表示缩短API已开放，不实现M6使用期writer。新机制定点为 `src/order/m5-facts.db.test.ts`；实际结果以W5-05状态页为准。
+
 ## 统一取消执行（W5-01）
 
 `createCancelExecution(deps).execute(actor, id, body, idem)` 是后台 `admin.cancelRequest.execute` 的用例入口，沿用唯一 `executeCancel` 事务叶，支持订单、广告与资质整店取消。执行前验证当前员工启用状态、真实权限、再验证和门店范围；C50 已有回执也先核当前授权。事务里预读、依全局顺序预锁并复读整张目标图，核审批关系、确认单号/退款数和全部明细最新报价；有任一变化整笔回滚，仅在独立小事务里为仍待执行的申请追加 `recheck.execute` 证据，原幂等键可重试。

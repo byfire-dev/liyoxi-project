@@ -42,6 +42,9 @@ import { findOrderViolations, ORDER_INVARIANT_CODES } from "./invariants.js";
 import { orderMerchantFacts } from "./counts.js";
 import { handleOrderStart, isStartChecked } from "./start.js";
 import { handleQualificationDecided, handleSubscriptionActivated } from "./subscribers.js";
+import { onOrderLicenseShortened } from "./license-shortened.js";
+import { onOrderCalendarImported } from "./calendar-facts.js";
+import { boundOrderStart } from "./start-binding.js";
 import { runPendingStartSweep } from "./sweep.js";
 export const syncOrderManager: SyncStoreManager = async (tx, input) => {
   const rows = await tx.dramaOrder.findMany({
@@ -75,6 +78,18 @@ export const registration = defineRegistration("order", {
     { kind: "order.rejected_stale", critical: false, handle: handleRejectedStale },
   ],
   subscribers: [
+    {
+      name: "order.onLicenseShortened",
+      critical: false,
+      events: ["drama.license_shortened"],
+      handle: (tx, event) => onOrderLicenseShortened(tx, boundOrderStart(), event),
+    },
+    {
+      name: "order.onCalendarImported",
+      critical: false,
+      events: ["calendar.imported"],
+      handle: (tx, event) => onOrderCalendarImported(tx, boundOrderStart(), event),
+    },
     {
       name: "order.onQualificationDecided",
       critical: true,

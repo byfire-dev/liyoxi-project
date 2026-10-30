@@ -1,6 +1,5 @@
 // 商家端：交付与发布 · samples（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
 export const mSampleConfirm = merchantRoute({
   method: "post",
@@ -45,7 +44,7 @@ export const mSampleDownloadUrls = merchantRoute({
   },
 });
 
-export const mSampleRequestChange = merchantMeta({
+export const mSampleRequestChange = merchantRoute({
   method: "post",
   path: "/m/samples/{sampleId}/request-change",
   operationId: "m.sample.requestChange",
@@ -53,11 +52,31 @@ export const mSampleRequestChange = merchantMeta({
   "x-capability": "delivery.confirm_sample",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: SampleParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: SampleRequestChangeBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(SampleWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": [
+    "playable",
+    "decision.feedbackImages[].url",
+    "decision.feedbackImages[].expiresAt",
+  ],
 });
 
 import { merchantRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import { SampleParamSchema } from "../a05-order-delivery/production.schemas.js";
-import { SampleConfirmBodySchema, SampleWriteResultSchema } from "./sample.schemas.js";
+import {
+  SampleConfirmBodySchema,
+  SampleRequestChangeBodySchema,
+  SampleWriteResultSchema,
+} from "./sample.schemas.js";
 import { DownloadUrlSchema } from "./download.schemas.js";
 import { z } from "../../zod.js";
