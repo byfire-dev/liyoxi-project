@@ -66,6 +66,23 @@ export function createTestMaterial() {
     material: pack(leafKey.privateKey, [root, leaf]), // 故意让根在前，不能误取首个证书。
     mismatched: () => pack(rootKey.privateKey, [leaf]),
     missingChain: () => pack(leafKey.privateKey, [leaf]),
+    ambiguousSigner: () => {
+      const extraCA = forge.pki.createCertificate();
+      extraCA.publicKey = leafKey.publicKey;
+      extraCA.serialNumber = "feedbeef";
+      extraCA.validity = { ...leaf.validity };
+      extraCA.setSubject([{ name: "commonName", value: "TEST ONLY extra CA sharing signer key" }]);
+      extraCA.setIssuer(root.subject.attributes);
+      extraCA.setExtensions([
+        { name: "basicConstraints", cA: true },
+        { name: "keyUsage", keyCertSign: true },
+      ]);
+      extraCA.sign(rootKey.privateKey, forge.md.sha256.create());
+      return {
+        material: pack(leafKey.privateKey, [root, leaf, extraCA]),
+        extraCA: new X509Certificate(forge.pki.certificateToPem(extraCA)),
+      };
+    },
     leaf: new X509Certificate(forge.pki.certificateToPem(leaf)),
     root: new X509Certificate(forge.pki.certificateToPem(root)),
   };
@@ -88,6 +105,7 @@ export function verifyTestPdf(
   pdf: Uint8Array,
   expectedLeaf: X509Certificate,
   trustedTestRoot: X509Certificate,
+  intermediates: X509Certificate[] = [],
 ) {
   const buffer = Buffer.from(pdf);
   const ranges = [
@@ -130,7 +148,10 @@ export function verifyTestPdf(
       (certificate) => certificate.fingerprint256 === trustedTestRoot.fingerprint256,
     ),
   );
-  assert(expectedLeaf.verify(trustedTestRoot.publicKey));
+  const path = [expectedLeaf, ...intermediates, trustedTestRoot];
+  for (let index = 0; index < path.length - 1; index += 1) {
+    assert(path[index]!.verify(path[index + 1]!.publicKey));
+  }
   assert(trustedTestRoot.verify(trustedTestRoot.publicKey));
   const signers = nodes(signedData[signedData.length - 1]);
   assert.equal(signers.length, 1);
@@ -195,4 +216,69 @@ export function unsupportedEcP12(): P12Material {
     data(seq([data(safe)])),
   ]);
   return { p12: der(pfx), passphrase: TEST_PASSPHRASE };
+}
+
+/** TEST ONLY：同一组runtime密钥生成pathLen0反例、pathLen1及自颁发换钥正例。 */
+export function createPathConstraintMaterials() {
+  const keys = [keyPair(), keyPair(), keyPair(), keyPair()] as const;
+  const certificate = (
+    index: number,
+    subject: string,
+    issuer: forge.pki.Certificate | null,
+    signerKey: forge.pki.rsa.PrivateKey,
+    ca: boolean,
+    pathLenConstraint?: number,
+  ) => {
+    const cert = forge.pki.createCertificate();
+    cert.publicKey = keys[index]!.publicKey;
+    cert.serialNumber = String(index + 1);
+    // 明确晚于实际运行时间，只能使用注入时钟，不能误用库的Date.now。
+    cert.validity.notBefore = new Date("2035-01-01T00:00:00Z");
+    cert.validity.notAfter = new Date("2036-01-01T00:00:00Z");
+    cert.setSubject([{ name: "commonName", value: subject }]);
+    cert.setIssuer(issuer ? issuer.subject.attributes : cert.subject.attributes);
+    cert.setExtensions([
+      {
+        name: "basicConstraints",
+        cA: ca,
+        ...(pathLenConstraint === undefined ? {} : { pathLenConstraint }),
+      },
+      { name: "keyUsage", ...(ca ? { keyCertSign: true } : { digitalSignature: true }) },
+    ]);
+    cert.sign(signerKey, forge.md.sha256.create());
+    return cert;
+  };
+  const build = (pathLenA: number, selfIssuedB: boolean) => {
+    const root = certificate(0, "TEST ONLY path root", null, keys[0].privateKey, true, 2);
+    const a = certificate(1, "TEST ONLY CA A", root, keys[0].privateKey, true, pathLenA);
+    const b = certificate(
+      2,
+      selfIssuedB ? "TEST ONLY CA A" : "TEST ONLY CA B",
+      a,
+      keys[1].privateKey,
+      true,
+      0,
+    );
+    const leaf = certificate(3, "TEST ONLY path leaf", b, keys[2].privateKey, false);
+    const chain = [root, a, b, leaf];
+    const pfx = forge.pkcs12.toPkcs12Asn1(keys[3].privateKey, chain, TEST_PASSPHRASE, {
+      algorithm: "aes256",
+    });
+    const parsed = chain.map((cert) => new X509Certificate(forge.pki.certificateToPem(cert)));
+    // 先由独立Node crypto确认每一对签名正确，约束反例不是坏签名导致的拒绝。
+    for (let index = 1; index < parsed.length; index += 1) {
+      assert(parsed[index]!.verify(parsed[index - 1]!.publicKey));
+    }
+    return {
+      material: {
+        p12: Buffer.from(forge.asn1.toDer(pfx).getBytes(), "binary"),
+        passphrase: TEST_PASSPHRASE,
+      },
+      root: parsed[0]!,
+      a: parsed[1]!,
+      b: parsed[2]!,
+      leaf: parsed[3]!,
+    };
+  };
+  return { violatesA: build(0, false), allowsB: build(1, false), selfIssuedB: build(0, true) };
 }

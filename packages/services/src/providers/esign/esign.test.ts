@@ -10,6 +10,7 @@ import type { PlatformCertOptions, PlatformCertResult } from "./platform-cert.js
 import type { P12Material } from "./material.js";
 import {
   createTestMaterial,
+  createPathConstraintMaterials,
   TEST_PASSPHRASE,
   unsupportedEcP12,
   verifyTestPdf,
@@ -186,6 +187,60 @@ describe("标准 RSA-P12 factory 的真实签名字节（TEST ONLY）", () => {
       ok: false,
       reason: "unavailable",
       message: "机构证书签署未成功：unavailable",
+    });
+    await driver.close();
+  });
+});
+
+describe("包内约束与实际签署证书的唯一性", () => {
+  let paths: ReturnType<typeof createPathConstraintMaterials>;
+  beforeAll(() => {
+    paths = createPathConstraintMaterials();
+  });
+  const clock = { now: () => new Date("2035-10-30T03:00:00Z") };
+
+  it("拒绝root→A(pathLen0)→B→leaf，虽各对签名和注入时刻有效期均正确", async () => {
+    const driver = signer({ clock, loadMaterial: async () => paths.violatesA.material });
+    const result = await driver.seal({ pdf });
+    expect(result.ok).toBe(false); // 反例失败时不把整份PDF字节打印到诊断。
+    if (result.ok) throw new Error("invalid signing material was accepted");
+    expect(result).toEqual({
+      ok: false,
+      reason: "rejected",
+      message: "机构证书签署未成功：rejected",
+    });
+    await driver.close();
+  });
+
+  it.each(["allowsB", "selfIssuedB"] as const)(
+    "%s按非自颁发下级CA计数，正确链仍产生可核实际签名",
+    async (name) => {
+      const path = paths[name];
+      if (name === "selfIssuedB") {
+        expect(path.b.subject).toBe(path.b.issuer);
+        expect(path.b.verify(path.b.publicKey)).toBe(false); // 自颁发换钥，并非自签根。
+      }
+      const driver = signer({ clock, loadMaterial: async () => path.material });
+      const signed = success(await driver.seal({ pdf }));
+      verifyTestPdf(signed.pdf, path.leaf, path.root, [path.b, path.a]);
+      expect(signed.signedAt).toEqual(clock.now());
+      await driver.close();
+    },
+  );
+
+  it("拒绝[root,leaf(K),extraCA(K)]不同serial的匹钥歧义，不返回与CMS不符的leaf事实", async () => {
+    const ambiguous = fixture.ambiguousSigner();
+    expect(ambiguous.extraCA.ca).toBe(true);
+    expect(ambiguous.extraCA.publicKey.equals(fixture.leaf.publicKey)).toBe(true);
+    expect(ambiguous.extraCA.serialNumber).not.toBe(fixture.leaf.serialNumber);
+    const driver = signer({ loadMaterial: async () => ambiguous.material });
+    const result = await driver.seal({ pdf });
+    expect(result.ok).toBe(false); // 反例失败时不把整份PDF字节打印到诊断。
+    if (result.ok) throw new Error("invalid signing material was accepted");
+    expect(result).toEqual({
+      ok: false,
+      reason: "rejected",
+      message: "机构证书签署未成功：rejected",
     });
     await driver.close();
   });

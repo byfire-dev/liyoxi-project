@@ -42,3 +42,15 @@ ROOT于2026-10-30核准本独立前置，评审甲，固定源码一轮独审。
 - 定向密码学目标：`APP_ENV=test DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi LYX_TEST_SESSION=w507sign pnpm exec vitest run --project services packages/services/src/providers/esign/esign.test.ts --maxWorkers=1 --no-file-parallelism`。沿原services setup，不改测试预算；首次会话标识含下划线被守卫拒绝，改为合法独立标识后17/17通过；补CMS issuer与leaf绑定断言后同一目标再次17/17通过。`pnpm --filter @liyoxi/services typecheck`、本域定向ESLint与所改文件Prettier检查通过。
 
 未交全局Provider、worker/ops、KMS或真实CA装配，未开始06/07业务；未跑无关全仓、部署、阅读器或微信真机。E8/E11/V12仍待外部结论。固定源码唯一独审及实际main同步CI由ROOT后续完成，本片不代写已经通过。
+
+
+## 5. 唯一独审修复
+
+对固定提交`a2f1899217bafe6c8cc950018c1a0bdd15fe74c5`的唯一独审提出两条P2，均在原scope内修复，ROOT据修复与CI验收，不派第二轮：
+
+1. 包内路径检查各CA的`basicConstraints.pathLenConstraint`，只计其下级非自颁发CA；leaf不计。自颁发换钥CA仍沿上级公钥验证，只有自签CA作为包内技术锚，不冒外部根信任，继续使用注入时钟。
+2. 对整个certBag匹私钥的证书要求恰好一个且为leaf，拒绝额外匹钥CA，避免P12Signer最后匹配证书与返回issuer/serial不一致。
+
+真实TEST ONLY材料先在原实现跑4个定向反例/边界：违规A(pathLen0)→B链与额外匹钥CA错误成功、自颁发换钥正例被错误拒绝，共3失败/1通过，确认回归能发现原缺陷。修复后受影响实际密码学目标21/21通过（3.71秒）；新增A(pathLen1)与自颁发B/pathLen0正例均产出独立可核CMS。该组证书有效期固定2035年，签署时钟亦注入2035年，不以实际Date.now替代有效期判断。所有材料仅runtime生成，拒绝结果只含受控信息。
+
+本次未重装、重审计/年龄、跑全仓或增依赖/协议/范围；services类型、叶ESLint及本域格式检查通过；实际main同步CI由ROOT接续。

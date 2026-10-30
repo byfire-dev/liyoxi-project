@@ -5,7 +5,8 @@ W5-07前的独立技术交付，尚未接全局`EsignProvider`、worker、docs�
 返回受控P12字节/口令，未配置返回null。不读文件或环境，不调用CA，不静默返回stamp。
 
 支持含唯一加密RSA私钥、匹配leaf及完整包内X.509链的P12/PFX，RSA至少2048位、指数65537、
-SHA-256 detached CMS、`adbe.pkcs7.detached`。检查有效期、数字签名用途、leaf/私钥匹配和包内签名链；
+SHA-256 detached CMS、`adbe.pkcs7.detached`。检查有效期、数字签名用途、整个certBag匹钥唯一且为leaf、包内签名链及CA路径长度；
+路径长度只计下级非自颁发CA，自颁发换钥CA继续沿上级签名验证，不当成自签根；
 根自签正确不等于根受到真实CA/阅读器信任。材料端口将来仍需由E11/运维核实真实授权和根信任。
 不承诺SM2、USBKey、不可导出HSM或特定厂商协议，也不声称PAdES-B/T/LT/LTA或可信时间戳。
 

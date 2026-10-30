@@ -45,24 +45,48 @@ export function inspectP12(material: P12Material, signedAt: Date): X509Certifica
     }
     return { cert, parsed: bag.cert };
   });
-  const leaves = certificates.filter(({ cert }) => !cert.ca && cert.checkPrivateKey(key));
-  if (leaves.length !== 1) throw new Error("签署证书与私钥不匹配或不唯一");
-  const leaf = leaves[0]!;
+  // P12Signer从整个certBag选择最后一个匹钥证书，必须先保证全包唯一，不能只筛非CA。
+  const matching = certificates.filter(({ cert }) => cert.checkPrivateKey(key));
+  if (matching.length !== 1 || matching[0]!.cert.ca) {
+    throw new Error("签署证书与私钥不匹配或不唯一");
+  }
+  const leaf = matching[0]!;
   const usage = leaf.parsed.getExtension("keyUsage") as { digitalSignature?: boolean } | null;
   if (usage && usage.digitalSignature !== true) throw new Error("证书不允许数字签名");
-  let current = leaf.cert;
+  let current = leaf;
+  let nonSelfIssuedCAs = 0;
   const seen = new Set<string>();
   for (;;) {
-    if (seen.has(current.fingerprint256)) throw new Error("证书链成环");
-    seen.add(current.fingerprint256);
-    if (current.subject === current.issuer) {
-      if (!current.ca || !current.verify(current.publicKey)) throw new Error("根证书无效");
+    const { cert, parsed } = current;
+    if (seen.has(cert.fingerprint256)) throw new Error("证书链成环");
+    seen.add(cert.fingerprint256);
+    const constraints = parsed.getExtension("basicConstraints") as {
+      pathLenConstraint?: number;
+    } | null;
+    const limit = constraints?.pathLenConstraint;
+    if (
+      cert.ca &&
+      limit !== undefined &&
+      (!Number.isSafeInteger(limit) || limit < 0 || nonSelfIssuedCAs > limit)
+    ) {
+      throw new Error("证书链超过CA路径长度约束");
+    }
+    const selfIssued = cert.subject === cert.issuer;
+    // 自颁发的换钥CA仍须沿旧公钥找上级；仅自签的包内CA可作本次技术锚点。
+    if (selfIssued && cert.verify(cert.publicKey)) {
+      if (!cert.ca) throw new Error("根证书无效");
       return leaf.cert;
     }
     const issuers = certificates.filter(
-      ({ cert }) => cert.ca && current.checkIssued(cert) && current.verify(cert.publicKey),
+      ({ cert: issuer }) =>
+        issuer.fingerprint256 !== cert.fingerprint256 &&
+        issuer.ca &&
+        cert.checkIssued(issuer) &&
+        cert.verify(issuer.publicKey),
     );
     if (issuers.length !== 1) throw new Error("证书链不完整或有歧义");
-    current = issuers[0]!.cert;
+    // pathLen只计该CA以下的非自颁发CA；不计leaf，也不计当前CA本身。
+    if (cert.ca && !selfIssued) nonSelfIssuedCAs += 1;
+    current = issuers[0]!;
   }
 }
