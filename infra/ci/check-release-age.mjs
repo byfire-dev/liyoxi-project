@@ -6,16 +6,21 @@
 //   --since <引用>  只查相对该引用新增的版本（引用上没有锁文件时等于全查）
 //   --registry      查发布时间用的 registry；不给时依次取环境变量 npm_config_registry、
 //                   `pnpm config get registry`、https://registry.npmjs.org/
-// 另查 pnpm-workspace.yaml：须有 minimumReleaseAge: 10080，不得有 minimumReleaseAgeExclude。
+// 另查 pnpm-workspace.yaml：须有 minimumReleaseAge: 10080；只有 node-forge@1.4.2 的限时安全例外。
 // 退出码：0 通过；1 有违规；2 用法或环境错误。
 // 本脚本不引依赖，在仓库根目录跑。只认 pnpm 锁文件 9.0 版；作用域 registry 不支持。
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  checkVersionReleaseAge,
+  checkWorkspaceReleaseAge,
+  FORGE_SECURITY_RELEASE,
+  MINIMUM_RELEASE_AGE_MINUTES,
+} from "./release-age-policy.mjs";
 
-const REQUIRED_MINUTES = 10080;
-const REQUIRED_MS = REQUIRED_MINUTES * 60 * 1000;
+const REQUIRED_MINUTES = MINIMUM_RELEASE_AGE_MINUTES;
 const CONCURRENCY = 8;
 const RETRIES = 3;
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -152,14 +157,8 @@ const violations = [];
 const workspacePath = join(root, "pnpm-workspace.yaml");
 if (!existsSync(workspacePath)) fail("找不到 pnpm-workspace.yaml，须在仓库根目录跑");
 const workspace = readFileSync(workspacePath, "utf8");
-if (!new RegExp(`^minimumReleaseAge:\\s*${REQUIRED_MINUTES}\\s*(?:#.*)?$`, "m").test(workspace)) {
-  violations.push(`pnpm-workspace.yaml 里没有 minimumReleaseAge: ${REQUIRED_MINUTES}`);
-}
-if (/^minimumReleaseAgeExclude\s*:/m.test(workspace)) {
-  violations.push(
-    "pnpm-workspace.yaml 里有 minimumReleaseAgeExclude：不许用豁免（确需豁免要业主确认）",
-  );
-}
+const workspacePolicy = checkWorkspaceReleaseAge(workspace);
+violations.push(...workspacePolicy.violations);
 
 // 二、要查哪些版本
 const lockPath = join(root, "pnpm-lock.yaml");
@@ -210,12 +209,14 @@ for (const [key, { name, version }] of targets) {
     violations.push(`${key}：registry 上查不到这个版本的发布时间`);
     continue;
   }
-  const ageMs = now - new Date(published).getTime();
-  checked.push({ key, published, ageMs });
-  if (!(ageMs >= REQUIRED_MS)) {
-    const days = (ageMs / 86_400_000).toFixed(1);
-    violations.push(`${key}：发布于 ${published}，才 ${days} 天，未满 7 天`);
-  }
+  const result = checkVersionReleaseAge({
+    key,
+    published,
+    nowMs: now,
+    exceptionConfigured: workspacePolicy.exceptionConfigured,
+  });
+  checked.push({ key, published, ageMs: result.ageMs, exempt: result.exempt });
+  if (result.error) violations.push(result.error);
 }
 
 const scope = options.since ? `相对 ${options.since} 新增的` : "锁文件里的全部";
@@ -228,10 +229,19 @@ if (violations.length > 0) {
 }
 
 checked.sort((a, b) => a.ageMs - b.ageMs);
+const exempt = checked.filter((entry) => entry.exempt);
+const resultSummary = exempt.length
+  ? `${checked.length - exempt.length} 个版本已满 7 天，${exempt.length} 个使用限时安全修复例外`
+  : `${checked.length} 个版本都已发布满 7 天`;
 console.log(
-  `发布时长检查通过：${scope} ${checked.length} 个版本都已发布满 7 天；` +
-    `minimumReleaseAge: ${REQUIRED_MINUTES} 在，没有 minimumReleaseAgeExclude。`,
+  `发布时长检查通过：${scope} ${resultSummary}；minimumReleaseAge: ${REQUIRED_MINUTES} 在。`,
 );
+if (exempt.length) {
+  console.log(`${FORGE_SECURITY_RELEASE.key} 例外截止：${FORGE_SECURITY_RELEASE.expiresAt}`);
+}
+if (workspacePolicy.exceptionConfigured && now >= Date.parse(FORGE_SECURITY_RELEASE.expiresAt)) {
+  console.log("node-forge@1.4.2 已自然满 7 天，按普通规则核对；请撤除其冗余的精确例外配置。");
+}
 console.log(`registry：${registry}；核对时间：${new Date(now).toISOString()}`);
 if (checked.length > 0) {
   console.log("发布最晚的几个：");

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { ConfirmAction, type ConfirmSpec } from "../../../components/ConfirmAction";
 import { MerchantFailure } from "../detail/api";
 import { formError } from "../detail/model";
+import type { AssetDeleteReads } from "./delete-reads";
 import type { AssetPrepared } from "./write-model";
 import type { AssetWriteApi } from "./write-api";
 
@@ -10,6 +11,7 @@ export function AssetConfirm({
   spec,
   api,
   refresh,
+  deleteReads,
   close,
   notice,
 }: {
@@ -17,6 +19,7 @@ export function AssetConfirm({
   spec: ConfirmSpec;
   api: AssetWriteApi;
   refresh(): Promise<unknown>;
+  deleteReads?: AssetDeleteReads;
   close(): void;
   notice(message: string): void;
 }) {
@@ -37,19 +40,39 @@ export function AssetConfirm({
       open
       action="merchant-asset-write"
       spec={spec}
-      onCancel={close}
+      onCancel={() => {
+        if (deleteReads?.paused()) {
+          void (completed.current ? deleteReads.committed() : deleteReads.dismiss());
+        }
+        close();
+      }}
       onConfirm={async ({ idempotencyKey }) => {
         if (!active.current) return { outcome: "failed", message: "当前操作已失效，请重新打开" };
         if (pending.current) return { outcome: "failed", message: "正在提交，请稍候" };
         pending.current = true;
         try {
           if (!completed.current) {
+            await deleteReads?.before();
+            if (!active.current)
+              return { outcome: "failed", message: "当前操作已失效，请重新打开" };
             await prepared.send(api, idempotencyKey, controller.current?.signal);
             completed.current = true;
           }
-          if (active.current) await refresh();
+          // 已确认的删除即使遇到导航，也要清掉原门店的详情缓存。
+          if (deleteReads) await deleteReads.committed();
+          else if (active.current) await refresh();
           return { outcome: "done" };
         } catch (error) {
+          if (
+            active.current &&
+            !completed.current &&
+            error instanceof MerchantFailure &&
+            error.status >= 400 &&
+            error.status < 500 &&
+            error.code !== "IDEMPOTENCY_IN_PROGRESS"
+          ) {
+            deleteReads?.restore();
+          }
           if (
             active.current &&
             error instanceof MerchantFailure &&

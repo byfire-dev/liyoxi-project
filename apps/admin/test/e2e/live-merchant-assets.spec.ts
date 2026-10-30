@@ -271,9 +271,34 @@ test("W318 整理使用所见版本：真实冲突回读、重新填写、重识
   await page
     .getByRole("textbox", { name: "删除原因（必填）", exact: true })
     .fill("本轮虚构资料验收结束");
+  const deletedDetailReads: string[] = [];
+  let deleteCommitted = false;
+  page.on("response", (response) => {
+    if (
+      response.request().method() === "POST" &&
+      response.status() === 200 &&
+      new URL(response.url()).pathname === `/api/v1/admin/store-assets/${f.reviewId}/delete`
+    ) {
+      deleteCommitted = true;
+    }
+  });
+  page.on("request", (request) => {
+    if (
+      deleteCommitted &&
+      request.method() === "GET" &&
+      new URL(request.url()).pathname === `/api/v1/admin/store-assets/${f.reviewId}`
+    ) {
+      deletedDetailReads.push(request.url());
+    }
+  });
   const deleted = await confirmAsset(page, "删除素材", `store-assets/${f.reviewId}/delete`);
   expect(deleted.status()).toBe(200);
   await expect(row).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByText("选择一条素材查看详情", { exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(new RegExp(`assetId=${f.reviewId}`, "u"));
+  expect(deleteCommitted).toBe(true);
+  expect(deletedDetailReads).toEqual([]);
   expect((await page.request.get(`/api/v1/admin/store-assets/${f.reviewId}`)).status()).toBe(404);
   expect(
     errors.filter(
