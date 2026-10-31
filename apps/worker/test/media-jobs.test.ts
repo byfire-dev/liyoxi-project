@@ -256,7 +256,7 @@ describe("W303真实worker媒体装配与恢复", () => {
     await legacy({ jobId });
     expect(enqueue).toHaveBeenLastCalledWith("media_job", `media-${jobId}`, { jobId });
     await runtime.stop();
-    expect(close).toHaveBeenCalledTimes(5);
+    expect(close).toHaveBeenCalledTimes(6);
     expect(await channel.ping()).toBe(true);
   });
 });

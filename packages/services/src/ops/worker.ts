@@ -739,6 +739,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const docsRender = createDocsRenderRuntime({
     tx,
     clock,
+    alerts: alertsOf(assembly),
     convergence: licenseConvergence,
     media,
     channel,

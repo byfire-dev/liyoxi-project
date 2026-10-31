@@ -101,16 +101,29 @@ export async function createM1DocsConsumer(
 }
 
 type DocsDb = Pick<Tx, "licenseLetterRevision" | "licenseLetter" | "outboxEvent" | "fileRef">;
-export async function readM1DocsBacklog(tx: DocsDb) {
+function ownedDocsScope(entityIds?: readonly string[]) {
+  if (entityIds === undefined) return {};
+  if (
+    !entityIds.length ||
+    entityIds.length > 1000 ||
+    entityIds.some(
+      (id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id),
+    )
+  )
+    throw new Error("M1 授权证明需要非空有界主体范围");
+  return { entityId: { in: [...new Set(entityIds)] } };
+}
+export async function readM1DocsBacklog(tx: DocsDb, entityIds?: readonly string[]) {
+  const owned = ownedDocsScope(entityIds);
   const [docsPending, required] = await Promise.all([
     tx.licenseLetterRevision.count({
       where: {
-        licenseLetter: { status: { not: "voided" } },
+        licenseLetter: { ...owned, status: { not: "voided" } },
         renderStatus: { in: ["queued", "rendering"] },
       },
     }),
     tx.licenseLetter.findMany({
-      where: { status: { not: "voided" } },
+      where: { ...owned, status: { not: "voided" } },
       select: {
         revisions: { orderBy: { revNo: "desc" }, take: 1, select: { renderStatus: true } },
       },
@@ -127,12 +140,17 @@ export async function readM1DocsBacklog(tx: DocsDb) {
 }
 
 /** Read actual immutable versions and object bytes; no writer/claim/queue access. */
-export async function assertM1ReadyDocuments(runtime: Runtime, signal?: AbortSignal) {
+export async function assertM1ReadyDocuments(
+  runtime: Runtime,
+  signal?: AbortSignal,
+  entityIds?: readonly string[],
+) {
+  const owned = ownedDocsScope(entityIds);
   const revisions = await runtime.tx.run(async (tx) => {
-    const pending = await readM1DocsBacklog(tx);
+    const pending = await readM1DocsBacklog(tx, entityIds);
     if (pending.docsPending || pending.docsFailed) throw new Error("M1 授权版次尚未实际ready");
     const required = await tx.licenseLetter.findMany({
-      where: { status: { not: "voided" } },
+      where: { ...owned, status: { not: "voided" } },
       include: { currentRevision: true, revisions: { orderBy: { revNo: "desc" }, take: 1 } },
       orderBy: { id: "asc" },
       take: 1001,
@@ -153,7 +171,7 @@ export async function assertM1ReadyDocuments(runtime: Runtime, signal?: AbortSig
     }
     // Historical ready artifacts still require integrity, including letters now legally voided.
     const rows = await tx.licenseLetterRevision.findMany({
-      where: { renderStatus: "ready" },
+      where: { renderStatus: "ready", licenseLetter: owned },
       include: { file: true, licenseLetter: { include: { currentRevision: true } } },
       orderBy: [{ licenseLetterId: "asc" }, { revNo: "desc" }],
       take: 1001,

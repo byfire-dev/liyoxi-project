@@ -6,7 +6,9 @@ import {
   useSeededDatabase,
   useTestRedis,
 } from "../testing/index.js";
-import { reconcileLetters } from "../docs/index.js";
+import { reconcileLetters, sweepLicenseRevisions, voidLicenseLetter } from "../docs/index.js";
+import { alertsOf, createIdentityContext, isInTransaction } from "../kernel/index.js";
+import type { AlertInput, Alerts } from "../kernel/index.js";
 
 const db = useSeededDatabase("services", { max: 1 }),
   redis = useTestRedis();
@@ -36,13 +38,18 @@ async function fresh() {
   });
   return { f, id: letter.revisions[0]!.id };
 }
-function scope(f: Fixture, engine?: LicenseRenderingEngine) {
+function scope(
+  f: Fixture,
+  engine?: LicenseRenderingEngine,
+  alerts: Alerts = alertsOf(f.runtime.assembly),
+) {
   const runtime = createDocsRenderRuntime({
     tx: f.runtime.tx,
     clock: f.clock,
     convergence: f.licenseDeps,
     media: f.runtime.media,
     channel: { enqueue: async () => {} },
+    alerts,
     ...(engine ? { engine } : {}),
     allowStamp: true,
   });
@@ -122,4 +129,156 @@ describe("授权书真实任务关闭边界", () => {
       ).outboxEvent.count({ where: { eventType: "license_letter.issued" } }),
     ).toBe(0);
   });
+});
+
+const FAILURE_RULE = "docs.license_render_failed";
+function failingEngine(path: "render" | "sign" | "exception"): LicenseRenderingEngine {
+  return {
+    renderer: {
+      configured: true,
+      close: async () => {},
+      render: async () => {
+        if (path === "exception") throw new Error("受控渲染失败");
+        return path === "render"
+          ? { ok: false, reason: "unavailable" }
+          : { ok: true, value: { pdf: Buffer.from("%PDF-1.7\n%%EOF") } };
+      },
+    },
+    signer: {
+      configured: true,
+      status: "fake",
+      seal: async () => ({
+        ok: false,
+        reason: "unavailable",
+        message: "受控签署失败",
+      }),
+    },
+    close: async () => {},
+  };
+}
+async function failureAlerts(f: Fixture, revisionId: string) {
+  const prisma = await db.prisma(),
+    real = alertsOf(f.runtime.assembly);
+  const alerts: Alerts = {
+    raise: vi.fn(async (input: AlertInput) => {
+      expect(isInTransaction()).toBe(false);
+      // This independent read must observe the committed terminal transition before the alert starts.
+      expect(
+        await prisma.licenseLetterRevision.findUniqueOrThrow({ where: { id: revisionId } }),
+      ).toMatchObject({ renderStatus: "failed", renderAttemptNo: 4 });
+      await real.raise(input);
+    }),
+  };
+  const rows = () =>
+    prisma.alertEvent.findMany({ where: { fingerprint: `${FAILURE_RULE}:${revisionId}` } });
+  return { alerts, rows };
+}
+
+describe("授权书正常渲染失败耗尽告警", () => {
+  it.each(["render", "sign", "exception"] as const)(
+    "%s分支仅第四次正常失败提交后写真实P2告警，重复投递不重复报",
+    async (path) => {
+      const { f, id } = await fresh(),
+        observed = await failureAlerts(f, id);
+      const runtime = scope(f, failingEngine(path), observed.alerts);
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        if (path === "exception")
+          await expect(runtime.process({ revisionId: id })).rejects.toThrow("受控渲染失败");
+        else await runtime.process({ revisionId: id });
+        expect(
+          await (await db.prisma()).licenseLetterRevision.findUniqueOrThrow({ where: { id } }),
+        ).toMatchObject({
+          renderAttemptNo: attempt,
+          renderStatus: attempt === 4 ? "failed" : "queued",
+        });
+        if (attempt < 4) {
+          expect(observed.alerts.raise).not.toHaveBeenCalled();
+          expect(await observed.rows()).toEqual([]);
+        }
+      }
+      expect(observed.alerts.raise).toHaveBeenCalledOnce();
+      expect(await observed.rows()).toMatchObject([
+        {
+          rule: FAILURE_RULE,
+          fingerprint: `${FAILURE_RULE}:${id}`,
+          severity: "P2",
+          kind: "event",
+          status: "open",
+          occurrences: 1,
+          lastValue: { revisionId: id, reason: "attempts_exhausted" },
+        },
+      ]);
+      await runtime.process({ revisionId: id });
+      expect(observed.alerts.raise).toHaveBeenCalledOnce();
+      expect(await observed.rows()).toHaveLength(1);
+      expect((await observed.rows())[0]!.occurrences).toBe(1);
+    },
+  );
+
+  it.each(["stale", "voided", "shutdown"] as const)(
+    "第四次任务变为%s时不误发耗尽告警",
+    async (condition) => {
+      const { f, id } = await fresh(),
+        observed = await failureAlerts(f, id);
+      let enter!: () => void,
+        release!: () => void,
+        calls = 0;
+      const entered = new Promise<void>((resolve) => {
+        enter = resolve;
+      });
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const engine = failingEngine("render");
+      const runtime = scope(
+        f,
+        {
+          ...engine,
+          renderer: {
+            ...engine.renderer,
+            render: async () => {
+              calls++;
+              if (calls === 4) {
+                enter();
+                await held;
+              }
+              return { ok: false, reason: "unavailable" };
+            },
+          },
+        },
+        observed.alerts,
+      );
+      for (let i = 0; i < 3; i++) await runtime.process({ revisionId: id });
+      const work = runtime.process({ revisionId: id });
+      await entered;
+      let closing: Promise<void> | undefined;
+      if (condition === "stale") {
+        const claimed = await (
+          await db.prisma()
+        ).licenseLetterRevision.findUniqueOrThrow({ where: { id } });
+        f.clock.set(new Date(claimed.renderLeaseUntil!.getTime() + 1));
+        // Sweep owns its alert separately; the late normal-failure callback must not report it again.
+        expect(
+          (await f.runtime.tx.run((tx) => sweepLicenseRevisions(tx, runtime.queue))).failed,
+        ).toContain(id);
+      } else if (condition === "voided") {
+        const revision = await (
+          await db.prisma()
+        ).licenseLetterRevision.findUniqueOrThrow({ where: { id } });
+        await f.runtime.tx.run((tx) =>
+          voidLicenseLetter(
+            tx,
+            f.licenseDeps,
+            createIdentityContext({ actor: { type: "system", job: "lyxtest.render_retired" } }),
+            { licenseLetterId: revision.licenseLetterId, note: "当前法律授权已作废" },
+          ),
+        );
+      } else closing = runtime.close();
+      release();
+      await work;
+      await closing;
+      expect(observed.alerts.raise).not.toHaveBeenCalled();
+      expect(await observed.rows()).toEqual([]);
+    },
+  );
 });

@@ -1,8 +1,10 @@
 import { uuidv7 } from "@liyoxi/services";
 import { expect } from "vitest";
 import type { TestApi } from "../../src/testing/index.js";
-import type { ClerkSampleContext } from "./samples.js";
+import type { SignedInMerchant } from "../../src/testing/merchant.js";
 import { clerkVisibleKeys } from "./visible-keys.js";
+
+type ClerkSampleContext = { clerk: SignedInMerchant; storeId: string };
 
 const letterId = uuidv7();
 const requests = [

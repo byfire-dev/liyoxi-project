@@ -16,6 +16,13 @@ it("the actual worker application artifact converts Chinese with declared extern
   await promisify(execFile)(process.execPath, ["scripts/build.mjs", "--outdir", out], {
     cwd: root,
   });
+  // Import a real business entry too: a successful esbuild alone misses dynamic font assets.
+  await expect(
+    promisify(execFile)(process.execPath, [`${root}${out}/staff-bootstrap.js`], {
+      cwd: root,
+      env: { PATH: process.env.PATH, APP_ENV: "test" },
+    }),
+  ).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining("用法：staff:bootstrap") });
   const converter = createDocumentConverter({
     workerUrl: pathToFileURL(`${root}${out}/document-converter.js`),
   });

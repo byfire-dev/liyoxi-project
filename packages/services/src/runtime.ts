@@ -829,6 +829,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const docsRender = createDocsRenderRuntime({
     tx,
     clock,
+    alerts: alertsOf(assembly),
     convergence: licenseConvergence,
     media,
     channel: mediaChannel,

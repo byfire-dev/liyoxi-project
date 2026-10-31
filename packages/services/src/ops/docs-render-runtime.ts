@@ -1,6 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { AppError, guardProviderCall, assembleLicenseSigning } from "../kernel/index.js";
-import type { Clock, DeliveredEvent, Env, QueueChannel, TxRunner } from "../kernel/index.js";
+import type {
+  Alerts,
+  Clock,
+  DeliveredEvent,
+  Env,
+  QueueChannel,
+  TxRunner,
+} from "../kernel/index.js";
 import type { DeliveryRef } from "../events/index.js";
 import {
   claimLicenseRevision,
@@ -13,6 +20,8 @@ import type {
   LicenseConvergenceDeps,
   LicensePdfRenderer,
   LicenseRenderQueueDeps,
+  LicenseRenderClaim,
+  LicenseRenderIssue,
 } from "../docs/index.js";
 import { latestLicenseRenderClaimLease } from "../audit/index.js";
 import { readMaterialFileFacts } from "../media/index.js";
@@ -60,6 +69,7 @@ export function createDocsRenderRuntime(deps: {
   convergence: LicenseConvergenceDeps;
   media: Media;
   channel: Pick<QueueChannel, "enqueue">;
+  alerts: Alerts;
   engine?: LicenseRenderingEngine;
   logger?: ProviderLogger;
   allowStamp?: boolean;
@@ -112,6 +122,22 @@ export function createDocsRenderRuntime(deps: {
     void promise.finally(() => pending.delete(promise)).catch(() => undefined);
     return promise;
   };
+  const recordFailure = async (
+    claim: LicenseRenderClaim,
+    signal: AbortSignal,
+    issue?: LicenseRenderIssue,
+  ) => {
+    const outcome = await deps.tx.run((tx) => failLicenseRevision(tx, queue, claim, issue));
+    // The terminal failure is committed before the existing independent alert writer runs.
+    // Retired legal facts, late claims and shutdown are not exhausted render failures.
+    if (outcome === "exhausted" && !signal.aborted)
+      await deps.alerts.raise({
+        rule: "docs.license_render_failed",
+        dimension: claim.revisionId,
+        severity: "P2",
+        detail: { revisionId: claim.revisionId, reason: "attempts_exhausted" },
+      });
+  };
   const processRevision = async (revisionId: string, signal: AbortSignal) => {
     if (!configured()) {
       if (!warned) {
@@ -137,13 +163,10 @@ export function createDocsRenderRuntime(deps: {
       });
       signal.throwIfAborted();
       if (!rendered.ok) {
-        await deps.tx.run((tx) =>
-          failLicenseRevision(
-            tx,
-            queue,
-            claim,
-            rendered.reason === "missing_glyph" ? rendered.issue : undefined,
-          ),
+        await recordFailure(
+          claim,
+          signal,
+          rendered.reason === "missing_glyph" ? rendered.issue : undefined,
         );
         deps.logger?.warn({ evt: "docs.render_failed", reason: rendered.reason }, "授权书尚未生成");
         return;
@@ -152,7 +175,7 @@ export function createDocsRenderRuntime(deps: {
       const sealed = await engine.signer.seal({ pdf: rendered.value.pdf, signal });
       signal.throwIfAborted();
       if (!sealed.ok || (sealed.value.mode === "stamp" && !deps.allowStamp)) {
-        await deps.tx.run((tx) => failLicenseRevision(tx, queue, claim));
+        await recordFailure(claim, signal);
         deps.logger?.warn({ evt: "docs.sign_failed" }, "授权书签署未成功");
         return;
       }
@@ -185,7 +208,7 @@ export function createDocsRenderRuntime(deps: {
       );
     } catch (error) {
       // A lost/expired claim is ignored by its durable fence; no unbounded immediate retry.
-      await deps.tx.run((tx) => failLicenseRevision(tx, queue, claim));
+      await recordFailure(claim, signal);
       if (!signal.aborted) {
         deps.logger?.warn(
           { evt: "docs.render_failed", reason: "unavailable" },

@@ -206,7 +206,7 @@ describe("对公付款 TTL 的真实 worker 执行", () => {
           renew: async () => true,
           close: async () => {},
           release: async () => {
-            expect(closes).toBe(5);
+            expect(closes).toBe(6);
             expect(await h.tx.run((tx) => handleTransferTtl(tx, inert))).toBe("skipped");
             releases++;
             return true;

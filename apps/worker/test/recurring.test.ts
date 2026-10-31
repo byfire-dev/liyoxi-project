@@ -43,6 +43,7 @@ describe("循环与队列的登记", () => {
       media_job: 10,
       promote: 2,
       notify: 4,
+      docs: 2,
     });
   });
 });

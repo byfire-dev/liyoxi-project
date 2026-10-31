@@ -161,6 +161,11 @@ beforeAll(async () => {
   render = createDocsRenderRuntime({
     tx: api.runtime.tx,
     clock: api.clock,
+    alerts: {
+      raise: async () => {
+        throw new Error("HTTP授权书用例不应耗尽渲染尝试");
+      },
+    },
     convergence: fixture.licenseDeps,
     media: api.runtime.media,
     channel: { enqueue: async () => undefined },

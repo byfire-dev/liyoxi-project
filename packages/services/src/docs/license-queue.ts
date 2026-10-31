@@ -176,19 +176,19 @@ export async function completeLicenseRevision(
 /** Deterministic missing glyphs stop this revision immediately; transient failures keep the four-attempt budget. */
 export async function failLicenseRevision(
   tx: Tx, deps: LicenseRevisionWriteDeps, claim: LicenseRenderClaim, issue?: LicenseRenderIssue,
-): Promise<"stale" | "queued" | "failed"> {
+): Promise<"stale" | "queued" | "failed" | "exhausted" | "retired"> {
   const row = await lockRevision(tx, deps, claim.revisionId), now = deps.clock.now();
   if (!row || !sameFence(row.revision, claim, now)) return "stale";
   if (!row.facts || row.letter.lockVersion !== claim.letterLockVersion || !licenseLetterMatchesFacts(row.letter, row.facts)) {
     await retireRevision(tx, row.revision, row.letter, now);
-    return "failed";
+    return "retired";
   }
   const status = issue || claim.attempt >= LICENSE_RENDER_MAX_ATTEMPTS ? "failed" : "queued";
   await tx.licenseLetterRevision.update({ where: { id: claim.revisionId }, data: {
     renderStatus: status, renderLeaseUntil: issue ? claim.leaseUntil : null, updatedAt: now,
   } });
   await recordLicenseRenderResult(tx, workerContext(), { ...claim, fence: claim, outcome: "failed", ...(issue ? { issue } : {}) });
-  return status;
+  return issue ? "failed" : status === "failed" ? "exhausted" : "queued";
 }
 
 export async function rerenderLicenseRevision(
