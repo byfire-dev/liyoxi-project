@@ -47,6 +47,7 @@ import {
   createProfileConsistencyAssembly,
   createProfileConsistencyTransactions,
   createProfileQualificationConsistency,
+  listFinalRejectedQualificationScopes,
 } from "../profile/index.js";
 import { createApproval } from "../approval/index.js";
 import { createDeliverySlaAssembly } from "./delivery-sla-runtime.js";
@@ -56,6 +57,7 @@ import {
   createContentLicense,
   createContentMaintenance,
   DramaUsagePort,
+  readCurrentLicenseEnd,
 } from "../content/index.js";
 import { createDramaPricing } from "../billing/index.js";
 import { staffBriefs } from "../staff/index.js";
@@ -79,10 +81,16 @@ import type { NotifyQueueRef } from "../notify/index.js";
 import { createPrismaClient, createSessionMutexConnectionFactory } from "@liyoxi/db";
 import type { PrismaClient } from "@liyoxi/db";
 
-import { bindDelivery, reevaluateSweep } from "../delivery/index.js";
+import { bindDelivery, reevaluateSweep, getTicketBriefByOrderItem } from "../delivery/index.js";
 import { createSla } from "../sla/index.js";
 import { bindContent } from "../content/index.js";
-import { bindOrder, bindOrderStart, bindCancelRequests } from "../order/index.js";
+import {
+  bindOrder,
+  bindOrderStart,
+  bindCancelRequests,
+  createOrderReconciler,
+} from "../order/index.js";
+import type { OrderReconcileResult } from "../order/index.js";
 import { assignDeliveryManager } from "../profile/index.js";
 import { recommendedStaff, createStaffAssembly } from "../staff/index.js";
 import { staffWorkSourcesOf } from "../kernel/index.js";
@@ -300,11 +308,12 @@ export interface WorkerServices {
   readonly webhooks?: Webhooks;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
-  readonly closeOrder?: () => void;
+  readonly closeOrder?: () => void | Promise<void>;
   readonly closeBillingTimers?: () => void;
   readonly closePublish?: () => void;
   readonly closeDelivery?: () => void;
   reevaluateDelivery(): Promise<{ inspected: number; moved: number }>;
+  reconcileOrders(beat?: () => void): Promise<OrderReconcileResult>;
   promoteFile(ref: PromoteRef): Promise<void>;
   scanPromote(beat?: () => void): Promise<number>;
   readonly assembly: Assembly;
@@ -827,7 +836,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     sla: deliveryCore.sla,
     bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
   });
-  const closeCancelRequests = bindCancelRequests({
+  const orderCancelDeps = {
     tx,
     clock,
     flow,
@@ -837,6 +846,17 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     timers,
     sla: deliveryCore.sla,
     assembly,
+  };
+  const closeCancelRequests = bindCancelRequests(orderCancelDeps);
+  const orderReconciler = createOrderReconciler({
+    tx,
+    clock,
+    assembly,
+    cancel: orderCancelDeps,
+    ensureLetters: docsLicenseScope.ensureLetters,
+    qualificationScopes: listFinalRejectedQualificationScopes,
+    currentLicenseEnd: readCurrentLicenseEnd,
+    ticketByItem: getTicketBriefByOrderItem,
   });
   const closeDerive = bindOrder({
     assembly,
@@ -1111,7 +1131,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeWebhooks,
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
-    closeOrder: () => {
+    closeOrder: async () => {
+      await orderReconciler.close();
       closeStart();
       closeCancelRequests();
       closeDerive();
@@ -1124,6 +1145,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closePublish,
     closeDelivery,
     reevaluateDelivery: () => reevaluateSweep(deliveryCore),
+    reconcileOrders: (beat) => orderReconciler.run(beat),
     promoteFile: (ref) => media.promote(ref),
     async scanPromote(beat) {
       try {

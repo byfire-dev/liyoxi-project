@@ -21,6 +21,7 @@ import {
   createProfileConsistencyAssembly,
   createProfileConsistencyTransactions,
   createProfileQualificationConsistency,
+  listFinalRejectedQualificationScopes,
 } from "./profile/index.js";
 import {
   createDeliveryProductionAssembly,
@@ -230,6 +231,10 @@ import {
 import type { StaffAuth, createStaffManagement } from "./staff/index.js";
 import { createTimers } from "./timers/index.js";
 import type { Timers } from "./timers/index.js";
+import { createOrderReconciler } from "./order/index.js";
+import type { OrderReconcileResult } from "./order/index.js";
+import { readCurrentLicenseEnd } from "./content/index.js";
+import { getTicketBriefByOrderItem } from "./delivery/index.js";
 
 // 启动自检的运行器与类型在 ops/startup.ts（worker 的装配也用）；这里照旧给出，包入口的导出不变
 export { runStartupChecks, StartupCheckError } from "./ops/index.js";
@@ -306,6 +311,7 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  reconcileOrders(beat?: () => void): Promise<OrderReconcileResult>;
   readonly licenseLetters: Pick<
     ReturnType<typeof createDocsLicenseAssembly>,
     "reconcileLetters" | "ensureLetters"
@@ -1041,6 +1047,16 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindOrder = bindOrder({ assembly, clock, flow, media, cancel: cancelDeps });
   const unbindCancelRequests = bindCancelRequests(cancelDeps);
   const cancelRequests = createRuntimeCancelRequests(cancelDeps);
+  const orderReconciler = createOrderReconciler({
+    tx,
+    clock,
+    assembly,
+    cancel: cancelDeps,
+    ensureLetters: docsLicenseScope.ensureLetters,
+    qualificationScopes: listFinalRejectedQualificationScopes,
+    currentLicenseEnd: readCurrentLicenseEnd,
+    ticketByItem: getTicketBriefByOrderItem,
+  });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const unbindOrderStart = bindOrderStart({
     tx,
@@ -1260,6 +1276,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     : undefined;
   return {
     sessionMutex,
+    reconcileOrders: (beat) => orderReconciler.run(beat),
     licenseLetters: docsLicenseScope,
     docsRender,
     licenseRead,
@@ -1339,6 +1356,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
+        await settle([() => orderReconciler.close()]);
         await settle([() => docsRender.close()]);
         await settle([() => docsScope.close()]);
         await settle([() => docsLicenseScope.close(), () => documentConverter?.close()]);
