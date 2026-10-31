@@ -2,6 +2,18 @@ import { expect, it } from "vitest";
 import { EVENT_PAYLOAD_SCHEMAS } from "./index.js";
 
 const id = "018f0000-0000-7000-8000-000000000001";
+it("授权出件只登记已提交版次标识，不接受文件地址或证书材料", () => {
+  const schema = EVENT_PAYLOAD_SCHEMAS["license_letter.issued"];
+  const body = { v: 1, licenseLetterId: id, revisionId: id, revNo: 1 };
+  expect(schema.parse(body)).toEqual(body);
+  for (const patch of [
+    { v: 2 },
+    { revNo: 0 },
+    { revisionId: "bad" },
+    { url: "https://example.invalid/private.pdf" },
+  ])
+    expect(schema.safeParse({ ...body, ...patch }).success).toBe(false);
+});
 it("授权版次排队使用正式严格载荷，不接受未来issued字段", () => {
   const schema = EVENT_PAYLOAD_SCHEMAS["license_letter.revision_queued"];
   const body = { v: 1, licenseLetterId: id, revisionId: id, reason: "initial" };

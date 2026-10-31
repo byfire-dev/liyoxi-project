@@ -146,3 +146,5 @@ export type {
   DocumentInput,
 } from "./document-conversion/index.js";
 export type { ClientErrorProjectsConfig } from "./env.js";
+
+export { assembleLicenseSigning } from "./assembly/license-signing.js";

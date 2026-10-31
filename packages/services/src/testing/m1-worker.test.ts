@@ -80,12 +80,20 @@ it("后台worker纯守卫：错误能力/环境先拒，未知与死信不能排
     deadTimers: 0,
     mediaPending: 0,
     mediaFailed: 0,
+    docsPending: 0,
+    docsFailed: 0,
     published: 1,
     consumed: 1,
   };
   expect(() => assertM1WorkerKnown(baseline, [SUBSCRIBERS[0]!.name])).not.toThrow();
   expect(m1WorkerSettled(baseline)).toBe(true);
-  for (const key of ["unpublished", "unsettled", "dueTimers", "mediaPending"] as const)
+  for (const key of [
+    "unpublished",
+    "unsettled",
+    "dueTimers",
+    "mediaPending",
+    "docsPending",
+  ] as const)
     expect(m1WorkerSettled({ ...baseline, [key]: 1 })).toBe(false);
   for (const key of ["events", "subscribers", "timers", "media"] as const)
     expect(() =>
@@ -94,7 +102,7 @@ it("后台worker纯守卫：错误能力/环境先拒，未知与死信不能排
         [SUBSCRIBERS[0]!.name],
       ),
     ).toThrow("未知");
-  for (const key of ["deadDeliveries", "deadTimers", "mediaFailed"] as const)
+  for (const key of ["deadDeliveries", "deadTimers", "mediaFailed", "docsFailed"] as const)
     expect(() => assertM1WorkerKnown({ ...baseline, [key]: 1 }, [SUBSCRIBERS[0]!.name])).toThrow(
       "死信",
     );

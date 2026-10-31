@@ -2,6 +2,7 @@ import { countActiveMerchantUsers } from "../identity/index.js";
 import { describePaymentOrders } from "../billing/index.js";
 import {
   createDocs,
+  onLicenseRevisionQueued,
   createDocsAdmin,
   findN4Violations,
   findN13Violations,
@@ -63,8 +64,30 @@ export function createDocsAssembly(base: Assembly) {
   );
   const invariantIndex = new Map(invariants.map((item) => [item.code, item]));
   const index = new Map(recurringJobs.map((item) => [item.kind, item]));
+  const subscribers = base.subscribers.map((item) =>
+    item.name === "docs.onRevisionQueued"
+      ? {
+          ...item,
+          handle: (
+            tx: Parameters<typeof onLicenseRevisionQueued>[0],
+            event: Parameters<typeof onLicenseRevisionQueued>[1],
+          ) => {
+            current();
+            const active = onLicenseRevisionQueued(tx, event).then(() => {
+              current();
+            });
+            pending.add(active);
+            void active.finally(() => pending.delete(active)).catch(() => undefined);
+            return active;
+          },
+        }
+      : item,
+  );
+  const subscriberIndex = new Map(subscribers.map((item) => [item.name, item]));
   const assembly: Assembly = {
     ...base,
+    subscribers,
+    subscriber: (name) => subscriberIndex.get(name),
     recurringJobs,
     invariants,
     recurringJob: (kind) => index.get(kind),

@@ -2,13 +2,14 @@ import type { QueueId } from "@liyoxi/contract/registry";
 import type { QueueChannel } from "../kernel/index.js";
 import type { ProbeRule } from "./probe-rules.js";
 
-// 与实际消费者配套；promote是media提升通道，沿media的100。未装配队列不制造健康零值。
+// 与实际消费者配套（D7 §9.2）；promote沿media的100，docs为正式50。未装配队列不制造健康零值。
 const limits: Partial<Record<QueueId, number>> = {
   outbox_delivery: 500,
   timer_run: 200,
   notify: 500,
   media_job: 100,
   promote: 100,
+  docs: 50,
 };
 export function queueProbeRules(
   queues: readonly QueueId[],

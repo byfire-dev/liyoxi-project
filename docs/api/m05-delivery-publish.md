@@ -463,6 +463,13 @@
 | `voidReason` | enum(见 4.7) \| null | 是 | 作废原因 | `license_letter.void_reason` |
 | `voidedAt` | string(date-time) \| null | 是 | 作废时间 | `license_letter.voided_at` |
 | `canDownload` | boolean | 是 | 有可下载的已出件版次 | `license_letter.current_revision_id` 非空 |
+| `renderIssue` | `LicenseRenderIssue` \| null | 是 | 最新版次的缺字诊断，结构见下文 | 判权后按有效认领读取审计投影 |
+
+`renderIssue` 为必有的 `LicenseRenderIssue | null`：最新有效失败认领的缺字诊断；
+成功、再次认领、作废后为空。缺字项包含具体字符 `character`、`U+` 码点 `codePoint`、
+固定字段路径 `fields`（最多4项）；`missing` 最多32个不同码点，
+`totalMissingCodePoints` 是总数，`truncated` 标识超出部分。诊断不含整段主体资料，
+服务重启后仍按同版次持久结果读取。类型结构以实际契约为准。
 
 #### `LicenseLetterDetail`
 

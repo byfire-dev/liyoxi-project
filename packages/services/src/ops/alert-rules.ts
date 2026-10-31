@@ -33,6 +33,7 @@ export const EVENT_ALERT_RULES = [
   "notify.wx_template_failure",
   "evidence.consent_digest_mismatch",
   "evidence.consent_digest_unavailable",
+  "docs.license_render_failed",
 ] as const;
 export const PROBE_ALERT_RULES = [
   "billing.bill_missing",

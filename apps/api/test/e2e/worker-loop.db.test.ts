@@ -38,6 +38,8 @@ const BacklogSchema = z.object({
   deadTimers: z.int().nonnegative(),
   mediaPending: z.int().nonnegative(),
   mediaFailed: z.int().nonnegative(),
+  docsPending: z.int().nonnegative(),
+  docsFailed: z.int().nonnegative(),
   published: z.int().nonnegative(),
   consumed: z.int().nonnegative(),
   kinds: z

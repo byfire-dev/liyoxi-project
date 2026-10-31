@@ -19,6 +19,7 @@ import { openSealed, testSealer } from "./data/seal.js";
 import { fakeUscc } from "./data/factories/context.js";
 import { signInAsStaff } from "./staff.js";
 import { completeP95Prototype, completeP95Qualification } from "./p95-graph.js";
+import { createP95DocsTransport } from "./p95-docs.js";
 
 type Row = Record<string, unknown>;
 export interface P95Dataset {
@@ -161,6 +162,7 @@ export async function createP95Fixture(options: {
       throw new Error("P95前置归属不一致");
     assertTestDatabaseUrl(runtime.env.DATABASE_URL);
   };
+  const docsTransport = createP95DocsTransport(support, assertOwned);
   async function validateDataset() {
     assertOwned();
     const counts = Object.fromEntries(
@@ -403,30 +405,7 @@ export async function createP95Fixture(options: {
       await topUp(h, { entityId: scope.entityId, points: 5000 });
       const spareDrama = await prepareOrderDrama(h, 100);
       await completeP95Prototype({ support, db }, scope);
-      const drained = await support.drainEvents();
-      const eventTypes = await db.$queryRawUnsafe<{ event_type: string; n: bigint }[]>(
-        "SELECT event_type,count(*) AS n FROM outbox_event WHERE entity_id=$1::uuid GROUP BY event_type ORDER BY event_type",
-        scope.entityId,
-      );
-      generation = {
-        mode: "prototype_uuid_graph_copy",
-        prototypeRelay: drained,
-        prototypeEventTypes: eventTypes.map((row) => ({
-          type: row.event_type,
-          events: Number(row.n),
-          implementedSubscribers: runtime.events.subscribers
-            .forEvent(row.event_type)
-            .map((subscriber) => subscriber.name),
-        })),
-        registeredSubscribers: runtime.events.subscribers.all.map(({ name, module, events }) => ({
-          name,
-          module,
-          events,
-        })),
-      };
-      options.progress?.(
-        `P95真实prototype出站事件 expanded=${drained.expanded}/consumed=${drained.consumed}`,
-      );
+      const staged = await docsTransport.stagePrototype(scope.entityId);
       const raw = new Map<string, Row[]>(),
         columns = new Map<string, string[]>();
       for (const table of TABLES) {
@@ -487,7 +466,7 @@ export async function createP95Fixture(options: {
         );
       }
       scopes.push({ ...scope, orderIds, channelAccountId: fixture.channelAccountId });
-      // The prototype must have been produced by the real subscriber. Copy queued history only.
+      // Snapshot before admitting the real renderer. Never clone a ready PDF or signature claim.
       const prototypeLetters = raw.get("license_letter")!,
         prototypeRevisions = raw.get("license_letter_revision")!;
       if (
@@ -499,13 +478,49 @@ export async function createP95Fixture(options: {
         prototypeRevisions.some(
           (r) =>
             r["render_status"] !== "queued" ||
+            r["render_attempt_no"] !== 0 ||
+            r["render_lease_until"] !== null ||
             r["file_id"] !== null ||
             r["pdf_sha256"] !== null ||
+            r["ready_at"] !== null ||
+            r["sign_mode"] !== null ||
+            r["cert_issuer"] !== null ||
+            r["cert_serial"] !== null ||
+            r["esign_provider"] !== null ||
+            r["esign_flow_id"] !== null ||
             r["platform_signed_at"] !== null ||
             r["merchant_signed_at"] !== null,
         )
       )
         throw new Error("P95只复制真实原型的首版queued授权历史，不接受ready/PDF/签署证据");
+      const completed = await docsTransport.completePrototype();
+      const drained = {
+        expanded: staged.expanded + completed.expanded,
+        consumed: staged.consumed + completed.consumed,
+      };
+      const eventTypes = await db.$queryRawUnsafe<{ event_type: string; n: bigint }[]>(
+        "SELECT event_type,count(*) AS n FROM outbox_event WHERE entity_id=$1::uuid GROUP BY event_type ORDER BY event_type",
+        scope.entityId,
+      );
+      generation = {
+        mode: "prototype_uuid_graph_copy",
+        prototypeRelay: drained,
+        prototypeEventTypes: eventTypes.map((row) => ({
+          type: row.event_type,
+          events: Number(row.n),
+          implementedSubscribers: runtime.events.subscribers
+            .forEvent(row.event_type)
+            .map((subscriber) => subscriber.name),
+        })),
+        registeredSubscribers: runtime.events.subscribers.all.map(({ name, module, events }) => ({
+          name,
+          module,
+          events,
+        })),
+      };
+      options.progress?.(
+        `P95真实prototype出站事件 expanded=${drained.expanded}/consumed=${drained.consumed}`,
+      );
       const verifyCodes = new Set(prototypeLetters.map((r) => String(r["verify_code"])));
       const count = Math.ceil(options.scale * 500);
       let state = options.seed >>> 0;
@@ -513,16 +528,18 @@ export async function createP95Fixture(options: {
         state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
         return state;
       };
-      for (let start = 1; start < count; start += 20) {
+      // Complete each owned store's four actual PDFs within the original 30s transport budget.
+      // Rendering/signing belongs to preparation; route sample counts/concurrency stay unchanged.
+      for (let start = 1; start < count; start++) {
         const batches = new Map<string, Row[]>();
         const consentRows = raw.get("agreement_consent")!,
-          batchEnd = Math.min(start + 20, count);
+          batchEnd = start + 1;
         // Reserve from the actual identity sequence once per batch. Append-only consents are inserted once.
         const reserved = await db.$queryRawUnsafe<{ seq: bigint }[]>(
           "SELECT nextval(pg_get_serial_sequence('agreement_consent','seq')) AS seq FROM generate_series(1,$1::int)",
           (batchEnd - start) * consentRows.length,
         );
-        for (let n = start; n < Math.min(start + 20, count); n++) {
+        for (let n = start; n < batchEnd; n++) {
           const ids = new Map<string, string>();
           for (const rows of raw.values())
             for (const row of rows) if (typeof row["id"] === "string") ids.set(row["id"], uuidv7());
@@ -647,6 +664,19 @@ export async function createP95Fixture(options: {
                 const copy = revisionCopies.get(String(row["id"]))!;
                 Object.assign(row, { letter_snapshot: copy.snapshot, content_fp: copy.fp });
               }
+            if (table === "outbox_delivery")
+              for (const row of rows)
+                if (row["subscriber"] === "docs.onRevisionQueued") {
+                  if (
+                    row["status"] !== "leased" ||
+                    row["consumed_at"] !== null ||
+                    row["is_enqueued"] !== false ||
+                    row["attempts"] !== 0
+                  )
+                    throw new Error("P95授权运输原型已经入队或消费");
+                  // New cloned transport must be claimed for itself; do not copy the source lease.
+                  Object.assign(row, { status: "pending", dispatch_no: 0, lease_until: null });
+                }
             if (table === "entity")
               for (const row of rows)
                 Object.assign(row, {
@@ -729,7 +759,8 @@ export async function createP95Fixture(options: {
           },
           { timeoutMs: 15_000 },
         );
-        options.progress?.(`P95图复制 ${Math.min(start + 20, count)}/${count} 店`);
+        await docsTransport.drain(scopes.at(-1)!.entityId);
+        options.progress?.(`P95图复制及真实PDF ${batchEnd}/${count} 店`);
       }
       const { dataset, invariants } = await validateDataset();
       options.dataset?.(dataset);
@@ -785,7 +816,12 @@ export async function createP95Fixture(options: {
     },
     async validatePrepared() {
       assertOwned();
-      const drained = await support.drainEvents();
+      const drained = { expanded: 0, consumed: 0 };
+      for (const scope of scopes) {
+        const actual = await docsTransport.drain(scope.entityId);
+        drained.expanded += actual.expanded;
+        drained.consumed += actual.consumed;
+      }
       options.progress?.(
         `P95采样前实际出站消费 expanded=${drained.expanded}/consumed=${drained.consumed}`,
       );

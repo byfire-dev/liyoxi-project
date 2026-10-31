@@ -41,6 +41,8 @@ const WorkerSnapshot = z.object({
     deadTimers: count,
     mediaPending: count,
     mediaFailed: count,
+    docsPending: count,
+    docsFailed: count,
     published: count,
     consumed: count,
     kinds: z.object({
@@ -329,7 +331,8 @@ function createPhase(
             current.backlog.unpublished +
             current.backlog.unsettled +
             current.backlog.dueTimers +
-            current.backlog.mediaPending;
+            current.backlog.mediaPending +
+            current.backlog.docsPending;
           return !pending && current.queues.every((row) => !row.waiting && !row.active)
             ? current
             : null;

@@ -278,6 +278,13 @@ export function createMedia(options: MediaDeps) {
           { kind: "delivery-download", fileName: input.fileName },
         )
       ).signed,
+    signLicenseDownload: async (input: DeliveryDownloadSignInput) =>
+      (
+        await signRead(
+          { fileId: input.fileId, disposition: "attachment", audience: "merchant" },
+          { kind: "license-download", fileName: input.fileName },
+        )
+      ).signed,
     signMaterialDownload: async (input: DeliveryDownloadSignInput) =>
       (
         await signRead(

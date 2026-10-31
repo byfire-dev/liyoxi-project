@@ -4,12 +4,16 @@ import type { StorageProvider } from "../providers/types.js";
 import { record } from "../audit/index.js";
 import { lockAgreement } from "./admin-write.js";
 import { runConsentDigest } from "./consent-digest.js";
+import { sweepLicenseRevisions } from "./license-queue.js";
+import type { LicenseRevisionWriteDeps } from "./license-queue.js";
 export interface DocsJobDeps {
   readonly tx: TxRunner;
   readonly clock: Clock;
   readonly storage: StorageProvider;
   readonly alerts: Alerts;
   readonly countActiveUsers: (tx: Tx) => Promise<number>;
+  readonly licenseQueue?: LicenseRevisionWriteDeps;
+  readonly enqueueLicenseRevision?: (ref: { revisionId: string; attemptNo: number }) => Promise<void>;
 }
 export async function sweepAgreementVersions(
   tx: Tx,
@@ -114,7 +118,20 @@ export async function sweepAgreementVersions(
 }
 export async function scheduledDocsSweep(deps: DocsJobDeps, ctx: RecurringRunContext) {
   ctx.signal?.throwIfAborted();
-  return deps.tx.run((tx) => sweepAgreementVersions(tx, deps, undefined, ctx.signal));
+  const agreements = await deps.tx.run((tx) => sweepAgreementVersions(tx, deps, undefined, ctx.signal));
+  if (!deps.licenseQueue) return agreements;
+  const licenses = await deps.tx.run((tx) => sweepLicenseRevisions(tx, deps.licenseQueue!, ctx.signal));
+  // The recurring job's mode is job: both enqueue and alerts run after the transaction commits.
+  for (const ref of licenses.requeue) {
+    ctx.signal?.throwIfAborted();
+    if (!deps.enqueueLicenseRevision) throw new TypeError("授权渲染队列未绑定");
+    await deps.enqueueLicenseRevision(ref);
+  }
+  for (const revisionId of licenses.failed) await deps.alerts.raise({
+    rule: "docs.license_render_failed", dimension: revisionId, severity: "P2",
+    detail: { revisionId, reason: "attempts_exhausted" },
+  });
+  return { ...agreements, licensesRequeued: licenses.requeue.length, licensesFailed: licenses.failed.length };
 }
 export async function scheduledConsentDigest(deps: DocsJobDeps, ctx: RecurringRunContext) {
   return runConsentDigest(deps, ctx.scheduledFor, ctx.signal);

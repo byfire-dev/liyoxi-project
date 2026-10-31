@@ -8,6 +8,7 @@ import { createFactories } from "./data/factories/index.js";
 import { createP95Fixture } from "./p95-fixture.js";
 import type { P95Dataset } from "./p95-fixture.js";
 import { openSealed, testSealer } from "./data/seal.js";
+import { assertM1ReadyDocuments, readM1DocsBacklog } from "./m1-docs.js";
 
 function fullCheckCount(fixture: Awaited<ReturnType<typeof createP95Fixture>>) {
   const count = fixture.support.runtime.assembly.invariants.filter(
@@ -85,9 +86,20 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
       });
       const tickets = await tx.deliveryTicket.findMany();
       const prototype = seeded.scopes[0]!;
-      const allLetters = await tx.licenseLetter.findMany({ include: { revisions: true } });
+      const allLetters = await tx.licenseLetter.findMany({
+        include: { revisions: { include: { file: true } } },
+      });
       expect(new Set(allLetters.map((letter) => letter.letterNo)).size).toBe(12);
       expect(new Set(allLetters.map((letter) => letter.verifyCode)).size).toBe(12);
+      expect(
+        new Set(allLetters.flatMap((letter) => letter.revisions.map((revision) => revision.fileId)))
+          .size,
+      ).toBe(12);
+      expect(
+        new Set(
+          allLetters.flatMap((letter) => letter.revisions.map((revision) => revision.pdfSha256)),
+        ).size,
+      ).toBe(12);
       const prototypeLetterIds = allLetters
         .filter((letter) => letter.entityId === prototype.entityId)
         .flatMap((letter) => [letter.id, ...letter.revisions.map((revision) => revision.id)]);
@@ -165,16 +177,43 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
         });
         for (const letter of ownedLetters) {
           expect(letter.status).toBe("pending_effective");
-          expect(letter.currentRevisionId).toBeNull();
           expect(letter.revisions.length).toBe(1);
           const revision = letter.revisions[0]!;
+          expect(letter.currentRevisionId).toBe(revision.id);
           expect([
             revision.renderStatus,
-            revision.fileId,
-            revision.pdfSha256,
-            revision.platformSignedAt,
+            revision.renderAttemptNo,
+            revision.signMode,
             revision.merchantSignedAt,
-          ]).toEqual(["queued", null, null, null, null]);
+          ]).toEqual(["ready", 1, "platform_cert", null]);
+          expect(revision.platformSignedAt).toBeInstanceOf(Date);
+          expect(revision.readyAt).toBeInstanceOf(Date);
+          expect(revision.certIssuer).toBeTruthy();
+          expect(revision.certSerial).toBeTruthy();
+          expect(revision.pdfSha256).toMatch(/^[0-9a-f]{64}$/);
+          expect(revision.file).toMatchObject({
+            id: revision.fileId,
+            entityId: owned.entityId,
+            storeId: null,
+            bucket: "secure",
+            category: "legal_doc",
+            sha256: revision.pdfSha256,
+            objectKey: `license/${letter.id}/${revision.id}/${revision.pdfSha256}.pdf`,
+          });
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                eventType: "license_letter.issued",
+                aggregateId: letter.id,
+                payload: {
+                  v: 1,
+                  licenseLetterId: letter.id,
+                  revisionId: revision.id,
+                  revNo: revision.revNo,
+                },
+              }),
+            ]),
+          );
           const snapshot = parseLicenseLetterSnapshot(revision.letterSnapshot);
           const consent = await tx.agreementConsent.findFirstOrThrow({
             where: {
@@ -253,6 +292,15 @@ it("真实 prototype 和两个 UUID 克隆保留完整开工方案/工单图、�
       expect(await tx.outboxEvent.count({ where: { publishedAt: null } })).toBe(0);
       expect(await tx.outboxDelivery.count({ where: { status: { not: "done" } } })).toBe(0);
     });
+    // Independently read each real object and its final hash; scoped proofs retain the M1 limit.
+    for (const owned of seeded.scopes)
+      expect(await assertM1ReadyDocuments(runtime, undefined, [owned.entityId])).toBe(4);
+    await expect(runtime.tx.run((tx) => readM1DocsBacklog(tx, []))).rejects.toThrow(
+      "非空有界主体范围",
+    );
+    await expect(assertM1ReadyDocuments(runtime, undefined, [])).rejects.toThrow(
+      "非空有界主体范围",
+    );
     const checked = await runInvariants(
       { tx: runtime.tx, assembly: runtime.assembly, clock },
       { mode: "full", trigger: "manual" },

@@ -97,3 +97,5 @@ export {
 } from "./referral-codes.js";
 export { readLicenseeFacts } from "./license-facts.js";
 export type { LicenseeFacts } from "./license-facts.js";
+
+export { isLicenseOwner, licenseStoreVisible } from "./license-access.js";

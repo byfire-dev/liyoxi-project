@@ -29,7 +29,7 @@ export async function getAdmin(deps: BoundMediaDeps, actor: MediaActor, fileId: 
   });
 }
 type DeliveryDownloadIntent = {
-  readonly kind: "delivery-download" | "staff-material";
+  readonly kind: "delivery-download" | "staff-material" | "license-download";
   readonly fileName: string;
 };
 export function createSigner(deps: BoundMediaDeps) {
@@ -41,11 +41,23 @@ export function createSigner(deps: BoundMediaDeps) {
       if (found.category === "portrait_auth" && input.audience === "merchant")
         throw new AppError("FILE_NOT_USABLE");
       requireStored(found);
+      if (
+        intent?.kind === "license-download" &&
+        (found.category !== "legal_doc" || found.bucket !== "secure" || found.ext !== "pdf")
+      )
+        throw new AppError("FILE_NOT_AVAILABLE");
       return found;
     });
     const now = deps.clock.now();
     const expiresAt = intent
-      ? new Date(now.getTime() + (intent.kind === "staff-material" ? 1_800_000 : 900_000))
+      ? new Date(
+          now.getTime() +
+            (intent.kind === "license-download"
+              ? 300_000
+              : intent.kind === "staff-material"
+                ? 1_800_000
+                : 900_000),
+        )
       : readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
     const urlTtlSec = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
     const disposition = intent ? "attachment" : (input.disposition ?? "inline");
@@ -101,7 +113,16 @@ export async function downloadUrls(
     requireStored(file);
     return file;
   }, options);
-  const { signed, urlTtlSec } = await signRead(input);
+  const licensePdf =
+    file.category === "legal_doc" && deps.licenseAccess
+      ? await deps.tx.run((tx) => deps.licenseAccess!(tx, { fileId: file.id, staff: actor.staff! }))
+      : false;
+  const { signed, urlTtlSec } = await signRead(
+    input,
+    licensePdf
+      ? { kind: "license-download", fileName: `定制内容授权书_${file.id}.pdf` }
+      : undefined,
+  );
   if (file.bucket === "secure" || ["sample_video", "final_episode"].includes(file.category)) {
     await deps.tx.run(async (tx) => {
       const current = await readableByStaff(tx, actor.staff!, input.fileId, deps);

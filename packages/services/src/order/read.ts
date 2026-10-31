@@ -1,4 +1,6 @@
 import { readOrderAssetReferences } from "../media/index.js";
+import { readLicenseOrderProjection } from "../docs/index.js";
+import { readOrderAfterSales } from "./cancel-read.js";
 import { DramaSnapshotSchema, OrderDetailSchema } from "@liyoxi/contract";
 import type { OrderDetail } from "@liyoxi/contract";
 import { listOperationsByHold } from "../billing/index.js";
@@ -20,11 +22,12 @@ const TIMELINE = [
   "live",
   "usage_ended",
 ] as const;
-// 履约字段经公开只读端口聚合；售后与授权书由后续工作包回补。
+// 详情只聚合各owner的实际只读投影；业务可见性先由当前订单归属判定。
 export async function detail(
   tx: Tx,
   actor: { membership: Pick<OrderActor["membership"], "storeId" | "entityId"> },
   id: string,
+  at: Date,
 ): Promise<OrderDetail> {
   const o = await tx.dramaOrder.findFirst({
     where: { id, storeId: actor.membership.storeId, entityId: actor.membership.entityId },
@@ -163,7 +166,11 @@ export async function detail(
     ),
     deliveryPlan: plan,
     pointsEvents: [...grouped.values()].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
-    afterSales: [],
+    afterSales: await readOrderAfterSales(tx, {
+      orderId: o.id,
+      entityId: o.entityId,
+      storeId: o.storeId,
+    }),
     agreements: [
       {
         agreementKey: consent.agreementKey,
@@ -173,7 +180,11 @@ export async function detail(
         consentedAt: consent.consentedAt.toISOString(),
       },
     ],
-    licenseLetters: [],
+    licenseLetters: await readLicenseOrderProjection(tx, {
+      orderId: o.id,
+      entityId: o.entityId,
+      now: at,
+    }),
     actions: [],
   });
 }

@@ -19,3 +19,6 @@ export { latestStaffWecomInviteKey } from "./read-staff-invite.js";
 
 export { readTargetActivity } from "./read-target-activity.js";
 export { readStoreActivity } from "./read-store-activity.js";
+
+export { readLicenseRenderResults, latestLicenseRenderClaimLease } from "./read-license-render.js";
+export type { LicenseRenderIssue, LicenseRenderResult } from "./read-license-render.js";

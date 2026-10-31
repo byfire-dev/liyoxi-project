@@ -33,6 +33,7 @@ import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
+import { createM1DocsConsumer, createM1LicenseRendering } from "./m1-docs.js";
 import { m1WorkerObserver, waitM1Worker } from "./m1-observe.js";
 import { completeWithQueuedPromote } from "./m1-upload.js";
 import { M1_LOCAL_WECHAT } from "./m1-wechat.js";
@@ -93,6 +94,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     LOG_LEVEL: "warn",
     DATABASE_URL: process.env.DATABASE_URL,
     REDIS_URL: process.env.REDIS_URL,
+    LYX_PDF_FONT_DIR: process.env.LYX_PDF_FONT_DIR,
     ...(licenseTestInputs ? { PORTAL_PUBLIC_ORIGIN: licenseTestInputs.portalPublicOrigin } : {}),
   });
   const isolationId = attach?.scope.runId ?? options.runId ?? randomBytes(6).toString("hex");
@@ -127,6 +129,9 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   let productionTools: ReturnType<typeof createDeliveryProductionTools> | undefined;
   let httpStorage: ReturnType<typeof createM1HttpStorage> | undefined;
   let workerRuntime: ReturnType<typeof createRuntime> | undefined;
+  let docsConsumer: Awaited<ReturnType<typeof createM1DocsConsumer>> | undefined;
+  let docsConsumerStarting: Promise<void> | undefined;
+  let licenseRendering: ReturnType<typeof createM1LicenseRendering> | undefined;
   let db: ReturnType<typeof createPrismaClient> | undefined;
   let closed = false;
   let ownerClose: Promise<void> | undefined;
@@ -156,7 +161,12 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     const errors: unknown[] = [];
     try {
       for (const action of [
+        async () => {
+          await docsConsumerStarting?.catch(() => undefined);
+          await docsConsumer?.close();
+        },
         () => workerRuntime?.close(),
+        () => licenseRendering?.close(),
         () => runtime?.close(),
         () => productionTools?.tools.close(),
         () => httpStorage?.close(),
@@ -296,23 +306,27 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         ...(destination ? { destination } : {}),
       }),
     });
-    if (attach && !options.backgroundWorker)
+    if (!options.backgroundWorker) {
+      if (licenseTestInputs)
+        licenseRendering = createM1LicenseRendering(clock, base.LYX_PDF_FONT_DIR);
       workerRuntime = createRuntime({
         entry: "worker",
         env: { ...env, MEDIA_PRODUCTION: productionTools.env },
         mediaProductionTools: productionTools.tools,
-        version: attach.version,
+        version: attach?.version ?? "m1-test",
         clock,
         redisKeyPrefix: redisPrefix,
         providers: boundProviders,
+        licenseRendering,
         logger: createLogger({
           svc: "worker",
-          env: "local",
+          env: attach ? "local" : "test",
           level: "warn",
-          version: attach.version,
+          version: attach?.version ?? "m1-test",
           ...(destination ? { destination } : {}),
         }),
       });
+    }
     const apiRuntime = runtime;
     const jobRuntime = workerRuntime ?? apiRuntime;
     db = createPrismaClient({ connectionString: databaseUrl, max: 3 });
@@ -339,6 +353,21 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     const transport =
       observer ??
       m1Transport(jobRuntime, assertOwned, startedAt, attach ? { realTime: true } : undefined);
+    const drainEvents: M1Support["drainEvents"] = async () => {
+      assertOwned();
+      // A resource owner may only hand its scope to a MinIO attachment. It must not consume
+      // that attachment's docs jobs with the owner's separate in-memory storage provider.
+      if (workerRuntime)
+        await (docsConsumerStarting ??= createM1DocsConsumer(
+          workerRuntime,
+          redisPrefix,
+          assertOwned,
+          options.signal,
+        ).then((consumer) => {
+          docsConsumer = consumer;
+        }));
+      return transport.drainEvents();
+    };
     const video = await m1Video();
     const runPromote: M1Support["promote"] = async (fileId) => {
       assertOwned();
@@ -492,6 +521,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         return row.totpLastStep;
       },
       ...transport,
+      drainEvents,
       promote,
       ...(!observer ? { completeWithPromote } : {}),
       installKnownMedia(fileId, scope) {
@@ -509,7 +539,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
           productionInput.video,
           fileId,
           scope,
-          () => transport.drainEvents(),
+          drainEvents,
           httpStorage ? { storage: httpStorage.storage, waitUntil: waitM1Due } : undefined,
         );
       },

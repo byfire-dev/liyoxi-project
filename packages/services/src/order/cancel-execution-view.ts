@@ -41,7 +41,7 @@ const title = (value: unknown) => {
 /** Caller has checked domain read visibility or the stronger execute authorization. Never writes. */
 export async function projectCancelRequestDetail(
   tx: Tx,
-  deps: CancelDeps,
+  deps: Pick<CancelDeps, "clock" | "readApprovalRefs">,
   r: CancelReadRequest,
   actions: CancelRequestDetail["actions"],
 ): Promise<CancelRequestDetail> {

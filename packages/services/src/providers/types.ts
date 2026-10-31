@@ -1103,19 +1103,23 @@ export interface WecomProvider extends ProviderBase {
 
 // ---------- esign：授权书数字签名 ----------
 
+export type EsignSealValue =
+  | {
+      readonly pdf: Uint8Array;
+      readonly mode: "certificate";
+      readonly driver: "platform_cert";
+      readonly certIssuer: string;
+      readonly certSerial: string;
+      readonly signedAt: Date;
+    }
+  | { readonly pdf: Uint8Array; readonly mode: "stamp" };
+
 export interface EsignProvider extends ProviderBase {
   /**
    * 授权书签署。mode 为 certificate 时带数字签名；为 stamp 时是图片章：章在文书渲染时已经盖上，
    * 这里不加数字签名，原样返回。stg、prod 下图片章须显式开关（ADR-039 的例外）。
    */
-  seal(input: { pdf: Uint8Array }): Promise<
-    ProviderResult<{
-      pdf: Uint8Array;
-      mode: "certificate" | "stamp";
-      certSerial?: string;
-      signedAt?: Date;
-    }>
-  >;
+  seal(input: { pdf: Uint8Array; signal?: AbortSignal }): Promise<ProviderResult<EsignSealValue>>;
 }
 
 // ---------- invoice：自动开票（V1.1+，现在只留接口与未配置实现） ----------

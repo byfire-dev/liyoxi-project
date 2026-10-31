@@ -195,3 +195,15 @@ export {
 export type { QualificationFixture } from "./qualification.fixture.js";
 
 export { createProductionActionsTools } from "./production-actions-tools.js";
+
+export { createTestLicenseTemplateCatalog } from "./license-render.js";
+
+// TEST ONLY: generated in-memory key material and the real standard certificate adapter.
+export {
+  createTestMaterial,
+  createPathConstraintMaterials,
+  TEST_PASSPHRASE,
+  unsupportedEcP12,
+  verifyTestPdf,
+} from "./esign-material.js";
+export { createPlatformCertEsign as createTestPlatformCertEsign } from "../providers/index.js";

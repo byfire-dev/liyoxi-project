@@ -2210,6 +2210,133 @@
         ],
         "type": "object"
       },
+      "AdminLicenseLetterView": {
+        "additionalProperties": false,
+        "properties": {
+          "accountName": {
+            "type": "string"
+          },
+          "actions": {
+            "items": {
+              "enum": [
+                "correct",
+                "void"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "channelAccountId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currentRevision": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LicenseLetterRevisionView"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "isExpired": {
+            "type": "boolean"
+          },
+          "letterNo": {
+            "type": "string"
+          },
+          "licenseLetterId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "periodEnd": {
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "enum": [
+              "douyin",
+              "wechat_channels"
+            ],
+            "type": "string"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/LicenseLetterRevisionView"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "pending_effective",
+              "effective",
+              "voided"
+            ],
+            "type": "string"
+          },
+          "voidReason": {
+            "enum": [
+              "cancelled",
+              "terminated",
+              "account_removed",
+              "manual",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "voidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "licenseLetterId",
+          "letterNo",
+          "orderItemId",
+          "channelAccountId",
+          "platform",
+          "accountName",
+          "status",
+          "isExpired",
+          "periodStart",
+          "periodEnd",
+          "voidReason",
+          "voidedAt",
+          "createdAt",
+          "currentRevision",
+          "revisions",
+          "actions"
+        ],
+        "type": "object"
+      },
       "AdminOrderCard": {
         "properties": {
           "actions": {
@@ -20238,6 +20365,268 @@
           "actions"
         ],
         "type": "object"
+      },
+      "LicenseLetterCorrectBody": {
+        "additionalProperties": false,
+        "properties": {
+          "correctionKinds": {
+            "items": {
+              "enum": [
+                "licensee_name",
+                "store_name",
+                "account_name",
+                "other"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "correctionKinds",
+          "note"
+        ],
+        "type": "object"
+      },
+      "LicenseLetterList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminLicenseLetterView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "LicenseLetterRerenderBody": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "LicenseLetterRevisionView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "rerender"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contentFp": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "licenseLetterRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "platformSignedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "readyAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "initial",
+              "go_live",
+              "period_changed",
+              "correction",
+              "resign"
+            ],
+            "type": "string"
+          },
+          "renderAttemptNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "renderIssue": {
+            "$ref": "#/components/schemas/LicenseRenderIssue"
+          },
+          "renderStatus": {
+            "enum": [
+              "queued",
+              "rendering",
+              "ready",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "revNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "signMode": {
+            "enum": [
+              "platform_cert",
+              "esign_seal",
+              "stamp",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "templateVersion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "licenseLetterRevisionId",
+          "revNo",
+          "reason",
+          "renderStatus",
+          "renderAttemptNo",
+          "fileId",
+          "contentFp",
+          "templateVersion",
+          "signMode",
+          "platformSignedAt",
+          "readyAt",
+          "createdAt",
+          "actions",
+          "renderIssue"
+        ],
+        "type": "object"
+      },
+      "LicenseLetterVoidBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "type": "object"
+      },
+      "LicenseLetterVoidResult": {
+        "additionalProperties": false,
+        "properties": {
+          "reissued": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdminLicenseLetterView"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "voided": {
+            "$ref": "#/components/schemas/AdminLicenseLetterView"
+          }
+        },
+        "required": [
+          "voided",
+          "reissued"
+        ],
+        "type": "object"
+      },
+      "LicenseRenderIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "missing_glyph"
+            ],
+            "type": "string"
+          },
+          "missing": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "character": {
+                  "maxLength": 2,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "codePoint": {
+                  "pattern": "^U\\+[0-9A-F]{4,6}$",
+                  "type": "string"
+                },
+                "fields": {
+                  "items": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "maxItems": 4,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "character",
+                "codePoint",
+                "fields"
+              ],
+              "type": "object"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "type": "array"
+          },
+          "totalMissingCodePoints": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "missing",
+          "totalMissingCodePoints",
+          "truncated"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
       },
       "ListingCheckResult": {
         "properties": {
@@ -60440,6 +60829,381 @@
         "x-permission": "publish.link.verify"
       }
     },
+    "/api/v1/admin/license-letter-revisions/{licenseLetterRevisionId}/rerender": {
+      "post": {
+        "operationId": "admin.licenseLetterRevision.rerender",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "licenseLetterRevisionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseLetterRerenderBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LicenseLetterRevisionView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "授权书版次渲染失败后重新生成",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.license_letter.manage"
+      }
+    },
+    "/api/v1/admin/license-letters/{licenseLetterId}/correct": {
+      "post": {
+        "operationId": "admin.licenseLetter.correct",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "licenseLetterId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseLetterCorrectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminLicenseLetterView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "授权书更正并重出（主体更名、账号名笔误；编号不变，出 correction 版次）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.license_letter.manage"
+      }
+    },
+    "/api/v1/admin/license-letters/{licenseLetterId}/void": {
+      "post": {
+        "operationId": "admin.licenseLetter.void",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "licenseLetterId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseLetterVoidBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LicenseLetterVoidResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "人工作废授权书并按当前事实重出新信（原因必填）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "order.license_letter.manage"
+      }
+    },
     "/api/v1/admin/media-jobs": {
       "get": {
         "operationId": "admin.mediaJob.list",
@@ -61335,6 +62099,119 @@
           }
         },
         "summary": "成片包、下载授权与下载记录（排障与证据）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/order-items/{orderItemId}/license-letters": {
+      "get": {
+        "operationId": "admin.orderItem.licenseLetter.list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeVoided",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LicenseLetterList"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "订单项的定制内容授权书（每个发布账号一份）与当前版次文件",
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"

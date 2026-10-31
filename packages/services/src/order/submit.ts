@@ -311,5 +311,5 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
   });
   await notifyReadOf(deps.assembly).read(tx, "orderForNotify", orderId);
   // order_submit 为 outbox 来源；M7 analytics.fromOutbox 从唯一 order.submitted 派生，不额外直记同名埋点。
-  return { ...(await detail(tx, actor, orderId)), replayed: false };
+  return { ...(await detail(tx, actor, orderId, deps.clock.now())), replayed: false };
 }

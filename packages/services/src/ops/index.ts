@@ -125,3 +125,6 @@ export { createDownloadRecords } from "../delivery/index.js";
 
 export { requireRuntimeProductionAccess } from "./production-access-runtime.js";
 export { createDocsLicenseAssembly, createRuntimeDocsLicense } from "./docs-license-runtime.js";
+
+export { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
+export type { LicenseRenderingEngine, DocsRenderRuntime } from "./docs-render-runtime.js";

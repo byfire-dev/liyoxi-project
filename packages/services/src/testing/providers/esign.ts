@@ -1,4 +1,4 @@
-// 假电子签：按“带数字签名”的样子返回（mode 为 certificate），证书序列号是编的；文件内容原样返回。
+// 仅测试Provider替身：不生成数字签名，诚实返回stamp；密码学测试使用运行时生成的TEST ONLY证书。
 // 要测图片章与未配置，用 providers 里的真实实现（createStampEsign、未配置实现），不用替身。
 
 import { ok } from "../../providers/types.js";
@@ -31,9 +31,7 @@ export function createFakeEsign(options: { clock?: FakeClock } = {}): FakeEsign 
         sealed.push(new Uint8Array(input.pdf));
         return ok({
           pdf: new Uint8Array(input.pdf),
-          mode: "certificate",
-          certSerial: FAKE_CERT_SERIAL,
-          signedAt: clock.now(),
+          mode: "stamp",
         });
       }),
   };

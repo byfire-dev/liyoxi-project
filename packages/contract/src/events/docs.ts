@@ -3,6 +3,12 @@ import { IdSchema } from "../common/index.js";
 import { LICENSE_LETTER_REVISION_REASON, LICENSE_LETTER_VOID_REASON } from "../enums/index.js";
 
 export const payloads = {
+  "license_letter.issued": z.strictObject({
+    v: z.literal(1),
+    licenseLetterId: IdSchema,
+    revisionId: IdSchema,
+    revNo: z.int().positive(),
+  }),
   "license_letter.revision_queued": z.strictObject({
     v: z.literal(1),
     licenseLetterId: IdSchema,

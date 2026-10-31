@@ -1,3 +1,4 @@
+import { consumeDocs } from "./queues/docs.js";
 // 任务进程的运行时（W0-23）：四个循环、两个队列的消费者、租约与关停的顺序。
 // 依据：x01 第 4.3、4.4 节；D7 第 7.6 节；01 第 7.3、7.4 节；计划 第 8.4 节（M0 的四个循环与两个队列）。
 // 这里只有调度：认领、执行、失败处理都在 @liyoxi/services（CLAUDE.md 第 6 节规则 5、6）。
@@ -41,6 +42,7 @@ export const QUEUE_CONCURRENCY = {
   media_job: 10,
   promote: 2,
   notify: 4,
+  docs: 2,
 } as const satisfies Partial<Record<QueueId, number>>;
 export type WorkerQueue = keyof typeof QUEUE_CONCURRENCY;
 const legacyPromoteRef = z.object({ jobId: z.uuid() }).strict();
@@ -112,6 +114,11 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
     ensure_recurring: loop("ensure_recurring", () => services.ensureRecurring()),
   };
   const consumers: Record<WorkerQueue, QueueConsumer> = {
+    docs: channel.consume<unknown>(
+      "docs",
+      QUEUE_CONCURRENCY.docs,
+      queued("docs", (raw) => consumeDocs(services, raw)),
+    ),
     notify: channel.consume<NotifyQueueRef>(
       "notify",
       QUEUE_CONCURRENCY.notify,
@@ -162,11 +169,13 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
   const promote = (): void => {
     active = true;
     services.resumeMediaJobs?.();
+    services.resumeDocs?.();
     for (const one of all) one.start();
     for (const one of queues) one.start();
   };
   const demote = (): void => {
     active = false;
+    void services.pauseDocs?.().catch((error) => onError("docs.pause", error));
     void services.pauseMediaJobs?.().catch((error) => onError("media_job_run.pause", error));
     for (const one of all) void one.stop();
     for (const one of queues) void one.pause().catch(() => undefined);
@@ -206,6 +215,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
         try {
           services.disableModelBudget?.();
           // 一个关闭失败不能提前解绑：循环与全部消费者都收完后才清理绑定。
+          const docsShutdown = Promise.resolve().then(() => services.shutdownDocs?.());
           const mediaShutdown = Promise.resolve().then(() => services.shutdownMediaJobs?.());
           const alertResults = await Promise.allSettled([
             Promise.resolve().then(() => services.closeAlertDispatcher?.()),
@@ -218,6 +228,7 @@ export function createWorkerRuntime(options: WorkerRuntimeOptions): WorkerRuntim
             Promise.resolve().then(() => services.closeAnalytics?.()),
             ...all.map((one) => Promise.resolve().then(() => one.stop())),
             mediaShutdown,
+            docsShutdown,
           ]);
           const queueResults = await Promise.allSettled(
             queues.map((one) => Promise.resolve().then(() => one.close(SHUTDOWN_WAIT_MS))),

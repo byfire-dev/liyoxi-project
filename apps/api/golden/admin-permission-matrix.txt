@@ -147,6 +147,9 @@ admin.invoiceRequest.summary | finance:view | - | 11 00 00 00 00 00 00 11
 admin.launchSubmission.approve | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
 admin.launchSubmission.get | publish:view | - | 11 11 11 00 11 11 00 00
 admin.launchSubmission.reject | publish:edit | publish.link.verify | 11 00 00 00 11 00 00 00
+admin.licenseLetter.correct | order:view | order.license_letter.manage | 11 01 00 00 00 00 00 00
+admin.licenseLetter.void | order:view | order.license_letter.manage | 11 01 00 00 00 00 00 00
+admin.licenseLetterRevision.rerender | order:view | order.license_letter.manage | 11 01 00 00 00 00 00 00
 admin.mediaJob.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.mediaJob.retry | - | media.job.retry | 11 00 00 00 00 11 00 00
 admin.merchantUser.disable | merchant:view | merchant.user.disable | 11 01 00 00 00 00 00 00
@@ -160,6 +163,7 @@ admin.order.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.order.quote | billing:view | - | 11 11 11 00 00 11 11 11
 admin.order.summary | order:view | - | 11 11 11 00 00 11 11 11
 admin.orderItem.download.list | delivery:view | - | 11 11 11 11 11 11 00 00
+admin.orderItem.licenseLetter.list | order:view | - | 11 11 11 00 00 11 11 11
 admin.orderItem.rescheduleLaunch | delivery:edit | delivery.plan.reschedule | 11 00 11 00 00 00 00 00
 admin.outboxDelivery.list | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.outboxEvent.retry | - | flow.ops.manage | 11 00 00 00 00 00 00 00

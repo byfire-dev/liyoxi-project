@@ -96,3 +96,47 @@ W5-06 同编号分为两个 PR：PR1 交事实、writer、真实 subscriber、N1
 测试的真实链为 Fake 外部渠道成功事实→正式付款履约→两账号绑定审核→订购及历史同意→实际开工→首次方案确认→真实取消审批执行→正式 relay/lease/consume。日期改变、正常 ended、确认后重选当前没有本包可调用的完整 producer，明确以纯注入事实测试 writer，不 SQL 造阶段/资金成功/PDF ready。W5-07/08、M6 和真实法律正文/证书验收仍未完成。
 
 PR1分片后原M1真实20集制作/交付/上线链已复验，实际正式Assembly的137项full检查零违规、零错误，原90秒预算不变；其中没有N6。完整N6公口的自愈与③只报告另有真实依赖定点验证，PR2仍须在07 actual后正式登记并跑包含N6的原full断言，不能用PR1这次绿色替代。
+
+
+## 7. W5-07 授权书 PDF、签署与实际运输
+
+本节说明当前代码；前文 W5-06/独立前置里“归07”“尚待07”的表述保留原移交时点。07 沿同一不可变 snapshot、规范 UTF16 键序指纹与 writer 增加渲染，不新增法律事实收敛或 N6 自愈机制。八条查询/更正/作废/重渲/下载仍以 contract 与实际权限为准；不以本节代替工作包状态、actual main 或完整 N6 验收回执。
+
+| 文件 | 当前端口与责任 |
+| --- | --- |
+| `license-render.ts`、`license-render-types.ts` | `createLicensePdfRenderer({ fontDir, catalog? })` → `{ configured, render, close }`；输入仅 snapshot、templateVersion、contentFingerprint、可选 signal，成功返回 PDF 字节，不查库或读签署材料 |
+| `license-render-catalog.ts` | 按 templateVersion 固定标题、提示与三个 clause key 的正文；正式默认 catalog 当前为空，E8 缺失即未配置 |
+| `license-render-fonts.ts`、`license-render-text.ts` | 三份静态 TTF 的既定 SHA-256、公用 Font.load/getFont 字形能力与 ADR-042 并段换行；不引入额外字体或第二套 cmap 解析器 |
+| `license-render-result.ts` | 有界缺字诊断与同认领 fence 的只增审计；授权读口按当前有效认领读取，不显示旧失败 |
+| `license-queue.ts`、原 `jobs.ts/register.ts` | 认领/租约/条件完成、原 sweep 扩展与唯一 docs.onRevisionQueued；缺配置不认领，缺字本次受控 failed，其余暂不可用沿原重试规则 |
+| `license-read.ts`、`license-admin.ts` | 只读范围与敏感下载、已有 writer 上的人工更正/作废/failed 重渲；USCC 预览脱敏，私签 URL 不入库或幂等结果 |
+| `ops/docs-render-runtime.ts` | worker 组合 renderer → seal → 最终字节 SHA-256 → secure 对象 → fence 条件提交 ready/current/issued；对象键含最终哈希 |
+
+### 纯渲染与固定正文
+
+renderer 深拷贝组合根给定 catalog，并验证传入 snapshot 的内容指纹。业务 API 不能提交正文或挑选测试 catalog。当前正式 v1 没有法务定稿，因此默认 `configured=false`；不得拿 X-03 历史条款或测试文字补正式 v1。`testing/license-render.ts` 的显式 TEST ONLY catalog 用于受保护 local/test 组合，每页印“技术联调样张，非法务定稿”。后续 E8 应按独立版本/迁移裁定入库，不能悄换已存在版次所指向的同版文字。
+
+字体仅来自 `LYX_PDF_FONT_DIR` 的三份固定 Noto 静态 TTF，先核实际字节哈希，再经 renderer 公共 `Font.load/getFont` 的 `data.hasGlyphForCodePoint` 检查三字体交集。字体注册绑定内容版本，不在并发任务中 clear/reset。替换字体应遵循已批准的字体版本与部署/重启流程；字体修好后可对原 failed 版次重试，资料修正则走更正创建新版，旧 snapshot 不变。
+
+所有实际固定文本和字段先将控制字符换为空格，再做 NBSP 与并段换行；不做 NFC/NFKC 改写。孤立 UTF16 代理受控拒绝，未知 joiner/变体/格式序列也受控拒绝，不能仅凭单码点覆盖宣称整体排版支持。普通组合字符仍逐码点检查，真实 PDF 回读验证覆盖的 e+组合重音。缺字停止整版，不替换成“〓”；诊断最多 32 个去重码点、每项最多四个固定字段路径，含总数与截断标志，持久化外层 meta 不超过 8KiB。普通日志只保受控分类，授权读口才返回具体缺字。
+
+正文、表头、标题、每页编号/版次/页码/内容指纹与实际验真 URL 的二维码均在签名前渲染。页脚不打印文件自身哈希。实际 PDF 自检 BaseFont 名只允许三份固定字体，拒绝回退，渲染文件上限 1MiB；用例另从真实 PDF 字节回读每页文本、页脚、字体与技术标记。二维码使用真实编码图片；当前自动用例核嵌入图像，独立二维码解码及签后真机/阅读器仍属外验。
+
+### worker 能力与关闭
+
+签署由 [esign Provider](../providers/esign/README.md) 提供。`loadEnv` 仅解析四项 ESIGN_SSM 描述和字体路径；API 不构造 source/signer、不打开 STS 文件。worker 才组合固定 SSM secret/version 的材料源，STS 到期判断用真实系统时钟；完整测试 engine 只允许 local/test worker 显式覆盖。正文、字体或签署能力缺配时保持 queued 并给出受控告警，不耗尽尝试、不以图片章伪造生产就绪。
+
+认领后渲染、签署、上传均在事务外。以签后最终字节计算哈希和对象键，再在锁内验证实际认领序号、租约与当前事实；迟到任务不能覆盖新认领或推进不匹配的 current。ready 与文件引用、当前指针及 issued 事件同事务提交。只扩已有 docs.sweep 的 queued 重投/租约回收/满次失败；不增加第二个同名任务或后台自改终态的观察器。
+
+关闭先停止新的消费/认领，abort 本实例工作并等待真实在途结束，再关闭事实 scope、renderer、签署材料源与其他依赖。存储端口没有即时取消能力时等待实际存储完成后丢弃迟到结果；普通文件 I/O 与同步密码学也不冒称可以硬中断。双实例不共用业务 pending 或凭据缓存。
+
+M1 自有测试支架对同一隔离前缀建立真实 docs 队列两槽 consumer；默认进程内 worker 与独立 worker 都使用实际 renderer 和运行时生成的 TEST ONLY 证书（材料 helper 位于 [testing/esign-material.ts](../testing/esign-material.ts)，经 `testing/index.ts` 公开）。local attach 必须携带 owner 保护的测试输入。后台 observer 只读非作废信的 queued/rendering 与最新必需版次失败；逐一核必需信的最新 ready/current，并保留对全部历史 ready（含作废信）的真实文件/最终哈希/文件引用与 issued 后续校验，再读取对象字节复算哈希；空 outbox 或空 Redis 队列不能单独证明完成。原 30 秒排空、32 事件轮及 90 秒用例预算保持。
+
+定向验证（Node 24，显式本地测试 DB/Redis，使用本轮独有 LYX_TEST_SESSION）：
+
+```sh
+APP_ENV=test DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi REDIS_URL=redis://localhost:6389/0 LYX_TEST_SESSION=w507pdf pnpm exec vitest run --project services packages/services/src/docs/license-render.test.ts --maxWorkers=1 --no-file-parallelism
+APP_ENV=test DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi REDIS_URL=redis://localhost:6389/0 LYX_TEST_SESSION=w507docs pnpm exec vitest run --project services packages/services/src/testing/m1-docs.db.test.ts packages/services/src/testing/m1-worker.test.ts packages/services/src/testing/m1-transport.db.test.ts --maxWorkers=1 --no-file-parallelism
+```
+
+定点用例已核实际 PDF、技术证书签名字节及真实队列出件；完整 M1、正式 N6 与发布证据以调度对应验收为准。E8 法务正文、E11 真实机构证书/授权和签后 V12 均未因此关闭；SSM/KMS、worker 专用临时身份刷新与挂载/CAM 隔离、受信阅读器及微信真机仍需外部验收。正式 catalog 为空时生产不可出件属于如实未配置，不将技术样张当作正式法律交付。

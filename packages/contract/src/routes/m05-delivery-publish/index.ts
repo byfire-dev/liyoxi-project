@@ -42,3 +42,7 @@ export {
   mOrderItemDownloadUrls,
 } from "./order-items.js";
 export * from "./download.schemas.js";
+
+export * from "./license.schemas.js";
+
+export * from "./license-letters.js";

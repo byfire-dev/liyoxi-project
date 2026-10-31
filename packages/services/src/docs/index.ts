@@ -76,3 +76,15 @@ export type {
   LicenseConvergenceDeps,
   LicenseLetterSnapshot,
 } from "./license-facts.js";
+
+export { correctLicenseLetter, voidLicenseLetter } from "./license-convergence.js";
+export { claimLicenseRevision, completeLicenseRevision, failLicenseRevision, rerenderLicenseRevision, readQueuedLicenseRevision, onLicenseRevisionQueued, sweepLicenseRevisions } from "./license-queue.js";
+export type { LicenseRenderClaim, LicenseRenderCompletion, LicenseRenderQueueDeps, LicenseRevisionWriteDeps, LicenseRenderFilePort } from "./license-queue.js";
+export { createLicensePdfRenderer } from "./license-render.js";
+export type { LicensePdfRenderer, LicensePdfRenderResult } from "./license-render-types.js";
+export { LICENSE_TEMPLATE_CATALOG, readLicenseTemplateClauses } from "./license-render-catalog.js";
+export type { LicenseTemplateCatalog } from "./license-render-catalog.js";
+export type { LicenseRenderIssue } from "./license-render-result.js";
+export { createLicenseRead, assertLicenseFileVisible, readLicenseOrderProjection } from "./license-read.js";
+export type { LicenseRead, LicenseReadDeps, LicenseViewer } from "./license-read.js";
+export { createLicenseAdmin } from "./license-admin.js";

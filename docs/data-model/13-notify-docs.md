@@ -1037,7 +1037,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | — | 对齐函数出新版次 | `queued` | 同事务写出站事件 `license_letter.revision_queued` | 对齐函数 |
 | `queued` | 认领 | `rendering` | `render_attempt_no + 1`，租约 5 分钟；驱动是 `stamp` 而参数 `docs.license.allow_stamp_only` 未置真时不认领（停在 `queued` 并告警） | 渲染任务 |
-| `rendering` | 渲染、签名、上传完成 | `ready` | 条件更新：认领序号相符；同事务回写文件与签署信息、把信件的 `current_revision_id` 前移、写出站事件 `license_letter.issued`。影响 0 行则删掉刚上传的对象 | 渲染任务 |
+| `rendering` | 渲染、签名、上传完成 | `ready` | 条件更新：认领序号相符；同事务回写文件与签署信息、把信件的 `current_revision_id` 前移、写出站事件 `license_letter.issued`。影响 0 行不前移当前版；经 putSystemFile 登记的未引用文件交既有 media 保留与清除流程，不直接删除可能已被并发认领引用的同哈希对象（W5-07实际存储公口勘误） | 渲染任务 |
 | `rendering` | 租约过期 | `queued` | `render_attempt_no < 4` | `docs.sweep` |
 | `rendering` | 租约过期且已到 4 次 | `failed` | 告警；商家端显示“授权书生成中” | `docs.sweep` |
 | `failed` | 重新生成 | `queued` | `render_attempt_no` 置 0、`render_lease_until` 清空（重新给满 4 次机会）；写审计 | 员工 |

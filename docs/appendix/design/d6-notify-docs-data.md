@@ -1351,7 +1351,7 @@ sequenceDiagram
   R->>CA: seal(pdf)：数字签名，得到已签名文件与证书序列号
   R->>COS: 上传到 legal/{orderItemId}/{letterNo}-r{n}-{已签名文件哈希前 8 位}.pdf
   R->>PG: 事务：条件更新 rendering→ready（认领序号相符）+ file_id + pdf_sha256 + 证书信息；信件 current_revision_id 前移；出站事件 license_letter.issued
-  Note over R,PG: 条件更新影响 0 行（认领已被回收）→ 删除刚上传的对象，放弃
+  Note over R,PG: 条件更新影响 0 行（认领已被回收）→ 放弃当前完成；未引用登记文件交 media 保留与清除，不能删除并发胜出认领的同哈希对象
 ```
 
 - 版次号在锁住订单项与信件行后取 `max(rev_no)+1`，并有唯一约束兜底。

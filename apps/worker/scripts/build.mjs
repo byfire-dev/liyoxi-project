@@ -14,6 +14,16 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const EXTERNAL = [
+  // The renderer resolves its own #standard-fonts assets at runtime. Preserve that package boundary.
+  "@react-pdf/renderer",
+  "@signpdf/placeholder-pdf-lib",
+  "@signpdf/signer-p12",
+  "@signpdf/signpdf",
+  "node-forge",
+  "pdf-lib",
+  "qrcode",
+  "react",
+  "tencentcloud-sdk-nodejs-common",
   "bullmq",
   "ioredis",
   "mammoth",
