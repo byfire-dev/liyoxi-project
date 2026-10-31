@@ -57,3 +57,5 @@ export {
   readLicenseOrderItemIds,
 } from "./license-facts.js";
 export type { OrderLicenseFact, LicenseCandidateItemsQuery } from "./license-facts.js";
+export { createOrderReconciler } from "./reconcile.js";
+export type { OrderReconcileDeps, OrderReconcileResult } from "./reconcile.js";

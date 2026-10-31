@@ -92,7 +92,11 @@ export type {
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
-export { createTestWorkerServices, runTestInvariants } from "./ops-runtime.js";
+export {
+  createTestWorkerServices,
+  runTestInvariants,
+  createRuntimeDocsLicense,
+} from "./ops-runtime.js";
 
 // W2-12：两个应用的真实转换产物共享虚构文件；仅测试入口可用。
 export {

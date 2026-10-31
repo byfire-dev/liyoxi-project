@@ -145,3 +145,17 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 `tenant.entityAdCancelClose` 是本域登记的二阶段关闭伴随口，按 tenant README 的低序 union 与全部 tenant 行预锁协议调用。仅在调用方已真实关闭主体后，精确系统撤回该主体的 pending ad_cancel；沿现有六回调关闭 header/审批/自有指针/审批 timer，零账本变动，不造 delivery 暂停。API 复用其唯一 Approval 实例，worker 以原 registry 与真实依赖创建 Approval；既有 `bindOrder`/close 维护本实例作用域，无取消依赖则拒绝。本片不构成完整 tenant 关闭或其他 kind 实现。
 
 广告取消提交新增可选成对 `AdCancelSubmissionCompanion`：`beforeAccount` 在真实目标170之后、首次 `ledger.lockAccount`420之前调用，`afterCreated` 在真实审批/header/line/指针/提交事件建立后、自动审批执行前调用。两个阶段收到同一个冻结目标对象及实际分配审批ID；应用可组合 support 专用引用 writer，order 不导入同层 support。未提供 companion 的原提交语义不变，单侧回调拒绝。HTTP 仍待后片，不接受后静默丢弃 `serviceTicketId`。
+
+## M5 订单对账（W5-03 PR3）
+
+`createOrderReconciler` 由当前 API/worker 组合根注入真实取消依赖、实例授权 writer、profile 当前终局候选、content 当前版权止日/修订和 delivery 工单读口。内部公口 `runtime.reconcileOrders(beat?)` 不增加 HTTP；worker 唯一 `flow_reconcile_sweep` 每五分钟调用同一工厂，原 `flow_reevaluate_sweep` 保持独立。
+
+开工严格超过十分钟的订单经当前 `ensureLetters` 对齐账号、阶段与法律要素，健康重放零新增。终局资质对账与原订阅者共用 `ensureFinalQualificationCancel`，回读当前真实轮次、审批及完整目标图，沿原 `submitQualificationCancel` 创建整店申请；广告单独存在的门店也在候选中。原系统身份、账户锁、免审条件与审批/执行 writer 不变，不以假事件恢复旧轮次。
+
+止日每小时核对；剧目140、父单160、订单项170及存在的工单180锁内重读当前版权与生命周期。license 来源止日较早只为该项即时登记 `usage.resync:order_item:{itemId}:{currentRevisionId}`，较晚仅发原 `order.license_shortened` 告警。已有同键未取消 timer 保留原 fireAt、attempts、retryAt，不以周期重登记清除失败退避。订单项止日、下架任务和成片包均不由本循环改写。
+
+`usage.resync` 的真实消费仍归 order/M6，当前没有处理器；到期扫描会按既有 critical 策略退避，第六次起 P1 并继续重试。这是本阶段实际运行限制，本包只交真实生产者，不宣称已经顺延，也不延后触发、改扫描器或登记替代处理器。
+
+候选有界分页，业务目标各自事务；一个目标失败回滚后继续其他目标，整轮以有界目标标识报错。beat 在逐对象收尾调用。实例内禁止重叠，关闭拒绝新调用并等待在途，业务事务返回前复核关闭标记；API先排空对账再关闭文书依赖，worker原租约/循环stop同样先排空再解绑。小时标记只在该类完整成功后推进，重启首轮可重扫，幂等由真实事实和语义键保证。
+
+定点目标为 `src/order/reconcile.db.test.ts`、`apps/worker/test/order-reconcile.test.ts`；保留原 delivery 循环与资质终局回归。正式 M1 的 afterChain 在本scope把注入时钟推进十分钟，实际执行两轮新服务后再跑原 full，原二十集/live、零违规/错误和90秒墙钟断言不变。机制夹具保留的历史资料不冒充全链健康输入。

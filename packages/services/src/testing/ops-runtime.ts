@@ -2,6 +2,7 @@
 // 不替换runner、savepoint或写库行为；worker固定test环境，连接仍由隔离测试支架拥有。
 import { buildWorkerServices, runInvariants } from "../ops/index.js";
 import type { WorkerServicesOptions } from "../ops/index.js";
+export { createRuntimeDocsLicense } from "../ops/index.js";
 
 export function createTestWorkerServices(options: Omit<WorkerServicesOptions, "appEnv">) {
   return buildWorkerServices({ ...options, appEnv: "test" });
