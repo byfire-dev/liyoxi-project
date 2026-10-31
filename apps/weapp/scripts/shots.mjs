@@ -213,8 +213,37 @@ async function runLicenseContractsRegression(page, scene) {
     await expect(detail()).toContainText("𠮷");
     await expect(detail()).toContainText(/U\+20BB7/);
     await expect(detail()).toBeInViewport({ ratio: 0.99 });
+  } else if (scene === "contracts-license-updating") {
+    await expect(read).toHaveCount(1);
+    await read.first().click();
+    await expect(detail()).toContainText("最新授权期限");
+    await expect(detail()).toContainText("2026-09-01 至 2028-12-31");
+    await expect(detail()).toContainText("当前已出件版本 · 第 1 版");
+    await expect(detail()).toContainText("本版授权期限");
+    await expect(detail()).toContainText("自上线首日起 至 2027-12-31");
+    await expect(detail()).toContainText(
+      "最新期限尚未出件，当前 PDF 仍为第 1 版，仅包含下方的本版授权期限。",
+    );
+    const open = detail().locator(".lyx-button").filter({ hasText: "打开当前版 PDF" });
+    await open.click();
+    await expect.poll(openCount).toBe(1);
+    await expect(open).not.toHaveClass(/loading/);
+    const signed = (await calls()).filter((call) => call.path.endsWith("/download-urls"));
+    expect(signed).toHaveLength(1);
+    expect(signed[0].data).toEqual({});
+    const urls = await page.evaluate(() => globalThis.__LYX_CONTRACT_DOWNLOAD_URLS__ ?? []);
+    expect(urls).toHaveLength(1);
+    expect(new URL(urls[0]).pathname).toBe(
+      "/licenses/00000000-0000-4000-8000-000000000152/rev-1.pdf",
+    );
+    await detail()
+      .locator(".lyx-sheet__body")
+      .evaluate((node) => {
+        for (const child of [node, ...node.querySelectorAll("*")]) child.scrollTop = 0;
+      });
+    await expect(detail()).toBeInViewport({ ratio: 0.99 });
   } else if (scene === "contracts-license-order") {
-    const orderId = "00000000-0000-4000-8000-000000000150";
+    const orderId = "0193e8c0-abcd-7000-8000-000000000150";
     await expect(page).toHaveURL(new RegExp(`[?&]orderId=${orderId}(?:&|$)`));
     expect(query.get("orderId")).toBe(orderId);
     expect(summaryQuery.get("orderId")).toBe(orderId);

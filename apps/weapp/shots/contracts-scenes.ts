@@ -9,6 +9,7 @@ export const CONTRACT_SCENES = [
   { name: "contracts-license-clerk", route: "sub/billing/contracts/index" },
   {
     name: "contracts-license-order",
-    route: "sub/billing/contracts/index?orderId=00000000-0000-4000-8000-000000000150",
+    route: "sub/billing/contracts/index?orderId=0193e8c0-abcd-7000-8000-000000000150",
   },
+  { name: "contracts-license-updating", route: "sub/billing/contracts/index" },
 ] as const;

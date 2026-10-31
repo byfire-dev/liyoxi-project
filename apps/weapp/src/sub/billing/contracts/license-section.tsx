@@ -76,6 +76,11 @@ export function LicenseSection({
   const state = model.snapshot(),
     detail = state.detail,
     preview = detail?.preview;
+  const pendingPeriod =
+    preview &&
+    detail &&
+    (preview.period.startDate !== detail.periodStartDate ||
+      preview.period.endDate !== detail.periodEndDate);
   const ready = state.page !== null || state.restricted || state.error !== null;
   return (
     <View className="billing-licenses" id={ready ? "licenses-ready" : undefined}>
@@ -205,7 +210,7 @@ export function LicenseSection({
               items={[
                 { label: "授权书编号", value: detail.letterNo },
                 { label: "授权状态", value: statusNames[detail.displayStatus] },
-                { label: "授权期限", value: period(detail) },
+                { label: "最新授权期限", value: period(detail) },
                 { label: "发布账号", value: `${platform(detail)} · ${detail.accountName}` },
               ]}
               labelWidth="lg"
@@ -215,8 +220,17 @@ export function LicenseSection({
                 <View className="billing-contracts__record-title">
                   当前已出件版本 · 第 {preview.revNo} 版
                 </View>
+                {pendingPeriod ? (
+                  <Note>
+                    最新期限尚未出件，当前 PDF 仍为第 {preview.revNo} 版，仅包含下方的本版授权期限。
+                  </Note>
+                ) : null}
                 <DescList
                   items={[
+                    {
+                      label: "本版授权期限",
+                      value: `${preview.period.startDate ?? preview.period.startText} 至 ${preview.period.endDate}`,
+                    },
                     {
                       label: "授权方",
                       value: `${preview.licensorName}（${preview.licensorCreditCodeMask}）`,

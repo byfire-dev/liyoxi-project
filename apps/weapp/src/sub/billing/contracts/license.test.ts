@@ -317,7 +317,7 @@ it("签发后换店/退出的迟到原生下载被abort，不打开旧文件并�
   expect(unlink).toHaveBeenCalledExactlyOnceWith("/temp/owned-license.pdf");
 });
 
-it("订单URL作用域进入list/summary并废弃旧现签，非UUID或空参数受控拒绝而不回退全部授权", async () => {
+it("订单URL作用域遵守C29小写UUIDv7，拒绝v4/大写/空/坏格式且不回退全部授权", async () => {
   const pending = deferred<LicenseDownload>();
   const f = setup({ download: vi.fn<LicenseApi["download"]>(() => pending.promise) });
   f.change({ orderId: LICENSE_ORDER_ID });
@@ -327,13 +327,18 @@ it("订单URL作用域进入list/summary并废弃旧现签，非UUID或空参数
   expect(f.api.summary).toHaveBeenLastCalledWith(filter);
   await f.model.read(f.model.snapshot().page!.items[0]!);
   const opening = f.model.openPdf();
-  f.change({ orderId: "00000000-0000-4000-8000-000000000999" });
+  f.change({ orderId: "0193e8c0-abcd-7000-8000-000000000999" });
   pending.resolve(signed());
   await opening;
   expect(f.document.open).not.toHaveBeenCalled();
   await f.model.read(f.model.snapshot().page!.items[1]!);
   expect(f.api.get).toHaveBeenCalledOnce();
-  for (const orderId of ["bad-order", ""]) {
+  for (const orderId of [
+    "00000000-0000-4000-8000-000000000150",
+    LICENSE_ORDER_ID.toUpperCase(),
+    "",
+    "bad-order",
+  ]) {
     f.change({ orderId });
     await f.model.show();
     expect(f.model.snapshot()).toMatchObject({
@@ -344,4 +349,30 @@ it("订单URL作用域进入list/summary并废弃旧现签，非UUID或空参数
   }
   expect(f.api.list).toHaveBeenCalledOnce();
   expect(f.api.summary).toHaveBeenCalledOnce();
+});
+
+it("期限更新待出件保留最新事实与旧ready快照双期限，当前PDF仍现签ready版而非queued新版", async () => {
+  const scene = "contracts-license-updating";
+  const f = setup({
+    list: async () => licenseCards(scene),
+    get: async (id) => licenseDetail(id, scene),
+  });
+  await f.model.show();
+  await f.model.read(f.model.snapshot().page!.items[0]!);
+  const detail = f.model.snapshot().detail!;
+  expect(detail).toMatchObject({
+    periodStartDate: "2026-09-01",
+    periodEndDate: "2028-12-31",
+    isRendering: true,
+    currentRevNo: 1,
+    canDownload: true,
+  });
+  expect(detail.preview).toMatchObject({
+    revNo: 1,
+    period: { startDate: null, startText: "自上线首日起", endDate: "2027-12-31" },
+  });
+  expect(detail.revisions.map((revision) => revision.revNo)).toEqual([1]);
+  await f.model.openPdf();
+  expect(f.api.download).toHaveBeenCalledExactlyOnceWith(LICENSE_IDS.effective, undefined);
+  expect(f.document.open).toHaveBeenCalledExactlyOnceWith(signed(1).url, expect.any(Function));
 });

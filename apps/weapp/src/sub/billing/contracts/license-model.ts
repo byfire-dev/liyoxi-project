@@ -28,7 +28,8 @@ export function licenseContext(input: {
   };
 }
 export type LicenseContext = ReturnType<typeof licenseContext> & { orderId?: string };
-const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// C29: same boundary as contract/common/scalars.ts UUID_V7_PATTERN; keep the client type-only.
+const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const scopeKey = (context: LicenseContext) =>
   JSON.stringify([context.key, context.storeId, context.orderId ?? null]);
 

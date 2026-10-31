@@ -94,7 +94,7 @@ export function contractVersion(signature = 1): Data<"m.agreementVersion.get"> {
 }
 /** 与 account-fixtures.makeMe 的当前老板门店一致，全部为离线虚构资料。 */
 export const LICENSE_STORE_ID = "00000000-0000-4000-8000-000000000001";
-export const LICENSE_ORDER_ID = "00000000-0000-4000-8000-000000000150";
+export const LICENSE_ORDER_ID = "0193e8c0-abcd-7000-8000-000000000150";
 export const LICENSE_IDS = {
   pending: "00000000-0000-4000-8000-000000000151",
   effective: "00000000-0000-4000-8000-000000000152",
@@ -112,6 +112,7 @@ export function licenseCard(id: string, scene = "contracts-license-list"): Licen
   const expired = id === LICENSE_IDS.expired;
   const blocked = id === LICENSE_IDS.blocked;
   const generating = scene === "contracts-license-generating";
+  const updating = scene === "contracts-license-updating";
   const ready = !blocked && !generating && !voided;
   return {
     licenseLetterId: id,
@@ -132,12 +133,12 @@ export function licenseCard(id: string, scene = "contracts-license-list"): Licen
         : pending
           ? "pending_effective"
           : "effective",
-    periodStartDate: pending ? null : "2026-08-01",
-    periodEndDate: expired ? "2026-08-31" : "2027-12-31",
+    periodStartDate: pending ? null : updating ? "2026-09-01" : "2026-08-01",
+    periodEndDate: expired ? "2026-08-31" : updating ? "2028-12-31" : "2027-12-31",
     createdAt: AT,
     currentRevNo: ready ? (scene === "contracts-license-history" && expired ? 3 : 1) : null,
     issuedAt: ready ? AT : null,
-    isRendering: !ready && !voided,
+    isRendering: updating || (!ready && !voided),
     voidReason: voided ? "account_removed" : null,
     voidedAt: voided ? "2026-10-30T02:30:00.000Z" : null,
     canDownload: ready,
@@ -161,7 +162,9 @@ export function licenseCards(scene = "contracts-license-list"): Data<"m.licenseL
           ? [LICENSE_IDS.pending]
           : scene === "contracts-license-list" || scene === "contracts-license-order"
             ? [LICENSE_IDS.pending, LICENSE_IDS.effective, LICENSE_IDS.expired, LICENSE_IDS.another]
-            : [];
+            : scene === "contracts-license-updating"
+              ? [LICENSE_IDS.effective]
+              : [];
   return { items: ids.map((id) => licenseCard(id, scene)), hasMore: false, nextCursor: null };
 }
 export function licenseDetail(
@@ -170,6 +173,7 @@ export function licenseDetail(
 ): Data<"m.licenseLetter.get"> {
   const card = licenseCard(id, scene);
   const revNo = card.currentRevNo;
+  const updating = scene === "contracts-license-updating";
   return {
     ...card,
     preview:
@@ -190,9 +194,9 @@ export function licenseDetail(
               accountId: "shot-account-001",
             },
             period: {
-              startDate: card.periodStartDate,
-              startText: card.periodStartDate ?? "自上线首日起",
-              endDate: card.periodEndDate,
+              startDate: updating ? null : card.periodStartDate,
+              startText: updating ? "自上线首日起" : (card.periodStartDate ?? "自上线首日起"),
+              endDate: updating ? "2027-12-31" : card.periodEndDate,
               territory: "中国大陆",
             },
             clauses: [

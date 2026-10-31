@@ -349,10 +349,12 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 
 原 `sub/billing/contracts/index` 追加定制内容授权书区及同页详情，仍为 M4/W4-16 已登记页面，0 新页/API/x01。四条 licenseLetter 调用从 merchant operations 推导：列表/summary 明确当前 storeId、同一筛选及 includeVoided；按订单项与发布账号逐封显示，计数用真实 summary。状态与期限取服务端，作废证据及 ready 历史版保留，不按本机日期推断失效。店员不发授权书请求，原本人已签协议与老板历史协议功能继续保留。
 
-合同页支持可选 `?orderId=<UUID>`，由 useRouter 读取后同时传入授权列表和计数；切换该参数使授权详情及迟到文件结果失效。参数为空或不是 UUID 时显示受控错误，不静默展示门店全部授权。订单参数不改变原已签协议的主体/本人作用域。
+合同页支持可选 `?orderId=<UUIDv7>`，由 useRouter 读取后同时传入授权列表和计数；切换该参数使授权详情及迟到文件结果失效。按 C29 仅接受小写、带连字符的 UUIDv7，v4、大写、空或坏格式均显示受控错误，不静默展示门店全部授权。订单参数不改变原已签协议的主体/本人作用域。
 
 详情仅展示当前已出件快照，历史版次显示原因并以 revNo 下载。每次点击都 POST 现签，不带幂等键、不缓存地址；过期、未 ready、签发/下载失败可以重取，缺字诊断明确字符和码点。会话/用户/成员角色与范围/门店/contextRev、列表代次与选中详情代次共同废弃迟到响应，离页取消下载且只清理自有临时文件。已停用门店老板按主体级 contract.read 读证据，后端错误仍如实显示；不据钱包入口推断权限。
 
-模型目标：`pnpm --filter @liyoxi/weapp exec vitest run src/sub/billing/contracts/license.test.ts src/sub/billing/contracts/model.test.ts --maxWorkers=1 --no-file-parallelism`。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/billing/contracts/index`，本域原 2+新 6 及订单 URL 补充 1 场景由同一入口展开；可 `--scene contracts-license-order` 单独核合法/无效订单参数，或 `--scene contracts-license-list` 等选择单态、在同一 H5 产物下用 `--no-build` 复用。PNG 为 `shots/dist/png/billing__contracts-*.png`，脚本每次清空 PNG 目录，分场景复验时先保存需要保留的原图。正式 weapp 的本域 fixture 及文件替身在编译期排除。
+期限变更后新版尚未出件时，详情分别标注最新事实期限和当前已出件版的实际快照期限，明确当前PDF仍是旧版；不会把旧PDF描述成最新期限。`contracts-license-updating` 固定场景验证双期限及实际签发的revNo。
+
+模型目标：`pnpm --filter @liyoxi/weapp exec vitest run src/sub/billing/contracts/license.test.ts src/sub/billing/contracts/model.test.ts --maxWorkers=1 --no-file-parallelism`。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/billing/contracts/index`，本域原 2+新 6 及订单 URL/双期限补充 2 场景由同一入口展开；可 `--scene contracts-license-order` 单独核合法/无效订单参数，或 `--scene contracts-license-updating` 等选择单态、在同一 H5 产物下用 `--no-build` 复用。PNG 为 `shots/dist/png/billing__contracts-*.png`，脚本每次清空 PNG 目录，分场景复验时先保存需要保留的原图。正式 weapp 的本域 fixture 及文件替身在编译期排除。
 
 本地模型、类型、构建与 H5 交互的实际结果见 W5-12 状态；没有微信真机或真实云签发声明。后端真实 HTTP/DB 沿 W5-07 #220，E8/E11/签后 V12 与真实机构证书表现仍由所属外部台账验收，本页不将其提前关闭。
