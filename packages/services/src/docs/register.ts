@@ -141,6 +141,7 @@ export const registration = defineRegistration("docs", {
     }),
   ],
   invariants: [
+    { code: "docs.N6", severity: "P2", modes: ["full"], heal: "heal_and_alert", run: unboundLicense },
     { code: "docs.N16", severity: "P2", modes: ["full"], heal: "none", run: unboundLicense },
     {
       code: "docs.N5",

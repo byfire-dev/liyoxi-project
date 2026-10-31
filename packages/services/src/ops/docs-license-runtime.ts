@@ -14,7 +14,12 @@ import { readLicenseeFacts } from "../tenant/index.js";
 import { paramsAt } from "../config/index.js";
 import { decryptField } from "../security/index.js";
 import type { Keyring } from "../security/index.js";
-import { findN16Violations, reconcileLetters, ensureLetters } from "../docs/index.js";
+import {
+  findN6Violations,
+  findN16Violations,
+  reconcileLetters,
+  ensureLetters,
+} from "../docs/index.js";
 import type { LicenseConvergenceDeps } from "../docs/index.js";
 
 export function createRuntimeDocsLicense(
@@ -93,11 +98,15 @@ export function createDocsLicenseAssembly(base: Assembly) {
       : item,
   );
   const invariants = base.invariants.map((item) =>
-    item.code === "docs.N16"
+    item.code === "docs.N6" || item.code === "docs.N16"
       ? {
           ...item,
           run: (tx: Tx, scope: Parameters<NonNullable<typeof item.run>>[1]) =>
-            run((value) => findN16Violations(tx, value, scope)),
+            run((value) =>
+              item.code === "docs.N6"
+                ? findN6Violations(tx, value, scope)
+                : findN16Violations(tx, value, scope),
+            ),
         }
       : item,
   );

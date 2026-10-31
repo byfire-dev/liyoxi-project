@@ -85,7 +85,7 @@ API 内部公口为 `runtime.licenseLetters.reconcileLetters/ensureLetters(tx, i
 
 07 应直接复用 `LicenseLetterSnapshotSchema/parseLicenseLetterSnapshot`、`canonicalLicenseJson`、`licenseContentFingerprint` 与 `LICENSE_TEMPLATE_VERSION`，不以 Prisma Json 当作已验证快照。规范 JSON 按 UTF16 码元排序键、无空白、UTF8 字节 SHA-256，数组顺序保留；版本正文条款键固定于 v1。当前 ready 指针、渲染/签名/下载及 issued 事件仍归07。
 
-完整 `findN6Violations` 从当前候选与已有未作废信共同发现全部缺信、法律事实不符与多余信，①②经同一 writer 自愈并返回实际 healed；③有效信缺 ready 指针、ready 文件登记哈希不符及版次不连续只报告。PR1 以真实依赖直接测试该公口，**正式 Assembly 尚不登记 N6**，不返回空 run 或声称 full 已有 N6。N16 正式登记并独立核订单/订单项/账号存在性与归属，缺 reader 或缺外部引用不能降为零违规。每个 API/worker 的 subscriber、N16 与关闭均为独立 closure，关闭拒绝新操作并等待在途操作结束。
+完整 `findN6Violations` 从当前候选与已有未作废信共同发现全部缺信、法律事实不符与多余信，①②经同一 writer 自愈并返回实际 healed；③有效信缺 ready 指针、ready 文件登记哈希不符及版次不连续只报告。PR1 以真实依赖直接测试该公口，当时正式 Assembly 尚不登记 N6。07 actual 后的 PR2 正式将原名 N6 登记为 `full / P2 / heal_and_alert`，与 N16 共同绑定当前实例的事实依赖，未绑定或已关闭明确失败。N16 独立核订单/订单项/账号存在性与归属，缺 reader 或缺外部引用不能降为零违规。每个 API/worker 的 subscriber、N6、N16 与关闭均为独立 closure，关闭拒绝新操作并等待在途操作结束；索引与登记数组指向同一实例检查对象。
 
 N6的当前集合检查①②③保留未作废过滤；ready文件哈希与版号连续性独立按本次主体scope读取全部状态的历史信及版次，包含取消/移出后的voided信，只报告、不改历史证据。对应异常历史测试在真实取消后明确注入queued版号缺口及错误ready哈希声明，文件字节和登记哈希由真实media公口生成；这是损坏证据反例，不是渲染、签名或生产ready验收。
 
@@ -96,6 +96,11 @@ W5-06 同编号分为两个 PR：PR1 交事实、writer、真实 subscriber、N1
 测试的真实链为 Fake 外部渠道成功事实→正式付款履约→两账号绑定审核→订购及历史同意→实际开工→首次方案确认→真实取消审批执行→正式 relay/lease/consume。日期改变、正常 ended、确认后重选当前没有本包可调用的完整 producer，明确以纯注入事实测试 writer，不 SQL 造阶段/资金成功/PDF ready。W5-07/08、M6 和真实法律正文/证书验收仍未完成。
 
 PR1分片后原M1真实20集制作/交付/上线链已复验，实际正式Assembly的137项full检查零违规、零错误，原90秒预算不变；其中没有N6。完整N6公口的自愈与③只报告另有真实依赖定点验证，PR2仍须在07 actual后正式登记并跑包含N6的原full断言，不能用PR1这次绿色替代。
+
+07 #220 actual 后的 PR2 已完成上述正式接线，本地原M1真实20集到live通过，
+138项full（含N6）零违规、零错误，90秒预算不变。正式运行口保留voided历史
+证据检查、自愈与API/worker关闭隔离；真实法律正文/签署及外部验收继续单列。
+PR2当前提交CI与实际合入以其发布记录为准。
 
 
 ## 7. W5-07 授权书 PDF、签署与实际运输

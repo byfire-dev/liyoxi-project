@@ -14,8 +14,8 @@ import {
 import { claimDeliveries, consumeDelivery } from "../events/index.js";
 import type { DeliveryRef } from "../events/index.js";
 import { createIdentityContext, uuidv7 } from "../kernel/index.js";
+import type { InvariantScope } from "../kernel/index.js";
 import {
-  findN6Violations,
   findN16Violations,
   licenseContentFingerprint,
   parseLicenseLetterSnapshot,
@@ -71,6 +71,20 @@ const letters = async (f: Fixture) =>
     orderBy: { id: "asc" },
   });
 
+const registeredN6 = (f: Fixture) => {
+  const check = f.runtime.assembly.invariant("docs.N6")!;
+  expect(check).toMatchObject({
+    code: "docs.N6",
+    severity: "P2",
+    modes: ["full"],
+    heal: "heal_and_alert",
+  });
+  expect(check).toBe(f.runtime.assembly.invariants.find((item) => item.code === "docs.N6"));
+  return check;
+};
+const runN6 = (f: Fixture, scope: InvariantScope) =>
+  f.runtime.tx.run((tx) => registeredN6(f).run!(tx, scope, { now: f.clock.now() }));
+
 describe("授权实际assembly", { timeout: 120000 }, () => {
   it("真实worker消费使用自己的origin/密钥注入，closeDocs不撤销API的scope", async () => {
     const f = await fresh();
@@ -113,7 +127,18 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
         ),
       ).toBe(true);
       const saved = worker.assembly.subscriber("docs.onLicenseFacts")!;
+      const workerN6 = worker.assembly.invariant("docs.N6")!;
+      expect(workerN6).toBe(worker.assembly.invariants.find((item) => item.code === "docs.N6"));
+      expect(workerN6).not.toBe(registeredN6(f));
+      const scope = { entityIds: [f.merchant.entity.id] };
+      expect(
+        await f.runtime.tx.run((tx) => workerN6.run!(tx, scope, { now: f.clock.now() })),
+      ).toEqual([]);
       await worker.closeDocs();
+      await expect(
+        f.runtime.tx.run((tx) => workerN6.run!(tx, scope, { now: f.clock.now() })),
+      ).rejects.toThrow("已经关闭");
+      expect(await runN6(f, scope)).toEqual([]);
       await expect(
         f.runtime.tx.run((tx) =>
           saved.handle(tx, {
@@ -285,9 +310,7 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
         (letter) => letter.status === "voided" && letter.currentRevisionId === null,
       ),
     ).toBe(true);
-    const historicalViolations = await f.runtime.tx.run((tx) =>
-      findN6Violations(tx, f.licenseDeps, { entityIds: [f.merchant.entity.id] }),
-    );
+    const historicalViolations = await runN6(f, { entityIds: [f.merchant.entity.id] });
     expect(historicalViolations.map((row) => row.detail.problem).sort()).toEqual([
       "ready_pdf_hash_mismatch",
       "revision_sequence_gap",
@@ -300,13 +323,8 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
     const other = await createFactories({ db: prisma, clock: f.clock }).merchant({
       verified: true,
     });
-    expect(
-      await f.runtime.tx.run((tx) =>
-        findN6Violations(tx, f.licenseDeps, { entityIds: [other.entity.id] }),
-      ),
-    ).toEqual([]);
+    expect(await runN6(f, { entityIds: [other.entity.id] })).toEqual([]);
     expect(await historicalRows()).toEqual(beforeHistoryCheck);
-    expect(f.runtime.assembly.invariant("docs.N6")).toBeUndefined();
   });
 
   it("N6从当前候选发现全部缺信并真实heal；N16核真实归属，缺owner引用不能当零违规", async () => {
@@ -348,14 +366,12 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
     ).rejects.toMatchObject({ error: "PRECONDITION_CHANGED" });
     expect(await letters(f)).toHaveLength(0);
     const scope = { entityIds: [f.merchant.entity.id] };
-    // PR1 ships the complete checker as a public function. Formal activation waits for PR2 after 07.
-    expect(f.runtime.assembly.invariant("docs.N6")).toBeUndefined();
-    expect(f.runtime.assembly.invariants.some((item) => item.code === "docs.N6")).toBe(false);
-    const violations = await f.runtime.tx.run((tx) => findN6Violations(tx, f.licenseDeps, scope));
+    // The formally registered checker uses this runtime's real facts and the existing writer.
+    const violations = await runN6(f, scope);
     expect(violations).toHaveLength(2);
     expect(violations.every((row) => row.healed?.action === "reconcileLetters")).toBe(true);
     expect((await letters(f)).filter((row) => row.status !== "voided")).toHaveLength(2);
-    expect(await f.runtime.tx.run((tx) => findN6Violations(tx, f.licenseDeps, scope))).toEqual([]);
+    expect(await runN6(f, scope)).toEqual([]);
     expect(
       await f.runtime.tx.run((tx) =>
         f.runtime.assembly.invariant("docs.N16")!.run!(tx, scope, { now: f.clock.now() }),
@@ -382,11 +398,18 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
     const saved = a.runtime.assembly.subscriber("docs.onLicenseFacts")!,
       ensure = a.runtime.licenseLetters.ensureLetters;
     const bHandler = b.runtime.assembly.subscriber("docs.onLicenseFacts")!;
+    const savedN6 = registeredN6(a);
+    expect(savedN6).not.toBe(registeredN6(b));
     expect(saved).not.toBe(bHandler);
     expect(bHandler).toBe(
       b.runtime.assembly.subscribers.find((item) => item.name === bHandler.name),
     );
     await a.close();
+    await expect(
+      b.runtime.tx.run((tx) =>
+        savedN6.run!(tx, { entityIds: [a.merchant.entity.id] }, { now: a.clock.now() }),
+      ),
+    ).rejects.toThrow("已经关闭");
     await expect(
       b.runtime.tx.run((tx) => ensure(tx, [a.order.itemId], "closed:ensure")),
     ).rejects.toThrow("已经关闭");
@@ -406,57 +429,76 @@ describe("授权实际assembly", { timeout: 120000 }, () => {
     ).toMatchObject({ created: 2 });
     expect(await letters(a)).toHaveLength(0);
     expect(await letters(b)).toHaveLength(2);
+    expect(await runN6(b, { entityIds: [b.merchant.entity.id] })).toEqual([]);
   });
 
-  it("实例close等待在途owner读取，返回前失败回滚，缺绑定不借另一实例", async () => {
-    const f = await fresh();
-    await f.start();
-    const scope = createDocsLicenseAssembly(f.runtime.assembly);
-    let enter!: () => void, release!: () => void;
-    const entered = new Promise<void>((resolve) => {
-        enter = resolve;
-      }),
-      gate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-    scope.attach({
-      ...f.licenseDeps,
-      facts: {
-        ...f.licenseDeps.facts,
-        getLicenseFacts: async (tx, ids) => {
-          enter();
-          await gate;
-          return f.licenseDeps.facts.getLicenseFacts(tx, ids);
+  it.each(["writer", "N6"] as const)(
+    "实例close等待在途owner读取，返回前失败回滚，缺绑定不借另一实例：%s",
+    async (entry) => {
+      const f = await fresh();
+      await f.start();
+      const scope = createDocsLicenseAssembly(f.runtime.assembly);
+      let enter!: () => void, release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+          enter = resolve;
+        }),
+        gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      scope.attach({
+        ...f.licenseDeps,
+        facts: {
+          ...f.licenseDeps.facts,
+          getLicenseFacts: async (tx, ids) => {
+            enter();
+            await gate;
+            return f.licenseDeps.facts.getLicenseFacts(tx, ids);
+          },
         },
-      },
-    });
-    const work = f.runtime.tx.run((tx) =>
-        scope.ensureLetters(tx, [f.order.itemId], "close:inflight"),
-      ),
-      settled = Promise.allSettled([work]);
-    await entered;
-    let finished = false;
-    const closing = scope.close().then(() => {
-      finished = true;
-    });
-    await Promise.resolve();
-    expect(finished).toBe(false);
-    release();
-    await closing;
-    expect((await settled)[0]?.status).toBe("rejected");
-    expect(await letters(f)).toHaveLength(0);
-    const unbound = createDocsLicenseAssembly(f.runtime.assembly);
-    await expect(
-      f.runtime.tx.run((tx) => unbound.ensureLetters(tx, [f.order.itemId], "unbound")),
-    ).rejects.toThrow("尚未绑定");
-    await unbound.close();
-    expect(() => unbound.attach(f.licenseDeps)).toThrow();
-    expect(
-      await f.runtime.tx.run((tx) =>
-        f.runtime.licenseLetters.ensureLetters(tx, [f.order.itemId], "still:active"),
-      ),
-    ).toMatchObject({ created: 2 });
-  });
+      });
+      const work = f.runtime.tx.run(async (tx) =>
+          entry === "writer"
+            ? scope.ensureLetters(tx, [f.order.itemId], "close:inflight")
+            : scope.assembly.invariant("docs.N6")!.run!(
+                tx,
+                { entityIds: [f.merchant.entity.id] },
+                { now: f.clock.now() },
+              ),
+        ),
+        settled = Promise.allSettled([work]);
+      await entered;
+      let finished = false;
+      const closing = scope.close().then(() => {
+        finished = true;
+      });
+      await Promise.resolve();
+      expect(finished).toBe(false);
+      release();
+      await closing;
+      expect((await settled)[0]?.status).toBe("rejected");
+      expect(await letters(f)).toHaveLength(0);
+      const unbound = createDocsLicenseAssembly(f.runtime.assembly);
+      await expect(
+        f.runtime.tx.run((tx) => unbound.ensureLetters(tx, [f.order.itemId], "unbound")),
+      ).rejects.toThrow("尚未绑定");
+      await expect(
+        f.runtime.tx.run((tx) =>
+          unbound.assembly.invariant("docs.N6")!.run!(
+            tx,
+            { entityIds: [f.merchant.entity.id] },
+            { now: f.clock.now() },
+          ),
+        ),
+      ).rejects.toThrow("尚未绑定");
+      await unbound.close();
+      expect(() => unbound.attach(f.licenseDeps)).toThrow();
+      expect(
+        await f.runtime.tx.run((tx) =>
+          f.runtime.licenseLetters.ensureLetters(tx, [f.order.itemId], "still:active"),
+        ),
+      ).toMatchObject({ created: 2 });
+    },
+  );
 });
 
 /** Real post-start refund commands; existing KYC, staff and agreement inputs stay historical fixture data. */
