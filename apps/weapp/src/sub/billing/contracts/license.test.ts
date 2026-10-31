@@ -3,6 +3,7 @@ import type { RequestLayer } from "@/lib/request";
 import { ApiError } from "@/lib/request";
 import { makeMe } from "../../../../shots/account-fixtures";
 import {
+  LICENSE_ORDER_ID,
   LICENSE_IDS,
   LICENSE_STORE_ID,
   licenseCards,
@@ -314,4 +315,33 @@ it("签发后换店/退出的迟到原生下载被abort，不打开旧文件并�
   expect(abort).toHaveBeenCalledOnce();
   expect(open).not.toHaveBeenCalled();
   expect(unlink).toHaveBeenCalledExactlyOnceWith("/temp/owned-license.pdf");
+});
+
+it("订单URL作用域进入list/summary并废弃旧现签，非UUID或空参数受控拒绝而不回退全部授权", async () => {
+  const pending = deferred<LicenseDownload>();
+  const f = setup({ download: vi.fn<LicenseApi["download"]>(() => pending.promise) });
+  f.change({ orderId: LICENSE_ORDER_ID });
+  await f.model.show();
+  const filter = { storeId: LICENSE_STORE_ID, orderId: LICENSE_ORDER_ID, includeVoided: true };
+  expect(f.api.list).toHaveBeenLastCalledWith(filter, undefined);
+  expect(f.api.summary).toHaveBeenLastCalledWith(filter);
+  await f.model.read(f.model.snapshot().page!.items[0]!);
+  const opening = f.model.openPdf();
+  f.change({ orderId: "00000000-0000-4000-8000-000000000999" });
+  pending.resolve(signed());
+  await opening;
+  expect(f.document.open).not.toHaveBeenCalled();
+  await f.model.read(f.model.snapshot().page!.items[1]!);
+  expect(f.api.get).toHaveBeenCalledOnce();
+  for (const orderId of ["bad-order", ""]) {
+    f.change({ orderId });
+    await f.model.show();
+    expect(f.model.snapshot()).toMatchObject({
+      page: null,
+      summary: null,
+      error: "订单参数无效，请从订单详情重新进入",
+    });
+  }
+  expect(f.api.list).toHaveBeenCalledOnce();
+  expect(f.api.summary).toHaveBeenCalledOnce();
 });

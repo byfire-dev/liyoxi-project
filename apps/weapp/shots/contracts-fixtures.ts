@@ -159,7 +159,7 @@ export function licenseCards(scene = "contracts-license-list"): Data<"m.licenseL
         ? [LICENSE_IDS.blocked, LICENSE_IDS.retry]
         : scene === "contracts-license-generating"
           ? [LICENSE_IDS.pending]
-          : scene === "contracts-license-list"
+          : scene === "contracts-license-list" || scene === "contracts-license-order"
             ? [LICENSE_IDS.pending, LICENSE_IDS.effective, LICENSE_IDS.expired, LICENSE_IDS.another]
             : [];
   return { items: ids.map((id) => licenseCard(id, scene)), hasMore: false, nextCursor: null };
@@ -295,6 +295,11 @@ export function offlineContractsRequest(scene: string): RequestLayer["request"] 
       if (url.pathname === "/m/license-letters" || url.pathname === "/m/license-letters/summary") {
         if (url.searchParams.get("storeId") !== LICENSE_STORE_ID)
           throw new Error("授权书列表与计数必须明确当前门店");
+        if (
+          scene === "contracts-license-order" &&
+          url.searchParams.get("orderId") !== LICENSE_ORDER_ID
+        )
+          throw new Error("订单授权书样张必须保留实际URL的订单范围");
         const filtered = rows.filter(
           (row) =>
             (url.searchParams.get("includeVoided") === "true" || row.status !== "voided") &&

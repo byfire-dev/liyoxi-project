@@ -28,6 +28,9 @@ export function licenseContext(input: {
   };
 }
 export type LicenseContext = ReturnType<typeof licenseContext> & { orderId?: string };
+const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const scopeKey = (context: LicenseContext) =>
+  JSON.stringify([context.key, context.storeId, context.orderId ?? null]);
 
 export interface LicenseState {
   page: LicensePage | null;
@@ -102,6 +105,17 @@ export function createLicenseModel(deps: {
       set({ restricted: true });
       return;
     }
+    if (context.orderId !== undefined && !orderIdPattern.test(context.orderId)) {
+      closeDetail();
+      pageKey = null;
+      set({
+        page: null,
+        summary: null,
+        loading: false,
+        error: "订单参数无效，请从订单详情重新进入",
+      });
+      return;
+    }
     const current = guard();
     const filter = { storeId: context.storeId, orderId: context.orderId, includeVoided: true };
     set({ loading: true, error: null });
@@ -129,7 +143,7 @@ export function createLicenseModel(deps: {
               ).values(),
             ]
           : page.items;
-      pageKey = context.key;
+      pageKey = scopeKey(context);
       set({ page: { ...page, items }, summary });
     } catch {
       if (current()) set({ error: "暂时无法加载授权书，请重试" });
@@ -153,7 +167,7 @@ export function createLicenseModel(deps: {
     if (
       !active ||
       context.role !== "owner" ||
-      context.key !== pageKey ||
+      scopeKey(context) !== pageKey ||
       item.storeId !== context.storeId ||
       (context.orderId && item.orderId !== context.orderId) ||
       !state.page?.items.some((candidate) => candidate === item)
@@ -218,7 +232,7 @@ export function createLicenseModel(deps: {
         !detail ||
         state.documentBusy ||
         context.role !== "owner" ||
-        context.key !== pageKey ||
+        scopeKey(context) !== pageKey ||
         detail.storeId !== context.storeId
       )
         return;

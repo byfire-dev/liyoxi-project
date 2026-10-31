@@ -213,6 +213,50 @@ async function runLicenseContractsRegression(page, scene) {
     await expect(detail()).toContainText("𠮷");
     await expect(detail()).toContainText(/U\+20BB7/);
     await expect(detail()).toBeInViewport({ ratio: 0.99 });
+  } else if (scene === "contracts-license-order") {
+    const orderId = "00000000-0000-4000-8000-000000000150";
+    await expect(page).toHaveURL(new RegExp(`[?&]orderId=${orderId}(?:&|$)`));
+    expect(query.get("orderId")).toBe(orderId);
+    expect(summaryQuery.get("orderId")).toBe(orderId);
+    await expect(section).toContainText(/定制内容授权书[\s·：]*4(?:\s*份)?/);
+    await expect(read).toHaveCount(3);
+    const agreementCalls = (await calls()).filter((call) => call.path.startsWith("/m/agreement-"));
+    expect(agreementCalls.length).toBeGreaterThan(0);
+    expect(
+      agreementCalls.every(
+        (call) => !new URL(call.path, "https://request.invalid").searchParams.has("orderId"),
+      ),
+    ).toBe(true);
+    const validUrl = page.url();
+    const invalidUrl = new URL(validUrl);
+    invalidUrl.hash = invalidUrl.hash.replace(`orderId=${orderId}`, "orderId=bad-order");
+    await page.evaluate(() => {
+      globalThis.__LYX_CONTRACT_CALLS__ = [];
+    });
+    await page.goto(invalidUrl.href, { waitUntil: "networkidle" });
+    await expect(active("#licenses-ready")).toBeVisible();
+    await expect(active(".billing-licenses")).toContainText("订单参数无效，请从订单详情重新进入");
+    await expect(active("#contracts-ready")).toBeVisible();
+    await expect(active(".billing-contracts")).toContainText("查看所签版本");
+    const invalidCalls = await calls();
+    expect(invalidCalls.some((call) => call.path.startsWith("/m/license-letters"))).toBe(false);
+    expect(
+      invalidCalls.every(
+        (call) => !new URL(call.path, "https://request.invalid").searchParams.has("orderId"),
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: path.join(outDir, "billing__contracts-license-order-invalid.png"),
+    });
+    await page.evaluate(() => {
+      globalThis.__LYX_CONTRACT_CALLS__ = [];
+    });
+    await page.goto(validUrl, { waitUntil: "networkidle" });
+    await expect(active("#contracts-ready")).toBeVisible();
+    await expect(active("#licenses-ready")).toBeVisible();
+    await expect(active(".billing-licenses")).not.toContainText("订单参数无效");
+    await expect(read).toHaveCount(3);
+    await active(".billing-contracts").evaluate((node) => node.scrollIntoView({ block: "start" }));
   }
   const evidence = await calls();
   const signed = evidence.filter((call) => call.path.endsWith("/download-urls"));
@@ -430,7 +474,8 @@ const targets = [
     : BILLING_SCENES.filter(
         (item) =>
           wantedScenes.includes(item.name) ||
-          (item.route === "sub/billing/contracts/index" && wanted.includes(item.route)),
+          (item.route.split("?")[0] === "sub/billing/contracts/index" &&
+            wanted.includes(item.route.split("?")[0])),
       )
   ).map((item) => ({
     label: item.name,

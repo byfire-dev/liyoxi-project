@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { RichText, View } from "@tarojs/components";
-import Taro, { useDidHide, useDidShow, usePullDownRefresh, useReachBottom } from "@tarojs/taro";
+import Taro, {
+  useDidHide,
+  useDidShow,
+  usePullDownRefresh,
+  useReachBottom,
+  useRouter,
+} from "@tarojs/taro";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -36,12 +42,13 @@ function contextInput() {
 }
 const context = () => contractContext(contextInput());
 export default function ContractsPage() {
+  const orderId = useRouter().params.orderId;
   const me = useAccount().me;
   const storeId = useContextStore((value) => value.currentStoreId);
   const contextRev = useContextStore((value) => value.contextRev);
   const token = useSessionStore((value) => value.accessToken);
   const key = contractContext({ token, storeId, contextRev, me }).key;
-  return <ContractsContent key={key} />;
+  return <ContractsContent key={JSON.stringify([key, orderId ?? null])} orderId={orderId} />;
 }
 
 function ContractCard({
@@ -80,7 +87,7 @@ const rows = (record: SignedItem["firstConsent"]) => [
   { label: "确认编号", value: record.consentNo },
 ];
 
-function ContractsContent() {
+function ContractsContent({ orderId }: { orderId?: string }) {
   const [, render] = useState(0);
   const [model] = useState(() =>
     createContractsModel({
@@ -95,7 +102,7 @@ function ContractsContent() {
     createLicenseModel({
       api: createLicenseApi(contractsRequest),
       document: contractsDocument(),
-      context: () => licenseContext(contextInput()),
+      context: () => ({ ...licenseContext(contextInput()), orderId }),
       now: () => Date.now(),
       changed: () => render((value) => value + 1),
     }),
