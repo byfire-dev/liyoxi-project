@@ -20,17 +20,21 @@ import { createContractsApi } from "./api";
 import type { SignedItem } from "./api";
 import { contractContext, createContractsModel, sceneLabel } from "./model";
 import { contractsDocument, contractsRequest } from "./runtime";
+import { createLicenseApi } from "./license-api";
+import { createLicenseModel, licenseContext } from "./license-model";
+import { LicenseSection } from "./license-section";
 import "./index.scss";
 
-function context() {
+function contextInput() {
   const store = useContextStore.getState();
-  return contractContext({
+  return {
     token: useSessionStore.getState().accessToken,
     storeId: store.currentStoreId,
     contextRev: store.contextRev,
     me: account.snapshot().me,
-  });
+  };
 }
+const context = () => contractContext(contextInput());
 export default function ContractsPage() {
   const me = useAccount().me;
   const storeId = useContextStore((value) => value.currentStoreId);
@@ -87,6 +91,15 @@ function ContractsContent() {
       changed: () => render((value) => value + 1),
     }),
   );
+  const [licenseModel] = useState(() =>
+    createLicenseModel({
+      api: createLicenseApi(contractsRequest),
+      document: contractsDocument(),
+      context: () => licenseContext(contextInput()),
+      now: () => Date.now(),
+      changed: () => render((value) => value + 1),
+    }),
+  );
   const visible = useRef(true),
     started = useRef(false);
   useEffect(() => {
@@ -96,35 +109,55 @@ function ContractsContent() {
       .then(() => {
         if (!mounted) return;
         started.current = true;
-        if (visible.current) void model.show();
+        if (visible.current) {
+          void model.show();
+          void licenseModel.show();
+        }
       })
       .catch(() => {
-        if (mounted && visible.current) void model.show();
+        if (mounted && visible.current) {
+          void model.show();
+          void licenseModel.show();
+        }
       });
     return () => {
       mounted = false;
       model.hide();
+      licenseModel.hide();
     };
-  }, [model]);
+  }, [model, licenseModel]);
   useDidShow(() => {
     visible.current = true;
-    if (started.current) void model.show();
+    if (started.current) {
+      void model.show();
+      void licenseModel.show();
+    }
   });
   useDidHide(() => {
     visible.current = false;
     model.hide();
+    licenseModel.hide();
   });
   usePullDownRefresh(() => {
-    void model.show().finally(() => Taro.stopPullDownRefresh());
+    void Promise.all([model.show(), licenseModel.show()]).finally(() => Taro.stopPullDownRefresh());
   });
   useReachBottom(() => {
     void model.load(true);
+    void licenseModel.load(true);
   });
   const state = model.snapshot(),
     page = state.page;
   return (
     <View className="billing-contracts" id={page ? "contracts-ready" : undefined}>
       <PageBody>
+        <LicenseSection
+          model={licenseModel}
+          onRead={(item) => {
+            model.closeDetail();
+            void licenseModel.read(item);
+          }}
+        />
+        <View className="billing-contracts__section-title">已签协议</View>
         <Note>
           {page?.viewerRole === "clerk"
             ? "仅展示本人确认的用户协议"
@@ -150,6 +183,7 @@ function ContractsContent() {
                 key={item.agreementKey}
                 item={item}
                 onRead={() => {
+                  licenseModel.closeDetail();
                   void model.read(item);
                 }}
                 records={[
@@ -171,6 +205,7 @@ function ContractsContent() {
                   key={item.agreementKey}
                   item={item}
                   onRead={() => {
+                    licenseModel.closeDetail();
                     void model.read(item);
                   }}
                   records={[

@@ -73,6 +73,159 @@ function fail(message, code = 2) {
   process.exit(code);
 }
 
+/** 合同页授权增量只查本域消费；原协议场景仍使用原回归，不降低其断言。 */
+async function runLicenseContractsRegression(page, scene) {
+  const active = (selector) =>
+    page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
+  const calls = () => page.evaluate(() => globalThis.__LYX_CONTRACT_CALLS__ ?? []);
+  const documents = () => page.evaluate(() => globalThis.__LYX_CONTRACT_DOCUMENTS__ ?? []);
+  const openCount = async () => (await documents()).filter((item) => item === "open").length;
+  const detail = () =>
+    active(".lyx-sheet").filter({
+      has: page.locator(".lyx-sheet__title", { hasText: "定制内容授权书" }),
+    });
+  await expect(active("#contracts-ready")).toBeVisible();
+  await expect(active(".billing-contracts")).toContainText("查看所签版本");
+  if (scene === "contracts-license-clerk") {
+    await expect(active(".billing-contracts")).toContainText("仅展示本人");
+    await expect(active(".billing-licenses")).toContainText("仅门店老板");
+    expect((await calls()).some((call) => call.path.startsWith("/m/license-letters"))).toBe(false);
+    expect((await calls()).some((call) => call.path.endsWith("/summary"))).toBe(false);
+    return;
+  }
+  const section = active(".billing-licenses");
+  await expect(active("#licenses-ready")).toBeVisible();
+  const licenseCalls = (await calls()).filter((call) => call.path.startsWith("/m/license-letters"));
+  const list = licenseCalls.find(
+    (call) => new URL(call.path, "https://request.invalid").pathname === "/m/license-letters",
+  );
+  const summary = licenseCalls.find(
+    (call) =>
+      new URL(call.path, "https://request.invalid").pathname === "/m/license-letters/summary",
+  );
+  expect(list).toBeDefined();
+  expect(summary).toBeDefined();
+  const query = new URL(list.path, "https://request.invalid").searchParams;
+  const summaryQuery = new URL(summary.path, "https://request.invalid").searchParams;
+  expect(query.get("storeId")).toBe("00000000-0000-4000-8000-000000000001");
+  expect(summaryQuery.get("storeId")).toBe(query.get("storeId"));
+  expect(summaryQuery.get("includeVoided")).toBe(query.get("includeVoided"));
+  expect(summaryQuery.get("orderId")).toBe(query.get("orderId"));
+  const read = section.locator(".lyx-text-button").filter({ hasText: "查看授权详情" });
+  if (scene === "contracts-license-empty") {
+    await expect(section).toContainText("暂无定制内容授权书");
+    await expect(read).toHaveCount(0);
+    await active(".billing-contracts .lyx-text-button")
+      .filter({ hasText: "查看所签版本" })
+      .first()
+      .click();
+    await expect(active(".lyx-sheet")).toContainText("签署时的服务约定");
+    await expect(active(".lyx-sheet")).toContainText("历史版本");
+    await active(".lyx-sheet__close").click();
+    await expect(active(".lyx-sheet")).not.toBeVisible();
+    await expect(active(".lyx-sheet-overlay")).not.toBeVisible();
+    await active(".billing-contracts").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  } else if (scene === "contracts-license-list") {
+    await expect(section).toContainText(/定制内容授权书[\s·：]*4(?:\s*份)?/);
+    await expect(read).toHaveCount(3);
+    await expect(section).toContainText("待生效");
+    await expect(section).toContainText("生效中");
+    await expect(section).toContainText("已失效");
+    await expect(section).toContainText("邻里咖啡福田店");
+    await expect(section).toContainText("邻里咖啡视频号");
+    await read.nth(1).click();
+    await expect(detail()).toContainText("示例版权方有限公司");
+    await expect(detail()).toContainText("邻里咖啡视频号");
+    const open = detail().locator(".lyx-button").filter({ hasText: "打开当前版 PDF" });
+    await open.click();
+    await expect.poll(openCount).toBe(1);
+    await expect(open).not.toHaveClass(/loading/);
+    await open.click();
+    await expect.poll(openCount).toBe(2);
+    const signed = (await calls()).filter((call) => call.path.endsWith("/download-urls"));
+    expect(signed).toHaveLength(2);
+    expect(signed.every((call) => call.path.includes("00000000-0000-4000-8000-000000000152"))).toBe(
+      true,
+    );
+    const urls = await page.evaluate(() => globalThis.__LYX_CONTRACT_DOWNLOAD_URLS__ ?? []);
+    expect(urls).toHaveLength(2);
+    expect(new Set(urls).size).toBe(2);
+    await detail().locator(".lyx-sheet__close").click();
+    await section.locator(".lyx-button").filter({ hasText: "加载更多授权书" }).click();
+    await expect(read).toHaveCount(4);
+    expect(
+      (await calls()).some(
+        (call) =>
+          new URL(call.path, "https://request.invalid").searchParams.get("cursor") ===
+          "license-next+/?",
+      ),
+    ).toBe(true);
+    await active(".billing-contracts").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  } else if (scene === "contracts-license-history") {
+    await expect(section).toContainText("已失效");
+    await expect(section).toContainText("已作废");
+    await read.first().click();
+    await expect(detail()).toContainText("第 3 版");
+    const old = detail().locator(".lyx-text-button").filter({ hasText: "打开第 1 版 PDF" });
+    await old.click();
+    await expect.poll(openCount).toBe(1);
+    const signed = (await calls()).filter((call) => call.path.endsWith("/download-urls"));
+    expect(signed).toHaveLength(1);
+    expect(signed[0].data).toEqual({ revNo: 1 });
+    await detail()
+      .locator(".lyx-sheet__body")
+      .evaluate((node) => {
+        for (const child of [node, ...node.querySelectorAll("*")]) child.scrollTop = 0;
+      });
+    await expect(detail()).toBeInViewport({ ratio: 0.99 });
+  } else if (scene === "contracts-license-generating") {
+    await read.first().click();
+    await expect(detail()).toContainText(/尚未就绪|尚未出件/);
+    await expect(detail()).toBeInViewport({ ratio: 0.99 });
+    expect((await calls()).some((call) => call.path.endsWith("/download-urls"))).toBe(false);
+  } else if (scene === "contracts-license-unavailable") {
+    await expect(section).toContainText("𠮷");
+    await read.nth(1).click();
+    const open = detail().locator(".lyx-button").filter({ hasText: "打开当前版 PDF" });
+    await open.click();
+    await expect(detail()).toContainText(/PDF.*重试/);
+    expect(await openCount()).toBe(0);
+    await expect(open).not.toHaveClass(/loading/);
+    await open.click();
+    await expect
+      .poll(async () => (await documents()).filter((item) => item === "download").length)
+      .toBe(1);
+    await expect(open).not.toHaveClass(/loading/);
+    expect(await openCount()).toBe(0);
+    await expect(detail()).toBeInViewport({ ratio: 0.99 });
+    await page.screenshot({
+      path: path.join(outDir, "billing__contracts-license-download-failed.png"),
+    });
+    await open.click();
+    await expect.poll(openCount).toBe(1);
+    const signed = (await calls()).filter((call) => call.path.endsWith("/download-urls"));
+    expect(signed).toHaveLength(3);
+    const urls = await page.evaluate(() => globalThis.__LYX_CONTRACT_DOWNLOAD_URLS__ ?? []);
+    expect(urls).toHaveLength(2);
+    expect(new Set(urls).size).toBe(2);
+    await detail().locator(".lyx-sheet__close").click();
+    await read.first().click();
+    await expect(detail()).toContainText("𠮷");
+    await expect(detail()).toContainText(/U\+20BB7/);
+    await expect(detail()).toBeInViewport({ ratio: 0.99 });
+  }
+  const evidence = await calls();
+  const signed = evidence.filter((call) => call.path.endsWith("/download-urls"));
+  expect(signed.every((call) => call.method === "POST" && call.idempotencyKey === undefined)).toBe(
+    true,
+  );
+  expect(
+    evidence
+      .filter((call) => !call.path.endsWith("/download-urls"))
+      .every((call) => call.method === "GET"),
+  ).toBe(true);
+}
+
 const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const wanted = [];
 const wantedComponents = [];
@@ -272,16 +425,21 @@ const targets = [
       fullPage: false,
     }),
   ),
-  ...(all ? BILLING_SCENES : BILLING_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
-    (item) => ({
-      label: item.name,
-      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
-      file: `billing__${item.name}`,
-      scene: item.name,
-      kind: "billing",
-      fullPage: false,
-    }),
-  ),
+  ...(all
+    ? BILLING_SCENES
+    : BILLING_SCENES.filter(
+        (item) =>
+          wantedScenes.includes(item.name) ||
+          (item.route === "sub/billing/contracts/index" && wanted.includes(item.route)),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `billing__${item.name}`,
+    scene: item.name,
+    kind: "billing",
+    fullPage: false,
+  })),
   ...(all ? CATALOG_SCENES : CATALOG_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
     (item) => ({
       label: item.name,
@@ -413,6 +571,7 @@ const targets = [
       )
     : wanted.filter(
         (route) =>
+          route !== "sub/billing/contracts/index" &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
@@ -588,7 +747,10 @@ async function shoot(target) {
           if (kind === "billing") {
             globalThis.__LYX_BILLING_SHOT__ = scene;
             globalThis.__LYX_ACCOUNT_SHOT__ =
-              scene === "contracts-clerk" || scene === "topup-clerk" || scene === "ledger-clerk"
+              scene === "contracts-clerk" ||
+              scene === "contracts-license-clerk" ||
+              scene === "topup-clerk" ||
+              scene === "ledger-clerk"
                 ? "mine-clerk"
                 : "mine-owner";
           }
@@ -669,8 +831,11 @@ async function shoot(target) {
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "billing" && target.scene.startsWith("invoice-"))
         await runInvoiceRegression(page, target.scene);
-      if (target.kind === "billing" && target.scene.startsWith("contracts-"))
-        await runContractsRegression(page, target.scene);
+      if (target.kind === "billing" && target.scene.startsWith("contracts-")) {
+        if (target.scene.startsWith("contracts-license-"))
+          await runLicenseContractsRegression(page, target.scene);
+        else await runContractsRegression(page, target.scene);
+      }
       if (target.kind === "billing" && target.scene.startsWith("ledger-"))
         await runLedgerRegression(page, target.scene);
       if (target.kind === "search") await searchRegression(page, target.scene);
