@@ -217,6 +217,7 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
           "config.N17",
           "config.N19",
           "config.N20",
+          "docs.N6",
           "docs.N16",
           "events.I8",
           "flow.I12",
