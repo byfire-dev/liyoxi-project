@@ -9,6 +9,10 @@ it("M1 七段真实接口主路径：登录建档、对公入账、订剧交付�
   // 仅打印本轮隔离资源标识；异常超时时可据此精确收尾，避免猜测其他测试的库/前缀。
   process.stdout.write(`M1隔离资源：${support.databaseName}；${support.redisPrefix}\n`);
   try {
+    const n6 = support.runtime.assembly.invariant("docs.N6");
+    expect(n6).toMatchObject({ code: "docs.N6", modes: ["full"], heal: "heal_and_alert" });
+    expect(n6?.run).toBeTypeOf("function");
+    expect(support.runtime.assembly.invariants.find((check) => check.code === "docs.N6")).toBe(n6);
     const report = await runM1Chain({
       api: createM1Api(support),
       support,
@@ -23,6 +27,9 @@ it("M1 七段真实接口主路径：登录建档、对公入账、订剧交付�
     });
     expect(report.invariants).toMatchObject({ status: "succeeded", violationsFound: 0, errors: 0 });
     expect(report.invariants.checksRun).toBeGreaterThan(0);
+    expect(report.invariants.checksRun).toBe(
+      support.runtime.assembly.invariants.filter((check) => check.modes.includes("full")).length,
+    );
     process.stdout.write(
       `M1 主链完成：20集、扣减${report.chargePoints}积分、可用${report.spendablePoints}积分、不变量${report.invariants.checksRun}项零违规\n`,
     );
