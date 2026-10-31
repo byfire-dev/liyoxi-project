@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: "已签协议",
+  navigationBarTitleText: "合同与授权书",
   enablePullDownRefresh: true,
 });
