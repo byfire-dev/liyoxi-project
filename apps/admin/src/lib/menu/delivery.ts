@@ -48,7 +48,7 @@ const delivery: AdminModule = {
       badgeKey: "delivery.ad_tasks",
       milestone: "M5",
       workPackage: "G5-C",
-      implemented: false,
+      implemented: true,
       screen: "AdTasks",
       kind: "board",
       skeleton: "queue-workbench",

@@ -1,0 +1,43 @@
+.lyx-ad-detail,
+.lyx-ad-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lyx-space-4);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lyx-ad-detail section {
+  border-top: 1px solid var(--lyx-color-border-light);
+  padding-top: var(--lyx-space-4);
+}
+.lyx-ad-facts {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--lyx-space-2);
+}
+.lyx-ad-facts dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.lyx-ad-version {
+  padding-block: var(--lyx-space-3);
+}
+.lyx-ad-filters {
+  margin-bottom: var(--lyx-space-4);
+}
+
+.lyx-ad-form .ant-select,
+.lyx-ad-form .ant-input-number {
+  width: 100%;
+}
+.lyx-ad-page .lyx-tabs {
+  flex-wrap: wrap;
+  gap: var(--lyx-space-2);
+  padding-block: var(--lyx-space-2);
+}
+.lyx-ad-page .lyx-tabs__item {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  gap: var(--lyx-space-2);
+  padding-inline: var(--lyx-space-2);
+}

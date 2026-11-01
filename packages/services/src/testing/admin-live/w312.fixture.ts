@@ -8,6 +8,7 @@ import { assertDeliveryLiveEnvironment } from "./delivery-known-media.js";
 import { parseInvoiceLiveUploadScope } from "./invoice-upload.js";
 import { MerchantAssetLiveScopeSchema } from "./merchant-assets-upload.js";
 import { OutputBatchLiveInputSchema } from "./w302.fixture.js";
+import { parseAdTaskLiveScope } from "./w514.fixture.js";
 
 /** Scope only. No ready files, masters, checks, listed state or terminal jobs are seeded. */
 export const ContentAdminLiveScopeSchema = z.strictObject({
@@ -32,6 +33,18 @@ const contentManifestSchema = z.strictObject({
 });
 /** Independent optional fixture: the original W302 schema remains strict. */
 export function parseOutputBatchLiveManifest(raw: unknown) {
+  let adScope: ReturnType<typeof parseAdTaskLiveScope> | undefined;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w514" in raw) {
+    const { w514, ...original } = raw;
+    adScope = parseAdTaskLiveScope(w514);
+    raw = original;
+  }
+  const parseOriginal = (value: unknown) => {
+    const parsed = OutputBatchLiveInputSchema.parse(value);
+    if (adScope && adScope.runId !== parsed.current.runId)
+      throw new Error("W514不属于本轮运输信封");
+    return parsed;
+  };
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w418Invoice" in raw) {
     const { w418Invoice, ...original } = raw;
     // 交付窄桥也读完整输入；只剥离已按原严格结构验证的发票 scope。
@@ -47,11 +60,11 @@ export function parseOutputBatchLiveManifest(raw: unknown) {
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w312" in raw) {
     const { w312, ...original } = raw;
     return {
-      inputs: OutputBatchLiveInputSchema.parse(original),
+      inputs: parseOriginal(original),
       w312: contentManifestSchema.parse(w312).scope,
     };
   }
-  return { inputs: OutputBatchLiveInputSchema.parse(raw), w312: undefined };
+  return { inputs: parseOriginal(raw), w312: undefined };
 }
 export function assertContentAdminLiveScope(
   runtime: { env: Pick<Runtime["env"], "APP_ENV" | "DATABASE_URL" | "REDIS_URL"> },
