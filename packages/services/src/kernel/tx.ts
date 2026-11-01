@@ -47,6 +47,14 @@ export const TX_TIMEOUT_MAX_MS = 60_000;
 /** 可重试的错误重试几次（任务书 第 11 节第 1 项） */
 export const TX_RETRIES = 1;
 
+/** A pre-read lock graph changed after acquisition: retry the entire transaction (m06 §3.5). */
+export class LockSetChanged extends Error {
+  constructor(message = "锁集合已变化") {
+    super(message);
+    this.name = "LockSetChanged";
+  }
+}
+
 export type KernelViolationKind =
   | "nested_transaction"
   | "external_call_in_transaction"
@@ -240,6 +248,7 @@ export const isRetryableDbError = (error: unknown): boolean =>
 
 /** 归类一条从事务里出来的错误：重试、映射成哪个错误码，或原样抛出 */
 function classify(error: unknown): "retry" | "BUSY" | "UPSTREAM_TIMEOUT" | "aborted" | undefined {
+  if (error instanceof LockSetChanged) return "retry";
   const state = sqlStateOf(error);
   if (isRetryableDbError(error)) return "retry";
   if (state === "57014") return "UPSTREAM_TIMEOUT";
