@@ -91,7 +91,7 @@ export async function overview(tx: Tx, deps: ProfileDeps, viewer: ProfileViewer)
       confirmedCount: ad.readyCount,
       pendingConfirmCount: ad.pendingConfirmCount,
       producingCount: ad.producingCount,
-      revisingCount: 0,
+      revisingCount: ad.revisingCount ?? 0,
     },
   };
 }

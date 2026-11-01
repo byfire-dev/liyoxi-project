@@ -21,6 +21,7 @@ import { AppError, lockRows } from "../../kernel/index.js";
 import type { StorageBucket } from "../../providers/types.js";
 import { link, release } from "../refs.js";
 import { enqueueSampleWatermark } from "../production-playables.js";
+import { installAdSourcePlayable } from "../production/ad-playable.js";
 import type { ProbeArtifactSchema as artifact } from "../production-job-schemas.js";
 import { ProbeInputSchema as inputSchema, ProbeOutputSchema } from "../production-job-schemas.js";
 export { ProbeInputSchema, ProbeOutputSchema } from "../production-job-schemas.js";
@@ -318,6 +319,20 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
           gate: checked.gate,
           derivedFromFileId: facts.production.derivedFromFileId,
         });
+        if (
+          facts.production.kind === "ad" &&
+          checked.gate === "pass" &&
+          (!ai || !!output.technical.aigcMeta)
+        )
+          await installAdSourcePlayable(
+            deps,
+            tx,
+            ctx,
+            facts,
+            output.technical,
+            output.cover?.id ?? null,
+            now,
+          );
         // Probe-only runtimes persist the same real checks, without creating production outputs.
         if (deps.production?.mode === "probe_only") return;
         if (deps.production?.mode === "local_sample_watermark") {

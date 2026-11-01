@@ -109,6 +109,7 @@ it("严格本轮桥：实际 POST/copy/head/stored；错归属不触 Provider，
     const delivery = createDelivery({
       ...runtime,
       sla: createSla(runtime),
+      ensureLicenseReadiness: runtime.licenseLetters.ensureLicenseReadiness,
       profile: {
         assignDeliveryManager: (tx, identity, input) =>
           assignDeliveryManager(tx, { ...runtime, tenant }, identity, input),

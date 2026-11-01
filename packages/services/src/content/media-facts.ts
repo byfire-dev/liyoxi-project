@@ -30,7 +30,7 @@ export async function readMasterProductionFacts(tx: Tx, masterId: string) {
 export async function readTrailerMediaFacts(tx: Tx, dramaId: string) {
   const drama = await tx.drama.findUnique({
     where: { id: dramaId },
-    select: { id: true, archivedAt: true, isAiGenerated: true, posterFileId: true },
+    select: { id: true, status: true, archivedAt: true, isAiGenerated: true, posterFileId: true },
   });
   if (!drama || drama.archivedAt) return null;
   const pointer = await tx.dramaTrailer.findUnique({
@@ -39,6 +39,7 @@ export async function readTrailerMediaFacts(tx: Tx, dramaId: string) {
   });
   return {
     dramaId,
+    status: drama.status,
     isAiGenerated: drama.isAiGenerated,
     posterFileId: drama.posterFileId,
     targetPlayableAssetId: pointer?.targetPlayableAssetId ?? null,

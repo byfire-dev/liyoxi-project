@@ -61,6 +61,8 @@ export async function readMaterialFileFacts(tx: Tx, fileIds: readonly string[]) 
       storeId: true,
       status: true,
       moderationState: true,
+      uploadActorType: true,
+      uploadActorId: true,
       originalName: true,
       ext: true,
       sizeBytes: true,

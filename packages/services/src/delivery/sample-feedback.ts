@@ -17,7 +17,7 @@ import type { TicketRow } from "./repo.js";
 import { moveSample, sampleAuditMeta } from "./sample-transitions.js";
 import { sampleOf } from "./samples.js";
 
-async function stale(tx: Tx, t: TicketRow): Promise<never> {
+export async function stale(tx: Tx, t: TicketRow): Promise<never> {
   const current = t.currentSampleVersionNo
     ? await tx.sample.findUnique({
         where: {
@@ -34,7 +34,7 @@ async function stale(tx: Tx, t: TicketRow): Promise<never> {
   });
 }
 
-async function currentSample(tx: Tx, t: TicketRow, s: Sample) {
+export async function currentSample(tx: Tx, t: TicketRow, s: Sample) {
   const latest = await tx.sample.findFirst({
     where: { deliveryTicketId: t.id },
     orderBy: { versionNo: "desc" },
@@ -99,17 +99,53 @@ export async function requestChange(
       role: "feedback",
     });
   }
-  await moveSample(tx, deps, viewer.ctx, t, s, "sample.change_requested", {
+  return writeSampleFeedback(tx, deps, viewer.ctx, t, s, {
+    kind: "compose",
+    note: b.note,
+    fileIds,
+    userId: viewer.ctx.actor.id!,
+  });
+}
+
+/** Shared same-owner writer; each public entry retains its own identity, evidence and version guards. */
+export async function writeSampleFeedback(
+  tx: Tx,
+  deps: DeliveryDeps,
+  ctx: IdentityContext,
+  t: TicketRow,
+  s: Sample,
+  feedback: {
+    kind: "compose" | "ad_content";
+    note: string;
+    fileIds: readonly string[];
+    userId?: string;
+    staffId?: string;
+    timeMs?: number;
+  },
+) {
+  const ad = feedback.kind === "ad_content";
+  await moveSample(tx, deps, ctx, t, s, "sample.change_requested", {
     decided_at: deps.clock.now(),
-    decided_by_user_id: viewer.ctx.actor.id,
-    decide_client: viewer.ctx.actor.client,
-    feedback_kind: b.feedbackKind,
-    feedback_note: b.note,
-    feedback_file_ids: fileIds,
+    decided_by_user_id: feedback.userId ?? null,
+    decide_client: ctx.actor.client,
+    on_behalf_staff_id: feedback.staffId ?? null,
+    feedback_kind: feedback.kind,
+    feedback_note: feedback.note,
+    feedback_file_ids: [...feedback.fileIds],
+    feedback_time_ms: feedback.timeMs ?? null,
   });
-  await step(tx, deps, viewer.ctx, t, "sample.change_requested", "sample_making", "10:177", {
-    sample_round_no: t.sampleRoundNo + 1,
-  });
+  await step(
+    tx,
+    deps,
+    ctx,
+    t,
+    "sample.change_requested",
+    ad ? "ad_prep" : "sample_making",
+    ad ? "10:178" : "10:177",
+    {
+      ...(!ad ? { sample_round_no: t.sampleRoundNo + 1 } : {}),
+    },
+  );
   await deps.assembly.port(orderSidePort).rederive(tx, { orderItemIds: [t.orderItemId] });
   return s.id;
 }

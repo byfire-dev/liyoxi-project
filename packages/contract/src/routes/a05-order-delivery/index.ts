@@ -79,3 +79,13 @@ export * from "./order-m5.schemas.js";
 export * from "./license-letters.js";
 export * from "./license-letter-revisions.js";
 export { adminOrderItemLicenseLetterList } from "./order-items.js";
+export {
+  AdCancelRequestCreateBodySchema,
+  AdminSampleRequestChangeBodySchema,
+} from "./ad-feedback.schemas.js";
+export type {
+  AdCancelRequestCreateBody,
+  AdminSampleRequestChangeBody,
+} from "./ad-feedback.schemas.js";
+export { adminAdCancelQuote, adminAdCancelRequestCreate } from "./ads.js";
+export { adminSampleRequestChange } from "./samples.js";

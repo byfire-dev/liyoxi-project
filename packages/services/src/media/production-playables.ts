@@ -600,7 +600,7 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
           return;
         }
         const before = await tx.playableAsset.findMany({
-          where: { kind: "sample", sourceFileId: { in: related } },
+          where: { kind: { in: ["sample", "ad"] }, sourceFileId: { in: related } },
           select: { id: true },
         });
         await lockRows(
@@ -610,7 +610,7 @@ export function createProductionConvergence(deps: BoundMediaDeps): MediaConverge
         );
         await lockRows(tx, "production_record", related);
         const after = await tx.playableAsset.findMany({
-          where: { kind: "sample", sourceFileId: { in: related } },
+          where: { kind: { in: ["sample", "ad"] }, sourceFileId: { in: related } },
           select: { id: true },
         });
         if (after.some((one) => !before.some((old) => old.id === one.id)))

@@ -1,7 +1,21 @@
-# 广告取消拥有者公口
+# 广告拥有者公口
 
-`claimAdCancelRequest` 在调用方稳定锁图内占用本广告指针；`cancelAd` 只实现正式 ad.cancel 的09:808/809两行，returned 按真实 returnedFrom 选择，不新增 M5 广告生命周期 producer。取消状态、时间、原因及指针同一 UPDATE，真实账本回调随后在同 Tx 返回实际数量，四个累计列一起写，最后发送严格 ad.cancelled（returnedPoints 表示原路＋转加购，三值分别存行）。
+W5-08 以 `createAdService` 提供商户报价、创建、列表、详情、重提和相册下载；创建和重提复用内核三段执行器，内容检测在事务外执行，done 重放直接返回无签名的状态摘要。确认和修改只暴露 tx-first 核心，由 ops 的 `createAdRuntime` 预锁成员、主体、门店、广告、浮动订单/工单、样片与文件的完整图，在同一事务调用 delivery 影响核。ad 不查询 order/delivery 私表。
+
+`assignAdTx` 真实 capture 后随状态写 `editor_id/captured_at`；`registerAdVersionTx` 和 `pushAdVersionTx` 消费媒体 owner 的真实广告生产事实，不写生产成功状态。`prepareAdProduction` 仅声明手工产物并排真实 probe。W5-09 的员工上传 HTTP、SLA 消费者与日历重算尚未交付；通用 ad_video 员工上传仍受原分类门禁限制，08 验收明确只使用上游历史待上传文件输入。returned 陈旧提醒只发既有事件，不自动退款。
+
+`claimAdCancelRequest` 在调用方稳定锁图内占用本广告指针；`cancelAd` 实现正式 ad.cancel 的09:808/809两行，returned 按真实 returnedFrom 选择。取消状态、时间、原因及指针同一 UPDATE，真实账本回调随后在同 Tx 返回实际数量，四个累计列一起写，最后发送严格 ad.cancelled（returnedPoints 表示原路＋转加购，三值分别存行）。
 
 调用方须先按全局顺序锁全申请/明细/主体/门店/广告/活跃绑定订单及项，并在唯一账户420前预锁本广告相关 timer；本入口只重入已持广告锁。取消精确匹配本广告首版/修改版 SLA 及待补充陈旧 timer，保留其他用途、其他广告、历史版本和超次修改扣减。关闭未执行申请仍复用 clearAdCancelRequestPointers，仅清本申请，历史客服引用不删除。
 
-执行回调、实际数量、事件、历史全属同事务；调用方失败全部回滚。未提供广告提交、指派、版本推送、确认或其到点 producer，也没有 delivery_ticket 暂停。
+执行回调、实际数量、事件、历史全属同事务；调用方失败全部回滚。
+
+## 商家生命周期与跨域装配
+
+W5-08 的提交、重提、修改通过既有三阶段事务执行：先核当前门店与输入，再在事务外做微信文本检测，最后锁内复核并写状态、版本、同意和积分。报价与详情不制造查看证据。免费次数来自创建快照，超次修改沿 billing 原账本；提交取消后，新写由锁内指针守卫拒绝。
+
+`ops/createAdRuntime` 在确认或重开前读取完整浮动工单影响图，按原全局锁序取得广告 UPDATE 及下游锁并复核目标；广告与工单变化同一事务提交。重开使尚未钉版的活动样片失效，暂停工单待恢复时重算，已钉定版本不被替换。后台样片代录由 delivery 公口调用免费重开核心，不能代商家接受额外收费。
+
+媒体 ready、微信播放开关和推送时的渠道快照分别核验。`m.playable.get` 按 trailer、ad、sample 分别校验业务归属、文件引用及制作事实，签名在事务外完成，返回前再核事实；GET 不增加已查看记录。相册与其他关闭播放时的确认渠道仍须对应广告版本的实际证据。
+
+共享 producer 核心仅供 W5-09 和本包真实集成前置复用，尚未发布后台指派、推送及广告 SLA 消费接口。`ad.returned_stale` 只发待补充提醒，不自动取消或退款。测试里的历史上传输入、Provider 传输替身与真实商业素材、平台审核验收分开记录。

@@ -109,8 +109,8 @@ export async function checkCorrectionStructure(tx: Tx, f: TransitionFacts) {
     (await planApplied(tx, t.dramaOrderId, version.contentSnapshot))
   )
     failures.push("delivery.I3.plan");
-  if (t.step === "ad_prep" && adsReady(t)) failures.push("delivery.I3.ads");
-  if (["sample_making", "sample_confirm"].includes(t.step) && !adsReady(t))
+  if (t.step === "ad_prep" && (await adsReady(tx, t))) failures.push("delivery.I3.ads");
+  if (["sample_making", "sample_confirm"].includes(t.step) && !(await adsReady(tx, t)))
     failures.push("delivery.I3.ad_reopened");
   if (
     t.step === "batch_compose" &&

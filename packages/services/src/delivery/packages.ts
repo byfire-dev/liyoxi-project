@@ -11,7 +11,7 @@ import type { DeliveryDeps } from "./context.js";
 import { lockTickets, ticketOf, dateOf, iso } from "./repo.js";
 import { quality, unpaused } from "./quality.js";
 import { publishListFacts } from "./publish-list.js";
-import { licenseReady, step } from "./reevaluate.js";
+import { step } from "./reevaluate.js";
 import { orderSidePort } from "./ports.js";
 export async function releaseAdminView(tx: Tx, r: DeliveryRelease) {
   const tpl = await tx.checklistTemplate.findUnique({
@@ -92,6 +92,9 @@ export async function pushPackage(
     "episode_output",
     outputs.map((e) => e.id),
   );
+  if (!deps.ensureLicenseReadiness)
+    throw new AppError("INTERNAL", { message: "真实授权就绪服务尚未装配" });
+  const license = await deps.ensureLicenseReadiness(tx, [t.orderItemId], "package.push");
   const accounts = await tx.channelAccount.findMany({
     where: { id: { in: t.orderItem.orderItemAccounts.map((a) => a.channelAccountId) } },
   });
@@ -116,7 +119,8 @@ export async function pushPackage(
   if (t.qcRecords.find((q) => q.targetType === "delivery_ticket")?.verdict !== "pass")
     blockers.push({ code: "package_qc_pending" });
   if (!list.complete) blockers.push({ code: "publish_list_incomplete" });
-  if (!licenseReady(t)) blockers.push({ code: "license_letter_missing" });
+  if (!license.some((row) => row.orderItemId === t.orderItemId && row.ready))
+    blockers.push({ code: "license_letter_missing" });
   if (!accounts.length) blockers.push({ code: "account_unbound" });
   for (const a of accounts) {
     if (

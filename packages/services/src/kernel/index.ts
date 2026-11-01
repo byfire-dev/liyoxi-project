@@ -19,6 +19,7 @@ export {
   isInTransaction,
   isRetryableDbError,
   KernelViolation,
+  LockSetChanged,
   savepoint,
   sqlStateOf,
   TX_MAX_WAIT_MS,

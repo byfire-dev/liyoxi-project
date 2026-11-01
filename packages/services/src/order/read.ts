@@ -1,3 +1,4 @@
+import { readAdOrderFacts } from "../ad/index.js";
 import { readOrderAssetReferences } from "../media/index.js";
 import { readLicenseOrderProjection } from "../docs/index.js";
 import { readOrderAfterSales } from "./cancel-read.js";
@@ -38,7 +39,10 @@ export async function detail(
       agreementConsent: { include: { agreementVersion: { include: { agreement: true } } } },
       orderItems: {
         orderBy: { itemNo: "asc" },
-        include: { orderItemAccounts: { include: { channelAccount: true } } },
+        include: {
+          orderItemAccounts: { include: { channelAccount: true } },
+          orderItemPlacements: true,
+        },
       },
     },
   });
@@ -69,6 +73,11 @@ export async function detail(
   }
   const tickets = await getTicketBriefsByOrder(tx, o.id),
     plan = await getPlanBriefByOrder(tx, o.id);
+  const ads = await readAdOrderFacts(tx, {
+    entityId: o.entityId,
+    storeId: o.storeId,
+    adIds: o.orderItems.flatMap((item) => item.orderItemPlacements.map((p) => p.adId)),
+  });
   const consent = o.agreementConsent,
     version = consent.agreementVersion;
   return OrderDetailSchema.parse({
@@ -125,7 +134,13 @@ export async function detail(
             platform: a.platform,
             accountName: a.channelAccount.accountName,
           })),
-          placements: [],
+          placements: i.orderItemPlacements.map((p) => ({
+            slot: p.slot,
+            adId: p.adId,
+            adNo: ads.rows.find((ad) => ad.adId === p.adId)?.adNo ?? "",
+            durationSec: p.durationSec,
+            boundVersionNo: p.boundVersionNo,
+          })),
           agreedLaunchDate: date(i.agreedLaunchDate),
           usageStartDate: date(i.usageStartDate),
           usageEndDate: date(i.usageEndDate),

@@ -12,6 +12,7 @@ import { createSla, workHoursAt } from "../sla/index.js";
 import type { SlaDeps } from "../sla/index.js";
 import type { OrderActor, OrderDeps } from "./context.js";
 import { orderAccounts } from "./accounts.js";
+import { checkOrderAds } from "./ad-facts.js";
 export function owner(actor: OrderActor) {
   if (actor.membership.role !== "owner") throw new AppError("ROLE_FORBIDDEN");
 }
@@ -126,10 +127,7 @@ export async function submitChecks(
     });
     if (!found?.isEnabled) invalid(`focusCodes.${i}`, "请选择启用的定制重点");
   }
-  if (input.adIds?.length)
-    throw new AppError("ORDER_AD_INVALID", {
-      details: { adId: input.adIds[0], reason: "not_in_store" },
-    });
+  const ads = await checkOrderAds(tx, actor.membership, input.adIds ?? [], snapshots);
   await assertAssetReferences(tx, {
     entityId: actor.membership.entityId,
     storeId: actor.membership.storeId,
@@ -138,5 +136,5 @@ export async function submitChecks(
   const earliest = await earliestLaunch(tx, deps, at);
   if (input.expectedLaunchDate && input.expectedLaunchDate < earliest)
     throw new AppError("LAUNCH_DATE_TOO_EARLY", { details: { earliestLaunchDate: earliest } });
-  return { gate, accounts: accounts.selected, snapshots };
+  return { gate, accounts: accounts.selected, snapshots, ads };
 }

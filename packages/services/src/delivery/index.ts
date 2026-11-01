@@ -50,3 +50,12 @@ export { createProductionMaterials } from "./materials.js";
 export type { ProductionMaterialsDeps } from "./materials.js";
 export { createDownloadRecords } from "./download-records.js";
 export { createLicenseFacts } from "./license-facts.js";
+export {
+  readAdDeliveryImpact,
+  lockAdDeliveryImpact,
+  applyAdDeliveryImpact,
+  readAdTicketDetails,
+} from "./ad-delivery-impact.js";
+export type { AdDeliveryImpact, AdOrderReferenceReader } from "./ad-delivery-impact.js";
+
+export { readSamplePlayableFacts } from "./playable-facts.js";

@@ -298,6 +298,40 @@ async function verifiedProductionFacts(
     }
   }
   let playable = null;
+  if (ready && record?.kind === "ad") {
+    const asset = await tx.playableAsset.findUnique({
+      where: {
+        kind_sourceFileId_specVersion: {
+          kind: "ad",
+          sourceFileId: file.id,
+          specVersion: parameters.specVersion,
+        },
+      },
+    });
+    const renditions = z.array(RenditionSchema).length(1).safeParse(asset?.renditions),
+      r = renditions.success ? renditions.data[0] : null;
+    if (
+      asset?.state === "ready" &&
+      asset.readyAt &&
+      asset.retiredAt === null &&
+      asset.ownerType === "ad" &&
+      asset.ownerId === record.adId &&
+      asset.entityId === file.entityId &&
+      asset.storeId === file.storeId &&
+      asset.watermark === null &&
+      asset.readyAt.getTime() === check?.checkedAt.getTime() &&
+      asset.updatedAt >= asset.readyAt &&
+      asset.durationMs === info?.durationMs &&
+      asset.width === info?.displayWidth &&
+      asset.height === info?.displayHeight &&
+      asset.coverFileId === info?.coverFileId &&
+      r?.quality === "source" &&
+      r.fileId === file.id &&
+      r.width === asset.width &&
+      r.height === asset.height
+    )
+      playable = asset;
+  }
   if (ready && record?.kind === "sample") {
     const asset = await tx.playableAsset.findUnique({
       where: {

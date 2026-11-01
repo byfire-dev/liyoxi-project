@@ -98,6 +98,8 @@ export const AUDIT_TARGET_TYPES = [
   "drama_order",
   "cancel_request",
   "ad",
+  // m06: 相册/电脑预览的访问证据归具体推送版本。
+  "ad_version",
   "order_item",
   // 10 分组各表，含 sample（样片访问）
   "delivery_ticket",

@@ -41,6 +41,7 @@ export async function submitOrder(input: Input) {
 - 只有用例函数调 `run`。`run` 里再 `run` 抛 `KernelViolation`（任何环境都抛）。
 - 超时显式设置：事务 10 秒、等连接 3 秒。批处理在调用处写自己的上限 `run(fn, { timeoutMs })`，至多 60 秒，只许在 worker 用。
 - 重试会把函数体整个再跑一遍：函数体里不得有事务外的副作用（发请求、入队、改内存里的共享状态）。
+- 事务在取得预读目标的锁后发现目标集合已变，抛 `LockSetChanged`，由现有 `tx.run` 整体回滚并有限重试；沿用一次重试、原退避和耗尽后的 `BUSY`，不扩成任意业务错误重试。依据 m06-ad 第 3.5 节。不能继续补拿低序锁、伪造数据库 SQLSTATE，或在应用侧重新使用同一个幂等上下文。真实两连接栅栏、回滚及重放边界见 `tx.lock-set.db.test.ts`。
 - 提交前探一句 `SELECT 1`：接住了数据库错误又没回滚到保存点时，在这里报“事务已被数据库中止”，不让 `COMMIT` 被悄悄当成 `ROLLBACK`。
 
 从事务里出来的错误：

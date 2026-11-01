@@ -117,6 +117,7 @@ export interface AdStoreFacts {
   readonly pendingConfirmCount: number;
   readonly producingCount: number;
   readonly readyCount: number;
+  readonly revisingCount?: number;
 }
 
 /** support：客服工单（m08 的“帮助与客服”角标） */
@@ -196,7 +197,12 @@ export function defaultMerchantFacts(storeIds: readonly string[]): MerchantFacts
       }),
     },
     ad: {
-      stores: perStore(storeIds, { pendingConfirmCount: 0, producingCount: 0, readyCount: 0 }),
+      stores: perStore(storeIds, {
+        pendingConfirmCount: 0,
+        producingCount: 0,
+        readyCount: 0,
+        revisingCount: 0,
+      }),
     },
     support: { stores: perStore(storeIds, { ticketAwaitingConfirmCount: 0 }) },
     notify: { unreadMessageCount: 0 },

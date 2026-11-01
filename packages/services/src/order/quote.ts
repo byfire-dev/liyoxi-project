@@ -17,6 +17,7 @@ import {
   storeQuota,
 } from "./checks.js";
 import { orderAccounts } from "./accounts.js";
+import { selectableOrderAds } from "./ad-facts.js";
 export async function dictRefs(tx: Tx, type: string, codes: readonly string[]) {
   const rows = await tx.dictItem.findMany({
     where: { dictTypeKey: type, code: { in: [...codes] } },
@@ -235,7 +236,15 @@ export async function quote(
         isSelectable: a.status === "available",
       })),
     ),
-    ads: [],
+    ads: (await selectableOrderAds(tx, actor.membership)).map((ad) => ({
+      adId: ad.adId,
+      adNo: ad.adNo,
+      type: ad.type,
+      durationSec: ad.durationSec,
+      copy: ad.copy,
+      confirmedVersionNo: ad.confirmedVersion!.versionNo,
+      confirmedAt: ad.confirmedAt!,
+    })),
     earliestLaunchDate: await earliestLaunch(tx, deps, at),
     agreement: {
       agreementKey: "custom_license",

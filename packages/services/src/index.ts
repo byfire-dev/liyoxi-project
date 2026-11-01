@@ -440,3 +440,6 @@ export type { LicenseRenderQueueDeps } from "./docs/index.js";
 export type { LicenseViewer } from "./docs/index.js";
 
 export type { LicenseTemplateCatalog } from "./docs/index.js";
+
+export type { AdActor } from "./ad/index.js";
+export { readAdOrderReferences } from "./order/index.js";

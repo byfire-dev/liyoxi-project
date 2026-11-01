@@ -1,8 +1,27 @@
 // 商家端：广告 · ads（docs/api/m06-ad.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import { DownloadUrlSchema } from "../m05-delivery-publish/download.schemas.js";
+import {
+  AdParamSchema,
+  AdQuoteBodySchema,
+  AdCreateBodySchema,
+  AdConfirmBodySchema,
+  AdRequestChangeBodySchema,
+  AdSubmitBodySchema,
+  AdDownloadBodySchema,
+  AdListQuerySchema,
+  AdStateSchema,
+  AdQuoteSchema,
+  AdPageSchema,
+  AdDetailSchema,
+  AdRevisionResultSchema,
+} from "./ads.schemas.js";
 
-export const mAdList = merchantMeta({
+export const mAdList = merchantRoute({
+  request: { query: AdListQuerySchema },
+  responses: { ...okResponse(AdPageSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "get",
   path: "/m/ads",
   operationId: "m.ad.list",
@@ -13,7 +32,11 @@ export const mAdList = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mAdCreate = merchantMeta({
+export const mAdCreate = merchantRoute({
+  request: {
+    body: { required: true, content: { "application/json": { schema: AdCreateBodySchema } } },
+  },
+  responses: { ...okResponse(AdStateSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/ads",
   operationId: "m.ad.create",
@@ -24,7 +47,11 @@ export const mAdCreate = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mAdQuote = merchantMeta({
+export const mAdQuote = merchantRoute({
+  request: {
+    body: { required: true, content: { "application/json": { schema: AdQuoteBodySchema } } },
+  },
+  responses: { ...okResponse(AdQuoteSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/ads/quote",
   operationId: "m.ad.quote",
@@ -36,7 +63,9 @@ export const mAdQuote = merchantMeta({
   "x-idempotent-reason": "试算，不写库、不缓存（A18、A20）",
 });
 
-export const mAdGet = merchantMeta({
+export const mAdGet = merchantRoute({
+  request: { params: AdParamSchema },
+  responses: { ...okResponse(AdDetailSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "get",
   path: "/m/ads/{adId}",
   operationId: "m.ad.get",
@@ -47,7 +76,12 @@ export const mAdGet = merchantMeta({
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
 });
 
-export const mAdConfirm = merchantMeta({
+export const mAdConfirm = merchantRoute({
+  request: {
+    params: AdParamSchema,
+    body: { required: true, content: { "application/json": { schema: AdConfirmBodySchema } } },
+  },
+  responses: { ...okResponse(AdStateSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/ads/{adId}/confirm",
   operationId: "m.ad.confirm",
@@ -58,7 +92,12 @@ export const mAdConfirm = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mAdDownloadUrls = merchantMeta({
+export const mAdDownloadUrls = merchantRoute({
+  request: {
+    params: AdParamSchema,
+    body: { required: true, content: { "application/json": { schema: AdDownloadBodySchema } } },
+  },
+  responses: { ...okResponse(DownloadUrlSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/ads/{adId}/download-urls",
   operationId: "m.ad.downloadUrls",
@@ -70,7 +109,18 @@ export const mAdDownloadUrls = merchantMeta({
   "x-idempotent-reason": "签发短时地址，结果不进幂等记录，避免回放过期地址（A18、A19）",
 });
 
-export const mAdRequestChange = merchantMeta({
+export const mAdRequestChange = merchantRoute({
+  request: {
+    params: AdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: AdRequestChangeBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(AdRevisionResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
   method: "post",
   path: "/m/ads/{adId}/request-change",
   operationId: "m.ad.requestChange",
@@ -81,7 +131,12 @@ export const mAdRequestChange = merchantMeta({
   "x-idempotent": "required",
 });
 
-export const mAdSubmit = merchantMeta({
+export const mAdSubmit = merchantRoute({
+  request: {
+    params: AdParamSchema,
+    body: { required: true, content: { "application/json": { schema: AdSubmitBodySchema } } },
+  },
+  responses: { ...okResponse(AdStateSchema), ...errorResponses(400, 401, 403, 404, 409, 503) },
   method: "post",
   path: "/m/ads/{adId}/submit",
   operationId: "m.ad.submit",

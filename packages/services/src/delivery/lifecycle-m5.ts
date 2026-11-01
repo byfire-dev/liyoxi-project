@@ -228,7 +228,7 @@ export function createDeliveryM5(deps: DeliveryM5Deps) {
           stateField: "step",
           id,
           event: "ticket.rework",
-          to: adsReady(t) ? "sample_making" : "ad_prep",
+          to: (await adsReady(tx, t)) ? "sample_making" : "ad_prep",
           args: checked(),
           note: body.reason,
           entityId: t.entityId,

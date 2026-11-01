@@ -11,6 +11,7 @@ import type {
   EpisodeRegisterBody,
   InspectEpisodesBody,
   PushPackageBody,
+  AdminSampleRequestChangeBody,
 } from "@liyoxi/contract";
 import { calendarDate } from "@liyoxi/shared/time";
 import { assertAccess, assertPermission } from "../authz/index.js";
@@ -50,6 +51,7 @@ import {
 } from "./episodes.js";
 import { pushPackage } from "./packages.js";
 import { AppError, uuidv7 } from "../kernel/index.js";
+import { adminRequestSampleChange } from "./admin-sample-feedback.js";
 const steps = [
   "assigning",
   "plan_confirm",
@@ -153,6 +155,25 @@ export function createDelivery(deps: DeliveryDeps) {
     );
   }
   return {
+    adminSampleRequestChange: async (
+      ctx: IdentityContext,
+      staff: StaffContext,
+      id: string,
+      body: AdminSampleRequestChangeBody,
+      options: DeliveryWriteOptions = {},
+    ) => {
+      const result = await deps.tx.run(async (tx) => {
+        await adminRequestSampleChange(tx, deps, ctx, staff, id, body);
+        const { s, t } = await sampleOf(tx, id, staff);
+        return adminSampleView(tx, deps, t, s, staff);
+      }, options);
+      if (options.idem?.replayed) {
+        const view = { ...result } as typeof result & { replayed?: boolean };
+        delete view.replayed;
+        return view;
+      }
+      return signAdminSample(deps, result);
+    },
     sampleCreate: async (
       ctx: IdentityContext,
       staff: StaffContext,

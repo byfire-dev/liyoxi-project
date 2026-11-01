@@ -1,3 +1,6 @@
+import { adHandlers } from "./ads.js";
+import { adminAdCancelHandlers } from "./admin/ad-cancel.js";
+import { adminSampleFeedbackHandlers } from "./admin/sample-feedback.js";
 import { licenseLetterHandlers } from "./license-letters.js";
 import { adminLicenseLetterHandlers } from "./admin/license-letters.js";
 import { billingRefundHookHandlers } from "./billing-refund-hook.js";
@@ -79,6 +82,9 @@ import { notifySettingHandlers } from "./notify-settings.js";
 import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...adHandlers,
+  ...adminAdCancelHandlers,
+  ...adminSampleFeedbackHandlers,
   ...adminAgreementHandlers,
   ...siteHandlers,
   ...ciHookHandlers,

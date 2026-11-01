@@ -1,4 +1,4 @@
-import { AppError, lockRows } from "../kernel/index.js";
+import { AppError, isUuid, lockRows } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
 import { lockSystemFollowUpCloseTargets } from "../staff/index.js";
 import { readCancelReviewExecuteTargets } from "./cancel-review-execute.js";
@@ -9,6 +9,11 @@ const prepared = new WeakMap<
     staffIds: ReadonlySet<string>;
     approvalIds: ReadonlySet<string>;
     fileIds: ReadonlySet<string>;
+    entityIds: ReadonlySet<string>;
+    memberIds: ReadonlySet<string>;
+    storeIds: ReadonlySet<string>;
+    adIds: ReadonlySet<string>;
+    adUpdate: boolean;
     graph: Awaited<ReturnType<typeof readCancelReviewExecuteTargets>>;
   }
 >();
@@ -30,6 +35,8 @@ const targetKeys = [
   "followUpIds",
   "zipBundleIds",
   "fileObjectIds",
+  "playableAssetIds",
+  "productionRecordIds",
 ] as const;
 function lockTargetSignature(targets: Awaited<ReturnType<typeof readReevaluationTargets>>) {
   return JSON.stringify(targetKeys.map((key) => [...new Set(targets[key])].sort()));
@@ -44,6 +51,12 @@ export async function prepareReevaluation(
     approvalRequestId?: string;
     approvalRequestIds?: readonly string[];
     fileIds?: readonly string[];
+    /** Advertising confirmation/reopen coordinates its low-rank owners before delivery. */
+    entityIds?: readonly string[];
+    memberIds?: readonly string[];
+    storeIds?: readonly string[];
+    adIds?: readonly string[];
+    adLock?: "update";
   } = {},
 ) {
   const existing = prepared.get(tx);
@@ -53,7 +66,12 @@ export async function prepareReevaluation(
       extras.staffIds?.some((id) => !existing.staffIds.has(id)) ||
       (extras.approvalRequestId && !existing.approvalIds.has(extras.approvalRequestId)) ||
       extras.approvalRequestIds?.some((id) => !existing.approvalIds.has(id)) ||
-      extras.fileIds?.some((id) => !existing.fileIds.has(id))
+      extras.fileIds?.some((id) => !existing.fileIds.has(id)) ||
+      extras.entityIds?.some((id) => !existing.entityIds.has(id)) ||
+      extras.memberIds?.some((id) => !existing.memberIds.has(id)) ||
+      extras.storeIds?.some((id) => !existing.storeIds.has(id)) ||
+      extras.adIds?.some((id) => !existing.adIds.has(id)) ||
+      (extras.adLock === "update" && !existing.adUpdate)
     )
       throw new AppError("PRECONDITION_CHANGED", {
         message: "同事务求值不能在已锁完整图后追加低序目标",
@@ -75,8 +93,18 @@ export async function prepareReevaluation(
       ],
       "update",
     ],
+    ["entity", extras.entityIds ?? [], "update"],
+    ["entity_member", extras.memberIds ?? [], "update"],
+    ["store", extras.storeIds ?? [], "update"],
     ["drama", tickets.map((t) => t.dramaId), "share"],
-    ["ad", tickets.flatMap((t) => t.orderItem.orderItemPlacements.map((p) => p.adId)), "share"],
+    [
+      "ad",
+      [
+        ...tickets.flatMap((t) => t.orderItem.orderItemPlacements.map((p) => p.adId)),
+        ...(extras.adIds ?? []),
+      ],
+      extras.adLock ?? "share",
+    ],
     ["drama_order", tickets.map((t) => t.dramaOrderId), "update"],
     ["order_item", tickets.map((t) => t.orderItemId), "update"],
     ["delivery_ticket", tickets.map((t) => t.id), "update"],
@@ -94,11 +122,14 @@ export async function prepareReevaluation(
   ] as const)
     await lockRows(tx, table, ids, mode === "share" ? "share" : "update");
   await lockSystemFollowUpCloseTargets(tx, graph.followUpIds);
+  await lockRows(tx, "playable_asset", targets.playableAssetIds, "share");
+  await lockRows(tx, "production_record", targets.productionRecordIds, "share");
   await lockRows(tx, "zip_bundle", graph.zipBundleIds);
   await lockRows(tx, "file_object", [
     ...graph.fileObjectIds,
     ...(extras.fileIds ?? []),
     ...posters,
+    ...targets.evidenceFileIds,
   ]);
   const fresh = await readReevaluationTargets(tx, ticketIds);
   // A writer may have committed new business facts while we waited on its parent lock.
@@ -113,7 +144,17 @@ export async function prepareReevaluation(
       ...(extras.approvalRequestIds ?? []),
       ...(extras.approvalRequestId ? [extras.approvalRequestId] : []),
     ]),
-    fileIds: new Set([...graph.fileObjectIds, ...(extras.fileIds ?? []), ...posters]),
+    fileIds: new Set([
+      ...graph.fileObjectIds,
+      ...(extras.fileIds ?? []),
+      ...posters,
+      ...targets.evidenceFileIds,
+    ]),
+    entityIds: new Set(extras.entityIds ?? []),
+    memberIds: new Set(extras.memberIds ?? []),
+    storeIds: new Set(extras.storeIds ?? []),
+    adIds: new Set([...targets.adIds, ...(extras.adIds ?? [])]),
+    adUpdate: extras.adLock === "update",
     graph: fresh.graph,
   });
   return fresh.graph;
@@ -143,7 +184,7 @@ export async function readReevaluationTargets(tx: Tx, ticketIds: readonly string
       deliveryTicketId: { in: tickets.map((t) => t.id) },
       status: { in: ["uploaded", "qc_passed", "pushed"] },
     },
-    select: { id: true },
+    select: { id: true, fileId: true },
     orderBy: { id: "asc" },
   });
   const posters = tickets.flatMap((t) => {
@@ -151,6 +192,27 @@ export async function readReevaluationTargets(tx: Tx, ticketIds: readonly string
       (t.orderItem.dramaSnapshot as { posterFileId?: string }).posterFileId ?? t.drama.posterFileId;
     return id ? [id] : [];
   });
+  const assets = await tx.playableAsset.findMany({
+    where: { kind: "sample", sourceFileId: { in: samples.map((s) => s.fileId) } },
+    select: { id: true, renditions: true },
+    orderBy: { id: "asc" },
+  });
+  const evidenceFileIds = [
+    ...samples.map((s) => s.fileId),
+    ...assets.flatMap((asset) =>
+      Array.isArray(asset.renditions)
+        ? asset.renditions.flatMap((value) =>
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            typeof value.fileId === "string" &&
+            isUuid(value.fileId)
+              ? [value.fileId]
+              : [],
+          )
+        : [],
+    ),
+  ];
   return {
     tickets,
     graph,
@@ -174,6 +236,9 @@ export async function readReevaluationTargets(tx: Tx, ticketIds: readonly string
     takedownTaskIds: graph.takedownTaskIds,
     followUpIds: graph.followUpIds,
     zipBundleIds: graph.zipBundleIds,
-    fileObjectIds: [...graph.fileObjectIds, ...posters],
+    fileObjectIds: [...graph.fileObjectIds, ...posters, ...evidenceFileIds],
+    evidenceFileIds: [...new Set(evidenceFileIds)].sort(),
+    playableAssetIds: [...new Set(assets.map((a) => a.id))].sort(),
+    productionRecordIds: [...new Set(samples.map((s) => s.fileId))].sort(),
   };
 }

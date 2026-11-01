@@ -92,6 +92,7 @@ export type {
 } from "./m1-types.js";
 
 export { configTestStaffBriefs, createConfigProfileFixture } from "./config-admin.js";
+export { createHistoricalLicenseReady } from "./historical-license-ready.js";
 export {
   createTestWorkerServices,
   runTestInvariants,
@@ -211,3 +212,7 @@ export {
   verifyTestPdf,
 } from "./esign-material.js";
 export { createPlatformCertEsign as createTestPlatformCertEsign } from "../providers/index.js";
+export { prepareAdVideoForTest } from "./ad-video.fixture.js";
+
+// W5-08 fixed real ad/order/sample acceptance chain.
+export { createW508OrderAdFixture } from "./w508-order-ad.fixture.js";
