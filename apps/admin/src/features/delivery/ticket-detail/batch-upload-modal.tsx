@@ -11,6 +11,7 @@ import type { DetailApi, Ticket } from "./api";
 import {
   batchStateLabel,
   canConsume,
+  episodeRegistrationBody,
   canStart,
   itemStateLabel,
   selectionProblem,
@@ -254,7 +255,7 @@ export function BatchUploadModal({ ticket, api, onClose, onRefresh }: Props) {
   const alive = () => runtime !== undefined && session.getSnapshot().runtime === runtime;
   const [selection, setSelection] = useState<BatchSelection[]>([]);
   const [, updateAttachments] = useState(0);
-  const [scope, setScope] = useState<"full" | "partial">("full");
+  const [scope, setScope] = useState<"full" | "partial">(ticket.openReissue ? "partial" : "full");
   const [ai, setAi] = useState<AiDeclaration>(plainAi);
   const [sequenceConfirmed, setSequenceConfirmed] = useState(false);
   const [originalConfirmed, setOriginalConfirmed] = useState(false);
@@ -343,6 +344,12 @@ export function BatchUploadModal({ ticket, api, onClose, onRefresh }: Props) {
           {ticket.store.storeName ?? "未命名门店"} · {ticket.dramaTitle} · 工单{" "}
           {ticket.episodeCount} 集
         </p>
+        {ticket.openReissue ? (
+          <Alert
+            type="info"
+            title={`正在登记补发：仅第 ${ticket.openReissue.episodeNos.join("、")} 集，沿当前补发申请绑定`}
+          />
+        ) : null}
         {!batch ? (
           <>
             {ticket.openUploadBatches.length ? (
@@ -369,7 +376,7 @@ export function BatchUploadModal({ ticket, api, onClose, onRefresh }: Props) {
                 <Radio.Group
                   {...field}
                   value={scope}
-                  disabled={busy}
+                  disabled={busy || !!ticket.openReissue}
                   onChange={(event) =>
                     setScope(event.target.value === "partial" ? "partial" : "full")
                   }
@@ -557,10 +564,25 @@ export function BatchUploadModal({ ticket, api, onClose, onRefresh }: Props) {
                 disabled={!canConsume(batch) || busy || uploading}
                 loading={consume.pending}
                 onClick={() => {
-                  const body = { uploadBatchId: batch.uploadBatchId };
-                  void consume.submit({ ticketId: ticket.deliveryTicketId, ...body }, (key) =>
-                    api.registerEpisodes(ticket.deliveryTicketId, body, key),
-                  );
+                  try {
+                    const body = episodeRegistrationBody(batch, ticket.openReissue);
+                    void consume.submit(
+                      { ticketId: ticket.deliveryTicketId, ...body },
+                      async (key) => {
+                        if (body.reissueId) {
+                          const current = await api.get(ticket.deliveryTicketId);
+                          if (
+                            current.openReissue?.reissueId !== body.reissueId ||
+                            !current.actions.includes("episode-register")
+                          )
+                            throw new Error("补发申请或工单条件已变化，请关闭后重新读取");
+                        }
+                        return api.registerEpisodes(ticket.deliveryTicketId, body, key);
+                      },
+                    );
+                  } catch (error) {
+                    fail(error);
+                  }
                 }}
               >
                 登记成片文件

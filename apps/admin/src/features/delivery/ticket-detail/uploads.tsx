@@ -205,5 +205,10 @@ function SampleUploadForm({ ticket, api, onClose, onRefresh }: UploadModalProps)
   );
 }
 export function EpisodeRegisterModal(props: UploadModalProps) {
-  return <BatchUploadModal key={uploadModalIdentity(props.ticket)} {...props} />;
+  return (
+    <BatchUploadModal
+      key={`${uploadModalIdentity(props.ticket)}:${props.ticket.openReissue?.reissueId ?? "normal"}`}
+      {...props}
+    />
+  );
 }

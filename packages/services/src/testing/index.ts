@@ -224,3 +224,6 @@ export type { AdTaskLiveScope } from "./admin-live/w514.fixture.js";
 
 // W5-08 fixed real ad/order/sample acceptance chain.
 export { createW508OrderAdFixture } from "./w508-order-ad.fixture.js";
+
+export { createM1LicenseRendering } from "./m1-docs.js";
+export { M1_LICENSE_TEST_INPUTS, prepareM1LicenseInputs } from "./m1-license-inputs.js";

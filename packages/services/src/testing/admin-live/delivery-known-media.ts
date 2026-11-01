@@ -91,6 +91,7 @@ export interface KnownMediaInput {
   fileId: string;
   clientToken: string;
   artifact: DeliveryArtifact;
+  fixture?: "w513";
   video?: { size: number; md5: string; sha256: string };
 }
 async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, cleanup = false) {
@@ -148,7 +149,8 @@ async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, clean
     manager.name !== "演练交付" ||
     manager.staffRoleKey !== "delivery_manager" ||
     manager.status !== "active" ||
-    store.name !== `制作演练-${scope.runId}` ||
+    store.name !==
+      (input.fixture === "w513" ? `W513工单-${scope.runId}` : `制作演练-${scope.runId}`) ||
     store.entityId !== scope.entityId ||
     order.storeId !== scope.storeId ||
     order.entityId !== scope.entityId ||
@@ -160,7 +162,8 @@ async function ownedFile(tx: Tx, runtime: Runtime, input: KnownMediaInput, clean
     ticket.dramaOrderId !== order.id ||
     ticket.entityId !== scope.entityId ||
     ticket.storeId !== scope.storeId ||
-    drama.title !== `制作演练短剧-${scope.runId}` ||
+    drama.title !==
+      (input.fixture === "w513" ? `W513工单短剧-${scope.runId}` : `制作演练短剧-${scope.runId}`) ||
     drama.isAiGenerated ||
     file.uploadActorType !== "staff" ||
     file.uploadActorId !== uploader.id ||

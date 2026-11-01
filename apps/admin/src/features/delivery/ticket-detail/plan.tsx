@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Drawer, Input, Select } from "antd";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { FormField } from "../../../components/FormField";
-import { Can } from "../../../lib/permissions";
+import { AccessContext, Can } from "../../../lib/permissions";
+import { actorScope } from "../../system/staff-access";
 import { DICT_QUERY } from "../../../lib/query";
 import type { DetailApi, DraftBody, Plan } from "./api";
 import { DETAIL_KEY, planInput } from "./model";
@@ -21,9 +22,10 @@ export function PlanDrawer({
   const [content, setContent] = useState(() => planInput(plan)),
     [version, setVersion] = useState(plan.draftLockVersion);
   const focus = useQuery({ queryKey: [...DETAIL_KEY, "focus"], queryFn: api.focus, ...DICT_QUERY });
+  const scope = actorScope(useContext(AccessContext));
   const order = useQuery({
-    queryKey: [...DETAIL_KEY, "order", plan.orderId],
-    queryFn: () => api.order(plan.orderId),
+    queryKey: [...DETAIL_KEY, scope, "order", plan.orderId],
+    queryFn: ({ signal }) => api.order(plan.orderId, signal),
     ...DICT_QUERY,
   });
   const write = useDeliveryWrite(() => {

@@ -1,11 +1,12 @@
 import { appDateTimeFormat as date } from "@liyoxi/shared/format/datetime";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Checkbox, Modal } from "antd";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { InfoList } from "../../../components/InfoList";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
 import { localStorageRequestUrl } from "../../../lib/local-storage";
-import { Can } from "../../../lib/permissions";
+import { AccessContext, Can } from "../../../lib/permissions";
+import { actorScope } from "../../system/staff-access";
 import { DETAIL_QUERY } from "../../../lib/query";
 import type { DetailApi, Ticket } from "./api";
 import { DETAIL_KEY } from "./model";
@@ -231,9 +232,10 @@ export function SamplePanel({ ticket, api, onRefresh }: PanelProps) {
 }
 export function EpisodePanel({ ticket, api, onRefresh }: PanelProps) {
   const [open, setOpen] = useState<"register" | "episodes" | "package">();
+  const scope = actorScope(useContext(AccessContext));
   const grid = useQuery({
-    queryKey: [...DETAIL_KEY, "episodes", ticket.deliveryTicketId],
-    queryFn: () => api.episodes(ticket.deliveryTicketId),
+    queryKey: [...DETAIL_KEY, scope, "episodes", ticket.deliveryTicketId],
+    queryFn: ({ signal }) => api.episodes(ticket.deliveryTicketId, signal),
     ...DETAIL_QUERY,
   });
   return (
@@ -267,10 +269,21 @@ export function EpisodePanel({ ticket, api, onRefresh }: PanelProps) {
         <>
           <div className="lyx-production-episode-grid">
             {grid.data.episodes.map((e) => {
-              const output = e.latest ?? e.current;
+              const replacing = ticket.openReissue?.episodeNos.includes(e.episodeNo);
+              const replacement =
+                e.replacement?.deliveryReissueId === ticket.openReissue?.reissueId
+                  ? e.replacement
+                  : null;
+              const output = replacing ? replacement : (e.latest ?? e.current);
               return (
                 <section className="lyx-production-card" key={e.episodeNo}>
                   <h3>第 {e.episodeNo} 集</h3>
+                  {replacing ? (
+                    <p>
+                      当前已发布：{e.current ? `第 ${e.current.revisionNo} 版` : "暂无"} ·
+                      本次补发：{replacement ? `第 ${replacement.revisionNo} 版` : "待登记"}
+                    </p>
+                  ) : null}
                   <p>
                     {output
                       ? `第 ${output.revisionNo} 版 · ${output.qc?.verdict === "pass" ? "通过" : output.qc?.verdict === "fail" ? "不通过" : "待质检"}`

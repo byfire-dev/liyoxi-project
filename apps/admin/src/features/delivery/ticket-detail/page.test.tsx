@@ -112,8 +112,8 @@ beforeEach(() => {
       },
     }),
   } as AppServices;
-  query.setQueryData([...DETAIL_KEY, ticket.ticketNo], ticket);
-  query.setQueryData([...DETAIL_KEY, "plan", planId], initialPlan);
+  query.setQueryData([...DETAIL_KEY, "anonymous", ticket.ticketNo], ticket);
+  query.setQueryData([...DETAIL_KEY, "anonymous", "plan", planId], initialPlan);
 });
 afterEach(() => query.clear());
 function render() {
@@ -124,7 +124,7 @@ function render() {
   );
 }
 function serverPlan(patch: Partial<Plan>) {
-  query.setQueryData<Plan>([...DETAIL_KEY, "plan", planId], (previous) => ({
+  query.setQueryData<Plan>([...DETAIL_KEY, "anonymous", "plan", planId], (previous) => ({
     ...previous!,
     ...patch,
   }));
@@ -144,7 +144,7 @@ function serverSample(url: string) {
   > & {
     uploadedBy: Pick<NonNullable<Ticket["currentSample"]>["uploadedBy"], "name">;
   };
-  query.setQueryData([...DETAIL_KEY, ticket.ticketNo], {
+  query.setQueryData([...DETAIL_KEY, "anonymous", ticket.ticketNo], {
     ...ticket,
     step: "sample_making",
     actions: [],

@@ -1,3 +1,4 @@
+import { DeliveryTicketDetailSchema } from "@liyoxi/contract";
 import type { operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { readFailure } from "../../../lib/api-errors";
@@ -31,26 +32,35 @@ export function createTicketDetailApi(services: Pick<AppServices, "api">) {
   const c = services.api.client;
   return {
     batches: createBatchApi(services),
-    find: (ticketNo: string) =>
+    find: (ticketNo: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/delivery-tickets", {
+          ...(signal ? { signal } : {}),
           params: { query: { q: ticketNo, tab: "all", pageSize: 100 } },
         })
         .then(unwrap),
-    get: (id: string) =>
+    get: (id: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/delivery-tickets/{deliveryTicketId}", {
+          ...(signal ? { signal } : {}),
           params: { path: { deliveryTicketId: id } },
         })
-        .then(unwrap),
-    plan: (id: string) =>
+        .then(unwrap)
+        .then((value) => DeliveryTicketDetailSchema.parse(value)),
+    plan: (id: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/delivery-plans/{deliveryPlanId}", {
+          ...(signal ? { signal } : {}),
           params: { path: { deliveryPlanId: id } },
         })
         .then(unwrap),
-    order: (id: string) =>
-      c.GET("/api/v1/admin/orders/{orderId}", { params: { path: { orderId: id } } }).then(unwrap),
+    order: (id: string, signal?: AbortSignal) =>
+      c
+        .GET("/api/v1/admin/orders/{orderId}", {
+          params: { path: { orderId: id } },
+          ...(signal ? { signal } : {}),
+        })
+        .then(unwrap),
     focus: () =>
       c
         .GET("/api/v1/admin/dict-items", { params: { query: { typeKey: "custom_focus" } } })
@@ -129,9 +139,10 @@ export function createTicketDetailApi(services: Pick<AppServices, "api">) {
           headers: { "Idempotency-Key": key },
         })
         .then(unwrap),
-    episodes: (id: string) =>
+    episodes: (id: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/delivery-tickets/{deliveryTicketId}/episode-outputs", {
+          ...(signal ? { signal } : {}),
           params: { path: { deliveryTicketId: id } },
         })
         .then(unwrap),

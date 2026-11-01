@@ -91,6 +91,25 @@ export function canConsume(batch: UploadBatchDetail): boolean {
   );
 }
 
+/** A reissue consumes the same real batch, explicitly bound to its allowed replacement episodes. */
+export function episodeRegistrationBody(
+  batch: UploadBatchDetail,
+  reissue?: { reissueId: string; episodeNos: readonly number[] } | null,
+) {
+  if (!canConsume(batch)) throw new Error("批次尚不能登记");
+  if (
+    reissue &&
+    batch.items
+      .filter((item) => !["skipped", "replaced"].includes(item.state))
+      .some((item) => item.episodeNo === null || !reissue.episodeNos.includes(item.episodeNo))
+  )
+    throw new Error("补发批次包含申请范围外的集号，请先修正或跳过");
+  return {
+    uploadBatchId: batch.uploadBatchId,
+    ...(reissue ? { reissueId: reissue.reissueId } : {}),
+  };
+}
+
 /** One modal owns one batch; late reads and closed scopes cannot replace current facts. */
 export function createBatchModel(options: {
   api: BatchApi;
