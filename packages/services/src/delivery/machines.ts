@@ -287,6 +287,7 @@ export const deliveryMachines = [
       ["10:646", "sample.change_requested"],
       ["10:647", "sample.change_requested"],
       ["10:648", "sample.superseded"],
+      ["10:649", "sample.superseded"],
     ]),
     activity: (f) => ({
       category: "delivery",
