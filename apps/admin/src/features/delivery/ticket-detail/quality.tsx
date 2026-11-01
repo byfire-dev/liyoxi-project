@@ -6,7 +6,7 @@ import { FormField } from "../../../components/FormField";
 import { Can } from "../../../lib/permissions";
 import { DETAIL_QUERY } from "../../../lib/query";
 import type { DetailApi, EpisodeQcBody, Grid, QcBody, Template, Ticket } from "./api";
-import { DETAIL_KEY, qualityProblem } from "./model";
+import { DETAIL_KEY, qualityProblem, reissueQualityOutputs } from "./model";
 import { useDeliveryWrite } from "./write";
 export interface QualityInput {
   results: QcBody["results"];
@@ -138,12 +138,17 @@ export function QualityModal(props: QualityProps) {
   const identity = JSON.stringify([
     ticket.deliveryTicketId,
     mode,
+    ticket.openReissue?.reissueId,
     mode === "sample" || mode === "recover"
       ? [ticket.currentSample?.sampleId, ticket.currentSample?.versionNo]
-      : grid?.episodes.map((e) => {
-          const output = e.latest ?? e.current;
-          return [e.episodeNo, output?.episodeOutputId, output?.revisionNo, output?.fileId];
-        }),
+      : grid
+        ? reissueQualityOutputs(ticket, grid).map((output) => [
+            output.episodeNo,
+            output.episodeOutputId,
+            output.revisionNo,
+            output.fileId,
+          ])
+        : undefined,
     template.data?.checklistTemplateId,
     template.data?.versionNo,
   ]);
@@ -166,8 +171,7 @@ function QualityForm({
         : mode === "episodes"
           ? "逐集质检"
           : "成片包质检";
-  const outputs =
-    grid?.episodes.flatMap((e) => (e.latest ? [e.latest] : e.current ? [e.current] : [])) ?? [];
+  const outputs = grid ? reissueQualityOutputs(ticket, grid) : [];
   const [input, setInput] = useState(emptyQuality),
     [selected, setSelected] = useState(() => outputs.map((e) => e.episodeOutputId));
   const [exceptions, setExceptions] = useState<Record<string, QualityInput>>({});

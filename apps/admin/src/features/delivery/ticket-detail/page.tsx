@@ -4,12 +4,15 @@ import { appDateTimeFormat as date } from "@liyoxi/shared/format/datetime";
 import { useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { Alert, Button, Checkbox, Modal } from "antd";
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { DetailPage } from "../../../components/DetailPage";
 import { InfoList } from "../../../components/InfoList";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
 import { StatusTag } from "../../../components/StatusTag";
-import { Can } from "../../../lib/permissions";
+import { AccessContext, Can } from "../../../lib/permissions";
+import { actorScope } from "../../system/staff-access";
+import { TicketM5Panel } from "./m5-panel";
+import { M5AdFacts } from "./m5-resources";
 import { DETAIL_QUERY } from "../../../lib/query";
 import { TICKETS_KEY } from "../tickets/model";
 import { ORDERS_KEY } from "../../order/orders/model";
@@ -21,6 +24,12 @@ import { useDeliveryWrite } from "./write";
 import "./production.css";
 const route = getRouteApi("/delivery/tickets/$ticketNo");
 export function TicketDetailPage() {
+  const access = useContext(AccessContext),
+    { ticketNo } = route.useParams();
+  return <TicketDetailWorkspace key={`${actorScope(access)}:${ticketNo}`} />;
+}
+function TicketDetailWorkspace() {
+  const scope = actorScope(useContext(AccessContext));
   const { services } = useRouteContext({ from: "__root__" }),
     { ticketNo } = route.useParams(),
     navigate = route.useNavigate(),
@@ -34,21 +43,22 @@ export function TicketDetailPage() {
   const reloaded = navigation !== undefined && "type" in navigation && navigation.type === "reload";
   const navigationId = reloaded ? undefined : historyTicketId(state, ticketNo);
   const detail = useQuery({
-    queryKey: [...DETAIL_KEY, ticketNo],
-    queryFn: async () => {
+    queryKey: [...DETAIL_KEY, scope, ticketNo],
+    queryFn: async ({ signal }) => {
       const id =
         navigationId ??
-        (await api.find(ticketNo)).items.find((r) => r.ticketNo === ticketNo)?.deliveryTicketId;
+        (await api.find(ticketNo, signal)).items.find((r) => r.ticketNo === ticketNo)
+          ?.deliveryTicketId;
       if (!id) return null;
-      const data = await api.get(id);
+      const data = await api.get(id, signal);
       return data.ticketNo === ticketNo ? data : null;
     },
     ...DETAIL_QUERY,
   });
   const data = detail.data;
   const plan = useQuery({
-    queryKey: [...DETAIL_KEY, "plan", data?.plan?.deliveryPlanId],
-    queryFn: () => api.plan(data!.plan!.deliveryPlanId),
+    queryKey: [...DETAIL_KEY, scope, "plan", data?.plan?.deliveryPlanId],
+    queryFn: ({ signal }) => api.plan(data!.plan!.deliveryPlanId, signal),
     enabled: !!data?.plan,
     ...DETAIL_QUERY,
   });
@@ -207,7 +217,14 @@ export function TicketDetailPage() {
               </div>
             ),
           },
-          { key: "ads", label: "广告视频", content: <EmptyState title="暂无" /> },
+          { key: "ads", label: "广告视频", content: data ? <M5AdFacts ticket={data} /> : null },
+          {
+            key: "actions",
+            label: "工单操作与取料",
+            content: data ? (
+              <TicketM5Panel ticket={data} services={services} refresh={refresh} />
+            ) : null,
+          },
           {
             key: "sample",
             label: "样片与质检",

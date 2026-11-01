@@ -102,16 +102,20 @@ async function main() {
       "file-id": { type: "string" },
       "client-token": { type: "string" },
       artifact: { type: "string" },
+      fixture: { type: "string", default: "legacy" },
       cleanup: { type: "boolean", default: false },
     },
   });
   if (!values.context) throw new Error("需要本轮 context");
   const file = await realpath(values.context);
   const context = JSON.parse(await readFile(file, "utf8")) as {
-    fixtures?: { fixtures?: Record<string, { scope?: unknown }> };
+    fixtures?: { fixtures?: Record<string, { scope?: unknown; flow?: { scope?: unknown } }> };
   };
+  if (!["legacy", "w513"].includes(values.fixture)) throw new Error("不接受其他制作fixture");
   const scope = DeliveryLiveScopeSchema.parse(
-    context.fixtures?.fixtures?.["zz-delivery-flow"]?.scope,
+    values.fixture === "w513"
+      ? context.fixtures?.fixtures?.w513?.flow?.scope
+      : context.fixtures?.fixtures?.["zz-delivery-flow"]?.scope,
   );
   if (
     file !== resolve(root, `admin-live-${scope.runId}`, "context.json") ||
@@ -154,7 +158,10 @@ async function main() {
         await readFile(resolve(root, `admin-live-${scope.runId}`, "media-input.json"), "utf8"),
       ),
     );
-    if (JSON.stringify(manifest.legacy) !== JSON.stringify(scope))
+    if (
+      JSON.stringify(values.fixture === "w513" ? manifest.w513 : manifest.legacy) !==
+      JSON.stringify(scope)
+    )
       throw new Error("真实视频输入与本轮交付 scope 不同");
     const path = await realpath(manifest.video.path);
     if (path !== resolve(root, `admin-live-${scope.runId}`, "video.mp4"))
@@ -170,7 +177,14 @@ async function main() {
       sha256: manifest.video.sha256,
       md5: createHash("md5").update(bytes).digest("hex"),
     };
-    const input = { scope, artifact, fileId, clientToken, video };
+    const input: KnownMediaInput = {
+      scope,
+      artifact,
+      fileId,
+      clientToken,
+      video,
+      ...(values.fixture === "w513" ? { fixture: "w513" } : {}),
+    };
     try {
       phase = "observe";
       if (!values.cleanup) await waitForDeliveryProduction(runtime, input);

@@ -40,10 +40,13 @@ export interface DeliveryFixture {
   launchDate: string;
   deliveryDate: string;
 }
-export function deliveryFixture(): DeliveryFixture {
-  const f = (liveContext().fixtures as { fixtures: Record<string, DeliveryFixture> }).fixtures[
-    "zz-delivery-flow"
-  ]!;
+export function deliveryFixture(source: "legacy" | "w513" = "legacy"): DeliveryFixture {
+  const fixtures = (
+    liveContext().fixtures as {
+      fixtures: Record<string, DeliveryFixture & { flow?: DeliveryFixture }>;
+    }
+  ).fixtures;
+  const f = source === "w513" ? fixtures.w513?.flow : fixtures["zz-delivery-flow"];
   if (
     !f ||
     !/^[0-9a-f]{16}$/.test(f.scope.runId) ||
@@ -53,10 +56,14 @@ export function deliveryFixture(): DeliveryFixture {
     throw new Error("缺少本轮独立交付夹具");
   return f;
 }
-export function managerLogin() {
-  const f = orderFixture() as OrderFixture & { managerRecoveryCodePR2?: string };
-  if (!f.managerRecoveryCodePR2) throw new Error("缺少独立经理恢复码");
-  return { ...f.manager, recoveryCode: f.managerRecoveryCodePR2 };
+export function managerLogin(source: "legacy" | "w513" = "legacy") {
+  const f = orderFixture() as OrderFixture & {
+    managerRecoveryCodePR2?: string;
+    managerRecoveryCodeW513?: string;
+  };
+  const code = source === "w513" ? f.managerRecoveryCodeW513 : f.managerRecoveryCodePR2;
+  if (!code) throw new Error("缺少独立经理恢复码");
+  return { ...f.manager, recoveryCode: code };
 }
 export function deliveryVideo() {
   const manifest = (
@@ -127,7 +134,7 @@ function bridgeDiagnostic(stderr: string) {
   }
   return undefined;
 }
-function runBridge(file: Upload, cleanup = false) {
+function runBridge(file: Upload, cleanup = false, source: "legacy" | "w513" = "legacy") {
   const context = process.env.LYX_ADMIN_LIVE_CONTEXT;
   if (!context) throw new Error("缺少本轮 context");
   const env = liveChildEnv([
@@ -163,6 +170,7 @@ function runBridge(file: Upload, cleanup = false) {
         "--artifact",
         file.artifact,
         ...(cleanup ? ["--cleanup"] : []),
+        ...(source === "w513" ? ["--fixture", "w513"] : []),
       ],
       {
         cwd: fileURLToPath(new URL("../../../..", import.meta.url)),
@@ -204,8 +212,8 @@ function runBridge(file: Upload, cleanup = false) {
     });
   });
 }
-export function attachKnownMedia(page: Page) {
-  const f = deliveryFixture(),
+export function attachKnownMedia(page: Page, source: "legacy" | "w513" = "legacy") {
+  const f = deliveryFixture(source),
     files = new Map<string, Upload>(),
     registrations: Promise<void>[] = [],
     jobs: Promise<void>[] = [],
@@ -264,7 +272,7 @@ export function attachKnownMedia(page: Page) {
           await Promise.all(registrations);
           const file = files.get(id);
           if (!file) throw new Error("complete 未绑定到本轮真实登记");
-          await runBridge(file);
+          await runBridge(file, false, source);
         })().catch((error: unknown) => {
           failures.push(error);
         });
@@ -283,7 +291,9 @@ export function attachKnownMedia(page: Page) {
       page.off("response", listen);
       await Promise.all(registrations);
       await Promise.all(jobs);
-      const results = await Promise.allSettled([...files.values()].map((f) => runBridge(f, true)));
+      const results = await Promise.allSettled(
+        [...files.values()].map((f) => runBridge(f, true, source)),
+      );
       const rejected = results.filter((result) => result.status === "rejected");
       if (rejected.length)
         throw new AggregateError(

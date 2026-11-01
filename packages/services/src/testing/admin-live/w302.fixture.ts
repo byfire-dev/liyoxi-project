@@ -133,19 +133,36 @@ export const OutputBatchVideoInputSchema = z.strictObject({
     })
     .refine((p) => Math.abs(p.displayWidth / p.displayHeight - 9 / 16) / (9 / 16) <= 0.01),
 });
-export const OutputBatchLiveInputSchema = z.strictObject({
-  current: DeliveryLiveScopeSchema.extend({ dramaId: z.string().uuid() }),
-  legacy: DeliveryLiveScopeSchema,
-  video: OutputBatchVideoInputSchema,
-  resumeVideo: OutputBatchVideoInputSchema,
-  w120: W120PendingSchema.optional(),
-});
+export const OutputBatchLiveInputSchema = z
+  .strictObject({
+    current: DeliveryLiveScopeSchema.extend({ dramaId: z.string().uuid() }),
+    legacy: DeliveryLiveScopeSchema,
+    w513: DeliveryLiveScopeSchema.optional(),
+    video: OutputBatchVideoInputSchema,
+    resumeVideo: OutputBatchVideoInputSchema,
+    w120: W120PendingSchema.optional(),
+  })
+  .refine(
+    (input) =>
+      !input.w513 ||
+      (input.w513.runId === input.current.runId &&
+        input.w513.name === input.current.name &&
+        input.w513.prefix === input.current.prefix &&
+        input.w513.uploaderId === input.current.uploaderId &&
+        input.w513.managerId === input.legacy.managerId &&
+        (["entityId", "storeId", "orderId", "itemId", "ticketId"] as const).every(
+          (key) =>
+            input.w513![key] !== input.current[key] && input.w513![key] !== input.legacy[key],
+        )),
+    { message: "W513 requires an independent target on this exact run and existing actors" },
+  );
 export type OutputBatchLiveInput = z.infer<typeof OutputBatchLiveInputSchema>;
 
 async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
   const actual = assertDeliveryLiveEnvironment(runtime.env);
   const { dramaId, ...currentScope } = input.current;
-  for (const scope of [currentScope, input.legacy]) assertDeliveryScope(runtime.env, scope);
+  for (const scope of [currentScope, input.legacy, ...(input.w513 ? [input.w513] : [])])
+    assertDeliveryScope(runtime.env, scope);
   for (const pending of input.w120?.items ?? []) {
     const { dramaId: ignored, ...scope } = pending.scope;
     void ignored;
@@ -156,6 +173,7 @@ async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
     for (const [scope, expected] of [
       [input.current, 20],
       [input.legacy, 2],
+      ...(input.w513 ? [[input.w513, 2] as const] : []),
       ...(input.w120?.items.map((p) => [p.scope, 2] as const) ?? []),
     ] as const) {
       const item = await tx.orderItem.findUniqueOrThrow({
@@ -310,8 +328,7 @@ export async function prepareOutputBatchLiveMasters(runtime: Runtime, raw: unkno
 }
 
 /** Only this run's non-unknown manual inputs and their matching derived contexts. */
-async function legacyProductionFiles(tx: Tx, input: OutputBatchLiveInput) {
-  const scope = input.legacy;
+async function deliveryProductionFiles(tx: Tx, scope: OutputBatchLiveInput["legacy"]) {
   const rows = await tx.productionRecord.findMany({
     where: { orderItemId: scope.itemId, variant: "common", kind: { in: ["sample", "final"] } },
     include: { file: true },
@@ -353,52 +370,71 @@ export async function consumeOutputBatchLiveChecked(runtime: Runtime, raw: unkno
   await inputTargets(runtime, input);
   const subscriber = runtime.assembly.subscriber("delivery.onProductionChecked");
   if (!subscriber) throw new Error("W307 checked subscriber is not registered");
-  const ids = await runtime.tx.run(async (tx) => {
-    const files = await legacyProductionFiles(tx, input);
-    return tx.outboxEvent.findMany({
-      where: {
-        eventType: "media.production.checked",
-        aggregateType: "production_record",
-        aggregateId: { in: files.map((f) => f.fileId) },
-        entityId: input.legacy.entityId,
-        storeId: input.legacy.storeId,
-        occurredAt: { gte: new Date(input.legacy.startedAt) },
-      },
-      orderBy: { seq: "asc" },
-      take: 100,
-      select: { id: true },
-    });
-  });
-  for (const { id } of ids)
-    await runtime.tx.run(async (tx) => {
-      const event = await tx.outboxEvent.findUniqueOrThrow({ where: { id } });
-      const files = await legacyProductionFiles(tx, input);
-      if (!files.some((f) => f.fileId === event.aggregateId)) return;
-      await subscriber.handle(tx, {
-        id: event.id,
-        type: event.eventType,
-        payload: event.payload as Readonly<Record<string, unknown>>,
+  for (const scope of [input.legacy, ...(input.w513 ? [input.w513] : [])]) {
+    const ids = await runtime.tx.run(async (tx) => {
+      const files = await deliveryProductionFiles(tx, scope);
+      return tx.outboxEvent.findMany({
+        where: {
+          eventType: "media.production.checked",
+          aggregateType: "production_record",
+          aggregateId: { in: files.map((f) => f.fileId) },
+          entityId: scope.entityId,
+          storeId: scope.storeId,
+          occurredAt: { gte: new Date(scope.startedAt) },
+        },
+        orderBy: { seq: "asc" },
+        take: 100,
+        select: { id: true },
       });
     });
+    for (const { id } of ids)
+      await runtime.tx.run(async (tx) => {
+        const event = await tx.outboxEvent.findUniqueOrThrow({ where: { id } });
+        const files = await deliveryProductionFiles(tx, scope);
+        if (!files.some((f) => f.fileId === event.aggregateId)) return;
+        await subscriber.handle(tx, {
+          id: event.id,
+          type: event.eventType,
+          payload: event.payload as Readonly<Record<string, unknown>>,
+        });
+      });
+  }
 }
 
 /** Own test database, exact two targets; the production runner retains all claim/lease guards. */
 export async function findOutputBatchLiveJobIds(runtime: Runtime, raw: unknown) {
   const input = OutputBatchLiveInputSchema.parse(raw);
-  await inputTargets(runtime, input);
+  const targets = await inputTargets(runtime, input);
+  const w513DramaId = input.w513
+    ? targets.find((row) => row.scope.ticketId === input.w513!.ticketId)?.dramaId
+    : undefined;
   return runtime.tx.run(async (tx) => {
     const files = await tx.fileObject.findMany({
       where: {
         uploadBatch: {
-          purpose: "final_release",
-          targetId: { in: [input.current.itemId, input.legacy.itemId] },
+          OR: [
+            {
+              purpose: "final_release",
+              targetId: {
+                in: [
+                  input.current.itemId,
+                  input.legacy.itemId,
+                  ...(input.w513 ? [input.w513.itemId] : []),
+                ],
+              },
+            },
+            ...(w513DramaId ? [{ purpose: "drama_master", targetId: w513DramaId }] : []),
+          ],
           createdByStaffId: input.current.uploaderId,
           state: { in: ["uploading", "verifying"] },
         },
       },
       select: { id: true },
     });
-    const legacy = await legacyProductionFiles(tx, input);
+    const legacy = [
+      ...(await deliveryProductionFiles(tx, input.legacy)),
+      ...(input.w513 ? await deliveryProductionFiles(tx, input.w513) : []),
+    ];
     const jobs = await tx.mediaJob.findMany({
       where: {
         subjectType: "file_object",

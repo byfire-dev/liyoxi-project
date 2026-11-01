@@ -255,3 +255,83 @@ it("W514具名scope只扩私有运输信封，旧媒体标准/未知键/本轮�
     }),
   ).toThrow();
 });
+
+it("W513只追加具名独立两集scope，保原current/legacy严格边界与原视频规格", () => {
+  const other = (n: number) => `01950000-0000-7000-8000-${String(n).padStart(12, "0")}`;
+  const w513 = {
+    ...delivery,
+    entityId: other(2),
+    storeId: other(3),
+    orderId: other(4),
+    itemId: other(5),
+    ticketId: other(6),
+  };
+  expect(parseSharedManifest({ ...original, w513 })).toEqual({
+    inputs: { ...original, w513 },
+    w312: undefined,
+  });
+  expect(parseSharedManifest(original)).toEqual({ inputs: original, w312: undefined });
+  for (const invalid of [
+    null,
+    [w513],
+    { ...w513, trusted: true },
+    { ...w513, runId: "fedcba0987654321" },
+    { ...w513, prefix: "lyx:test:other:" },
+    { ...w513, name: "another_database" },
+    { ...w513, uploaderId: other(7) },
+    { ...w513, managerId: other(7) },
+    { ...w513, itemId: delivery.itemId },
+  ])
+    expect(() => parseSharedManifest({ ...original, w513: invalid })).toThrow();
+  expect(() =>
+    parseSharedManifest({
+      ...original,
+      w513,
+      video: { ...video, probe: { ...video.probe, durationMs: 19_999 } },
+    }),
+  ).toThrow();
+  expect(() =>
+    parseSharedManifest({ ...original, w513, legacy: { ...delivery, injectedScope: true } }),
+  ).toThrow();
+});
+
+it("W513与W514并存保各具名scope及原invoice/assets/content严格运输边界", () => {
+  const other = (n: number) => `01950000-0000-7000-8000-${String(n).padStart(12, "0")}`;
+  const w513 = {
+    ...delivery,
+    entityId: other(2),
+    storeId: other(3),
+    orderId: other(4),
+    itemId: other(5),
+    ticketId: other(6),
+  };
+  const w514 = {
+    ...owned,
+    startedAt: scope.startedAt,
+    entityId: other(7),
+    storeId: other(8),
+    editorId: other(9),
+    adIds: [other(10), other(11), other(12)],
+  };
+  const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id };
+  const invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] };
+  const full = { ...original, w513, w514, w312: content, w318: assets, w418Invoice: invoice };
+  const shared = { inputs: { ...original, w513 }, w312: scope };
+  expect(parseSharedManifest(full)).toEqual(shared);
+  expect(parseInvoiceLiveEnvelope(full)).toEqual({
+    manifest: shared,
+    w318: assets,
+    w418Invoice: invoice,
+    w514,
+  });
+  for (const invalid of [
+    { ...full, w513: { ...w513, trusted: true } },
+    { ...full, w513: { ...w513, itemId: delivery.itemId } },
+    { ...full, w514: { ...w514, ready: true } },
+    { ...full, unexpected: true },
+    { ...full, video: { ...video, probe: { ...video.probe, durationMs: 19_999 } } },
+  ]) {
+    expect(() => parseSharedManifest(invalid)).toThrow();
+    expect(() => parseInvoiceLiveEnvelope(invalid)).toThrow();
+  }
+});

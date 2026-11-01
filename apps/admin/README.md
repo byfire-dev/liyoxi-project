@@ -354,3 +354,15 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 上传沿现有multipart适配和真实ad_video生产上下文，明确填写AI工具事实；已入库不表示生产检查通过，当前文件的实际检查状态沿既有M3 productionRecord.list读取，只有ready且检查通过才启用登记，登记/推送仍由后端核实际媒体规格。企业微信发送登记与推送分开，取消预览/申请与审批执行分开。W5-13未实际合流时不提供假审批链接。
 
 本域目标为 `src/features/delivery/ad-tasks/model.test.ts`、`api.test.ts` 和 `test/e2e/live-m5-ad-tasks.spec.ts`；live沿正式 `pnpm admin:e2e:live --test-file test/e2e/live-m5-ad-tasks.spec.ts`。保留原20秒主输入与预算，另在本轮pinned CPU1工具生成实际3秒1080×1920文件/probe/hash，由浏览器真实上传。正常hooks窄修后全本包格式/lint、admin类型与受影响目标通过，最终正式live含原auth完整2/2通过（16.1秒）；8组精确两帧截图已查看。当前11目标保原10，仅增预览期限/中止负例。最终结果、首次失败、截图与外部未验见[W5-14状态](../../docs/plan/status/W5-14.md)。
+
+## W5-13 P1 工单余下操作
+
+既有工单详情增加内部“工单操作与取料”页签，0新路由/菜单。typed消费指派、强迁/求值、催办、改期、返工、补发、样片发送与代录（compose/ad_content及可选毫秒）、素材现签和制作处理；写前当前GET、写后GET/活动、未知原键恢复与换域取消均在本页私有实现。补发复用原批次/质检，显式携本次reissueId并只检查该次replacement，不自动采纳制作衍生文件。
+
+P1本地模型与运输集中复验7文件48例、原API manifest8例、追加代录2文件19例、services/API/admin类型及受影响格式/lint通过；原邻接制作/员工与认证7例保持原断言通过。最后正式新live两例加原认证依赖3/3通过，完整验证暂停/指派/范围拒绝、强迁及重新求值、现签取料、发送及毫秒代录、返工、初包与补发批次/替换质检/发布；原180秒预算不变，库和对象自然清理。暂停由实际未决取消hold与正式withdraw驱动，PDF沿真实渲染器/本地技术证书，封面由本轮独立media owner写真实本地MinIO并读回hash。
+
+最终固定`efb75a1a`本地完整live3/3通过，8组1440×900截图各保留initial双帧、稳定双帧和canonical，稳定双帧/canonical逐组SHA完全相同；06当前补发质检与07发布后状态均已目检。本轮原始context的实际posterProof已安全摘录，媒体输入、日志和清理回执在`/tmp/w513-efb75a1a-e34rjtuq`独立归档。唯一正式审查采纳的附件参数P2已最窄修复并通过真实组件1目标及本轮live，不另开二轮源码审查。
+
+任务要求的具体制作事实记录仍在原8图视口下方，现仅新增`w513-06b-production-facts`，将实际已加载record滚入视口后沿原10秒精确双帧方式取图；没有本地重跑，该新增图已由PR #236首轮CI的web-live产生并由调度目检；固定01f831bc的9组45PNG稳定双帧与canonical逐组相等，06b显示当前制作事实。首轮另有分层引用问题，已窄修，最终head完整CI仍待验。整包状态保持进行中，CI/实际合入仍待调度，独立gate235已实际main并普通同步；真实外部企业微信/正式签章未验。
+
+本包P2须P1实际合main后开始：订单取消/授权与审批取消三旧页剩余接线；整包状态仍进行中。见 `docs/plan/status/W5-13.md`。

@@ -1,4 +1,4 @@
-import type { DraftBody, Plan, QcBody, Template } from "./api";
+import type { DraftBody, Plan, QcBody, Template, Grid, Ticket } from "./api";
 import { createAssignmentIntent } from "../tickets/model";
 export const DETAIL_KEY = ["delivery", "ticket-detail"] as const;
 export const createWriteIntent = createAssignmentIntent;
@@ -68,4 +68,16 @@ export function qualityProblem(
   if (results.some((r) => r.result === "fail" && !r.note?.trim())) return "每项不通过都须说明";
   if (results.some((r) => r.result === "fail") && !reason.trim()) return "请填写不通过原因";
   return null;
+}
+
+/** Reissue QC must never include the already published originals or another closed reissue. */
+export function reissueQualityOutputs(ticket: Pick<Ticket, "openReissue">, grid: Grid) {
+  const reissue = ticket.openReissue;
+  if (reissue)
+    return grid.episodes.flatMap((episode) =>
+      episode.replacement?.deliveryReissueId === reissue.reissueId ? [episode.replacement] : [],
+    );
+  return grid.episodes.flatMap((episode) =>
+    episode.latest ? [episode.latest] : episode.current ? [episode.current] : [],
+  );
 }

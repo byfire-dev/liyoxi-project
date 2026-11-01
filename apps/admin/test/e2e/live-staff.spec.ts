@@ -29,6 +29,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
     context.fixtures as {
       fixtures: {
         staff: StaffFixture;
+        w513: { editor: { staffId: string }; publisher: { staffId: string } };
         w418: {
           approvals: { requesterStaffId: string };
           invoices: { reviewerStaffId: string };
@@ -58,12 +59,25 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       roleKey: "super_admin",
       status: "active",
     },
+    {
+      staffId: fixtures.w513.editor.staffId,
+      name: "W513交付剪辑师",
+      roleKey: "editor",
+      status: "active",
+    },
+    {
+      staffId: fixtures.w513.publisher.staffId,
+      name: "W513交付发布员",
+      roleKey: "publisher",
+      status: "active",
+    },
   ];
-  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(3);
-  // 原14人：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；另加上述两名W418演员。
+  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(5);
+  // 原14人、W418两演员、W514一演员均保留；W513仅追加真实激活的剪辑/发布两演员。
   const originalStaffCount = 1 + fixture.staff.length + 2 + 1;
   expect(originalStaffCount).toBe(14);
   const expectedStaffCount = originalStaffCount + addedActors.length;
+  expect(expectedStaffCount).toBe(19);
   const errors = recordErrors(page);
   const firstList = page.waitForRequest(
     (request) =>

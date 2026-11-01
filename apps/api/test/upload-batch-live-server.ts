@@ -33,6 +33,7 @@ import {
   assertAdTaskLiveScope,
   parseAdTaskLiveScope,
   findAdTaskLiveJobIds,
+  M1_LICENSE_TEST_INPUTS,
 } from "@liyoxi/services/testing";
 import type {
   AdTaskLiveScope,
@@ -140,9 +141,14 @@ export async function startOutputBatchLiveServer(options: {
     throw new Error("W302 input scope differs from the exact database");
   const { MEDIA_PRODUCTION: ignoredProduction, ...legacyEnv } = options.env;
   void ignoredProduction;
+  // The isolated W513 render CLI and package writer share the same fictional test origin.
+  const scopedEnv: Env = {
+    ...legacyEnv,
+    ...(inputs.w513 ? { PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin } : {}),
+  };
   const base: RuntimeOptions = {
     entry: "api",
-    env: legacyEnv,
+    env: scopedEnv,
     version: options.version ?? "w302-private-live",
     redisKeyPrefix: options.prefix,
     documentWorkerUrl: options.documentWorkerUrl,
@@ -265,7 +271,7 @@ export async function startOutputBatchLiveServer(options: {
       bindAttempt: relay.bindAttempt,
     });
     const batchEnv: Env = {
-      ...legacyEnv,
+      ...scopedEnv,
       MEDIA_PRODUCTION: {
         workDir: relay.workDir,
         socketPath: relay.socketPath,
@@ -294,6 +300,7 @@ export async function startOutputBatchLiveServer(options: {
       storeIds: [
         inputs.current.storeId,
         inputs.legacy.storeId,
+        ...(inputs.w513 ? [inputs.w513.storeId] : []),
         ...(inputs.w120?.items.map((p) => p.scope.storeId) ?? []),
       ],
       ...(w312
