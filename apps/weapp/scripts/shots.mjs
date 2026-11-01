@@ -304,6 +304,164 @@ const wanted = [];
 const wantedComponents = [];
 const wantedSheets = [];
 const wantedScenes = [];
+async function m5OrderRegression(page, scene) {
+  const calls = () => page.evaluate(() => globalThis.__LYX_ORDER_CALLS__ ?? []);
+  if (scene.startsWith("my-dramas-")) {
+    if (scene === "my-dramas-error") {
+      await expect(page.getByText("短剧加载失败，请重试", { exact: true })).toBeVisible();
+      await page.locator(".my-dramas .lyx-button").filter({ hasText: "重新加载" }).click();
+      await expect(
+        page.locator(".my-dramas__title").filter({ hasText: "烟火里的重逢" }),
+      ).toBeVisible();
+      await page.screenshot({ path: path.join(outDir, "order__my-dramas-error-recovered.png") });
+    }
+    if (scene === "my-dramas-empty")
+      await expect(page.getByText("暂无短剧", { exact: true })).toBeVisible();
+    if (scene === "my-dramas-list") {
+      await expect(
+        page.locator(".my-dramas .lyx-tabs__item").filter({ hasText: "全部" }),
+      ).toContainText("2");
+      await page.locator(".my-dramas .lyx-button").filter({ hasText: "继续查看短剧" }).click();
+      await expect(
+        page.locator(".my-dramas__title").filter({ hasText: "邻里有好戏" }),
+      ).toBeVisible();
+      expect(await page.locator(".my-dramas .lyx-card").count()).toBe(2);
+      await page.locator(".my-dramas .lyx-tabs__item").filter({ hasText: "已结束" }).click();
+      await expect(page.getByText("暂无短剧", { exact: true })).toBeVisible();
+      await page.locator(".my-dramas .lyx-tabs__item").filter({ hasText: "全部" }).click();
+      await expect(
+        page.locator(".my-dramas__title").filter({ hasText: "烟火里的重逢" }),
+      ).toBeVisible();
+      const requests = await calls();
+      expect(requests.some((call) => call.path.includes("cursor=m5-next%2B%2F%3F"))).toBe(true);
+      expect(requests.some((call) => call.path === "/m/order-items/summary")).toBe(true);
+    }
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+  }
+  if (scene.startsWith("checkout-ads")) {
+    const checkbox = (text) =>
+      page.locator(".checkout-page .lyx-checkbox").filter({ hasText: text });
+    await checkbox("抖音 · 邻里咖啡").click();
+    await expect(page.locator("#order-ready")).toBeVisible();
+    const ad = checkbox("GG202610070001");
+    await ad.click();
+    await expect(ad).toHaveClass(/lyx-checkbox--checked/);
+    await expect(page.locator("#order-ready")).toBeVisible();
+    await page.locator(".checkout-page .lyx-chip").filter({ hasText: "主推服务" }).click();
+    await checkbox("我已阅读并同意本次协议").click();
+    await page.screenshot({ path: path.join(outDir, `order__${scene}-selected.png`) });
+    await page
+      .locator(".checkout-page .lyx-card")
+      .filter({ hasText: "选用广告（选填）" })
+      .screenshot({ path: path.join(outDir, `order__${scene}-ad-version.png`) });
+    const submit = page.locator(".checkout-page .lyx-footer-bar .lyx-button");
+    if (scene === "checkout-ads-invalid") {
+      await page.evaluate(() => globalThis.__LYX_ORDER_M5_CONTROL__.invalidateAds());
+      await checkbox("选用顶级制作模型").click();
+      await expect(ad).toHaveClass(/lyx-checkbox--disabled/);
+      await expect(ad).not.toHaveClass(/lyx-checkbox--checked/);
+      await expect(checkbox("我已阅读并同意本次协议")).not.toHaveClass(/lyx-checkbox--checked/);
+      await expect(submit).toHaveClass(/lyx-button--disabled/);
+      await page
+        .locator(".checkout-page .lyx-card")
+        .filter({ hasText: "选用广告（选填）" })
+        .screenshot({ path: path.join(outDir, "order__checkout-ads-invalid-unavailable.png") });
+      expect(
+        (await calls()).filter((call) => call.path === "/m/orders" && call.method === "POST"),
+      ).toHaveLength(0);
+    } else {
+      await submit.click();
+      await expect(page.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+      await submit.click();
+      await expect(page.getByText("订购成功", { exact: true })).toBeVisible();
+      const writes = (await calls()).filter(
+        (call) => call.path === "/m/orders" && call.method === "POST",
+      );
+      expect(writes).toHaveLength(2);
+      expect(writes[0].key).toBe(writes[1].key);
+      expect(writes[0].data.adIds).toEqual(["00000000-0000-4000-8000-000000000801"]);
+      expect(
+        (await calls()).some((call) => call.path.startsWith("/m/orders/") && call.method === "GET"),
+      ).toBe(true);
+    }
+    const quotes = (await calls()).filter((call) => call.path === "/m/orders/quote");
+    expect(quotes.length).toBeGreaterThanOrEqual(3);
+    expect(
+      quotes.every(
+        (call) =>
+          Object.keys(call.data).sort().join(",") === "channelAccountIds,dramaIds,isTopModel",
+      ),
+    ).toBe(true);
+  }
+  if (scene === "order-detail-after-sale") {
+    await expect(page.getByText("待执行", { exact: true })).toBeVisible();
+    await expect(page.getByText("待实际执行", { exact: true })).toHaveCount(3);
+    await expect(page.getByText("SQ202610070001-DY", { exact: true })).toBeVisible();
+    await expect(page.getByText("查看本订单合同与授权书", { exact: true })).toBeVisible();
+    await page
+      .locator(".order-detail .lyx-card")
+      .filter({ hasText: "售后与取消进度" })
+      .screenshot({ path: path.join(outDir, "order__order-detail-after-sale-progress.png") });
+    await page
+      .locator(".order-detail .lyx-card")
+      .filter({ hasText: "授权信息" })
+      .screenshot({ path: path.join(outDir, "order__order-detail-after-sale-license.png") });
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+  }
+}
+async function m5SampleRegression(page, scene) {
+  if (!["sample-change", "sample-change-stale", "sample-paused"].includes(scene)) return;
+  const button = (text) => page.locator(".lyx-button").filter({ hasText: text }),
+    calls = () => page.evaluate(() => globalThis.__LYX_DELIVERY_CALLS__ ?? []);
+  if (scene === "sample-paused") {
+    await expect(page.getByText("制作已暂停，请联系服务经理。", { exact: true })).toBeVisible();
+    await expect(button("提出合成修改")).toHaveCount(0);
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+    return;
+  }
+  await button("提出合成修改").click();
+  await page.locator(".lyx-sheet textarea").fill("字幕遮挡，请上移");
+  await page.locator(".lyx-sheet .lyx-upload-grid__add").click();
+  await expect(page.locator(".lyx-sheet .lyx-upload-grid__image")).toHaveCount(1);
+  await page.screenshot({ path: path.join(outDir, `delivery__${scene}-sheet.png`) });
+  if (scene === "sample-change-stale") {
+    await page.locator(".lyx-sheet__close").click();
+    await page.evaluate(() => globalThis.__LYX_DELIVERY_CONTROL__.nextSample());
+    await button("刷新样片").click();
+    await expect(page.getByText("我已查看第 3 版样片", { exact: true })).toBeVisible();
+    await button("提出合成修改").click();
+    await expect(page.locator(".lyx-sheet textarea")).toHaveValue("");
+    await expect(page.locator(".lyx-sheet .lyx-upload-grid__image")).toHaveCount(0);
+    await expect(page.locator(".lyx-checkbox")).not.toHaveClass(/lyx-checkbox--checked/);
+    await expect(
+      page.locator(".lyx-sheet .lyx-button").filter({ hasText: "提交合成修改意见" }),
+    ).toBeInViewport();
+    await page.screenshot({ path: path.join(outDir, "delivery__sample-change-stale-cleared.png") });
+  } else {
+    const endpoint = "/m/samples/00000000-0000-4000-8000-000000000020/request-change";
+    await page.evaluate((path) => globalThis.__LYX_DELIVERY_CONTROL__.fail(path), endpoint);
+    const submit = page.locator(".lyx-sheet .lyx-button").filter({ hasText: "提交合成修改意见" });
+    await submit.click();
+    await expect(page.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+    await submit.click();
+    await expect(page.getByText("已提交的合成修改", { exact: true })).toBeVisible();
+    const requests = await calls(),
+      writes = requests.filter((call) => call.path === endpoint);
+    expect(writes).toHaveLength(2);
+    expect(writes[0].key).toBe(writes[1].key);
+    expect(writes[0].data).toEqual({
+      feedbackKind: "compose",
+      note: "字幕遮挡，请上移",
+      imageFileIds: ["00000000-0000-4000-8000-000000000091"],
+    });
+    expect(
+      requests.filter((call) => call.path.endsWith("/sample") && call.method === "GET").length,
+    ).toBeGreaterThan(1);
+    await page.screenshot({ path: path.join(outDir, "delivery__sample-change-success.png") });
+  }
+  expect((await calls()).some((call) => call.path.endsWith("/download-urls"))).toBe(false);
+}
+
 const { ACCOUNT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
 );
@@ -534,16 +692,19 @@ const targets = [
       fullPage: false,
     }),
   ),
-  ...(all ? ORDER_SCENES : ORDER_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
-    (item) => ({
-      label: item.name,
-      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
-      file: `order__${item.name}`,
-      scene: item.name,
-      kind: "order",
-      fullPage: false,
-    }),
-  ),
+  ...(all
+    ? ORDER_SCENES
+    : ORDER_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `order__${item.name}`,
+    scene: item.name,
+    kind: "order",
+    fullPage: false,
+  })),
   ...(all
     ? ASSET_ACTION_SCENES
     : ASSET_ACTION_SCENES.filter((item) => wantedScenes.includes(item.name))
@@ -557,7 +718,9 @@ const targets = [
   })),
   ...(all
     ? DELIVERY_SCENES
-    : DELIVERY_SCENES.filter((item) => wantedScenes.includes(item.name))
+    : DELIVERY_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
   ).map((item) => ({
     label: item.name,
     url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
@@ -646,6 +809,8 @@ const targets = [
     : wanted.filter(
         (route) =>
           route !== "sub/billing/contracts/index" &&
+          !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
@@ -874,7 +1039,9 @@ async function shoot(target) {
                 : target.kind === "publish"
                   ? "#publish-ready"
                   : target.kind === "order" || target.kind === "order-reference"
-                    ? "#order-ready"
+                    ? target.scene.startsWith("my-dramas-")
+                      ? "#my-dramas-ready"
+                      : "#order-ready"
                     : target.kind === "asset-home"
                       ? "#asset-home-ready"
                       : target.kind === "catalog"
@@ -1243,7 +1410,10 @@ async function shoot(target) {
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
     if (target.kind === "delivery") await deliveryRegression(page, target.scene);
-    if (target.kind === "order") await orderRegression(page, target.scene);
+    if (target.kind === "order" && !target.scene.startsWith("checkout-ads"))
+      await orderRegression(page, target.scene);
+    if (target.kind === "order") await m5OrderRegression(page, target.scene);
+    if (target.kind === "delivery") await m5SampleRegression(page, target.scene);
     if (target.kind === "order" && target.scene === "order-detail-producing")
       await deliveryNavigationRegression(
         page,

@@ -11,6 +11,9 @@ export const DELIVERY_SCENES = [
     "sample-confirmed",
     "sample-disabled",
     "sample-legacy",
+    "sample-change",
+    "sample-change-stale",
+    "sample-paused",
   ].map((name) => ({
     name,
     route: `sub/order/sample/index?orderItemId=${id}`,

@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 50 | 17 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 42 | 6 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 43 | 5 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 0 | 0 | 0 | 0 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 0 | 0 | 0 | 3 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 0 | 2 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -173,7 +173,7 @@
 | `sub/order` | 方案确认 | `sub/order/plan/index` | Plan | M22 | W1-20 | M1 | 是 |  |
 | `sub/order` | 样片确认 | `sub/order/sample/index` | Sample | M23 | W1-20 | M1 | 是 |  |
 | `sub/order` | 上线记录 | `sub/order/launch-record/index` | LaunchRecord | M24 | W1-20 | M1 | 是 |  |
-| `sub/order` | 我的短剧 | `sub/order/my-dramas/index` | MyDramas | M33 | G5-A | M5 | 否 |  |
+| `sub/order` | 我的短剧 | `sub/order/my-dramas/index` | MyDramas | M33 | G5-A | M5 | 是 |  |
 | `sub/publish` | 发布任务 | `sub/publish/tasks/index` | Publish | M28 | W1-20 | M1 | 是 |  |
 | `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 是 | M1 单集存相册替身；队列、扫码与回报 M6 回补 |
 | `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 是 | 含 M27 弹层 |

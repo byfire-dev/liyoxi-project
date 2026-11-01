@@ -11,5 +11,11 @@ export function createSampleApi(send: RequestLayer["request"]) {
         data,
         idempotencyKey: key,
       }),
+    requestChange: (id: string, data: Body<"m.sample.requestChange">, key: string) =>
+      send<Data<"m.sample.requestChange">>(`${base(id)}/request-change`, {
+        method: "POST",
+        data,
+        idempotencyKey: key,
+      }),
   };
 }

@@ -38,6 +38,7 @@ export function quoteRefreshMessage(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null;
   if (error.error === "QUOTE_CHANGED") return "报价已更新，请重新核对并同意协议";
   if (error.error === "AGREEMENT_VERSION_STALE") return "协议已更新，请重新阅读并同意";
+  if (error.error === "ORDER_AD_INVALID") return "广告可用版本已变化，请重新选择并核对报价";
   return null;
 }
 export function canSubmitOrder(
