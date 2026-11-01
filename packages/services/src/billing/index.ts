@@ -82,6 +82,7 @@ export type {
 export { quoteHold } from "./pricing/quote.js";
 export { previewReturn } from "./ledger/index.js";
 export { readCancelHoldFacts } from "./ledger/index.js";
+export { readAdPricingPlanName } from "./ad-pricing-facts.js";
 export type { CancelHoldFacts } from "./ledger/index.js";
 export type { ReturnPreview } from "./ledger/index.js";
 export type { HoldPricing, QuoteTerm } from "./pricing/quote.js";

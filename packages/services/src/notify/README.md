@@ -18,6 +18,8 @@ PR1 的五条商家消息接口、消息可见性与幂等裁剪以及 PR2 的�
 | --- | --- | --- |
 | order.submitted / order.started | m.order_submitted / m.order_progress | 订单域真实订单、当前主体老板；正式 order.detail |
 | plan.pushed / sample.pushed | m.plan_pending / m.sample_pending | 真实待确认版本，当前主体老板；sample 还检查当前工单步骤与暂停 |
+| ad.version_pushed / manual_reminder.sent(confirm_ad) | m.ad_pending | ad owner 当前实际推送且未确认的最新版本、正常门店与当前老板；M 节点核真实日催办日志及对应 outbox，旧催办不能借同一时刻之后推送的新版 |
+| ad.sla_breached | s.step_overdue | 当前轮次/截止与真实在职剪辑师、店交付经理、范围内交付主管；资质在审待指派只提示跟进，不宣称已写违约；派发与发送均核当前状态/截止 |
 | package.delivered | m.delivered | 成片包、订单项与发布域实际任务；查不到合法发布深链不派发 |
 | ticket.created / assigned / step_changed / episode_qc_failed | s.work_ticket_assigned / s.delivery_progress | 当前负责人；未分配工单只发当前在职交付主管 |
 | plan.confirmed / change_requested、sample.qc_failed / confirmed | s.delivery_progress | 当前真实交付经理或剪辑师，不信事件中的旧负责人 |
@@ -31,7 +33,9 @@ PR1 的五条商家消息接口、消息可见性与幂等裁剪以及 PR2 的�
 | store.qualification.submitted / approved / rejected | m.store_review_submitted / m.review_result | 当前门店审核事实与老板 |
 | merchant_user.wechat_bound | m.account_security | 当前有效账号的账号级消息；新绑定身份不能消费这次订阅额度 |
 
-其他已登记场景保留所属 M3–M6 producer，不把没有实际调用的事件映射当作完成。`billing.subscription.upgraded/resumed/extended` 当前没有实际 producer 与正式 payload，未接入。素材 review/demand、换绑手机号、成员变更、退款、客服、广告、巡检、授权书、人工催办等由实际业务写侧落地后按原场景接入，不能凭未来事件伪造通知。
+其他已登记场景保留所属 M3–M6 producer，不把没有实际调用的事件映射当作完成。`billing.subscription.upgraded/resumed/extended` 当前没有实际 producer 与正式 payload，未接入。尚未接入的素材 review/demand、换绑手机号、成员变更、退款、客服、巡检与授权书场景仍由所属实际业务写侧接手，不能凭未来事件伪造通知。
+
+W5-09 的 R5 沿原 `remindersPort` 与五分钟扫描消费 ad owner 的真实 targets/revalidate：按上海推送后两自然日及原 grace 窗口派发 `m.ad_pending/R1`，逐广告当前版本/老板去重。手工催办先由 ad writer 按原日唯一键与 C50 写日志/事件，再经 M 节点处理；不同日期的真实 outbox 各自保留，重复消费不新增。站内生成与外部 pending/失败如实分开，替身验证不表示微信、短信或企微真实到达。
 
 协议公告通过 docs 的公开 `readAgreementNoticeLink` 读实际版本/key/siteNoticeId，config 的 `normalizeSiteNoticeLink` 返回严格 `agreement.view { key }`。撤回公告的消费处理及当前状态守卫可以生成“调整已取消”，但当前生产写侧尚未发出 `site_notice.withdrawn`，不视为真实端到端生产路径；首页公告条的 announced 过滤由首页读侧负责。不存在、错引用、状态不一致不产生可用链接。非协议公告仍验证原严格 DeepLink。
 

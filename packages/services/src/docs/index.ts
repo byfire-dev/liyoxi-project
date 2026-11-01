@@ -90,4 +90,4 @@ export type { LicenseRead, LicenseReadDeps, LicenseViewer } from "./license-read
 export { createLicenseAdmin } from "./license-admin.js";
 export { readLicenseReadiness } from "./license-readiness.js";
 export type { LicenseReadiness, LicenseReadyFile } from "./license-readiness.js";
-export { readAdAgreementFacts } from "./ad-agreement-facts.js";
+export { readAdAgreementFacts, readAdAgreementConsent } from "./ad-agreement-facts.js";

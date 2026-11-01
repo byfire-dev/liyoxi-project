@@ -17,6 +17,8 @@ import type {
 } from "./context.js";
 import {
   EVENT_SCENES,
+  AD_PENDING_SPEC,
+  AD_SLA_SPEC,
   DELIVERY_LAUNCH_REMINDER_SPEC,
   INVITATION_JOIN_SPEC,
   NotifyFactSchema,
@@ -150,7 +152,12 @@ export async function currentNotificationFact(
       staffIds,
     };
   }
-  const found = await notifyReadOf(deps.assembly).read(tx, spec.reader, id);
+  const found = await notifyReadOf(deps.assembly).read(
+    tx,
+    spec.reader,
+    id,
+    ...(spec === AD_SLA_SPEC ? [{ now: deps.clock.now() }] : []),
+  );
   if (found === null) return null;
   const fact = NotifyFactSchema.parse(found);
   if (
@@ -468,6 +475,18 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       row.bizDate.toISOString().slice(0, 10) !== payload.bizDate
     )
       return 0;
+    if (payload.scene === "confirm_ad") {
+      if (payload.subjectType !== "ad") return 0;
+      const current = await notifyReadOf(deps.assembly).read(
+        tx,
+        "adVersionForNotify",
+        payload.subjectId,
+        { eventId: event.id, manualReminderLogId: row.id },
+      );
+      const parsed = NotifyFactSchema.safeParse(current);
+      if (!parsed.success || parsed.data.bizType !== "ad") return 0;
+      return dispatchFact(tx, deps, AD_PENDING_SPEC, parsed.data, { event, node: "M" });
+    }
     if (["confirm_plan", "confirm_sample", "golive"].includes(payload.scene)) {
       if ((payload.scene === "golive" ? "order_item" : "delivery_ticket") !== payload.subjectType)
         return 0;
@@ -529,6 +548,21 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
+    if (
+      event.type === "ad.version_pushed" &&
+      fact.version !== EVENT_PAYLOAD_SCHEMAS["ad.version_pushed"].parse(event.payload).versionNo
+    )
+      continue;
+    if (event.type === "ad.sla_breached") {
+      const payload = EVENT_PAYLOAD_SCHEMAS["ad.sla_breached"].parse(event.payload);
+      if (
+        fact.occurredAt !== payload.dueAt ||
+        (payload.purpose === "revision"
+          ? fact.status !== "revision_overdue" || fact.version !== payload.revisionNo * 2 + 1
+          : !["first_overdue", "waiting_qualification"].includes(fact.status))
+      )
+        continue;
+    }
     if (
       event.type === "order.rejected_stale" &&
       (fact.occurredAt !== event.payload.rejectedAt || fact.storeId !== event.payload.storeId)

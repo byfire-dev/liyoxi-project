@@ -29,3 +29,23 @@ export { member as assertAdMerchantAccess } from "./lifecycle.js";
 export { handleAdReturnedStale, returnAdTx } from "./timers.js";
 
 export { readAdPlayableFacts } from "./playable-facts.js";
+export { adStaffWork } from "./staff-work.js";
+export { handleAdSlaBreach } from "./sla.js";
+export type { AdSlaDeps } from "./sla.js";
+export { createAdFileGuard } from "./file-guard.js";
+export { assertCurrentAdStaff } from "./admin-read.js";
+export { adAdminVersionParent } from "./admin-read.js";
+export {
+  assertAdStaff,
+  adAdminScope,
+  adAdminTarget,
+  listAdminAds,
+  summaryAdminAds,
+  detailAdminAd,
+  adminVersionView,
+  signAdminAdDetail,
+} from "./admin-read.js";
+export type { AdAdminReadDeps, AdAdminRelations, AdAdminTarget } from "./admin-read.js";
+export { requestAdminAdChangeTx } from "./revision.js";
+export { markAdVersionSentTx, remindAdminAdTx, prelockAdminAdTx } from "./admin-write.js";
+export { registerAdminAdVersionTx, pushAdminAdVersionTx } from "./versions.js";

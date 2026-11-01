@@ -79,6 +79,20 @@ export const adReturnedStalePayload = z.strictObject({
   storeId: IdSchema,
   returnedAt: z.iso.datetime({ offset: true }),
 });
+/** Existing x01 ad subject: initial and revision deadlines remain distinct. */
+export const adSlaBreachedPayload = z.discriminatedUnion("purpose", [
+  z.strictObject({
+    ...identity,
+    purpose: z.literal("first"),
+    dueAt: z.iso.datetime({ offset: true }),
+  }),
+  z.strictObject({
+    ...identity,
+    purpose: z.literal("revision"),
+    revisionNo: version,
+    dueAt: z.iso.datetime({ offset: true }),
+  }),
+]);
 export const payloads = {
   "ad.cancelled": adCancelledPayload,
   "ad.requested": adRequestedPayload,
@@ -89,4 +103,5 @@ export const payloads = {
   "ad.confirmed": adConfirmedPayload,
   "ad.revision_requested": adRevisionRequestedPayload,
   "ad.returned_stale": adReturnedStalePayload,
+  "ad.sla_breached": adSlaBreachedPayload,
 } as const;

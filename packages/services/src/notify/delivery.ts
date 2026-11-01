@@ -238,6 +238,14 @@ async function currentGuard(
   const stored = NotifyFactSchema.safeParse(n.vars);
   // Versioned pending actions never send the old request after a replacement version.
   if (spec.pendingStatus && (!stored.success || stored.data.version !== fact.version)) return null;
+  if (
+    n.notifySceneKey === "s.step_overdue" &&
+    n.bizType === "ad" &&
+    (!stored.success ||
+      stored.data.occurredAt !== fact.occurredAt ||
+      stored.data.status !== fact.status)
+  )
+    return null;
   if (n.merchantUserId && n.entityId) {
     const recipients = await notifyReadOf(deps.assembly).read<{ merchantUserId: string }[]>(
       tx,

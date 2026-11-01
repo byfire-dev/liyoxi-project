@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProductionRecord } from "@liyoxi/db";
 import { checkProduction } from "@liyoxi/shared";
 import { AppError, isUuid } from "../../kernel/index.js";
 import type { Tx } from "../../kernel/index.js";
@@ -26,6 +27,50 @@ import {
   localSampleOutputValid,
 } from "../playable-schemas.js";
 
+/** Follow only individually verified derivations to the actual manual-upload staff. */
+async function originalAdUploader(
+  deps: BoundMediaDeps,
+  tx: Tx,
+  input: {
+    fileId: string;
+    record: ProductionRecord;
+    adId: string;
+    entityId: string | null;
+    storeId: string | null;
+  },
+): Promise<string | null> {
+  const seen = new Set<string>();
+  let fileId = input.fileId,
+    record = input.record;
+  for (;;) {
+    if (seen.has(fileId)) return null;
+    seen.add(fileId);
+    if (record.source === "manual_upload" && record.derivedFromFileId === null) {
+      const file = await tx.fileObject.findUnique({ where: { id: fileId } });
+      return file?.uploadActorType === "staff" &&
+        file.uploadClient === "admin" &&
+        record.uploadedByStaffId !== null &&
+        record.uploadedByStaffId === file.uploadActorId
+        ? record.uploadedByStaffId
+        : null;
+    }
+    if (!record.derivedFromFileId || !["normalized", "restamped"].includes(record.source))
+      return null;
+    const origin = await verifiedProductionFacts(deps, tx, record.derivedFromFileId, "ad", false);
+    if (
+      !origin.valid ||
+      !origin.production ||
+      origin.production.adId !== input.adId ||
+      origin.file.entityId !== input.entityId ||
+      origin.file.storeId !== input.storeId ||
+      origin.file.category !== "ad_video"
+    )
+      return null;
+    fileId = origin.file.id;
+    record = origin.production;
+  }
+}
+
 const cloudOutput = PlayableOutputSchema;
 /** Both public readers share the same job, bytes, timestamps and derivation proof. */
 async function verifiedProductionFacts(
@@ -33,6 +78,7 @@ async function verifiedProductionFacts(
   tx: Tx,
   fileId: string,
   family: "delivery" | "ad",
+  includeUploader = true,
 ) {
   if (!isUuid(fileId)) throw new AppError("VALIDATION_FAILED");
   const facts = await readProductionWork(deps, tx, fileId);
@@ -423,6 +469,16 @@ async function verifiedProductionFacts(
     }
   }
   // Private consumer facts only. Raw tags and upload declarations never become a merchant DTO.
+  const uploadedByStaffId =
+    ad && valid && includeUploader && record?.adId
+      ? await originalAdUploader(deps, tx, {
+          fileId,
+          record,
+          adId: record.adId,
+          entityId: file.entityId,
+          storeId: file.storeId,
+        })
+      : null;
   return {
     valid,
     ready,
@@ -437,6 +493,8 @@ async function verifiedProductionFacts(
     },
     production: record,
     gate: valid ? check!.gate : null,
+    softWarnCount: valid ? recomputed!.soft.length : null,
+    uploadedByStaffId,
     durationMs: valid ? info!.durationMs : null,
     playable,
   };

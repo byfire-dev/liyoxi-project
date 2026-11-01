@@ -59,3 +59,4 @@ export {
   listFinalRejectedQualificationScopes,
 } from "./qualification-facts.js";
 export { readMaterialProfile } from "./material-facts.js";
+export { readAdTaskStore } from "./ad-task-facts.js";

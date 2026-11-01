@@ -163,7 +163,7 @@ export async function registerScope(
     if (input.entityId && input.entityId !== store.entityId) throw notFound();
   }
   const guard = deps.guards.get(input.category);
-  if (["sample_video", "final_episode"].includes(input.category) && !guard)
+  if (["sample_video", "final_episode", "ad_video"].includes(input.category) && !guard)
     throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
   if (input.category === "poster" && !satisfiesLevel(staff.moduleLevels.drama, "edit"))
     throw new AppError("PERMISSION_DENIED");

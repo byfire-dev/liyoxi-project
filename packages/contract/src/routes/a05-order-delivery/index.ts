@@ -87,5 +87,18 @@ export type {
   AdCancelRequestCreateBody,
   AdminSampleRequestChangeBody,
 } from "./ad-feedback.schemas.js";
-export { adminAdCancelQuote, adminAdCancelRequestCreate } from "./ads.js";
+export {
+  adminAdList,
+  adminAdSummary,
+  adminAdGet,
+  adminAdAdVersionCreate,
+  adminAdAssign,
+  adminAdCancelQuote,
+  adminAdCancelRequestCreate,
+  adminAdRemind,
+  adminAdRequestChange,
+  adminAdReturn,
+} from "./ads.js";
+export { adminAdVersionMarkSent, adminAdVersionPush } from "./ad-versions.js";
+export * from "./admin-ads.schemas.js";
 export { adminSampleRequestChange } from "./samples.js";

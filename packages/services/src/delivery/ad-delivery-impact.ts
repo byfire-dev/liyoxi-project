@@ -12,10 +12,19 @@ type Scope = { entityId: string; storeId: string };
 export async function readAdTicketDetails(tx: Tx, itemIds: readonly string[]) {
   const rows = await tx.deliveryTicket.findMany({
     where: { orderItemId: { in: [...itemIds] } },
-    select: { orderItemId: true, step: true, pauseCount: true, deliveryManagerId: true },
+    select: {
+      id: true,
+      ticketNo: true,
+      orderItemId: true,
+      step: true,
+      pauseCount: true,
+      deliveryManagerId: true,
+    },
     orderBy: { orderItemId: "asc" },
   });
   return rows.map((row) => ({
+    deliveryTicketId: row.id,
+    ticketNo: row.ticketNo,
     itemId: row.orderItemId,
     step: row.step,
     isPaused: row.pauseCount > 0,

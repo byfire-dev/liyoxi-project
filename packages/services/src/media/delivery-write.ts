@@ -124,6 +124,47 @@ export async function recordAdoptedStoreAssets(
   ctx: IdentityContext,
   input: MediaDeliveryTarget & { storeAssetIds: readonly string[] },
 ) {
+  return recordAdoption(tx, deps, ctx, {
+    ...input,
+    usedByType: "order_item",
+    usedById: input.orderItemId,
+    field: "adoptedStoreAssetIds",
+  });
+}
+
+/** The ad owner holds its parent and prelocks these asset370 rows before any file410 locks. */
+export async function recordAdVersionAdoptedAssets(
+  tx: Tx,
+  deps: { clock: Clock; events: Pick<Events, "emit"> },
+  ctx: IdentityContext,
+  input: {
+    entityId: string;
+    storeId: string;
+    adVersionId: string;
+    storeAssetIds: readonly string[];
+  },
+) {
+  return recordAdoption(tx, deps, ctx, {
+    ...input,
+    usedByType: "ad_version",
+    usedById: input.adVersionId,
+    field: "storeAssetIds",
+  });
+}
+
+async function recordAdoption(
+  tx: Tx,
+  deps: { clock: Clock; events: Pick<Events, "emit"> },
+  ctx: IdentityContext,
+  input: {
+    entityId: string;
+    storeId: string;
+    storeAssetIds: readonly string[];
+    usedByType: "order_item" | "ad_version";
+    usedById: string;
+    field: string;
+  },
+) {
   const ids = [...new Set(input.storeAssetIds)].sort();
   await lockRows(tx, "store_asset", ids);
   const assets = await tx.storeAsset.findMany({ where: { id: { in: ids } } });
@@ -141,7 +182,7 @@ export async function recordAdoptedStoreAssets(
     )
   )
     throw new AppError("VALIDATION_FAILED", {
-      details: { fieldErrors: [{ path: "adoptedStoreAssetIds", message: "素材不可用" }] },
+      details: { fieldErrors: [{ path: input.field, message: "素材不可用" }] },
     });
   let count = 0;
   for (const asset of assets) {
@@ -152,8 +193,8 @@ export async function recordAdoptedStoreAssets(
         {
           id,
           storeAssetId: asset.id,
-          usedByType: "order_item",
-          usedById: input.orderItemId,
+          usedByType: input.usedByType,
+          usedById: input.usedById,
           role: "adopted",
           createdAt: now,
         },
@@ -175,8 +216,8 @@ export async function recordAdoptedStoreAssets(
         v: 1,
         storeAssetId: asset.id,
         storeId: input.storeId,
-        usedByType: "order_item",
-        usedById: input.orderItemId,
+        usedByType: input.usedByType,
+        usedById: input.usedById,
         ...(asset.uploadActorType === "merchant" ? { uploaderUserId: asset.uploadActorId } : {}),
       },
     });

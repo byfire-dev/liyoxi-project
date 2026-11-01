@@ -76,6 +76,15 @@ const spec = (
   ...(pendingStatus === undefined ? {} : { pendingStatus }),
 });
 
+export const AD_PENDING_SPEC = spec(
+  "m.ad_pending",
+  "adVersionForNotify",
+  "adId",
+  "delivery",
+  (v) => ({ route: "ad.detail", params: { adId: v.bizId, storeId: v.storeId! } }),
+  ["pending_confirm"],
+);
+
 /** Actual M2 producers only. The remaining catalog keys stay future coverage, not fake handlers. */
 const staffSpec = (
   sceneKey: string,
@@ -106,6 +115,15 @@ const staffSpec = (
             : { deliveryTicketId: fact.deliveryTicketId ?? fact.bizId },
   }),
 });
+
+export const AD_SLA_SPEC: NotificationSpec = {
+  ...staffSpec("s.step_overdue", "adSlaForNotify", "adId", "delivery.ad_tasks", [
+    "first_overdue",
+    "revision_overdue",
+    "waiting_qualification",
+  ]),
+  staffLink: (fact) => ({ route: "delivery.ad_tasks", params: { adId: fact.bizId } }),
+};
 
 export const REISSUE_EDITOR_SPEC = staffSpec(
   "s.delivery_progress",
@@ -175,6 +193,8 @@ export const INVITATION_JOIN_SPEC = spec(
   ["accepted"],
 );
 export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>> = {
+  "ad.version_pushed": [AD_PENDING_SPEC],
+  "ad.sla_breached": [AD_SLA_SPEC],
   "package.reissue_opened": [REISSUE_EDITOR_SPEC],
   "package.reissued": [REISSUED_RELEASE_SPEC],
   "order.item.launch_rescheduled": [LAUNCH_RESCHEDULED_SPEC],
@@ -388,7 +408,7 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   "billing.subscription.upgraded": [
     spec("m.plan_upgraded", "termForNotify", "termId", "plan_points", wallet),
   ],
-  "manual_reminder.sent": [RENEWAL_SPEC, DELIVERY_LAUNCH_REMINDER_SPEC],
+  "manual_reminder.sent": [RENEWAL_SPEC, DELIVERY_LAUNCH_REMINDER_SPEC, AD_PENDING_SPEC],
   "billing.points.granted": [
     spec("m.points_changed", "billingAccountForNotify", "entityId", "plan_points", points),
   ],
@@ -523,32 +543,34 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
           .map(([event]) => event),
 }));
 export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
-  key === "s.delivery_progress" && bizType === "delivery_reissue"
-    ? REISSUE_EDITOR_SPEC
-    : key === "m.order_progress" && bizType === "delivery_release"
-      ? REISSUED_RELEASE_SPEC
-      : key === "m.order_progress" && bizType === "order_item"
-        ? LAUNCH_RESCHEDULED_SPEC
-        : key === "m.asset_feedback" && bizType === "store_asset_demand"
-          ? ASSET_DEMAND_SPEC
-          : key === "m.member_changed" && bizType === "invitation"
-            ? INVITATION_JOIN_SPEC
-            : [
-                ...Object.values(EVENT_SCENES)
-                  .flat()
-                  .filter(
-                    (s) =>
-                      s !== INVITATION_JOIN_SPEC &&
-                      s !== ASSET_DEMAND_SPEC &&
-                      s !== REISSUE_EDITOR_SPEC &&
-                      s !== REISSUED_RELEASE_SPEC &&
-                      s !== LAUNCH_RESCHEDULED_SPEC,
-                  ),
-                QUOTA_EXCEEDED_SPEC,
-                FOLLOWUP_SPEC,
-                UNREACHED_SPEC,
-                COPYRIGHT_SPEC,
-              ].find((s) => s.sceneKey === key);
+  key === "s.step_overdue" && bizType === "ad"
+    ? AD_SLA_SPEC
+    : key === "s.delivery_progress" && bizType === "delivery_reissue"
+      ? REISSUE_EDITOR_SPEC
+      : key === "m.order_progress" && bizType === "delivery_release"
+        ? REISSUED_RELEASE_SPEC
+        : key === "m.order_progress" && bizType === "order_item"
+          ? LAUNCH_RESCHEDULED_SPEC
+          : key === "m.asset_feedback" && bizType === "store_asset_demand"
+            ? ASSET_DEMAND_SPEC
+            : key === "m.member_changed" && bizType === "invitation"
+              ? INVITATION_JOIN_SPEC
+              : [
+                  ...Object.values(EVENT_SCENES)
+                    .flat()
+                    .filter(
+                      (s) =>
+                        s !== INVITATION_JOIN_SPEC &&
+                        s !== ASSET_DEMAND_SPEC &&
+                        s !== REISSUE_EDITOR_SPEC &&
+                        s !== REISSUED_RELEASE_SPEC &&
+                        s !== LAUNCH_RESCHEDULED_SPEC,
+                    ),
+                  QUOTA_EXCEEDED_SPEC,
+                  FOLLOWUP_SPEC,
+                  UNREACHED_SPEC,
+                  COPYRIGHT_SPEC,
+                ].find((s) => s.sceneKey === key);
 
 export const FOLLOWUP_SPEC = staffSpec(
   "s.followup_due",

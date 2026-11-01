@@ -829,6 +829,697 @@
         ],
         "type": "object"
       },
+      "AdAssignBody": {
+        "additionalProperties": false,
+        "properties": {
+          "staffId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "staffId"
+        ],
+        "type": "object"
+      },
+      "AdReturnBody": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "AdSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "overdueCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tabs": {
+            "additionalProperties": false,
+            "properties": {
+              "cancelled": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "confirmed": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pending_confirm": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "returned": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "todo": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "todo",
+              "pending_confirm",
+              "confirmed",
+              "returned",
+              "cancelled"
+            ],
+            "type": "object"
+          },
+          "waitingQualificationCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tabs",
+          "overdueCount",
+          "waitingQualificationCount"
+        ],
+        "type": "object"
+      },
+      "AdTaskCard": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "adId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "adNo": {
+            "type": "string"
+          },
+          "chargePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "confirmedVersionNo": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationSec": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "editor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "firstDueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "freeRevisionQuota": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isCaptured": {
+            "type": "boolean"
+          },
+          "isFirstBreached": {
+            "type": "boolean"
+          },
+          "isWaitingQualification": {
+            "type": "boolean"
+          },
+          "latestVersionNo": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "linkedTicketNos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "openCancelRequest": {
+            "additionalProperties": false,
+            "properties": {
+              "cancelRequestId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "requestNo": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "totalRefundPoints": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "cancelRequestId",
+              "requestNo",
+              "status",
+              "totalRefundPoints"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "planName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revisionCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending_assign",
+              "producing",
+              "returned",
+              "pending_confirm",
+              "revising",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "opening",
+              "ending",
+              "corner",
+              "mid_roll"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "urgency": {
+            "enum": [
+              "normal",
+              "due_today",
+              "overdue"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "adId",
+          "adNo",
+          "store",
+          "planName",
+          "type",
+          "durationSec",
+          "status",
+          "isWaitingQualification",
+          "editor",
+          "chargePoints",
+          "isCaptured",
+          "submittedAt",
+          "dueAt",
+          "firstDueAt",
+          "isFirstBreached",
+          "urgency",
+          "latestVersionNo",
+          "confirmedVersionNo",
+          "revisionCount",
+          "freeRevisionQuota",
+          "openCancelRequest",
+          "linkedTicketNos",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "AdTaskDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AdTaskCard"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "agreement": {
+                "additionalProperties": false,
+                "properties": {
+                  "agreementKey": {
+                    "enum": [
+                      "ad_service"
+                    ],
+                    "type": "string"
+                  },
+                  "consentedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "versionLabel": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "agreementKey",
+                  "versionLabel",
+                  "consentedAt",
+                  "method"
+                ],
+                "type": "object"
+              },
+              "cancelReasonCode": {
+                "enum": [
+                  "merchant_request",
+                  "store_closed",
+                  "platform_fault",
+                  "qualification_final",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-open-enum": true
+              },
+              "cancelRequests": {
+                "items": {
+                  "$ref": "#/components/schemas/CancelRequestCard"
+                },
+                "type": "array"
+              },
+              "cancelledAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "capturedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "confirmedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "copy": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lockVersion": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pointHold": {
+                "additionalProperties": false,
+                "properties": {
+                  "capturedAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "heldAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "pointHoldId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pointHoldId",
+                  "status",
+                  "heldAt",
+                  "capturedAt"
+                ],
+                "type": "object"
+              },
+              "pricing": {
+                "additionalProperties": false,
+                "properties": {
+                  "chargePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "discountBp": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "freeRevisionQuota": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "unitPricePoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "unitPricePoints",
+                  "discountBp",
+                  "chargePoints",
+                  "freeRevisionQuota"
+                ],
+                "type": "object"
+              },
+              "promoPoints": {
+                "items": {
+                  "$ref": "#/components/schemas/DictRef"
+                },
+                "type": "array"
+              },
+              "recentActivities": {
+                "items": {
+                  "$ref": "#/components/schemas/ActivityItem"
+                },
+                "type": "array"
+              },
+              "referenceFiles": {
+                "items": {
+                  "$ref": "#/components/schemas/OrderReferenceFile"
+                },
+                "type": "array"
+              },
+              "refunds": {
+                "additionalProperties": false,
+                "properties": {
+                  "convertedPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "forfeitedPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "refundRequestedPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "returnedPoints": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "refundRequestedPoints",
+                  "returnedPoints",
+                  "convertedPoints",
+                  "forfeitedPoints"
+                ],
+                "type": "object"
+              },
+              "remark": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "replayed": {
+                "type": "boolean"
+              },
+              "resubmitCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "returnReason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "returnedAt": {
+                "format": "date-time",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "returnedFrom": {
+                "enum": [
+                  "pending_assign",
+                  "producing",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-open-enum": true
+              },
+              "revisions": {
+                "items": {
+                  "$ref": "#/components/schemas/AdminAdRevisionView"
+                },
+                "type": "array"
+              },
+              "serviceTickets": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "serviceTicketId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "ticketNo": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "serviceTicketId",
+                    "ticketNo",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "usages": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "boundVersionNo": {
+                      "exclusiveMinimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "deliveryTicketId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "dramaTitle": {
+                      "type": "string"
+                    },
+                    "orderItemId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "orderNo": {
+                      "type": "string"
+                    },
+                    "phase": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "enum": [
+                        "opening",
+                        "ending",
+                        "corner",
+                        "mid_roll"
+                      ],
+                      "type": "string",
+                      "x-open-enum": true
+                    },
+                    "ticketNo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "orderItemId",
+                    "orderNo",
+                    "deliveryTicketId",
+                    "ticketNo",
+                    "dramaTitle",
+                    "slot",
+                    "boundVersionNo",
+                    "phase"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "versions": {
+                "items": {
+                  "$ref": "#/components/schemas/AdminAdVersionView"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "promoPoints",
+              "copy",
+              "remark",
+              "referenceFiles",
+              "returnedFrom",
+              "returnedAt",
+              "returnReason",
+              "resubmitCount",
+              "pricing",
+              "pointHold",
+              "refunds",
+              "capturedAt",
+              "confirmedAt",
+              "cancelReasonCode",
+              "cancelledAt",
+              "versions",
+              "revisions",
+              "usages",
+              "agreement",
+              "cancelRequests",
+              "serviceTickets",
+              "recentActivities",
+              "lockVersion"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AdVersionCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "adoptedStoreAssetIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fromMs": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "label": {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                "toMs": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "index",
+                "fromMs",
+                "toMs",
+                "label"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "fileId"
+        ],
+        "type": "object"
+      },
+      "AdVersionPushBody": {
+        "additionalProperties": false,
+        "properties": {
+          "includeWecom": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "AddressView": {
         "properties": {
           "city": {
@@ -905,6 +1596,450 @@
           "poiName",
           "latitude",
           "longitude"
+        ],
+        "type": "object"
+      },
+      "AdminAdPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdTaskCard"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AdminAdRequestChangeBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "screenshotFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "type": "array"
+          },
+          "segmentIndex": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timeEndMs": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "timeStartMs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "versionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "versionNo",
+          "note"
+        ],
+        "type": "object"
+      },
+      "AdminAdRevisionView": {
+        "additionalProperties": false,
+        "properties": {
+          "actorName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actorType": {
+            "enum": [
+              "merchant",
+              "staff",
+              "system",
+              "partner"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "adRevisionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "breachedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "chargePoints": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "client": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fulfilledByVersionNo": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "isChargeable": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "onVersionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "revisionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "screenshots": {
+            "items": {
+              "$ref": "#/components/schemas/ImageRef"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "segmentIndex": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source": {
+            "enum": [
+              "ad_page",
+              "sample_feedback",
+              "staff_on_behalf"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "timeEndMs": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "timeStartMs": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "adRevisionId",
+          "revisionNo",
+          "onVersionNo",
+          "source",
+          "isChargeable",
+          "chargePoints",
+          "note",
+          "segmentIndex",
+          "timeStartMs",
+          "timeEndMs",
+          "screenshots",
+          "actorType",
+          "actorName",
+          "client",
+          "dueAt",
+          "breachedAt",
+          "fulfilledByVersionNo",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AdminAdVersionView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "adVersionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decision": {
+            "enum": [
+              "confirmed",
+              "revision_requested",
+              "superseded",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "durationMs": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "fileId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "height": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "offlineSentAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offlineSentBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "preview": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "posterUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "posterUrl"
+                ],
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "previewChannels": {
+            "items": {
+              "enum": [
+                "weapp",
+                "album",
+                "portal",
+                "wecom"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "production": {
+            "additionalProperties": false,
+            "properties": {
+              "aigcState": {
+                "type": "string"
+              },
+              "gate": {
+                "enum": [
+                  "pass",
+                  "reject",
+                  null
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pipelineState": {
+                "type": "string"
+              },
+              "softWarnCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "pipelineState",
+              "gate",
+              "softWarnCount",
+              "aigcState"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "pushedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "segments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fromMs": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "label": {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                "toMs": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "index",
+                "fromMs",
+                "toMs",
+                "label"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "uploadedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "uploadedBy": {
+            "$ref": "#/components/schemas/StaffBrief"
+          },
+          "versionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "viewedAckAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "viewedVia": {
+            "enum": [
+              "weapp",
+              "album",
+              "portal",
+              "wecom",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ],
+            "x-open-enum": true
+          },
+          "width": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "adVersionId",
+          "versionNo",
+          "fileId",
+          "durationMs",
+          "width",
+          "height",
+          "segments",
+          "uploadedBy",
+          "uploadedAt",
+          "production",
+          "pushedAt",
+          "previewChannels",
+          "offlineSentAt",
+          "offlineSentBy",
+          "decision",
+          "decidedAt",
+          "viewedVia",
+          "viewedAckAt",
+          "preview",
+          "actions"
         ],
         "type": "object"
       },
@@ -38125,6 +39260,1015 @@
         "x-permission": "assert-in-handler"
       }
     },
+    "/api/v1/admin/ad-versions/{adVersionId}/mark-sent": {
+      "post": {
+        "operationId": "admin.adVersion.markSent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminAdVersionView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "登记已经企业微信向老板发送广告版本（写 offline_sent_at 与发送人；广告视频不加水印）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.sample.push",
+        "x-redact-on-replay": [
+          "preview"
+        ]
+      }
+    },
+    "/api/v1/admin/ad-versions/{adVersionId}/push": {
+      "post": {
+        "operationId": "admin.adVersion.push",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adVersionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdVersionPushBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "推送广告版本给商家确认（确定查看方式 previewChannels；不可在小程序内播放时须已线下提供）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.ad.upload",
+        "x-redact-on-replay": [
+          "versions[].preview",
+          "revisions[].screenshots",
+          "referenceFiles[].thumbnail"
+        ]
+      }
+    },
+    "/api/v1/admin/ads": {
+      "get": {
+        "operationId": "admin.ad.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "editorId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "none"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "opening",
+                "ending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdueOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isWaitingQualification",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isReturnedStale",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "todo",
+              "enum": [
+                "todo",
+                "pending_confirm",
+                "confirmed",
+                "returned",
+                "cancelled",
+                "all"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "urgency",
+              "enum": [
+                "urgency",
+                "-submittedAt",
+                "dueAt"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminAdPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "广告制作任务队列：待处理（待指派、制作中、修改中）、待商家确认、已确认；紧急的排前",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/ads/summary": {
+      "get": {
+        "operationId": "admin.ad.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "editorId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "none"
+                  ],
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "opening",
+                "ending"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdueOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isWaitingQualification",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isReturnedStale",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "广告制作任务页签计数：待处理（待指派、制作中、修改中）、待商家确认、已确认",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/ads/{adId}": {
+      "get": {
+        "operationId": "admin.ad.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "广告任务详情：需求、关联工单、积分、修改次数、版本与修改记录、预览",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/ads/{adId}/ad-versions": {
+      "post": {
+        "operationId": "admin.ad.adVersion.create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdVersionCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "登记第 N 版（文件已上传，竖屏 9:16、1080×1920、标注“广告”）；上传后未推送的旧版本置 superseded",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.ad.upload",
+        "x-redact-on-replay": [
+          "versions[].preview",
+          "revisions[].screenshots",
+          "referenceFiles[].thumbnail"
+        ]
+      }
+    },
+    "/api/v1/admin/ads/{adId}/assign": {
+      "post": {
+        "operationId": "admin.ad.assign",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdAssignBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "指派剪辑师（默认推荐在办最少者），开始制作并由冻结转扣减积分",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.ad.assign",
+        "x-redact-on-replay": [
+          "versions[].preview",
+          "revisions[].screenshots",
+          "referenceFiles[].thumbnail"
+        ]
+      }
+    },
     "/api/v1/admin/ads/{adId}/cancel-quote": {
       "post": {
         "operationId": "admin.ad.cancelQuote",
@@ -38825,6 +40969,393 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "order.refund.request"
+      }
+    },
+    "/api/v1/admin/ads/{adId}/remind": {
+      "post": {
+        "operationId": "admin.ad.remind",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminRemindResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "催办商家确认广告（限频）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "assert-in-handler"
+      }
+    },
+    "/api/v1/admin/ads/{adId}/request-change": {
+      "post": {
+        "operationId": "admin.ad.requestChange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAdRequestChangeBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "交付经理代录广告修改意见（仅免费次数内）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.sample.feedback_on_behalf",
+        "x-redact-on-replay": [
+          "versions[].preview",
+          "revisions[].screenshots",
+          "referenceFiles[].thumbnail"
+        ]
+      }
+    },
+    "/api/v1/admin/ads/{adId}/return": {
+      "post": {
+        "operationId": "admin.ad.return",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdReturnBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "退回补充素材（必填原因）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "delivery.ad.return",
+        "x-redact-on-replay": [
+          "versions[].preview",
+          "revisions[].screenshots",
+          "referenceFiles[].thumbnail"
+        ]
       }
     },
     "/api/v1/admin/agreement-consents": {

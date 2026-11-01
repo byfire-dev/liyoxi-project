@@ -132,5 +132,6 @@ export { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-re
 export type { LicenseRenderingEngine, DocsRenderRuntime } from "./docs-render-runtime.js";
 export { createAdCancelRequests } from "./ad-cancel-runtime.js";
 export { createAdRuntime } from "./ad-runtime.js";
+export { createAdminAdRuntime } from "./ad-admin-runtime.js";
 
 export { createMerchantPlayables } from "./playable-runtime.js";

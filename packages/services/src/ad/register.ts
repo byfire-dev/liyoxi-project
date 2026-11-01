@@ -6,8 +6,18 @@ import {
   implementKeyed,
   implementMerchantFacts,
   notifyReadPort,
+  staffWorkPort,
+  remindersPort,
 } from "../kernel/index.js";
-import { adConsentFacts } from "./notify-facts.js";
+import {
+  adConsentFacts,
+  adVersionForNotify,
+  adSlaForNotify,
+  adsAwaitingMerchant,
+  revalidateAdReminder,
+} from "./notify-facts.js";
+import { adStaffWork } from "./staff-work.js";
+import { fileCategoryGuardPort } from "../media/index.js";
 import { machinePort } from "../flow/index.js";
 import { adCancelBinding, adCancelChain } from "./cancel-write.js";
 import { adLifecycleBinding } from "./lifecycle.js";
@@ -24,6 +34,11 @@ export const registration = defineRegistration("ad", {
     },
   ],
   portImplementations: [
+    implementKeyed(fileCategoryGuardPort, "ad_video", {
+      assert: async () => {
+        throw new TypeError("广告上传须由本实例运行时绑定");
+      },
+    }),
     implementKeyed(machinePort, adCancelChain, {
       companions: [
         ...new Set([
@@ -43,5 +58,12 @@ export const registration = defineRegistration("ad", {
         (await tx.ad.findUnique({ where: { id }, select: { id: true } })) !== null,
     ),
     implementKeyed(notifyReadPort, "adConsentFacts", adConsentFacts),
+    implementKeyed(notifyReadPort, "adVersionForNotify", adVersionForNotify),
+    implementKeyed(notifyReadPort, "adSlaForNotify", adSlaForNotify),
+    implementKeyed(remindersPort, "R5", {
+      targets: adsAwaitingMerchant,
+      revalidate: revalidateAdReminder,
+    }),
+    implementKeyed(staffWorkPort, "ad", adStaffWork),
   ],
 });

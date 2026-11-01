@@ -4,9 +4,15 @@ import { notifyReadOf, remindersOf } from "../kernel/index.js";
 import type { RecurringRunContext, Tx } from "../kernel/index.js";
 import type { NotifyDispatchDeps } from "./context.js";
 import { currentNotificationFact, dispatchFact } from "./dispatch.js";
-import { EVENT_SCENES, FOLLOWUP_SPEC, COPYRIGHT_SPEC, RENEWAL_SPEC } from "./registry.js";
+import {
+  AD_PENDING_SPEC,
+  EVENT_SCENES,
+  FOLLOWUP_SPEC,
+  COPYRIGHT_SPEC,
+  RENEWAL_SPEC,
+} from "./registry.js";
 
-/** Real R4/R7 and staff facts; no placeholder future business scanners. */
+/** Real pending-action and staff facts; no placeholder future business scanners. */
 export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRunContext) {
   const run = context.runTx ?? deps.tx.run;
   const now = deps.clock.now();
@@ -54,6 +60,31 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
       targets++;
       return dispatchFact(tx, deps, spec, fact, { node: "R1", rule: "R4" });
     });
+  }
+  if (reminders.has("R5") && minuteOfDay(now) <= grace * 60) {
+    // R5 is the existing two-natural-day ad node, independent of sample's configurable delay.
+    const adRange = dayRange(addDays(calendarDate(now), -2));
+    const ads = await run((tx) =>
+      reminders.targets(tx, "R5", {
+        pushedFrom: adRange.start,
+        pushedTo: new Date(adRange.end.getTime() - 1),
+      }),
+    );
+    for (const item of ads) {
+      if (context.signal?.aborted) break;
+      notifications += await run(async (tx) => {
+        if (!(await reminders.revalidate(tx, "R5", item)).valid) return 0;
+        const fact = await currentNotificationFact(
+          tx,
+          deps,
+          AD_PENDING_SPEC,
+          IdSchema.parse(item.adId),
+        );
+        if (!fact || fact.version !== item.version) return 0;
+        targets++;
+        return dispatchFact(tx, deps, AD_PENDING_SPEC, fact, { node: "R1", rule: "R5" });
+      });
+    }
   }
   const copyrightNode = 9 * 60 + 5,
     minute = minuteOfDay(now);
