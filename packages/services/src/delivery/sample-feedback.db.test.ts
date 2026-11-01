@@ -378,6 +378,44 @@ describe("商家样片反馈与独立发送登记", { timeout: 60_000 }, () => {
     expect(await snapshot(f.sampleId, f.id)).toEqual(paused);
   });
 
+  it("后台代录动作只给当前可反馈版本和有权限员工，反馈后撤回入口", async () => {
+    const f = await sample(false);
+    const read = () => h.delivery.get(f.qc.staff, f.id);
+    expect((await read()).currentSample?.actions).not.toContain("request-change");
+    await h.delivery.samplePush(f.qc.ctx, f.qc.staff, f.sampleId, {});
+    expect((await read()).currentSample?.actions).toContain("request-change");
+    const withoutFeedback = {
+      ...f.qc.staff,
+      permissions: new Set(
+        [...f.qc.staff.permissions].filter((key) => key !== "delivery.sample.feedback_on_behalf"),
+      ),
+    };
+    expect((await h.delivery.get(withoutFeedback, f.id)).currentSample?.actions).not.toContain(
+      "request-change",
+    );
+    const watermark = await h.prisma.playableAsset.findFirstOrThrow({
+      where: { sourceFileId: f.fileId, kind: "sample" },
+    });
+    await h.prisma.playableAsset.update({ where: { id: watermark.id }, data: { state: "failed" } });
+    expect((await read()).currentSample?.actions).not.toContain("request-change");
+    await h.prisma.playableAsset.update({
+      where: { id: watermark.id },
+      data: { state: watermark.state },
+    });
+    await h.delivery.adminSampleRequestChange(f.qc.ctx, f.qc.staff, f.sampleId, {
+      feedbackKind: "compose",
+      versionNo: 1,
+      note: "代录合成画面反馈",
+      feedbackTimeMs: 500,
+    });
+    expect((await read()).currentSample?.actions).not.toContain("request-change");
+    expect(await h.prisma.sample.findUniqueOrThrow({ where: { id: f.sampleId } })).toMatchObject({
+      feedbackKind: "compose",
+      feedbackTimeMs: 500,
+      onBehalfStaffId: f.qc.row.id,
+    });
+  });
+
   it("markSent重验真实水印、范围与当前版本；重复登记不覆盖且不会产生商家查看/确认", async () => {
     const f = await sample(false),
       key = idem("admin.sample.markSent", f.qc.ctx.actor, f.sampleId, {}),

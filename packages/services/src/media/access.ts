@@ -2,11 +2,13 @@ import type { Prisma } from "@liyoxi/db";
 import { UPLOAD_CATEGORIES, extensionOf } from "@liyoxi/shared/uploads";
 import type { UploadCategory } from "@liyoxi/shared/uploads";
 import {
+  assertAccess,
   assertCapability,
   assertPermission,
   byEntity,
   byStore,
   hasCapability,
+  hasPermission,
   satisfiesLevel,
 } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
@@ -107,6 +109,19 @@ export async function registerScope(
   }
   const staff = actor.staff;
   if (!staff || !definition.admin) throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  if (input.category === "ticket_attachment") {
+    if (
+      actor.identity.actor.type !== "staff" ||
+      actor.identity.actor.id !== staff.staff.id ||
+      actor.identity.actor.client !== "admin"
+    )
+      throw new AppError("PERMISSION_DENIED");
+    assertAccess(staff, { module: { module: "delivery", need: "view" }, permission: null });
+    assertPermission(staff, "delivery.sample.feedback_on_behalf", deps.clock.now());
+    // Feedback is submitted by this staff member, never on the merchant's behalf as uploader.
+    if (input.onBehalfStore || input.production || input.licenseKind)
+      throw new AppError("FILE_CATEGORY_NOT_ALLOWED");
+  }
   const financeFile = input.category === "pay_receipt" || input.category === "invoice";
   if (financeFile) {
     if (actor.identity.actor.type !== "staff" || actor.identity.actor.id !== staff.staff.id)
@@ -249,6 +264,8 @@ export async function registerScope(
     select: { id: true, entityId: true },
   });
   if (!store) throw notFound();
+  if (input.category === "ticket_attachment" && input.entityId && input.entityId !== store.entityId)
+    throw notFound();
   return {
     scopeType,
     entityId: store.entityId,
@@ -317,6 +334,20 @@ export async function readableByStaff(
 ): Promise<FileRow> {
   const file = await tx.fileObject.findFirst({ where: { id: fileId, ...inStaffScope(staff) } });
   if (!file) throw notFound();
+  // The generic file endpoint only exposes the submitting staff's own feedback upload.
+  // Reading business feedback stays with its sample/ad reader and linked-file authorization.
+  if (file.category === "ticket_attachment") {
+    if (
+      file.scopeType !== "store" ||
+      file.uploadActorType !== "staff" ||
+      file.uploadActorId !== staff.staff.id ||
+      file.uploadClient !== "admin" ||
+      !satisfiesLevel(staff.moduleLevels.delivery, "view") ||
+      !hasPermission(staff, "delivery.sample.feedback_on_behalf")
+    )
+      throw notFound();
+    return file;
+  }
   // Authorization PDFs use order visibility, even for staff who can read finance/service documents.
   // The docs bridge returns false only when this is not a license revision file at all.
   if (

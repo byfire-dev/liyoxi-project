@@ -524,7 +524,10 @@ describe("M5补发沿真实媒体/QC/原包", { timeout: 120_000 }, () => {
       { error: "REISSUE_NOT_ALLOWED", details: { reason: "usage_ended" } },
     );
     h.clock.set(new Date("2026-01-05T04:10:00Z"));
+    expect((await h.delivery.get(f.qc.staff, f.id)).actions).not.toContain("episode-register");
     const cancelled = await m5().reissueCreate(f.qc.ctx, f.qc.staff, f.id, reissueBody);
+    expect((await h.delivery.get(f.editor.staff, f.id)).actions).toContain("episode-register");
+    expect((await h.delivery.get(f.qc.staff, f.id)).actions).toContain("inspect-episodes");
     await expect(m5().reissueCreate(f.qc.ctx, f.qc.staff, f.id, reissueBody)).rejects.toMatchObject(
       {
         error: "REISSUE_NOT_ALLOWED",
@@ -560,6 +563,7 @@ describe("M5补发沿真实媒体/QC/原包", { timeout: 120_000 }, () => {
     await expect(
       m5().reissueCancel(f.qc.ctx, f.qc.staff, cancelled.reissueId, {}),
     ).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+    expect((await h.delivery.get(f.qc.staff, f.id)).actions).not.toContain("inspect-episodes");
     const reissue = await m5().reissueCreate(f.qc.ctx, f.qc.staff, f.id, reissueBody);
     const replacement = await h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
       reissueId: reissue.reissueId,
