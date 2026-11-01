@@ -139,11 +139,11 @@ export default function Mine() {
                   {owner.subscription.status === "expired"
                     ? "套餐已到期"
                     : owner.subscription.endDate
-                      ? `有效期至 ${owner.subscription.endDate}`
+                      ? `有效期至 ${owner.subscription.endDate.slice(5).replace("-", "/")}`
                       : "尚未开通套餐"}
                   {owner.subscription.status === "active" &&
                   owner.subscription.remainingDays !== null
-                    ? ` · 剩 ${owner.subscription.remainingDays} 天`
+                    ? ` · 剩${owner.subscription.remainingDays}天`
                     : ""}
                 </View>
                 {accountPageImplemented("sub/billing/wallet/index") ? (
@@ -205,14 +205,23 @@ export default function Mine() {
           ) : null}
           {owner ? (
             <View className="account-mine__stats">
-              <View>
-                <View>{formatInteger(owner.storeStats.liveCount)}</View>上线中
+              <View className="account-mine__stat account-mine__stat--divided">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.liveCount)}
+                </View>
+                <View className="account-mine__stat-label">上线中</View>
               </View>
-              <View>
-                <View>{formatInteger(owner.storeStats.deliveringCount)}</View>交付中
+              <View className="account-mine__stat account-mine__stat--divided">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.deliveringCount)}
+                </View>
+                <View className="account-mine__stat-label">交付中</View>
               </View>
-              <View>
-                <View>{formatInteger(owner.storeStats.cartCount)}</View>选剧单
+              <View className="account-mine__stat">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.cartCount)}
+                </View>
+                <View className="account-mine__stat-label">选剧单</View>
               </View>
             </View>
           ) : null}
@@ -266,7 +275,11 @@ export default function Mine() {
                 />
               ) : null}
               {data.viewerRole === "clerk" ? (
-                <ListRow title="门店成员" onClick={() => navigate("sub/member/members/index")} />
+                <ListRow
+                  icon="users"
+                  title="门店成员"
+                  onClick={() => navigate("sub/member/members/index")}
+                />
               ) : null}
               {accountEntries(data.viewerRole)
                 .filter(
@@ -279,6 +292,7 @@ export default function Mine() {
                 .map((item) => (
                   <ListRow
                     key={item.route}
+                    icon={item.icon}
                     title={item.title}
                     badge={
                       item.route === "sub/service/messages/index"
@@ -293,11 +307,16 @@ export default function Mine() {
           {!data ? (
             <List>
               <ListRow
+                icon="bell"
                 title="消息"
                 badge={unread ?? undefined}
                 onClick={() => navigate("sub/service/messages/index")}
               />
-              <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+              <ListRow
+                icon="sliders"
+                title="设置"
+                onClick={() => navigate("sub/service/settings/index")}
+              />
             </List>
           ) : null}
         </>
@@ -306,7 +325,11 @@ export default function Mine() {
       )}
       {!token ? (
         <List>
-          <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+          <ListRow
+            icon="sliders"
+            title="设置"
+            onClick={() => navigate("sub/service/settings/index")}
+          />
         </List>
       ) : null}
       <StoreSwitcher />

@@ -1,17 +1,8 @@
-# W2-25b：PR 仅构建四镜像；应用发布只在 main 显式开启，不进 required。
+# W2-25b：2026-11-02 业主要求暂缓自动镜像链，待业主再次要求才恢复；不进 required。
 # MinIO 依赖恢复另需手动调度、开关与已审源码 SHA 三重批准。
 name: images
 
 on:
-  pull_request:
-    paths:
-      - infra/docker/**
-      - apps/**
-      - packages/**
-      - pnpm-lock.yaml
-      - .github/workflows/images.yml
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       mirror_base:
@@ -33,7 +24,9 @@ concurrency:
 jobs:
   build-images:
     name: build-images
-    if: github.event_name != 'workflow_dispatch' || inputs.mirror_minio != true
+    # 构建暂停；手动镜像转存工具保留。恢复时使用下一行注释中的原条件。
+    # github.event_name != 'workflow_dispatch' || inputs.mirror_minio != true
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
