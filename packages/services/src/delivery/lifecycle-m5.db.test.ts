@@ -7,7 +7,8 @@ import { workHoursAt } from "../sla/index.js";
 import { ownTaskScope, scopeOf } from "../authz/index.js";
 import { createIdempotencyContext, staffWorkPort, uuidv7 } from "../kernel/index.js";
 import type { IdentityContext } from "../kernel/index.js";
-import { useSeededDatabase } from "../testing/index.js";
+import { createBatchMediaForTest, useSeededDatabase } from "../testing/index.js";
+import type { UploadBatchCreateBody } from "@liyoxi/contract";
 import { findDeliveryViolations } from "./invariants.js";
 import { prepareReevaluation } from "./reevaluate-locks.js";
 import {
@@ -579,6 +580,100 @@ describe("M5补发沿真实媒体/QC/原包", { timeout: 120_000 }, () => {
       error: "STATE_NOT_ALLOWED",
     });
     expect(await snapshot(f.id)).toEqual(after);
+  });
+
+  it("已交付工单只在真实open补发期间允许创建和开始成片批次，登记仍须显式补发ID", async () => {
+    const f = await released(h);
+    await reason();
+    const media = createBatchMediaForTest({
+      tx: h.tx,
+      clock: h.clock,
+      assembly: h.assembly,
+      events: h.events,
+      storage: h.fake.storage,
+    });
+    const actor = { identity: f.editor.ctx, staff: f.editor.staff };
+    const body: UploadBatchCreateBody = {
+      purpose: "final_release",
+      targetId: f.item.id,
+      scope: "partial",
+      isContentChanged: false,
+      aiUsage: { used: false, tools: [] },
+      files: [{ clientToken: uuidv7(), originalName: "第1集.mp4", sizeBytes: "1234" }],
+    };
+    const create = (who = actor) =>
+      media.uploadBatches.create(who, body, {
+        idem: idem("admin.uploadBatch.create", who.identity.actor, body)(),
+      });
+    const counts = () =>
+      Promise.all([
+        h.prisma.uploadBatch.count({ where: { targetId: f.item.id } }),
+        h.prisma.fileObject.count({ where: { storeId: f.o.store.id } }),
+        h.prisma.episodeOutput.count({ where: { deliveryTicketId: f.id } }),
+      ]);
+    try {
+      const before = await counts();
+      await expect(create()).rejects.toMatchObject({ error: "EPISODE_REGISTER_NOT_ALLOWED" });
+      expect(await counts()).toEqual(before);
+      const reissue = await m5().reissueCreate(f.qc.ctx, f.qc.staff, f.id, reissueBody);
+      const otherEditor = await h.staff("editor");
+      await expect(
+        create({ identity: otherEditor.ctx, staff: otherEditor.staff }),
+      ).rejects.toMatchObject({
+        error: "NOT_FOUND",
+      });
+      expect(await counts()).toEqual(before);
+      const batch = await create();
+      expect(batch).toMatchObject({ state: "matching", expectedCount: 1 });
+      expect(await media.uploadBatches.start(actor, batch.uploadBatchId, {})).toMatchObject({
+        state: "uploading",
+      });
+      const after = await counts();
+      await expect(
+        h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
+          uploadBatchId: batch.uploadBatchId,
+        }),
+      ).rejects.toMatchObject({
+        error: "EPISODE_REGISTER_NOT_ALLOWED",
+        details: { reason: "reissue_required" },
+      });
+      await expect(
+        h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
+          uploadBatchId: batch.uploadBatchId,
+          reissueId: reissue.reissueId,
+        }),
+      ).rejects.toMatchObject({ error: "FILE_NOT_USABLE" });
+      expect(await counts()).toEqual(after);
+      await m5().reissueCancel(f.qc.ctx, f.qc.staff, reissue.reissueId, {});
+      await expect(create()).rejects.toMatchObject({ error: "EPISODE_REGISTER_NOT_ALLOWED" });
+      await expect(media.uploadBatches.start(actor, batch.uploadBatchId, {})).rejects.toMatchObject(
+        {
+          error: "EPISODE_REGISTER_NOT_ALLOWED",
+        },
+      );
+      await expect(
+        h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
+          uploadBatchId: batch.uploadBatchId,
+          reissueId: reissue.reissueId,
+        }),
+      ).rejects.toMatchObject({
+        error: "EPISODE_REGISTER_NOT_ALLOWED",
+        details: { reason: "not_in_reissue" },
+      });
+      expect(await counts()).toEqual(after);
+      expect(
+        await h.prisma.episodeOutput.findUniqueOrThrow({
+          where: { id: f.original.episodeOutputId },
+        }),
+      ).toMatchObject({ isCurrent: true, status: "qc_passed" });
+      expect(
+        await h.prisma.uploadBatch.findUniqueOrThrow({
+          where: { id: batch.uploadBatchId },
+        }),
+      ).toMatchObject({ state: "uploading", committedAt: null });
+    } finally {
+      await media.jobs.shutdown();
+    }
   });
 
   it("错误步骤拒绝且无补发副作用", async () => {
