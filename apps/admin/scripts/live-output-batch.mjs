@@ -465,6 +465,11 @@ async function main(args) {
         { capture: true },
       ),
     );
+    const ticketActionsScope = fixtures.fixtures.w513?.flow?.scope;
+    const ticketActionsSelected =
+      values["test-file"]?.split(",").includes("test/e2e/live-m5-ticket-actions.spec.ts") ?? false;
+    if (ticketActionsSelected && !ticketActionsScope)
+      throw new Error("Selected W513 target requires its actual flow scope");
     const adTasks = fixtures.fixtures.w514;
     const adTasksSelected =
       values["test-file"]?.split(",").includes("test/e2e/live-m5-ad-tasks.spec.ts") ?? false;
@@ -495,7 +500,7 @@ async function main(args) {
     }
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(adTasks?.video ? { w514: adTasks.scope } : {}), video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, ...(ticketActionsScope ? { w513: ticketActionsScope } : {}), w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(adTasks?.video ? { w514: adTasks.scope } : {}), video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
     await run(
