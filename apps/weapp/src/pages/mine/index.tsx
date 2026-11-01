@@ -140,6 +140,14 @@ export default function Mine() {
           ) : null}
           {data && accountEntries(data.viewerRole).length ? (
             <List>
+              {data.viewerRole === "owner" && accountPageImplemented("sub/ad/ads/index") ? (
+                <ListRow
+                  title="我的广告"
+                  badge={data.entries.adPendingConfirmCount || undefined}
+                  description={`待确认${data.entries.adPendingConfirmCount}条`}
+                  onClick={() => navigate("sub/ad/ads/index")}
+                />
+              ) : null}
               <ListRow title="门店管理" onClick={() => navigate("sub/profile/stores/index")} />
               {data.viewerRole === "clerk" ? (
                 <ListRow title="门店成员" onClick={() => navigate("sub/member/members/index")} />

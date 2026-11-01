@@ -203,12 +203,18 @@ export const makeStores = (clerk = false): StoreList => {
 export function offlineAccountRequest(scene: string): RequestLayer["request"] {
   let accepted = false;
   let second = false;
+  const aggregateCalls: { path: string; method: string }[] = [];
+  if (scene === "ad-mine")
+    (
+      globalThis as { __LYX_AD_AGGREGATE_CALLS__?: typeof aggregateCalls }
+    ).__LYX_AD_AGGREGATE_CALLS__ = aggregateCalls;
   const clerk = scene === "mine-clerk";
   const noStore = scene === "messages-no-store";
   const me = () =>
     noStore ? { ...makeMe(), memberships: [] } : makeMe(clerk, scene === "reconsent" && !accepted);
   const guest = scene.startsWith("login") || scene === "mine-guest" || scene === "agreement";
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
+    if (scene === "ad-mine") aggregateCalls.push({ path, method: options?.method ?? "GET" });
     let data: unknown;
     if (path === "/m/bootstrap") data = bootstrap;
     else if (path === "/m/sessions")
@@ -224,8 +230,12 @@ export function offlineAccountRequest(scene: string): RequestLayer["request"] {
       data = scene === "login-empty" ? { ...agreements, items: [] } : agreements;
     } else if (path.startsWith("/m/agreement-versions/")) data = agreement;
     else if (path === "/m/me") data = me();
-    else if (path === "/m/me/overview") data = noStore ? null : makeOverview(clerk, second);
-    else if (path === "/m/stores")
+    else if (path === "/m/me/overview") {
+      const overview = noStore ? null : makeOverview(clerk, second);
+      if (scene === "ad-mine" && overview?.viewerRole === "owner")
+        overview.entries.adPendingConfirmCount = 3;
+      data = overview;
+    } else if (path === "/m/stores")
       data = noStore ? { viewerRole: "clerk", entity: null, items: [] } : makeStores(clerk);
     else if (path === "/m/agreement-consents") {
       accepted = true;

@@ -108,11 +108,25 @@ export default function Profile() {
               {tag?.label ?? "未知状态"} · 查看进度与审核结果
             </View>
           </Card>
+          {data.viewerRole === "owner" && accountPageImplemented("sub/ad/ads/index") ? (
+            <Card
+              title="我的广告"
+              onClick={() => {
+                void import("@tarojs/taro").then(({ default: taro }) =>
+                  taro.navigateTo({ url: "/sub/ad/ads/index" }),
+                );
+              }}
+            >
+              <View className="profile-subtitle">
+                已确认{data.ads.confirmedCount} · 待确认{data.ads.pendingConfirmCount} · 制作中
+                {data.ads.producingCount} · 修改中{data.ads.revisingCount}
+              </View>
+            </Card>
+          ) : null}
           {[
             ["sub/profile/stores/index", "门店管理"],
             ["sub/asset/lib/index", "门店素材"],
             ["sub/member/members/index", "成员管理"],
-            ["sub/ad/ads/index", "我的广告"],
           ]
             .filter(([route]) => accountPageImplemented(route!))
             .map(([route, name]) => (

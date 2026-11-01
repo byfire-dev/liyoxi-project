@@ -372,3 +372,13 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 目标模型命令见[W5-10任务书](../../docs/plan/tasks/W5-10.md)。四页截图用 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/order/my-dramas/index --page sub/order/checkout/index --page sub/order/sample/index --page sub/order/order-detail/index`；order/delivery的page参数现展开本域全部固定场景。新增9态在原场景上追加：my-dramas-list/empty/error、checkout-ads/ads-invalid、order-detail-after-sale、sample-change/change-stale/paused。单态可给 `--scene`，脚本每次清PNG目录，复验前需保存原图。
 
 作者已完成34个唯一模型/相邻目标、类型、正式构建和20个新旧场景交互；实际证据、两处截图取景补充及最终调度验证边界见[本包状态](../../docs/plan/status/W5-10.md)。PNG统一保存根仓库 `outputs/agent-control/w510/weapp-shots/`，本轮H5只在显式场景装入离线typed运输，保外发网络/console/pageerror守卫。首次list/summary并发揭示离线装配竞争，已缓存同一个初始化Promise。真实HTTP、微信真机播放/隐私/上传、类目提审、安全区及法务另验，本轮不宣称已完成。
+
+### W5-11 广告列表、详情与聚合角标
+
+新增 `sub/ad/ads/index` 与 `sub/ad/ad-detail/index`，保持原G5-B归属；制作需求M42、修改和退回补充均为私有Sheet，不增加路由。列表消费服务端状态与游标，需求先取真实报价、类型/时长、免费次数、推广重点和协议，提交前再报价；输入、价格或协议变化撤销同意，未知结果使用同一意图key。创建成功后重新GET详情。参考素材沿真实门店素材入口，补充提交只增加所选素材，不重建冻结意图。
+
+广告确认只采用GET返回的 `confirmableVia` 首项并强制当前版本勾选，提交前重读版本和查看方式。相册保存沿隐私包装和现签下载，随后GET读证据，不由前端标记已看；H5保存空转不显示真机保存成功。私有广告播放器点击才换取当前资产的短时地址，保移动网络提示、过期拒绝、隐藏暂停、上下文和版本废弃。历史版本只展示后端事实，不冒充当前可播放版本。修改沿服务端免费次数、当前收费和截图上限，超次须明确接受实际积分；V1界面按m06只提供整条与预置分段，样片不开放广告反馈字段。
+
+“我的”显示 `m.me.overview.get.entries.adPendingConfirmCount`；建档页显示 `m.storeProfile.get.ads` 四项真实计数。店员不请求广告受限接口；不从列表页长拼总数。W5-10的实际广告链接随两页登记自然启用。
+
+本域定点命令见[W5-11任务书](../../docs/plan/tasks/W5-11.md)。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/ad/ads/index --page sub/ad/ad-detail/index --page pages/mine/index --page sub/profile/profile/index`，展开12个新增广告场景；单场景可用 `--scene ad-change-paid`。原场景及请求/外发网络/console/pageerror守卫保留。`ad-mine`/`ad-profile`仅追加非零聚合离线运输，不改旧场景计数；H5与真实HTTP/DB、微信真机/真实素材、类目和法务证据分列，实际结果见本包状态。
