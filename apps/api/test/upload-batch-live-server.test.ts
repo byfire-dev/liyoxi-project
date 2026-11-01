@@ -216,3 +216,42 @@ it("W312 scope requires this exact local owned database, app role and Redis pref
   ])
     expect(() => assertContentAdminLiveScope({ env: { ...env, ...patch } }, scope)).toThrow();
 });
+
+it("W514具名scope只扩私有运输信封，旧媒体标准/未知键/本轮范围全部保留", () => {
+  const ids = [id, "01950000-0000-7000-8000-000000000002", "01950000-0000-7000-8000-000000000003"];
+  const ad = {
+    ...owned,
+    startedAt: scope.startedAt,
+    entityId: id,
+    storeId: id,
+    editorId: id,
+    adIds: ids,
+  };
+  const full = { ...original, w514: ad };
+  expect(parseSharedManifest(full)).toEqual(parseSharedManifest(original));
+  expect(parseInvoiceLiveEnvelope(full).w514).toEqual(ad);
+  for (const w514 of [
+    undefined,
+    null,
+    { ...ad, adIds: [id, id, id] },
+    { ...ad, editorId: "wrong" },
+    { ...ad, ready: true },
+    { ...ad, runId: "fedcba9876543210" },
+    {
+      ...ad,
+      runId: "fedcba9876543210",
+      name: "lyx_test_admin_live_fedcba9876543210",
+      prefix: "lyx:test:admin_live_fedcba9876543210:",
+    },
+  ]) {
+    expect(() => parseSharedManifest({ ...full, w514 })).toThrow();
+    expect(() => parseInvoiceLiveEnvelope({ ...full, w514 })).toThrow();
+  }
+  expect(() => parseSharedManifest({ ...full, unrelated: true })).toThrow();
+  expect(() =>
+    parseSharedManifest({
+      ...full,
+      video: { ...video, probe: { ...video.probe, durationMs: 3000 } },
+    }),
+  ).toThrow();
+});

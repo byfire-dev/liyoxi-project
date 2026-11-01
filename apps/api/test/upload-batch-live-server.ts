@@ -30,8 +30,15 @@ import {
   createInvoiceLiveUploadPump,
   parseInvoiceLiveUploadScope,
   finishW120LiveFixture,
+  assertAdTaskLiveScope,
+  parseAdTaskLiveScope,
+  findAdTaskLiveJobIds,
 } from "@liyoxi/services/testing";
-import type { ContentAdminLiveScope, OutputBatchLiveInput } from "@liyoxi/services/testing";
+import type {
+  AdTaskLiveScope,
+  ContentAdminLiveScope,
+  OutputBatchLiveInput,
+} from "@liyoxi/services/testing";
 import { createApp } from "../src/app.js";
 import type { Api } from "../src/app.js";
 import { HANDLERS } from "../src/routes/index.js";
@@ -58,18 +65,27 @@ function assertScope(env: Env, prefix: string) {
 export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
 /** Only the optional invoice scope is stripped; the original strict parser validates all older fields. */
 export function parseInvoiceLiveEnvelope(raw: unknown) {
+  let w514: AdTaskLiveScope | undefined;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w514" in raw) {
+    parseOutputBatchLiveManifest(raw);
+    const { w514: adScope, ...legacy } = raw;
+    w514 = parseAdTaskLiveScope(adScope);
+    raw = legacy;
+  }
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w418Invoice" in raw) {
     const { w418Invoice, ...legacy } = raw;
     return {
       manifest: parseOutputBatchLiveManifest(legacy),
       w318: "w318" in legacy ? legacy.w318 : undefined,
       w418Invoice: parseInvoiceLiveUploadScope(w418Invoice),
+      ...(w514 ? { w514 } : {}),
     };
   }
   return {
     manifest: parseOutputBatchLiveManifest(raw),
     w318: typeof raw === "object" && raw !== null && "w318" in raw ? raw.w318 : undefined,
     w418Invoice: undefined,
+    ...(w514 ? { w514 } : {}),
   };
 }
 const STARTUP_STAGES = [
@@ -101,6 +117,7 @@ export async function startOutputBatchLiveServer(options: {
   w312?: ContentAdminLiveScope;
   w318?: unknown;
   w418Invoice?: unknown;
+  w514?: AdTaskLiveScope;
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
@@ -108,6 +125,10 @@ export async function startOutputBatchLiveServer(options: {
   onStartupStage?: (stage: StartupStage, elapsedMs: number) => void;
 }) {
   const startupStartedAt = performance.now();
+  const w514 =
+    options.w514 === undefined
+      ? undefined
+      : assertAdTaskLiveScope({ env: options.env }, options.w514);
   const runId = assertScope(options.env, options.prefix);
   const inputs = OutputBatchLiveInputSchema.parse(options.inputs);
   const w312 =
@@ -526,6 +547,7 @@ export async function startOutputBatchLiveServer(options: {
       pending = Promise.all([
         findOutputBatchLiveJobIds(batch, inputs),
         w312 ? findContentAdminLiveJobIds(batch, w312, [...contentFiles]) : Promise.resolve([]),
+        w514 ? findAdTaskLiveJobIds(batch, w514) : Promise.resolve([]),
       ])
         .then(async (groups) => {
           const ids = [...new Set(groups.flat())];
@@ -592,7 +614,7 @@ async function main() {
   if (!path.endsWith(`${sep}${ownedSuffix}`))
     throw new Error("Input manifest must be the exact owned temporary file");
   const raw: unknown = JSON.parse(await readFile(path, "utf8"));
-  const { manifest, w318, w418Invoice } = parseInvoiceLiveEnvelope(raw);
+  const { manifest, w318, w418Invoice, w514 } = parseInvoiceLiveEnvelope(raw);
   const diagnosticDir = join(dirname(dirname(dirname(path))), "e2e-live-results");
   mkdirSync(diagnosticDir, { recursive: true });
   const diagnosticFile = join(diagnosticDir, `w302-startup-${runId}.jsonl`);
@@ -616,6 +638,7 @@ async function main() {
       w312: manifest.w312,
       w318,
       w418Invoice,
+      w514,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),

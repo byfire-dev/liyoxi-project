@@ -214,6 +214,13 @@ export {
 export { createPlatformCertEsign as createTestPlatformCertEsign } from "../providers/index.js";
 export { prepareAdVideoForTest } from "./ad-video.fixture.js";
 export { prepareAdminAdVideoForTest } from "./ad-admin-video.fixture.js";
+export {
+  assertAdTaskLiveScope,
+  parseAdTaskLiveScope,
+  findAdTaskLiveJobIds,
+  prepareAdTaskLiveVideo,
+} from "./admin-live/w514.fixture.js";
+export type { AdTaskLiveScope } from "./admin-live/w514.fixture.js";
 
 // W5-08 fixed real ad/order/sample acceptance chain.
 export { createW508OrderAdFixture } from "./w508-order-ad.fixture.js";

@@ -33,12 +33,19 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
           approvals: { requesterStaffId: string };
           invoices: { reviewerStaffId: string };
         };
+        w514: { editor: { staffId: string } };
       };
     }
   ).fixtures;
   const fixture = fixtures.staff;
   expect(fixture.staff).toHaveLength(10);
   const addedActors = [
+    {
+      staffId: fixtures.w514.editor.staffId,
+      name: "W514广告剪辑师",
+      roleKey: "editor",
+      status: "active",
+    },
     {
       staffId: fixtures.w418.approvals.requesterStaffId,
       name: "W418隔离审批发起人",
@@ -52,7 +59,7 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       status: "active",
     },
   ];
-  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(2);
+  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(3);
   // 原14人：bootstrap管理员1 + 本页10 + 财务2 + W215原交付经理1；另加上述两名W418演员。
   const originalStaffCount = 1 + fixture.staff.length + 2 + 1;
   expect(originalStaffCount).toBe(14);

@@ -346,3 +346,11 @@ createAppServices从公开构建变量VITE_CLIENT_ERROR_DSN装配clientReporting
 收款行按真实付款单/主体/已入账事实提供现金退款申请，并按实际单号导航关联差异与退款记录；孤儿款不生成伪退款。申请弹层消费既有typed refundQuote/create，先真实GET核归属，再展示服务端规则、金额及权益影响；写前重新GET/试算核完整确认快照，变化须重新确认。中央stepup、同正文未知结果原key、同步闩及scope/筛选卸载取消保留。创建确认返回ID后只GET重读，不因读失败重新POST；付款单详情通过同billing瘦只读投影返回原七字段退款数组，仍核同单与原scope。
 
 三个admin风险目标、一个实际投影DB目标与受影响admin/services类型通过。精确申请live加原auth最终2/2G：实际差异导航、试算/创建与GET待批、唯一退款ID、无退款流水/现金/权益回收、七字段付款单投影及旧审批真实财务详情/业务链接；正式生产构建和不含夹具检查通过。浏览器未提供请求正文的首RED改为核实际GET持久字段，正文运输仍由原typed目标与真实服务回显守卫验证，未改harness或预算。确认、创建、审批三张`w418-refund-request-*.png`已由作者及ROOT实际查看并接受，统一组合检查另行收口。仅开放`finance.payments`与`finance.refunds`；没有第9页或外部调用，虚构super_admin不代表完整finance角色验收。整包、首次失败和外部未验见[W4-18状态](../../docs/plan/status/W4-18.md)。
+
+### W5-14 广告制作任务
+
+`/delivery/ad-tasks` 复用队列工作台，在同一页面展示需求、计费、版本、查看证据、修改与关联工单。页签、关键字、类型、超时与选中项沿URL；实际范围、候选在办和推荐来自已合staff公口。每次写前重新GET核当前actions/版本，保同意图key、同步防重与关闭/换对象废弃旧意图；写后重读实际详情，不把写回执的私签字段当展示事实。
+
+上传沿现有multipart适配和真实ad_video生产上下文，明确填写AI工具事实；已入库不表示生产检查通过，当前文件的实际检查状态沿既有M3 productionRecord.list读取，只有ready且检查通过才启用登记，登记/推送仍由后端核实际媒体规格。企业微信发送登记与推送分开，取消预览/申请与审批执行分开。W5-13未实际合流时不提供假审批链接。
+
+本域目标为 `src/features/delivery/ad-tasks/model.test.ts`、`api.test.ts` 和 `test/e2e/live-m5-ad-tasks.spec.ts`；live沿正式 `pnpm admin:e2e:live --test-file test/e2e/live-m5-ad-tasks.spec.ts`。保留原20秒主输入与预算，另在本轮pinned CPU1工具生成实际3秒1080×1920文件/probe/hash，由浏览器真实上传。正常hooks窄修后全本包格式/lint、admin类型与受影响目标通过，最终正式live含原auth完整2/2通过（16.1秒）；8组精确两帧截图已查看。当前11目标保原10，仅增预览期限/中止负例。最终结果、首次失败、截图与外部未验见[W5-14状态](../../docs/plan/status/W5-14.md)。

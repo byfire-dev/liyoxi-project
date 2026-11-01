@@ -2,4 +2,5 @@
 // 一个模块一个清单，别的模块不用动（计划 第 9.3 节）。写法见 apps/admin/README.md“加一个页面”。
 import { ticketsRoute } from "../delivery/tickets";
 import { ticketDetailRoute } from "../delivery/ticket-detail";
-export const deliveryRoutes = [ticketsRoute, ticketDetailRoute] as const;
+import { adTasksRoute } from "../delivery/ad-tasks";
+export const deliveryRoutes = [ticketsRoute, ticketDetailRoute, adTasksRoute] as const;
