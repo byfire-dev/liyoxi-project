@@ -25,7 +25,6 @@ function Screenshot({
       adapter: createProductionUpload(api, {
         category: "ticket_attachment",
         storeId,
-        onBehalfStore: true,
       }),
     };
     lifetime.current = own;

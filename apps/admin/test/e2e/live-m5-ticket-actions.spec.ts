@@ -907,17 +907,21 @@ test("W513工单余下操作真实写读：强迁/求值、现签取料、发送
     await batchRegister(page, f, [1], reissue.reissueId);
     await managerPage.goto(`/delivery/tickets/${f.ticketNo}?tab=episodes`);
     await managerPage.getByRole("button", { name: "逐集质检", exact: true }).click();
-    const qc = managerPage.getByRole("dialog", { name: "逐集质检", exact: true });
-    for (const check of await qc.locator(".lyx-checklist").getByRole("checkbox").all())
-      await check.check();
+    const qc = managerPage.getByRole("dialog", { name: "逐集质检", exact: true }),
+      qcChecks = qc.locator(".lyx-checklist").getByRole("checkbox");
+    await expect(qcChecks.first()).toBeVisible();
+    await expect(qcChecks).toHaveCount(checks.results.length);
+    for (const check of await qcChecks.all()) await check.check();
     await expect(qc.getByRole("combobox", { name: "单集例外", exact: true })).toBeVisible();
+    const submitInspection = qc.getByRole("button", { name: "提交质检", exact: true });
+    await expect(submitInspection).toBeEnabled();
     const inspected = managerPage.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
         new URL(response.url()).pathname ===
           `/api/v1/admin/delivery-tickets/${f.scope.ticketId}/inspect-episodes`,
     );
-    await qc.getByRole("button", { name: "提交质检", exact: true }).click();
+    await submitInspection.click();
     const inspectedResponse = await inspected;
     expect(inspectedResponse.status()).toBe(200);
     const inspection = InspectEpisodesResultSchema.parse((await inspectedResponse.json()).data);
