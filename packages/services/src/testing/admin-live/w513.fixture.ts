@@ -10,7 +10,7 @@ import { sampleStaffContext } from "../approval.js";
 import { prepareDeliveryLiveFixture } from "./zz-delivery-flow.fixture.js";
 import type { AdminLiveFixture } from "./context.js";
 
-/** Independent identity inputs only; actual activation/password/TOTP produce two real staff sessions. */
+/** Independent identity inputs only; actual activation/password/TOTP produce three real staff sessions. */
 const fixture: AdminLiveFixture = async ({ runtime, make }) => {
   let phase = "scope";
   try {
@@ -92,12 +92,17 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       }),
     );
     const actors = [];
-    for (const role of ["editor", "publisher"] as const) {
+    for (const role of ["editor", "publisher", "finance"] as const) {
       const group = await runtime.tx.run((tx) =>
         tx.staffGroup.findFirstOrThrow({ where: { staffRoleKey: role, isDefault: true } }),
       );
       const row = await make.staff({
-        name: role === "editor" ? "W513交付剪辑师" : "W513交付发布员",
+        name:
+          role === "editor"
+            ? "W513交付剪辑师"
+            : role === "publisher"
+              ? "W513交付发布员"
+              : "W513取消审批财务",
         staffRoleKey: role,
         staffGroupId: group.id,
         // In-service status is separate from credentials/activatedAt, produced below by real activation.
@@ -141,12 +146,13 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
         sampleStaffContext(tx, admin.id, { stepUpAt: runtime.clock.now() }),
       );
       phase = `pools_${role}`;
-      await runtime.staffManagement.replacePools(
-        acting,
-        createIdentityContext({ actor: { type: "staff", id: admin.id, client: "admin" } }),
-        row.id,
-        { memberships: [{ pool: role }], lockVersion: current.lockVersion },
-      );
+      if (role !== "finance")
+        await runtime.staffManagement.replacePools(
+          acting,
+          createIdentityContext({ actor: { type: "staff", id: admin.id, client: "admin" } }),
+          row.id,
+          { memberships: [{ pool: role }], lockVersion: current.lockVersion },
+        );
       actors.push({
         staffId: row.id,
         name: row.name,
@@ -162,10 +168,37 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       { runtime, make },
       { prefix: "W513工单", loginPrefix: "w513" },
     );
+    // P2 gets a distinct empty merchant scope. No order, pending approval or ledger success is
+    // seeded here: the new spec explicitly asks its owned CLI to prepare real order writers.
+    phase = "aftersales_identity_inputs";
+    const aftersalesMerchant = await make.merchant({ verified: true });
+    await runtime.tx.run(async (tx) => {
+      await tx.entity.update({
+        where: { id: aftersalesMerchant.entity.id },
+        data: { name: `W513售后主体-${runId}` },
+      });
+      await tx.store.update({
+        where: { id: aftersalesMerchant.store.id },
+        data: { name: `W513售后门店-${runId}`, deliveryManagerId: manager.id },
+      });
+    });
     return {
       flow,
       editor: actors[0],
       publisher: actors[1],
+      aftersales: {
+        finance: actors[2],
+        scope: {
+          ...live,
+          startedAt,
+          entityId: aftersalesMerchant.entity.id,
+          storeId: aftersalesMerchant.store.id,
+          merchantUserId: aftersalesMerchant.user.id,
+          memberId: aftersalesMerchant.owner.id,
+          requesterId: admin.id,
+          financeId: actors[2]!.staffId,
+        },
+      },
       paused: {
         ticketId,
         ticketNo: paused.ticketNo,

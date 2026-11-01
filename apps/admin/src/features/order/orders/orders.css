@@ -70,3 +70,32 @@
   margin: 0 0 6px;
   font-size: 12px;
 }
+.lyx-order-form {
+  display: grid;
+  gap: 16px;
+  max-height: 68vh;
+  overflow-y: auto;
+  padding: 4px 2px 12px;
+}
+.lyx-order-form .ant-select {
+  width: 100%;
+}
+.lyx-order-form fieldset {
+  min-width: 0;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 8px;
+  padding: 12px;
+}
+.lyx-order-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.lyx-order-letter {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--lyx-color-border-light);
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}

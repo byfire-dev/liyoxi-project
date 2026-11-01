@@ -13,12 +13,14 @@ export function createOrdersApi(
 ) {
   const client = services.api.client;
   return {
-    list: (query: OrderQuery) =>
-      client.GET("/api/v1/admin/orders", { params: { query } }).then(unwrap),
+    list: (query: OrderQuery, signal?: AbortSignal) =>
+      client.GET("/api/v1/admin/orders", { params: { query }, signal }).then(unwrap),
     summary: (query: OrderFilters) =>
       client.GET("/api/v1/admin/orders/summary", { params: { query } }).then(unwrap),
-    detail: (orderId: string) =>
-      client.GET("/api/v1/admin/orders/{orderId}", { params: { path: { orderId } } }).then(unwrap),
+    detail: (orderId: string, signal?: AbortSignal) =>
+      client
+        .GET("/api/v1/admin/orders/{orderId}", { params: { path: { orderId } }, signal })
+        .then(unwrap),
     managers: () =>
       client
         .GET("/api/v1/admin/staff", {
