@@ -10,6 +10,7 @@ import {
 import { createIdempotencyContext, createIdentityContext, runSeed, uuidv7 } from "@liyoxi/services";
 import {
   createDeliveryProductionTools,
+  createFactories,
   createW508OrderAdFixture,
   sampleStaffContext,
   signInAsStaff,
@@ -125,6 +126,21 @@ it(
     );
     const fileId = upload.fileId,
       file = await p.fileObject.findUniqueOrThrow({ where: { id: fileId } });
+    const invalidFile = async (candidateId: string, reason: string) => {
+      const response = await call(`/ads/${ad.adId}/ad-versions`, { fileId: candidateId }, editor);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: "FILE_NOT_USABLE",
+        details: { fileIds: [candidateId], reason },
+      });
+    };
+    await invalidFile(uuidv7(), "not_stored");
+    await invalidFile(fileId, "not_stored");
+    // A historical wrong-category input has no video info and must fail classification first.
+    const poster = await createFactories({ db: p, clock: api.clock }).fileObject();
+    await invalidFile(poster.id, "category_mismatch");
+    expect(await p.adVersion.count({ where: { adId: ad.adId } })).toBe(0);
+    expect(await p.fileRef.count({ where: { refType: "ad_version", fileId } })).toBe(0);
     (api.runtime.providers.storage as FakeStorage).put(
       { bucket: "media", key: file.incomingKey! },
       bytes,
@@ -135,12 +151,18 @@ it(
       where: { dedupeKey: `promote:${fileId}` },
     });
     await api.runtime.media.jobs.run({ jobId: promote.id });
+    await failure(
+      await call(`/ads/${ad.adId}/ad-versions`, { fileId }, editor),
+      409,
+      "PRODUCTION_NOT_READY",
+    );
+    expect(await p.adVersion.count({ where: { adId: ad.adId } })).toBe(0);
     const probe = await p.mediaJob.findFirstOrThrow({
       where: { kind: "probe", subjectId: fileId },
     });
     const original = codec.tool.probe,
       durationMs = (await p.ad.findUniqueOrThrow({ where: { id: ad.adId } })).durationSec * 1000;
-    codec.tool.probe = async (input) => {
+    const probeCurrentAd: typeof original = async (input) => {
       const result = await original(input);
       if (!result.ok) return result;
       return {
@@ -156,6 +178,7 @@ it(
         },
       };
     };
+    codec.tool.probe = probeCurrentAd;
     try {
       await api.runtime.media.jobs.run({ jobId: probe.id });
     } finally {
@@ -163,6 +186,18 @@ it(
     }
     const createKey = uuidv7(),
       createBody = { fileId, segments: [{ index: 0, fromMs: 0, toMs: durationMs, label: "整条" }] };
+    const invalidSegment = await call(
+      `/ads/${ad.adId}/ad-versions`,
+      { fileId, segments: [{ index: 0, fromMs: 0, toMs: durationMs + 1, label: "越界" }] },
+      editor,
+    );
+    expect(invalidSegment.status).toBe(400);
+    expect(await invalidSegment.json()).toMatchObject({
+      error: "VALIDATION_FAILED",
+      details: { fieldErrors: [{ path: "segments.0.toMs" }] },
+    });
+    expect(await p.adVersion.count({ where: { adId: ad.adId } })).toBe(0);
+    expect(await p.fileRef.count({ where: { fileId, refType: "ad_version" } })).toBe(0);
     const registered = AdTaskDetailSchema.parse(
       await data(await call(`/ads/${ad.adId}/ad-versions`, createBody, editor, createKey)),
     );
@@ -182,6 +217,47 @@ it(
       409,
       "IDEMPOTENCY_KEY_REUSED",
     );
+    const recheck = await api.runtime.media.productionActions.recheck(
+      { identity: target.admin.ctx, staff: target.admin.staff },
+      fileId,
+      {},
+    );
+    const pendingFacts = await api.runtime.tx.run((tx) =>
+      api.runtime.media.adProductionFacts(tx, fileId),
+    );
+    expect(pendingFacts.ready).toBe(false);
+    const unreadyPush = await call(`/ad-versions/${version.adVersionId}/push`, {}, editor);
+    expect(unreadyPush.status).toBe(409);
+    expect(await unreadyPush.json()).toMatchObject({
+      error: "AD_VERSION_SPEC_INVALID",
+      details: {
+        checks: [
+          {
+            code: "file_not_ready",
+            actual: {
+              ready: false,
+              pipelineState: "checking",
+              gate: pendingFacts.gate,
+              playableReady: false,
+            },
+            expected: { ready: true, pipelineState: "ready" },
+          },
+        ],
+      },
+    });
+    expect(
+      (await p.adVersion.findUniqueOrThrow({ where: { id: version.adVersionId } })).pushedAt,
+    ).toBeNull();
+    expect((await p.ad.findUniqueOrThrow({ where: { id: ad.adId } })).status).toBe("producing");
+    codec.tool.probe = probeCurrentAd;
+    try {
+      await api.runtime.media.jobs.run({ jobId: recheck.mediaJobId });
+    } finally {
+      codec.tool.probe = original;
+    }
+    expect(
+      (await api.runtime.tx.run((tx) => api.runtime.media.adProductionFacts(tx, fileId))).ready,
+    ).toBe(true);
     const marked = AdminAdVersionViewSchema.parse(
       await data(await call(`/ad-versions/${version.adVersionId}/mark-sent`, {})),
     );
