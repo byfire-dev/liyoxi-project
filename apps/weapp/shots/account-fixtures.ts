@@ -136,7 +136,7 @@ export const makeOverview = (clerk = false, second = false): Data<"m.me.overview
           spendablePoints: 360,
           planAvailablePoints: 300,
           addonAvailablePoints: 60,
-          planPointsExpireAt: "2026-11-05",
+          planPointsExpireAt: "2026-11-05T16:00:00.000Z",
           isAddonSuspended: false,
         },
         storeStats: { liveCount: 3, deliveringCount: 1, cartCount: 2 },
