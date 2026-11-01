@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("已交付四十三页包含 M1 全部二十五页，V1.1不实现", () => {
+  it("已交付四十五页包含 M1 全部二十五页，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
@@ -74,6 +74,8 @@ describe("页面清单", () => {
       "sub/asset/upload/index",
       "sub/asset/detail/index",
       "sub/asset/uploader/index",
+      "sub/ad/ads/index",
+      "sub/ad/ad-detail/index",
       "sub/service/messages/index",
       "sub/service/settings/index",
       "sub/member/members/index",
@@ -119,6 +121,8 @@ describe("页面清单", () => {
       "sub/asset/upload/index",
       "sub/asset/detail/index",
       "sub/asset/uploader/index",
+      "sub/ad/ads/index",
+      "sub/ad/ad-detail/index",
       "sub/service/messages/index",
       "sub/service/settings/index",
       "sub/member/members/index",
@@ -194,6 +198,7 @@ describe("由清单拼出全局配置", () => {
           root: "sub/asset",
           pages: ["lib/index", "upload/index", "detail/index", "uploader/index"],
         },
+        { root: "sub/ad", pages: ["ads/index", "ad-detail/index"] },
         { root: "sub/service", pages: ["messages/index", "settings/index"] },
         { root: "sub/member", pages: ["members/index", "invite/index", "join/index"] },
       ],
@@ -260,6 +265,7 @@ describe("由清单拼出全局配置", () => {
         ],
       },
       { root: "sub/asset", pages: ["lib/index", "upload/index", "detail/index", "uploader/index"] },
+      { root: "sub/ad", pages: ["ads/index", "ad-detail/index"] },
       { root: "sub/service", pages: ["messages/index", "settings/index"] },
       { root: "sub/member", pages: ["members/index", "invite/index", "join/index"] },
     ]);
