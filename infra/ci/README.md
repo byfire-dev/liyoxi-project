@@ -51,6 +51,12 @@
 
 PR #134 的实际 CI 37666599887 在浏览器安装时访问 Azure Ubuntu HTTP 源持续等待，`web` 在原 10 分钟预算到期取消，尚未运行浏览器验收。上述源修复只作用于临时 runner；随后原 `playwright install --with-deps chromium` 仍负责安装和报错，浏览器测试、截图要求、检查名及 900 秒总墙钟预算保持原值。
 
+**临时 CI 策略（业主 2026-11-02 授权，待业主再次要求恢复）**：`images.yml`、`stack-smoke.yml`、`mixed-smoke.yml`、`nightly.yml` 仅保留手动触发，取消其 PR/main push/定时自动执行；`images/build-images` 另显式暂停，手动调度也不构建。四镜像、混跑、整栈、Node 26 兼容与大规模 P95 的步骤和预算均原样保留，未执行不能记为验收通过。`ci.yml`、19 项必过检查、业务/数据库/权限/浏览器验证、媒体及 PDF 的变更专项检查不变。镜像转存工具和既有发布/回滚工具保留；本轮未执行云写或部署。
+
+新 SHA 缺少 images 与 mixed-smoke 的 main push 成功证据，原发布/送审检查继续拒绝，不以手动结果或跳过冒充成功。移除自动事件可避免全跳过的 push run 被当作发布事实。恢复时须先收到业主指令，再恢复本次删除的自动事件与路径清单、images 原构建条件（代码注释保留）、下面对应三份工作流测试的触发断言；通过原验证后再产生同 SHA 的完整发布证据。不自动恢复、不放宽发布检查。
+
+以下为恢复自动触发后的既有工作流能力：
+
 `images.yml`（W2-25b）在受影响 PR 构建四镜像、真加载上传 SDK、校验独立工具冻结锁，并构建小程序经过原体积门禁；PR 不访问密文、不推送。只有 main 的 push/manual 且 `STG_IMAGES_PUBLISH_ENABLED=true` 才推镜像；secure 制品另要求 `STG_ARTIFACT_UPLOAD_ENABLED=true`。PG/Redis 只手动转存固定多架构清单。`deploy-stg.yml` 整个 job 受 `STG_DEPLOY_ENABLED=true` 控制，只取同仓 main 成功 push 的同 run 发布摘要，验证 HEAD/镜像摘要后调用既有编排。两工作流均暂不进入 required；外部配置与密文键见 bootstrap README 第 12 节，真实云写/部署未执行。
 
 另有 `stack-smoke.yml`（W1-22）：构建三个镜像、起本地整套环境、冒烟、收场。改到镜像定义、Compose、起停脚本、两个服务端应用或迁移的 PR 与推到 main 时跑，超时 15 分钟；不是必过检查，不进 `required`（镜像构建进必过是 M2 的事，W2-25）。往它里面加一步时，在 `test/workflows.test.ts`“stack-smoke.yml”一组的命令清单里同一位置加一行。
