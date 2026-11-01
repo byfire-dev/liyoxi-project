@@ -17,6 +17,7 @@ export { createContentMaintenance } from "./maintenance.js";
 export type { ContentMaintenance } from "./maintenance.js";
 export { seedDemoContent, DEMO_DRAMAS, DEMO_DICT_ITEMS } from "./demo-seed.js";
 export type { ContentDemoDeps } from "./demo-seed.js";
+export { demoImage } from "./demo-image.js";
 
 export { matchedFields, normalizeSearch } from "./search.js";
 export type { SearchField, SearchableDrama } from "./search.js";

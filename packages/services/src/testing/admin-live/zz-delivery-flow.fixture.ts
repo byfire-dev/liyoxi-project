@@ -7,7 +7,7 @@ import { createIdentity } from "../../identity/index.js";
 import { createIdentityContext, isAppError, uuidv7 } from "../../kernel/index.js";
 import { createTickets, prepareTicketAssignees } from "../../delivery/index.js";
 import { createPublish } from "../../publish/index.js";
-import { demoImage } from "../../content/demo-image.js";
+import { demoImage } from "../../content/index.js";
 import { createMedia } from "../../media/index.js";
 import { createMinioStorage } from "../../providers/index.js";
 import { loadKeyring, openField } from "../../security/index.js";
