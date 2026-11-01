@@ -1,9 +1,9 @@
-# W2-28：只在 main 合入后执行；不新增 PR required，不接真实云或业务密钥。
+# W2-28：2026-11-02 业主要求暂缓 main 自动混跑，仅保留手动，不新增 PR required。
+# 手动结果不替代发布所需的同 SHA main push 证据；待业主要求再恢复。
 name: mixed-smoke
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

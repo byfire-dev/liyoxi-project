@@ -3,10 +3,11 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { repoRoot } from "./helpers.js";
 
-it("混跑仅main/十分钟，发布在凭据与节点动作前汇合同SHA且取images的run", () => {
+it("混跑暂缓自动执行、保留手动十分钟验证，发布仍须原main push证据", () => {
   const mixed = readFileSync(join(repoRoot, ".github/workflows/mixed-smoke.yml"), "utf8");
   const deploy = readFileSync(join(repoRoot, ".github/workflows/deploy-stg.yml"), "utf8");
-  expect(mixed).toContain("on:\n  push:\n    branches: [main]");
+  expect(mixed).toContain("on:\n  workflow_dispatch:");
+  expect(mixed).not.toMatch(/^ {2}(push|pull_request|schedule):/m);
   expect(mixed).toContain("jobs:\n  mixed-smoke:\n    name: mixed-smoke");
   expect(mixed).toContain("timeout-minutes: 10");
   expect(mixed).toContain("fetch-depth: 0");
@@ -15,7 +16,7 @@ it("混跑仅main/十分钟，发布在凭据与节点动作前汇合同SHA且�
   expect(mixed).toContain(
     'node infra/ci/mixed-version-smoke.mjs --report "$RUNNER_TEMP/mixed-smoke.json"',
   );
-  expect(mixed).not.toMatch(/pull_request:|workflow_dispatch:|secrets\.|continue-on-error/);
+  expect(mixed).not.toMatch(/pull_request:|secrets\.|continue-on-error/);
   expect(deploy).toContain("workflows: [images, mixed-smoke]");
   expect(deploy).toContain("run-id: ${{ steps.release.outputs.images-run-id }}");
   expect(deploy).not.toContain("run-id: ${{ github.event.workflow_run.id }}");

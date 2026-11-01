@@ -1,18 +1,12 @@
 # 狸有戏 · 每晚任务（计划 第 5.5 节“每晚”一栏；02 第 5.3 节）。失败只告警，不进必过检查 required。
 #
 # Node 26 兼容与独立的 Node 24 核心接口 P95 基线。以 Node 24 开工，V1.0 提测前定是否切到 26。
-# 触发：每晚定时；手动；另在改到本文件的 PR 上跑一次（工作流没进 main 之前不能手动触发）。
+# 2026-11-02 业主要求暂缓定时与 PR 触发，仅保留手动；待业主要求恢复。
 # 根 package.json 的 engines 把 Node 限在 24，.npmrc 开了 engine-strict；这里用环境变量把它关掉，否则 pnpm 拒绝运行。
 name: nightly
 
 on:
-  schedule:
-    # 每天 18:17（UTC），即北京时间次日 02:17
-    - cron: "17 18 * * *"
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/nightly.yml
 
 concurrency:
   group: nightly-${{ github.head_ref || github.ref }}

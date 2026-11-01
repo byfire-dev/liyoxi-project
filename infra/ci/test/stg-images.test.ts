@@ -12,8 +12,11 @@ const job = (text: string, id: string) =>
   text.split(`  ${id}:\n`)[1]?.split(/^ {2}[\w-]+:\n/m)[0] ?? "";
 
 describe("W2-25b 构建与外部写边界", () => {
-  it("PR 构建 job 运行四镜像/SDK/原体积门禁，没有凭据或云写", () => {
+  it("暂停期间保留四镜像/SDK/原体积门禁定义与原安全边界", () => {
     const body = job(images, "build-images");
+    expect(images).toMatch(/^ {2}workflow_dispatch:$/m);
+    expect(images).not.toMatch(/^ {2}(pull_request|push|schedule):/m);
+    expect(body).toMatch(/^ {4}if: \$\{\{ false \}\}$/m);
     expect(body).toContain("server gateway");
     expect(body).toContain("mediatool weapp-uploader");
     expect(body).toContain("pnpm weapp:build");
@@ -152,9 +155,7 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain('["linux/amd64", "linux/arm64"]');
     expect(body).toContain("if: always()");
     expect(body).not.toMatch(/docker run|STG_SSH|STG_COS|orchestrate|:latest/);
-    expect(job(images, "build-images")).toContain(
-      "if: github.event_name != 'workflow_dispatch' || inputs.mirror_minio != true",
-    );
+    expect(job(images, "build-images")).toMatch(/^ {4}if: \$\{\{ false \}\}$/m);
   });
 
   it("部署整个 job 默认关闭，同源 main 成功 push/runID/HEAD 绑定，先核摘要再编排", () => {
