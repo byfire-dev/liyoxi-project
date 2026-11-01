@@ -137,6 +137,8 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 本次布局最小离线检查为 `mine-owner`、`mine-clerk`、`mine-guest`、`store-switch`、`ad-mine` 五个既有场景。本机逐场执行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene <场景>`，首场构建后、源码未变时后续加 `--no-build`；仍保留原脚本的异常和外发请求守卫。
 
+小程序统计区逐项使用明确类名实现三列等宽、数字与标题纵向排列，不使用会在小程序构建中被过滤的通配选择器；布局修复须检查正式构建的 WXSS，H5 样张不能替代。套餐有效期按业主要求仅显示 `MM/DD`，仍直接展示服务端日期及剩余天数。菜单全部使用既有统一行首图标，包括老板、店员、无门店与游客的可见入口，权限裁剪不变。
+
 登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，号码组件沿既有隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
 ## 账户八态离线样张
