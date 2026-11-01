@@ -133,6 +133,10 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录已随W2-13迁入账号设置页。
 
+“我的”按业主参考图分为门店身份与档案摘要、套餐积分、我的门店、三项业务统计和服务支持卡片，下方保留订单、我的短剧、广告、素材、成员、发布、消息与设置的既有权限入口。积分、剩余天数、门店上限及审核列表均展示 overview 真值，积分清零时间用共享北京时间格式化器；长店名和标签允许换行。老板可从头卡进入档案，店员仅查看门店摘要。服务经理 DTO 尚未落地，服务卡暂用通用联系说明，不显示虚构姓名、工作时间或未实现的跳转。
+
+本次布局最小离线检查为 `mine-owner`、`mine-clerk`、`mine-guest`、`store-switch`、`ad-mine` 五个既有场景。本机逐场执行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene <场景>`，首场构建后、源码未变时后续加 `--no-build`；仍保留原脚本的异常和外发请求守卫。
+
 登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，号码组件沿既有隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
 ## 账户八态离线样张
