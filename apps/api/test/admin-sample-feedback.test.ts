@@ -345,7 +345,7 @@ describe("W5-08 后台样片反馈真实HTTP", { timeout: 60_000 }, () => {
       "IDEMPOTENCY_KEY_REUSED",
     );
   });
-  it("ad_content真实免费重开并取代其他浮动样片，原key重放不增加修改轮次", async () => {
+  it("ad_content真实免费重开保留3图并按广告上限映射，取代浮动样片且原key重放不增加轮次", async () => {
     const f = await createW508OrderAdFixture(prisma, {
       databaseUrl: await h.db.url(),
       redisUrl: api.runtime.env.REDIS_URL,
@@ -359,13 +359,30 @@ describe("W5-08 后台样片反馈真实HTTP", { timeout: 60_000 }, () => {
       const own = await f.createBoundOrder(ad.adId),
         other = await f.createBoundOrder(ad.adId),
         source = await f.pushSample(own),
-        peerSample = await f.pushSample(other),
-        body = {
+        peerSample = await f.pushSample(other);
+      const make = createFactories({ db: prisma, clock: api.clock }),
+        screenshotIds: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const screenshot = await make.fileObject({
+          category: "ticket_attachment",
+          bucket: "asset",
+          entityId: f.actor.membership.entityId,
+          storeId: f.actor.membership.storeId,
+          scopeType: "store",
+          uploadActorType: "staff",
+          uploadActorId: admin.staff.id,
+          uploadClient: "admin",
+        });
+        screenshotIds.push(screenshot.id);
+      }
+      screenshotIds.reverse();
+      const body = {
           versionNo: source.versionNo,
           feedbackKind: "ad_content",
           adId: ad.adId,
           note: "调整广告中的品牌用语",
           feedbackTimeMs: 6789,
+          feedbackFileIds: screenshotIds,
         },
         key = uuidv7();
       const moneyBefore = await snapshotTables(prisma, [
@@ -388,11 +405,23 @@ describe("W5-08 后台样片反馈真实HTTP", { timeout: 60_000 }, () => {
           onBehalfBy: { staffId: admin.staff.id },
         },
       });
+      expect(view.decision?.feedbackImages?.map((image) => image.fileId)).toEqual(screenshotIds);
+      expect(
+        (await prisma.sample.findUniqueOrThrow({ where: { id: source.sampleId } })).feedbackFileIds,
+      ).toEqual(screenshotIds);
+      expect(
+        await prisma.fileRef.findMany({
+          where: { refType: "sample", refId: source.sampleId, role: "feedback" },
+          select: { fileId: true },
+          orderBy: { fileId: "asc" },
+        }),
+      ).toEqual(screenshotIds.toSorted().map((fileId) => ({ fileId })));
       expect(await prisma.ad.findUniqueOrThrow({ where: { id: ad.adId } })).toMatchObject({
         status: "revising",
         revisionCount: 1,
       });
-      expect(await prisma.adRevision.findFirstOrThrow({ where: { adId: ad.adId } })).toMatchObject({
+      const revision = await prisma.adRevision.findFirstOrThrow({ where: { adId: ad.adId } });
+      expect(revision).toMatchObject({
         source: "sample_feedback",
         onVersionNo: version.versionNo,
         actorType: "staff",
@@ -400,7 +429,14 @@ describe("W5-08 后台样片反馈真实HTTP", { timeout: 60_000 }, () => {
         client: "admin",
         isChargeable: false,
         chargePoints: 0,
+        screenshotFileIds: screenshotIds.slice(0, 1),
       });
+      expect(
+        await prisma.fileRef.findMany({
+          where: { refType: "ad_revision", refId: revision.id, role: "screenshot" },
+          select: { fileId: true },
+        }),
+      ).toEqual([{ fileId: screenshotIds[0] }]);
       for (const target of [own, other])
         expect(
           await prisma.deliveryTicket.findUniqueOrThrow({ where: { id: target.ticketId } }),
@@ -417,7 +453,13 @@ describe("W5-08 后台样片反馈真实HTTP", { timeout: 60_000 }, () => {
         ]),
       ).toEqual(moneyBefore);
       const before = await evidence();
-      await data(await post(`/admin/samples/${source.sampleId}/request-change`, body, admin, key));
+      const replay = AdminSampleViewSchema.parse(
+        await data(
+          await post(`/admin/samples/${source.sampleId}/request-change`, body, admin, key),
+        ),
+      );
+      expect(replay.preview).toBeNull();
+      expect(replay.decision?.feedbackImages).toBeNull();
       expect(await evidence()).toEqual(before);
     } finally {
       await f.close();

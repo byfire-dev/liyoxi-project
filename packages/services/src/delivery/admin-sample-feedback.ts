@@ -2,6 +2,7 @@ import { AdminSampleRequestChangeBodySchema } from "@liyoxi/contract";
 import type { AdminSampleRequestChangeBody } from "@liyoxi/contract";
 import { assertAccess, assertPermission } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
+import { paramsAt } from "../config/index.js";
 import { AppError, lockRows } from "../kernel/index.js";
 import type { IdentityContext, Tx } from "../kernel/index.js";
 import { lockCalendarImport } from "../sla/index.js";
@@ -100,6 +101,7 @@ export async function adminRequestSampleChange(
   if (body.feedbackKind === "ad_content") {
     const used = (s.adVersionsUsed as AdsUsed).find((ad) => ad.adId === body.adId);
     if (!used) throw new AppError("AD_CHANGED", { details: { adIds: [body.adId] } });
+    const params = await paramsAt(tx, ["ad.revision_screenshot_max"], deps.clock.now());
     await deps.reopenAdFree!(
       tx,
       { ctx, staff },
@@ -107,7 +109,9 @@ export async function adminRequestSampleChange(
         adId: body.adId,
         onVersionNo: used.versionNo,
         note: body.note,
-        screenshotFileIds: fileIds,
+        // The sample retains every feedback attachment; the ad revision takes the first
+        // configured number in request order under its separate screenshot limit.
+        screenshotFileIds: fileIds.slice(0, params["ad.revision_screenshot_max"]),
       },
     );
   }
