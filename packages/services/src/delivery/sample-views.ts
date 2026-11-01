@@ -108,6 +108,17 @@ export async function adminSampleView(
         s.versionNo === t.currentSampleVersionNo))
   )
     actions.push("mark-sent");
+  if (
+    !t.pauseCount &&
+    t.step === "sample_confirm" &&
+    s.status === "pushed" &&
+    s.versionNo === t.currentSampleVersionNo &&
+    latest?.id === s.id &&
+    actual.ready &&
+    actual.playable &&
+    hasPermission(staff, "delivery.sample.feedback_on_behalf")
+  )
+    actions.push("request-change");
   return {
     sampleId: s.id,
     deliveryTicketId: t.id,

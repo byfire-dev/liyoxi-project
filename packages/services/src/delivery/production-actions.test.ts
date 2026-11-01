@@ -160,6 +160,37 @@ describe("制作表单由服务端下发操作入口", { timeout: 60000 }, () =>
     ]);
   });
 
+  it("补发仅在三个交付后阶段和真实open事实存在时开放，仍受暂停与负责人约束", async () => {
+    const editor = await nonLeadEditor();
+    const staff = {
+      ...editor.staff,
+      moduleLevels: { ...editor.staff.moduleLevels, delivery: "e" as const },
+      permissions: new Set([...editor.staff.permissions, "delivery.episode.qc" as const]),
+    };
+    for (const step of ["awaiting_launch", "launch_verify", "in_service"]) {
+      const ticket = { step, pauseCount: 0, editorId: editor.row.id, deliveredAt: h.clock.now() };
+      expect(ticketProductionActions(ticket, staff)).toEqual([]);
+      expect(ticketProductionActions(ticket, staff, true)).toEqual([
+        "episode-register",
+        "inspect-episodes",
+      ]);
+      expect(ticketProductionActions({ ...ticket, pauseCount: 1 }, staff, true)).toEqual([]);
+      expect(ticketProductionActions({ ...ticket, editorId: "other-editor" }, staff, true)).toEqual(
+        ["inspect-episodes"],
+      );
+      expect(
+        ticketProductionActions(ticket, { ...staff, permissions: new Set<never>() }, true),
+      ).toEqual([]);
+      expect(
+        ticketProductionActions(
+          ticket,
+          { ...staff, moduleLevels: { ...staff.moduleLevels, delivery: "v" } },
+          true,
+        ),
+      ).toEqual([]);
+    }
+  });
+
   it("暂停或查看等级在任意阶段、编辑归属与权限子集中均不能获得制作入口", async () => {
     const a = await nonLeadEditor();
     fc.assert(

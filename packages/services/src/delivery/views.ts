@@ -19,6 +19,7 @@ type Item = PlanRow["dramaOrder"]["orderItems"][number];
 export function ticketProductionActions(
   t: Pick<TicketRow, "step" | "pauseCount" | "editorId" | "deliveredAt">,
   staff: StaffContext,
+  hasOpenReissue = false,
 ) {
   if (t.pauseCount || !satisfiesLevel(staff.moduleLevels.delivery, "edit")) return [];
   const actions: string[] = [],
@@ -27,12 +28,19 @@ export function ticketProductionActions(
       t.editorId === staff.staff.id ||
       staff.staff.isLead ||
       staff.staff.roleKey === "super_admin",
-    composing = ["batch_compose", "delivering"].includes(t.step);
+    composing = ["batch_compose", "delivering"].includes(t.step),
+    replacing =
+      hasOpenReissue && ["awaiting_launch", "launch_verify", "in_service"].includes(t.step);
   if (t.step === "sample_making" && canUpload && hasPermission(staff, "delivery.sample.upload"))
     actions.push("sample-create");
-  if (composing && !t.deliveredAt && canUpload && hasPermission(staff, "delivery.episode.register"))
+  if (
+    ((composing && !t.deliveredAt) || replacing) &&
+    canUpload &&
+    hasPermission(staff, "delivery.episode.register")
+  )
     actions.push("episode-register");
-  if (composing && hasPermission(staff, "delivery.episode.qc")) actions.push("inspect-episodes");
+  if ((composing || replacing) && hasPermission(staff, "delivery.episode.qc"))
+    actions.push("inspect-episodes");
   if (t.step === "batch_compose" && hasPermission(staff, "delivery.episode.qc"))
     actions.push("inspect-package");
   return actions;
@@ -516,7 +524,7 @@ export async function ticketDetail(
     ...card,
     actions: [
       ...card.actions,
-      ...ticketProductionActions(t, staff),
+      ...ticketProductionActions(t, staff, openReissue !== null),
       ...ticketM5Actions(t, staff, now, openReissue !== null, remindScenes),
       ...(t.step === "delivering" && !t.pauseCount && hasPermission(staff, "publish.package.push")
         ? ["push-package"]

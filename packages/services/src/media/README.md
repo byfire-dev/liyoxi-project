@@ -281,3 +281,7 @@ worker配置接线另由独立伴随合入，不能把本源码装配当预发�
 `signMaterialDownload` 是内部员工取料窄口，固定1800秒，外呼在事务外，回读核真实文件版本；业务范围、当前集合、访问审计和master_checkout由delivery同事务收口。商家下载窄口保持900秒。
 
 验证：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/media/production-actions.db.test.ts`。替身只替换codec/cloud/storage IO，不能证明真实云和外部合规验收。
+
+## M5 后台代录反馈截图
+
+`ticket_attachment` 的后台上传仅在交付模块可见且持有 `delivery.sample.feedback_on_behalf` 时开放。上传身份必须是同一 admin 员工，门店须在范围内，给定主体须与门店一致，不接受 `onBehalfStore` 或制作上下文。文件保持本人 staff 归属；样片/广告代录 writer 继续核已入库、分类、本人与本门店。通用下载只给当前有该权限的范围内上传本人，业务附件阅读仍沿所属 reader。M6 客服上传尚未由此启用。
