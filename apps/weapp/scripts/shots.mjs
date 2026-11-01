@@ -462,6 +462,181 @@ async function m5SampleRegression(page, scene) {
   expect((await calls()).some((call) => call.path.endsWith("/download-urls"))).toBe(false);
 }
 
+async function adRegression(page, scene) {
+  const calls = () => page.evaluate(() => globalThis.__LYX_AD_CALLS__ ?? []);
+  const button = (text) => page.locator(".lyx-button").filter({ hasText: text });
+  const shot = (name) => page.screenshot({ path: path.join(outDir, `ad__${name}.png`) });
+  if (scene === "ad-mine") {
+    await expect(page.getByText("待确认3条", { exact: true })).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        globalThis.__LYX_AD_AGGREGATE_CALLS__.some(
+          (call) => call.path === "/m/me/overview" && call.method === "GET",
+        ),
+      ),
+    ).toBe(true);
+    return;
+  }
+  if (scene === "ad-profile") {
+    await expect(
+      page.getByText("已确认2 · 待确认3 · 制作中1 · 修改中1", { exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        globalThis.__LYX_PROFILE_CALLS__.some((call) => call.path === "/m/store-profile"),
+      ),
+    ).toBe(true);
+    await page
+      .locator(".lyx-card")
+      .filter({ hasText: "我的广告" })
+      .screenshot({ path: path.join(outDir, "ad__profile-counts.png") });
+    return;
+  }
+  if (scene === "ad-clerk") {
+    await expect(page.getByText("仅老板可查看和管理广告", { exact: true })).toBeVisible();
+    await expect(button("制作新广告")).toHaveCount(0);
+    expect(await calls()).toHaveLength(0);
+    return;
+  }
+  if (scene === "ad-error") {
+    await expect(page.getByText("广告加载失败，请重试", { exact: true })).toBeVisible();
+    await button("重新加载").click();
+    await expect(page.getByText("片头贴片 · 5秒", { exact: true })).toBeVisible();
+    await shot("error-recovered");
+  }
+  if (scene === "ad-empty") await expect(page.getByText("暂无广告", { exact: true })).toBeVisible();
+  if (scene === "ad-list") {
+    await button("加载更多广告").click();
+    await expect(page.getByText("门店新风味", { exact: true })).toBeVisible();
+    await page.locator(".ad-page .lyx-tabs__item").filter({ hasText: "已确认" }).click();
+    await expect(page.getByText("暂无广告", { exact: true })).toBeVisible();
+    await page.locator(".ad-page .lyx-tabs__item").filter({ hasText: "全部" }).click();
+    await button("加载更多广告").click();
+    await expect(page.getByText("门店新风味", { exact: true })).toBeVisible();
+    expect(
+      (await calls()).filter((call) => call.path.includes("cursor=ad-next%2B%2F%3F")),
+    ).toHaveLength(2);
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+    await shot("list-paged");
+  }
+  if (scene === "ad-create") {
+    await button("制作新广告").click();
+    const sheet = page.locator(".lyx-sheet");
+    await sheet
+      .locator(".lyx-chip")
+      .filter({ hasText: /^片头$/ })
+      .click();
+    await sheet.locator(".lyx-chip").filter({ hasText: /^5秒$/ }).click();
+    await sheet.locator(".lyx-chip").filter({ hasText: "主推服务" }).click();
+    await sheet.locator(".lyx-checkbox").filter({ hasText: "我已阅读并同意广告制作协议" }).click();
+    await sheet.screenshot({ path: path.join(outDir, "ad__create-quote-agreement.png") });
+    const submit = sheet.locator(".lyx-sheet__footer .lyx-button");
+    await submit.click();
+    await expect(page.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+    await submit.click();
+    await expect(page.getByText("广告编号", { exact: true })).toBeVisible();
+    const requests = await calls(),
+      writes = requests.filter((call) => call.path === "/m/ads" && call.method === "POST");
+    expect(writes).toHaveLength(2);
+    expect(writes[0].key).toBe(writes[1].key);
+    expect(writes[0].data).toMatchObject({
+      type: "opening",
+      durationSec: 5,
+      promoPointCodes: ["product"],
+      expectChargePoints: 100,
+      isAgreementChecked: true,
+    });
+    expect(
+      requests.some((call) => call.path.endsWith("000000000801") && call.method === "GET"),
+    ).toBe(true);
+    await shot("create-result");
+    return;
+  }
+  if (scene === "ad-no-evidence") {
+    const checkbox = page.locator(".lyx-checkbox").filter({ hasText: "我已查看" });
+    await expect(checkbox).toHaveClass(/lyx-checkbox--disabled/);
+    await expect(page.locator(".lyx-footer-bar .lyx-button")).toHaveClass(/lyx-button--disabled/);
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+  }
+  if (scene === "ad-detail") {
+    const check = page.locator(".lyx-checkbox").filter({ hasText: "我已查看" });
+    await expect(page.locator(".lyx-footer-bar .lyx-button")).toHaveClass(/lyx-button--disabled/);
+    await check.click();
+    await page.locator(".lyx-footer-bar .lyx-button").click();
+    await page
+      .locator(".lyx-sheet__footer .lyx-button")
+      .filter({ hasText: "确认本版广告" })
+      .click();
+    await expect(
+      page.locator(".ad-page .lyx-status-tag").filter({ hasText: "已确认" }),
+    ).toBeVisible();
+    const writes = (await calls()).filter((call) => call.path.endsWith("/confirm"));
+    expect(writes).toHaveLength(1);
+    expect(writes[0].data).toEqual({ versionNo: 2, viewedVia: "weapp", hasViewed: true });
+    await shot("confirmed");
+  }
+  if (scene === "ad-change-paid") {
+    await button("提出广告修改").click();
+    const sheet = page.locator(".lyx-sheet");
+    await sheet.locator("textarea").fill("广告字幕请上移");
+    await sheet.locator(".lyx-upload-grid__add").click();
+    await expect(sheet.locator(".lyx-upload-grid__image")).toHaveCount(1);
+    const submit = sheet.locator(".lyx-sheet__footer .lyx-button");
+    await expect(submit).toHaveClass(/lyx-button--disabled/);
+    await sheet.locator(".lyx-checkbox").filter({ hasText: "我同意本次修改" }).click();
+    await sheet.screenshot({ path: path.join(outDir, "ad__paid-change-accepted.png") });
+    await page.evaluate(() => globalThis.__LYX_AD_CONTROL__.failNext());
+    await submit.click();
+    await expect(sheet.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+    await submit.click();
+    const writes = (await calls()).filter((call) => call.path.endsWith("/request-change"));
+    expect(writes).toHaveLength(2);
+    expect(writes[0].key).toBe(writes[1].key);
+    expect(writes[0].data).toEqual({
+      versionNo: 2,
+      note: "广告字幕请上移",
+      screenshotFileIds: ["00000000-0000-4000-8000-000000000091"],
+      acceptChargePoints: 45,
+    });
+    await expect(
+      page.locator(".ad-page .lyx-status-tag").filter({ hasText: "修改中" }),
+    ).toBeVisible();
+    await shot("change-result");
+  }
+  if (scene === "ad-returned") {
+    await button("补充后重新提交").click();
+    await page.locator(".lyx-sheet textarea").first().fill("补充街角咖啡文案");
+    await page.locator(".lyx-sheet__footer .lyx-button").click();
+    await expect(page.getByText("补充后重新提交", { exact: true })).toHaveCount(0);
+    const writes = (await calls()).filter((call) => call.path.endsWith("/submit"));
+    expect(writes).toHaveLength(1);
+    expect(writes[0].data.copy).toBe("补充街角咖啡文案");
+    expect(
+      (await calls()).filter((call) => call.path === "/m/ads" && call.method === "POST"),
+    ).toHaveLength(0);
+    await shot("resubmitted");
+  }
+  if (scene === "ad-stale") {
+    await page.locator(".lyx-checkbox").filter({ hasText: "我已查看" }).click();
+    await button("提出广告修改").click();
+    await page.locator(".lyx-sheet textarea").fill("旧版意见");
+    await page.locator(".lyx-sheet .lyx-upload-grid__add").click();
+    await page.locator(".lyx-sheet__close").click();
+    await page.evaluate(() => globalThis.__LYX_AD_CONTROL__.nextVersion());
+    await button("刷新广告与查看证据").click();
+    await expect(page.getByText("我已查看第3版广告", { exact: true })).toBeVisible();
+    await expect(page.locator(".lyx-checkbox").filter({ hasText: "我已查看" })).not.toHaveClass(
+      /lyx-checkbox--checked/,
+    );
+    await button("提出广告修改").click();
+    await expect(page.locator(".lyx-sheet textarea")).toHaveValue("");
+    await expect(page.locator(".lyx-sheet .lyx-upload-grid__image")).toHaveCount(0);
+    await expect(page.locator(".lyx-sheet__footer .lyx-button")).toBeInViewport();
+    await shot("new-version-cleared");
+    expect((await calls()).every((call) => call.method === "GET")).toBe(true);
+  }
+}
+
 const { ACCOUNT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/account-scenes.ts")).href
 );
@@ -529,6 +704,7 @@ const { ORDER_REFERENCE_SCENES } = await import(
 const { TENANT_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/tenant-scenes.ts")).href
 );
+const { AD_SCENES } = await import(pathToFileURL(path.join(appRoot, "shots/ad-scenes.ts")).href);
 let build = true;
 for (let index = 0; index < args.length; index += 1) {
   if (args[index] === "--no-build") build = false;
@@ -548,6 +724,7 @@ for (let index = 0; index < args.length; index += 1) {
     const name = args[(index += 1)];
     if (
       ![
+        ...AD_SCENES,
         ...ACCOUNT_SCENES,
         ...PROFILE_SCENES,
         ...TENANT_SCENES,
@@ -601,6 +778,19 @@ const all =
   wantedScenes.length === 0;
 /** 要出的图：url 是 # 后面的部分，file 是不带扩展名的文件名，fullPage 为真截整页 */
 const targets = [
+  ...(all
+    ? AD_SCENES
+    : AD_SCENES.filter(
+        (item) => wantedScenes.includes(item.name) || wanted.includes(item.route.split("?")[0]),
+      )
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
+    file: `ad__${item.name}`,
+    scene: item.name,
+    kind: "ad",
+    fullPage: false,
+  })),
   ...(all
     ? ASSET_HOME_SCENES
     : ASSET_HOME_SCENES.filter((item) => wantedScenes.includes(item.name))
@@ -796,6 +986,7 @@ const targets = [
           !PROFILE_SCENES.some((item) => item.route === route) &&
           !BILLING_SCENES.some((item) => item.route === route) &&
           !CATALOG_SCENES.some((item) => item.route.split("?")[0] === route) &&
+          !AD_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !PUBLISH_SCENES.some((item) => item.route === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
@@ -809,6 +1000,7 @@ const targets = [
     : wanted.filter(
         (route) =>
           route !== "sub/billing/contracts/index" &&
+          !AD_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ORDER_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
@@ -982,6 +1174,12 @@ async function shoot(target) {
           if (kind === "order") globalThis.__LYX_ORDER_SHOT__ = scene;
           if (kind === "publish") globalThis.__LYX_PUBLISH_SHOT__ = scene;
           if (kind === "delivery") globalThis.__LYX_DELIVERY_SHOT__ = scene;
+          if (kind === "ad") {
+            globalThis.__LYX_ACCOUNT_SHOT__ =
+              scene === "ad-clerk" ? "mine-clerk" : scene === "ad-mine" ? "ad-mine" : "mine-owner";
+            globalThis.__LYX_AD_SHOT__ = scene;
+            if (scene === "ad-profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
+          }
           if (kind === "profile") globalThis.__LYX_PROFILE_SHOT__ = scene;
           if (kind === "billing") {
             globalThis.__LYX_BILLING_SHOT__ = scene;
@@ -1020,54 +1218,60 @@ async function shoot(target) {
     if (target.scene) {
       await page
         .locator(
-          target.kind === "settings"
-            ? "#settings-ready"
-            : target.kind === "profile" || target.kind === "tenant"
-              ? "#profile-ready"
-              : target.kind === "billing"
-                ? target.scene.startsWith("invoice-")
-                  ? "#invoices-ready"
-                  : target.scene.startsWith("contracts-")
-                    ? "#contracts-ready"
-                    : target.scene.startsWith("topup-")
-                      ? "#topup-ready"
-                      : target.scene === "ledger-loading"
-                        ? ".billing-ledger .lyx-skeleton"
-                        : target.scene.startsWith("ledger-") && target.scene !== "ledger-entry"
-                          ? "#ledger-ready"
-                          : "#billing-ready"
-                : target.kind === "publish"
-                  ? "#publish-ready"
-                  : target.kind === "order" || target.kind === "order-reference"
-                    ? target.scene.startsWith("my-dramas-")
-                      ? "#my-dramas-ready"
-                      : "#order-ready"
-                    : target.kind === "asset-home"
-                      ? "#asset-home-ready"
-                      : target.kind === "catalog"
-                        ? "#catalog-ready"
-                        : target.kind === "search"
-                          ? "#search-ready"
-                          : target.kind === "asset-upload"
-                            ? target.scene.startsWith("asset-uploader-")
-                              ? ".asset-uploader#asset-uploader-ready"
-                              : target.scene.endsWith("loading")
-                                ? ".asset-upload .lyx-skeleton"
-                                : ".asset-upload#asset-upload-ready"
-                            : target.kind === "asset" || target.kind === "asset-action"
-                              ? target.scene === "asset-lib-loading"
-                                ? ".asset-lib .lyx-skeleton"
-                                : "#asset-ready"
-                              : target.kind === "message"
-                                ? target.scene === "messages-loading"
-                                  ? ".messages-page .lyx-skeleton"
-                                  : "#messages-ready"
-                                : target.kind === "delivery"
-                                  ? "#delivery-ready"
-                                  : target.scene === "login-empty" ||
-                                      target.scene === "login-unavailable"
-                                    ? ".account-login .lyx-empty"
-                                    : "#account-ready",
+          target.kind === "ad"
+            ? target.scene === "ad-mine"
+              ? "#account-ready"
+              : target.scene === "ad-profile"
+                ? "#profile-ready"
+                : "#ad-ready"
+            : target.kind === "settings"
+              ? "#settings-ready"
+              : target.kind === "profile" || target.kind === "tenant"
+                ? "#profile-ready"
+                : target.kind === "billing"
+                  ? target.scene.startsWith("invoice-")
+                    ? "#invoices-ready"
+                    : target.scene.startsWith("contracts-")
+                      ? "#contracts-ready"
+                      : target.scene.startsWith("topup-")
+                        ? "#topup-ready"
+                        : target.scene === "ledger-loading"
+                          ? ".billing-ledger .lyx-skeleton"
+                          : target.scene.startsWith("ledger-") && target.scene !== "ledger-entry"
+                            ? "#ledger-ready"
+                            : "#billing-ready"
+                  : target.kind === "publish"
+                    ? "#publish-ready"
+                    : target.kind === "order" || target.kind === "order-reference"
+                      ? target.scene.startsWith("my-dramas-")
+                        ? "#my-dramas-ready"
+                        : "#order-ready"
+                      : target.kind === "asset-home"
+                        ? "#asset-home-ready"
+                        : target.kind === "catalog"
+                          ? "#catalog-ready"
+                          : target.kind === "search"
+                            ? "#search-ready"
+                            : target.kind === "asset-upload"
+                              ? target.scene.startsWith("asset-uploader-")
+                                ? ".asset-uploader#asset-uploader-ready"
+                                : target.scene.endsWith("loading")
+                                  ? ".asset-upload .lyx-skeleton"
+                                  : ".asset-upload#asset-upload-ready"
+                              : target.kind === "asset" || target.kind === "asset-action"
+                                ? target.scene === "asset-lib-loading"
+                                  ? ".asset-lib .lyx-skeleton"
+                                  : "#asset-ready"
+                                : target.kind === "message"
+                                  ? target.scene === "messages-loading"
+                                    ? ".messages-page .lyx-skeleton"
+                                    : "#messages-ready"
+                                  : target.kind === "delivery"
+                                    ? "#delivery-ready"
+                                    : target.scene === "login-empty" ||
+                                        target.scene === "login-unavailable"
+                                      ? ".account-login .lyx-empty"
+                                      : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "billing" && target.scene.startsWith("invoice-"))
@@ -1409,6 +1613,7 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.kind === "ad") await adRegression(page, target.scene);
     if (target.kind === "delivery") await deliveryRegression(page, target.scene);
     if (target.kind === "order" && !target.scene.startsWith("checkout-ads"))
       await orderRegression(page, target.scene);

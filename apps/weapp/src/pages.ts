@@ -251,8 +251,13 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     note: "新增页：大文件上传",
   }),
   // sub/ad（2 页）
-  page("sub/ad/ads/index", "sub/ad", "广告", "Ads", "M18", "M5", "G5-B", { note: "含 M42 弹层" }),
-  page("sub/ad/ad-detail/index", "sub/ad", "广告详情", "AdDetail", "M19", "M5", "G5-B"),
+  page("sub/ad/ads/index", "sub/ad", "广告", "Ads", "M18", "M5", "G5-B", {
+    implemented: true,
+    note: "含 M42 弹层",
+  }),
+  page("sub/ad/ad-detail/index", "sub/ad", "广告详情", "AdDetail", "M19", "M5", "G5-B", {
+    implemented: true,
+  }),
   // sub/service（4 页）
   page("sub/service/service/index", "sub/service", "客服中心", "Service", "M29", "M7", "G7-A", {
     note: "含 M30 弹层",

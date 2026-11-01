@@ -360,6 +360,8 @@ export function offlineProfile(scene: string) {
     q.openRound = null;
     q.actions = [];
   }
+  if (scene === "ad-profile" && o.viewerRole === "owner")
+    o.ads = { confirmedCount: 2, pendingConfirmCount: 3, producingCount: 1, revisingCount: 1 };
   const refreshCompleteness = () => {
     const current = q.openRound ?? q.lastClosedRound;
     // 本演练的其余字段已填；独立记录标签与声明缺项，不把业务完整度计算引到端上。

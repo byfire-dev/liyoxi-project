@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 50 | 17 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 43 | 5 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 45 | 3 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 0 | 0 | 0 | 0 | 1 | 4 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 0 | 0 | 0 | 2 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 0 | 0 | 1 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -197,8 +197,8 @@
 | `sub/asset` | 上传素材 | `sub/asset/upload/index` | AssetUpload | M51 | W3-17 | M3 | 是 |  |
 | `sub/asset` | 素材详情 | `sub/asset/detail/index` | AssetDetail | M52 | W3-17 | M3 | 是 |  |
 | `sub/asset` | 上传中心 | `sub/asset/uploader/index` | — | — | W3-17 | M3 | 是 | 新增页：大文件上传 |
-| `sub/ad` | 广告 | `sub/ad/ads/index` | Ads | M18 | G5-B | M5 | 否 | 含 M42 弹层 |
-| `sub/ad` | 广告详情 | `sub/ad/ad-detail/index` | AdDetail | M19 | G5-B | M5 | 否 |  |
+| `sub/ad` | 广告 | `sub/ad/ads/index` | Ads | M18 | G5-B | M5 | 是 | 含 M42 弹层 |
+| `sub/ad` | 广告详情 | `sub/ad/ad-detail/index` | AdDetail | M19 | G5-B | M5 | 是 |  |
 | `sub/service` | 客服中心 | `sub/service/service/index` | Service | M29 | G7-A | M7 | 否 | 含 M30 弹层 |
 | `sub/service` | 工单 | `sub/service/ticket/index` | Ticket、TicketDone | M31 | G7-A | M7 | 否 | 一页两态 |
 | `sub/service` | 消息 | `sub/service/messages/index` | Messages | M36 | W2-19 | M2 | 是 |  |
