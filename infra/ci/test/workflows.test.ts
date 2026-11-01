@@ -911,12 +911,9 @@ describe("ci.yml", () => {
 });
 
 describe("nightly.yml", () => {
-  it("定时、手动、改到它自己的 PR 三种触发", () => {
-    expect(nightly).toMatch(/^ {2}schedule:\n(?: {4}#.*\n)* {4}- cron: "/m);
+  it("业主暂缓额外自动CI，nightly只保留手动入口", () => {
     expect(nightly).toMatch(/^ {2}workflow_dispatch:$/m);
-    expect(nightly).toMatch(
-      /^ {2}pull_request:\n {4}paths:\n {6}- \.github\/workflows\/nightly\.yml$/m,
-    );
+    expect(nightly).not.toMatch(/^ {2}(schedule|pull_request|push):/m);
   });
 
   it("在 Node 26 上装依赖、查类型、跑测试；关掉 engine-strict", () => {
@@ -1044,25 +1041,9 @@ describe("本地 Compose 与 CI 的服务容器", () => {
 describe("stack-smoke.yml", () => {
   const stackSmoke = read(".github/workflows/stack-smoke.yml");
 
-  it("手动、推到 main、改到镜像定义、Compose、起停脚本、两个服务端应用、迁移或它自己的 PR 时触发", () => {
+  it("业主暂缓额外自动CI，整栈冒烟只保留手动入口", () => {
     expect(stackSmoke).toMatch(/^ {2}workflow_dispatch:$/m);
-    expect(stackSmoke).toMatch(/^ {2}push:\n {4}branches: \[main\]$/m);
-    const paths = [
-      ...(
-        stackSmoke.match(/^ {2}pull_request:\n {4}paths:\n((?: {6}- .+\n)+)/m)?.[1] ?? ""
-      ).matchAll(/^ {6}- (.+)$/gm),
-    ].map((match) => match[1]);
-    expect(paths).toEqual([
-      "infra/docker/**",
-      "infra/compose/**",
-      "infra/stack/**",
-      "infra/deploy/**",
-      "infra/bootstrap/**",
-      "apps/api/**",
-      "apps/worker/**",
-      "packages/db/prisma/**",
-      ".github/workflows/stack-smoke.yml",
-    ]);
+    expect(stackSmoke).not.toMatch(/^ {2}(schedule|pull_request|push):/m);
   });
 
   it("构建、看镜像、起两遍、冒烟、收场；超时 15 分钟；不装依赖", () => {
