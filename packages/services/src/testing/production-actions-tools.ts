@@ -242,8 +242,8 @@ export async function createProductionActionsTools(
   };
   const entry = await (async () => {
     if (!ad) return (await media.register(actor, uploadInput)).items[0]!;
-    // ad_video is deliberately absent from generic admin.register. Model only the
-    // future owner's initial pending upload; every storage/check success stays real.
+    // Keep this legacy fixture's initial pending upload independent of the current ad guard;
+    // every storage/check success still comes from the real production writers.
     const id = uuidv7(),
       key = `incoming/${id}/source.mp4`;
     await make.fileObject({

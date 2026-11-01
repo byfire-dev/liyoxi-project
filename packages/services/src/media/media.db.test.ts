@@ -230,9 +230,10 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
     };
     await expect(register(archived)).rejects.toMatchObject({ error: "STORE_ARCHIVED" });
     await expect(register(archived, "pay_receipt")).resolves.toHaveProperty("items");
+    // W5-09 已开放带真实制作上下文的 ad_video；sample_wm 仍禁止后台直接登记。
     await expect(
       media.register(staff, {
-        category: "ad_video",
+        category: "sample_wm",
         files: [{ fileName: "x.mp4", sizeBytes: "8", clientToken: uuidv7() }],
       }),
     ).rejects.toMatchObject({ error: "FILE_CATEGORY_NOT_ALLOWED" });
@@ -254,6 +255,14 @@ describe("W1-07 文件生命周期", { timeout: 60_000 }, () => {
           files: [{ fileName: "missing-context.mp4", sizeBytes: "8", clientToken: uuidv7() }],
         }),
       ).rejects.toMatchObject({ error: "VALIDATION_FAILED" });
+    // 静态 assembly 不借用其他实例的广告 guard；真实 runtime 缺上下文的 400 由 API 原用例覆盖。
+    const unboundAd = media.register(staff, {
+      category: "ad_video",
+      storeId: actor.merchant!.storeId,
+      files: [{ fileName: "missing-context.mp4", sizeBytes: "8", clientToken: uuidv7() }],
+    });
+    await expect(unboundAd).rejects.toBeInstanceOf(TypeError);
+    await expect(unboundAd).rejects.toThrow(/^广告上传须由本实例运行时绑定$/);
     expect(await counts()).toEqual(rejectedBefore);
     const first = await registered();
     await expect(media.getMerchant(actorOther, first.fileId)).rejects.toMatchObject({

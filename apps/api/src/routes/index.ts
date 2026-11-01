@@ -1,4 +1,5 @@
 import { adHandlers } from "./ads.js";
+import { adminAdHandlers } from "./admin/ads.js";
 import { adminAdCancelHandlers } from "./admin/ad-cancel.js";
 import { adminSampleFeedbackHandlers } from "./admin/sample-feedback.js";
 import { licenseLetterHandlers } from "./license-letters.js";
@@ -84,6 +85,7 @@ import { siteHandlers } from "./admin/site.js";
 export const HANDLERS: readonly HandlerEntry[] = [
   ...adHandlers,
   ...adminAdCancelHandlers,
+  ...adminAdHandlers,
   ...adminSampleFeedbackHandlers,
   ...adminAgreementHandlers,
   ...siteHandlers,

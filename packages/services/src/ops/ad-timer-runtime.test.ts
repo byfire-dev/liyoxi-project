@@ -2,14 +2,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { assemble, defineRegistration } from "../kernel/index.js";
 import type { FiredTimer, TimerHandlerRegistration, Tx } from "../kernel/index.js";
-import type { handleAdReturnedStale } from "../ad/index.js";
+import type { handleAdReturnedStale, handleAdSlaBreach } from "../ad/index.js";
 import { createAdAssembly } from "./ad-timer-runtime.js";
 import type { AdTimerBinding } from "./ad-timer-runtime.js";
 
 const domain = vi.hoisted(() => ({
   returned: vi.fn<typeof handleAdReturnedStale>(),
+  sla: vi.fn<typeof handleAdSlaBreach>(),
 }));
-vi.mock("../ad/index.js", () => ({ handleAdReturnedStale: domain.returned }));
+vi.mock("../ad/index.js", () => ({
+  handleAdReturnedStale: domain.returned,
+  handleAdSlaBreach: domain.sla,
+  createAdFileGuard: () => ({ assert: async () => undefined }),
+}));
 
 const placeholder: TimerHandlerRegistration = {
   kind: "ad.returned_stale",
@@ -24,7 +29,9 @@ const base = () =>
     entry: "worker",
     appEnv: "test",
     registrations: [
-      defineRegistration("lyxtest_ad_timer", { timerHandlers: [placeholder, other] }),
+      defineRegistration("lyxtest_ad_timer", {
+        timerHandlers: [placeholder, other, { kind: "sla.breach", handle: async () => "skipped" }],
+      }),
     ],
   });
 const binding = (): AdTimerBinding => ({
@@ -46,6 +53,8 @@ function handler(scope: ReturnType<typeof createAdAssembly>) {
   return value.handle;
 }
 beforeEach(() => {
+  domain.sla.mockReset();
+  domain.sla.mockResolvedValue("fired");
   domain.returned.mockReset();
   domain.returned.mockResolvedValue("fired");
 });
@@ -65,6 +74,20 @@ describe("广告定时器实例scope", () => {
     expect(() => handler(scope)(tx, timer)).toThrow("已经关闭");
     expect(() => scope.attach(binding())).toThrow("只能绑定一次");
     expect(domain.returned).toHaveBeenCalledTimes(1);
+  });
+
+  it("唯一 sla.breach 只路由广告，旧主体保留原处理器且关闭后广告失败", async () => {
+    const scope = createAdAssembly(base());
+    scope.attach(binding());
+    const sla = scope.assembly.timerHandler("sla.breach")!.handle;
+    await expect(
+      sla(tx, { ...timer, kind: "sla.breach", subjectType: "delivery_ticket_stage" }),
+    ).resolves.toBe("skipped");
+    expect(domain.sla).not.toHaveBeenCalled();
+    await expect(sla(tx, { ...timer, kind: "sla.breach" })).resolves.toBe("fired");
+    expect(domain.sla).toHaveBeenCalledTimes(1);
+    await scope.close();
+    expect(() => sla(tx, { ...timer, kind: "sla.breach" })).toThrow("已经关闭");
   });
 
   it("两个实例各自委派自己的依赖，关闭A不污染B", async () => {

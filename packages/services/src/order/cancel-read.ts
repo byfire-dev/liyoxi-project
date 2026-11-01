@@ -211,6 +211,35 @@ const include = {
   cancelRequestLines: { orderBy: { id: "asc" } },
   approvalRequest: true,
 } satisfies Prisma.CancelRequestInclude;
+
+/** Ad owner has checked delivery permission and task scope; this reader keeps all historical requests. */
+export async function readAdCancelCards(
+  tx: Tx,
+  deps: Pick<CancelDeps, "clock">,
+  scope: { entityId: string; storeId: string; adId: string },
+): Promise<CancelRequestCard[]> {
+  const rows = await tx.cancelRequest.findMany({
+    where: {
+      entityId: scope.entityId,
+      storeId: scope.storeId,
+      OR: [
+        { kind: "ad_cancel", adId: scope.adId },
+        {
+          kind: "qualification_cancel",
+          cancelRequestLines: { some: { targetType: "ad", targetId: scope.adId } },
+        },
+      ],
+    },
+    include,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  return Promise.all(
+    rows.map(async (row) => {
+      checkRelations(row);
+      return CancelRequestCardSchema.parse(await projectCancelRequestDetail(tx, deps, row, []));
+    }),
+  );
+}
 async function detail(tx: Tx, deps: CancelDeps, staff: StaffContext, r: CancelReadRequest) {
   checkRelations(r);
   return projectCancelRequestDetail(tx, deps, r, await actions(tx, staff, r));

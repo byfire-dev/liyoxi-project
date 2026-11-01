@@ -149,6 +149,7 @@ export async function readAdReferenceFacts(
           id: true,
           type: true,
           title: true,
+          usability: true,
           storeAssetFiles: { select: { fileId: true }, orderBy: { position: "asc" } },
         },
       },

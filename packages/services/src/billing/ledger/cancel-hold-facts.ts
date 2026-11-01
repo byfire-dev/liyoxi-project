@@ -15,6 +15,7 @@ export function readCancelHoldFacts(tx: Tx, holdId: string) {
       qty: true,
       returnedQty: true,
       forfeitedQty: true,
+      heldAt: true,
       capturedAt: true,
       pricingSnapshot: true,
     },

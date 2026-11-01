@@ -131,10 +131,11 @@ export async function moveAd(
   ref: (typeof rows)[number][0],
   set: Record<string, unknown>,
   emission: { type: string; payload: Record<string, unknown> },
-  meta: { versionNo?: number; revisionNo?: number } = {},
+  meta: { versionNo?: number; revisionNo?: number; reasonText?: string } = {},
   to?: string,
   created = false,
 ) {
+  const { reasonText, ...publicMeta } = meta;
   return deps.flow.transition(tx, ctx, {
     machine: "ad",
     stateField: "status",
@@ -147,7 +148,7 @@ export async function moveAd(
     storeId: ad.storeId,
     args: checked(),
     set,
-    payload: meta,
+    payload: publicMeta,
     audit: {
       stream: ctx.actor.type === "staff" ? "ops" : "activity",
       category: "delivery",
@@ -164,7 +165,8 @@ export async function moveAd(
       target: { type: "ad", id: ad.id },
       entityId: ad.entityId,
       storeId: ad.storeId,
-      meta,
+      meta: publicMeta,
+      ...(reasonText ? { reason: { code: "other", text: reasonText } } : {}),
     },
     emit: emission,
   });

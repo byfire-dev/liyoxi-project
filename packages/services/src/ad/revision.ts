@@ -15,6 +15,7 @@ import type {
 } from "./context.js";
 import { adDue, armAdDue, member, merchantAd, moveAd, noCancel } from "./lifecycle.js";
 import { readAdCancelFacts } from "./cancel-read-facts.js";
+import { assertAdStaff } from "./admin-read.js";
 
 export async function requestChangeAdTx(
   tx: Tx,
@@ -62,13 +63,39 @@ export async function reopenAdFreeTx(
   );
 }
 
+/** The dedicated staff-on-behalf entry shares the merchant's exact round validation, free-only. */
+export async function requestAdminAdChangeTx(
+  tx: Tx,
+  deps: AdWriteDeps,
+  actor: AdStaffActor,
+  adId: string,
+  body: Omit<AdRequestChangeBody, "acceptChargePoints">,
+): Promise<AdReopenChange> {
+  assertAdStaff(actor, "delivery.sample.feedback_on_behalf", true);
+  if (actor.ctx.actor.type !== "staff" || actor.ctx.actor.id !== actor.staff.staff.id)
+    throw new AppError("PERMISSION_DENIED");
+  if (!(await readAdCancelFacts(tx, adId, actor.staff.scope))) throw new AppError("NOT_FOUND");
+  await lockRows(tx, "ad", [adId]);
+  if (!(await readAdCancelFacts(tx, adId, actor.staff.scope))) throw new AppError("NOT_FOUND");
+  const ad = await tx.ad.findUniqueOrThrow({ where: { id: adId } });
+  return writeRevision(
+    tx,
+    deps,
+    actor.ctx,
+    ad,
+    AdRequestChangeBodySchema.parse(body),
+    "staff_on_behalf",
+    true,
+  );
+}
+
 async function writeRevision(
   tx: Tx,
   deps: AdWriteDeps,
   ctx: IdentityContext,
   ad: Ad,
   body: AdRequestChangeBody,
-  source: "ad_page" | "sample_feedback",
+  source: "ad_page" | "sample_feedback" | "staff_on_behalf",
   freeOnly: boolean,
 ): Promise<AdReopenChange> {
   noCancel(ad);

@@ -36,7 +36,9 @@ M1 只开放 MinIO 预签名表单的小文件通道。服务入口是 `createMe
 
 ## 1. 上传与入库
 
-`register(actor, input, { idem })` 先判类别与归属，再按扩展名推规范 MIME、核对分类上限，忽略客户端 MIME。商家一次 1–9 个，后台一次一个；批内任一不合格，整批无新增。商家开放档案三类、两类证照、回单与账号截图，按能力点判权；M1 这七类都不允许店员登记。已停用门店的老板仍能上传回单。后台海报需要短剧库编辑等级；样片、成片没有分类守卫即拒绝，其余后台分类按 M1 边界关闭。
+`register(actor, input, { idem })` 先判类别与归属，再按扩展名推规范 MIME、核对分类上限，忽略客户端 MIME。商家一次 1–9 个，后台一次一个；批内任一不合格，整批无新增。商家开放档案三类、两类证照、回单与账号截图，按能力点判权；M1 这七类都不允许店员登记。已停用门店的老板仍能上传回单。后台海报需要短剧库编辑等级；样片、成片与广告视频没有分类守卫即拒绝，其余后台分类按各所属业务的实际开放边界处理。
+
+W5-09 的 `ad_video` 只开放后台：ad owner 的 `createAdFileGuard(clock)` 按实例绑定时钟，重读员工权限/范围、本人负责人、广告状态与取消、门店归属以及完整 `production.kind=ad` 声明。`registered` 在文件 INSERT 后同 TX 调 media-owned `declareAdProduction`，只写已有 uploading/AI 声明；不把 pending 文件变成 ready，也不提前排 probe。原 complete/promote 到 stored 后才按真实广告上下文体检，`prepareAdProduction` 的 stored 守卫保持。规范化/补标文件的原上传人由 owner facts 逐层核实际 job/probe 来源，不能将 system 派生文件归给任意员工。
 
 相同上传人、分类、归属、clientToken 和大小的 pending 登记复用。冻结索引 `uq_file_object_client_token_noscope` 未含 entity_id：同一上传人跨主体使用同 token 时返回 `VALIDATION_FAILED`，字段 files.N.clientToken 提示重新生成，绝不返回另一主体的凭证。相同主体在不同门店的主体级文件可以复用；门店级文件按门店各有一行。此边界移交后续结构包，不修改冻结 schema。
 
@@ -51,6 +53,8 @@ W3-03 将 promote 迁入统一媒体执行器：local 并发2、remote并发8，
 引用方在自己的 register.ts 用 kernel 的 `fileRefTypePort` 按 ref_type 登记 roles、允许分类、保留期、可选释放守卫和业务列只读投影。纯端口声明在 L0；media 保留兼容导出，不能直接读其他模块的业务表。制作分类的 `fileCategoryGuardPort` 留在 media，由 delivery 后续登记 assert 与同事务 registered 回调。
 
 `link(tx, input)` 与 `release(tx, input)` 和业务写入共用事务。调用方先锁业务父行；多文件先按 id 升序锁 file_object(410)，再逐个调用。link 只接受 stored、未 block、用途分类与归属相符的文件，统一以 FILE_NOT_USABLE 的 not_stored / blocked / category_mismatch / scope_mismatch 拒绝。平台文件无需归属；主体文件断言 entityId，门店文件断言 storeId；档案三类、store_asset、portrait_auth 允许同主体跨店引用。上传人、本次业务对象等更细的授权由调用方先校验。
+
+`recordAdVersionAdoptedAssets` 与原订单项采用登记共用真实素材校验、去重计数和 `asset.adopted` 事件，广告版本写 `usedByType=ad_version`。ad owner 先锁父广告与全部 store_asset(370)，再锁文件(410)，同 TX 提交版本和采用事实；不得在文件锁后追加素材锁。`readMaterialFileFacts` 的尺寸来自实际 mediaInfo；`adProductionFacts.softWarnCount` 来自已验证体检规则，不由客户端声明。
 
 live 引用清空 releasedAt/keepUntil，firstLinkedAt 只设置一次。release 的 keepUntil 取调用值、分类/引用最短缓冲与旧值的最大值；有 live 引用时 purgeAfter 为 null，否则取已释放引用的最大保留期。released:true 只用于初建已释放引用或延长已有 released，不能绕过 release 使 live 转 released，也不能绕过永久/生效协议的释放守卫。重新 link 已释放引用恢复 live。协议 source/pdf 已接端口：草稿 7 天、生效后不可释放；media.I2 每日全量与 media.I14 每周全量均为 P2、无自动修复。
 

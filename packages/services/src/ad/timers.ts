@@ -20,7 +20,11 @@ export async function returnAdTx(
   if (!["pending_assign", "producing"].includes(ad.status)) throw new AppError("STATE_NOT_ALLOWED");
   const now = deps.clock.now(),
     days = (await paramsAt(tx, ["ad.returned_stale_days"], now))["ad.returned_stale_days"];
-  await deps.timers.cancel(tx, { subject: { type: "ad", id }, kinds: ["sla.breach"] });
+  await deps.timers.cancel(tx, {
+    subject: { type: "ad", id },
+    kinds: ["sla.breach"],
+    keyPrefix: timerKey("sla.breach", { type: "ad", id }, `first:${ad.resubmitCount}`),
+  });
   await moveAd(
     tx,
     deps,
@@ -36,6 +40,7 @@ export async function returnAdTx(
       sla_snapshot: null,
     },
     { type: "ad.returned", payload: { v: 1, adId: id, returnedFrom: ad.status } },
+    { reasonText: reason },
   );
   await deps.timers.arm(tx, {
     kind: "ad.returned_stale",

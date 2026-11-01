@@ -37,7 +37,11 @@ export type { MediaBatchDeps, BatchTargetFacts } from "./batches/types.js";
 export { seedPlaceholderFiles, placeholderPdf } from "./demo-seed.js";
 export { declareManualProduction } from "./production/prepare.js";
 export type { ManualProductionInput } from "./production/prepare.js";
-export { consumeFinalReleaseBatch, recordAdoptedStoreAssets } from "./delivery-write.js";
+export {
+  consumeFinalReleaseBatch,
+  recordAdoptedStoreAssets,
+  recordAdVersionAdoptedAssets,
+} from "./delivery-write.js";
 export type { FinalBatchItem, MediaDeliveryTarget } from "./delivery-write.js";
 
 export type { WechatImageResultInput } from "./wechat-image-audit.js";
@@ -118,3 +122,4 @@ export { linkAdAssetReferences, readAdReferenceFacts } from "./assets/facts.js";
 export { readMerchantPlayableAsset } from "./playable-read-facts.js";
 export type { MerchantPlayableAsset } from "./playable-read-facts.js";
 export type { AdProductionInput } from "./production/ad-prepare.js";
+export { declareAdProduction } from "./production/ad-prepare.js";

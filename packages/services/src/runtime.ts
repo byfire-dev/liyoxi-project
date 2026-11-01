@@ -1,7 +1,10 @@
+import type { AdWriteDeps } from "./ad/index.js";
+import type { DeliveryCoreDeps } from "./delivery/index.js";
 import type { LicenseTemplateCatalog } from "./docs/index.js";
 import {
   createAdCancelRequests,
   createAdRuntime,
+  createAdminAdRuntime,
   createMerchantPlayables,
   createAdAssembly,
 } from "./ops/index.js";
@@ -319,6 +322,7 @@ export interface RuntimeOptions {
 
 export interface Runtime {
   readonly ads: ReturnType<typeof createAdRuntime>;
+  readonly adminAds: ReturnType<typeof createAdminAdRuntime>;
   readonly playables: ReturnType<typeof createMerchantPlayables>;
   readonly adCancelRequests: ReturnType<typeof createAdCancelRequests>;
   reconcileOrders(beat?: () => void): Promise<OrderReconcileResult>;
@@ -972,7 +976,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     flow,
     config,
     keyring: () => keyringFromEnv(env),
-    workSources: staffWorkSourcesOf(assembly),
+    workSources: staffWorkSourcesOf(assembly, { requiredOwners: ["ad"] }),
     storeManagerOrders: {
       readUnassignedIds: readUnassignedStoreOrderIds,
       syncUnassigned: syncUnassignedStoreOrders,
@@ -1073,66 +1077,66 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
   const playables = createMerchantPlayables({ tx, clock, config, media, tenant });
-  const ads = createAdRuntime(
-    {
-      tx,
-      clock,
-      assembly,
-      bizNo,
-      flow,
-      events,
-      ledger,
-      timers,
-      sla,
-      docs: docsServices.docs,
-      media,
-      config,
-      playback: (entityId) => config.flags.isEnabled("weapp.video.ad.enabled", { entityId }),
-      readPlayable: (actor, playableId) =>
-        playables.get(
-          {
-            merchantUserId: actor?.ctx.actor.id ?? undefined,
-            storeId: actor?.membership.storeId,
-          },
-          playableId,
-        ),
-      async moderate(actor, fields) {
-        const texts = Object.entries(fields).filter(([, value]) => value.length > 0);
-        if (!texts.length) return;
-        if (
-          !actor.principal ||
-          actor.ctx.actor.type !== "merchant" ||
-          actor.ctx.actor.id !== actor.principal.merchantUserId
-        )
-          throw new AppError("AUTH_REQUIRED");
-        const principal = actor.principal;
-        const openid = await tx.run((t) => currentSessionOpenid(t, principal, env.WECHAT?.appid));
-        const rejected: string[] = [];
-        for (const [field, content] of texts) {
-          const result = await providers.wechat
-            .checkText({ openid, scene: "profile", content })
-            .catch(() => {
-              throw new AppError("PROVIDER_UNAVAILABLE");
-            });
-          if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
-          if (result.value.verdict !== "pass") rejected.push(field);
-        }
-        if (rejected.length)
-          throw new AppError("CONTENT_REJECTED", { details: { fields: rejected } });
-      },
+  const adDeps: Omit<AdWriteDeps, "related"> = {
+    tx,
+    clock,
+    assembly,
+    bizNo,
+    flow,
+    events,
+    ledger,
+    timers,
+    sla,
+    docs: docsServices.docs,
+    media,
+    config,
+    playback: (entityId) => config.flags.isEnabled("weapp.video.ad.enabled", { entityId }),
+    readPlayable: (actor, playableId) =>
+      playables.get(
+        {
+          merchantUserId: actor?.ctx.actor.id ?? undefined,
+          storeId: actor?.membership.storeId,
+        },
+        playableId,
+      ),
+    async moderate(actor, fields) {
+      const texts = Object.entries(fields).filter(([, value]) => value.length > 0);
+      if (!texts.length) return;
+      if (
+        !actor.principal ||
+        actor.ctx.actor.type !== "merchant" ||
+        actor.ctx.actor.id !== actor.principal.merchantUserId
+      )
+        throw new AppError("AUTH_REQUIRED");
+      const principal = actor.principal;
+      const openid = await tx.run((t) => currentSessionOpenid(t, principal, env.WECHAT?.appid));
+      const rejected: string[] = [];
+      for (const [field, content] of texts) {
+        const result = await providers.wechat
+          .checkText({ openid, scene: "profile", content })
+          .catch(() => {
+            throw new AppError("PROVIDER_UNAVAILABLE");
+          });
+        if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
+        if (result.value.verdict !== "pass") rejected.push(field);
+      }
+      if (rejected.length)
+        throw new AppError("CONTENT_REJECTED", { details: { fields: rejected } });
     },
-    {
-      tx,
-      clock,
-      assembly,
-      flow,
-      events,
-      sla,
-      media,
-      approval,
-      ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
-    },
-  );
+  };
+  const adDeliveryDeps: DeliveryCoreDeps = {
+    tx,
+    clock,
+    assembly,
+    flow,
+    events,
+    sla,
+    media,
+    approval,
+    ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
+  };
+  const ads = createAdRuntime(adDeps, adDeliveryDeps);
+  const adminAds = createAdminAdRuntime(adDeps, adDeliveryDeps);
   const unbindOrderStart = bindOrderStart({
     tx,
     clock,
@@ -1369,6 +1373,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     cancelRequests,
     adCancelRequests,
     ads,
+    adminAds,
     playables,
     billing,
     stagingPay,

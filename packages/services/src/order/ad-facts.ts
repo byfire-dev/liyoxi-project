@@ -19,6 +19,15 @@ export async function readAdPlacementDetails(
     return typeof value?.title === "string" ? value.title : "";
   };
   return {
+    placements: rows.map((row) => ({
+      orderItemId: row.orderItemId,
+      orderId: row.orderItem.dramaOrderId,
+      orderNo: row.orderItem.dramaOrder.orderNo,
+      dramaTitle: title(row.orderItem.dramaSnapshot),
+      slot: row.slot,
+      boundVersionNo: row.boundVersionNo,
+      phase: row.orderItem.phase,
+    })),
     usage: {
       inUseCount: new Set(active.map((row) => row.orderItemId)).size,
       firstDramaTitle: active[0] ? title(active[0].orderItem.dramaSnapshot) : null,

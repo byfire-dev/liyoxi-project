@@ -57,7 +57,7 @@ const mutationAllowed = (staff: StaffContext, row: FollowUp, ownerGroup: string 
     staff.staff.staffGroupId === ownerGroup);
 
 /** 重新读取当前角色/组，不让旧会话或幂等回执绕过撤权。 */
-async function currentStaff(tx: Tx, previous: StaffContext) {
+export async function readCurrentStaffContext(tx: Tx, previous: StaffContext) {
   const row = await tx.staff.findUnique({
     where: { id: previous.staff.id },
     include: { staffRole: true },
@@ -226,17 +226,17 @@ export function createStaffFollowUps(deps: FollowUpsDeps) {
     identityOf(staff, identity);
     if (!FollowUpParamsSchema.safeParse({ followUpId: id }).success)
       throw new AppError("VALIDATION_FAILED");
-    await deps.tx.run(async (tx) => access(tx, await currentStaff(tx, staff), id));
+    await deps.tx.run(async (tx) => access(tx, await readCurrentStaffContext(tx, staff), id));
     return deps.tx.run(async (tx) => {
       const candidate = await tx.followUp.findUniqueOrThrow({ where: { id } });
       await lockStaffSet(tx, [
         staff.staff.id,
         ...(candidate.ownerStaffId ? [candidate.ownerStaffId] : []),
       ]);
-      const current = await currentStaff(tx, staff);
+      const current = await readCurrentStaffContext(tx, staff);
       await parents(tx, candidate.entityId, candidate.storeId);
       await tx.$queryRaw`SELECT id FROM follow_up WHERE id=${id}::uuid FOR NO KEY UPDATE`;
-      const checkedStaff = await currentStaff(tx, current);
+      const checkedStaff = await readCurrentStaffContext(tx, current);
       const row = await access(tx, checkedStaff, id);
       if (row.lockVersion !== input.lockVersion || row.ownerStaffId !== candidate.ownerStaffId)
         throw new AppError("VERSION_CONFLICT");
@@ -279,7 +279,7 @@ export function createStaffFollowUps(deps: FollowUpsDeps) {
       )
         throw new AppError("VALIDATION_FAILED");
       return deps.tx.run(async (tx) => {
-        const current = await currentStaff(tx, staff);
+        const current = await readCurrentStaffContext(tx, staff);
         authorizeType(current, q.subjectType ?? "store");
         if (q.subjectType && q.subjectId) await subject(tx, current, q.subjectType, q.subjectId);
         if (q.entityId) await scope(tx, current, q.entityId, null);
@@ -330,14 +330,14 @@ export function createStaffFollowUps(deps: FollowUpsDeps) {
       if (!parsed.success) throw new AppError("VALIDATION_FAILED");
       const input = parsed.data;
       await deps.tx.run(async (tx) =>
-        subject(tx, await currentStaff(tx, staff), input.subjectType, input.subjectId),
+        subject(tx, await readCurrentStaffContext(tx, staff), input.subjectType, input.subjectId),
       );
       return deps.tx.run(async (tx) => {
         await lockStaffSet(tx, [staff.staff.id]);
-        const current = await currentStaff(tx, staff),
+        const current = await readCurrentStaffContext(tx, staff),
           fact = await subject(tx, current, input.subjectType, input.subjectId);
         await parents(tx, fact.entityId, fact.storeId);
-        const checkedStaff = await currentStaff(tx, current);
+        const checkedStaff = await readCurrentStaffContext(tx, current);
         const checked = await subject(tx, checkedStaff, input.subjectType, input.subjectId);
         if (checked.entityId !== fact.entityId || checked.storeId !== fact.storeId)
           throw new AppError("NOT_FOUND");

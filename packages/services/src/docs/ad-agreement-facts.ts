@@ -1,5 +1,21 @@
 import { AppError } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
+import { versionLabel } from "./versions.js";
+
+/** Read only the non-sensitive consent facts belonging to this actual advertisement. */
+export async function readAdAgreementConsent(tx: Tx, input: {
+  agreementConsentId: string; entityId: string; storeId: string; adId: string;
+}) {
+  const row = await tx.agreementConsent.findFirst({
+    where: { id: input.agreementConsentId, entityId: input.entityId, storeId: input.storeId,
+      agreementKey: "ad_service", scene: "ad_request", bizType: "ad", bizId: input.adId },
+    select: { agreementKey: true, consentedAt: true, method: true,
+      agreementVersion: { select: { major: true, minor: true } } },
+  });
+  if (!row) throw new AppError("PRECONDITION_CHANGED", { message: "广告协议同意记录不匹配" });
+  return { agreementKey: "ad_service" as const, versionLabel: versionLabel(row.agreementVersion),
+    consentedAt: row.consentedAt.toISOString(), method: row.method };
+}
 
 /** Advertisement quote uses the current version selected by docs.currentVersions. */
 export async function readAdAgreementFacts(tx: Tx, input: {

@@ -62,7 +62,7 @@ export const UPLOAD_CATEGORIES = {
   video_cover: category("asset", "store", image),
   drama_master: category("media", "platform", video),
   trailer_src: category("media", "platform", video, { admin: true }),
-  ad_video: category("media", "store", video),
+  ad_video: category("media", "store", video, { admin: true }),
   sample_video: category("media", "store", video, { admin: true }),
   sample_wm: category("media", "store", video),
   final_episode: category("media", "store", video, { admin: true }),
