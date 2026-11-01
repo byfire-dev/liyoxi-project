@@ -3,21 +3,30 @@ import type { RequestLayer } from "@/lib/request";
 import { request } from "@/lib/runtime";
 import type { OrderTab } from "@/stores/order";
 import { createOrderReferenceApi } from "./reference-api";
-let offline: RequestLayer["request"] | null = null;
-const call: RequestLayer["request"] = async (path, options) => {
+let offline: Promise<RequestLayer["request"]> | null = null;
+export const orderRequest: RequestLayer["request"] = async (path, options) => {
   if (process.env.TARO_ENV === "h5") {
     const referenceScene = (globalThis as { __LYX_ORDER_REFERENCE_SHOT__?: string })
       .__LYX_ORDER_REFERENCE_SHOT__;
     if (referenceScene) {
-      offline ??= (
-        await import("../../../../shots/order-reference-fixtures")
-      ).offlineOrderReferenceRequest(referenceScene);
-      return offline(path, options);
+      offline ??= import("../../../../shots/order-reference-fixtures").then((module) =>
+        module.offlineOrderReferenceRequest(referenceScene),
+      );
+      return (await offline)(path, options);
     }
     const scene = (globalThis as { __LYX_ORDER_SHOT__?: string }).__LYX_ORDER_SHOT__;
     if (scene) {
-      offline ??= (await import("../../../../shots/order-fixtures")).offlineOrderRequest(scene);
-      return offline(path, options);
+      offline ??=
+        scene.startsWith("my-dramas-") ||
+        scene.startsWith("checkout-ads") ||
+        scene === "order-detail-after-sale"
+          ? import("../../../../shots/order-m5-fixtures").then((module) =>
+              module.offlineM5OrderRequest(scene),
+            )
+          : import("../../../../shots/order-fixtures").then((module) =>
+              module.offlineOrderRequest(scene),
+            );
+      return (await offline)(path, options);
     }
   }
   return request(path, options);
@@ -34,6 +43,22 @@ export function createOrderApi(send: RequestLayer["request"]) {
       ),
     detail: (id: string) => send<Data<"m.order.get">>(`/m/orders/${encodeURIComponent(id)}`),
     item: (id: string) => send<Data<"m.orderItem.get">>(`/m/order-items/${encodeURIComponent(id)}`),
+    ads: async () => {
+      const items: Data<"m.ad.list">["items"] = [],
+        cursors = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const page = await send<Data<"m.ad.list">>(
+          `/m/ads?tab=all&limit=50${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+        );
+        items.push(...page.items);
+        if (!page.hasMore || !page.nextCursor) break;
+        if (cursors.has(page.nextCursor)) throw new Error("广告分页游标重复，请刷新重试");
+        cursors.add(page.nextCursor);
+        cursor = page.nextCursor;
+      } while (cursor);
+      return items;
+    },
     accounts: async () => {
       const items: Data<"m.channelAccount.list">["items"] = [],
         cursors = new Set<string>();
@@ -62,5 +87,5 @@ export function createOrderApi(send: RequestLayer["request"]) {
     cart: () => send<Data<"m.cartItem.list">>("/m/cart-items"),
   };
 }
-export const orderApi = createOrderApi(call);
-export const orderReferenceApi = createOrderReferenceApi(call);
+export const orderApi = createOrderApi(orderRequest);
+export const orderReferenceApi = createOrderReferenceApi(orderRequest);

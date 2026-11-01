@@ -1,4 +1,16 @@
 export const ORDER_SCENES = [
+  ...["my-dramas-list", "my-dramas-empty", "my-dramas-error"].map((name) => ({
+    name,
+    route: "sub/order/my-dramas/index",
+  })),
+  ...["checkout-ads", "checkout-ads-invalid"].map((name) => ({
+    name,
+    route: "sub/order/checkout/index?dramaIds=00000000-0000-4000-8000-000000000001",
+  })),
+  {
+    name: "order-detail-after-sale",
+    route: "sub/order/order-detail/index?orderId=00000000-0000-4000-8000-000000000401",
+  },
   {
     name: "checkout-default",
     route: "sub/order/checkout/index?dramaIds=00000000-0000-4000-8000-000000000001",

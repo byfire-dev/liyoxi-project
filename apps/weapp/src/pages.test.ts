@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("已交付四十二页包含 M1 全部二十五页，V1.1不实现", () => {
+  it("已交付四十三页包含 M1 全部二十五页，V1.1不实现", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
@@ -51,6 +51,7 @@ describe("页面清单", () => {
       "sub/order/plan/index",
       "sub/order/sample/index",
       "sub/order/launch-record/index",
+      "sub/order/my-dramas/index",
       "sub/publish/tasks/index",
       "sub/publish/downloads/index",
       "sub/publish/accounts/index",
@@ -95,6 +96,7 @@ describe("页面清单", () => {
       "sub/order/plan/index",
       "sub/order/sample/index",
       "sub/order/launch-record/index",
+      "sub/order/my-dramas/index",
       "sub/publish/tasks/index",
       "sub/publish/downloads/index",
       "sub/publish/accounts/index",
@@ -159,6 +161,7 @@ describe("由清单拼出全局配置", () => {
             "plan/index",
             "sample/index",
             "launch-record/index",
+            "my-dramas/index",
           ],
         },
         { root: "sub/publish", pages: ["tasks/index", "downloads/index", "accounts/index"] },
@@ -227,6 +230,7 @@ describe("由清单拼出全局配置", () => {
           "plan/index",
           "sample/index",
           "launch-record/index",
+          "my-dramas/index",
         ],
       },
       { root: "sub/publish", pages: ["tasks/index", "downloads/index"] },

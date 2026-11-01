@@ -23,6 +23,8 @@ import { useOrderResource } from "../private/resource";
 import { OrderReferenceRead } from "../private/reference-ui";
 import { deliveryEntry, deliveryItemEntries } from "../components/navigation";
 import { formatOrderTimelineTime } from "./timeline";
+import { OrderAfterSales } from "./after-sales";
+import { useDeliveryIdentity } from "../components/ui";
 import "./index.scss";
 const timelineNames: Record<string, string> = {
   submitted: "已订购（积分冻结）",
@@ -50,10 +52,11 @@ const pointNames: Record<string, string> = {
   refund: "退回",
 };
 export default function OrderDetailPage() {
+  const identity = useDeliveryIdentity();
   const rev = useContextStore((s) => s.contextRev),
     token = useSessionStore((s) => s.accessToken);
   const id = Taro.getCurrentInstance().router?.params.orderId ?? "";
-  return <Detail key={`${id}:${rev}:${token}`} id={id} />;
+  return <Detail key={`${identity}:${id}:${rev}:${token}`} id={id} />;
 }
 function Detail({ id }: { id: string }) {
   const resource = useOrderResource(
@@ -203,6 +206,7 @@ function Detail({ id }: { id: string }) {
               />
             </Card>
             <OrderReferenceRead ids={order.referenceStoreAssetIds} />
+            <OrderAfterSales order={order} />
             <Card title="积分记录">
               {order.pointsEvents.length ? (
                 <Timeline

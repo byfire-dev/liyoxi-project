@@ -358,3 +358,17 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 模型目标：`pnpm --filter @liyoxi/weapp exec vitest run src/sub/billing/contracts/license.test.ts src/sub/billing/contracts/model.test.ts --maxWorkers=1 --no-file-parallelism`。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/billing/contracts/index`，本域原 2+新 6 及订单 URL/双期限补充 2 场景由同一入口展开；可 `--scene contracts-license-order` 单独核合法/无效订单参数，或 `--scene contracts-license-updating` 等选择单态、在同一 H5 产物下用 `--no-build` 复用。PNG 为 `shots/dist/png/billing__contracts-*.png`，脚本每次清空 PNG 目录，分场景复验时先保存需要保留的原图。正式 weapp 的本域 fixture 及文件替身在编译期排除。
 
 本地模型、类型、构建与 H5 交互的实际结果见 W5-12 状态；没有微信真机或真实云签发声明。后端真实 HTTP/DB 沿 W5-07 #220，E8/E11/签后 V12 与真实机构证书表现仍由所属外部台账验收，本页不将其提前关闭。
+
+### W5-10 我的短剧与订购、样片增量
+
+新增 `sub/order/my-dramas/index`，按实际订单项列剧目、发布账号、使用期、剩余天数、上线集数和服务端页签计数；同剧不同订单项保留，游标失败仍用原游标重试，换页签/门店/角色/退出/卸载废弃旧结果。点击剧目入口重新读取该订单项后进入既有订单详情。页面登记保留原G5-A归属，其余三页不计作新增页。
+
+确认订购读取本门店广告和quote真实候选，遵循isSelectable、确认版本、取消状态与每剧allowedPlacements；广告正在修改时仍可选服务端允许的旧确认版。选择变化重新请求quote并撤销旧同意，失效版本被移除。按实际typed，quote只发送dramaIds/isTopModel/channelAccountIds；create才提交adIds，广告制作积分不混入短剧报价。失败未知结果同正文同key；成功仍读取真实订单与选剧单。广告详情页未implemented时不启用不存在的路由。
+
+样片沿Q9私有播放器和强制勾选，新增合成修改Sheet：1–200字说明、最多3张ticket_attachment截图，经公共隐私/文件上传边界完成stored后才允许提交。只发送compose/note/imageFileIds，不带时间点、lockVersion或versionNo；实际sampleId锁定版本，提交后重新GET核change_requested。版本、上下文或暂停变化清草稿/截图，迟到结果不回写；广告内容修改显示实际关联并交广告入口或服务经理。原禁相册/关停/历史渠道/未勾选守卫保留。
+
+订单详情展示后端逐项售后申请/执行状态与实际退回、转换、失效积分，pending不当作已退回；授权展示真实状态和期间，并导航既有 `contracts/index?orderId=…` 查看该订单证据，不新增取消或授权详情页。
+
+目标模型命令见[W5-10任务书](../../docs/plan/tasks/W5-10.md)。四页截图用 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/order/my-dramas/index --page sub/order/checkout/index --page sub/order/sample/index --page sub/order/order-detail/index`；order/delivery的page参数现展开本域全部固定场景。新增9态在原场景上追加：my-dramas-list/empty/error、checkout-ads/ads-invalid、order-detail-after-sale、sample-change/change-stale/paused。单态可给 `--scene`，脚本每次清PNG目录，复验前需保存原图。
+
+作者已完成34个唯一模型/相邻目标、类型、正式构建和20个新旧场景交互；实际证据、两处截图取景补充及最终调度验证边界见[本包状态](../../docs/plan/status/W5-10.md)。PNG统一保存根仓库 `outputs/agent-control/w510/weapp-shots/`，本轮H5只在显式场景装入离线typed运输，保外发网络/console/pageerror守卫。首次list/summary并发揭示离线装配竞争，已缓存同一个初始化Promise。真实HTTP、微信真机播放/隐私/上传、类目提审、安全区及法务另验，本轮不宣称已完成。

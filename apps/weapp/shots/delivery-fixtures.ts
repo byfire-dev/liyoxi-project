@@ -3,6 +3,11 @@ import { useSessionStore } from "../src/stores/session";
 import { useBootstrapStore } from "../src/stores/bootstrap";
 import type { Data } from "../src/lib/account-api";
 import type { RequestLayer } from "../src/lib/request";
+import feedbackCover from "../src/sub/gallery/assets/sample-cover.png";
+export const feedbackScreenshot = {
+  fileId: "00000000-0000-4000-8000-000000000091",
+  src: feedbackCover,
+};
 export const DELIVERY_ID = "00000000-0000-4000-8000-000000000020";
 const now = "2026-10-07T02:00:00Z";
 const account = {
@@ -234,6 +239,13 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
     s.playable!.sources = [];
     s.playable!.expiresAt = null;
   }
+  if (scene === "sample-change" || scene === "sample-change-stale")
+    s.actions = ["confirm", "request-change"];
+  if (scene === "sample-paused") {
+    s.isPaused = true;
+    s.actions = [];
+    s.confirmableVia = [];
+  }
   if (scene === "sample-disabled") {
     s.confirmableVia = [];
     s.playable!.sources = [];
@@ -333,7 +345,7 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
       s.decision = null;
       s.viewedAckAt = null;
       s.confirmableVia = ["weapp"];
-      s.actions = ["confirm"];
+      s.actions = scene === "sample-change-stale" ? ["confirm", "request-change"] : ["confirm"];
     },
     fail(path: string) {
       failures.add(path);
@@ -379,6 +391,25 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
       p.status = "confirmed";
       p.actions = [];
       return { ...p, replayed: true };
+    }
+    if (path.includes("/m/samples/") && path.endsWith("/request-change")) {
+      const body = options.data as { note: string; imageFileIds?: string[] };
+      s.status = "change_requested";
+      s.actions = [];
+      s.confirmableVia = [];
+      s.decision = {
+        decidedAt: now,
+        viewedVia: null,
+        feedbackKind: "compose",
+        feedbackNote: body.note,
+        feedbackImages: (body.imageFileIds ?? []).map((fileId) => ({
+          fileId,
+          url: feedbackScreenshot.src,
+          expiresAt: "2099-10-07T03:00:00Z",
+        })),
+        isOnBehalf: false,
+      };
+      return { ...s, replayed: true };
     }
     if (path.endsWith("/request-change")) {
       p.status = "revising";

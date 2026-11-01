@@ -6,6 +6,7 @@ export function samplePlaybackBlocker(view: Sample | null, enabled: boolean): st
   if (!enabled) return "小程序样片查看暂不可用，请联系服务经理";
   if (!view || !view.previewChannels.includes("weapp"))
     return "此版本暂不支持小程序查看，请联系服务经理";
+  if (view.isPaused) return "制作已暂停，请联系服务经理";
   if (view.status === "superseded") return "此版本已失效，请刷新查看当前样片";
   if (!view.playable?.sources.length || view.playable.kind !== "sample")
     return "样片暂不可播放，请刷新或联系服务经理";
