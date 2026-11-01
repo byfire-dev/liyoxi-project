@@ -47,3 +47,41 @@
   flex-direction: column;
   gap: 8px;
 }
+
+.catalog-cards--mall {
+  gap: 12px;
+}
+
+.catalog-cards--mall .catalog-cards__item {
+  min-width: 0;
+  padding: 8px 8px 12px;
+  border-radius: $lyx-radius-tile;
+  background: $lyx-color-bg-card;
+}
+
+.catalog-cards--mall .catalog-cards__title {
+  overflow: hidden;
+  font-size: $lyx-font-size-heading;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.catalog-cards--mall .catalog-cards__meta {
+  font-size: $lyx-font-size-tag;
+  line-height: 1.5;
+}
+
+.catalog-cards--mall .catalog-cards__price {
+  color: $lyx-color-primary-text;
+  font-size: $lyx-font-size-number-sm;
+  font-weight: $lyx-font-weight-bold;
+  line-height: 1.4;
+}
+
+.catalog-cards__deduction {
+  margin-top: 4px;
+  color: $lyx-color-text-secondary;
+  font-size: $lyx-font-size-tag;
+  line-height: 1.5;
+}

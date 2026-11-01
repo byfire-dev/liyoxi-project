@@ -187,6 +187,9 @@ function SearchContent() {
     >
       <PageBody>
         <View className="search-page__form">
+          <View className="search-page__search-icon">
+            <Icon name="search" size={18} />
+          </View>
           <Input
             className="search-page__input"
             value={state.input}
@@ -201,9 +204,7 @@ function SearchContent() {
             suffix={
               state.input ? (
                 <IconButton icon="close" label="清除搜索词" onClick={() => controller.change("")} />
-              ) : (
-                <Icon name="search" size={18} />
-              )
+              ) : undefined
             }
           />
           <Button
@@ -259,7 +260,8 @@ function SearchContent() {
               <Skeleton cards={1} />
             ) : hot.length ? (
               <View className="search-page__hot">
-                <View className="search-page__section-head">
+                <View className="search-page__hot-heading">
+                  <Icon name="flame" size={20} />
                   <Text>热门搜索</Text>
                 </View>
                 <View className="search-page__hot-grid">
@@ -285,7 +287,10 @@ function SearchContent() {
                 </View>
               </View>
             ) : null}
-            <View className="search-page__muted">支持按剧名、题材、主演搜索。</View>
+            <View className="search-page__hint">
+              <View>支持按剧名、题材、主演搜索；</View>
+              <View>结果展示剧目积分价，老板可查看当前套餐的实扣积分。</View>
+            </View>
           </>
         ) : state.error ? (
           <LoadError

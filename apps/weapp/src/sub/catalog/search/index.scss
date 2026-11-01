@@ -3,13 +3,50 @@
   background: $lyx-color-bg-page;
   padding-bottom: env(safe-area-inset-bottom);
   &__form {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  &__input {
+  &__search-icon {
+    position: absolute;
+    left: 16px;
+    z-index: 1;
+    display: flex;
+    color: $lyx-color-text-secondary;
+    pointer-events: none;
+  }
+  &__input.lyx-input {
     flex: 1;
     min-width: 0;
+    height: 44px;
+    padding-left: 42px;
+    border-color: $lyx-color-primary;
+    border-radius: 24px;
+  }
+  &__form .lyx-button {
+    flex: none;
+    min-width: 62px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 24px;
+  }
+  &__hot-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__hot-heading .lyx-icon {
+    color: $lyx-color-primary-text;
+  }
+  &__hint {
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 0 4px;
   }
   &__section {
     display: flex;
@@ -47,14 +84,14 @@
     font-size: 14px;
   }
   &__hot {
-    border-radius: 14px;
-    padding: 14px 16px 6px;
+    border-radius: 16px;
+    padding: 16px;
     background: $lyx-color-bg-card;
   }
   &__hot-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 16px;
+    gap: 8px 16px;
   }
   &__hot-word {
     min-height: 44px;

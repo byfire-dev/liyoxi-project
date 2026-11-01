@@ -177,6 +177,8 @@ W2-13 设置页已补本人账号操作源码，入口与通知复用关系、�
 
 首页、商城、短剧详情与选剧单消费正式生成的 DTO；所有生产请求走现有中央 request。店员首页只读 city+banners，店员/游客选剧单不发 cart 请求。商城按配置给的筛选和 sort 加载，游标续页按 dramaId 去重；本域 revision、令牌与 contextRev 丢弃切店/卸载后的旧成功和旧错误。价格确认发送服务器当前原价 P，网络重试沿用同一次意图的 key；成功或 C50 重放后重新 GET 选剧单。选中合计只累加服务器逐项实扣 S，不在端上重算价格。确认订购页属 PR2，本轮入口明确显示“订购即将开放”。
 
+首页按参考图重排为城市与搜索、真实消息/公告、横幅、四项快捷入口、上线概览和横排推荐；素材需求及本人上传摘要保留在主推荐之后。消息角标、公告、封面、统计及套餐期限仍取真实接口；无横幅时只显示静态商城入口。首页待办继续等待 M7，客服中心尚未实现并明确标注暂未开放；店员与游客不开放老板快捷入口，不填入参考图的待办、城市、季节或统计示例。套餐日期仅将服务端日期格式化为 MM/DD，积分清零仍取实际数量和时间。
+
 十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
 
 截图同时实际执行分页、复选/取消、删除、价格确认网络重试与自然重复加入；价格确认验证 P=1200、同 key 重试和 C50 重放后的 GET，不把固定离线图当真实 API 证据。H5 选剧单底栏仅在本页私有样式里为仿制标签栏让出 50px；小程序使用原生标签栏。原生导航、胶囊、安全区、下拉刷新与触底手势仍须 E16/E7 在开发者工具和真机上手验。
@@ -388,3 +390,5 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 “我的”显示 `m.me.overview.get.entries.adPendingConfirmCount`；建档页显示 `m.storeProfile.get.ads` 四项真实计数。店员不请求广告受限接口；不从列表页长拼总数。W5-10的实际广告链接随两页登记自然启用。
 
 本域定点命令见[W5-11任务书](../../docs/plan/tasks/W5-11.md)。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/ad/ads/index --page sub/ad/ad-detail/index --page pages/mine/index --page sub/profile/profile/index`，展开12个新增广告场景；单场景可用 `--scene ad-change-paid`。原场景及请求/外发网络/console/pageerror守卫保留。`ad-mine`/`ad-profile`仅追加非零聚合离线运输，不改旧场景计数；H5与真实HTTP/DB、微信真机/真实素材、类目和法务证据分列，实际结果见本包状态。
+
+首页、搜索、商城、详情和选剧单按业主提供的原型调整；预告片模式按本次明确授权提前实现（登记仍归 V1.1），使用当前已上架剧的真实预告片投影与现有播放接口。商城预告片入口按默认排序浏览；影片地址仅点击后请求，默认静音，离页丢弃，过期有界换签；暂无预告片、列表失败和未开启开关均显示实际状态。收藏与客服入口如实标注暂未开放，页面不伪造热词、待办、价格、热度或会员权益。UI 验证使用现有角色场景与四个新增预告片离线场景（可播、空态、错误、关闭），H5 播放媒体为浏览器现场生成的短片，仅验证技术接线，不代表真实云或微信真机验收。

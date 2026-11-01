@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "@tarojs/components";
+import { Picker, Text, View } from "@tarojs/components";
 import Taro, { useDidShow, useReachBottom } from "@tarojs/taro";
 import { Button } from "@/components/Button";
-import { Card } from "@/components/Card";
+import { Icon } from "@/components/Icon";
 import { PageBody } from "@/components/PageBody";
 import { Empty } from "@/components/Empty";
 import { FilterChips } from "@/components/FilterChips";
@@ -13,13 +13,15 @@ import { track } from "@/lib/runtime";
 import { mergeDramaPage, useCatalogStore, type DramaPage, type DramaQuery } from "@/stores/catalog";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
+import { useBootstrapStore, flagOn } from "@/stores/bootstrap";
 import { catalogApi } from "./api";
 import { useCatalogResource } from "./resource";
 import { DramaCards } from "./cards";
 import { createCatalogPagination, type CatalogPageRequest } from "./pagination";
 import "./catalog.scss";
+import "./index.scss";
 const sortLabel: Readonly<Record<string, string>> = {
-  composite: "综合",
+  composite: "综合排序",
   heat: "选用量优先",
   price_asc: "积分从低到高",
   price_desc: "积分从高到低",
@@ -31,6 +33,10 @@ export default function MallPage() {
   return <MallContent key={`${rev}:${token}`} />;
 }
 function MallContent() {
+  const trailerFeedEnabled = useBootstrapStore(
+    (state) => state.data.flags["weapp.trailer.feed"] === true,
+  );
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [query, setQuery] = useState<DramaQuery>(() => ({
       category: useCatalogStore.getState().category,
     })),
@@ -52,6 +58,26 @@ function MallContent() {
   const config = resource.data?.config;
   const base = resource.data?.list;
   const page = continuation?.base === base ? continuation?.page : base;
+  const sorts = config?.sorts ?? [];
+  const industries = [
+    { key: "", label: "全部行业" },
+    ...(config?.industries ?? []).map((industry) => ({
+      key: industry.code,
+      label: industry.name,
+    })),
+  ];
+  const genres = [
+    { key: "", label: "全部题材" },
+    ...(query.category
+      ? (config?.categories.find((category) => category.key === query.category)?.genres ?? [])
+      : (config?.genres ?? [])
+    ).map((genre) => ({ key: genre.code, label: genre.name })),
+  ];
+  const episodeBands = [{ key: "", label: "全部集数" }, ...(config?.filters.episodeBands ?? [])];
+  const priceBands = [{ key: "", label: "全部积分" }, ...(config?.filters.priceBands ?? [])];
+  const extraFilterCount = [query.genreCodes, query.episodeBand, query.priceBand].filter(
+    Boolean,
+  ).length;
   const change = (patch: Partial<DramaQuery>) => {
     resource.invalidate();
     queryVersion.current++;
@@ -101,21 +127,41 @@ function MallContent() {
   });
   return (
     <View
-      className="catalog-page"
+      className="catalog-page mall-page"
       id={config && page && !resource.loading ? "catalog-ready" : undefined}
     >
-      <PageBody>
-        <Button
-          variant="secondary"
-          size="md"
-          icon="search"
-          block
-          onClick={() => {
-            void Taro.navigateTo({ url: "/sub/catalog/search/index?from=mall" });
-          }}
-        >
-          搜索剧名、题材、主演
-        </Button>
+      <PageBody className="mall-page__body">
+        <View className="mall-page__search-row">
+          <Button
+            className="mall-page__search"
+            variant="secondary"
+            size="md"
+            icon="search"
+            onClick={() => {
+              void Taro.navigateTo({ url: "/sub/catalog/search/index?from=mall" });
+            }}
+          >
+            搜索剧名、题材、主演
+          </Button>
+          {trailerFeedEnabled ? (
+            <View className="mall-page__modes">
+              <View className="mall-page__mode mall-page__mode--active" ariaRole="tab">
+                列表
+              </View>
+              <View
+                className="mall-page__mode"
+                ariaRole="tab"
+                onClick={() => {
+                  if (flagOn("weapp.trailer.feed"))
+                    void Taro.navigateTo({ url: "/sub/catalog/trailer/index" });
+                }}
+              >
+                <Icon name="play-circle" size={14} />
+                <Text>预告片</Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
         {resource.error ? (
           <LoadError
             message={resource.error}
@@ -124,69 +170,99 @@ function MallContent() {
           />
         ) : null}
         {config ? (
-          <Card>
-            <View className="catalog-filters">
-              <FilterChips
-                items={[
-                  { key: "", label: "全部" },
-                  ...config.categories.map((c) => ({ key: c.key, label: c.name })),
-                ]}
-                value={query.category ?? ""}
-                onChange={(value) => {
-                  useCatalogStore.getState().setCategory(value);
-                  change({ category: value, genreCodes: undefined });
+          <View className="mall-page__filters">
+            <FilterChips
+              className="mall-page__categories"
+              items={[
+                { key: "", label: "全部" },
+                ...config.categories.map((c) => ({ key: c.key, label: c.name })),
+              ]}
+              value={query.category ?? ""}
+              onChange={(value) => {
+                useCatalogStore.getState().setCategory(value);
+                change({ category: value, genreCodes: undefined });
+              }}
+            />
+            <View className="mall-page__toolbar">
+              <Picker
+                className="mall-page__picker mall-sort-picker"
+                mode="selector"
+                range={sorts.map((sort) => sortLabel[sort] ?? sort)}
+                value={Math.max(0, sorts.indexOf(query.sort ?? config.defaultSort))}
+                onChange={(event) => {
+                  const sort = sorts[Number(event.detail.value)];
+                  if (sort) change({ sort });
                 }}
-              />
-              <FilterChips
-                items={config.sorts.map((sort) => ({ key: sort, label: sortLabel[sort] ?? sort }))}
-                value={query.sort ?? config.defaultSort}
-                onChange={(sort) => change({ sort })}
-              />
-              {config.filters.genre ? (
-                <FilterChips
-                  items={[
-                    { key: "", label: "全部题材" },
-                    ...(query.category
-                      ? (config.categories.find((c) => c.key === query.category)?.genres ?? [])
-                      : config.genres
-                    ).map((g) => ({ key: g.code, label: g.name })),
-                  ]}
-                  value={query.genreCodes ?? ""}
-                  onChange={(genreCodes) => change({ genreCodes })}
-                />
-              ) : null}
+              >
+                <View className="mall-page__filter-entry">
+                  <Text className="mall-page__filter-label">
+                    {sortLabel[query.sort ?? config.defaultSort] ?? "综合排序"}
+                  </Text>
+                  <Icon name="chevron-down" size={14} />
+                </View>
+              </Picker>
               {config.filters.industry ? (
-                <FilterChips
-                  items={[
-                    { key: "", label: "全部行业" },
-                    ...config.industries.map((g) => ({ key: g.code, label: g.name })),
-                  ]}
-                  value={query.industryCodes ?? ""}
-                  onChange={(industryCodes) => change({ industryCodes })}
-                />
+                <Picker
+                  className="mall-page__picker mall-industry-picker"
+                  mode="selector"
+                  range={industries.map((industry) => industry.label)}
+                  value={Math.max(
+                    0,
+                    industries.findIndex(
+                      (industry) => industry.key === (query.industryCodes ?? ""),
+                    ),
+                  )}
+                  onChange={(event) => {
+                    const industry = industries[Number(event.detail.value)];
+                    if (industry) change({ industryCodes: industry.key });
+                  }}
+                >
+                  <View className="mall-page__filter-entry">
+                    <Text className="mall-page__filter-label">
+                      {industries.find((industry) => industry.key === query.industryCodes)?.label ??
+                        "全部行业"}
+                    </Text>
+                    <Icon name="chevron-down" size={14} />
+                  </View>
+                </Picker>
               ) : null}
-              {config.filters.episodes ? (
-                <FilterChips
-                  items={[
-                    { key: "", label: "全部集数" },
-                    ...config.filters.episodeBands.map((b) => ({ key: b.key, label: b.label })),
-                  ]}
-                  value={query.episodeBand ?? ""}
-                  onChange={(episodeBand) => change({ episodeBand })}
-                />
-              ) : null}
-              {config.filters.price ? (
-                <FilterChips
-                  items={[
-                    { key: "", label: "全部积分" },
-                    ...config.filters.priceBands.map((b) => ({ key: b.key, label: b.label })),
-                  ]}
-                  value={query.priceBand ?? ""}
-                  onChange={(priceBand) => change({ priceBand })}
-                />
+              {config.filters.genre || config.filters.episodes || config.filters.price ? (
+                <View
+                  className={`mall-page__filter-entry mall-page__more-filter${extraFilterCount ? " mall-page__filter-entry--selected" : ""}`}
+                  ariaRole="button"
+                  onClick={() => setFiltersExpanded((value) => !value)}
+                >
+                  <Icon name="sliders" size={16} />
+                  <Text>{extraFilterCount ? `筛选 ${extraFilterCount}` : "筛选"}</Text>
+                </View>
               ) : null}
             </View>
-          </Card>
+            {filtersExpanded ? (
+              <View className="mall-page__extra-filters">
+                {config.filters.genre ? (
+                  <FilterChips
+                    items={genres}
+                    value={query.genreCodes ?? ""}
+                    onChange={(genreCodes) => change({ genreCodes })}
+                  />
+                ) : null}
+                {config.filters.episodes ? (
+                  <FilterChips
+                    items={episodeBands}
+                    value={query.episodeBand ?? ""}
+                    onChange={(episodeBand) => change({ episodeBand })}
+                  />
+                ) : null}
+                {config.filters.price ? (
+                  <FilterChips
+                    items={priceBands}
+                    value={query.priceBand ?? ""}
+                    onChange={(priceBand) => change({ priceBand })}
+                  />
+                ) : null}
+              </View>
+            ) : null}
+          </View>
         ) : null}
         {!page ? (
           <Skeleton cards={2} />
@@ -206,7 +282,7 @@ function MallContent() {
             }}
           />
         ) : (
-          <DramaCards items={page.items} />
+          <DramaCards items={page.items} presentation="mall" />
         )}
         {page && page.items.length > 0 ? (
           page.hasMore ? (

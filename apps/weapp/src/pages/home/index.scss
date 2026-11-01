@@ -1,21 +1,103 @@
 .home-page {
+  .lyx-page-body {
+    gap: 16px;
+    padding-top: 8px;
+  }
+  &__nav-title {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+  }
   &__brand {
     font-size: 20px;
-    font-weight: 600;
+    font-weight: $lyx-font-weight-black;
+    white-space: nowrap;
+  }
+  &__search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   &__city {
-    margin-left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    max-width: 30%;
+    color: $lyx-color-text-primary;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  &__city-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  &__search.lyx-button {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-start;
+    padding: 0 12px;
+    border-color: $lyx-color-border;
     color: $lyx-color-text-secondary;
     font-size: 13px;
+    font-weight: 400;
+  }
+  &__updates.lyx-card {
+    gap: 0;
+    padding: 0 14px;
+  }
+  &__update {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 60px;
+    padding: 8px 0;
+    box-sizing: border-box;
+    color: $lyx-color-text-secondary;
+  }
+  &__update--notice {
+    border-bottom: 1px solid $lyx-color-divider;
+  }
+  &__update--pressed,
+  &__shortcut--pressed,
+  &__promo--pressed,
+  &__plan--pressed {
+    opacity: 0.7;
+  }
+  &__update-tag {
+    flex: none;
+    padding: 5px 7px;
+    border-radius: $lyx-radius-tag;
+    background: $lyx-color-primary-bg;
+    color: $lyx-color-primary-text;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  &__update-content {
+    flex: 1;
+    min-width: 0;
+  }
+  &__update-title {
+    color: $lyx-color-text-primary;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  &__update-summary {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
   }
   &__banners {
-    height: 144px;
-    border-radius: 14px;
+    height: 136px;
+    border-radius: $lyx-radius-card-lg;
     overflow: hidden;
   }
   &__banner {
     position: relative;
-    height: 144px;
+    height: 136px;
     background: $lyx-color-bg-card;
   }
   &__banner-image {
@@ -24,19 +106,218 @@
   }
   &__banner-title {
     position: absolute;
-    left: 16px;
-    bottom: 20px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 24px 18px 20px;
+    background: linear-gradient(transparent, $lyx-color-mask);
+    color: $lyx-color-text-inverse;
     font-size: 20px;
     font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+  &__promo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 136px;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: $lyx-radius-card-lg;
+    background: $lyx-color-bg-inverse;
+    color: $lyx-color-text-inverse;
+  }
+  &__promo-copy {
+    position: relative;
+    z-index: 1;
+  }
+  &__promo-eyebrow {
+    margin-bottom: 8px;
+    color: $lyx-color-accent-on-dark;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+  &__promo-title {
+    font-family: $lyx-font-family-serif;
+    font-size: $lyx-font-size-display;
+    font-weight: $lyx-font-weight-black;
+    letter-spacing: 1px;
+  }
+  &__promo-description {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-top: 10px;
+    color: $lyx-color-text-on-dark-secondary;
+    font-size: 12px;
+  }
+  &__promo-posters {
+    position: absolute;
+    top: 24px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transform: rotate(-9deg);
+  }
+  &__promo-poster {
+    width: 34px;
+    height: 58px;
+    border: 1px solid $lyx-color-fill-on-dark;
+    border-radius: $lyx-radius-thumb;
+  }
+  &__promo-poster--first {
+    margin-top: 16px;
+    background: $lyx-color-fill-on-dark;
+  }
+  &__promo-poster--second {
+    margin-top: 8px;
+    background: $lyx-color-primary-text;
+  }
+  &__promo-poster--third {
+    background: $lyx-color-primary;
+  }
+  &__shortcuts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 14px 8px;
+    border-radius: $lyx-radius-card;
+    background: $lyx-color-bg-card;
+  }
+  &__shortcut {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    min-height: 72px;
+    gap: 8px;
+  }
+  &__shortcut-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: $lyx-color-primary-bg;
+    color: $lyx-color-primary-text;
+  }
+  &__shortcut-title {
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+  }
+  &__shortcut--unavailable {
+    color: $lyx-color-text-secondary;
+  }
+  &__shortcut--unavailable .home-page__shortcut-icon {
+    background: $lyx-color-bg-subtle;
+    color: $lyx-color-text-secondary;
+  }
+  &__shortcut-note {
+    margin-top: -5px;
+    color: $lyx-color-text-secondary;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+  }
+  &__overview.lyx-card {
+    gap: 16px;
   }
   &__stats {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: 12px;
+  }
+  &__stat {
+    min-width: 0;
+  }
+  &__stat-value {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    min-height: 30px;
   }
   &__number {
     font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  &__stat-unit {
+    flex: none;
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+  }
+  &__stat-label {
+    margin-top: 5px;
+    color: $lyx-color-text-secondary;
+    font-size: 13px;
+  }
+  &__plan {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: $lyx-radius-lg;
+    background: $lyx-color-bg-subtle;
+    color: $lyx-color-text-secondary;
+  }
+  &__plan-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 55%;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    border-radius: $lyx-radius-pill;
+    background: $lyx-color-bg-inverse;
+    color: $lyx-color-accent-on-dark;
+    font-size: 12px;
     font-weight: 600;
-    white-space: nowrap;
+  }
+  &__plan-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  &__plan-detail {
+    flex: 1;
+    min-width: 0;
+    color: $lyx-color-text-regular;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  &__expiry {
+    margin-top: -6px;
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  &__recommend {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  &__section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  &__section-title {
+    flex: none;
+    font-size: $lyx-font-size-title;
+    font-weight: 600;
+  }
+  &__match {
+    color: $lyx-color-text-secondary;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: right;
+    overflow-wrap: anywhere;
   }
 }
