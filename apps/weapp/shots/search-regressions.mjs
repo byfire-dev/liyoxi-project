@@ -8,16 +8,39 @@ export async function searchEntryRegression(page, scene) {
   if (scene !== "home-owner" && scene !== "mall-default") return;
   const active = (selector) =>
     page.locator(".taro_page_stationed:not(.taro_page_shade)").locator(selector);
-  let filters;
+  let filters, sort;
   if (scene === "mall-default") {
     await active(".lyx-filter-chips__item")
       .filter({ hasText: /^都市生活$/ })
       .click();
     await expect(active("#catalog-ready")).toBeVisible();
-    await active(".lyx-filter-chips__item")
-      .filter({ hasText: /^积分从低到高$/ })
+    const picker = active(".mall-sort-picker");
+    await picker.click();
+    // overlay 本身没有尺寸；Taro 将真正可见的固定定位面板挂到 body 下。
+    const panel = page.locator(".weui-picker:visible").filter({
+      has: page.locator(".weui-picker__item").filter({ hasText: /^积分从低到高$/ }),
+    });
+    const choice = panel.locator(".weui-picker__item").filter({ hasText: /^积分从低到高$/ });
+    await expect(choice).toBeVisible();
+    const position = await choice.evaluate((item) => {
+      const group = item.closest(".weui-picker__group");
+      const itemBox = item.getBoundingClientRect();
+      const groupBox = group.getBoundingClientRect();
+      return {
+        x: itemBox.x + itemBox.width / 2 - groupBox.x,
+        y: itemBox.y + itemBox.height / 2 - groupBox.y,
+      };
+    });
+    // 选项被 mask 覆盖，鼠标事件由 group 接收；相对坐标也避开入场动画的位移。
+    await panel.locator(".weui-picker__group").click({ position });
+    await panel
+      .locator(".weui-picker__action")
+      .filter({ hasText: /^确定$/ })
       .click();
+    await expect(panel).toHaveCount(0);
     await expect(active("#catalog-ready")).toBeVisible();
+    await expect(picker).toContainText("积分从低到高");
+    sort = await picker.locator(".mall-page__filter-label").innerText();
     filters = await active(".lyx-filter-chips__item--active").allTextContents();
   }
   await entry.click();
@@ -39,10 +62,18 @@ export async function searchEntryRegression(page, scene) {
   await expect(input).toHaveValue("烟火");
   await expect(active(".search-page__result")).toHaveCount(3);
   await page.goBack();
+  await expect(page).toHaveURL(
+    scene === "home-owner" ? /pages\/home\/index/ : /pages\/mall\/index/,
+  );
+  await expect(active(scene === "home-owner" ? ".home-page" : ".mall-page")).toBeVisible();
   await expect(active("#catalog-ready")).toBeVisible();
   await expect(entry).toBeVisible();
-  if (filters)
+  // Taro 的返回动画结束后再由截图调用方采集，避免截到上一层搜索页。
+  await page.waitForTimeout(350);
+  if (filters) {
     expect(await active(".lyx-filter-chips__item--active").allTextContents()).toEqual(filters);
+    expect(await active(".mall-sort-picker .mall-page__filter-label").innerText()).toBe(sort);
+  }
 }
 
 /** 离线 DTO 接线/界面交互证据，不能代替真实 API 或真机。 */

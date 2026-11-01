@@ -18,7 +18,7 @@ describe("页面清单", () => {
     }
   });
 
-  it("里程碑归属照计划 第 8.3 节：25、8、5、4、3、1、2，预告片页 V1.0 不做", () => {
+  it("保留原里程碑归属，预告片页按用户授权提前实现", () => {
     const count = (milestone: WeappPage["milestone"]) =>
       WEAPP_PAGES.filter((page) => page.milestone === milestone).length;
     expect(["M1", "M2", "M3", "M4", "M5", "M6", "M7"].map((m) => count(m as "M1"))).toEqual([
@@ -29,7 +29,7 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("已交付四十五页包含 M1 全部二十五页，V1.1不实现", () => {
+  it("已交付四十六页包含 M1 全部二十五页和授权提前实现的预告片", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
@@ -43,6 +43,7 @@ describe("页面清单", () => {
       "pages/login/index",
       "pages/agreement/index",
       "sub/catalog/search/index",
+      "sub/catalog/trailer/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -90,6 +91,7 @@ describe("页面清单", () => {
       "pages/login/index",
       "pages/agreement/index",
       "sub/catalog/search/index",
+      "sub/catalog/trailer/index",
       "sub/catalog/detail/index",
       "sub/order/checkout/index",
       "sub/order/result/index",
@@ -133,7 +135,7 @@ describe("页面清单", () => {
       built.filter((page) => page.placeholder).every((page) => page.tab && !page.implemented),
     ).toBe(true);
     expect(
-      WEAPP_PAGES.filter((page) => page.milestone === "V1.1").every((page) => !page.implemented),
+      WEAPP_PAGES.filter((page) => page.milestone === "V1.1").every((page) => page.implemented),
     ).toBe(true);
     expect(WEAPP_PAGES.filter((page) => page.customNav).map((page) => page.route)).toEqual([
       "pages/home/index",
@@ -154,7 +156,7 @@ describe("由清单拼出全局配置", () => {
         "pages/agreement/index",
       ],
       subPackages: [
-        { root: "sub/catalog", pages: ["search/index", "detail/index"] },
+        { root: "sub/catalog", pages: ["search/index", "trailer/index", "detail/index"] },
         {
           root: "sub/order",
           pages: [
@@ -225,7 +227,7 @@ describe("由清单拼出全局配置", () => {
     );
     const routes = buildRoutes(pages);
     expect(routes.subPackages).toEqual([
-      { root: "sub/catalog", pages: ["search/index", "detail/index"] },
+      { root: "sub/catalog", pages: ["search/index", "trailer/index", "detail/index"] },
       {
         root: "sub/order",
         pages: [

@@ -1,17 +1,45 @@
 .cart-page {
+  min-height: 100vh;
+  background: $lyx-color-bg-page;
+
+  &__content {
+    padding-top: 10px;
+  }
+
   &__sheet-h5 {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }
   &__footer-h5 {
     bottom: 50px;
   }
-  min-height: 100vh;
-  background: $lyx-color-bg-page;
+
+  &__explanation {
+    padding: 12px;
+    line-height: 1.6;
+  }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__item {
+    gap: 10px;
+    padding: 14px 12px;
+  }
+
   &__row {
     display: flex;
     gap: 10px;
-    align-items: center;
+    align-items: flex-start;
   }
+
+  &__row .lyx-checkbox {
+    align-self: center;
+  }
+
   &__body {
     min-width: 0;
     flex: 1;
@@ -20,8 +48,18 @@
     gap: 4px;
   }
   &__title {
-    font-size: 16px;
-    font-weight: 600;
+    min-width: 0;
+    font-size: $lyx-font-size-heading;
+    font-weight: $lyx-font-weight-semibold;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  &__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
   }
   &__muted {
     font-size: 12px;
@@ -29,19 +67,65 @@
     color: $lyx-color-text-secondary;
   }
   &__points {
-    font-size: 15px;
-    font-weight: 600;
+    color: $lyx-color-primary-text;
+    font-size: $lyx-font-size-number-sm;
+    font-weight: $lyx-font-weight-bold;
+    line-height: 1.4;
+  }
+
+  &__price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    margin-top: 4px;
+  }
+
+  &__original {
+    color: $lyx-color-text-secondary;
+    font-size: $lyx-font-size-tag;
+    text-decoration: line-through;
+  }
+
+  &__price-notice {
+    color: $lyx-color-warning;
+    font-size: $lyx-font-size-caption;
+    line-height: 1.5;
+  }
+
+  &__invalid-reason {
+    color: $lyx-color-danger;
+    font-size: $lyx-font-size-caption;
+    line-height: 1.5;
   }
   &__actions {
     display: flex;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 0;
   }
+
+  &__footer {
+    gap: 8px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
   &__total {
     flex: 1;
     min-width: 0;
-    margin-left: 8px;
-    font-weight: 600;
+    text-align: right;
+  }
+
+  &__total-line {
+    font-size: $lyx-font-size-caption;
+    white-space: nowrap;
+  }
+
+  &__total-points {
+    color: $lyx-color-primary-text;
+    font-size: $lyx-font-size-number-sm;
+    font-weight: $lyx-font-weight-bold;
   }
 }

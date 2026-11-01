@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "@tarojs/components";
+import { Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { formatInteger, formatSignedPercent } from "@liyoxi/shared/format/money";
 import { Button } from "@/components/Button";
@@ -13,6 +13,7 @@ import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { Sheet } from "@/components/Sheet";
 import { Skeleton } from "@/components/Skeleton";
+import { StatusTag, merchantStatusByState } from "@/components/StatusTag";
 import { account } from "@/lib/account-runtime";
 import { gotoAccountLogin } from "@/lib/account-routing";
 import { ApiError } from "@/lib/request";
@@ -30,6 +31,7 @@ import {
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
 import { catalogApi } from "../mall/api";
+import { openDrama } from "../mall/cards";
 import { useCatalogResource, useCatalogBadge } from "../mall/resource";
 import "./index.scss";
 export default function CartPage() {
@@ -126,7 +128,7 @@ function CartContent() {
       .map((i) => i.cartItemId) ?? [];
   return (
     <View className="cart-page" id={resource.data ? "catalog-ready" : undefined}>
-      <PageBody>
+      <PageBody className="cart-page__content">
         {resource.error ? (
           <LoadError
             message={resource.error}
@@ -163,24 +165,24 @@ function CartContent() {
           />
         ) : (
           <>
-            <Card
-              title="选剧单"
-              extra={
-                <Button size="sm" variant="secondary" onClick={() => setEditing((v) => !v)}>
-                  {editing ? "完成编辑" : "编辑选剧单"}
-                </Button>
-              }
-            >
-              <View className="cart-page__muted">
+            <Note tone="info" className="cart-page__explanation">
+              <View>
                 {cart.plan
-                  ? `${cart.plan.planName} · 套餐折扣 ${formatSignedPercent(cart.plan.discountBp).replace("+", "")}`
-                  : "暂无有效套餐权益"}{" "}
-                · 最多 {cart.limit} 部
+                  ? `实扣积分按当前套餐（${cart.plan.planName} · 折扣 ${formatSignedPercent(cart.plan.discountBp).replace("+", "")}）计算；`
+                  : "暂无有效套餐权益，实扣积分以确认页报价为准；"}
               </View>
-            </Card>
-            <Note>可用积分 {formatInteger(cart.spendablePoints)}，合计以确认页报价为准。</Note>
+              <View>加入选剧单不冻结积分，提交订购时才冻结。</View>
+            </Note>
+            <View className="cart-page__toolbar">
+              <View className="cart-page__muted">
+                共 {cart.items.length} 部 · 最多 {cart.limit} 部
+              </View>
+              <Button size="sm" variant="secondary" onClick={() => setEditing((v) => !v)}>
+                {editing ? "完成编辑" : "编辑选剧单"}
+              </Button>
+            </View>
             {cart.items.map((item) => (
-              <Card key={item.cartItemId}>
+              <Card className="cart-page__item" key={item.cartItemId}>
                 <View className="cart-page__row">
                   <Checkbox
                     shape="square"
@@ -203,39 +205,76 @@ function CartContent() {
                     invalid={item.state === "invalid"}
                   />
                   <View className="cart-page__body">
-                    <View className="cart-page__title">{item.drama.title}</View>
+                    <View className="cart-page__heading">
+                      <View className="cart-page__title">{item.drama.title}</View>
+                      {item.state === "invalid" ? (
+                        <StatusTag
+                          tone={merchantStatusByState("cart-item", "已失效")?.tone ?? "neutral"}
+                        >
+                          已失效
+                        </StatusTag>
+                      ) : item.state === "price_changed" ? (
+                        <StatusTag tone="warning">积分价已变动</StatusTag>
+                      ) : item.state === "valid" ? (
+                        <StatusTag tone="neutral">正常</StatusTag>
+                      ) : null}
+                    </View>
                     <View className="cart-page__muted">
-                      {item.drama.totalEpisodes} 集 ·{" "}
-                      {item.drama.genres.map((g) => g.name).join("、")}
+                      {item.drama.genres.length
+                        ? `${item.drama.genres.map((genre) => genre.name).join("、")} · `
+                        : ""}
+                      整部 {item.drama.totalEpisodes} 集
                     </View>
-                    <View>
-                      原价 {formatInteger(item.currentPricePoints ?? item.snapshotPricePoints)} 积分
-                    </View>
-                    <View className="cart-page__points">
-                      {item.discountedPoints === null
-                        ? item.state === "invalid"
-                          ? "暂不可订购"
-                          : "暂无实扣报价"
-                        : `实扣 ${formatInteger(item.discountedPoints)} 积分`}
-                    </View>
+                    {item.state !== "invalid" && item.drama.usableUntilDate ? (
+                      <View className="cart-page__muted">
+                        可使用至 {item.drama.usableUntilDate}
+                      </View>
+                    ) : null}
+                    {item.state === "invalid" ? (
+                      <View className="cart-page__invalid-reason">
+                        {item.invalidReason === "not_listed"
+                          ? "剧目已下架，无法订购"
+                          : item.invalidReason === "stopped"
+                            ? "剧目已停止订购"
+                            : "暂不可订购"}
+                        ，请移出选剧单
+                      </View>
+                    ) : (
+                      <>
+                        {item.state === "price_changed" ? (
+                          <View className="cart-page__price-notice">
+                            积分价由 {formatInteger(item.snapshotPricePoints)} 调整为{" "}
+                            {item.currentPricePoints === null
+                              ? "暂无报价"
+                              : formatInteger(item.currentPricePoints)}
+                            ，确认后可选择。
+                          </View>
+                        ) : null}
+                        <View className="cart-page__price-row">
+                          <Text className="cart-page__points">
+                            {item.discountedPoints === null
+                              ? "暂无实扣报价"
+                              : `${formatInteger(item.discountedPoints)} 积分`}
+                          </Text>
+                          <Text className="cart-page__original">
+                            原价{" "}
+                            {formatInteger(item.currentPricePoints ?? item.snapshotPricePoints)}
+                          </Text>
+                        </View>
+                      </>
+                    )}
                   </View>
                 </View>
-                {item.state === "invalid" ? (
-                  <Note>
-                    {item.invalidReason === "not_listed"
-                      ? "已下架"
-                      : item.invalidReason === "stopped"
-                        ? "已停止订购"
-                        : "暂不可订购"}
-                    ，请移出选剧单
-                  </Note>
-                ) : item.state === "price_changed" ? (
-                  <Note>
-                    加入时原价 {formatInteger(item.snapshotPricePoints)} 积分，当前原价{" "}
-                    {formatInteger(item.currentPricePoints!)} 积分，确认后可选择。
-                  </Note>
-                ) : null}
                 <View className="cart-page__actions">
+                  {item.state !== "invalid" ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => openDrama(item.drama.dramaId)}
+                    >
+                      查看详情
+                    </Button>
+                  ) : null}
                   {item.state === "price_changed" &&
                   item.actions.includes("accept-price") &&
                   item.currentPricePoints !== null ? (
@@ -273,7 +312,7 @@ function CartContent() {
             <FooterBar
               aboveTabBar
               equal={false}
-              className={process.env.TARO_ENV === "h5" ? "cart-page__footer-h5" : undefined}
+              className={`cart-page__footer${process.env.TARO_ENV === "h5" ? " cart-page__footer-h5" : ""}`}
             >
               <Checkbox
                 shape="square"
@@ -284,8 +323,16 @@ function CartContent() {
                 全选
               </Checkbox>
               <View className="cart-page__total">
-                <View>{total === null ? "待确认价格" : `${formatInteger(total)} 积分`}</View>
-                <View className="cart-page__muted">已选 {selected.length} 部</View>
+                <View className="cart-page__total-line">
+                  应扣{" "}
+                  <Text className="cart-page__total-points">
+                    {total === null ? "待确认价格" : formatInteger(total)}
+                  </Text>
+                  {total === null ? "" : " 积分"}
+                </View>
+                <View className="cart-page__muted">
+                  可用 {formatInteger(cart.spendablePoints)} 积分
+                </View>
               </View>
               <Button
                 disabled={!selected.length || resource.loading || total === null}
@@ -299,7 +346,7 @@ function CartContent() {
                   });
                 }}
               >
-                确认订购
+                确认订购（{selected.length}）
               </Button>
             </FooterBar>
           </>

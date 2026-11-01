@@ -164,7 +164,7 @@
 | 主包 | 登录 | `pages/login/index` | Login | M01 | W1-05 | M1 | 是 |  |
 | 主包 | 协议正文 | `pages/agreement/index` | — | — | W1-05 | M1 | 是 | 新增页：登录前可读 |
 | `sub/catalog` | 搜索 | `sub/catalog/search/index` | Search | M03 | W3-13 | M3 | 是 |  |
-| `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 否 | V1.0 不做（规范 第 11 节） |
+| `sub/catalog` | 预告片模式 | `sub/catalog/trailer/index` | Trailer | M05 | — | V1.0 不做 | 是 | 用户授权提前实现；默认排序浏览，点击播放并遵循真实视频开关 |
 | `sub/catalog` | 短剧详情 | `sub/catalog/detail/index` | Detail | M06 | W1-18 | M1 | 是 |  |
 | `sub/order` | 确认订购 | `sub/order/checkout/index` | Checkout | M09 | W1-18 | M1 | 是 |  |
 | `sub/order` | 结果页 | `sub/order/result/index` | PayResult | M11 | W1-12 | M1 | 是 | 订购成功与付款成功共用，?type=order\|payment |

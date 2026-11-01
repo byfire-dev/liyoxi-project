@@ -1,37 +1,161 @@
 .detail-page {
   min-height: 100vh;
   background: $lyx-color-bg-page;
-  &__header {
-    display: flex;
+  .lyx-page-body {
     gap: 16px;
-    margin-bottom: 16px;
+    padding-top: 12px;
   }
-  &__cover {
-    width: 120px;
-    flex: 0 0 120px;
+  &__hero {
+    position: relative;
   }
-  &__intro {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  &__hero-cover.lyx-cover {
+    padding-top: 75%;
+    border-radius: 0;
+  }
+  &__hero-cover .lyx-cover__frame {
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    border-radius: $lyx-radius-lg;
+  }
+  &__hero-cover .lyx-cover__title {
+    top: 36px;
+    right: 36px;
+    bottom: 40px;
+    font-size: 30px;
+    letter-spacing: 6px;
+  }
+  &__hero-note {
+    position: absolute;
+    left: 26px;
+    bottom: 26px;
+    padding: 4px 8px;
+    border-radius: $lyx-radius-tag;
+    background: $lyx-color-bg-inverse;
+    color: $lyx-color-text-inverse;
+    font-size: 12px;
+  }
+  &__identity.lyx-card {
+    gap: 12px;
   }
   &__title {
-    font-size: 22px;
-    font-weight: 600;
+    font-family: $lyx-font-family-serif;
+    font-size: $lyx-font-size-display;
+    font-weight: $lyx-font-weight-black;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
-  &__price {
-    font-size: 20px;
-    font-weight: 600;
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   &__muted {
     color: $lyx-color-text-secondary;
     font-size: 13px;
     line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  &__pricing.lyx-card {
+    gap: 12px;
+  }
+  &__price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  &__heading {
+    flex: none;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  &__price {
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 0;
+    color: $lyx-color-primary-text;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  &__price-number {
+    min-width: 0;
+    font-size: $lyx-font-size-number-lg;
+  }
+  &__price-unit {
+    flex: none;
+    font-size: 15px;
+  }
+  &__plan {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    border-radius: $lyx-radius-lg;
+    background: $lyx-color-bg-subtle;
+  }
+  &__plan-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border-radius: $lyx-radius-pill;
+    background: $lyx-color-bg-inverse;
+    color: $lyx-color-accent-on-dark;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  &__plan-discount {
+    color: $lyx-color-text-regular;
+    font-size: 12px;
+  }
+  &__deduction {
+    margin-left: auto;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  &__promise {
+    color: $lyx-color-text-regular;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+  }
+  &__wallet.lyx-text-button {
+    justify-content: space-between;
+    font-size: 12px;
+    line-height: 1.6;
   }
   &__copy {
     line-height: 1.7;
-    margin-bottom: 16px;
+    overflow-wrap: anywhere;
+  }
+  &__footer.lyx-footer-bar {
+    gap: 8px;
+  }
+  &__footer .lyx-button {
+    flex: 1;
+    min-width: 0;
+    padding-right: 10px;
+    padding-left: 10px;
+    font-size: 14px;
+  }
+  &__unavailable {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    width: 32px;
+    color: $lyx-color-text-secondary;
+  }
+  &__unavailable-label {
+    font-size: 11px;
+  }
+  &__unavailable-note {
+    font-size: 10px;
   }
 }

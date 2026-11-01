@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Swiper, SwiperItem, View } from "@tarojs/components";
+import { Image, Swiper, SwiperItem, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { formatInteger } from "@liyoxi/shared/format/money";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
@@ -11,9 +11,12 @@ import { FilterChips } from "@/components/FilterChips";
 import { Empty } from "@/components/Empty";
 import { LoadError } from "@/components/LoadError";
 import { Skeleton } from "@/components/Skeleton";
-import { List, ListRow } from "@/components/List";
+import { Badge } from "@/components/Badge";
+import { Icon, type IconName } from "@/components/Icon";
+import { TextButton } from "@/components/TextButton";
 import { useMessageBadge } from "@/stores/messages";
 import { track } from "@/lib/runtime";
+import { getNavMetrics } from "@/lib/nav";
 import { uuid } from "@/lib/platform";
 import { catalogScope, useCatalogStore, type Home } from "@/stores/catalog";
 import { useContextStore } from "@/stores/context";
@@ -202,6 +205,51 @@ function bannerClick(banner: Home["banners"][number], role: Home["viewerRole"]) 
   if (route === "pages/cart/index") void Taro.switchTab({ url: `/${route}` });
   else void Taro.navigateTo({ url: `/${route}` });
 }
+const homeShortcuts: { title: string; icon: IconName; route: string | null }[] = [
+  { title: "商家建档", icon: "store", route: "sub/profile/profile/index" },
+  { title: "我的广告", icon: "megaphone", route: "sub/ad/ads/index" },
+  { title: "发布任务", icon: "upload", route: "sub/publish/tasks/index" },
+  { title: "联系客服", icon: "headset", route: null },
+];
+const homePageImplemented = (route: string) =>
+  WEAPP_PAGES.some((page) => page.route === route && page.implemented);
+const homeMonthDay = (date: string) => appDateTimeFormat.date(date).slice(5).replace("-", "/");
+
+function HomeShortcuts({ role }: { role: Home["viewerRole"] }) {
+  return (
+    <View className="home-page__shortcuts">
+      {homeShortcuts.map((item) => {
+        const route = item.route;
+        const enabled = role === "owner" && route !== null && homePageImplemented(route);
+        return (
+          <View
+            key={item.title}
+            className={`home-page__shortcut${enabled ? "" : " home-page__shortcut--unavailable"}`}
+            ariaRole={enabled ? "button" : undefined}
+            hoverClass={enabled ? "home-page__shortcut--pressed" : "none"}
+            onClick={
+              enabled
+                ? () => {
+                    void Taro.navigateTo({ url: `/${route}` });
+                  }
+                : undefined
+            }
+          >
+            <View className="home-page__shortcut-icon">
+              <Icon name={item.icon} size={24} />
+            </View>
+            <View className="home-page__shortcut-title">{item.title}</View>
+            {!enabled ? (
+              <View className="home-page__shortcut-note">
+                {route === null || !homePageImplemented(route) ? "暂未开放" : "仅老板可用"}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 export default function HomePage() {
   const rev = useContextStore((s) => s.contextRev),
     token = useSessionStore((s) => s.accessToken);
@@ -246,34 +294,64 @@ function HomeContent() {
     };
   }, []);
   const overview = home?.viewerRole === "owner" ? home.launchOverview : null;
+  const notice = home?.viewerRole === "owner" ? home.noticeBar : null;
+  // 与 NavBar 的右侧胶囊预留对称，保持品牌字在屏幕中央；设备像素不走 rpx 转换。
+  const nav = getNavMetrics();
   return (
     <View className="catalog-page home-page" id={home ? "catalog-ready" : undefined}>
       <NavBar>
-        <View className="home-page__brand">狸有戏</View>
-        <View className="home-page__city">{home?.city?.name ?? "全国"}</View>
+        <View
+          className="home-page__nav-title"
+          style={{ paddingLeft: `${Math.max(nav.right - 16, 0)}px` }}
+        >
+          <View className="home-page__brand">狸有戏</View>
+        </View>
       </NavBar>
       <PageBody>
-        <Button
-          variant="secondary"
-          size="md"
-          icon="search"
-          block
-          onClick={() => {
-            void Taro.navigateTo({ url: "/sub/catalog/search/index?from=home" });
-          }}
-        >
-          搜索剧名、题材、主演
-        </Button>
-        <List>
-          <ListRow
-            title="消息"
-            description="查看门店与账号通知"
-            badge={unread ?? undefined}
+        <View className="home-page__search-row">
+          <View className="home-page__city">
+            <Icon name="map-pin" size={18} />
+            <Text className="home-page__city-name">{home?.city?.name ?? "全国"}</Text>
+          </View>
+          <Button
+            variant="secondary"
+            size="md"
+            icon="search"
+            className="home-page__search"
+            onClick={() => {
+              void Taro.navigateTo({ url: "/sub/catalog/search/index?from=home" });
+            }}
+          >
+            搜索剧名、题材、主演
+          </Button>
+        </View>
+        <Card className="home-page__updates">
+          {notice ? (
+            <View className="home-page__update home-page__update--notice">
+              <Text className="home-page__update-tag">公告</Text>
+              <View className="home-page__update-content">
+                <View className="home-page__update-title">{notice.title}</View>
+                <View className="home-page__update-summary">{notice.summary}</View>
+              </View>
+            </View>
+          ) : null}
+          <View
+            className="home-page__update"
+            ariaRole="button"
+            ariaLabel="查看门店与账号通知"
+            hoverClass="home-page__update--pressed"
             onClick={() => {
               void Taro.navigateTo({ url: "/sub/service/messages/index" });
             }}
-          />
-        </List>
+          >
+            <Text className="home-page__update-tag">消息</Text>
+            <View className="home-page__update-content">
+              <View className="home-page__update-title">查看门店与账号通知</View>
+            </View>
+            <Badge count={unread ?? undefined} />
+            <Icon name="chevron-right" size={18} />
+          </View>
+        </Card>
         {resource.error ? (
           <LoadError
             message={resource.error}
@@ -308,63 +386,120 @@ function HomeContent() {
                   </SwiperItem>
                 ))}
               </Swiper>
-            ) : null}
-            {home.viewerRole === "owner" || home.viewerRole === "clerk" ? <HomeAssets /> : null}
+            ) : (
+              <View
+                className="home-page__promo"
+                ariaRole="button"
+                ariaLabel="浏览短剧商城"
+                hoverClass="home-page__promo--pressed"
+                onClick={() => {
+                  void Taro.switchTab({ url: "/pages/mall/index" });
+                }}
+              >
+                <View className="home-page__promo-copy">
+                  <View className="home-page__promo-eyebrow">发现好故事</View>
+                  <View className="home-page__promo-title">短剧商城</View>
+                  <View className="home-page__promo-description">
+                    寻找适合门店的故事 <Icon name="chevron-right" size={14} />
+                  </View>
+                </View>
+                <View className="home-page__promo-posters">
+                  <View className="home-page__promo-poster home-page__promo-poster--first" />
+                  <View className="home-page__promo-poster home-page__promo-poster--second" />
+                  <View className="home-page__promo-poster home-page__promo-poster--third" />
+                </View>
+              </View>
+            )}
+            <HomeShortcuts role={home.viewerRole} />
             {overview ? (
               <Card
+                className="home-page__overview"
                 title="上线概览"
                 extra={
-                  <View
+                  <TextButton
+                    tone="muted"
+                    arrow
                     onClick={() => {
-                      void Taro.navigateTo({ url: "/sub/billing/wallet/index" });
+                      void Taro.navigateTo({ url: "/sub/order/orders/index" });
                     }}
                   >
-                    查看钱包
-                  </View>
+                    全部订单
+                  </TextButton>
                 }
               >
                 <View className="home-page__stats">
-                  <View>
-                    <View className="home-page__number">
-                      {formatInteger(overview.liveItemCount)}
+                  <View className="home-page__stat">
+                    <View className="home-page__stat-value">
+                      <Text className="home-page__number">
+                        {formatInteger(overview.liveItemCount)}
+                      </Text>
+                      <Text className="home-page__stat-unit">部</Text>
                     </View>
-                    <View className="catalog-muted">上线短剧</View>
+                    <View className="home-page__stat-label">上线中</View>
                   </View>
-                  <View>
-                    <View className="home-page__number">
-                      {formatInteger(overview.liveEpisodeCount)}
+                  <View className="home-page__stat">
+                    <View className="home-page__stat-value">
+                      <Text className="home-page__number">
+                        {formatInteger(overview.liveEpisodeCount)}
+                      </Text>
+                      <Text className="home-page__stat-unit">集</Text>
                     </View>
-                    <View className="catalog-muted">上线集数</View>
+                    <View className="home-page__stat-label">已上线</View>
                   </View>
-                  <View>
-                    <View className="home-page__number">
-                      {formatInteger(overview.spendablePoints)}
+                  <View className="home-page__stat">
+                    <View className="home-page__stat-value">
+                      <Text className="home-page__number">
+                        {formatInteger(overview.spendablePoints)}
+                      </Text>
                     </View>
-                    <View className="catalog-muted">可用积分</View>
+                    <View className="home-page__stat-label">可用积分</View>
                   </View>
                 </View>
-                <View className="catalog-muted catalog-gap">
-                  {overview.planName ?? "暂未开通套餐"}
-                  {overview.termEndDate ? ` · 有效至 ${overview.termEndDate}` : ""}
+                <View
+                  className="home-page__plan"
+                  ariaRole="button"
+                  ariaLabel="查看套餐与积分"
+                  hoverClass="home-page__plan--pressed"
+                  onClick={() => {
+                    void Taro.navigateTo({ url: "/sub/billing/wallet/index" });
+                  }}
+                >
+                  <View className="home-page__plan-badge">
+                    <Icon name="crown" size={14} />
+                    <Text className="home-page__plan-name">
+                      {overview.planName ?? "未开通套餐"}
+                    </Text>
+                  </View>
+                  <View className="home-page__plan-detail">
+                    {overview.termEndDate
+                      ? `${homeMonthDay(overview.termEndDate)} 到期`
+                      : "查看套餐与积分"}
+                  </View>
+                  <Icon name="chevron-right" size={16} />
                 </View>
                 {overview.expiringPlanPoints > 0 && overview.planPointsExpireAt ? (
-                  <View className="catalog-muted">
-                    {formatInteger(overview.expiringPlanPoints)} 积分将在{" "}
-                    {appDateTimeFormat.dateTime(overview.planPointsExpireAt)} 到期
+                  <View className="home-page__expiry">
+                    {formatInteger(overview.expiringPlanPoints)} 套餐积分将在{" "}
+                    {appDateTimeFormat.dateTime(overview.planPointsExpireAt).replace("-", "/")}{" "}
+                    到期清零
                   </View>
                 ) : null}
               </Card>
             ) : null}
             {home.viewerRole === "owner" && home.recommend && home.recommend.items.length > 0 ? (
-              <Card title="为您推荐">
-                <View className="catalog-muted">
-                  {home.recommend.matchBy
-                    ? `${home.recommend.matchBy.industry.name}${home.recommend.matchBy.category ? ` · ${home.recommend.matchBy.category.name}` : ""}`
-                    : "适合本店的短剧"}
+              <View className="home-page__recommend">
+                <View className="home-page__section-head">
+                  <View className="home-page__section-title">为您推荐</View>
+                  <View className="home-page__match">
+                    {home.recommend.matchBy
+                      ? `按“${home.recommend.matchBy.category?.name ?? home.recommend.matchBy.industry.name}”匹配`
+                      : "适合本店的短剧"}
+                  </View>
                 </View>
                 <DramaCards horizontal items={home.recommend.items} />
-              </Card>
+              </View>
             ) : null}
+            {home.viewerRole === "owner" || home.viewerRole === "clerk" ? <HomeAssets /> : null}
             {home.viewerRole === "clerk" ? (
               <Empty
                 title="浏览短剧商城"
