@@ -33,16 +33,21 @@ import { usePublishStore } from "@/stores/publish";
 import { orderApi } from "../private/api";
 import { useOrderResource } from "../private/resource";
 import { ReferencePicker, useOrderReferences } from "../private/reference-ui";
+import { useDeliveryIdentity } from "../components/ui";
+import { actualAdUrl, reconcileOrderAds, selectableOrderAd } from "../private/m5-order";
+import type { SelectedOrderAd } from "../private/m5-order";
 import "./index.scss";
 const platformName: Record<string, string> = { douyin: "抖音", wechat_channels: "视频号" };
 export default function CheckoutPage() {
+  const identity = useDeliveryIdentity();
   const rev = useContextStore((s) => s.contextRev),
     token = useSessionStore((s) => s.accessToken);
   const ids = (Taro.getCurrentInstance().router?.params.dramaIds ?? "").split(",").filter(Boolean);
-  return <Checkout key={`${rev}:${token}`} ids={[...new Set(ids)].slice(0, 50)} />;
+  return <Checkout key={`${identity}:${rev}:${token}`} ids={[...new Set(ids)].slice(0, 50)} />;
 }
 function Checkout({ ids }: { ids: string[] }) {
   const [selected, setSelected] = useState<string[]>([]),
+    [selectedAds, setSelectedAds] = useState<SelectedOrderAd[]>([]),
     [focus, setFocus] = useState<string[]>([]),
     [note, setNote] = useState(""),
     [topModel, setTopModel] = useState(false),
@@ -63,10 +68,11 @@ function Checkout({ ids }: { ids: string[] }) {
     async () => {
       if (viewerRole(account.snapshot().me, catalogScope()) !== "owner") return null;
       if (!ids.length) return null;
-      const [accounts, dict, policy] = await Promise.all([
+      const [accounts, dict, policy, ads] = await Promise.all([
         orderApi.accounts(),
         orderApi.focus(),
         orderApi.policy(),
+        orderApi.ads(),
       ]);
       let quote: OrderQuote | null = null,
         quoteError: { code: string; message: string } | null = null;
@@ -89,6 +95,7 @@ function Checkout({ ids }: { ids: string[] }) {
       return {
         quote,
         quoteError,
+        ads,
         accounts: accounts.items.filter((i) => i.status === "available"),
         focus:
           dict.items
@@ -109,10 +116,13 @@ function Checkout({ ids }: { ids: string[] }) {
       previousQuote.current = quote;
       const current = guard(true);
       void Promise.resolve().then(() => {
-        if (current()) setAgreed(null);
+        if (current()) {
+          setAgreed(null);
+          setSelectedAds((previous) => reconcileOrderAds(quote, data?.ads ?? [], previous));
+        }
       });
     }
-  }, [quote, intent, guard]);
+  }, [quote, data?.ads, intent, guard]);
   const change = useCallback(() => {
     intent.changed();
     setSubmitError(null);
@@ -120,7 +130,7 @@ function Checkout({ ids }: { ids: string[] }) {
   const referenceLocked = useCallback(() => active.current || subscribing.current, []);
   const references = useOrderReferences(change, referenceLocked);
   const selectAccount = (id: string, platform: string, checked: boolean) => {
-    if (active.current) return;
+    if (active.current || subscribing.current) return;
     change();
     setAgreed(null);
     const samePlatform = new Set(
@@ -139,7 +149,10 @@ function Checkout({ ids }: { ids: string[] }) {
       referenceBody === null ||
       active.current ||
       resource.loading ||
+      resource.error ||
       !canSubmitOrder(quote, selected, focus, agreed) ||
+      (quote &&
+        reconcileOrderAds(quote, data?.ads ?? [], selectedAds).length !== selectedAds.length) ||
       !quote
     ) {
       subscribing.current = false;
@@ -162,6 +175,7 @@ function Checkout({ ids }: { ids: string[] }) {
           ...(note.trim() ? { note: note.trim() } : {}),
           agreementVersionId: quote.agreement.agreementVersionId,
           expect: quote.expect,
+          ...(selectedAds.length ? { adIds: selectedAds.map((ad) => ad.adId) } : {}),
           ...referenceBody,
         },
         key,
@@ -197,7 +211,13 @@ function Checkout({ ids }: { ids: string[] }) {
       }
     }
   };
-  const allowed = canSubmitOrder(quote, selected, focus, agreed) && !resource.loading;
+  const allowed =
+    canSubmitOrder(quote, selected, focus, agreed) &&
+    !resource.loading &&
+    !resource.error &&
+    Boolean(
+      quote && reconcileOrderAds(quote, data?.ads ?? [], selectedAds).length === selectedAds.length,
+    );
   return (
     <View className="checkout-page" id={resource.loading ? undefined : "order-ready"}>
       <PageBody>
@@ -354,12 +374,63 @@ function Checkout({ ids }: { ids: string[] }) {
                 />
               )}
             </Card>
+            <Card title="选用广告（选填）">
+              <Note>
+                选择已确认的广告版本。广告制作积分另行结算，本次订购冻结积分以当前报价为准。
+              </Note>
+              {data.ads.length ? (
+                data.ads.map((ad) => {
+                  const selectable = selectableOrderAd(quote, ad),
+                    url = actualAdUrl(ad.adId);
+                  return (
+                    <View key={ad.adId}>
+                      <Checkbox
+                        checked={selectedAds.some((value) => value.adId === ad.adId)}
+                        disabled={busy || resource.loading || !selectable}
+                        onChange={(checked) => {
+                          if (active.current || subscribing.current) return;
+                          change();
+                          setAgreed(null);
+                          setSelectedAds((previous) =>
+                            checked && ad.confirmedVersionNo !== null
+                              ? [
+                                  ...previous.filter(
+                                    (value) =>
+                                      data.ads.find((item) => item.adId === value.adId)?.type !==
+                                      ad.type,
+                                  ),
+                                  { adId: ad.adId, confirmedVersionNo: ad.confirmedVersionNo },
+                                ]
+                              : previous.filter((value) => value.adId !== ad.adId),
+                          );
+                          resource.refresh();
+                        }}
+                      >
+                        {ad.type === "opening" ? "片头" : "片尾"} · {ad.adNo} · {ad.durationSec} 秒
+                        · 第 {ad.confirmedVersionNo ?? "—"} 版{!selectable ? " · 当前不可选" : null}
+                      </Checkbox>
+                      {url ? (
+                        <TextButton
+                          onClick={() => {
+                            void Taro.navigateTo({ url });
+                          }}
+                        >
+                          查看广告
+                        </TextButton>
+                      ) : null}
+                    </View>
+                  );
+                })
+              ) : (
+                <Note>暂无可选的已确认广告，可继续订购。</Note>
+              )}
+            </Card>
             <Card title="定制重点">
               <Checkbox
                 checked={topModel}
                 disabled={busy || resource.loading}
                 onChange={(checked) => {
-                  if (active.current) return;
+                  if (active.current || subscribing.current) return;
                   change();
                   setAgreed(null);
                   model.current = checked;

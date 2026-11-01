@@ -136,7 +136,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     "W1-20",
     { implemented: true },
   ),
-  page("sub/order/my-dramas/index", "sub/order", "我的短剧", "MyDramas", "M33", "M5", "G5-A"),
+  page("sub/order/my-dramas/index", "sub/order", "我的短剧", "MyDramas", "M33", "M5", "G5-A", {
+    implemented: true,
+  }),
   // sub/publish（4 页）
   page("sub/publish/tasks/index", "sub/publish", "发布任务", "Publish", "M28", "M1", "W1-20", {
     implemented: true,

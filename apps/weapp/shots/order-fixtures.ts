@@ -241,7 +241,9 @@ export function offlineOrderRequest(scene: string): RequestLayer["request"] {
               }
             : {}),
       } satisfies Data<"m.order.quote">;
-    } else if (url.pathname === "/m/channel-accounts")
+    } else if (url.pathname === "/m/ads")
+      data = { items: [], hasMore: false, nextCursor: null } satisfies Data<"m.ad.list">;
+    else if (url.pathname === "/m/channel-accounts")
       data = {
         items: [orderAccount],
         hasMore: false,
