@@ -9,10 +9,11 @@ import type {
 import { calendarDate, diffDays } from "@liyoxi/shared/time";
 import { quoteDramaItem, quoteAd } from "@liyoxi/shared/pricing";
 import { AppError } from "../../kernel/index.js";
-import type { Clock, TxRunner } from "../../kernel/index.js";
-import { matchedFields, normalizeSearch } from "../../content/index.js";
+import type { Clock, Tx, TxRunner } from "../../kernel/index.js";
+import { matchedFields, normalizeSearch, readTrailerMediaFacts } from "../../content/index.js";
 import type { Content } from "../../content/index.js";
 import type { Config, SiteAdmin } from "../../config/index.js";
+import { readMerchantPlayableAsset } from "../../media/index.js";
 import type { Media } from "../../media/index.js";
 import {
   getWalletView,
@@ -94,6 +95,31 @@ export function createMall(deps: MallDeps) {
   let homeSnapshot:
     | { key: string; until: number; bannerIds: string[]; hotIds: string[]; newIds: string[] }
     | undefined;
+  async function trailerBrief(tx: Tx, dramaId: string) {
+    if (!(await deps.config.flags.isEnabled("weapp.video.trailer.enabled", { entityId: null })))
+      return null;
+    const facts = await readTrailerMediaFacts(tx, dramaId);
+    if (facts?.status !== "listed" || !facts.currentPlayableAssetId) return null;
+    const value = await readMerchantPlayableAsset(tx, facts.currentPlayableAssetId),
+      asset = value?.asset;
+    if (
+      !asset ||
+      asset.kind !== "trailer" ||
+      asset.ownerType !== "drama" ||
+      asset.ownerId !== dramaId ||
+      asset.entityId !== null ||
+      asset.storeId !== null ||
+      asset.state !== "ready" ||
+      !asset.readyAt ||
+      asset.retiredAt ||
+      asset.durationMs === null ||
+      asset.durationMs < 0
+    )
+      return null;
+    // Brief only: current may remain usable while its replacement target is processing.
+    // The playback endpoint rechecks current ownership, files and flags before signing sources.
+    return { playableId: asset.id, durationMs: asset.durationMs };
+  }
   async function configs() {
     const [mall, home] = await Promise.all([
       deps.config.siteConfig.published("mall"),
@@ -420,13 +446,14 @@ export function createMall(deps: MallDeps) {
             const rows = await deps.content.getDramaCards(tx, [id], at),
               row = rows[0];
             if (!row || row.status === "draft" || row.archivedAt) throw new AppError("NOT_FOUND");
-            const [ability, permits, params] = await Promise.all([
+            const [ability, permits, params, trailer] = await Promise.all([
               deps.content.getOrderability(tx, [id]),
               tx.dramaPermit.findMany({
                 where: { dramaId: id, status: "active" },
                 orderBy: { id: "asc" },
               }),
               configParamsAt(tx, ["content.placement.open_slots", "ad.duration_options"], at),
+              trailerBrief(tx, id),
             ]);
             const cartItem =
               viewer.role === "owner" && viewer.storeId && viewer.entityId
@@ -440,6 +467,7 @@ export function createMall(deps: MallDeps) {
               ability: ability.get(id)!,
               permits,
               params,
+              trailer,
               cartItemId: cartItem?.id ?? null,
             };
           }),
@@ -450,8 +478,9 @@ export function createMall(deps: MallDeps) {
             (params["content.placement.open_slots"] as readonly string[]).includes(slot) &&
             ["opening", "ending"].includes(slot),
         );
+      const card = (await cards([row], viewer, fin, home.content, dict, at))[0]!;
       return {
-        ...(await cards([row], viewer, fin, home.content, dict, at))[0],
+        ...card,
         viewerRole: viewer.role,
         orderability: { orderable: ability.orderable, reason: ability.reason },
         episodeDurationSec: row.episodeDurationSec,
@@ -479,7 +508,7 @@ export function createMall(deps: MallDeps) {
         })),
         adUnitPoints: fin.params.adUnitPoints,
         topModelSurchargeBp: fin.params.topModelSurchargeBp,
-        trailer: null,
+        trailer: data.trailer ? { ...data.trailer, posterUrl: card.posterUrl } : null,
         ...(viewer.role === "owner"
           ? { owner: { ...ownerFields(fin), cartItemId: data.cartItemId } }
           : {}),
