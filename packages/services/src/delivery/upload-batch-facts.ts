@@ -37,8 +37,21 @@ export async function authorizeBatchUpload(
       staff.staff.roleKey !== "super_admin"
     )
       throw new AppError("PERMISSION_DENIED");
-    // Reissue registration is still owned by W3-06; the current real consumer rejects it too.
-    if (!["batch_compose", "delivering"].includes(current.step) || current.deliveredAt)
+    const initial = ["batch_compose", "delivering"].includes(current.step) && !current.deliveredAt;
+    const reissue =
+      ["awaiting_launch", "launch_verify", "in_service"].includes(current.step) &&
+      (await tx.deliveryReissue.findFirst({
+        where: {
+          deliveryTicketId: current.id,
+          entityId: current.entityId,
+          storeId: current.storeId,
+          status: "open",
+        },
+        select: { id: true },
+      }));
+    // Upload preparation is order-item scoped. The delivery consumer still requires
+    // an explicit, current reissueId and checks its episode range under the ticket lock.
+    if (!initial && !reissue)
       throw new AppError("EPISODE_REGISTER_NOT_ALLOWED", {
         details: { step: current.step, reason: "step" },
       });
