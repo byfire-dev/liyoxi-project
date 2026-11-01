@@ -17,6 +17,28 @@ it("M1 七段真实接口主路径：登录建档、对公入账、订剧交付�
       api: createM1Api(support),
       support,
       say: (message) => process.stdout.write(`M1：${message}\n`),
+      afterChain: async () => {
+        // Exercise the real ten-minute reconciliation path before the original full assertions.
+        support.clock.advance(600_001);
+        // Advancing business time also makes existing notifications due. Consume them through
+        // the real dispatcher so their overdue invariant retains its original meaning.
+        await support.runtime.notify.scan(async (ref) => {
+          await support.runtime.notify.deliver(ref);
+        });
+        for (let replay = 0; replay < 2; replay++) {
+          const reconciled = await support.runtime.reconcileOrders();
+          expect(reconciled.inspected).toBeGreaterThan(0);
+          expect(reconciled).toMatchObject({
+            lettersCreated: 0,
+            lettersRevised: 0,
+            lettersVoided: 0,
+            cancellationsCreated: 0,
+            resyncArmed: 0,
+            shortened: 0,
+          });
+        }
+        await support.drainEvents();
+      },
     });
     expect(report.episodeCount).toBe(20);
     expect(report.final).toEqual({

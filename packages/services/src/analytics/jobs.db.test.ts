@@ -32,7 +32,7 @@ afterAll(async () => {
   worker?.closeDelivery?.();
   worker?.closePublish?.();
   worker?.closeBillingTimers?.();
-  worker?.closeOrder?.();
+  await worker?.closeOrder?.();
 });
 it("真实worker装配与job认领执行：每日04:10/P3，按执行clock8天cutoff多批清理、结果与重放", async () => {
   const job = worker.assembly.recurringJob("analytics.dedup_purge");

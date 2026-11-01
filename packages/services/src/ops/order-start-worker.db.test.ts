@@ -199,7 +199,7 @@ it("独立worker实际relay/派发/消费两订阅者后真实扣减开工；重
       occurredAt: clock.now().toISOString(),
     });
   } finally {
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeDelivery?.();
     worker.closePublish?.();
     worker.closeBillingTimers?.();

@@ -103,7 +103,7 @@ describe("API 与 worker 的 MinIO 端点装配", () => {
     } finally {
       services.closeWebhooks?.();
       services.closeAnalytics?.();
-      services.closeOrder?.();
+      await services.closeOrder?.();
       services.closeBillingTimers?.();
       services.closePublish?.();
       services.closeDelivery?.();

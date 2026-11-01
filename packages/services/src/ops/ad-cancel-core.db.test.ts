@@ -80,7 +80,7 @@ afterAll(async () => {
     await worker.closeStaff?.();
     await worker.closeSmsHealth?.();
     await worker.closeAlertFacts?.();
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeBillingTimers?.();
     worker.closePublish?.();
     worker.closeDelivery?.();
@@ -2045,7 +2045,7 @@ describe("主体关闭的 pending ad_cancel 同事务所属伴随", () => {
         ).toEqual([r.id]);
         await expectClosed(f, r, "withdrawn");
       } finally {
-        worker.closeOrder?.();
+        await worker.closeOrder?.();
       }
       expect(boundOrder()).toBe(previous);
       expect(boundOrder().cancel).toBe(f.deps);

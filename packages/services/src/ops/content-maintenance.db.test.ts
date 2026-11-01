@@ -74,7 +74,7 @@ it("实际 worker 的小时统计处理器把真实上线订单项计为非零�
     await worker.closeSmsHealth?.();
     worker.closeMediaJobs?.();
     worker.closeWebhooks?.();
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeBillingTimers?.();
     worker.closeDelivery?.();
     worker.closePublish?.();

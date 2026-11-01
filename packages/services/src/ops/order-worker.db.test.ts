@@ -90,7 +90,7 @@ it("独立worker真实绑定运行order六检查，自愈合法前向事实并�
     });
     expect(await prisma.statusTransition.count({ where: { subjectId: item.id } })).toBe(1);
   } finally {
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeDelivery?.();
     worker.closePublish?.();
     worker.closeBillingTimers?.();

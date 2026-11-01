@@ -46,7 +46,7 @@ afterEach(async () => {
   for (const services of owned.splice(0)) {
     services.closeWebhooks?.();
     services.closeAnalytics?.();
-    services.closeOrder?.();
+    await services.closeOrder?.();
     services.closeBillingTimers?.();
     services.closePublish?.();
     services.closeDelivery?.();

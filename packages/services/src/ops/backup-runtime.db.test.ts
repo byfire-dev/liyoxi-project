@@ -52,7 +52,7 @@ afterEach(async () => {
       worker.documentConverter?.close(),
     ]);
     worker.closeWebhooks?.();
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeBillingTimers?.();
     worker.closePublish?.();
     worker.closeDelivery?.();

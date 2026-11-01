@@ -10,6 +10,56 @@ import { submitQualificationCancel } from "./cancel-submit.js";
 import type { OrderStartBinding } from "./start-binding.js";
 import { armOrderStart, updateStartSubStatus } from "./start-timer.js";
 
+/** Subscriber and reconciliation share the current-round creator, including its complete lock graph. */
+export async function ensureFinalQualificationCancel(
+  tx: Tx,
+  deps: CancelDeps,
+  input: { entityId: string; storeId: string; submissionId?: string },
+): Promise<boolean> {
+  const graph = await readQualificationGraph(tx, input),
+    round = graph.round;
+  if (
+    !round ||
+    round.approvalStatus !== "rejected" ||
+    round.outcome !== "rejected" ||
+    !round.finalRejectedAt ||
+    (input.submissionId !== undefined && input.submissionId !== round.submissionId) ||
+    graph.orderIds.length + graph.adIds.length === 0 ||
+    graph.requests.some((request) => request.kind === "qualification_cancel")
+  )
+    return false;
+  const store = await tx.store.findFirst({
+    where: { id: input.storeId, entityId: input.entityId },
+    include: { entity: true },
+  });
+  if (
+    !store ||
+    store.lifecycle !== "active" ||
+    store.entity.lifecycle !== "active" ||
+    store.qualificationStatus !== "rejected"
+  )
+    return false;
+  await submitQualificationCancel(
+    tx,
+    deps,
+    {
+      ctx: createIdentityContext({
+        actor: { type: "system", job: "order.qualification_decided" },
+        entityId: input.entityId,
+        storeId: input.storeId,
+      }),
+    },
+    {
+      entityId: input.entityId,
+      storeId: input.storeId,
+      requesterStaffId: round.decidedByStaffId,
+      submissionId: round.submissionId,
+      roundNo: round.roundNo,
+    },
+  );
+  return true;
+}
+
 export async function qualificationDecided(
   tx: Tx,
   start: OrderStartBinding,
@@ -34,24 +84,11 @@ export async function qualificationDecided(
     graph.orderIds.length + graph.adIds.length > 0 &&
     !graph.requests.some((r) => r.kind === "qualification_cancel")
   ) {
-    await submitQualificationCancel(
-      tx,
-      deps ?? boundCancelRequests(),
-      {
-        ctx: createIdentityContext({
-          actor: { type: "system", job: "order.qualification_decided" },
-          entityId,
-          storeId,
-        }),
-      },
-      {
-        entityId,
-        storeId,
-        requesterStaffId: round.decidedByStaffId,
-        submissionId: round.submissionId,
-        roundNo: round.roundNo,
-      },
-    );
+    await ensureFinalQualificationCancel(tx, deps ?? boundCancelRequests(), {
+      entityId,
+      storeId,
+      submissionId: round.submissionId,
+    });
     return;
   }
   if (!(await lockQualificationGraph(tx, graph))) return;

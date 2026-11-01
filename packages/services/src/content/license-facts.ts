@@ -9,6 +9,28 @@ export interface LicenseScope {
   permits: { kind: string; number: string; platform: string }[];
 }
 
+/** 调用方先锁剧目父行；仅提供当前版权事实，不执行续期或使用期改写。 */
+export async function readCurrentLicenseEnd(
+  tx: Tx,
+  dramaId: string,
+): Promise<{
+  dramaId: string;
+  licenseEndDate: string | null;
+  currentRevisionId: string | null;
+} | null> {
+  const row = await tx.dramaCopyright.findUnique({
+    where: { dramaId },
+    select: { dramaId: true, licenseEndDate: true, currentDramaCopyrightRevisionId: true },
+  });
+  return row
+    ? {
+        dramaId: row.dramaId,
+        licenseEndDate: row.licenseEndDate?.toISOString().slice(0, 10) ?? null,
+        currentRevisionId: row.currentDramaCopyrightRevisionId,
+      }
+    : null;
+}
+
 /** 授权快照读取真实许可范围；历史订单不受商城上下架、停售日期等订购守卫影响。 */
 export async function readLicenseScope(
   tx: Tx,

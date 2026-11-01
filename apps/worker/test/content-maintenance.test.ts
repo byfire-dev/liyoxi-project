@@ -39,7 +39,7 @@ afterAll(async () => {
   await worker?.closeSmsHealth?.();
   worker?.closeMediaJobs?.();
   worker?.closeWebhooks?.();
-  worker?.closeOrder?.();
+  await worker?.closeOrder?.();
   worker?.closeBillingTimers?.();
   worker?.closeDelivery?.();
   worker?.closePublish?.();

@@ -70,7 +70,7 @@ afterEach(async () => {
   owned?.closeMediaJobs?.();
   owned?.closeApproval?.();
   owned?.closeInvitations?.();
-  owned?.closeOrder?.();
+  await owned?.closeOrder?.();
   owned?.closeBillingTimers?.();
   owned?.closePublish?.();
   owned?.closeDelivery?.();

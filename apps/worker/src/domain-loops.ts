@@ -5,6 +5,7 @@ import { notifyScan } from "./loops/notify-scan.js";
 import { billingAdvance } from "./loops/billing-advance.js";
 
 import { deliveryReevaluate } from "./loops/delivery-reevaluate.js";
+import { orderReconcile } from "./loops/order-reconcile.js";
 import { webhookReprocess } from "./loops/webhook-reprocess.js";
 import { mediaJobRun } from "./loops/media-job-run.js";
 import { probe } from "./loops/probe.js";
@@ -14,6 +15,7 @@ export const DOMAIN_LOOPS: readonly DomainLoopDef[] = [
   billingAdvance,
   notifyScan,
   deliveryReevaluate,
+  orderReconcile,
   webhookReprocess,
   mediaJobRun,
 ];

@@ -58,7 +58,7 @@ afterEach(async () => {
     worker.closeApproval?.();
     await worker.closeProfile?.();
     worker.closeInvitations?.();
-    worker.closeOrder?.();
+    await worker.closeOrder?.();
     worker.closeBillingTimers?.();
     worker.closePublish?.();
     worker.closeDelivery?.();

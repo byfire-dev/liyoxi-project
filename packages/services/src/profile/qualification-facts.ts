@@ -57,3 +57,36 @@ export async function readOrderQualificationRound(
     decidedByStaffId: row.approvalRequest.decidedByStaffId,
   };
 }
+
+/** 对账候选只按当前已提交轮次判断；包含没有订单、只有待指派广告的门店。 */
+export async function listFinalRejectedQualificationScopes(
+  tx: Tx,
+  input: { readonly cursor?: string; readonly limit: number },
+): Promise<{ entityId: string; storeId: string }[]> {
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1)
+    throw new TypeError("终局资质候选页容量必须是正整数");
+  const cursor = input.cursor ?? null;
+  // 先选最近已提交轮次，再筛终局；先筛旧终局行会把后续重提/通过误当作仍需取消。
+  return tx.$queryRaw<{ entityId: string; storeId: string }[]>`
+    SELECT s.entity_id::text AS "entityId", s.id::text AS "storeId"
+      FROM store s
+      JOIN entity e ON e.id = s.entity_id
+      JOIN LATERAL (
+        SELECT q.outcome, q.final_rejected_at, q.approval_request_id
+          FROM qualification_submission q
+         WHERE q.entity_id = s.entity_id AND q.store_id = s.id
+           AND q.kind IN ('initial', 'new_store') AND q.submitted_at IS NOT NULL
+         ORDER BY q.round_no DESC, q.id DESC
+         LIMIT 1
+      ) current_round ON true
+      JOIN approval_request approval ON approval.id = current_round.approval_request_id
+     WHERE s.lifecycle = 'active' AND e.lifecycle = 'active'
+       AND s.qualification_status = 'rejected'
+       AND current_round.outcome = 'rejected'
+       AND current_round.final_rejected_at IS NOT NULL
+       AND approval.status = 'rejected'
+       AND (${cursor}::uuid IS NULL OR s.id > ${cursor}::uuid)
+     ORDER BY s.id
+     LIMIT ${input.limit}::int
+  `;
+}

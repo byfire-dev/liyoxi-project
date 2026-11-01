@@ -53,5 +53,9 @@ export {
 export { createProfileConsistencyTransactions } from "./consistency-transactions.js";
 
 export type { ProfileConsistencyTransactions } from "./consistency-transactions.js";
-export { isQualificationDead, readOrderQualificationRound } from "./qualification-facts.js";
+export {
+  isQualificationDead,
+  readOrderQualificationRound,
+  listFinalRejectedQualificationScopes,
+} from "./qualification-facts.js";
 export { readMaterialProfile } from "./material-facts.js";
