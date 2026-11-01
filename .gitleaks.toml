@@ -72,3 +72,12 @@ condition = "AND"
 paths = ['''^packages/services/src/testing/admin-live/w514\.fixture\.ts$''']
 regexTarget = "secret"
 regexes = ["^W514-Fictional-ok$"]
+
+# W5-13 固定演练口令仅用于隔离库内新建员工的真实激活；不是部署凭据。
+[[allowlists]]
+description = "W5-13 工单演练：本轮隔离 editor/publisher 的固定测试口令"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^packages/services/src/testing/admin-live/w513\.fixture\.ts$''']
+regexTarget = "secret"
+regexes = ["^Liyoxi\\-W513\\-2026\\-ok$"]
