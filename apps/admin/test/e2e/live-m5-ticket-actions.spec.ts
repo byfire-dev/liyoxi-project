@@ -185,7 +185,7 @@ async function checklist(page: Page, code: string) {
   };
 }
 
-async function m5Shot(page: Page, name: string) {
+async function m5Shot(page: Page, name: string, focus?: Locator) {
   await noHorizontalScroll(page, name);
   await page.setViewportSize({ width: 1440, height: 900 });
   try {
@@ -197,6 +197,7 @@ async function m5Shot(page: Page, name: string) {
         requestAnimationFrame(() => requestAnimationFrame(() => done())),
       );
     });
+    if (focus) await focus.scrollIntoViewIfNeeded();
     mkdirSync("dist/e2e-shots", { recursive: true });
     // Same fixed 10s exact-byte proof as actual W514; no masks or comparison tolerance.
     const deadline = Date.now() + 10_000;
@@ -947,6 +948,9 @@ test("W513工单余下操作真实写读：强迁/求值、现签取料、发送
       productionFacts.getByRole("button", { name: "刷新制作事实", exact: true }),
     ).toBeEnabled();
     await m5Shot(page, "w513-06-reissue-production");
+    const actualProductionRecord = productionFacts.locator(".lyx-m5-record").first();
+    await actualProductionRecord.scrollIntoViewIfNeeded();
+    await m5Shot(page, "w513-06b-production-facts", actualProductionRecord);
     await confirm(page, "发布补发", async (modal) => {
       for (const check of await modal.locator("fieldset").getByRole("checkbox").all())
         await check.check();
