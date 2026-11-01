@@ -23,6 +23,8 @@ import { deliveryProductionFacts, adProductionFacts } from "./production/facts.j
 import { ensureSampleWatermark } from "./sample-watermark.js";
 import { prepareDeliveryProduction } from "./production/prepare.js";
 import type { ManualProductionInput } from "./production/prepare.js";
+import { prepareAdProduction } from "./production/ad-prepare.js";
+import type { AdProductionInput } from "./production/ad-prepare.js";
 import {
   enqueueTrailer,
   createProductionConvergence,
@@ -220,6 +222,17 @@ export function createMedia(options: MediaDeps) {
         },
         inputs,
         beforeFiles,
+      ),
+    prepareAdProduction: (tx: Tx, input: AdProductionInput) =>
+      prepareAdProduction(
+        tx,
+        {
+          clock: deps.clock,
+          enqueueProbe: (inner, fileId) => enqueueProbe(deps, inner, fileId),
+          awaitingRestamp: async (inner, fileId) =>
+            (await adProductionFacts(deps, inner, fileId)).awaitingRestamp,
+        },
+        input,
       ),
     deliveryProductionFacts: (tx: Parameters<typeof deliveryProductionFacts>[1], fileId: string) =>
       deliveryProductionFacts(deps, tx, fileId),

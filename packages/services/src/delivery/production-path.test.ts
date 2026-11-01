@@ -292,6 +292,8 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
       );
     expect(InspectPackageResultSchema.parse(pkg).ticket.step).toBe("delivering");
     expect(h.rederivations.at(-1)?.steps).toEqual(["delivering"]);
+    await h.prepareLicenseInputs(o.items.map((item) => item.id));
+    await h.prepareLicenseReady(o.items.map((item) => item.id));
     const packageBody = { precheck: await checks("delivery.precheck") },
       out = await replay("admin.deliveryTicket.pushPackage", qc.ctx.actor, packageBody, (o) =>
         h.delivery.packagePush(qc.ctx, qc.staff, id, packageBody, o),
@@ -600,6 +602,8 @@ describe("delivery PR2 十 API 真库主链", { timeout: 60000 }, () => {
         h.delivery.packageInspect(qc.ctx, qc.staff, id, pkg),
       ]);
     expect(done.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    await h.prepareLicenseInputs(o.items.map((item) => item.id));
+    await h.prepareLicenseReady(o.items.map((item) => item.id));
     const precheck = await checks("delivery.precheck"),
       pushed = await Promise.allSettled([
         h.delivery.packagePush(qc.ctx, qc.staff, id, { precheck }),

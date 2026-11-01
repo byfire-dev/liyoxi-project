@@ -114,6 +114,8 @@ export { createModelBudgetInitializer } from "./model-budget-initialize.js";
 export type { ModelBudgetInitialization } from "./model-budget-initialize.js";
 export { createProfileLifecycleAssembly } from "./profile-lifecycle-runtime.js";
 export { createInvitationAssembly } from "./invitation-runtime.js";
+export { createAdAssembly } from "./ad-timer-runtime.js";
+export type { AdTimerBinding } from "./ad-timer-runtime.js";
 
 export {
   createTenantEntitlementAssembly,
@@ -128,3 +130,7 @@ export { createDocsLicenseAssembly, createRuntimeDocsLicense } from "./docs-lice
 
 export { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
 export type { LicenseRenderingEngine, DocsRenderRuntime } from "./docs-render-runtime.js";
+export { createAdCancelRequests } from "./ad-cancel-runtime.js";
+export { createAdRuntime } from "./ad-runtime.js";
+
+export { createMerchantPlayables } from "./playable-runtime.js";

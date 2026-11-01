@@ -60,3 +60,4 @@ export * from "./routes/a09-ops/agreement-versions.js";
 export * from "./routes/a09-ops/agreement-consents.js";
 export * from "./routes/h01-hooks/asr.js";
 export * from "./routes/h01-hooks/asr.schemas.js";
+export * from "./routes/m06-ad/index.js";

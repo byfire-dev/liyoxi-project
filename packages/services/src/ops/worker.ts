@@ -1,3 +1,4 @@
+import { createAdAssembly } from "./ad-timer-runtime.js";
 import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
 import type { LicenseRenderingEngine } from "./docs-render-runtime.js";
 import { assertLicenseFileVisible } from "../docs/index.js";
@@ -425,7 +426,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
-  const invitationScope = createInvitationAssembly(docsLicenseScope.assembly);
+  const adScope = createAdAssembly(docsLicenseScope.assembly);
+  const invitationScope = createInvitationAssembly(adScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const invoiceScope = createInvoiceAssembly(entitlementScope.assembly);
   const refundScope = createRefundAssembly(invoiceScope.assembly);
@@ -435,6 +437,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const assembly = shippingScope.assembly;
   const events = createEvents({ assembly, clock, tx, testEvents: options.testEvents });
   deliverySlaScope.attach({ events, clock });
+  adScope.attach({ events, clock });
   const timers = createTimers({ assembly, catalog: options.timerCatalog });
   const probe = options.probe
     ? createProbe({
@@ -794,6 +797,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   const closePublish = bindPublish(assembly);
   const deliveryCore = {
+    ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
     get approval() {
       return approval;
     },
@@ -1133,10 +1137,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: async () => {
-      await orderReconciler.close();
+      const results = await Promise.allSettled([orderReconciler.close(), adScope.close()]);
+      const failure = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
       closeStart();
       closeCancelRequests();
       closeDerive();
+      if (failure) throw failure.reason;
     },
     closeBillingTimers: () => {
       billingDailyScope.close();

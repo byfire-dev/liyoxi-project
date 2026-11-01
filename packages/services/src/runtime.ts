@@ -1,4 +1,11 @@
 import type { LicenseTemplateCatalog } from "./docs/index.js";
+import {
+  createAdCancelRequests,
+  createAdRuntime,
+  createMerchantPlayables,
+  createAdAssembly,
+} from "./ops/index.js";
+import { AppError } from "./kernel/index.js";
 import { isLicenseOwner, licenseStoreVisible } from "./tenant/index.js";
 import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./ops/index.js";
 import type { LicenseRenderingEngine, DocsRenderRuntime } from "./ops/index.js";
@@ -311,10 +318,13 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly ads: ReturnType<typeof createAdRuntime>;
+  readonly playables: ReturnType<typeof createMerchantPlayables>;
+  readonly adCancelRequests: ReturnType<typeof createAdCancelRequests>;
   reconcileOrders(beat?: () => void): Promise<OrderReconcileResult>;
   readonly licenseLetters: Pick<
     ReturnType<typeof createDocsLicenseAssembly>,
-    "reconcileLetters" | "ensureLetters"
+    "reconcileLetters" | "ensureLetters" | "ensureLicenseReadiness"
   >;
   readonly sessionMutex: SessionMutex;
   readonly docs: Docs;
@@ -534,7 +544,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const docsScope = createDocsAssembly(deliverySlaScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
-  const invitationScope = createInvitationAssembly(docsLicenseScope.assembly);
+  const adScope = createAdAssembly(docsLicenseScope.assembly);
+  const invitationScope = createInvitationAssembly(adScope.assembly);
   const entitlementScope = createTenantEntitlementAssembly(invitationScope.assembly);
   const transferReviewScope = createTransferReviewAssembly(entitlementScope.assembly);
   const invoiceScope = createInvoiceAssembly(transferReviewScope.assembly);
@@ -682,6 +693,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     );
   const events = createEvents({ assembly, clock, tx });
   deliverySlaScope.attach({ events, clock });
+  adScope.attach({ events, clock });
   const wechatSources = env.WECHAT
     ? [
         createWechatMessageSource({
@@ -879,6 +891,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
   const unbindDelivery = bindDelivery({
+    ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
     media,
     tx,
     clock,
@@ -1047,6 +1060,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const unbindOrder = bindOrder({ assembly, clock, flow, media, cancel: cancelDeps });
   const unbindCancelRequests = bindCancelRequests(cancelDeps);
   const cancelRequests = createRuntimeCancelRequests(cancelDeps);
+  const adCancelRequests = createAdCancelRequests(cancelDeps);
   const orderReconciler = createOrderReconciler({
     tx,
     clock,
@@ -1058,6 +1072,67 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     ticketByItem: getTicketBriefByOrderItem,
   });
   const tenant = createTenant({ tx, clock, flow, assembly });
+  const playables = createMerchantPlayables({ tx, clock, config, media, tenant });
+  const ads = createAdRuntime(
+    {
+      tx,
+      clock,
+      assembly,
+      bizNo,
+      flow,
+      events,
+      ledger,
+      timers,
+      sla,
+      docs: docsServices.docs,
+      media,
+      config,
+      playback: (entityId) => config.flags.isEnabled("weapp.video.ad.enabled", { entityId }),
+      readPlayable: (actor, playableId) =>
+        playables.get(
+          {
+            merchantUserId: actor?.ctx.actor.id ?? undefined,
+            storeId: actor?.membership.storeId,
+          },
+          playableId,
+        ),
+      async moderate(actor, fields) {
+        const texts = Object.entries(fields).filter(([, value]) => value.length > 0);
+        if (!texts.length) return;
+        if (
+          !actor.principal ||
+          actor.ctx.actor.type !== "merchant" ||
+          actor.ctx.actor.id !== actor.principal.merchantUserId
+        )
+          throw new AppError("AUTH_REQUIRED");
+        const principal = actor.principal;
+        const openid = await tx.run((t) => currentSessionOpenid(t, principal, env.WECHAT?.appid));
+        const rejected: string[] = [];
+        for (const [field, content] of texts) {
+          const result = await providers.wechat
+            .checkText({ openid, scene: "profile", content })
+            .catch(() => {
+              throw new AppError("PROVIDER_UNAVAILABLE");
+            });
+          if (!result.ok) throw new AppError("PROVIDER_UNAVAILABLE");
+          if (result.value.verdict !== "pass") rejected.push(field);
+        }
+        if (rejected.length)
+          throw new AppError("CONTENT_REJECTED", { details: { fields: rejected } });
+      },
+    },
+    {
+      tx,
+      clock,
+      assembly,
+      flow,
+      events,
+      sla,
+      media,
+      approval,
+      ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
+    },
+  );
   const unbindOrderStart = bindOrderStart({
     tx,
     clock,
@@ -1292,6 +1367,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     webhooks,
     order,
     cancelRequests,
+    adCancelRequests,
+    ads,
+    playables,
     billing,
     stagingPay,
     billingParameters: createParameterChanges({
@@ -1356,7 +1434,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
-        await settle([() => orderReconciler.close()]);
+        await settle([() => orderReconciler.close(), () => adScope.close()]);
         await settle([() => docsRender.close()]);
         await settle([() => docsScope.close()]);
         await settle([() => docsLicenseScope.close(), () => documentConverter?.close()]);

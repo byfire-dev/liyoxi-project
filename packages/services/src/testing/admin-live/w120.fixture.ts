@@ -11,6 +11,7 @@ import { createSla } from "../../sla/index.js";
 import { createTenant } from "../../tenant/index.js";
 import { sampleStaffContext } from "../approval.js";
 import { createFakeWechat } from "../providers/index.js";
+import { createHistoricalLicenseReady } from "../historical-license-ready.js";
 import type { AdminLiveFixture } from "./context.js";
 import { createHash } from "node:crypto";
 import type { Runtime } from "../../runtime.js";
@@ -49,6 +50,7 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
     const publish = createPublish({ ...runtime, media: runtime.media });
     const delivery = createDelivery({
       ...runtime,
+      ensureLicenseReadiness: runtime.licenseLetters.ensureLicenseReadiness,
       media: runtime.media,
       profile,
       publish,
@@ -336,6 +338,7 @@ export async function finishW120LiveFixture(
   });
   const delivery = createDelivery({
     ...runtime,
+    ensureLicenseReadiness: runtime.licenseLetters.ensureLicenseReadiness,
     profile,
     publish: createPublish(runtime),
     samplePlayback: (entityId) =>
@@ -355,6 +358,10 @@ export async function finishW120LiveFixture(
     };
   };
   const items = [];
+  const license = createHistoricalLicenseReady({
+    ...runtime,
+    keyring: () => loadKeyring(runtime.env),
+  });
   try {
     for (const pending of input.items) {
       signal?.throwIfAborted();
@@ -459,6 +466,8 @@ export async function finishW120LiveFixture(
         defaultResults: episodeChecks.results,
       });
       await delivery.packageInspect(qcCtx, qc, ticketId, await checks("qc.package"));
+      await license.prepareInputs([scope.itemId]);
+      await license.prepareReady([scope.itemId]);
       const ready = await delivery.get(staff, ticketId);
       if (ready.step !== "delivering") throw new Error("W120 公开流程未到待交付");
       runtime.logger.info(

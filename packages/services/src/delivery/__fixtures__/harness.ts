@@ -24,6 +24,7 @@ import {
   createClock,
   createFactories,
   createFakeProviders,
+  createHistoricalLicenseReady,
   sampleStaffContext,
   TEST_KEYRING,
 } from "../../testing/index.js";
@@ -164,6 +165,7 @@ export function harness(
   });
   const unbindPublish = bindPublish(assembly),
     publish = createPublish({ tx, clock, assembly, approval, flow, media });
+  const license = createHistoricalLicenseReady({ tx, clock, flow, events, media });
   const deps = {
       publish,
       tx,
@@ -173,6 +175,7 @@ export function harness(
       events,
       media,
       profile,
+      ensureLicenseReadiness: license.ensureLicenseReadiness,
       samplePlayback: async () => true,
       sla: createSla({ clock, assembly }),
     },
@@ -327,6 +330,8 @@ export function harness(
     unbind,
     staff,
     order,
+    prepareLicenseInputs: license.prepareInputs,
+    prepareLicenseReady: license.prepareReady,
     reports,
     applications,
     counts,

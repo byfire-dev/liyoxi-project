@@ -98,3 +98,83 @@ export async function readOrderAssetReferences(tx: Tx, orderId: string) {
     })
   ).map((row) => row.storeAssetId);
 }
+
+/** Ad-owned use cases retain references through media's existing reference mechanism. */
+export async function linkAdAssetReferences(
+  tx: Tx,
+  input: { entityId: string; storeId: string; ids: readonly string[]; adId: string; now: Date },
+  linkFile: (tx: Tx, input: LinkInput) => Promise<void>,
+) {
+  await assertAssetReferences(tx, input);
+  const files = await tx.storeAssetFile.findMany({
+    where: { storeAssetId: { in: [...input.ids] } },
+    select: { fileId: true },
+    orderBy: { fileId: "asc" },
+  });
+  for (const fileId of new Set(files.map((f) => f.fileId)))
+    await linkFile(tx, {
+      fileId,
+      entityId: input.entityId,
+      storeId: input.storeId,
+      refType: "ad",
+      refId: input.adId,
+      role: "reference",
+    });
+  await tx.storeAssetUsage.createMany({
+    data: input.ids.map((storeAssetId) => ({
+      id: uuidv7(),
+      storeAssetId,
+      usedByType: "ad",
+      usedById: input.adId,
+      role: "reference",
+      createdAt: input.now,
+    })),
+    skipDuplicates: true,
+  });
+}
+export async function readAdReferenceFacts(
+  tx: Tx,
+  input: { entityId: string; storeId: string; adId: string },
+) {
+  const assets = await tx.storeAssetUsage.findMany({
+    where: {
+      usedByType: "ad",
+      usedById: input.adId,
+      role: "reference",
+      storeAsset: { entityId: input.entityId, storeId: input.storeId },
+    },
+    select: {
+      storeAsset: {
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          storeAssetFiles: { select: { fileId: true }, orderBy: { position: "asc" } },
+        },
+      },
+    },
+    orderBy: { id: "asc" },
+  });
+  const assetFiles = new Set(
+    assets.flatMap((a) => a.storeAsset.storeAssetFiles.map((f) => f.fileId)),
+  );
+  const files = await tx.fileRef.findMany({
+    where: {
+      refType: "ad",
+      refId: input.adId,
+      role: "reference",
+      state: "live",
+      file: {
+        entityId: input.entityId,
+        storeId: input.storeId,
+        category: { in: ["profile_image", "profile_video", "profile_promo"] },
+      },
+    },
+    select: { fileId: true },
+    orderBy: { fileId: "asc" },
+  });
+  return {
+    assets: assets.map((a) => a.storeAsset),
+    profileFileIds: files.filter((f) => !assetFiles.has(f.fileId)).map((f) => f.fileId),
+  };
+}

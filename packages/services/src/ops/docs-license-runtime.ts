@@ -19,6 +19,7 @@ import {
   findN16Violations,
   reconcileLetters,
   ensureLetters,
+  readLicenseReadiness,
 } from "../docs/index.js";
 import type { LicenseConvergenceDeps } from "../docs/index.js";
 
@@ -128,6 +129,15 @@ export function createDocsLicenseAssembly(base: Assembly) {
       run((value) => reconcileLetters(tx, value, ids, triggerRef)),
     ensureLetters: (tx: Tx, ids: readonly string[], triggerRef: string) =>
       run((value) => ensureLetters(tx, value, ids, triggerRef)),
+    ensureLicenseReadiness: (tx: Tx, ids: readonly string[], triggerRef: string) =>
+      run(async (value) => {
+        const itemIds = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+        await ensureLetters(tx, value, itemIds, triggerRef);
+        const facts = await value.facts.readLicenseFacts(tx, itemIds);
+        assertOpen();
+        if (facts.length !== itemIds.length) throw new AppError("NOT_FOUND");
+        return readLicenseReadiness(tx, facts, readMaterialFileFacts);
+      }),
     close() {
       closed = true;
       return (closing ??= Promise.allSettled([...pending]).then(() => {

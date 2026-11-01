@@ -11,6 +11,9 @@ export const THREE_PHASE_SHAPES = ["external-first", "commit-first", "multi-tx"]
 export type ThreePhaseShape = (typeof THREE_PHASE_SHAPES)[number];
 
 export const THREE_PHASE_OPERATIONS = {
+  "m.ad.create": "external-first",
+  "m.ad.submit": "external-first",
+  "m.ad.requestChange": "external-first",
   "m.paymentOrder.wechatPrepay": "multi-tx",
   "m.paymentOrder.cancel": "external-first",
   "m.paymentOrder.sync": "external-first",

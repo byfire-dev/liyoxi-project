@@ -594,6 +594,7 @@ V1.0 登记的（A50、A84、A139；按 operationId；路由标 `x-three-phase`�
 | `m.invitation.create` | 先外调 | natural：只读 claim → 事务外备注内容检测 → settle 永久请求映射；不占用或写入幂等记录，同键库 pending 返回原卡且零写，库终态拒绝（W2-10） |
 | `m.invitation.accept` | 先外调 | required：只读 claim → 当前会话 Openid 称呼检测 → 完整锁图 settle 与私有收据；成功重放仍投影当前有效成员，已移除不得复活（W2-10） |
 | `m.store.create` | 先外调 | required：只读 claim → 真实档案基础校验与内容检测 → 完整锁图 settle、四项复制与 StoreCard；重放前仍校验当前会话及老板上下文（W2-10） |
+| `m.ad.create`、`m.ad.submit`、`m.ad.requestChange` | 先外调 | 只读 claim 与幂等占用 → 事务外微信文本检测 → 锁内复核并写广告/同意/积分；同键已完成结果不重复审核，失败不留业务写入（W5-08） |
 
 幂等为 `none` 的三段式用例（`m.paymentOrder.sync`）只沿用“事务外调外部、事务内落结果”的写法，不读写幂等记录。
 

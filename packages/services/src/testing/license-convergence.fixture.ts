@@ -4,6 +4,7 @@ import { addDays, calendarDate } from "@liyoxi/shared/time";
 import { recordChannelSuccess } from "../billing/index.js";
 import { createDelivery } from "../delivery/index.js";
 import { createIdentityContext, loadEnv, uuidv7 } from "../kernel/index.js";
+import { readMaterialFileFacts } from "../media/index.js";
 import { createRuntimeDocsLicense } from "../ops/index.js";
 import type { OrderActor } from "../order/index.js";
 import { createProfile } from "../profile/index.js";
@@ -28,6 +29,7 @@ import {
 import { TEST_KEYRING } from "./data/seal.js";
 import { prepareOrderAgreement, prepareOrderDrama, prepareOrderProfile } from "./order.fixture.js";
 import { createFakeProviders } from "./providers/index.js";
+import { createDeliveryProductionTools } from "./delivery-production-tools.js";
 
 /** Upstream historical identity/media inputs; payment, account approval and order writers are real. */
 export async function createLicenseConvergenceFixture(
@@ -37,22 +39,28 @@ export async function createLicenseConvergenceFixture(
     redisUrl: string;
     redisKeyPrefix: string;
     clock?: AdjustableClock;
+    withAdProduction?: boolean;
   },
 ) {
   await assertM1LicenseTestDatabase(prisma, options.databaseUrl);
   const clock = options.clock ?? createClock(),
     providers = createFakeProviders({ clock }),
+    adCodec = options.withAdProduction ? createDeliveryProductionTools(providers) : undefined,
     runtime = createRuntime({
       entry: "api",
       version: "test",
       clock,
-      env: loadEnv({
-        APP_ENV: "test",
-        DATABASE_URL: options.databaseUrl,
-        REDIS_URL: options.redisUrl,
-        PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin,
-      }),
+      env: {
+        ...loadEnv({
+          APP_ENV: "test",
+          DATABASE_URL: options.databaseUrl,
+          REDIS_URL: options.redisUrl,
+          PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin,
+        }),
+        ...(adCodec ? { MEDIA_PRODUCTION: adCodec.env } : {}),
+      },
       providers,
+      ...(adCodec ? { mediaProductionTools: adCodec.tools } : {}),
       billingKeyring: TEST_KEYRING,
       redisKeyPrefix: options.redisKeyPrefix,
     });
@@ -151,6 +159,7 @@ export async function createLicenseConvergenceFixture(
         sla: createSla({ clock, assembly: runtime.assembly }),
         profile,
         publish,
+        ensureLicenseReadiness: runtime.licenseLetters.ensureLicenseReadiness,
         samplePlayback: (entityId) =>
           runtime.config.flags.isEnabled("weapp.video.sample.enabled", { entityId }),
       });
@@ -279,6 +288,8 @@ export async function createLicenseConvergenceFixture(
     }
     return {
       runtime,
+      providers,
+      adCodec,
       clock,
       merchant,
       ctx,
@@ -289,6 +300,7 @@ export async function createLicenseConvergenceFixture(
       start,
       confirmAccounts,
       close: () => runtime.close(),
+      readFilesForReadiness: readMaterialFileFacts,
       licenseDeps: createRuntimeDocsLicense({
         clock,
         flow: runtime.flow,

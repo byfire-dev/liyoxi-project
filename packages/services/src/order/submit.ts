@@ -256,6 +256,19 @@ export async function submit(tx: Tx, deps: OrderDeps, actor: OrderActor, input: 
         createdAt: now,
       })),
     });
+    await tx.orderItemPlacement.createMany({
+      data: late.ads.map((ad) => ({
+        id: uuidv7(),
+        orderItemId: itemIds[i]!,
+        slot: ad.type,
+        adId: ad.adId,
+        durationSec: ad.durationSec,
+        boundVersionNo: null,
+        pinnedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    });
   }
   // 仅新建 order.submit 初始迁移适配 Tf；内核、全局 Flow、Docs Tc/Tv 和真实 events 依赖保持原行为。
   const initialFlow = createFlow({

@@ -37,7 +37,7 @@ import {
   InspectPackageResultSchema,
   PushPackageResultSchema,
 } from "@liyoxi/contract";
-import { AppError, createDelivery, createSla } from "@liyoxi/services";
+import { AppError, createDelivery, createSla, readAdOrderReferences } from "@liyoxi/services";
 import type { Delivery, DeliveryViewer, Runtime } from "@liyoxi/services";
 import type { Context } from "hono";
 import type { ApiEnv } from "../context.js";
@@ -53,6 +53,9 @@ export function deliveryOf(runtime: Runtime) {
   if (!service) {
     const { tx, clock, assembly, flow, events, media } = runtime;
     service = createDelivery({
+      ensureLicenseReadiness: runtime.licenseLetters.ensureLicenseReadiness,
+      adOrderReferences: readAdOrderReferences,
+      reopenAdFree: runtime.ads.reopenFreeTx,
       tx,
       clock,
       assembly,

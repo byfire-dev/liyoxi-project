@@ -2,7 +2,7 @@
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { z } from "../../zod.js";
 import { AdminSampleViewSchema } from "./delivery.schemas.js";
-import { adminMeta } from "../meta-only.js";
+import { AdminSampleRequestChangeBodySchema } from "./ad-feedback.schemas.js";
 
 export const adminSampleInspect = adminRoute({
   method: "post",
@@ -55,7 +55,19 @@ export const adminSamplePush = adminRoute({
   "x-redact-on-replay": ["preview", "decision.feedbackImages"],
 });
 
-export const adminSampleRequestChange = adminMeta({
+export const adminSampleRequestChange = adminRoute({
+  request: {
+    params: SampleParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: AdminSampleRequestChangeBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(AdminSampleViewSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
+  "x-redact-on-replay": ["preview", "decision.feedbackImages"],
   method: "post",
   path: "/admin/samples/{sampleId}/request-change",
   operationId: "admin.sample.requestChange",

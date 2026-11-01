@@ -18,6 +18,7 @@ import { assignDeliveryManager } from "../profile/index.js";
 import { createTenant } from "../tenant/index.js";
 import {
   createDeliveryProductionTools,
+  createHistoricalLicenseReady,
   createW501Publish,
   sampleStaffContext,
 } from "../testing/index.js";
@@ -123,10 +124,12 @@ export function cancelHarness(prisma: PrismaClient) {
   });
   const deps: CancelDeps = { ...h.core, approval, ledger: h.ledger, timers: h.deps.timers };
   const { publish, unbindPublish } = createW501Publish({ ...h.core, approval, media });
+  const license = createHistoricalLicenseReady({ ...h.core, media });
   const delivery = createDelivery({
     ...h.core,
     media,
     publish,
+    ensureLicenseReadiness: license.ensureLicenseReadiness,
     profile: {
       assignDeliveryManager: (tx, ctx, input) =>
         assignDeliveryManager(tx, { ...h.core, tenant }, ctx, input),
@@ -363,6 +366,8 @@ export function cancelHarness(prisma: PrismaClient) {
                 ticket.id,
                 await checks("qc.package"),
               );
+              await license.prepareInputs(p.items.map((item) => item.id));
+              await license.prepareReady(p.items.map((item) => item.id));
               await delivery.packagePush(qc.ctx, qc.staff!, ticket.id, {
                 precheck: await checks("delivery.precheck"),
               });

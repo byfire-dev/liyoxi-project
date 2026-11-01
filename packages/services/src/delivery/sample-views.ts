@@ -314,5 +314,8 @@ export async function signAdminSample(
   view: Awaited<ReturnType<typeof adminSampleView>>,
 ) {
   const signed = await deps.media.signRead({ fileId: view.fileId, audience: "staff" });
+  if (view.decision)
+    for (const img of view.decision.feedbackImages)
+      Object.assign(img, await deps.media.signRead({ fileId: img.fileId, audience: "staff" }));
   return { ...view, preview: { ...signed, posterUrl: null } };
 }

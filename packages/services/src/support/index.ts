@@ -1,4 +1,5 @@
 export { registration } from "./register.js";
+export { readAdServiceTickets } from "./ad-facts.js";
 export { countStoreServiceTicketHistory } from "./store-draft-facts.js";
 export { supportPiiFields } from "./pii-fields.js";
 export {

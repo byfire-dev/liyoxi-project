@@ -119,6 +119,7 @@ const rows = [
   ["10:175", "sample.pushed"],
   ["10:176", "sample.confirmed"],
   ["10:177", "sample.change_requested"],
+  ["10:178", "sample.change_requested"],
   ["10:180", "episodes.all_passed"],
   ["10:182", "package.pushed"],
   ["10:183", "launch.changed"],
@@ -273,6 +274,8 @@ export const deliveryMachines = [
       "feedback_kind",
       "feedback_note",
       "feedback_file_ids",
+      "feedback_time_ms",
+      "on_behalf_staff_id",
     ],
     guards: guards([
       ["10:640", "sample.uploaded"],
@@ -282,6 +285,7 @@ export const deliveryMachines = [
       ["10:644", "sample.pushed"],
       ["10:645", "sample.confirmed"],
       ["10:646", "sample.change_requested"],
+      ["10:647", "sample.change_requested"],
       ["10:648", "sample.superseded"],
     ]),
     activity: (f) => ({

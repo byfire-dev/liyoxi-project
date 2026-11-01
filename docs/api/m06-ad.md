@@ -244,6 +244,8 @@ m08-support-misc `ServiceTicketCard` 的子集，枚举共用 `ServiceTicketStat
 
 ### 2.13 `AdTimelineEntry`
 
+实现口径（W5-08）：公开动作保持本节 `ad.*` 名称；实际迁移审计沿现有三段式 `AuditAction` 约束存为 `ad.status.*`，读取时映射。既有取消执行把活动审计合并到审批记录，取消节点仅从本广告真实 `status_transition` 的 `ad.cancel` 终态历史投影，已有对应节点时去重，不追加第二份取消审计。
+
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | `at` | string(date-time) | 是 | 发生时间 | `audit_log.created_at` |
@@ -477,7 +479,7 @@ m08-support-misc `ServiceTicketCard` 的子集，枚举共用 `ServiceTicketStat
 **说明**
 
 - 守卫逐条对上 `ad.submit`（`09-order-ad.md:801`），并加门店额度：主体门店数未超上限（`tenant.assertWithinQuota`，`d4-identity.md:673`）；套餐生效（账本判定）；门店闸门 `full` 或 `parallel`；类型在开放范围；时长在该类型可选值内；宣传重点至少 1 项且都已启用（原型允许不选、兜底“由剪辑师根据档案确定”，按 PRD 必填，`proto-merchant-b.md:141`）；协议版本为现行版本；带幂等键；账本冻结成功。门店闸门为 `parallel`（首店资质审核中）时只冻结，广告在“待指派”等待资质通过，卡片显示 `waitingReason = qualification`（`d3-flow.md:1295`、`1392`）。
-- 文案、备注在事务外先做文本内容安全检测（微信 `msgSecCheck`）：命中返回 `CONTENT_REJECTED`。检测服务不可用时 V1.0 一律拒收（A137，约定 C27 末段，与 m01-account 同一口径）：返回 503 `PROVIDER_UNAVAILABLE`、不写库，用户稍后重试；草案“先接受、排队补检”（`d5-media.md:1914`）不做。这是事务前的同步检查，不是三段式用例（C51）。
+- 文案、备注在事务外先做文本内容安全检测（微信 `msgSecCheck`）：命中返回 `CONTENT_REJECTED`。检测服务不可用时 V1.0 一律拒收（A137，约定 C27 末段，与 m01-account 同一口径）：返回 503 `PROVIDER_UNAVAILABLE`、不写库，用户稍后重试；草案“先接受、排队补检”（`d5-media.md:1914`）不做。这是业务写事务前的同步检查；实现复用既有 C51 的 external-first 幂等封装（只读 claim → 外部检测 → 锁内复核写入），同键已完成结果不重复检测，不增加业务排队状态。
 - 积分不足时弹窗引导加购或升级（PRD:481；入口由 `m.purchasePolicy.get` 决定）。冻结只发生一次：被退回补充后重新提交不再冻结（3.7）。
 - 端上在点击“提交需求”的同一手势里先请求订阅消息点位 `ad_submit`（`d6-notify-docs-data.md:863`），再调本接口。
 - 业务确认（`05-risks-and-open-issues.md:187`）：指派剪辑师即扣减，商家端文案“剪辑师开始制作时扣减”与此一致，不另设“开始制作”动作。

@@ -32,7 +32,11 @@ export async function moveSample(
     stateField: "status",
     id: s.id,
     event,
-    ...(event === "sample.change_requested" ? { ref: "10:646", to: "change_requested" } : {}),
+    ...(event === "sample.change_requested"
+      ? set.feedback_kind === "ad_content"
+        ? { ref: "10:647", to: "superseded" }
+        : { ref: "10:646", to: "change_requested" }
+      : {}),
     created,
     meta: sampleAuditMeta(ctx),
     args: checked(),

@@ -375,6 +375,8 @@ export async function released(h: ProductionHarness, twoAccounts = false) {
     defaultResults: checklist.results,
   });
   await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
+  await h.prepareLicenseInputs(f.o.items.map((item) => item.id));
+  await h.prepareLicenseReady(f.o.items.map((item) => item.id));
   const pushed = await h.delivery.packagePush(f.qc.ctx, f.qc.staff, f.id, {
     precheck: await checks(h, "delivery.precheck"),
   });

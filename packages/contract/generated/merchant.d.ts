@@ -4,6 +4,126 @@
  */
 
 export interface paths {
+    "/api/v1/m/ads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的广告（?tab=all|producing|pending_confirm|revising|confirmed，缺省 all；type=opening|ending；isSelectable=true；sort=-updatedAt|-submittedAt）：封面、类型与时长、状态与商家端显示状态、等待原因、文案、宣传重点、剩余免费修改次数、使用中剧目数与首部剧名、当前版本与查看方式、预计完成时间、可执行动作 */
+        get: operations["m.ad.list"];
+        put?: never;
+        /** 提交广告制作需求并冻结积分：{type, durationSec, promoPointCodes[1-5], copy ≤50, remark ≤200, referenceStoreAssetIds ≤9, referenceFileIds ≤9（档案媒体）, expectChargePoints, agreementVersionId, isAgreementChecked}；响应 AdState */
+        post: operations["m.ad.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 广告计价（纯计算）：单价、套餐折扣、应冻结积分、免费修改次数、套餐名、可用积分与提交后可用积分、开放类型与可选时长、门店闸门、blockers（{code, message}，code 取错误符号）、协议现行版本与是否需勾选 */
+        post: operations["m.ad.quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/{adId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 广告详情：版本列表与分段标注（segments）、当前版本 playable（资产就绪时返回，sources 仅当版本查看方式含 weapp 且开关开时有值）、viewEvidence 与 confirmableVia、查看出口 alternatives、状态与说明、剩余免费次数与超次单价、修改截图上限、制作信息与参考素材（含档案分组 mediaGroup）、制作记录（商家可见的 8 类迁移）、关联订单的影响提示、相关工单 relatedServiceTickets */
+        get: operations["m.ad.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/{adId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 确认使用广告版本 {versionNo, viewedVia, hasViewed}（viewedVia 必填，落 ad_version.confirm_viewed_via） */
+        post: operations["m.ad.confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/{adId}/download-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发当前版本广告视频文件的短时下载地址（ad_version.file_id，广告不加水印，A97）以保存到相册查看，请求体 {versionNo}，有效期 15 分钟；写访问审计（ad.version.album_download）；该版本的查看方式含 album 时可用；开关推送后被关闭、版本只有 weapp 时按样片同一兜底也可签发 */
+        post: operations["m.ad.downloadUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/{adId}/request-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提出修改意见：{versionNo, segmentIndex | timeStartMs+timeEndMs | 都不传（整条广告）, note ≤200, screenshotFileIds（≤参数 ad.revision_screenshot_max，默认 1）, acceptChargePoints}；超出免费次数时按 1 条扣积分；响应 {ad: AdState, revision} */
+        post: operations["m.ad.requestChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/m/ads/{adId}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 被退回补充素材后重新提交（不重复冻结，时限重新计算）：{copy?, remark?, addReferenceStoreAssetIds?, addReferenceFileIds?}，可改文案、备注并追加参考素材（按来源各与已有合计 ≤9），可为空对象；响应 AdState */
+        post: operations["m.ad.submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/agreement-consents": {
         parameters: {
             query?: never;
@@ -1354,6 +1474,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/m/playables/{playableId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 换取播放地址（地址过期或播放报错时换新）：返回 Playable（kind、sources（广告 source 一档、样片水印版一档、预告片 sd/hd）、海报、时长、宽高、到期时间）；受 weapp.video.* 开关控制 */
+        get: operations["m.playable.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/m/point-ledger-entries": {
         parameters: {
             query?: never;
@@ -1959,6 +2096,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AdState: {
+            actions: string[];
+            /** Format: uuid */
+            adId: string;
+            adNo: string;
+            chargePoints: number;
+            /** Format: date-time */
+            confirmedAt: string | null;
+            confirmedVersionNo: number | null;
+            currentVersionNo: number | null;
+            /** @enum {string} */
+            displayStatus: "producing" | "pending_confirm" | "revising" | "confirmed" | "cancelled" | (string & {});
+            /** Format: date-time */
+            dueAt: string | null;
+            /** @enum {string|null} */
+            dueKind: "first_version" | "revision" | (string & {}) | null;
+            freeRevisionsRemaining: number;
+            hasOpenCancelRequest: boolean;
+            isCaptured: boolean;
+            revisionCount: number;
+            /** @enum {string} */
+            status: "pending_assign" | "producing" | "returned" | "pending_confirm" | "revising" | "confirmed" | "cancelled" | (string & {});
+            /** @enum {string|null} */
+            waitingReason: "materials" | "qualification" | (string & {}) | null;
+        };
         AddressView: {
             city: components["schemas"]["DictRef"] | null;
             detail: string | null;
@@ -5960,6 +6122,964 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "m.ad.list": {
+        parameters: {
+            query?: {
+                tab?: "all" | "producing" | "pending_confirm" | "revising" | "confirmed";
+                type?: "opening" | "ending";
+                isSelectable?: boolean;
+                sort?: "-updatedAt" | "-submittedAt";
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            hasMore: boolean;
+                            items: (components["schemas"]["AdState"] & {
+                                copy: string | null;
+                                /** Format: date-time */
+                                coverExpiresAt: string | null;
+                                coverUrl: string | null;
+                                currentPreviewChannels: ("weapp" | "album" | "portal" | "wecom" | (string & {}))[];
+                                durationSec: number;
+                                freeRevisionQuota: number;
+                                isSelectable: boolean;
+                                promoPoints: components["schemas"]["DictRef"][];
+                                returnReason: string | null;
+                                /** Format: date-time */
+                                submittedAt: string;
+                                /** @enum {string} */
+                                type: "opening" | "ending" | "corner" | "mid_roll" | (string & {});
+                                /** Format: date-time */
+                                updatedAt: string;
+                                usage: {
+                                    firstDramaTitle: string | null;
+                                    inUseCount: number;
+                                };
+                            })[];
+                            nextCursor: string | null;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    agreementVersionId: string;
+                    copy?: string | null;
+                    durationSec: number;
+                    expectChargePoints: number;
+                    isAgreementChecked: boolean;
+                    promoPointCodes: string[];
+                    referenceFileIds?: string[];
+                    referenceStoreAssetIds?: string[];
+                    remark?: string | null;
+                    /** @enum {string} */
+                    type: "opening" | "ending";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdState"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    durationSec?: number;
+                    /** @enum {string} */
+                    type?: "opening" | "ending";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            agreement: {
+                                /** @enum {string} */
+                                agreementKey: "ad_service";
+                                /** Format: uuid */
+                                agreementVersionId: string;
+                                name: string;
+                                needsCheck: boolean;
+                                versionLabel: string;
+                            };
+                            availableAfterPoints: number | null;
+                            availablePoints: number;
+                            blockers: components["schemas"]["QuoteBlocker"][];
+                            chargePoints: number | null;
+                            discountBp: number | null;
+                            freeRevisions: number;
+                            planName: string | null;
+                            /** Format: date-time */
+                            quotedAt: string;
+                            /** @enum {string} */
+                            storeGate: "full" | "parallel" | "blocked" | (string & {});
+                            typeOptions: {
+                                durationOptions: number[];
+                                /** @enum {string} */
+                                type: "opening" | "ending" | "corner" | "mid_roll" | (string & {});
+                            }[];
+                            unitPoints: number;
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdState"] & {
+                            alternatives: {
+                                canPreviewOnPortal: boolean;
+                                canSaveToAlbum: boolean;
+                                isOfflineSent: boolean;
+                            };
+                            /** Format: date-time */
+                            capturedAt: string | null;
+                            confirmableVia: ("weapp" | "album" | "portal" | "wecom" | (string & {}))[];
+                            copy: string | null;
+                            /** Format: date-time */
+                            coverExpiresAt: string | null;
+                            coverUrl: string | null;
+                            currentPreviewChannels: ("weapp" | "album" | "portal" | "wecom" | (string & {}))[];
+                            currentVersion: {
+                                /** @enum {string|null} */
+                                confirmViewedVia: "weapp" | "album" | "portal" | "wecom" | (string & {}) | null;
+                                /** Format: date-time */
+                                decidedAt: string | null;
+                                /** @enum {string|null} */
+                                decision: "confirmed" | "revision_requested" | "superseded" | (string & {}) | null;
+                                durationMs: number;
+                                height: number;
+                                /** Format: date-time */
+                                offlineSentAt: string | null;
+                                previewChannels: ("weapp" | "album" | "portal" | "wecom" | (string & {}))[];
+                                /** Format: date-time */
+                                pushedAt: string;
+                                segments: {
+                                    fromMs: number;
+                                    index: number;
+                                    label: string;
+                                    toMs: number;
+                                }[];
+                                /** Format: date-time */
+                                uploadedAt: string;
+                                versionNo: number;
+                                /** Format: date-time */
+                                viewedAckAt: string | null;
+                                width: number;
+                            } | null;
+                            discountBp: number;
+                            durationSec: number;
+                            editorName: string | null;
+                            /** Format: date-time */
+                            firstDueAt: string | null;
+                            floatingPlacements: {
+                                agreedLaunchDate: string | null;
+                                dramaTitle: string;
+                                isTicketPaused: boolean;
+                                /** Format: uuid */
+                                orderId: string;
+                                /** Format: uuid */
+                                orderItemId: string;
+                                orderNo: string;
+                                serviceManagerName: string | null;
+                                /** @enum {string} */
+                                slot: "opening" | "ending";
+                                ticketStep: string | null;
+                            }[];
+                            freeRevisionQuota: number;
+                            isSelectable: boolean;
+                            playable: components["schemas"]["Playable"] & (Record<string, never> | null);
+                            promoPoints: components["schemas"]["DictRef"][];
+                            references: {
+                                assetType: string | null;
+                                category: string | null;
+                                /** Format: uuid */
+                                fileId: string | null;
+                                /** @enum {string} */
+                                kind: "store_asset" | "profile_media";
+                                mediaGroup: string | null;
+                                /** Format: uuid */
+                                storeAssetId: string | null;
+                                /** Format: date-time */
+                                thumbExpiresAt: string | null;
+                                thumbUrl: string | null;
+                                title: string | null;
+                            }[];
+                            relatedServiceTickets: {
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: uuid */
+                                serviceTicketId: string;
+                                status: string;
+                                ticketNo: string;
+                                type: components["schemas"]["DictRef"];
+                            }[];
+                            remark: string | null;
+                            returnReason: string | null;
+                            revisionScreenshotMax: number;
+                            revisionUnitChargePoints: number | null;
+                            revisions: {
+                                /** @enum {string} */
+                                actorType: "merchant" | "staff" | "system" | "partner" | (string & {});
+                                chargePoints: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                dueAt: string;
+                                fulfilledByVersionNo: number | null;
+                                isChargeable: boolean;
+                                note: string;
+                                onVersionNo: number;
+                                revisionNo: number;
+                                screenshots: components["schemas"]["ImageRef"][];
+                                segmentIndex: number | null;
+                                /** @enum {string} */
+                                source: "ad_page" | "sample_feedback" | "staff_on_behalf" | (string & {});
+                                timeEndMs: number | null;
+                                timeStartMs: number | null;
+                            }[];
+                            /** Format: date-time */
+                            submittedAt: string;
+                            timeline: {
+                                action: string;
+                                /** @enum {string} */
+                                actorType: "merchant" | "staff" | "system" | "partner" | (string & {});
+                                /** Format: date-time */
+                                at: string;
+                                detail: string | null;
+                                title: string;
+                                versionNo: number | null;
+                            }[];
+                            /** @enum {string} */
+                            type: "opening" | "ending" | "corner" | "mid_roll" | (string & {});
+                            unitPricePoints: number;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            usage: {
+                                firstDramaTitle: string | null;
+                                inUseCount: number;
+                            };
+                            versions: {
+                                /** @enum {string|null} */
+                                confirmViewedVia: "weapp" | "album" | "portal" | "wecom" | (string & {}) | null;
+                                /** Format: date-time */
+                                decidedAt: string | null;
+                                /** @enum {string|null} */
+                                decision: "confirmed" | "revision_requested" | "superseded" | (string & {}) | null;
+                                durationMs: number;
+                                height: number;
+                                /** Format: date-time */
+                                offlineSentAt: string | null;
+                                previewChannels: ("weapp" | "album" | "portal" | "wecom" | (string & {}))[];
+                                /** Format: date-time */
+                                pushedAt: string;
+                                segments: {
+                                    fromMs: number;
+                                    index: number;
+                                    label: string;
+                                    toMs: number;
+                                }[];
+                                /** Format: date-time */
+                                uploadedAt: string;
+                                versionNo: number;
+                                /** Format: date-time */
+                                viewedAckAt: string | null;
+                                width: number;
+                            }[];
+                            viewEvidence: {
+                                /** Format: date-time */
+                                albumSavedAt: string | null;
+                                /** Format: date-time */
+                                portalViewedAt: string | null;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    hasViewed?: boolean;
+                    versionNo: number;
+                    /** @enum {string} */
+                    viewedVia: "weapp" | "album" | "portal" | "wecom";
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdState"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.downloadUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    versionNo: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DownloadUrl"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.requestChange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    acceptChargePoints?: number | null;
+                    note: string;
+                    screenshotFileIds?: string[];
+                    segmentIndex?: number | null;
+                    timeEndMs?: number | null;
+                    timeStartMs?: number | null;
+                    versionNo: number;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: {
+                            ad: components["schemas"]["AdState"];
+                            revision: {
+                                /** @enum {string} */
+                                actorType: "merchant" | "staff" | "system" | "partner" | (string & {});
+                                chargePoints: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                dueAt: string;
+                                fulfilledByVersionNo: number | null;
+                                isChargeable: boolean;
+                                note: string;
+                                onVersionNo: number;
+                                revisionNo: number;
+                                screenshotFileIds: string[];
+                                segmentIndex: number | null;
+                                /** @enum {string} */
+                                source: "ad_page" | "sample_feedback" | "staff_on_behalf" | (string & {});
+                                timeEndMs: number | null;
+                                timeStartMs: number | null;
+                            };
+                        };
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.ad.submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    addReferenceFileIds?: string[];
+                    addReferenceStoreAssetIds?: string[];
+                    copy?: string | null;
+                    remark?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdState"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "m.agreementConsent.list": {
         parameters: {
             query?: {
@@ -12652,6 +13772,88 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["PlanQuote"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "m.playable.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                playableId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["Playable"];
                         /** @enum {string} */
                         message: "ok";
                     };

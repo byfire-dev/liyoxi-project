@@ -124,6 +124,8 @@ export async function packageReady(h: Harness) {
     defaultResults: q.results,
   });
   await a.packageInspect(qc.ctx, qc.staff, id, await checks(h, "qc.package"));
+  await h.prepareLicenseInputs([item.id]);
+  await h.prepareLicenseReady([item.id]);
   const pushed = await a.packagePush(qc.ctx, qc.staff, id, {
     precheck: await checks(h, "delivery.precheck"),
   });

@@ -114,3 +114,7 @@ export {
   readMaterialCheckouts,
   checkoutMaterialMaster,
 } from "./material-facts.js";
+export { linkAdAssetReferences, readAdReferenceFacts } from "./assets/facts.js";
+export { readMerchantPlayableAsset } from "./playable-read-facts.js";
+export type { MerchantPlayableAsset } from "./playable-read-facts.js";
+export type { AdProductionInput } from "./production/ad-prepare.js";

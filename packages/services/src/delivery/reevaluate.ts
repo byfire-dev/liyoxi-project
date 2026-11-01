@@ -16,10 +16,6 @@ import { prepareReevaluation } from "./reevaluate-locks.js";
 import { closeSystemFollowUps } from "../staff/index.js";
 export { adsReady, planApplied } from "./reevaluate-facts.js";
 import { adsReady, planApplied } from "./reevaluate-facts.js";
-/** W5-06 owns actual letter readiness; this legacy no-letter M1 path stays explicit. */
-export function licenseReady(_ticket: TicketRow) {
-  return true;
-}
 export async function step(
   tx: Tx,
   deps: DeliveryCoreDeps,
@@ -135,7 +131,7 @@ export async function reevaluate(
         continue;
       }
     }
-    if (["sample_making", "sample_confirm"].includes(t.step) && !adsReady(t)) {
+    if (["sample_making", "sample_confirm"].includes(t.step) && !(await adsReady(tx, t))) {
       const samples = await tx.sample.findMany({
         where: { deliveryTicketId: t.id, status: { in: ["uploaded", "qc_passed", "pushed"] } },
       });
@@ -189,7 +185,7 @@ export async function reevaluate(
       moved++;
       continue;
     }
-    if (t.step === "ad_prep" && adsReady(t)) {
+    if (t.step === "ad_prep" && (await adsReady(tx, t))) {
       await step(tx, deps, ctx, t, "ads.ready", "sample_making", "10:174", {
         ads_ready_at: deps.clock.now(),
       });

@@ -157,6 +157,8 @@ export async function prelockCancelDecision(
     ["patrol_task", cancelIds([...d.patrolTaskIds, ...r.patrolTaskIds]), "update"],
     ["sample", r.sampleIds, "update"],
     ["takedown_task", cancelIds([...d.takedownTaskIds, ...r.takedownTaskIds]), "update"],
+    ["playable_asset", r.playableAssetIds, "share"],
+    ["production_record", r.productionRecordIds, "share"],
     ["zip_bundle", cancelIds([...d.zipBundleIds, ...r.zipBundleIds]), "update"],
     [
       "file_object",
