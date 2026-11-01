@@ -8,6 +8,8 @@ admin.accountChangeRequest.get | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.accountChangeRequest.list | merchant:view | - | 11 11 11 11 11 11 11 11
 admin.accountChangeRequest.reject | merchant:view | merchant.account_change.approve | 11 01 00 00 00 00 00 00
 admin.accountChangeRequest.withdraw | merchant:view | assert-in-handler | 11 11 11 11 11 11 11 11
+admin.ad.cancelQuote | - | order.refund.request | 11 11 00 00 00 00 00 00
+admin.ad.cancelRequest.create | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.agreement.agreementVersion.create | ops:edit | assert-in-handler | 11 00 00 00 00 11 00 00
 admin.agreement.get | ops:view | - | 11 00 00 00 00 11 00 00
 admin.agreement.list | ops:view | - | 11 00 00 00 00 11 00 00
@@ -251,6 +253,7 @@ admin.role.replace | - | sys.role.edit | 11 00 00 00 00 00 00 00
 admin.sample.inspect | delivery:edit | delivery.sample.qc | 11 00 11 00 00 00 00 00
 admin.sample.markSent | delivery:edit | delivery.sample.push | 11 00 11 00 00 00 00 00
 admin.sample.push | delivery:edit | delivery.sample.push | 11 00 11 00 00 00 00 00
+admin.sample.requestChange | delivery:edit | delivery.sample.feedback_on_behalf | 11 00 11 00 00 00 00 00
 admin.session.current.delete | - | - | 11 11 11 11 11 11 11 11
 admin.siteConfig.draft.replace | ops:edit | - | 11 00 00 00 00 11 00 00
 admin.siteConfig.get | ops:view | - | 11 00 00 00 00 11 00 00

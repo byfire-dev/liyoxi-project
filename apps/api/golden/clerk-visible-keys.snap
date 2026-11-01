@@ -509,6 +509,13 @@
     "items[].tmplId",
     "maxPerAsk"
   ],
+  "m.playable.get": [
+    "code",
+    "error",
+    "message",
+    "requestId",
+    "retryable"
+  ],
   "m.session.create": [
     "me",
     "me.memberships",

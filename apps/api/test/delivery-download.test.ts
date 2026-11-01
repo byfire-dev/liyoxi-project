@@ -4,6 +4,7 @@ import {
   createFactories,
   signInAsStaff,
   createDeliveryProductionTools,
+  createHistoricalLicenseReady,
   finishDeliveryProductionForTest,
   prepareDeliveryMasterForTest,
 } from "@liyoxi/services/testing";
@@ -14,6 +15,7 @@ import {
   prepareTicketAssignees,
   createSla,
   runSeed,
+  security,
   uuidv7,
 } from "@liyoxi/services";
 import {
@@ -111,6 +113,7 @@ async function data(response: Response) {
 }
 beforeAll(async () => {
   api = await handle.start({
+    portalPublicOrigin: "https://portal.example.invalid",
     mediaProduction: (providers) => {
       const external = createDeliveryProductionTools(providers);
       return { config: external.env, tools: external.tools };
@@ -441,6 +444,17 @@ it("四条实际登录HTTP链：Q9相册零签拒绝、勾选确认、成片900�
   await data(
     await request("admin.deliveryTicket.inspectPackage", await checks("qc.package"), qc.headers),
   );
+  const runtime = api.runtime;
+  const license = createHistoricalLicenseReady({
+    tx: runtime.tx,
+    clock: runtime.clock,
+    flow: runtime.flow,
+    events: runtime.events,
+    media: runtime.media,
+    keyring: () => security.loadKeyring(runtime.env),
+  });
+  await license.prepareInputs([itemId]);
+  await license.prepareReady([itemId]);
   const pushed = await data(
     await request(
       "admin.deliveryTicket.pushPackage",
