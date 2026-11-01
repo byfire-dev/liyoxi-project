@@ -12,11 +12,12 @@ import { Sheet } from "@/components/Sheet";
 import { TextArea } from "@/components/TextArea";
 import { TextButton } from "@/components/TextButton";
 import { adApi, type AdKind, type AdQuote } from "./api";
-import { quoteIdentity } from "./model";
+import { createAdSubmission, quoteIdentity } from "./model";
 import { useAdResource } from "./resource";
 import { AdReferences } from "./references";
 
 export function AdCreateForm({ close, done }: { close(): void; done(id: string): void }) {
+  const [submission] = useState(createAdSubmission);
   const [choice, setChoice] = useState<{ type?: AdKind; durationSec?: number }>({}),
     [codes, setCodes] = useState<string[]>([]),
     [copy, setCopy] = useState(""),
@@ -45,6 +46,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
     if (q) previous.current = q;
   }, [q]);
   const choose = (value: typeof choice) => {
+    submission.clear();
     latest.current = value;
     setChoice(value);
     setAgreed(null);
@@ -58,6 +60,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
     q.blockers.length === 0 &&
     codes.length > 0 &&
     agreed === q.agreement.agreementVersionId;
+  const recovering = submission.pending();
   return (
     <Sheet
       visible
@@ -70,9 +73,22 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
         <Button
           block
           loading={r.busy}
-          disabled={!allowed || r.loading}
+          disabled={(!allowed && !recovering) || r.loading}
           onClick={() =>
             r.run(async (current) => {
+              const recover = async () => {
+                try {
+                  const actual = await submission.recover(adApi, current);
+                  if (current() && actual) done(actual.adId);
+                } catch (error) {
+                  if (current() && !submission.pending()) setAgreed(null);
+                  throw error;
+                }
+              };
+              if (submission.pending()) {
+                await recover();
+                return;
+              }
               if (!q || !choice.type || !choice.durationSec) return;
               const fresh = await adApi.quote(choice);
               if (!current()) return;
@@ -93,21 +109,22 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
                 agreementVersionId: fresh.agreement.agreementVersionId,
                 isAgreementChecked: true,
               };
-              const result = await adApi.create(body, r.intent("adCreate", body));
-              if (!current()) return;
-              const actual = await adApi.get(result.adId);
-              if (current()) done(actual.adId);
+              submission.start(body, r.intent("adCreate", body), r.capture());
+              await recover();
             }, "ad_submit")
           }
         >
-          提交需求
-          {q?.chargePoints !== null && q?.chargePoints !== undefined
+          {recovering ? "恢复提交结果" : "提交需求"}
+          {!recovering && q?.chargePoints !== null && q?.chargePoints !== undefined
             ? ` · 冻结${formatInteger(q.chargePoints)}积分`
             : ""}
         </Button>
       }
     >
       {r.error ? <LoadError message={r.error} onRetry={r.refresh} /> : null}
+      {recovering ? (
+        <Note>提交结果尚待确认，可恢复原需求结果；修改内容后须重新核价并同意。</Note>
+      ) : null}
       {q ? (
         <>
           <Note>提交时冻结积分，指派制作后扣减；报价与免费修改次数以服务端为准。</Note>
@@ -164,6 +181,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
                 selected={codes.includes(item.code)}
                 disabled={r.busy || (codes.length >= 5 && !codes.includes(item.code))}
                 onClick={() => {
+                  submission.clear();
                   setAgreed(null);
                   setCodes((values) =>
                     values.includes(item.code)
@@ -179,6 +197,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
           <TextArea
             value={copy}
             onChange={(value) => {
+              submission.clear();
               setAgreed(null);
               setCopy(value);
             }}
@@ -189,6 +208,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
           <TextArea
             value={remark}
             onChange={(value) => {
+              submission.clear();
               setAgreed(null);
               setRemark(value);
             }}
@@ -199,6 +219,7 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
           <AdReferences
             selected={refs}
             change={(value) => {
+              submission.clear();
               setAgreed(null);
               setRefs(value);
             }}
@@ -216,7 +237,10 @@ export function AdCreateForm({ close, done }: { close(): void; done(id: string):
           <Checkbox
             checked={agreed === q.agreement.agreementVersionId}
             disabled={r.busy || r.loading}
-            onChange={(value) => setAgreed(value ? q.agreement.agreementVersionId : null)}
+            onChange={(value) => {
+              submission.clear();
+              setAgreed(value ? q.agreement.agreementVersionId : null);
+            }}
           >
             我已阅读并同意广告制作协议
           </Checkbox>

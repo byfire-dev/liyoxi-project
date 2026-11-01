@@ -42,6 +42,57 @@ export function createAdIntent(key: () => string) {
     return value;
   };
 }
+/** An attempted creation recovers its result before pricing another intent. */
+export function createAdSubmission() {
+  type Attempt = {
+    body: Body<"m.ad.create">;
+    key: string;
+    current: () => boolean;
+    adId?: string;
+  };
+  let pending: Attempt | null = null;
+  return {
+    pending: () => Boolean(pending?.current()),
+    clear: () => {
+      pending = null;
+    },
+    start: (body: Body<"m.ad.create">, key: string, current: () => boolean) => {
+      pending = { body: JSON.parse(JSON.stringify(body)) as Body<"m.ad.create">, key, current };
+    },
+    async recover(
+      api: {
+        create(body: Body<"m.ad.create">, key: string): Promise<Pick<Data<"m.ad.create">, "adId">>;
+        get(id: string): Promise<Ad>;
+      },
+      current: () => boolean,
+    ): Promise<Ad | null> {
+      const attempt = pending;
+      const active = () => pending === attempt && Boolean(attempt?.current()) && current();
+      if (!attempt || !active()) return null;
+      if (!attempt.adId) {
+        try {
+          const result = await api.create(attempt.body, attempt.key);
+          if (!active()) return null;
+          attempt.adId = result.adId;
+        } catch (error) {
+          // A definite domain rejection has no result to restore; re-quote a new attempt.
+          if (
+            active() &&
+            error instanceof ApiError &&
+            error.error !== "NETWORK_ERROR" &&
+            error.error !== "IDEMPOTENCY_IN_PROGRESS" &&
+            error.error !== "INTERNAL" &&
+            !error.error.startsWith("HTTP_")
+          )
+            pending = null;
+          throw error;
+        }
+      }
+      const actual = await api.get(attempt.adId);
+      return active() ? actual : null;
+    },
+  };
+}
 export function confirmBody(ad: Ad, checked: boolean): Body<"m.ad.confirm"> {
   if (!checked) throw new Error("请先勾选已查看当前版本广告");
   const via = (["weapp", "album", "portal", "wecom"] as const).find(

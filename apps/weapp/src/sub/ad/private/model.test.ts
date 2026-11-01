@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { Body } from "@/lib/account-api";
+import { ApiError } from "@/lib/request";
 import { createDeliveryGuard } from "@/stores/delivery";
 import { adDetail, adQuote } from "../../../../shots/ad-fixtures";
 import {
@@ -8,6 +10,7 @@ import {
   changeBody,
   confirmBody,
   createAdIntent,
+  createAdSubmission,
   mergeAds,
   quoteIdentity,
 } from "./model";
@@ -110,5 +113,80 @@ describe("广告页面业务边界", () => {
         { items: [adDetail, { ...adDetail, adId: "different" }], hasMore: false, nextCursor: null },
       ).items.map((item) => item.adId),
     ).toEqual([adDetail.adId, "different"]);
+  });
+  it("创建后丢回包重放原正文/key；已知adId后GET失败只读恢复且只冻结一次", async () => {
+    const submission = createAdSubmission();
+    const body: Body<"m.ad.create"> = {
+      type: "opening",
+      durationSec: 5,
+      promoPointCodes: ["product"],
+      expectChargePoints: 100,
+      agreementVersionId: adQuote.agreement.agreementVersionId,
+      isAgreementChecked: true,
+    };
+    let holds = 0;
+    const create = vi.fn(async () => {
+      if (!holds) {
+        holds++;
+        throw new Error("成功回包丢失");
+      }
+      return { adId: adDetail.adId };
+    });
+    const get = vi.fn().mockRejectedValueOnce(new Error("GET失败")).mockResolvedValue(adDetail);
+    submission.start(body, "original-key", () => true);
+    body.promoPointCodes.push("changed-outside");
+    await expect(submission.recover({ create, get }, () => true)).rejects.toThrow("成功回包丢失");
+    expect(submission.pending()).toBe(true);
+    await expect(submission.recover({ create, get }, () => true)).rejects.toThrow("GET失败");
+    expect(await submission.recover({ create, get }, () => true)).toBe(adDetail);
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[0]).toEqual(create.mock.calls[1]);
+    expect(create.mock.calls[0]).toEqual([
+      { ...body, promoPointCodes: ["product"] },
+      "original-key",
+    ]);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(holds).toBe(1);
+  });
+  it("改意图或换店代次不能恢复旧结果；明确报价拒绝回到新报价流程", async () => {
+    const submission = createAdSubmission();
+    const body: Body<"m.ad.create"> = {
+      type: "opening",
+      durationSec: 5,
+      promoPointCodes: ["product"],
+      expectChargePoints: 100,
+      agreementVersionId: adQuote.agreement.agreementVersionId,
+      isAgreementChecked: true,
+    };
+    const get = vi.fn(async () => adDetail);
+    const create = vi.fn(async () => ({ adId: adDetail.adId }));
+    submission.start(body, "old", () => true);
+    submission.clear();
+    expect(await submission.recover({ create, get }, () => true)).toBeNull();
+    let scope = "store-a:1";
+    submission.start(body, "old", () => scope === "store-a:1");
+    scope = "store-a:2";
+    expect(submission.pending()).toBe(false);
+    expect(await submission.recover({ create, get }, () => true)).toBeNull();
+    expect(create).not.toHaveBeenCalled();
+    let release!: (value: { adId: string }) => void;
+    const delayed = () => new Promise<{ adId: string }>((resolve) => (release = resolve));
+    submission.start(body, "late", () => scope === "store-a:2");
+    const late = submission.recover({ create: delayed, get }, () => true);
+    scope = "store-b:3";
+    release({ adId: adDetail.adId });
+    expect(await late).toBeNull();
+    expect(get).not.toHaveBeenCalled();
+    submission.start(body, "new", () => true);
+    const rejected = async () => {
+      throw new ApiError({
+        error: "QUOTE_CHANGED",
+        message: "报价更新",
+        status: 409,
+        requestId: "ad-test",
+      });
+    };
+    await expect(submission.recover({ create: rejected, get }, () => true)).rejects.toThrow();
+    expect(submission.pending()).toBe(false);
   });
 });

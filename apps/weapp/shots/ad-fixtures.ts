@@ -111,11 +111,21 @@ export function offlineAdRequest(scene: string): RequestLayer["request"] {
     calls: Call[] = [];
   const global = globalThis as {
     __LYX_AD_CALLS__?: Call[];
-    __LYX_AD_CONTROL__?: { nextVersion(): void; failNext(): void };
+    __LYX_AD_CONTROL__?: {
+      nextVersion(): void;
+      failNext(): void;
+      creation(): { createdCount: number; holdCount: number; availablePoints: number };
+    };
   };
   global.__LYX_AD_CALLS__ = calls;
   let fail = scene === "ad-error",
-    failWrite = scene === "ad-create";
+    failWrite = false,
+    lostCreateReply = scene === "ad-create",
+    failCreatedRead = scene === "ad-create",
+    availablePoints = scene === "ad-create" ? 100 : adQuote.availablePoints,
+    createdCount = 0,
+    holdCount = 0;
+  const creations = new Map<string, { fingerprint: string; ad: Ad }>();
   if (scene === "ad-change-paid") {
     ad.freeRevisionsRemaining = 0;
     ad.revisionCount = 2;
@@ -146,6 +156,7 @@ export function offlineAdRequest(scene: string): RequestLayer["request"] {
     failNext() {
       failWrite = true;
     },
+    creation: () => ({ createdCount, holdCount, availablePoints }),
   };
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     calls.push({
@@ -188,7 +199,14 @@ export function offlineAdRequest(scene: string): RequestLayer["request"] {
       const body = options?.data as { durationSec?: number };
       value = {
         ...adQuote,
-        ...(body.durationSec ? { chargePoints: 100, availableAfterPoints: 260 } : {}),
+        availablePoints,
+        agreement: { ...adQuote.agreement, needsCheck: createdCount === 0 },
+        ...(body.durationSec
+          ? { chargePoints: 100, availableAfterPoints: availablePoints - 100 }
+          : {}),
+        ...(createdCount
+          ? { blockers: [{ code: "POINTS_INSUFFICIENT", message: "可用积分不足" }] }
+          : {}),
       } satisfies AdQuote;
     } else if (path.startsWith("/m/dict-items"))
       value = {
@@ -266,6 +284,23 @@ export function offlineAdRequest(scene: string): RequestLayer["request"] {
       ad.actions = [];
       value = ad;
     } else if (path === "/m/ads" && options?.method === "POST") {
+      const key = options.idempotencyKey!;
+      const fingerprint = JSON.stringify(options.data);
+      const replay = creations.get(key);
+      if (replay) {
+        if (replay.fingerprint !== fingerprint) throw new Error("原创建意图正文被更改");
+        return structuredClone(replay.ad) as T;
+      }
+      if (availablePoints < 100)
+        throw new ApiError({
+          error: "POINTS_INSUFFICIENT",
+          message: "可用积分不足",
+          status: 409,
+          requestId: "offline-ad",
+        });
+      availablePoints -= 100;
+      createdCount++;
+      holdCount++;
       ad.status = "pending_assign";
       ad.displayStatus = "producing";
       ad.actions = [];
@@ -274,9 +309,19 @@ export function offlineAdRequest(scene: string): RequestLayer["request"] {
       ad.playable = null;
       ad.versions = [];
       ad.confirmableVia = [];
+      creations.set(key, { fingerprint, ad: structuredClone(ad) });
+      if (lostCreateReply) {
+        lostCreateReply = false;
+        throw new Error("网络暂时中断，请重试");
+      }
       value = ad;
-    } else if (path === `/m/ads/${AD_ID}`) value = ad;
-    else throw new Error(`广告离线场景未登记调用：${path}`);
+    } else if (path === `/m/ads/${AD_ID}`) {
+      if (createdCount && failCreatedRead) {
+        failCreatedRead = false;
+        throw new Error("需求已受理，暂时无法取得广告，请重试");
+      }
+      value = ad;
+    } else throw new Error(`广告离线场景未登记调用：${path}`);
     return structuredClone(value) as T;
   };
 }

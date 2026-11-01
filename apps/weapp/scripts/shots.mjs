@@ -533,12 +533,40 @@ async function adRegression(page, scene) {
     const submit = sheet.locator(".lyx-sheet__footer .lyx-button");
     await submit.click();
     await expect(page.getByText("网络暂时中断，请重试", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => globalThis.__LYX_AD_CONTROL__.creation())).toEqual({
+      createdCount: 1,
+      holdCount: 1,
+      availablePoints: 0,
+    });
+    await sheet
+      .locator(".lyx-button")
+      .filter({ hasText: /^重新加载$/ })
+      .click();
+    await expect(sheet.getByText("可用积分不足", { exact: true })).toBeVisible();
+    await expect(submit).toContainText("恢复提交结果");
+    await expect(submit).not.toHaveClass(/lyx-button--disabled/);
+    await expect(
+      sheet.locator(".lyx-checkbox").filter({ hasText: "我已阅读并同意广告制作协议" }),
+    ).not.toHaveClass(/lyx-checkbox--checked/);
+    const quoteCount = (await calls()).filter((call) => call.path === "/m/ads/quote").length;
+    await sheet.screenshot({ path: path.join(outDir, "ad__create-insufficient-recovery.png") });
+    await submit.click();
+    await expect(
+      sheet.getByText("需求已受理，暂时无法取得广告，请重试", { exact: true }),
+    ).toBeVisible();
     await submit.click();
     await expect(page.getByText("广告编号", { exact: true })).toBeVisible();
     const requests = await calls(),
       writes = requests.filter((call) => call.path === "/m/ads" && call.method === "POST");
     expect(writes).toHaveLength(2);
     expect(writes[0].key).toBe(writes[1].key);
+    expect(writes[0].data).toEqual(writes[1].data);
+    expect(requests.filter((call) => call.path === "/m/ads/quote")).toHaveLength(quoteCount);
+    expect(await page.evaluate(() => globalThis.__LYX_AD_CONTROL__.creation())).toEqual({
+      createdCount: 1,
+      holdCount: 1,
+      availablePoints: 0,
+    });
     expect(writes[0].data).toMatchObject({
       type: "opening",
       durationSec: 5,
