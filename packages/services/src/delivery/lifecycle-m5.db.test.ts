@@ -502,6 +502,85 @@ describe("M5补发沿真实媒体/QC/原包", { timeout: 120_000 }, () => {
       }),
     ).toBe(1);
   });
+  it("真实确认样片在主管返工时作废，成片退出当前版且原key重放不重复迁移", async () => {
+    const f = await prepared(h),
+      fileId = await productionFile(h, f.o, f.editor, "sample_video");
+    const sample = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
+      fileId,
+      adSlots: [],
+    });
+    await h.delivery.sampleInspect(
+      f.qc.ctx,
+      f.qc.staff,
+      sample.sampleId,
+      await checks(h, "qc.sample"),
+    );
+    await h.delivery.samplePush(f.qc.ctx, f.qc.staff, sample.sampleId, {});
+    await h.delivery.merchantSample(f.o.viewer, f.item.id);
+    await h.delivery.sampleConfirm(f.o.viewer, sample.sampleId, {
+      versionNo: 1,
+      viewedVia: "weapp",
+      hasViewed: true,
+    });
+    const episodes = await h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
+      items: [{ episodeNo: 1, sampleId: sample.sampleId }],
+    });
+    const checklist = await checks(h, "qc.episode");
+    await h.delivery.episodeInspect(f.qc.ctx, f.qc.staff, f.id, {
+      episodeOutputIds: episodes.items.map((e) => e.episodeOutputId),
+      checklistVersionNo: checklist.checklistVersionNo,
+      defaultResults: checklist.results,
+    });
+    await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
+    const sampleState = () => h.prisma.sample.findUniqueOrThrow({ where: { id: sample.sampleId } });
+    const episodeState = () =>
+      h.prisma.episodeOutput.findUniqueOrThrow({
+        where: { id: episodes.items[0]!.episodeOutputId },
+      });
+    expect(await sampleState()).toMatchObject({ status: "confirmed" });
+    expect(await episodeState()).toMatchObject({ status: "qc_passed", isCurrent: true });
+    expect((await snapshot(f.id)).ticket).toMatchObject({ step: "delivering", deliveredAt: null });
+    const body = { reason: "商家确认后主管发现成片需重新制作" },
+      key = idem("admin.deliveryTicket.rework", f.qc.ctx.actor, body),
+      before = await snapshot(f.id);
+    await expect(m5().rework(f.editor.ctx, f.editor.staff, f.id, body)).rejects.toMatchObject({
+      error: "PERMISSION_DENIED",
+    });
+    expect(await snapshot(f.id)).toEqual(before);
+    const result = await m5().rework(f.qc.ctx, f.qc.staff, f.id, body, { idem: key() });
+    expect(result).toMatchObject({ replayed: false });
+    expect(await sampleState()).toMatchObject({ status: "superseded" });
+    expect(await episodeState()).toMatchObject({ status: "replaced", isCurrent: false });
+    expect((await snapshot(f.id)).ticket).toMatchObject({ step: "sample_making" });
+    expect(
+      await h.prisma.statusTransition.findMany({
+        where: { subjectId: sample.sampleId, event: "sample.superseded" },
+      }),
+    ).toEqual([expect.objectContaining({ fromState: "confirmed", toState: "superseded" })]);
+    expect(
+      await h.prisma.outboxEvent.findMany({
+        where: { aggregateId: sample.sampleId, eventType: "sample.superseded" },
+      }),
+    ).toHaveLength(1);
+    const after = await snapshot(f.id),
+      sampleAfter = await sampleState(),
+      episodeAfter = await episodeState(),
+      counts = [await h.prisma.statusTransition.count(), await h.prisma.outboxEvent.count()];
+    expect(await m5().rework(f.qc.ctx, f.qc.staff, f.id, body, { idem: key() })).toMatchObject({
+      replayed: true,
+    });
+    expect(await snapshot(f.id)).toEqual(after);
+    expect(await sampleState()).toEqual(sampleAfter);
+    expect(await episodeState()).toEqual(episodeAfter);
+    expect([await h.prisma.statusTransition.count(), await h.prisma.outboxEvent.count()]).toEqual(
+      counts,
+    );
+    await expect(m5().rework(f.qc.ctx, f.qc.staff, f.id, body)).rejects.toMatchObject({
+      error: "STATE_NOT_ALLOWED",
+    });
+    expect(await snapshot(f.id)).toEqual(after);
+  });
+
   it("错误步骤拒绝且无补发副作用", async () => {
     const o = await h.order(),
       actor = await h.staff();

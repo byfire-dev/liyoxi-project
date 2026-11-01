@@ -465,11 +465,14 @@ async function main(args) {
         { capture: true },
       ),
     );
-    if (
-      !values["test-file"] ||
-      values["test-file"].split(",").includes("test/e2e/live-m5-ad-tasks.spec.ts")
-    ) {
-      fixtures.fixtures.w514.video = JSON.parse(
+    const adTasks = fixtures.fixtures.w514;
+    const adTasksSelected =
+      values["test-file"]?.split(",").includes("test/e2e/live-m5-ad-tasks.spec.ts") ?? false;
+    if (adTasksSelected && !adTasks)
+      throw new Error("Selected W514 target requires its actual fixture");
+    // A gate prerequisite must keep the original chain runnable before the W514 fixture lands.
+    if (adTasks && (!values["test-file"] || adTasksSelected)) {
+      adTasks.video = JSON.parse(
         await run(
           "pnpm",
           [
@@ -483,7 +486,7 @@ async function main(args) {
             "import {prepareAdTaskLiveVideo} from './src/testing/index.ts'; process.stdout.write(JSON.stringify(prepareAdTaskLiveVideo(process.argv[1],process.argv[2],process.argv[3])));",
             image,
             dirname(video.path),
-            fixtures.fixtures.w514.scope.runId,
+            adTasks.scope.runId,
           ],
           testEnv,
           { capture: true },
@@ -492,7 +495,7 @@ async function main(args) {
     }
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(fixtures.fixtures.w514.video ? { w514: fixtures.fixtures.w514.scope } : {}), video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(adTasks?.video ? { w514: adTasks.scope } : {}), video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
     await run(
