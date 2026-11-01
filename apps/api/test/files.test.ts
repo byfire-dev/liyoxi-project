@@ -153,8 +153,9 @@ describe("文件九接口生产处理器与鉴权", { timeout: 60_000 }, () => {
     };
     const file = await data<FileRegistration>(await post("/admin/files", request, admin.headers));
     fake.put({ bucket: "asset", key: file.key }, png, "text/html");
+    // W5-09 已开放带真实制作上下文的 ad_video；sample_wm 仍禁止后台直接登记。
     await error(
-      await post("/admin/files", { ...request, category: "ad_video" }, admin.headers),
+      await post("/admin/files", { ...request, category: "sample_wm" }, admin.headers),
       400,
       "FILE_CATEGORY_NOT_ALLOWED",
     );
@@ -168,7 +169,7 @@ describe("文件九接口生产处理器与鉴权", { timeout: 60_000 }, () => {
         prisma.statusTransition.count(),
       ]);
     const rejectedBefore = await counts();
-    for (const category of ["sample_video", "final_episode"])
+    for (const category of ["sample_video", "final_episode", "ad_video"])
       await error(
         await post(
           "/admin/files",
