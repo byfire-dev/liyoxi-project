@@ -61,7 +61,7 @@ afterAll(async () => {
   await worker?.closeStaff?.();
   await worker?.closeSmsHealth?.();
   await worker?.closeAlertFacts?.();
-  worker?.closeOrder?.();
+  await worker?.closeOrder?.();
   worker?.closeBillingTimers?.();
   worker?.closePublish?.();
   worker?.closeDelivery?.();

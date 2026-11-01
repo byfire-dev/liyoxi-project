@@ -308,7 +308,8 @@ export interface WorkerServices {
   readonly webhooks?: Webhooks;
   readonly closeAnalytics?: () => Promise<void>;
   reprocessWebhooks(beat?: () => void): Promise<number>;
-  readonly closeOrder?: () => void | Promise<void>;
+  /** Drain this instance's reconciliation before restoring its previous order bindings. */
+  readonly closeOrder?: () => Promise<void>;
   readonly closeBillingTimers?: () => void;
   readonly closePublish?: () => void;
   readonly closeDelivery?: () => void;

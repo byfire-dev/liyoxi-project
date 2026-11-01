@@ -50,7 +50,7 @@ beforeEach(async () => {
   await serviceRuntime?.close();
   await services?.closeNotify?.();
   await services?.closeAnalytics?.();
-  services?.closeOrder?.();
+  await services?.closeOrder?.();
   services?.closeBillingTimers?.();
   services?.closePublish?.();
   services?.closeDelivery?.();

@@ -60,7 +60,7 @@ async function close(one: ReturnType<typeof buildWorkerServicesForTest>) {
   await one.shutdownMediaJobs?.();
   await one.closeNotify?.();
   one.closeMediaJobs?.();
-  one.closeOrder?.();
+  await one.closeOrder?.();
   one.closeBillingTimers?.();
   one.closePublish?.();
   one.closeDelivery?.();

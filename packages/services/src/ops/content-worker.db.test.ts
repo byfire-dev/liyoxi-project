@@ -78,7 +78,7 @@ it("真实worker装配执行content全量七项，3部listed剧没有未绑定�
     await worker?.closeSmsHealth?.();
     worker?.closeMediaJobs?.();
     worker?.closeWebhooks?.();
-    worker?.closeOrder?.();
+    await worker?.closeOrder?.();
     worker?.closeBillingTimers?.();
     worker?.closeDelivery?.();
     worker?.closePublish?.();

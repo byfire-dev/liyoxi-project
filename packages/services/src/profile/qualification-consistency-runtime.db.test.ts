@@ -83,7 +83,7 @@ afterAll(async () => {
   await worker?.closeProfile?.();
   await worker?.shutdownMediaJobs?.();
   worker?.closeMediaJobs?.();
-  worker?.closeOrder?.();
+  await worker?.closeOrder?.();
   worker?.closeBillingTimers?.();
   worker?.closePublish?.();
   worker?.closeDelivery?.();

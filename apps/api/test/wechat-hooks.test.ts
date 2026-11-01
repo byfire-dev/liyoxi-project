@@ -245,7 +245,7 @@ it("hooks.wechat.message.receive: concurrent raw encrypted requests project actu
     } finally {
       worker.closeWebhooks?.();
       worker.closeAnalytics?.();
-      worker.closeOrder?.();
+      await worker.closeOrder?.();
       worker.closeBillingTimers?.();
       worker.closePublish?.();
       worker.closeDelivery?.();
