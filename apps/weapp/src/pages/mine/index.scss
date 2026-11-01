@@ -1,63 +1,226 @@
 .account-mine {
-  background: $lyx-color-bg-page;
-  padding: 24px 16px;
+  box-sizing: border-box;
   min-height: 100vh;
+  padding: 8px 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  background: $lyx-color-bg-page;
+  color: $lyx-color-text-primary;
+
+  .account-mine__store-card {
+    gap: 0;
+    padding: 16px 16px 0;
+    border-radius: 16px;
+  }
   &__header {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 0 12px;
+    padding-bottom: 16px;
   }
   &__identity {
     flex: 1;
     min-width: 0;
   }
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   &__name {
-    font-size: 20px;
+    flex: 1;
+    min-width: 0;
+    font-size: 18px;
     font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
   }
   &__phone {
+    margin-top: 4px;
     font-size: 12px;
     color: $lyx-color-text-secondary;
-    margin: 5px 0 8px;
   }
   &__tags {
     display: flex;
-    gap: 6px;
-  }
-  &__points {
-    margin: 20px 0 16px;
-    font-size: 36px;
-    font-weight: 600;
-    > * {
-      font-size: 13px;
-      font-weight: 400;
-      color: $lyx-color-text-on-dark-secondary;
-      margin-top: 6px;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    overflow-wrap: anywhere;
+    .lyx-info-tag {
+      max-width: 100%;
+      box-sizing: border-box;
+      white-space: normal;
     }
   }
-  &__plan-meta {
+  .account-mine__switch {
+    min-height: 30px;
+    padding: 0 8px;
+    border: 1px solid $lyx-color-border;
+    border-radius: 999px;
     font-size: 12px;
-    color: $lyx-color-text-on-dark-secondary;
+    color: $lyx-color-text-primary;
+  }
+  &__profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    border-top: 1px solid $lyx-color-divider;
+  }
+  &__profile-title {
+    flex: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  &__profile-summary {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $lyx-color-text-secondary;
+  }
+  .account-mine__membership {
+    gap: 12px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+  &__plan-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    .lyx-text-button {
+      min-height: 22px;
+      font-size: 12px;
+    }
+  }
+  &__plan-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: $lyx-color-bg-inverse;
+    color: $lyx-color-accent-on-dark;
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  &__plan-meta {
+    flex: 1;
+    min-width: 100px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $lyx-color-text-secondary;
+  }
+  &__balance {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 8px 12px;
+  }
+  &__balance-main {
+    min-width: 0;
+  }
+  &__balance-label {
+    font-size: 12px;
+    color: $lyx-color-text-secondary;
+  }
+  &__points {
+    margin-top: 4px;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  &__breakdown {
+    margin-left: auto;
+    font-size: 12px;
+    line-height: 1.7;
+    text-align: right;
+    color: $lyx-color-text-regular;
+  }
+  &__expiry {
+    padding: 10px;
+    border-radius: 10px;
+    background: $lyx-color-primary-bg;
+    color: $lyx-color-primary-text;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .account-mine__stores {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 16px;
+  }
+  &__store-summary {
+    flex: 1;
+    min-width: 0;
+  }
+  &__section-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  &__store-note {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $lyx-color-text-secondary;
+    overflow-wrap: anywhere;
   }
   &__stats {
     display: flex;
-    padding: 20px 12px;
+    padding: 16px 12px;
+    border-radius: 16px;
     background: $lyx-color-bg-card;
-    border-radius: 14px;
     > * {
       flex: 1;
+      min-width: 0;
       text-align: center;
       font-size: 12px;
       color: $lyx-color-text-secondary;
+      + * {
+        border-left: 1px solid $lyx-color-divider;
+      }
       > * {
-        font-size: 24px;
+        margin-bottom: 4px;
+        font-size: 26px;
+        font-weight: 700;
         color: $lyx-color-text-primary;
-        margin-bottom: 8px;
       }
     }
+  }
+  &__service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: $lyx-color-primary-bg;
+  }
+  &__service-icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: $lyx-color-primary;
+    color: $lyx-color-text-inverse;
+  }
+  &__service-note {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: $lyx-color-primary-text;
   }
 }
