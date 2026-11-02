@@ -13,6 +13,8 @@ import { AccessContext } from "../../lib/permissions";
 import { DETAIL_QUERY, QUEUE_QUERY } from "../../lib/query";
 import { writeTableSearch } from "../../lib/table-search";
 import { accessResult, actorScope } from "../system/staff-access";
+import { ApprovalCancelPanel, CancelQueue } from "./cancel-queue";
+import { cancelKinds } from "./cancel-model";
 import {
   APPROVAL_KEY,
   approvalSearch,
@@ -45,18 +47,19 @@ function ApprovalWorkspace({ scope }: { scope: string }) {
   const list = useQuery({
     queryKey: [...APPROVAL_KEY, scope, "list", query],
     ...QUEUE_QUERY,
-    queryFn: async () =>
+    queryFn: async ({ signal }) =>
       (await accessResult(
-        await services.api.client.GET("/api/v1/admin/approvals", { params: { query } }),
+        await services.api.client.GET("/api/v1/admin/approvals", { params: { query }, signal }),
       )) as unknown as { items: ApprovalItem[]; total: number },
   });
   const counts = useQuery({
     queryKey: [...APPROVAL_KEY, scope, "counts", summaryQuery],
     ...QUEUE_QUERY,
-    queryFn: async () =>
+    queryFn: async ({ signal }) =>
       (await accessResult(
         await services.api.client.GET("/api/v1/admin/approvals/summary", {
           params: { query: summaryQuery },
+          signal,
         }),
       )) as unknown as ApprovalCounts,
   });
@@ -64,10 +67,11 @@ function ApprovalWorkspace({ scope }: { scope: string }) {
     queryKey: [...APPROVAL_KEY, scope, "detail", search.id],
     enabled: Boolean(search.id),
     ...DETAIL_QUERY,
-    queryFn: async () =>
+    queryFn: async ({ signal }) =>
       (await accessResult(
         await services.api.client.GET("/api/v1/admin/approvals/{approvalId}", {
           params: { path: { approvalId: search.id! } },
+          signal,
         }),
       )) as unknown as ApprovalDetail,
   });
@@ -91,7 +95,12 @@ function ApprovalWorkspace({ scope }: { scope: string }) {
     <>
       <PageHeader
         title="我的待审批"
-        subtitle="仅显示当前已登记且有权限读取的审批；动作在所属业务中完成。"
+        subtitle="仅显示当前已登记且有权限读取的审批；取消请求另列待审批与待执行队列。"
+      />
+      <CancelQueue
+        search={search}
+        scope={scope}
+        onSearch={(value) => void navigate({ search: approvalSearch(value) })}
       />
       {counts.isError ? (
         <Alert
@@ -277,9 +286,20 @@ function ApprovalWorkspace({ scope }: { scope: string }) {
                 <a className="lyx-link" href={approvalTarget(detail.data, access)!}>
                   {detail.data.actions.length ? "进入业务处理" : "查看业务详情"}
                 </a>
-              ) : (
+              ) : !Object.hasOwn(cancelKinds, detail.data.kind) ? (
                 <p>当前为只读详情；该类型的领域处理入口尚未落地或当前权限不可进入。</p>
-              )}
+              ) : null}
+              {Object.hasOwn(cancelKinds, detail.data.kind) ? (
+                <ApprovalCancelPanel
+                  approval={detail.data}
+                  scope={scope}
+                  onChanged={() => {
+                    void detail.refetch();
+                    void list.refetch();
+                    void counts.refetch();
+                  }}
+                />
+              ) : null}
             </>
           )}
         </Drawer>
