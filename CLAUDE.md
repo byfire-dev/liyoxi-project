@@ -274,7 +274,7 @@
 | `pnpm e2e:m4` | M4 独立资金接口主链；单 worker、文件不并行，真实 Hono 与假渠道正式签名协议，覆盖支付退款、调整延长、三人线下收款、发票、差异对账、三模式及受控配置24小时边界。每轮独立测试库和 Redis 前缀，初始化、主链、全量不变量与自然清理合计 ≤90 秒。真实资金和云端联调仍单列未验。 |
 | `pnpm demo:m4` | 本轮新隔离库走同一 M4 接口链，在核心退款完成后，用原 key 重放原付款/退款意图及两份签名通知，核业务零新增、演示种子零新增和字典保留；不接收目标业务库，生产环境拒绝。实际执行与主干十轮验收见 W4-19 状态，假通道不表示真实实付。 |
 | `pnpm e2e:m5`；`pnpm demo:m5` | M5真实Hono订单交付链：广告、样片修改、授权、补发及异人取消；沿M1本机新隔离scope，单worker、90秒包含full和自然清理。demo仅APP_ENV=test，内部同库原正文/key重放业务零新增并保完整字典，不接业务库；法务/机构证书与真机仍单列。实际验收见[W5-15状态](docs/plan/status/W5-15.md)及[演示手册](docs/plan/demo/m5.md)。 |
-| `node infra/ci/m5-repeat.mjs --times 10` | 固定e2e:m5且拒绝脚本覆盖；actual main十轮独立scope顺序运行、每轮≤90秒、失败即停无重试，完整/部分汇总保留在apps/api/dist/m5-e2e-repeat/。第一片合main后执行并由第二片记录，不提前宣称阶段退出。 |
+| `node infra/ci/m5-repeat.mjs --times 10` | 固定e2e:m5且拒绝脚本覆盖；actual main十轮独立scope顺序运行、每轮≤90秒、失败即停无重试，完整/部分汇总保留在apps/api/dist/m5-e2e-repeat/。代码及独立CI片合main后执行并由收尾片记录，不提前宣称阶段退出。 |
 | `node infra/ci/check-stubs.mjs` | 留桩门禁：34 个计划行精确关联功能留桩文件及既有未来页面登记，检查模板键、回补点和合法 M0–M8，M0/M1 必须已回补；删除文件、页面或只改计划回补点都失败。 |
 | `pnpm test:fault` | 故障注入套件：各包的并发、性质与故障注入用例一条命令跑完（按文件名圈：`*.concurrency.test.ts`、`*.property.test.ts`、名字是 `fault` 的目录与文件、幂等与租约的用例；它们也都在 `pnpm test` 里）。前提同 `pnpm test`。造什么、看什么的清单在 [docs/plan/m0-exit.md](docs/plan/m0-exit.md) 第 4 节 |
 | `pnpm plan:summaries` | 现生成台账三张汇总：`docs/plan/stubs/`、`changes/`、`external-verification/` 下各一份 `SUMMARY.md`（不入库，被 git 忽略，不用提交）。单项文件不合规时报错并指出是哪个文件的哪一项；CI 的“台账单项文件核对”只做这道核对（`node infra/ci/plan-summaries.mjs --check`，不写文件）。口径见 [脚本](infra/ci/plan-summaries.mjs) 开头的注释 |
