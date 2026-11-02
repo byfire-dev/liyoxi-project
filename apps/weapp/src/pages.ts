@@ -94,7 +94,8 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     implemented: true,
   }),
   page("sub/catalog/trailer/index", "sub/catalog", "预告片模式", "Trailer", "M05", "V1.1", "—", {
-    note: "V1.0 不做（规范 第 11 节）",
+    implemented: true,
+    note: "用户授权提前实现；默认排序浏览，点击播放并遵循真实视频开关",
   }),
   page("sub/catalog/detail/index", "sub/catalog", "短剧详情", "Detail", "M06", "M1", "W1-18", {
     implemented: true,

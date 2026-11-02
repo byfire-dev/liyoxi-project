@@ -136,7 +136,7 @@ export const makeOverview = (clerk = false, second = false): Data<"m.me.overview
           spendablePoints: 360,
           planAvailablePoints: 300,
           addonAvailablePoints: 60,
-          planPointsExpireAt: "2026-11-05",
+          planPointsExpireAt: "2026-11-05T16:00:00.000Z",
           isAddonSuspended: false,
         },
         storeStats: { liveCount: 3, deliveringCount: 1, cartCount: 2 },
@@ -216,8 +216,24 @@ export function offlineAccountRequest(scene: string): RequestLayer["request"] {
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     if (scene === "ad-mine") aggregateCalls.push({ path, method: options?.method ?? "GET" });
     let data: unknown;
-    if (path === "/m/bootstrap") data = bootstrap;
-    else if (path === "/m/sessions")
+    if (path === "/m/bootstrap") {
+      const shot = globalThis as { __LYX_TRAILER_SHOT__?: string; __LYX_CATALOG_SHOT__?: string };
+      const trailerEnabled = Boolean(
+        shot.__LYX_TRAILER_SHOT__ && shot.__LYX_TRAILER_SHOT__ !== "trailer-disabled",
+      );
+      const feedEnabled = trailerEnabled || shot.__LYX_CATALOG_SHOT__ === "mall-default";
+      data = feedEnabled
+        ? {
+            ...bootstrap,
+            flags: {
+              ...bootstrap.flags,
+              "weapp.trailer.feed": true,
+              "weapp.video.trailer.enabled": true,
+              "weapp.trailer.autoplay": false,
+            },
+          }
+        : bootstrap;
+    } else if (path === "/m/sessions")
       data = guest
         ? { needPhone: true, token: null, me: null }
         : {

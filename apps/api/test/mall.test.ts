@@ -1,6 +1,7 @@
 import { createCodecDemoMasterPreparer } from "@liyoxi/services/testing";
-import { beforeAll, it, expect } from "vitest";
-import { MallConfigSchema } from "@liyoxi/contract";
+import { beforeAll, it, expect, vi } from "vitest";
+import { FlagRulesSchema, MallConfigSchema } from "@liyoxi/contract";
+import type { DramaDetail } from "@liyoxi/contract";
 import { createIdentityContext, runSeed, seedDemoContent, uuidv7 } from "@liyoxi/services";
 import { createFactories, createLedgerHarness, openTerm } from "@liyoxi/services/testing";
 import type { SignedInMerchant } from "../src/testing/merchant.js";
@@ -25,6 +26,8 @@ type TestData = {
   owner: { discountBp: number; spendablePoints: number };
   listPricePoints: number;
   discountedPoints: number;
+  posterUrl: DramaDetail["posterUrl"];
+  trailer: DramaDetail["trailer"];
   orderability: { orderable: boolean; reason: string | null };
   banners: { homeBannerId: string; jumpKind: string }[];
   filters: { episodeBands: { key: string }[]; priceBands: { key: string }[] };
@@ -160,6 +163,152 @@ it("生效周期折后实扣和owner财务读真实账本，无周期null", asyn
   expect(body.data.owner.discountBp).toBe(9000);
   expect(body.data.discountedPoints).toBe(body.data.listPricePoints * 0.9);
   expect(body.data.owner.spendablePoints).toBeGreaterThan(0);
+});
+it("详情仅投影当前已就绪预告片：三角色一致，替换处理中保留current，关闭或失效为空且不签播放源", async () => {
+  const db = await testApi.db.prisma(),
+    make = createFactories({ db, clock: api.clock }),
+    now = api.clock.now(),
+    staff = await db.staff.findFirstOrThrow(),
+    flag = await db.featureFlag.findUniqueOrThrow({
+      where: { key: "weapp.video.trailer.enabled" },
+    }),
+    originalDefault = flag.defaultValue,
+    originalRules = FlagRulesSchema.parse(flag.rules),
+    originalPointer = await db.dramaTrailer.findUnique({ where: { dramaId } });
+  if (typeof originalDefault !== "boolean") throw new Error("预告片开关须为布尔值");
+  // Projection-only fixture: real pointer/asset reads, without claiming production-chain readiness.
+  const source = await make.fileObject({
+      category: "trailer_src",
+      bucket: "media",
+      ext: "mp4",
+      declaredMime: "video/mp4",
+      mime: "video/mp4",
+    }),
+    rendition = await make.fileObject({
+      category: "trailer_out",
+      ext: "mp4",
+      declaredMime: "video/mp4",
+      mime: "video/mp4",
+    }),
+    current = await db.playableAsset.create({
+      data: {
+        id: uuidv7(),
+        kind: "trailer",
+        sourceFileId: source.id,
+        ownerType: "drama",
+        ownerId: dramaId,
+        specVersion: 1,
+        state: "ready",
+        durationMs: 32_000,
+        readyAt: now,
+        renditions: [
+          { quality: "sd", fileId: rendition.id, width: 480, height: 854, bitrateKbps: null },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+    }),
+    target = await db.playableAsset.create({
+      data: {
+        id: uuidv7(),
+        kind: "trailer",
+        sourceFileId: source.id,
+        ownerType: "drama",
+        ownerId: dramaId,
+        specVersion: 2,
+        state: "processing",
+        renditions: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+  const signRead = vi.spyOn(api.runtime.media, "signRead");
+  const setEnabled = async (enabled: boolean) => {
+    await db.featureFlag.update({
+      where: { key: flag.key },
+      data: { defaultValue: enabled, rules: [] },
+    });
+    await api.runtime.config.cache.bump("flag");
+  };
+  try {
+    const pointer = {
+      targetPlayableAssetId: target.id,
+      currentPlayableAssetId: current.id,
+      setByStaffId: staff.id,
+      setAt: now,
+      updatedAt: now,
+    };
+    await db.dramaTrailer.upsert({
+      where: { dramaId },
+      create: { dramaId, ...pointer, createdAt: now },
+      update: pointer,
+    });
+    await setEnabled(true);
+    const before = await Promise.all([
+      db.auditLog.count(),
+      db.statusTransition.count(),
+      db.outboxEvent.count(),
+      db.mediaJob.count(),
+    ]);
+    for (const headers of [{}, clerk.withStore(storeId), owner.withStore(storeId)]) {
+      const { response, body } = await get(`/m/dramas/${dramaId}`, headers);
+      expect(response.status, JSON.stringify(body)).toBe(200);
+      expect(body.data.trailer).toEqual({
+        playableId: current.id,
+        durationMs: 32_000,
+        posterUrl: body.data.posterUrl,
+      });
+      expect(body.data.trailer).not.toHaveProperty("sources");
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+    await setEnabled(false);
+    expect((await get(`/m/dramas/${dramaId}`)).body.data.trailer).toBeNull();
+    await setEnabled(true);
+    await db.dramaTrailer.update({ where: { dramaId }, data: { currentPlayableAssetId: null } });
+    expect((await get(`/m/dramas/${dramaId}`)).body.data.trailer).toBeNull();
+    await db.dramaTrailer.update({
+      where: { dramaId },
+      data: { currentPlayableAssetId: current.id },
+    });
+    for (const [state, durationMs] of [
+      ["processing", 32_000],
+      ["failed", 32_000],
+      ["retired", 32_000],
+      ["ready", null],
+    ] as const) {
+      await db.playableAsset.update({
+        where: { id: current.id },
+        data: {
+          state,
+          durationMs,
+          readyAt: state === "ready" ? now : null,
+          retiredAt: state === "retired" ? now : null,
+        },
+      });
+      expect((await get(`/m/dramas/${dramaId}`)).body.data.trailer).toBeNull();
+    }
+    expect(signRead.mock.calls.map(([input]) => input.fileId)).not.toContain(source.id);
+    expect(signRead.mock.calls.map(([input]) => input.fileId)).not.toContain(rendition.id);
+    expect(
+      await Promise.all([
+        db.auditLog.count(),
+        db.statusTransition.count(),
+        db.outboxEvent.count(),
+        db.mediaJob.count(),
+      ]),
+    ).toEqual(before);
+  } finally {
+    signRead.mockRestore();
+    await db.dramaTrailer.delete({ where: { dramaId } });
+    if (originalPointer) await db.dramaTrailer.create({ data: originalPointer });
+    await db.playableAsset.deleteMany({ where: { id: { in: [current.id, target.id] } } });
+    // file_object 禁止硬删；测试文件随本文件的隔离数据库整体清理。
+    await db.featureFlag.update({
+      where: { key: flag.key },
+      data: { defaultValue: originalDefault, rules: originalRules },
+    });
+    await api.runtime.config.cache.bump("flag");
+  }
 });
 it("分类/题材/行业/集数档/价格档、排序配置和游标，不重不漏，坏快照回第一页", async () => {
   const config = (await get("/m/mall-config")).body.data;

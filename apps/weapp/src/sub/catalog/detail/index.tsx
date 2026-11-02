@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "@tarojs/components";
+import { Text, View } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { formatInteger, formatSignedPercent } from "@liyoxi/shared/format/money";
 import { Cover } from "@/components/Cover";
@@ -11,10 +11,14 @@ import { PageBody } from "@/components/PageBody";
 import { Note } from "@/components/Note";
 import { LoadError } from "@/components/LoadError";
 import { Skeleton } from "@/components/Skeleton";
+import { Icon } from "@/components/Icon";
+import { InfoTag } from "@/components/InfoTag";
+import { TextButton } from "@/components/TextButton";
+import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
+import { TrailerPlayer } from "../trailer/player";
+import { useTrailerIdentity } from "../trailer/scope";
 import { gotoAccountLogin } from "@/lib/account-routing";
 import { track } from "@/lib/runtime";
-import { useContextStore } from "@/stores/context";
-import { useSessionStore } from "@/stores/session";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogApi } from "@/pages/mall/api";
 import { useCatalogResource } from "@/pages/mall/resource";
@@ -25,10 +29,9 @@ const platformName: Readonly<Record<string, string>> = {
   all: "通用",
 };
 export default function DetailPage() {
-  const rev = useContextStore((s) => s.contextRev),
-    token = useSessionStore((s) => s.accessToken),
-    { dramaId = "" } = useRouter().params;
-  return <DetailContent key={`${rev}:${token}:${dramaId}`} id={dramaId} />;
+  const identity = useTrailerIdentity();
+  const { dramaId = "" } = useRouter().params;
+  return <DetailContent key={`${identity}:${dramaId}`} id={dramaId} />;
 }
 function DetailContent({ id }: { id: string }) {
   const resource = useCatalogResource(
@@ -77,6 +80,25 @@ function DetailContent({ id }: { id: string }) {
   };
   return (
     <View className="detail-page" id={detail ? "catalog-ready" : undefined}>
+      {detail ? (
+        detail.trailer ? (
+          <TrailerPlayer
+            key={detail.trailer.playableId}
+            trailer={detail.trailer}
+            title={detail.title}
+            blocked={resource.loading}
+          />
+        ) : (
+          <View className="detail-page__hero">
+            <Cover
+              title={detail.title}
+              src={detail.posterUrl?.url}
+              className="detail-page__hero-cover"
+            />
+            <View className="detail-page__hero-note">暂无预告片</View>
+          </View>
+        )
+      ) : null}
       <PageBody>
         {resource.error ? (
           <LoadError
@@ -89,53 +111,74 @@ function DetailContent({ id }: { id: string }) {
           <Skeleton cards={3} />
         ) : (
           <>
-            <Card>
-              <View className="detail-page__header">
-                <View className="detail-page__cover">
-                  <Cover title={detail.title} src={detail.posterUrl?.url} />
-                </View>
-                <View className="detail-page__intro">
-                  <View className="detail-page__title">{detail.title}</View>
-                  <View className="detail-page__muted">
-                    {detail.genres.map((g) => g.name).join(" · ")}
-                  </View>
-                  <View>
-                    {detail.totalEpisodes} 集
-                    {detail.episodeDurationSec ? ` · 每集 ${detail.episodeDurationSec} 秒` : ""}
-                  </View>
-                  <View className="detail-page__price">
-                    {detail.viewerRole === "owner" && detail.discountedPoints !== null
-                      ? `${formatInteger(detail.discountedPoints)} 积分`
-                      : detail.listPricePoints !== null
-                        ? `${formatInteger(detail.listPricePoints)} 积分`
-                        : "暂无报价"}
-                  </View>
+            <Card className="detail-page__identity">
+              <View className="detail-page__title">《{detail.title}》</View>
+              <View className="detail-page__tags">
+                {detail.genres.map((genre) => (
+                  <InfoTag key={genre.code}>{genre.name}</InfoTag>
+                ))}
+                {detail.heatTier ? <InfoTag>选用量等级 {detail.heatTier}</InfoTag> : null}
+                <InfoTag>{detail.totalEpisodes} 集</InfoTag>
+                {detail.episodeDurationSec ? (
+                  <InfoTag>单集 {detail.episodeDurationSec} 秒</InfoTag>
+                ) : null}
+                {detail.badge ? (
+                  <InfoTag>{detail.badge === "new" ? "新剧" : "推荐"}</InfoTag>
+                ) : null}
+              </View>
+              <View className="detail-page__muted">出品方：{detail.producerName ?? "暂无"}</View>
+            </Card>
+            <Card className="detail-page__pricing">
+              <View className="detail-page__price-row">
+                <View className="detail-page__heading">积分价</View>
+                <View className="detail-page__price">
+                  {detail.listPricePoints === null ? (
+                    "暂无报价"
+                  ) : (
+                    <>
+                      <Text className="detail-page__price-number">
+                        {formatInteger(detail.listPricePoints)}
+                      </Text>
+                      <Text className="detail-page__price-unit">积分</Text>
+                    </>
+                  )}
                 </View>
               </View>
               {detail.viewerRole === "owner" && detail.owner ? (
-                <DescList
-                  items={[
-                    {
-                      label: "原价",
-                      value:
-                        detail.listPricePoints === null
-                          ? "暂无报价"
-                          : `${formatInteger(detail.listPricePoints)} 积分`,
-                    },
-                    { label: "当前套餐", value: detail.owner.planName ?? "暂未开通" },
-                    {
-                      label: "套餐折扣",
-                      value:
-                        detail.owner.discountBp === null
-                          ? "开通后查看"
-                          : formatSignedPercent(detail.owner.discountBp).replace("+", ""),
-                    },
-                    {
-                      label: "可用积分",
-                      value: `${formatInteger(detail.owner.spendablePoints)} 积分`,
-                    },
-                  ]}
-                />
+                <>
+                  <View className="detail-page__plan">
+                    <View className="detail-page__plan-badge">
+                      <Icon name="crown" size={14} />
+                      <Text>{detail.owner.planName ?? "未开通套餐"}</Text>
+                    </View>
+                    <View className="detail-page__plan-discount">
+                      {detail.owner.discountBp === null
+                        ? "开通后查看折扣"
+                        : `套餐折扣 ${formatSignedPercent(detail.owner.discountBp).replace("+", "")}`}
+                    </View>
+                    {detail.discountedPoints !== null ? (
+                      <View className="detail-page__deduction">
+                        实扣 {formatInteger(detail.discountedPoints)} 积分
+                      </View>
+                    ) : null}
+                  </View>
+                  <View className="detail-page__promise">
+                    订购后为您的门店单独定制，成片仅在所选账号发布
+                  </View>
+                  <TextButton
+                    tone="muted"
+                    arrow
+                    className="detail-page__wallet"
+                    onClick={() => {
+                      void Taro.navigateTo({ url: "/sub/billing/wallet/index" });
+                    }}
+                  >
+                    当前可用 {formatInteger(detail.owner.spendablePoints)} 积分
+                    {detail.owner.expiringPlanPoints > 0 && detail.owner.planPointsExpireAt
+                      ? `，其中 ${formatInteger(detail.owner.expiringPlanPoints)} 将于 ${appDateTimeFormat.dateTime(detail.owner.planPointsExpireAt)} 到期清零`
+                      : ""}
+                  </TextButton>
+                </>
               ) : null}
             </Card>
             {!detail.orderability.orderable ? (
@@ -143,23 +186,22 @@ function DetailContent({ id }: { id: string }) {
                 {detail.orderability.reason === "not_listed" ? "已下架，暂不可订购" : "已停止订购"}
               </Note>
             ) : null}
-            <Card title="短剧介绍">
+            <Card title="剧情简介">
               <View className="detail-page__copy">{detail.synopsis ?? "暂无简介"}</View>
               <DescList
                 items={[
-                  { label: "制作方", value: detail.producerName ?? "暂无" },
                   { label: "主演", value: detail.castNames ?? "暂无" },
                   {
                     label: "适合行业",
-                    value: detail.industries.map((g) => g.name).join("、") || "暂无",
+                    value: detail.industries.map((genre) => genre.name).join("、") || "暂无",
                   },
                   { label: "目标观众", value: detail.targetAudience ?? "暂无" },
                 ]}
               />
-              {detail.roles.map((r) => (
-                <View key={r.name} className="detail-page__muted">
-                  {r.name}
-                  {r.actor ? `（${r.actor}）` : ""} · {r.desc}
+              {detail.roles.map((role) => (
+                <View key={role.name} className="detail-page__muted">
+                  {role.name}
+                  {role.actor ? `（${role.actor}）` : ""} · {role.desc}
                 </View>
               ))}
             </Card>
@@ -169,16 +211,18 @@ function DetailContent({ id }: { id: string }) {
               </View>
               <DescList
                 items={detail.placementDurations
-                  .filter((p) => detail.allowedPlacements.includes(p.slot))
-                  .map((p) => ({
-                    label: p.slot === "opening" ? "片头" : "片尾",
-                    value: p.durationSecOptions.map((n) => `${n} 秒`).join(" / "),
+                  .filter((placement) => detail.allowedPlacements.includes(placement.slot))
+                  .map((placement) => ({
+                    label: placement.slot === "opening" ? "片头" : "片尾",
+                    value: placement.durationSecOptions
+                      .map((seconds) => `${seconds} 秒`)
+                      .join(" / "),
                   }))}
               />
-              {detail.sellingTags.map((t) => (
-                <View key={t.code}>
-                  {t.name}
-                  {t.description ? ` · ${t.description}` : ""}
+              {detail.sellingTags.map((tag) => (
+                <View key={tag.code} className="detail-page__copy">
+                  {tag.name}
+                  {tag.description ? ` · ${tag.description}` : ""}
                 </View>
               ))}
             </Card>
@@ -187,42 +231,50 @@ function DetailContent({ id }: { id: string }) {
                 items={[
                   {
                     label: "发布平台",
-                    value: detail.platforms.map((p) => platformName[p]).join("、"),
+                    value: detail.platforms.map((platform) => platformName[platform]).join("、"),
                   },
                   { label: "可使用至", value: detail.usableUntilDate ?? "暂无" },
-                  ...detail.permits.map((p) => ({
-                    label: `${platformName[p.platform]}许可`,
-                    value: p.number,
+                  ...detail.permits.map((permit) => ({
+                    label: `${platformName[permit.platform]}许可`,
+                    value: permit.number,
                   })),
                 ]}
               />
             </Card>
             {error ? <Note>{error}</Note> : null}
             {detail.viewerRole === "owner" ? (
-              <>
-                <FooterBar>
-                  <Button
-                    variant="secondary"
-                    loading={busy}
-                    disabled={!detail.orderability.orderable}
-                    onClick={() => {
-                      void add();
-                    }}
-                  >
-                    {added || detail.owner?.cartItemId ? "已在选剧单" : "加入选剧单"}
-                  </Button>
-                  <Button
-                    disabled={!detail.orderability.orderable || busy || resource.loading}
-                    onClick={() => {
-                      void Taro.navigateTo({
-                        url: `/sub/order/checkout/index?dramaIds=${encodeURIComponent(detail.dramaId)}`,
-                      });
-                    }}
-                  >
-                    确认订购
-                  </Button>
-                </FooterBar>
-              </>
+              <FooterBar equal={false} className="detail-page__footer">
+                <View className="detail-page__unavailable">
+                  <Icon name="headset" size={22} />
+                  <View className="detail-page__unavailable-label">客服</View>
+                  <View className="detail-page__unavailable-note">未开放</View>
+                </View>
+                <View className="detail-page__unavailable">
+                  <Icon name="heart" size={22} />
+                  <View className="detail-page__unavailable-label">收藏</View>
+                  <View className="detail-page__unavailable-note">未开放</View>
+                </View>
+                <Button
+                  variant="outline"
+                  loading={busy}
+                  disabled={!detail.orderability.orderable}
+                  onClick={() => {
+                    void add();
+                  }}
+                >
+                  {added || detail.owner?.cartItemId ? "已在选剧单" : "加入选剧单"}
+                </Button>
+                <Button
+                  disabled={!detail.orderability.orderable || busy || resource.loading}
+                  onClick={() => {
+                    void Taro.navigateTo({
+                      url: `/sub/order/checkout/index?dramaIds=${encodeURIComponent(detail.dramaId)}`,
+                    });
+                  }}
+                >
+                  确认订购
+                </Button>
+              </FooterBar>
             ) : detail.viewerRole === "guest" ? (
               <Button
                 onClick={() => {

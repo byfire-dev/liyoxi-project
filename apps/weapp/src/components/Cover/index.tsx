@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 
 import { Image, View } from "@tarojs/components";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cx } from "@/lib/cx";
+import { createNativeImageRequester } from "@/lib/image-request.taro";
+import { createImageRetry } from "@/lib/image-retry";
+
+import { coverImageFailure, coverImageIdentity } from "./diagnostics";
 
 import "./index.scss";
+
+const coverImageBuild = "cover-request-20261102b";
 
 /**
  * grid 宫格封面（占满所在列，圆角 8）；scroll 横滑卡封面（占满外层给的宽度，圆角 10）；
@@ -16,7 +22,7 @@ export type CoverVariant = "grid" | "scroll" | "thumb" | "thumb-sm";
 export interface CoverProps {
   /** 剧名：占位样式里竖排显示；也是这张图的无障碍名称 */
   title: string;
-  /** 封面图地址。没有、加载中、加载失败时显示占位样式 */
+  /** 封面图地址。原生远程加载失败后下载到临时文件恢复一次，仍失败则保留占位 */
   src?: string;
   /** 占位样式的底色：每部剧一个主色，来自数据（接口给的颜色字段），不是界面色 */
   color?: string;
@@ -33,7 +39,13 @@ export interface CoverProps {
 }
 
 /** 短剧封面：一律 3:4，铺满裁切（规范 第 9.2 节）。占位样式是纯色块加竖排剧名，也是加载中与加载失败的兜底 */
-export function Cover({
+export function Cover(props: CoverProps) {
+  // 每个地址持有自己的失败状态；旧图片的迟到回调只属于已卸载的旧实例。
+  // 同一地址的普通重渲染不重试，避免坏地址在列表里持续发起请求。
+  return <CoverForSource key={props.src ?? ""} {...props} />;
+}
+
+function CoverForSource({
   title,
   src,
   color,
@@ -44,8 +56,56 @@ export function Cover({
   invalid = false,
   className,
 }: CoverProps) {
+  const [source, setSource] = useState(src);
   const [failed, setFailed] = useState(false);
-  const withImage = Boolean(src) && !failed;
+  const currentSource = useRef(src);
+  const reported = useRef<string>();
+  const recovery = useRef<ReturnType<typeof createImageRetry>>();
+  useEffect(() => {
+    if (process.env.TARO_ENV !== "weapp" || !src || !/^https?:\/\//i.test(src)) return;
+    const requester = createNativeImageRequester();
+    const retry = createImageRetry({
+      source: src,
+      download: requester.download,
+      onReady(path) {
+        currentSource.current = path;
+        setSource(path);
+        setFailed(false);
+      },
+      onResult(result) {
+        if (result.statusCode !== undefined)
+          console.info("[短剧封面] 下载响应", {
+            build: coverImageBuild,
+            ...coverImageIdentity(src),
+            transport: "request",
+            statusCode: result.statusCode,
+          });
+        if (result.error !== undefined) {
+          const error = result.error;
+          const message =
+            typeof error === "object" && error !== null && "errMsg" in error
+              ? error.errMsg
+              : error instanceof Error
+                ? error.message
+                : undefined;
+          console.warn("[短剧封面] 下载失败", {
+            build: coverImageBuild,
+            ...coverImageFailure(src, message),
+          });
+        }
+      },
+    });
+    recovery.current = retry;
+    retry.activate();
+    // 原生图片可能先于 effect 报错；已记住的首次错误必须在激活后补发恢复。
+    if (reported.current === src) retry.retry();
+    return () => {
+      recovery.current = undefined;
+      retry.dispose();
+      requester.dispose();
+    };
+  }, [src]);
+  const withImage = Boolean(source) && !failed;
   const small = variant === "thumb" || variant === "thumb-sm";
   return (
     <View
@@ -64,11 +124,33 @@ export function Cover({
       <View className="lyx-cover__title">{title}</View>
       {withImage ? (
         <Image
+          key={source}
           className="lyx-cover__image"
-          src={src ?? ""}
+          src={source ?? ""}
           mode="aspectFill"
           lazyLoad
-          onError={() => setFailed(true)}
+          onLoad={({ detail }) => {
+            if (source !== currentSource.current) return;
+            console.info("[短剧封面] 图片加载成功", {
+              build: coverImageBuild,
+              ...coverImageIdentity(src ?? ""),
+              sourceKind: source === src ? "remote" : "downloaded",
+              width: detail.width,
+              height: detail.height,
+            });
+          }}
+          onError={({ detail }) => {
+            if (source !== currentSource.current || reported.current === source) return;
+            reported.current = source;
+            setFailed(true);
+            console.warn("[短剧封面] 图片加载失败", {
+              build: coverImageBuild,
+              ...coverImageFailure(src ?? "", detail.errMsg),
+              sourceKind: source === src ? "remote" : "downloaded",
+              recoveryReady: Boolean(recovery.current),
+            });
+            if (source === src) recovery.current?.retry();
+          }}
         />
       ) : null}
       {withImage && caption !== undefined && !small ? <View className="lyx-cover__shade" /> : null}

@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { View } from "@tarojs/components";
+import { Text, View } from "@tarojs/components";
+import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
+import { formatInteger } from "@liyoxi/shared/format/money";
 import Taro, { useDidShow } from "@tarojs/taro";
 
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Empty } from "@/components/Empty";
+import { Icon } from "@/components/Icon";
+import { IconTile } from "@/components/IconTile";
 import { InfoTag } from "@/components/InfoTag";
 import { List, ListRow } from "@/components/List";
 import { LoadError } from "@/components/LoadError";
@@ -38,6 +42,9 @@ export default function Mine() {
   useDidShow(load);
   const data = state.overview;
   const store = data?.currentStore;
+  const owner = data?.viewerRole === "owner" ? data : null;
+  const hasStores = state.me?.memberships.some((item) => item.stores.length > 0);
+  const location = [store?.city?.name, store?.category?.name].filter(Boolean).join(" · ");
   const status =
     store && merchantStatusByEnum("store.qualification_status", store.qualificationStatus);
   const navigate = (route: string) => {
@@ -63,68 +70,171 @@ export default function Mine() {
         <LoadError message={error ?? state.error ?? "加载失败"} onRetry={load} />
       ) : state.me ? (
         <>
-          <View className="account-mine__header">
-            <Avatar text={store?.name ?? state.me.user.displayName ?? "商"} size={56} />
-            <View className="account-mine__identity">
-              <View className="account-mine__name">
-                {store?.name ?? state.me.user.displayName ?? "商家账号"}
-              </View>
-              <View className="account-mine__phone">{state.me.user.phoneMask}</View>
-              <View className="account-mine__tags">
-                {data ? <InfoTag>{data.viewerRole === "owner" ? "老板" : "店员"}</InfoTag> : null}
-                {store?.lifecycle === "archived" ? <InfoTag>已停用</InfoTag> : null}
-                {status ? <StatusTag tone={status.tone}>{status.label}</StatusTag> : null}
+          <Card className="account-mine__store-card">
+            <View className="account-mine__header">
+              <Avatar
+                text={store?.name ?? state.me.user.displayName ?? "商"}
+                size={56}
+                tone="solid"
+              />
+              <View className="account-mine__identity">
+                <View className="account-mine__heading">
+                  {" "}
+                  <View className="account-mine__name">
+                    {store?.name ?? state.me.user.displayName ?? "商家账号"}
+                  </View>{" "}
+                  {hasStores ? (
+                    <TextButton
+                      tone="muted"
+                      className="account-mine__switch"
+                      onClick={() => {
+                        void account.openSwitcher();
+                      }}
+                    >
+                      切换门店
+                    </TextButton>
+                  ) : null}
+                </View>
+                {!store ? (
+                  <View className="account-mine__phone">{state.me.user.phoneMask}</View>
+                ) : null}
+                <View className="account-mine__tags">
+                  {status ? <StatusTag tone={status.tone}>{status.label}</StatusTag> : null}
+                  {location ? <InfoTag>{location}</InfoTag> : null}
+                  {data ? <InfoTag>{data.viewerRole === "owner" ? "老板" : "店员"}</InfoTag> : null}
+                  {store?.lifecycle === "archived" ? <InfoTag>已停用</InfoTag> : null}
+                </View>
               </View>
             </View>
-            {state.me.memberships.some((item) => item.stores.length > 0) ? (
-              <TextButton
-                onClick={() => {
-                  void account.openSwitcher();
-                }}
-              >
-                切换门店
-              </TextButton>
-            ) : null}
-          </View>
-          {data?.viewerRole === "owner" ? (
-            <>
-              <Card
-                variant="dark"
-                eyebrow="套餐与积分"
-                title={data.subscription.planName ?? "暂未开通套餐"}
-                extra={
-                  accountPageImplemented("sub/billing/wallet/index") ? (
-                    <TextButton arrow onClick={() => navigate("sub/billing/wallet/index")}>
-                      查看钱包
-                    </TextButton>
-                  ) : undefined
+            {store ? (
+              <View
+                className="account-mine__profile"
+                onClick={
+                  owner && accountPageImplemented("sub/profile/profile/index")
+                    ? () => navigate("sub/profile/profile/index")
+                    : undefined
                 }
               >
-                <View className="account-mine__points">
-                  {data.subscription.spendablePoints}
-                  <View>可用积分</View>
+                <Text className="account-mine__profile-title">
+                  {owner ? "商家档案" : "门店信息"}
+                </Text>
+                <Text className="account-mine__profile-summary">
+                  门店素材 {formatInteger(store.assetCount)} 条 · 店员{" "}
+                  {formatInteger(store.clerkCount)} 位
+                </Text>
+                {owner && accountPageImplemented("sub/profile/profile/index") ? (
+                  <Icon name="chevron-right" size={16} />
+                ) : null}
+              </View>
+            ) : null}
+          </Card>
+          {owner ? (
+            <Card className="account-mine__membership">
+              <View className="account-mine__plan-header">
+                <View className="account-mine__plan-badge">
+                  <Icon name="crown" size={14} />
+                  <Text>{owner.subscription.planName ?? "未开通套餐"}</Text>
                 </View>
                 <View className="account-mine__plan-meta">
-                  {data.subscription.endDate
-                    ? `有效期至 ${data.subscription.endDate}`
-                    : "开通套餐后可享短剧定制服务"}
-                  {data.subscription.remainingDays !== null
-                    ? ` · 剩余 ${data.subscription.remainingDays} 天`
+                  {owner.subscription.status === "expired"
+                    ? "套餐已到期"
+                    : owner.subscription.endDate
+                      ? `有效期至 ${owner.subscription.endDate.slice(5).replace("-", "/")}`
+                      : "尚未开通套餐"}
+                  {owner.subscription.status === "active" &&
+                  owner.subscription.remainingDays !== null
+                    ? ` · 剩${owner.subscription.remainingDays}天`
                     : ""}
                 </View>
-              </Card>
-              <View className="account-mine__stats">
-                <View>
-                  <View>{data.storeStats.liveCount}</View>已上线
+                {accountPageImplemented("sub/billing/wallet/index") ? (
+                  <TextButton
+                    tone="muted"
+                    arrow
+                    onClick={() => navigate("sub/billing/wallet/index")}
+                  >
+                    套餐与积分
+                  </TextButton>
+                ) : null}
+              </View>
+              <View className="account-mine__balance">
+                <View className="account-mine__balance-main">
+                  <View className="account-mine__balance-label">可用积分 · 名下门店共用</View>
+                  <View className="account-mine__points">
+                    {formatInteger(owner.subscription.spendablePoints)}
+                  </View>
                 </View>
-                <View>
-                  <View>{data.storeStats.deliveringCount}</View>交付中
-                </View>
-                <View>
-                  <View>{data.storeStats.cartCount}</View>选剧单
+                <View className="account-mine__breakdown">
+                  <View>套餐积分 {formatInteger(owner.subscription.planAvailablePoints)}</View>
+                  <View>加购积分 {formatInteger(owner.subscription.addonAvailablePoints)}</View>
                 </View>
               </View>
-            </>
+              {owner.subscription.status === "active" && owner.subscription.planPointsExpireAt ? (
+                <View className="account-mine__expiry">
+                  本期剩余 {formatInteger(owner.subscription.planAvailablePoints)} 套餐积分，
+                  {appDateTimeFormat.deadline(owner.subscription.planPointsExpireAt)} 清零
+                </View>
+              ) : null}
+              {owner.subscription.isAddonSuspended ? (
+                <View className="account-mine__expiry">
+                  加购积分当前暂停使用，请查看套餐与积分。
+                </View>
+              ) : null}
+              {owner.subscription.isRefundPending ? (
+                <View className="account-mine__expiry">套餐退款处理中，详情请查看套餐与积分。</View>
+              ) : null}
+            </Card>
+          ) : null}
+          {data && accountPageImplemented("sub/profile/stores/index") ? (
+            <Card
+              className="account-mine__stores"
+              onClick={() => navigate("sub/profile/stores/index")}
+            >
+              <IconTile icon="store" size={40} />
+              <View className="account-mine__store-summary">
+                <View className="account-mine__section-title">
+                  我的门店 · {formatInteger(data.stores.visibleCount)} 家
+                </View>
+                <View className="account-mine__store-note">
+                  {owner
+                    ? `${owner.subscription.planName ?? "当前套餐"}可管理 ${owner.stores.storeLimit} 家${owner.stores.reviewingStores.length ? ` · ${owner.stores.reviewingStores.map((item) => item.name ?? "未命名门店").join("、")}审核中` : ""}`
+                    : "查看你所属的门店"}
+                </View>
+              </View>
+              <Icon name="chevron-right" size={16} />
+            </Card>
+          ) : null}
+          {owner ? (
+            <View className="account-mine__stats">
+              <View className="account-mine__stat account-mine__stat--divided">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.liveCount)}
+                </View>
+                <View className="account-mine__stat-label">上线中</View>
+              </View>
+              <View className="account-mine__stat account-mine__stat--divided">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.deliveringCount)}
+                </View>
+                <View className="account-mine__stat-label">交付中</View>
+              </View>
+              <View className="account-mine__stat">
+                <View className="account-mine__stat-value">
+                  {formatInteger(owner.storeStats.cartCount)}
+                </View>
+                <View className="account-mine__stat-label">选剧单</View>
+              </View>
+            </View>
+          ) : null}
+          {store ? (
+            <View className="account-mine__service">
+              <View className="account-mine__service-icon">
+                <Icon name="headset" size={22} />
+              </View>
+              <View>
+                <View className="account-mine__section-title">门店服务支持</View>
+                <View className="account-mine__service-note">有服务问题，请联系你的服务经理</View>
+              </View>
+            </View>
           ) : null}
           {!state.me.memberships.some((item) => item.stores.length > 0) ? (
             <Card>
@@ -140,26 +250,49 @@ export default function Mine() {
           ) : null}
           {data && accountEntries(data.viewerRole).length ? (
             <List>
+              {owner && accountPageImplemented("sub/order/orders/index") ? (
+                <ListRow
+                  icon="file-text"
+                  title="我的订单"
+                  onClick={() => navigate("sub/order/orders/index")}
+                />
+              ) : null}
+              {owner && accountPageImplemented("sub/order/my-dramas/index") ? (
+                <ListRow
+                  icon="drama"
+                  title="我的短剧"
+                  value={`${owner.storeStats.liveCount} 部上线中`}
+                  onClick={() => navigate("sub/order/my-dramas/index")}
+                />
+              ) : null}
               {data.viewerRole === "owner" && accountPageImplemented("sub/ad/ads/index") ? (
                 <ListRow
+                  icon="video"
                   title="我的广告"
                   badge={data.entries.adPendingConfirmCount || undefined}
                   description={`待确认${data.entries.adPendingConfirmCount}条`}
                   onClick={() => navigate("sub/ad/ads/index")}
                 />
               ) : null}
-              <ListRow title="门店管理" onClick={() => navigate("sub/profile/stores/index")} />
               {data.viewerRole === "clerk" ? (
-                <ListRow title="门店成员" onClick={() => navigate("sub/member/members/index")} />
+                <ListRow
+                  icon="users"
+                  title="门店成员"
+                  onClick={() => navigate("sub/member/members/index")}
+                />
               ) : null}
               {accountEntries(data.viewerRole)
                 .filter(
                   (item) =>
-                    item.route !== "sub/profile/staff-profile/index" || data.viewerRole === "clerk",
+                    item.route !== "sub/profile/profile/index" &&
+                    item.route !== "sub/order/orders/index" &&
+                    (item.route !== "sub/profile/staff-profile/index" ||
+                      data.viewerRole === "clerk"),
                 )
                 .map((item) => (
                   <ListRow
                     key={item.route}
+                    icon={item.icon}
                     title={item.title}
                     badge={
                       item.route === "sub/service/messages/index"
@@ -174,11 +307,16 @@ export default function Mine() {
           {!data ? (
             <List>
               <ListRow
+                icon="bell"
                 title="消息"
                 badge={unread ?? undefined}
                 onClick={() => navigate("sub/service/messages/index")}
               />
-              <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+              <ListRow
+                icon="sliders"
+                title="设置"
+                onClick={() => navigate("sub/service/settings/index")}
+              />
             </List>
           ) : null}
         </>
@@ -187,7 +325,11 @@ export default function Mine() {
       )}
       {!token ? (
         <List>
-          <ListRow title="设置" onClick={() => navigate("sub/service/settings/index")} />
+          <ListRow
+            icon="sliders"
+            title="设置"
+            onClick={() => navigate("sub/service/settings/index")}
+          />
         </List>
       ) : null}
       <StoreSwitcher />

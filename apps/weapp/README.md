@@ -133,6 +133,12 @@ import { merchantStatusByEnum, StatusTag } from "@/components/StatusTag";
 
 我的套餐积分卡与统计只按 overview.viewerRole=owner 展示；店员不显示资金、订单与发布入口。不做金额、积分或订购判断。未来入口只在 pages.ts 对应页 implemented=true 时显示，钱包指向 sub/billing/wallet/index。无门店显示账号与未绑定说明。退出登录已随W2-13迁入账号设置页。
 
+“我的”按业主参考图分为门店身份与档案摘要、套餐积分、我的门店、三项业务统计和服务支持卡片，下方保留订单、我的短剧、广告、素材、成员、发布、消息与设置的既有权限入口。积分、剩余天数、门店上限及审核列表均展示 overview 真值，积分清零时间用共享北京时间格式化器；长店名和标签允许换行。老板可从头卡进入档案，店员仅查看门店摘要。服务经理 DTO 尚未落地，服务卡暂用通用联系说明，不显示虚构姓名、工作时间或未实现的跳转。
+
+本次布局最小离线检查为 `mine-owner`、`mine-clerk`、`mine-guest`、`store-switch`、`ad-mine` 五个既有场景。本机逐场执行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene <场景>`，首场构建后、源码未变时后续加 `--no-build`；仍保留原脚本的异常和外发请求守卫。
+
+小程序统计区逐项使用明确类名实现三列等宽、数字与标题纵向排列，不使用会在小程序构建中被过滤的通配选择器；布局修复须检查正式构建的 WXSS，H5 样张不能替代。套餐有效期按业主要求仅显示 `MM/DD`，仍直接展示服务端日期及剩余天数。菜单全部使用既有统一行首图标，包括老板、店员、无门店与游客的可见入口，权限裁剪不变。
+
 登录按钮和首次说明文案键分别为 `login.button`、`login.firstLogin`，没有覆盖时使用任务默认；本包无订阅按钮点位，号码组件沿既有隐私能力。埋点 `app_launch` 不带邀请凭证，`store_switch` 只带 fromPage；两者按契约调用，接收口未到时空转。
 
 ## 账户八态离线样张
@@ -170,6 +176,8 @@ W2-13 设置页已补本人账号操作源码，入口与通知复用关系、�
 ## 首页与商城四页（W1-18 PR1）
 
 首页、商城、短剧详情与选剧单消费正式生成的 DTO；所有生产请求走现有中央 request。店员首页只读 city+banners，店员/游客选剧单不发 cart 请求。商城按配置给的筛选和 sort 加载，游标续页按 dramaId 去重；本域 revision、令牌与 contextRev 丢弃切店/卸载后的旧成功和旧错误。价格确认发送服务器当前原价 P，网络重试沿用同一次意图的 key；成功或 C50 重放后重新 GET 选剧单。选中合计只累加服务器逐项实扣 S，不在端上重算价格。确认订购页属 PR2，本轮入口明确显示“订购即将开放”。
+
+首页按参考图重排为城市与搜索、真实消息/公告、横幅、四项快捷入口、上线概览和横排推荐；素材需求及本人上传摘要保留在主推荐之后。消息角标、公告、封面、统计及套餐期限仍取真实接口；无横幅时只显示静态商城入口。首页待办继续等待 M7，客服中心尚未实现并明确标注暂未开放；店员与游客不开放老板快捷入口，不填入参考图的待办、城市、季节或统计示例。套餐日期仅将服务端日期格式化为 MM/DD，积分清零仍取实际数量和时间。
 
 十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
 
@@ -382,3 +390,5 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 “我的”显示 `m.me.overview.get.entries.adPendingConfirmCount`；建档页显示 `m.storeProfile.get.ads` 四项真实计数。店员不请求广告受限接口；不从列表页长拼总数。W5-10的实际广告链接随两页登记自然启用。
 
 本域定点命令见[W5-11任务书](../../docs/plan/tasks/W5-11.md)。截图：`LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --page sub/ad/ads/index --page sub/ad/ad-detail/index --page pages/mine/index --page sub/profile/profile/index`，展开12个新增广告场景；单场景可用 `--scene ad-change-paid`。原场景及请求/外发网络/console/pageerror守卫保留。`ad-mine`/`ad-profile`仅追加非零聚合离线运输，不改旧场景计数；H5与真实HTTP/DB、微信真机/真实素材、类目和法务证据分列，实际结果见本包状态。
+
+首页、搜索、商城、详情和选剧单按业主提供的原型调整；预告片模式按本次明确授权提前实现（登记仍归 V1.1），使用当前已上架剧的真实预告片投影与现有播放接口。商城预告片入口按默认排序浏览；影片地址仅点击后请求，默认静音，离页丢弃，过期有界换签；暂无预告片、列表失败和未开启开关均显示实际状态。收藏与客服入口如实标注暂未开放，页面不伪造热词、待办、价格、热度或会员权益。UI 验证使用现有角色场景与四个新增预告片离线场景（可播、空态、错误、关闭），H5 播放媒体为浏览器现场生成的短片，仅验证技术接线，不代表真实云或微信真机验收。

@@ -60,10 +60,23 @@ export async function assetRegression(page, scene, origin) {
     await expect(page).toHaveURL(/sub\/asset\/lib\/index$/);
     await expect(active(".asset-lib#asset-ready"), `${scene}：菜单进入素材库已就绪`).toBeVisible();
   } else if (scene === "asset-lib-more-error") {
-    await active(".lyx-text-button")
-      .filter({ hasText: /^加载更多$/ })
-      .click();
+    const viewport = page.viewportSize();
+    const activePage = page.locator(".taro_page_stationed:not(.taro_page_shade)");
+    const more = active(".lyx-text-button").filter({ hasText: /^加载更多$/ });
+    // 与消息分页回归一致：先保证按钮完整可见，避免 click 的自动滚动抢先触发触底加载。
+    const height = await activePage.evaluate((node) => Math.ceil(node.scrollHeight));
+    await page.setViewportSize({ width: viewport.width, height: height + viewport.height });
+    await expect(more).toBeInViewport({ ratio: 1 });
+    expect(await activePage.evaluate((node) => node.scrollTop)).toBe(0);
+    expect(
+      (await calls()).filter(
+        (c) =>
+          pathname(c) === "/m/store-assets" && new URL(c.path, origin).searchParams.has("cursor"),
+      ),
+    ).toHaveLength(0);
+    await more.click();
     await expect(active(".lyx-load-error, .lyx-empty")).toContainText("重试");
+    await page.setViewportSize(viewport);
     await expect(active(".asset-lib__item")).toHaveCount(3);
     const cursorCalls = async () =>
       (await calls()).filter(
