@@ -20,6 +20,7 @@ import {
   useSeededDatabase,
 } from "../testing/index.js";
 import { declareManualProduction } from "./production-stub.js";
+import { CloudPlayableInputSchema } from "./playable-schemas.js";
 import type { MediaProductionDeps } from "./production-types.js";
 import type {
   AigcLabel,
@@ -325,17 +326,22 @@ function remoteFixtures(h: Fixture) {
   h.probe.mockImplementation(async (request: Parameters<MediaToolClient["probe"]>[0]) => {
     assertNotInTransaction("remote-readback");
     const job = await db.mediaJob.findUniqueOrThrow({ where: { id: request.path.split("/")[0]! } });
-    const quality = (job.input as { quality?: string }).quality;
+    const value = job.input as { quality?: string; rendition?: { width: number; height: number } },
+      quality = value.quality;
     return ok(
       report(
         null,
-        job.kind === "normalize" ? 1080 : quality === "sd" ? 480 : 720,
-        job.kind === "normalize" ? 1920 : quality === "sd" ? 854 : 1280,
+        value.rendition?.width ?? (job.kind === "normalize" ? 1080 : quality === "sd" ? 480 : 720),
+        value.rendition?.height ??
+          (job.kind === "normalize" ? 1920 : quality === "sd" ? 854 : 1280),
       ),
     );
   });
 }
-async function trailerFixture(h: Fixture) {
+async function trailerFixture(
+  h: Fixture,
+  dimensions: { width: number; height: number; rotation?: 0 | 90 } = { width: 1080, height: 1920 },
+) {
   const source = await h.make.fileObject({
     category: "trailer_src",
     scopeType: "platform",
@@ -354,6 +360,11 @@ async function trailerFixture(h: Fixture) {
       kind: "video",
       container: "mp4",
       durationMs: report().format.durationMs,
+      width: dimensions.width,
+      height: dimensions.height,
+      rotation: dimensions.rotation ?? 0,
+      displayWidth: dimensions.rotation === 90 ? dimensions.height : dimensions.width,
+      displayHeight: dimensions.rotation === 90 ? dimensions.width : dimensions.height,
       probeVersion: 1,
       raw: { fixture: "trailer codec source" },
       probedAt: clock.now(),
@@ -1296,7 +1307,7 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
     expect(asset.state).toBe("ready");
     expect(asset.renditions).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ quality: "sd", width: 480, height: 854 }),
+        expect.objectContaining({ quality: "sd", width: 480, height: 852 }),
         expect.objectContaining({ quality: "hd", width: 720, height: 1280 }),
       ]),
     );
@@ -1309,6 +1320,94 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
         where: { eventType: "drama.trailer_ready", aggregateId: h.drama.id },
       }),
     ).toBe(1);
+  });
+  it.each([
+    ["横屏", { width: 1920, height: 1080 }],
+    ["旋转显示横屏", { width: 1080, height: 1920, rotation: 90 as const }],
+  ])("预告片%s按持久化显示规格提交并回读为横屏双档", async (_name, dimensions) => {
+    const h = await fixture(),
+      trailer = await trailerFixture(h, dimensions),
+      submitted = vi.spyOn(h.fake.media, "transcode");
+    for (const jobId of trailer.ids) await h.media.jobs.run({ jobId });
+    expect(submitted).toHaveBeenCalledTimes(2);
+    for (const [request] of submitted.mock.calls) {
+      const expected =
+        request.rendition?.quality === "sd"
+          ? { quality: "sd", width: 852, height: 480 }
+          : { quality: "hd", width: 1280, height: 720 };
+      expect(request).toMatchObject({
+        src: { bucket: trailer.source.bucket, key: trailer.source.objectKey },
+        rendition: expected,
+        watermarks: [{ templateId: "brand" }],
+      });
+      expect(request).not.toHaveProperty("template");
+    }
+    clock.advance(5000);
+    for (const jobId of trailer.ids) await h.media.jobs.run({ jobId });
+    const job = await db.mediaJob.findUniqueOrThrow({ where: { id: trailer.ids[0]! } }),
+      asset = await db.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } });
+    expect(asset.state).toBe("ready");
+    expect(asset.renditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ quality: "sd", width: 852, height: 480 }),
+        expect.objectContaining({ quality: "hd", width: 1280, height: 720 }),
+      ]),
+    );
+    expect(
+      (await db.dramaTrailer.findUniqueOrThrow({ where: { dramaId: h.drama.id } }))
+        .currentPlayableAssetId,
+    ).toBe(asset.id);
+  });
+  it.each([
+    [480, 852],
+    [854, 480],
+  ])("预告片新横屏任务回读%ix%i不符持久化规格即拒绝", async (width, height) => {
+    const h = await fixture(),
+      trailer = await trailerFixture(h, { width: 1920, height: 1080 }),
+      jobId = trailer.ids[0]!;
+    await h.media.jobs.run({ jobId });
+    clock.advance(5000);
+    h.probe.mockImplementation(async () => ok(report(null, width, height)));
+    await h.media.jobs.run({ jobId });
+    const job = await db.mediaJob.findUniqueOrThrow({ where: { id: jobId } });
+    expect(job).toMatchObject({ state: "failed", errorCode: "MEDIA_RENDITION_INVALID" });
+    expect(
+      await db.fileObject.findUnique({
+        where: { id: (job.input as { destinationFileId: string }).destinationFileId },
+      }),
+    ).toBeNull();
+    expect(
+      (await db.dramaTrailer.findUniqueOrThrow({ where: { dramaId: h.drama.id } }))
+        .currentPlayableAssetId,
+    ).toBeNull();
+  });
+  it("预告片旧模板在途任务仍按原竖屏双档提交及回读", async () => {
+    const h = await fixture(),
+      trailer = await trailerFixture(h),
+      submitted = vi.spyOn(h.fake.media, "transcode");
+    for (const jobId of trailer.ids) {
+      const job = await db.mediaJob.findUniqueOrThrow({ where: { id: jobId } }),
+        legacy = CloudPlayableInputSchema.parse(job.input);
+      delete legacy.rendition;
+      legacy.template = legacy.quality;
+      await db.mediaJob.update({ where: { id: jobId }, data: { input: legacy } });
+      await h.media.jobs.run({ jobId });
+    }
+    for (const [request] of submitted.mock.calls) {
+      expect(request.template).toMatch(/^(sd|hd)$/);
+      expect(request).not.toHaveProperty("rendition");
+    }
+    clock.advance(5000);
+    for (const jobId of trailer.ids) await h.media.jobs.run({ jobId });
+    const job = await db.mediaJob.findUniqueOrThrow({ where: { id: trailer.ids[0]! } }),
+      asset = await db.playableAsset.findUniqueOrThrow({ where: { id: job.parentId! } });
+    expect(asset.state).toBe("ready");
+    expect(asset.renditions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ quality: "sd", width: 480, height: 854 }),
+        expect.objectContaining({ quality: "hd", width: 720, height: 1280 }),
+      ]),
+    );
   });
   it("在途预告片target切换后晚产物retired，无ready/live引用，不覆盖赢家指针", async () => {
     const h = await fixture(),
@@ -1326,7 +1425,7 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
     h.probe.mockImplementation(async () => {
       entered();
       await held;
-      return ok(report(null, 480, 854));
+      return ok(report(null, 480, 852));
     });
     const running = h.media.jobs.run({ jobId: first });
     try {
@@ -1400,7 +1499,7 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
     h.probe.mockImplementation(async () => {
       entered();
       await held;
-      return ok(report(null, 480, 854));
+      return ok(report(null, 480, 852));
     });
     const running = h.media.jobs.run({ jobId: first });
     try {

@@ -217,6 +217,7 @@ function TrailerActions({
   onNext(): void;
 }) {
   const [busy, setBusy] = useState(false),
+    [landscape, setLandscape] = useState(false),
     [added, setAdded] = useState(false),
     [error, setError] = useState<string | null>(null);
   const canAdd = detail.viewerRole === "owner" && detail.orderability.orderable;
@@ -257,7 +258,7 @@ function TrailerActions({
   };
   return (
     <>
-      <View className="trailer-page__stage">
+      <View className={`trailer-page__stage${landscape ? " trailer-page__stage--landscape" : ""}`}>
         {detail.trailer ? (
           <TrailerPlayer
             key={`${detail.dramaId}:${detail.trailer.playableId}`}
@@ -265,6 +266,7 @@ function TrailerActions({
             title={detail.title}
             feed
             blocked={playerBlocked}
+            onLandscapeChange={setLandscape}
           >
             <TrailerFacts detail={detail} />
           </TrailerPlayer>

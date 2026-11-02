@@ -909,7 +909,7 @@ const targets = [
   ...(all ? TRAILER_SCENES : TRAILER_SCENES.filter((item) => wantedScenes.includes(item.name))).map(
     (item) => ({
       label: item.name,
-      url: `${item.route}?lyxShot=${item.name}`,
+      url: `${item.route}${item.route.includes("?") ? "&" : "?"}lyxShot=${item.name}`,
       file: `catalog__${item.name}`,
       scene: item.name,
       kind: "trailer",
@@ -1151,6 +1151,7 @@ async function shoot(target) {
           if (kind === "trailer") {
             globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
             globalThis.__LYX_TRAILER_SHOT__ = scene;
+            if (scene === "trailer-inline-landscape") globalThis.__LYX_CATALOG_SHOT__ = scene;
           }
           if (kind === "catalog") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
@@ -1299,7 +1300,9 @@ async function shoot(target) {
                       : target.kind === "asset-home"
                         ? "#asset-home-ready"
                         : target.kind === "trailer"
-                          ? "#trailer-ready"
+                          ? target.scene === "trailer-inline-landscape"
+                            ? "#catalog-ready"
+                            : "#trailer-ready"
                           : target.kind === "catalog"
                             ? "#catalog-ready"
                             : target.kind === "search"

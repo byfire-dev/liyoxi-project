@@ -1,15 +1,19 @@
-import type { MediaProvider, MediaRemoteJob, ObjectRef } from "../../providers/types.js";
+import type {
+  MediaProvider,
+  MediaRemoteJob,
+  MediaTranscodeRecipe,
+  ObjectRef,
+} from "../../providers/types.js";
 import { jobBudget } from "./policy.js";
 import type { MediaJobHandler, JobOutcome } from "./types.js";
 
 export type RemoteMediaSubmission =
-  | {
+  | ({
       readonly tag: "Transcode";
       readonly src: ObjectRef;
       readonly dst: ObjectRef;
-      readonly template: string;
       readonly watermarks?: Parameters<MediaProvider["transcode"]>[0]["watermarks"];
-    }
+    } & MediaTranscodeRecipe)
   | {
       readonly tag: "FileCompress";
       readonly bucket: "media";

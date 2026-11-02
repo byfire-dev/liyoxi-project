@@ -41,6 +41,88 @@ const transcode = {
   userData,
 };
 describe("腾讯数据万象原生HTTP协议", () => {
+  it.each([
+    [1280, 720, "hd", "high", "1500", "96"],
+    [720, 1280, "hd", "high", "1500", "96"],
+    [852, 480, "sd", "main", "700", "64"],
+    [720, 720, "hd", "high", "1500", "96"],
+    [1280, 256, "hd", "high", "1500", "96"],
+  ] as const)(
+    "inline转码按%ix%i提交且保留品牌/AI水印，不发送高优先级TemplateId",
+    async (width, height, quality, profile, videoKbps, audioKbps) => {
+      let sent = "";
+      const provider = driver(async (_url, init) => {
+        sent = String(init?.body);
+        return new Response(response());
+      });
+      expect(
+        await provider.transcode({
+          src: transcode.src,
+          dst: transcode.dst,
+          userData,
+          rendition: { quality, width, height },
+          watermarks: [{ templateId: "brand" }, { templateId: "ai" }],
+        }),
+      ).toHaveProperty("ok", true);
+      const operation = ciChild(parseCiXml(sent), "Operation")!,
+        recipe = ciChild(operation, "Transcode")!,
+        video = ciChild(recipe, "Video")!,
+        audio = ciChild(recipe, "Audio")!,
+        config = ciChild(recipe, "TransConfig")!;
+      expect(ciChild(operation, "TemplateId")).toBeUndefined();
+      expect(ciText(ciChild(recipe, "Container")!, "Format")).toBe("mp4");
+      expect(ciText(video, "Width")).toBe(String(width));
+      expect(ciText(video, "Height")).toBe(String(height));
+      expect(ciText(video, "Codec")).toBe("H.264");
+      expect(ciText(video, "Profile")).toBe(profile);
+      expect(ciText(video, "Bitrate")).toBe(videoKbps);
+      expect(ciText(video, "Pixfmt")).toBe("yuv420p");
+      expect(ciText(video, "Fps")).toBe("30");
+      expect(ciText(video, "Gop")).toBe("60");
+      expect(ciText(video, "Rotate")).toBeUndefined();
+      expect(ciText(video, "Crop")).toBeUndefined();
+      expect(ciText(audio, "Codec")).toBe("aac");
+      expect(ciText(audio, "Samplerate")).toBe("48000");
+      expect(ciText(audio, "Bitrate")).toBe(audioKbps);
+      expect(ciText(audio, "Channels")).toBe("2");
+      expect(ciText(audio, "KeepAllTracks")).toBe("false");
+      expect(ciText(config, "AdjDarMethod")).toBe("pad");
+      expect(ciText(config, "IsCheckReso")).toBe("false");
+      expect(
+        operation.children
+          .filter((node) => node.name === "WatermarkTemplateId")
+          .map((node) => node.text),
+      ).toEqual(["brand", "ai"]);
+    },
+  );
+  it("inline拒绝奇数/超界/额外参数/缺配与混合TemplateId，零外呼", async () => {
+    const send = vi.fn(async () => new Response(response())),
+      provider = driver(send),
+      base = { src: transcode.src, dst: transcode.dst, userData };
+    const invalid: unknown[] = [
+      { ...transcode, rendition: { quality: "hd", width: 1280, height: 720 } },
+      base,
+      ...[
+        null,
+        [],
+        { quality: "hd", width: 127, height: 720 },
+        { quality: "hd", width: 1282, height: 720 },
+        { quality: "hd", width: 1280, height: 721 },
+        { quality: "hd", width: 1280, height: 126 },
+        { quality: "hd", width: 1280, height: 720.5 },
+        { quality: "hd", width: 1280, height: Number.NaN },
+        { quality: "hd", width: 1280 },
+        { quality: "hd", width: 1280, height: 720, crop: true },
+        { quality: "source", width: 1280, height: 720 },
+        { width: 1280, height: 720 },
+      ].map((rendition) => ({ ...base, rendition })),
+    ];
+    for (const input of invalid)
+      expect(
+        await provider.transcode(input as Parameters<typeof provider.transcode>[0]),
+      ).toMatchObject({ ok: false, reason: "rejected" });
+    expect(send).not.toHaveBeenCalled();
+  });
   it("原生Image仅签固定同桶PNG，15分钟独立GET向量与完整XML节点", async () => {
     let sent = "";
     const provider = driver(async (_url, init) => {

@@ -12,29 +12,48 @@ const rejected = (message: string) => ({
   reason: "rejected" as const,
   message,
 });
-const playableInput = z.strictObject({
-  fileId: z.uuid(),
-  playableAssetId: z.uuid(),
-  destinationFileId: z.uuid(),
-  quality: z.enum(["sd", "hd"]),
-  objectKey: z.string().regex(/^t\/[0-9a-f-]{36}\/[a-f0-9]{16}\/(?:sd|hd)\.mp4$/),
-  scratchKey: z.string().regex(/^ci-out\/[0-9a-f-]{36}\/output\.mp4$/),
-  template: z.enum(["test_sd", "test_hd"]),
-  specVersion: z.number().int().min(1).max(32767),
-  aiUsed: z.boolean(),
-  watermarks: z
-    .array(z.strictObject({ templateId: z.enum(["test_brand", "test_ai"]) }))
-    .min(1)
-    .max(2),
+const renditionDimensions = z.strictObject({
+  width: z.number().int().min(128).max(1280).multipleOf(2),
+  height: z.number().int().min(128).max(1280).multipleOf(2),
 });
+const playableInput = z
+  .strictObject({
+    fileId: z.uuid(),
+    playableAssetId: z.uuid(),
+    destinationFileId: z.uuid(),
+    quality: z.enum(["sd", "hd"]),
+    objectKey: z.string().regex(/^t\/[0-9a-f-]{36}\/[a-f0-9]{16}\/(?:sd|hd)\.mp4$/),
+    scratchKey: z.string().regex(/^ci-out\/[0-9a-f-]{36}\/output\.mp4$/),
+    template: z.enum(["test_sd", "test_hd"]).optional(),
+    rendition: renditionDimensions
+      .extend({ version: z.literal(1) })
+      .strict()
+      .optional(),
+    specVersion: z.number().int().min(1).max(32767),
+    aiUsed: z.boolean(),
+    watermarks: z
+      .array(z.strictObject({ templateId: z.enum(["test_brand", "test_ai"]) }))
+      .min(1)
+      .max(2),
+  })
+  .refine((value) => (value.template !== undefined) !== (value.rendition !== undefined));
 /** Fixed mappings of this fixture's test templates; these are not real vendor template evidence. */
-export function trailerEncoding(quality: "sd" | "hd", ai: boolean) {
-  const width = quality === "sd" ? 480 : 720,
-    height = quality === "sd" ? 854 : 1280;
+export function trailerEncoding(
+  quality: "sd" | "hd",
+  ai: boolean,
+  rendition?: { width: number; height: number },
+) {
+  const dimensions = rendition ? renditionDimensions.parse(rendition) : null,
+    width = dimensions?.width ?? (quality === "sd" ? 480 : 720),
+    height = dimensions?.height ?? (quality === "sd" ? 854 : 1280),
+    shortEdge = Math.min(width, height),
+    scale = dimensions
+      ? `scale=${width}:${height}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`
+      : `scale=${width}:${height}`;
   const text = (value: string, position: string, aiMark = false) =>
-    `drawtext=fontfile=/app/fonts/NotoSansCJKsc-Regular.otf:text='${value}':expansion=none:fontsize=${Math.ceil(width * (aiMark ? 0.06 : 0.05))}:fontcolor=${aiMark ? "white" : "white@0.7"}:${position}`;
+    `drawtext=fontfile=/app/fonts/NotoSansCJKsc-Regular.otf:text='${value}':expansion=none:fontsize=${Math.ceil(shortEdge * (aiMark ? 0.06 : 0.05))}:fontcolor=${aiMark ? "white" : "white@0.7"}:${position}`;
   return {
-    filter: `[0:v]scale=${width}:${height},setsar=1,${text("狸有戏", "x=w-text_w-16:y=16")}${ai ? `,${text("AI 生成", "x=16:y=h-text_h-16", true)}` : ""}[out]`,
+    filter: `[0:v]${scale},setsar=1,${text("狸有戏", "x=w-text_w-16:y=16")}${ai ? `,${text("AI 生成", "x=16:y=h-text_h-16", true)}` : ""}[out]`,
     profile: quality === "sd" ? "main" : "high",
     videoBitrate: quality === "sd" ? "700k" : "1500k",
     audioBitrate: quality === "sd" ? "64k" : "96k",
@@ -58,9 +77,26 @@ export function matchesTrailerInput(input: Input, raw: unknown) {
   const parsed = playableInput.safeParse(raw);
   if (!parsed.success) return null;
   const value = parsed.data;
-  if (
+  if (value.rendition) {
+    const recipe = renditionDimensions
+      .extend({ quality: z.enum(["sd", "hd"]) })
+      .strict()
+      .safeParse(input.rendition);
+    if (
+      Object.hasOwn(input, "template") ||
+      !recipe.success ||
+      recipe.data.quality !== value.quality ||
+      recipe.data.width !== value.rendition.width ||
+      recipe.data.height !== value.rendition.height
+    )
+      return null;
+  } else if (
+    Object.hasOwn(input, "rendition") ||
     input.template !== `test_${value.quality}` ||
-    value.template !== input.template ||
+    value.template !== input.template
+  )
+    return null;
+  if (
     value.scratchKey !== input.dst.key ||
     JSON.stringify(value.watermarks) !== JSON.stringify(input.watermarks) ||
     JSON.stringify(value.watermarks) !==
@@ -84,6 +120,7 @@ export function createContentTrailerCloud(options: {
       outPath: string;
       quality: "sd" | "hd";
       ai: boolean;
+      rendition?: { width: number; height: number };
       signal: AbortSignal;
     }): Promise<void>;
   };
@@ -181,13 +218,23 @@ export function createContentTrailerCloud(options: {
           outPath: work.path("stamped.mp4"),
           quality: facts.value.quality,
           ai: facts.value.aiUsed,
+          ...(facts.value.rendition
+            ? {
+                rendition: {
+                  width: facts.value.rendition.width,
+                  height: facts.value.rendition.height,
+                },
+              }
+            : {}),
           signal,
         });
         return work.publish({
           name: "stamped.mp4",
           dst: input.dst,
           contentIdentity: createHash("sha256")
-            .update(JSON.stringify([facts.sha256, input.template, input.watermarks]))
+            .update(
+              JSON.stringify([facts.sha256, input.rendition ?? input.template, input.watermarks]),
+            )
             .digest("hex"),
         });
       })

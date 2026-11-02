@@ -191,7 +191,18 @@ export function offlineCatalogRequest(scene: string): RequestLayer["request"] {
         hasMore: scene !== "mall-empty" && !url.searchParams.get("cursor"),
         nextCursor: scene !== "mall-empty" && !url.searchParams.get("cursor") ? "page2" : null,
       } satisfies Data<"m.drama.list">;
-    else if (url.pathname.startsWith("/m/dramas/")) data = catalogDetail;
+    else if (url.pathname.startsWith("/m/dramas/"))
+      data =
+        scene === "trailer-inline-landscape"
+          ? {
+              ...catalogDetail,
+              trailer: {
+                playableId: "00000000-0000-4000-8000-000000000701",
+                posterUrl: null,
+                durationMs: 1000,
+              },
+            }
+          : catalogDetail;
     else if (url.pathname.startsWith("/m/cart-items")) {
       if (role !== "owner") throw new Error("店员/游客场景不得调用cart接口");
       if (method !== "GET")
