@@ -2,12 +2,54 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { COMPARE_FIELDS } from "@liyoxi/contract";
+import type { operations as AdminOperations } from "@liyoxi/contract/types/admin";
 import type { M1Support, M1Scope, M1MediaScope, M1HttpObjectIO } from "@liyoxi/services/testing";
 import { activateM1Staff, bootstrapM1Admin } from "./m1-auth.js";
 import type { M1AuthenticatedStaff } from "./m1-auth.js";
 import { createM1Caller } from "./runner-api.js";
 import type { M1Result } from "./runner-api.js";
 import type { M1Api } from "./in-process.js";
+
+type AdminBody<K extends keyof AdminOperations> = AdminOperations[K] extends {
+  requestBody?: { content: { "application/json": infer B } };
+}
+  ? B
+  : never;
+type PlanPlacementInput =
+  AdminBody<"admin.deliveryPlan.draft.replace">["content"]["items"][number]["placements"][number];
+type SampleAdSlot = AdminBody<"admin.deliveryTicket.sample.create">["adSlots"][number];
+export interface M1OrderHookResult {
+  readonly referenceStoreAssetIds?: readonly string[];
+  readonly adIds?: readonly string[];
+  readonly placements?: readonly PlanPlacementInput[];
+  readonly adSlots?: readonly SampleAdSlot[];
+  /** Independently checked extra capture; order-only defaults retain their exact assertions. */
+  readonly extraCapturedChargePoints?: number;
+}
+export type M1ChecklistCode =
+  "qc.sample" | "qc.episode" | "qc.package" | "delivery.precheck" | "launch.verify";
+export interface M1ProductionHelpers {
+  productionFile(
+    category: M1MediaScope["category"],
+    episodeNo: number,
+    finish?: boolean,
+  ): Promise<string>;
+  checks(
+    code: M1ChecklistCode,
+  ): Promise<Pick<AdminBody<"admin.sample.inspect">, "checklistVersionNo" | "results">>;
+}
+export interface M1SampleTarget {
+  readonly sampleId: string;
+  readonly versionNo: number;
+}
+export interface M1ProductionHookContext extends M1ChainContext {
+  readonly scope: M1Scope;
+  readonly channelAccountId: string;
+  readonly helpers: M1ProductionHelpers;
+}
+export interface M1SampleHookContext extends M1ProductionHookContext {
+  readonly sample: M1SampleTarget;
+}
 
 export interface M1ChainReport {
   readonly runId: string;
@@ -55,12 +97,13 @@ export interface M1ChainInput {
       readonly result: M1Result<"m.qualificationDoc.create">;
     },
   ) => Promise<void>;
-  readonly beforeOrder?: (context: M1ChainContext) => Promise<readonly string[]>;
-  readonly beforeEpisodes?: (
-    context: M1ChainContext & { readonly scope: M1Scope },
-  ) => Promise<void>;
+  readonly beforeOrder?: (
+    context: M1ChainContext & { readonly channelAccountId: string },
+  ) => Promise<readonly string[] | M1OrderHookResult>;
+  readonly beforeSampleConfirm?: (context: M1SampleHookContext) => Promise<void | M1SampleTarget>;
+  readonly beforeEpisodes?: (context: M1ProductionHookContext) => Promise<void>;
   readonly afterChain?: (
-    context: M1ChainContext & { readonly scope: M1Scope; readonly sampleId: string },
+    context: M1ProductionHookContext & { readonly sampleId: string },
   ) => Promise<void>;
 }
 export interface M1ChainContext {
@@ -68,6 +111,7 @@ export interface M1ChainContext {
   readonly support: M1Support;
   readonly admin: M1AuthenticatedStaff;
   readonly reviewer: M1AuthenticatedStaff;
+  readonly seededStaff?: Awaited<ReturnType<M1Support["seedDemo"]>>["staff"];
   readonly owner: {
     readonly entityId: string;
     readonly storeId: string;
@@ -110,6 +154,7 @@ export async function runM1Chain({
   externalIO,
   qualificationDoc,
   beforeOrder,
+  beforeSampleConfirm,
   beforeEpisodes,
   afterChain,
 }: M1ChainInput): Promise<M1ChainReport> {
@@ -162,7 +207,7 @@ export async function runM1Chain({
     });
     assert.notEqual(admin.staffId, reviewer.staffId, "生产上传与质检须为两个真实员工");
     await support.drainEvents();
-    return { admin, reviewer };
+    return { admin, reviewer, seededStaff: seeded.staff };
   });
   const admin = actors.admin.headers,
     reviewer = actors.reviewer.headers;
@@ -469,7 +514,34 @@ export async function runM1Chain({
       grantedPoints: quote.benefits.monthlyPoints,
     };
   });
-  const referenceStoreAssetIds = [...((await beforeOrder?.(context)) ?? [])];
+  const hookResult = await beforeOrder?.({ ...context, channelAccountId });
+  const orderExtras: M1OrderHookResult = Array.isArray(hookResult)
+    ? { referenceStoreAssetIds: hookResult }
+    : ((hookResult ?? {}) as M1OrderHookResult);
+  const referenceStoreAssetIds = [...(orderExtras.referenceStoreAssetIds ?? [])];
+  const adIds = [...(orderExtras.adIds ?? [])],
+    placements = [...(orderExtras.placements ?? [])],
+    adSlots = [...(orderExtras.adSlots ?? [])],
+    extraCapturedChargePoints = orderExtras.extraCapturedChargePoints ?? 0;
+  assert.ok(Number.isSafeInteger(extraCapturedChargePoints) && extraCapturedChargePoints >= 0);
+  assert.equal(new Set(adIds).size, adIds.length);
+  assert.deepEqual([...new Set(placements.map((row) => row.adId))].sort(), [...adIds].sort());
+  if (adIds.length) {
+    const actual = await support.readState(owner);
+    const captures = actual.holds.filter(
+      (hold) => hold.refType === "ad" && adIds.includes(hold.refId),
+    );
+    assert.equal(captures.length, adIds.length);
+    assert.ok(
+      captures.every(
+        (hold) => hold.status === "captured" && hold.capturedAt && hold.returnedQty === 0,
+      ),
+    );
+    assert.equal(
+      captures.reduce((sum, hold) => sum + hold.qty, 0),
+      extraCapturedChargePoints,
+    );
+  } else assert.equal(extraCapturedChargePoints, 0);
   const purchased = await step(
     `订购实际${episodeCount}集演示剧，认领具名到期定时器并真实开工`,
     async () => {
@@ -491,6 +563,7 @@ export async function runM1Chain({
           channelAccountIds: [channelAccountId],
           focusCodes: ["CF01"],
           ...(referenceStoreAssetIds.length ? { referenceStoreAssetIds } : {}),
+          ...(adIds.length ? { adIds } : {}),
           isTopModel: false,
           expectedLaunchDate: quote.earliestLaunchDate,
           agreementVersionId: quote.agreement.agreementVersionId,
@@ -518,7 +591,13 @@ export async function runM1Chain({
       assert.equal(state.items[0]?.episodeCount, episodeCount);
       assert.equal(state.tickets.length, 1);
       assert.equal(state.plans.length, 1);
-      assert.equal(state.holds[0]?.status, "captured");
+      if (adIds.length) {
+        const orderHolds = state.holds.filter((hold) =>
+          state.items.some((item) => item.pointHoldId === hold.id),
+        );
+        assert.equal(orderHolds.length, 1);
+        assert.equal(orderHolds[0]?.status, "captured");
+      } else assert.equal(state.holds[0]?.status, "captured");
       assert.equal(state.wallet?.heldTotalQty, 0);
       const tickets = await call("admin.deliveryTicket.list", admin, {
         query: { orderId: order.orderId, tab: "all" },
@@ -541,9 +620,7 @@ export async function runM1Chain({
   );
   const scope = purchased.scope,
     ticketParams = { deliveryTicketId: scope.deliveryTicketId };
-  async function checks(
-    code: "qc.sample" | "qc.episode" | "qc.package" | "delivery.precheck" | "launch.verify",
-  ) {
+  async function checks(code: M1ChecklistCode) {
     const template = await support.checklist(code);
     return {
       checklistVersionNo: template.versionNo,
@@ -609,7 +686,7 @@ export async function runM1Chain({
             {
               orderItemId: scope.orderItemId,
               channelAccountIds: [channelAccountId],
-              placements: [],
+              placements,
               agreedLaunchDate: purchased.launchDate,
               expectedDeliveryDate: localDate(support.clock.now()),
             },
@@ -628,7 +705,7 @@ export async function runM1Chain({
     assert.equal((await support.readState(scope)).ticket?.step, "sample_making");
     const sample = await call("admin.deliveryTicket.sample.create", admin, {
       params: ticketParams,
-      body: { fileId: await productionFile("sample_video", 1), adSlots: [] },
+      body: { fileId: await productionFile("sample_video", 1), adSlots },
     });
     const sampleParams = { sampleId: sample.sampleId };
     await call("admin.sample.inspect", reviewer, {
@@ -636,9 +713,20 @@ export async function runM1Chain({
       body: await checks("qc.sample"),
     });
     await call("admin.sample.push", admin, { params: sampleParams, body: {} });
+    const target =
+      (await beforeSampleConfirm?.({
+        ...context,
+        scope,
+        channelAccountId,
+        sample: { sampleId: sample.sampleId, versionNo: sample.versionNo },
+        helpers: { productionFile, checks },
+      })) ?? sample;
+    assert.ok(target.sampleId && Number.isInteger(target.versionNo) && target.versionNo > 0);
     const sampleView = await call("m.orderItem.sample.get", headers, {
       params: { orderItemId: scope.orderItemId },
     });
+    assert.equal(sampleView.sampleId, target.sampleId);
+    assert.equal(sampleView.versionNo, target.versionNo);
     const signed = sampleView.playable?.sources[0];
     assert.ok(signed?.url, "样片小程序播放地址缺失");
     const actual = externalIO
@@ -648,18 +736,24 @@ export async function runM1Chain({
     if (actual.status !== 200) throw new Error("实际样片签名不能读取");
     assert.deepEqual(actual.body, support.productionVideo.bytes);
     await call("m.sample.confirm", headers, {
-      params: sampleParams,
-      body: { versionNo: sample.versionNo, viewedVia: "weapp", hasViewed: true },
+      params: { sampleId: target.sampleId },
+      body: { versionNo: target.versionNo, viewedVia: "weapp", hasViewed: true },
     });
     await support.drainEvents();
-    const state = await support.readState({ ...scope, sampleId: sample.sampleId });
+    const state = await support.readState({ ...scope, sampleId: target.sampleId });
     assert.equal(state.sample?.status, "confirmed");
     assert.ok(state.sample?.viewedAckAt);
     assert.equal(state.sample?.firstViewedAt, null);
     assert.equal(state.ticket?.step, "batch_compose");
-    return sample.sampleId;
+    return target.sampleId;
   });
-  await beforeEpisodes?.({ ...context, scope });
+  const productionContext = {
+    ...context,
+    scope,
+    channelAccountId,
+    helpers: { productionFile, checks },
+  };
+  await beforeEpisodes?.(productionContext);
   await step(`完整${episodeCount}集真实登记、逐集质检、成片包质检和推送`, async () => {
     const items: { episodeNo: number; fileId: string; variant: "common" }[] = [];
     // complete 的生产短轮询仍生效；只使用约定并发，整批结束才允许清理资源。
@@ -804,13 +898,35 @@ export async function runM1Chain({
     assert.equal(state.ticket?.step, "in_service");
     assert.equal(state.launchTask?.isLive, true);
     assert.equal(state.wallet?.heldTotalQty, 0);
-    assert.equal(state.wallet?.planAvailableQty, payment.grantedPoints - purchased.chargePoints);
-    assert.equal(state.holds.filter((h) => h.status === "captured").length, 1);
+    assert.equal(
+      state.wallet?.planAvailableQty,
+      payment.grantedPoints - purchased.chargePoints - extraCapturedChargePoints,
+    );
+    if (adIds.length) {
+      const orderHolds = state.holds.filter((hold) =>
+        state.items.some((item) => item.pointHoldId === hold.id),
+      );
+      assert.equal(orderHolds.length, 1);
+      assert.equal(orderHolds[0]?.status, "captured");
+      assert.equal(
+        state.holds.filter((hold) => hold.status === "captured").length,
+        1 + adIds.length,
+      );
+      assert.equal(
+        state.holds
+          .filter((hold) => hold.status === "captured")
+          .reduce((sum, hold) => sum + hold.qty, 0),
+        purchased.chargePoints + extraCapturedChargePoints,
+      );
+    } else assert.equal(state.holds.filter((h) => h.status === "captured").length, 1);
     const wallet = await call("m.wallet.get", headers);
     assert.equal(wallet.subscription.status, "active");
     assert.equal(wallet.points.heldPoints, 0);
-    assert.equal(wallet.points.spendablePoints, payment.grantedPoints - purchased.chargePoints);
-    await afterChain?.({ ...context, scope, sampleId });
+    assert.equal(
+      wallet.points.spendablePoints,
+      payment.grantedPoints - purchased.chargePoints - extraCapturedChargePoints,
+    );
+    await afterChain?.({ ...productionContext, sampleId });
     const invariants = await support.fullInvariants();
     assert.equal(invariants.status, "succeeded");
     assert.equal(invariants.violationsFound, 0);

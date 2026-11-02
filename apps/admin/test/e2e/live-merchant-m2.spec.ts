@@ -6,6 +6,7 @@ import {
 } from "@liyoxi/contract";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
+import { ensureLiveStepUp } from "./live-step-up";
 import { totp } from "./w206-helpers";
 interface Fixture {
   store: { storeId: string; name: string; entityId: string; primaryStoreId: string };
@@ -63,6 +64,7 @@ async function confirm(page: Page, title: string) {
   await expect(button).toBeDisabled();
   await modal.getByRole("checkbox", { name: "我已核对当前对象、信息和操作" }).check();
   await expect(button).toBeEnabled();
+  await ensureLiveStepUp(page);
   return button;
 }
 async function select(page: Page, label: string, option: string) {

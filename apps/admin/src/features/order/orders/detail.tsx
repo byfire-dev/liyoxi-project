@@ -1,16 +1,20 @@
 import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { appDateTimeFormat as date } from "@liyoxi/shared/format/datetime";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi, Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import { Button } from "antd";
+import { useContext, useMemo, useState } from "react";
 import { DetailPage } from "../../../components/DetailPage";
 import { InfoList } from "../../../components/InfoList";
 import { EmptyState, ErrorState } from "../../../components/StateBlock";
 import { StatusTag } from "../../../components/StatusTag";
 import { DETAIL_QUERY } from "../../../lib/query";
+import { AccessContext } from "../../../lib/permissions";
 import { createOrdersApi, type OrderDetail } from "./api";
 import { models, platforms, ORDERS_KEY, resolveOrderNo, historyOrderId } from "./model";
 import { OrderStatus } from "./list";
+import { createOrderAftercareApi } from "./aftercare-api";
+import { OrderActivity, OrderAftercare, OrderLicenseEvidence } from "./aftercare";
 import "./orders.css";
 const route = getRouteApi("/orders/$orderNo");
 function OrderContent({ data }: { data: OrderDetail }) {
@@ -125,10 +129,24 @@ function OrderContent({ data }: { data: OrderDetail }) {
   );
 }
 export function OrderDetailPage() {
+  const access = useContext(AccessContext),
+    { orderNo } = route.useParams();
+  const scope = JSON.stringify([
+    access?.staff.id,
+    access?.dataScope,
+    access?.moduleLevels,
+    access?.actions,
+  ]);
+  return <OrderDetailOwner key={`${scope}:${orderNo}`} scope={scope} />;
+}
+function OrderDetailOwner({ scope }: { scope: string }) {
   const { services } = useRouteContext({ from: "__root__" }),
     { orderNo } = route.useParams(),
     navigate = route.useNavigate();
-  const api = createOrdersApi(services);
+  const api = useMemo(() => createOrdersApi(services), [services]);
+  const aftercare = useMemo(() => createOrderAftercareApi(services), [services]);
+  const [tab, setTab] = useState("detail");
+  const queryClient = useQueryClient();
   const state = useRouterState({ select: (router) => router.location.state });
   const navigation =
     typeof window === "undefined"
@@ -137,15 +155,23 @@ export function OrderDetailPage() {
   const reloaded = navigation !== undefined && "type" in navigation && navigation.type === "reload";
   const navigationId = reloaded ? undefined : historyOrderId(state, orderNo);
   const detail = useQuery({
-    queryKey: [...ORDERS_KEY, "detail", orderNo],
-    queryFn: async () => {
-      const id = navigationId ?? (await resolveOrderNo(api, orderNo));
+    queryKey: [...ORDERS_KEY, scope, "detail", orderNo],
+    queryFn: async ({ signal }) => {
+      const id =
+        navigationId ??
+        (await resolveOrderNo({ list: (query) => api.list(query, signal) }, orderNo));
       if (!id) return null;
-      const result = await api.detail(id);
+      const result = await api.detail(id, signal);
       return result.orderNo === orderNo ? result : null;
     },
     ...DETAIL_QUERY,
   });
+  const changed = () => {
+    void detail.refetch();
+    void queryClient.invalidateQueries({ queryKey: ["order-activity", scope] });
+    void queryClient.invalidateQueries({ queryKey: ["order-licenses", scope] });
+    void queryClient.invalidateQueries({ queryKey: ["order-downloads", scope] });
+  };
   if (detail.isError)
     return <ErrorState message={detail.error.message} onRetry={() => void detail.refetch()} />;
   if (!detail.isPending && !detail.data)
@@ -156,8 +182,8 @@ export function OrderDetailPage() {
       title={`订购单 ${orderNo}`}
       state={detail.isPending ? { status: "loading" } : { status: "ready" }}
       onRetry={() => void detail.refetch()}
-      activeTab="detail"
-      onTabChange={() => {}}
+      activeTab={tab}
+      onTabChange={setTab}
       tags={data ? <OrderStatus row={data} /> : undefined}
       subtitle={
         data
@@ -193,6 +219,38 @@ export function OrderDetailPage() {
       }
       tabs={[
         { key: "detail", label: "订单信息", content: data ? <OrderContent data={data} /> : null },
+        {
+          key: "aftercare",
+          label: "售后与取消",
+          content: data ? (
+            <OrderAftercare
+              key={`${scope}:${data.orderId}`}
+              order={data}
+              api={aftercare}
+              onChanged={changed}
+            />
+          ) : null,
+        },
+        {
+          key: "licenses",
+          label: "授权与下载",
+          content: data ? (
+            <OrderLicenseEvidence
+              key={`${scope}:${data.orderId}`}
+              order={data}
+              api={aftercare}
+              scope={scope}
+              onChanged={changed}
+            />
+          ) : null,
+        },
+        {
+          key: "activity",
+          label: "订单活动",
+          content: data ? (
+            <OrderActivity orderId={data.orderId} api={aftercare} scope={scope} />
+          ) : null,
+        },
       ]}
       aside={
         data

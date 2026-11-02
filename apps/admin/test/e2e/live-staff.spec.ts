@@ -29,7 +29,11 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
     context.fixtures as {
       fixtures: {
         staff: StaffFixture;
-        w513: { editor: { staffId: string }; publisher: { staffId: string } };
+        w513: {
+          editor: { staffId: string };
+          publisher: { staffId: string };
+          aftersales: { finance: { staffId: string } };
+        };
         w418: {
           approvals: { requesterStaffId: string };
           invoices: { reviewerStaffId: string };
@@ -71,13 +75,19 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       roleKey: "publisher",
       status: "active",
     },
+    {
+      staffId: fixtures.w513.aftersales.finance.staffId,
+      name: "W513取消审批财务",
+      roleKey: "finance",
+      status: "active",
+    },
   ];
-  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(5);
-  // 原14人、W418两演员、W514一演员均保留；W513仅追加真实激活的剪辑/发布两演员。
+  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(6);
+  // 原19人逐项保留；W513 P2仅追加一位真实激活的独立财务审批人。
   const originalStaffCount = 1 + fixture.staff.length + 2 + 1;
   expect(originalStaffCount).toBe(14);
   const expectedStaffCount = originalStaffCount + addedActors.length;
-  expect(expectedStaffCount).toBe(19);
+  expect(expectedStaffCount).toBe(20);
   const errors = recordErrors(page);
   const firstList = page.waitForRequest(
     (request) =>
@@ -175,6 +185,10 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await page.getByRole("button", { name: "我已记下，关闭", exact: true }).click();
   await expect(code).toHaveCount(0);
   await expect(page).toHaveURL(`${context.origin}/sys/staff`);
+  // 初始20人完整保留，新建的第21人按原默认排序位于第二页；不扩大pageSize。
+  await page.getByRole("button", { name: "下一页", exact: true }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(table.getByRole("row")).toHaveCount(2);
   const row = table.getByRole("row").filter({ hasText: fixture.newStaff.name });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("待激活");

@@ -78,6 +78,10 @@ export { createM4Support } from "./m4-support.js";
 export type { M4Support } from "./m4-support.js";
 export { verifyM4DemoReplay } from "./m4-demo.js";
 export type { M4DemoReplayContext, M4DemoReplayResult } from "./m4-demo.js";
+export { createM5Support } from "./m5-support.js";
+export type { M5Support, M5Scope, M5FactScope, M5Facts } from "./m5-support.js";
+export { verifyM5DemoReplay } from "./m5-demo.js";
+export type { M5DemoReplayContext, M5DemoReplayResult } from "./m5-demo.js";
 export type { M3Support, M3SupportOptions, M3MediaScope, M3DrainOptions } from "./m3-support.js";
 export type {
   M1Support,

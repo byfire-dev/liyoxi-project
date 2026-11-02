@@ -4,6 +4,8 @@ import { readContractQuery } from "../../lib/contract-query";
 import { canEnterPage, findPage } from "../../lib/menu";
 import type { AccessSnapshot } from "../../lib/permissions";
 import { readTableSearch } from "../../lib/table-search";
+import { cancelSearch, cancelKinds } from "./cancel-model";
+import { IdSchema } from "@liyoxi/contract";
 
 export type ApprovalItem = components["schemas"]["ApprovalItem"];
 export type ApprovalDetail = components["schemas"]["ApprovalDetail"];
@@ -21,7 +23,7 @@ export const filterKeys = [
 ] as const;
 const keys = ["q", "tab", "sort", "page", "pageSize", ...filterKeys];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function approvalSearch(raw: Readonly<Record<string, unknown>>) {
+function baseApprovalSearch(raw: Readonly<Record<string, unknown>>) {
   const table = readTableSearch(raw, filterKeys);
   const input: Record<string, unknown> = { ...raw, page: table.page, pageSize: table.pageSize };
   if (
@@ -40,8 +42,16 @@ export function approvalSearch(raw: Readonly<Record<string, unknown>>) {
   if (typeof raw.id === "string" && uuid.test(raw.id)) wire.id = raw.id;
   return wire;
 }
+export function approvalSearch(raw: Readonly<Record<string, unknown>>) {
+  const wire = baseApprovalSearch(raw);
+  if (Object.keys(raw).some((key) => key.startsWith("cancel_")))
+    Object.assign(wire, cancelSearch(raw));
+  if (typeof raw.cancelId === "string" && IdSchema.safeParse(raw.cancelId).success)
+    wire.cancelId = raw.cancelId;
+  return wire;
+}
 export function approvalQuery(raw: Readonly<Record<string, unknown>>): Query {
-  const { id: _id, ...wire } = approvalSearch(raw);
+  const { id: _id, ...wire } = baseApprovalSearch(raw);
   void _id;
   const { tab, sort } = ApprovalListQuerySchema.parse(wire);
   return {
@@ -61,6 +71,7 @@ export function approvalTable(raw: Readonly<Record<string, unknown>>) {
   return readTableSearch(approvalSearch(raw), filterKeys);
 }
 export const kindLabels: Readonly<Record<string, string>> = {
+  ...cancelKinds,
   qualification: "商家资质",
   channel_account: "发布账号",
   launch_link: "上线链接",

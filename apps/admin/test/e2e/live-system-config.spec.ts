@@ -36,6 +36,8 @@ async function shot(page: Page, name: string, dialogTitle?: string) {
 }
 async function confirm(page: Page, title: string) {
   const dialog = page.getByRole("dialog", { name: title, exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).not.toHaveClass(/ant-zoom-(appear|enter)/);
   await dialog.getByRole("checkbox").check();
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "取消", exact: true })).toBeFocused();
