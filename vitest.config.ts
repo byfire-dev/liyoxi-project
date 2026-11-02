@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import BalancedTestSequencer from "./infra/ci/test-sequencer.js";
 
 export default defineConfig({
   test: {
@@ -6,5 +7,6 @@ export default defineConfig({
     // 写成字面路径，Vitest 4 会因目录不存在而拒绝启动
     projects: ["packages/*", "apps/{api,worker}", "infra"],
     passWithNoTests: true,
+    sequence: { sequencer: BalancedTestSequencer },
   },
 });

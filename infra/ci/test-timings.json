@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "runId": 41495478556,
+    "head": "bbfdbf953256bb80adab74d9ad169400f171ca11",
+    "observedOn": "2026-11-03",
+    "step": "pnpm test --project '!infra' --shard=<1..4>/4; main suite only; excludes earlier MinIO and subsequent E2E",
+    "observedFiles": 938,
+    "minimumObservedMilliseconds": 20000
+  },
+  "purpose": "历史耗时只作普通四片的调度提示，不是通过基线、测试名单或预算；未知文件使用默认值，全集和每片容量仍由 Vitest 发现。",
+  "defaultMilliseconds": 3000,
+  "initialLoadsMilliseconds": [500000, 0, 0, 0],
+  "initialLoadsNote": "第一片额外承担迁移等价性、库存校验与 M1/M3/M4/M5 完整链等串行步骤；按约250秒乘2个worker预留估计权重，不修改worker、超时或性能门槛。隔离八片不读取此文件。",
+  "files": [
+    {
+      "file": "apps/api/test/admin-sample-feedback.test.ts",
+      "milliseconds": 24127
+    },
+    {
+      "file": "apps/api/test/billing.test.ts",
+      "milliseconds": 58504
+    },
+    {
+      "file": "apps/api/test/e2e/http-bridge.db.test.ts",
+      "milliseconds": 73619
+    },
+    {
+      "file": "apps/api/test/e2e/http-chain.db.test.ts",
+      "milliseconds": 72950
+    },
+    {
+      "file": "apps/api/test/e2e/m1.e2e.test.ts",
+      "milliseconds": 35411
+    },
+    {
+      "file": "apps/api/test/e2e/m2-segments.test.ts",
+      "milliseconds": 38876
+    },
+    {
+      "file": "apps/api/test/e2e/m2.e2e.test.ts",
+      "milliseconds": 43737
+    },
+    {
+      "file": "apps/api/test/e2e/m3.e2e.test.ts",
+      "milliseconds": 48959
+    },
+    {
+      "file": "apps/api/test/e2e/m4.e2e.test.ts",
+      "milliseconds": 24856
+    },
+    {
+      "file": "apps/api/test/e2e/m5.e2e.test.ts",
+      "milliseconds": 66778
+    },
+    {
+      "file": "apps/api/test/e2e/worker-loop.db.test.ts",
+      "milliseconds": 25547
+    },
+    {
+      "file": "apps/api/test/store-assets.test.ts",
+      "milliseconds": 26217
+    },
+    {
+      "file": "apps/worker/test/fault/crash.test.ts",
+      "milliseconds": 20202
+    },
+    {
+      "file": "packages/services/src/ad/facts.db.test.ts",
+      "milliseconds": 56249
+    },
+    {
+      "file": "packages/services/src/billing/invoices/lifecycle.test.ts",
+      "milliseconds": 36786
+    },
+    {
+      "file": "packages/services/src/billing/payment/apply.interleave.test.ts",
+      "milliseconds": 58521
+    },
+    {
+      "file": "packages/services/src/billing/reconciliation/replay.test.ts",
+      "milliseconds": 21498
+    },
+    {
+      "file": "packages/services/src/billing/refund/saga.test.ts",
+      "milliseconds": 25032
+    },
+    {
+      "file": "packages/services/src/delivery/download/episode-url.test.ts",
+      "milliseconds": 39659
+    },
+    {
+      "file": "packages/services/src/delivery/download/release.test.ts",
+      "milliseconds": 27061
+    },
+    {
+      "file": "packages/services/src/delivery/download/sample-url.test.ts",
+      "milliseconds": 21551
+    },
+    {
+      "file": "packages/services/src/delivery/lifecycle-m5.db.test.ts",
+      "milliseconds": 63532
+    },
+    {
+      "file": "packages/services/src/delivery/production-checked.db.test.ts",
+      "milliseconds": 67974
+    },
+    {
+      "file": "packages/services/src/delivery/production-path.test.ts",
+      "milliseconds": 79366
+    },
+    {
+      "file": "packages/services/src/delivery/sample-feedback.db.test.ts",
+      "milliseconds": 66753
+    },
+    {
+      "file": "packages/services/src/demo-seed-cli.db.test.ts",
+      "milliseconds": 21426
+    },
+    {
+      "file": "packages/services/src/media/assets/asr-wake.db.test.ts",
+      "milliseconds": 23182
+    },
+    {
+      "file": "packages/services/src/media/assets/asr.db.test.ts",
+      "milliseconds": 25551
+    },
+    {
+      "file": "packages/services/src/media/assets/doc.db.test.ts",
+      "milliseconds": 24575
+    },
+    {
+      "file": "packages/services/src/media/assets/vision.db.test.ts",
+      "milliseconds": 33480
+    },
+    {
+      "file": "packages/services/src/media/production-actions.db.test.ts",
+      "milliseconds": 51991
+    },
+    {
+      "file": "packages/services/src/ops/ad-cancel-core.db.test.ts",
+      "milliseconds": 112238
+    },
+    {
+      "file": "packages/services/src/ops/admin-entity-close.concurrency.test.ts",
+      "milliseconds": 22319
+    },
+    {
+      "file": "packages/services/src/ops/tenant-account-lifecycle.concurrency.test.ts",
+      "milliseconds": 28538
+    },
+    {
+      "file": "packages/services/src/ops/tenant-entitlement.concurrency.test.ts",
+      "milliseconds": 33470
+    },
+    {
+      "file": "packages/services/src/order/cancel-execute.property.test.ts",
+      "milliseconds": 54019
+    },
+    {
+      "file": "packages/services/src/order/cancel-requests.db.test.ts",
+      "milliseconds": 21909
+    },
+    {
+      "file": "packages/services/src/order/quote.property.test.ts",
+      "milliseconds": 195344
+    },
+    {
+      "file": "packages/services/src/order/start.concurrency.test.ts",
+      "milliseconds": 32654
+    },
+    {
+      "file": "packages/services/src/order/submit.concurrency.test.ts",
+      "milliseconds": 24961
+    },
+    {
+      "file": "packages/services/src/testing/p95-fixture.db.test.ts",
+      "milliseconds": 75055
+    }
+  ]
+}

@@ -220,12 +220,15 @@ test("实际 Playwright 配置按文件名区分 live 和 samples，目录名不
     const samples = (await import("../playwright.config.ts?media-samples")).default;
     process.env.LYX_ADMIN_LIVE = "1";
     const live = (await import("../playwright.config.ts?media-live")).default;
+    const ignores = [samples.projects[0].testIgnore].flat();
+    const sampleIgnores = (file) => ignores.some((pattern) => pattern.test(file));
     for (const base of [
       "/tmp/admin-live-data-cli/liyoxi/apps/admin/test/e2e/",
       "C:\\tmp\\admin-live-data-cli\\liyoxi\\apps\\admin\\test\\e2e\\",
     ]) {
-      assert.equal(samples.projects[0].testIgnore.test(`${base}smoke.spec.ts`), false);
-      assert.equal(samples.projects[0].testIgnore.test(`${base}live-staff.spec.ts`), true);
+      assert.equal(sampleIgnores(`${base}smoke.spec.ts`), false);
+      assert.equal(sampleIgnores(`${base}live-staff.spec.ts`), true);
+      assert.equal(sampleIgnores(`${base}cover-upload.spec.ts`), true);
       const main = live.projects.find((project) => project.name === "live");
       assert.equal(main.testMatch.test(`${base}smoke.spec.ts`), false);
       assert.equal(main.testMatch.test(`${base}live-delivery-flow.spec.ts`), true);
