@@ -3,7 +3,6 @@ import { Button as NativeButton, Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { Button } from "@/components/Button";
-import brandIcon from "@/assets/brand/08-app-icon-light-1024.png";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
 import { Empty } from "@/components/Empty";
@@ -314,7 +313,7 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
         <View className="settings-page__brand">
           <Image
             className="settings-page__brand-icon"
-            src={brandIcon}
+            src={`${process.env.TARO_ENV === "h5" ? "." : ""}/sub/service/assets/brand/08-app-icon-light-1024.png`}
             mode="aspectFit"
             ariaLabel="狸有戏品牌图形"
           />

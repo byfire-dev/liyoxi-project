@@ -9,6 +9,7 @@ import type { Plugin } from "vite";
 
 const root = path.resolve(__dirname, "..");
 const isH5 = process.env.TARO_ENV === "h5";
+const outputRoot = isH5 ? "shots/dist/h5" : "dist";
 
 /** 构建期注入的常量（types/global.d.ts 里有对应的声明）。值一律是 JSON 字面量 */
 const constants = {
@@ -25,11 +26,25 @@ export default defineConfig<"vite">(async (merge) => {
     designWidth: 375,
     deviceRatio: { 640: 2.34 / 2, 750: 1, 375: 2, 828: 1.81 / 2 },
     sourceRoot: "src",
-    outputRoot: isH5 ? "shots/dist/h5" : "dist",
+    outputRoot,
     // NutUI React Taro 要 plugin-html 才能渲染 HTML 标签
     plugins: ["@tarojs/plugin-html"],
     defineConstants: constants,
-    copy: { patterns: [], options: {} },
+    // 品牌 PNG 保留为本地文件，避免被 Vite 内联进 JS 后随微信二次编译膨胀。
+    // 设置页图标仅供 service 分包使用，不挤占主包。
+    copy: {
+      patterns: (
+        [
+          ["07-wordmark-transparent.png", "assets/brand"],
+          ["04-horizontal-lockup-transparent.png", "assets/brand"],
+          ["08-app-icon-light-1024.png", "sub/service/assets/brand"],
+        ] as const
+      ).map(([file, directory]) => ({
+        from: path.resolve(root, "src/assets/brand", file),
+        to: `${outputRoot}/${directory}/${file}`,
+      })),
+      options: {},
+    },
     framework: "react",
     compiler: {
       type: "vite",
