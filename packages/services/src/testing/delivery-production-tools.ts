@@ -15,13 +15,21 @@ import type { Runtime } from "../runtime.js";
 import type { AdjustableClock } from "./clock.js";
 import { createFactories } from "./data/index.js";
 
-type Video = { bytes: Uint8Array; label: string | null; width: number; height: number };
+type Video = {
+  bytes: Uint8Array;
+  label: string | null;
+  width: number;
+  height: number;
+  sourceReport?: ProbeReport;
+};
+/** A SHA-bound test input resolver may carry several actual native probe reports. */
+export type DeliverySourceReport = ProbeReport | ((bytes: Uint8Array) => ProbeReport);
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const jpeg = new Uint8Array([255, 216, 255, 217]);
 /** Codec/cloud IO doubles only; callers still execute real claims, checks, refs and subscribers. */
 export function createDeliveryProductionTools(
   providers: Pick<FakeProviders, "storage" | "media">,
-  sourceReport?: ProbeReport,
+  sourceReport?: DeliverySourceReport,
   storage?: StorageProvider,
 ) {
   const paths = new Map<string, Video>(),
@@ -29,7 +37,10 @@ export function createDeliveryProductionTools(
   let failStamp = false;
   const report = (video: Video): ProbeReport => {
     if (sourceReport) {
-      const measured = structuredClone(sourceReport);
+      const measured = structuredClone(
+        video.sourceReport ??
+          (typeof sourceReport === "function" ? sourceReport(video.bytes) : sourceReport),
+      );
       measured.format.sizeBytes = video.bytes.length;
       measured.aigc = video.label;
       for (const stream of measured.streams)
@@ -157,15 +168,19 @@ export function createDeliveryProductionTools(
             if (signal.aborted) return failed("unavailable", "canceled");
             if (!object || object.etag !== input.etag || object.body.length !== input.size)
               return failed("rejected", "source changed");
+            const native =
+              typeof sourceReport === "function"
+                ? (objects.get(`${input.bucket}/${input.key}`)?.sourceReport ??
+                  sourceReport(object.body))
+                : sourceReport;
             paths.set(`${prefix}source.mp4`, {
               bytes: object.body,
               ...(objects.get(`${input.bucket}/${input.key}`) ?? {
                 label: null,
-                width:
-                  sourceReport?.streams.find((s) => s.codecType === "video")?.displayWidth ?? 1080,
-                height:
-                  sourceReport?.streams.find((s) => s.codecType === "video")?.displayHeight ?? 1920,
+                width: native?.streams.find((s) => s.codecType === "video")?.displayWidth ?? 1080,
+                height: native?.streams.find((s) => s.codecType === "video")?.displayHeight ?? 1920,
               }),
+              ...(native ? { sourceReport: native } : {}),
             });
             return ok({ size: object.body.length, sha256: sha(object.body) });
           },
@@ -208,6 +223,7 @@ export function createDeliveryProductionTools(
               label: output.label,
               width: output.width,
               height: output.height,
+              ...(output.sourceReport ? { sourceReport: output.sourceReport } : {}),
             });
             return ok({ size: output.bytes.length, sha256: sha(output.bytes), etag });
           },
@@ -236,6 +252,11 @@ export function createDeliveryProductionTools(
         : undefined
       : providers.storage.objects.get(`${input.src.bucket}/${input.src.key}`);
     if (!source) return failed("rejected", "missing source");
+    const native =
+      typeof sourceReport === "function"
+        ? (objects.get(`${input.src.bucket}/${input.src.key}`)?.sourceReport ??
+          sourceReport(source.body))
+        : sourceReport;
     if (storage) {
       const copied = await storage.putStream({
         ...input.dst,
@@ -259,6 +280,7 @@ export function createDeliveryProductionTools(
       ...(objects.get(`${input.src.bucket}/${input.src.key}`) ?? { label: null }),
       width: input.template === "normalize" ? 1080 : 720,
       height: input.template === "normalize" ? 1920 : 1280,
+      ...(native ? { sourceReport: native } : {}),
     });
     return transcode(input);
   };

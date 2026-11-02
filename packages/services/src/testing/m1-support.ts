@@ -1,5 +1,5 @@
 // W1-21 无 Vitest 支架；仅新建本轮测试库或受保护 attach，不接受任意远程库。
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createPrismaClient } from "@liyoxi/db";
 import {
   assertTestDatabaseUrl,
@@ -63,6 +63,11 @@ const localUrl = (
 export async function createM1Support(options: M1SupportOptions = {}): Promise<M1Support> {
   options.signal?.throwIfAborted();
   const attach = options.attach;
+  if (
+    options.additionalProductionReports &&
+    (attach || options.ownerNetwork || process.env.APP_ENV !== "test")
+  )
+    throw new Error("额外SHA绑定媒体报告仅接受本机test独立scope");
   if (options.wechatPay && (attach || options.ownerNetwork || process.env.APP_ENV !== "test"))
     throw new Error("M1 假支付身份仅接受本机test独立scope");
   const ownerNetwork = options.ownerNetwork !== undefined;
@@ -266,6 +271,32 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       redisPrefix,
     });
     const productionInput = await m1ProductionVideo();
+    const sourceReports = new Map([
+      [
+        productionInput.video.sha256,
+        { sizeBytes: productionInput.video.sizeBytes, report: productionInput.report },
+      ],
+    ]);
+    for (const input of options.additionalProductionReports ?? []) {
+      if (
+        !/^[a-f0-9]{64}$/.test(input.sha256) ||
+        !Number.isSafeInteger(input.sizeBytes) ||
+        input.sizeBytes < 1 ||
+        sourceReports.has(input.sha256) ||
+        input.report.format.sizeBytes !== input.sizeBytes
+      )
+        throw new Error("额外实际媒体报告的SHA/大小或唯一性无效");
+      sourceReports.set(input.sha256, {
+        sizeBytes: input.sizeBytes,
+        report: structuredClone(input.report),
+      });
+    }
+    const resolveSourceReport = (bytes: Uint8Array) => {
+      const fact = sourceReports.get(createHash("sha256").update(bytes).digest("hex"));
+      if (!fact || fact.sizeBytes !== bytes.length)
+        throw new Error("制作输入不属于本轮SHA绑定媒体集合");
+      return fact.report;
+    };
     if (attach) httpStorage = createM1HttpStorage(attach);
     const boundProviders =
       httpStorage && attach
@@ -285,7 +316,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         : providers;
     productionTools = createDeliveryProductionTools(
       providers,
-      productionInput.report,
+      options.additionalProductionReports ? resolveSourceReport : productionInput.report,
       httpStorage?.storage,
     );
     runtime = createRuntime({
