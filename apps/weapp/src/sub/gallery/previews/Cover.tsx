@@ -1,7 +1,9 @@
 import { sharedTokens } from "@liyoxi/shared/design/tokens";
 import { View } from "@tarojs/components";
+import { useState } from "react";
 
 import { Cover } from "@/components/Cover";
+import { TextButton } from "@/components/TextButton";
 
 import { Demo } from "../demo";
 
@@ -11,6 +13,31 @@ import "./Cover.scss";
 
 // 占位底色本该是每部剧自己的主色（接口给）；这里借几个样式变量的值当示例数据
 const color = sharedTokens.color;
+
+function CoverRecoveryPreview() {
+  const [source, setSource] = useState<string | undefined>("/cover-recovery-missing.png");
+  const [mount, setMount] = useState(0);
+  const [refresh, setRefresh] = useState(0);
+  return (
+    <Demo title="失败恢复：换地址重新加载；同地址更新保留占位，重新挂载再试一次">
+      <View id="cover-recovery" className="lyx-cover-demo__scroll">
+        <Cover
+          key={mount}
+          variant="scroll"
+          title="封面恢复示例"
+          src={source}
+          color={color.primary}
+          caption={`父层更新 ${refresh}`}
+        />
+      </View>
+      <TextButton onClick={() => setSource(sample)}>切换有效封面</TextButton>
+      <TextButton onClick={() => setSource("/cover-recovery-missing.png")}>切换失败地址</TextButton>
+      <TextButton onClick={() => setSource(undefined)}>清空封面地址</TextButton>
+      <TextButton onClick={() => setRefresh((value) => value + 1)}>同地址重渲染</TextButton>
+      <TextButton onClick={() => setMount((value) => value + 1)}>重新挂载重试</TextButton>
+    </Demo>
+  );
+}
 
 export default function CoverPreview() {
   return (
@@ -59,6 +86,7 @@ export default function CoverPreview() {
         <Cover variant="thumb-sm" title="旧时光" color={color.success} />
         <Cover variant="thumb-sm" title="巷口那家店" src={sample} invalid />
       </Demo>
+      <CoverRecoveryPreview />
     </>
   );
 }

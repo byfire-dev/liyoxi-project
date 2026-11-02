@@ -26,6 +26,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { chromium, expect } from "@playwright/test";
+import { coverRegression } from "../shots/cover-regressions.mjs";
 import {
   deliveryRegression,
   deliveryNavigationRegression,
@@ -1069,6 +1070,7 @@ const targets = [
     label: `组件 ${name}`,
     url: `${GALLERY_PREVIEW_ROUTE}?name=${name}`,
     file: `gallery__${name}`,
+    kind: "component",
     fullPage: true,
   })),
   ...(all ? sheetNames : wantedSheets).map((name) => ({
@@ -1664,6 +1666,8 @@ async function shoot(target) {
     }
     const file = path.join(outDir, `${target.file}.png`);
     await page.screenshot({ path: file });
+    if (target.kind === "component" && target.file === "gallery__Cover")
+      await coverRegression(page);
     if (target.kind === "ad") await adRegression(page, target.scene);
     if (target.kind === "delivery") await deliveryRegression(page, target.scene);
     if (target.kind === "order" && !target.scene.startsWith("checkout-ads"))
