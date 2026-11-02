@@ -9,7 +9,7 @@ import type { M1_PROFILE_DEFAULTS } from "./m1-profile-defaults.js";
 import type { M1StateIds, readM1State } from "./m1-state.js";
 import type { Redis } from "ioredis";
 import type { ModelBudgetTransport } from "../media/index.js";
-import type { createMinioStorage, PresignedPost } from "../providers/index.js";
+import type { createMinioStorage, PresignedPost, ProbeReport } from "../providers/index.js";
 import type { M1LicenseTestInputs } from "./m1-license-inputs.js";
 
 export interface M1HttpObjectIO {
@@ -118,6 +118,12 @@ export interface M1Support {
   sharedScope(): M1SharedScope;
 }
 export interface M1SupportOptions {
+  /** Test owner only: extra immutable input bytes must match their independently measured report. */
+  readonly additionalProductionReports?: readonly {
+    readonly sha256: string;
+    readonly sizeBytes: number;
+    readonly report: ProbeReport;
+  }[];
   /** Only a new APP_ENV=test owner; local attachments receive explicit inputs through their scope. */
   readonly portalPublicOrigin?: M1LicenseTestInputs["portalPublicOrigin"];
   /** 仅本机test独立scope：沿API测试相同假通道身份，默认M1不装配支付。 */
