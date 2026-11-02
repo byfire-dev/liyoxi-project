@@ -33,6 +33,14 @@
     gap: 14px;
     width: 52px;
   }
+  &__stage--landscape &__rail {
+    position: static;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 8px;
+    width: auto;
+    padding: 12px 16px 0;
+  }
   &__rail-action {
     display: flex;
     flex-direction: column;

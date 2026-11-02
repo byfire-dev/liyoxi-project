@@ -595,7 +595,14 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
       path: string;
       outPath: string;
       signal: AbortSignal;
-    } & ({ png: Uint8Array } | { quality: "sd" | "hd"; ai: boolean }),
+    } & (
+      | { png: Uint8Array }
+      | {
+          quality: "sd" | "hd";
+          ai: boolean;
+          rendition?: { width: number; height: number };
+        }
+    ),
   ) => {
     const controller = new AbortController(),
       previous = renderTail;
@@ -613,7 +620,8 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
         source.directory !== output.directory
       )
         throw new Error("W302 native render scope rejected");
-      const trailer = "quality" in input ? trailerEncoding(input.quality, input.ai) : undefined;
+      const trailer =
+        "quality" in input ? trailerEncoding(input.quality, input.ai, input.rendition) : undefined;
       if (
         "quality" in input &&
         (!["sd", "hd"].includes(input.quality) || typeof input.ai !== "boolean")
@@ -711,7 +719,7 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
           "1",
           "-c:a",
           trailer ? "aac" : "copy",
-          ...(trailer ? ["-b:a", trailer.audioBitrate] : []),
+          ...(trailer ? ["-b:a", trailer.audioBitrate, "-ar", "48000", "-ac", "2"] : []),
           "-movflags",
           "+faststart",
           "-n",
@@ -879,6 +887,7 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
         outPath: string;
         quality: "sd" | "hd";
         ai: boolean;
+        rendition?: { width: number; height: number };
         signal: AbortSignal;
       }) => renderNative(input),
       close,

@@ -1,4 +1,5 @@
 import type { Technical } from "../production-report.js";
+import { trailerRendition } from "./trailer-rendition.js";
 
 export function ordinaryChecks(info: Technical, profile: string, adKind: "head" | "tail" | null) {
   const vertical =
@@ -11,7 +12,7 @@ export function ordinaryChecks(info: Technical, profile: string, adKind: "head" 
     duration = info.durationMs;
   const pass =
     profile === "asset" ||
-    (vertical &&
+    ((profile === "trailer_src" ? trailerRendition(info, "sd") !== null : vertical) &&
       audio &&
       duration !== null &&
       (profile === "master"

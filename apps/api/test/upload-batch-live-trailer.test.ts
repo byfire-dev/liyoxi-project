@@ -35,7 +35,111 @@ function fixture(quality: "sd" | "hd" = "sd", ai = false) {
     },
   };
 }
+function renditionFixture(quality: "sd" | "hd", width: number, height: number, ai = false) {
+  const legacy = fixture(quality, ai);
+  return {
+    request: {
+      src: legacy.request.src,
+      dst: legacy.request.dst,
+      userData: legacy.request.userData,
+      watermarks: legacy.request.watermarks,
+      signal: legacy.request.signal,
+      rendition: { quality, width, height },
+    },
+    persisted: {
+      fileId: file,
+      playableAssetId: asset,
+      destinationFileId: source,
+      quality,
+      objectKey: legacy.persisted.objectKey,
+      scratchKey: legacy.persisted.scratchKey,
+      rendition: { version: 1, width, height },
+      specVersion: 1,
+      aiUsed: ai,
+      watermarks: legacy.persisted.watermarks,
+    },
+  };
+}
 describe("W312 exact native trailer templates", () => {
+  it.each([
+    ["sd", 852, 480],
+    ["hd", 1280, 720],
+    ["hd", 720, 720],
+    ["hd", 1280, 256],
+  ] as const)(
+    "%s exact %ix%i inline recipe reaches the native fit/pad filter",
+    (quality, width, height) => {
+      const { request, persisted } = renditionFixture(quality, width, height, true);
+      expect(parseTrailerSubmission(request)).toEqual({ id: job, attemptNo: 1 });
+      expect(matchesTrailerInput(request, persisted)?.rendition).toEqual({
+        version: 1,
+        width,
+        height,
+      });
+      const encoding = trailerEncoding(quality, true, { width, height });
+      expect(encoding.filter).toContain(
+        `[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,`,
+      );
+      expect(encoding.filter).toContain(
+        `text='AI 生成':expansion=none:fontsize=${Math.ceil(Math.min(width, height) * 0.06)}:`,
+      );
+      expect(encoding.profile).toBe(quality === "sd" ? "main" : "high");
+      expect(encoding.videoBitrate).toBe(quality === "sd" ? "700k" : "1500k");
+      expect(encoding.audioBitrate).toBe(quality === "sd" ? "64k" : "96k");
+      expect(encoding.filter).not.toContain("crop=");
+    },
+  );
+  it("inline recipe must match version/dimensions/quality exactly and cannot mix a template", () => {
+    const { request, persisted } = renditionFixture("hd", 1280, 720);
+    expect(matchesTrailerInput(request, { ...persisted, template: "test_hd" })).toBeNull();
+    expect(
+      matchesTrailerInput(
+        { ...request, template: "test_hd" } as unknown as Parameters<typeof matchesTrailerInput>[0],
+        persisted,
+      ),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(request, {
+        ...persisted,
+        rendition: { ...persisted.rendition, version: 2 },
+      }),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(request, {
+        ...persisted,
+        rendition: { ...persisted.rendition, width: 720, height: 1280 },
+      }),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(request, {
+        ...persisted,
+        rendition: { ...persisted.rendition, height: 719 },
+      }),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(request, {
+        ...persisted,
+        rendition: { ...persisted.rendition, crop: true },
+      }),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(
+        { ...request, rendition: { ...request.rendition, quality: "sd" } },
+        persisted,
+      ),
+    ).toBeNull();
+    expect(
+      matchesTrailerInput(
+        { ...request, rendition: { ...request.rendition, width: 720, height: 1280 } },
+        persisted,
+      ),
+    ).toBeNull();
+    expect(matchesTrailerInput(request, { ...persisted, watermarks: [] })).toBeNull();
+    expect(matchesTrailerInput(request, { ...persisted, aiUsed: true })).toBeNull();
+    expect(matchesTrailerInput(request, fixture("hd").persisted)).toBeNull();
+    expect(matchesTrailerInput(fixture("hd").request, persisted)).toBeNull();
+    expect(() => trailerEncoding("hd", false, { width: 1280, height: 719 })).toThrow();
+  });
   it.each(["sd", "hd"] as const)(
     "%s maps real dimensions/codecs/bitrates and an actual brand filter",
     (quality) => {

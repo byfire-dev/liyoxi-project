@@ -120,7 +120,15 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
         tag: "Transcode",
         src: { bucket: "media", key: "" },
         dst: { bucket: "media", key },
-        template: one.template,
+        ...("rendition" in one && one.rendition
+          ? {
+              rendition: {
+                width: one.rendition.width,
+                height: one.rendition.height,
+                quality: one.quality === "sd" ? ("sd" as const) : ("hd" as const),
+              },
+            }
+          : { template: one.template! }),
         ...("watermarks" in one ? { watermarks: one.watermarks } : {}),
       };
     },
@@ -197,7 +205,15 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
           bucket: "media",
           key: "scratchKey" in one ? one.scratchKey : `ci-out/${one.destinationFileId}/output.mp4`,
         },
-        template: one.template,
+        ...("rendition" in one && one.rendition
+          ? {
+              rendition: {
+                width: one.rendition.width,
+                height: one.rendition.height,
+                quality: one.quality === "sd" ? ("sd" as const) : ("hd" as const),
+              },
+            }
+          : { template: one.template! }),
         ...("watermarks" in one ? { watermarks: one.watermarks } : {}),
       };
     },
@@ -346,8 +362,12 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
         )
           return failure("MEDIA_AIGC_READBACK_MISMATCH");
         const quality = playableInput?.quality ?? "source",
-          width = kind === "normalize" ? 1080 : quality === "sd" ? 480 : 720,
-          height = kind === "normalize" ? 1920 : quality === "sd" ? 854 : 1280;
+          width =
+            playableInput?.rendition?.width ??
+            (kind === "normalize" ? 1080 : quality === "sd" ? 480 : 720),
+          height =
+            playableInput?.rendition?.height ??
+            (kind === "normalize" ? 1920 : quality === "sd" ? 854 : 1280);
         const fps =
           technical.fpsNum && technical.fpsDen ? technical.fpsNum / technical.fpsDen : null;
         if (

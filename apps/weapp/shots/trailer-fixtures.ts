@@ -24,6 +24,8 @@ export function trailerDetail(n = 1): Data<"m.drama.get"> {
 
 /** 显式 H5 场景专用；视频地址由截图脚本提供同源本地1秒媒体，不访问外网。 */
 export function offlineTrailerRequest(scene: string): RequestLayer["request"] {
+  const width = scene.includes("landscape") ? 320 : 180,
+    height = scene.includes("landscape") ? 180 : 320;
   const calls: { path: string; method: string }[] = [];
   (globalThis as { __LYX_TRAILER_CALLS__?: typeof calls }).__LYX_TRAILER_CALLS__ = calls;
   const fallback = offlineCatalogRequest("detail-owner");
@@ -50,8 +52,8 @@ export function offlineTrailerRequest(scene: string): RequestLayer["request"] {
         playableId: url.pathname.split("/").at(-1),
         kind: "trailer",
         durationMs: 1000,
-        width: 180,
-        height: 320,
+        width,
+        height,
         posterUrl: null,
         sources: [
           {
@@ -59,8 +61,8 @@ export function offlineTrailerRequest(scene: string): RequestLayer["request"] {
             url:
               (globalThis as { __LYX_TRAILER_MEDIA_URL__?: string }).__LYX_TRAILER_MEDIA_URL__ ??
               "/__lyx_trailer_fixture.mp4",
-            width: 180,
-            height: 320,
+            width,
+            height,
             bitrateKbps: null,
           },
         ],

@@ -2,6 +2,19 @@ import type { Data } from "@/lib/account-api";
 
 export type Trailer = NonNullable<Data<"m.drama.get">["trailer"]>;
 export type Playable = Data<"m.playable.get">;
+export interface TrailerDimensions {
+  width: number;
+  height: number;
+}
+const dimensions = (width: number | null, height: number | null): TrailerDimensions | null =>
+  typeof width === "number" &&
+  typeof height === "number" &&
+  Number.isFinite(width) &&
+  Number.isFinite(height) &&
+  width > 0 &&
+  height > 0
+    ? { width, height }
+    : null;
 export const trailerTime = (ms: number) => {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
@@ -16,7 +29,12 @@ export function trailerSource(trailer: Trailer, playable: Playable, now: number)
   const expiresAt = playable.expiresAt ? Date.parse(playable.expiresAt) : Number.NaN;
   if (!Number.isFinite(expiresAt) || expiresAt <= now + 5000)
     throw new Error("播放地址已过期，请重新获取播放地址");
-  return { source: source.url, expiresAt };
+  return {
+    source: source.url,
+    expiresAt,
+    dimensions:
+      dimensions(source.width, source.height) ?? dimensions(playable.width, playable.height),
+  };
 }
 
 interface PlayerState {
@@ -30,6 +48,9 @@ interface PlayerState {
   sourceAtMs: number;
   epoch: number;
   seekNo: number;
+  dimensions: TrailerDimensions | null;
+  fullscreen: boolean;
+  fullscreenError: string | null;
 }
 
 /** 每次点击只换取当前 playable；隐藏、身份变化和卸载使地址及在途结果失效。 */
@@ -61,6 +82,9 @@ export function createTrailerPlayer(deps: {
     sourceAtMs: 0,
     epoch: 0,
     seekNo: 0,
+    dimensions: null,
+    fullscreen: false,
+    fullscreenError: null,
   };
   const update = (patch: Partial<PlayerState>) => {
     state = { ...state, ...patch };
@@ -72,7 +96,14 @@ export function createTrailerPlayer(deps: {
   const stop = () => {
     generation++;
     expiresAt = 0;
-    update({ source: null, playing: false, busy: false, mobilePrompt: false });
+    update({
+      source: null,
+      playing: false,
+      busy: false,
+      mobilePrompt: false,
+      fullscreen: false,
+      fullscreenError: null,
+    });
   };
   async function play(force = false) {
     if (!valid() || state.busy) return;
@@ -89,7 +120,7 @@ export function createTrailerPlayer(deps: {
       if (!current()) return;
       if (network === "none") throw new Error("网络未连接，请联网后重试");
       if (network !== "wifi" && !mobileAccepted) {
-        update({ source: null, playing: false, mobilePrompt: true });
+        update({ source: null, playing: false, mobilePrompt: true, fullscreen: false });
         return;
       }
       if (!force && state.source && sourceFresh()) {
@@ -106,12 +137,16 @@ export function createTrailerPlayer(deps: {
         mobilePrompt: false,
         sourceAtMs: state.positionMs,
         epoch: state.epoch + 1,
+        dimensions: fresh.dimensions,
+        fullscreen: false,
+        fullscreenError: null,
       });
     } catch (error) {
       if (current())
         update({
           source: null,
           playing: false,
+          fullscreen: false,
           error: error instanceof Error ? error.message : "预告片播放失败，请重试",
         });
     } finally {
@@ -153,6 +188,10 @@ export function createTrailerPlayer(deps: {
       if (!state.busy) automaticRetries = 0;
       return play(true);
     },
+    nativePlay: (epoch: number) => {
+      if (!hasSource(epoch) || !state.fullscreen) return Promise.resolve();
+      return play();
+    },
     acceptMobile: () => {
       mobileAccepted = true;
       update({ mobilePrompt: false });
@@ -170,8 +209,32 @@ export function createTrailerPlayer(deps: {
     toggleMute: () => {
       if (valid()) update({ muted: !state.muted });
     },
+    mute: (epoch: number, muted: boolean) => {
+      if (hasSource(epoch) && muted !== state.muted) update({ muted });
+    },
     hasSource,
     canPlay: (epoch: number) => hasSource(epoch) && sourceFresh() && state.playing,
+    metadata: (epoch: number, width: number, height: number) => {
+      if (!hasSource(epoch) || state.dimensions) return;
+      const measured = dimensions(width, height);
+      if (measured) update({ dimensions: measured });
+    },
+    fullscreenRequest: (epoch: number): 0 | 90 | null => {
+      if (!hasSource(epoch) || !sourceFresh() || state.busy || !state.dimensions) return null;
+      update({ fullscreenError: null });
+      return state.dimensions.width > state.dimensions.height ? 90 : 0;
+    },
+    fullscreenChanged: (epoch: number, fullscreen: boolean) => {
+      if (!hasSource(epoch) || !sourceFresh()) return false;
+      // 换源或平台迟到的退出事件不能把当前普通播放误判为退出全屏。
+      if (fullscreen) update({ fullscreen: true, fullscreenError: null });
+      else if (state.fullscreen) update({ fullscreen: false, playing: false });
+      return true;
+    },
+    fullscreenFailed: (epoch: number) => {
+      if (hasSource(epoch))
+        update({ fullscreen: false, fullscreenError: "暂时无法进入全屏，请重试" });
+    },
     time: (epoch: number, ms: number) => {
       if (!hasSource(epoch) || !Number.isFinite(ms)) return;
       if (!sourceFresh()) {

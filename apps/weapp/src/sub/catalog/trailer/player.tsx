@@ -16,6 +16,11 @@ import { uuid } from "@/lib/platform";
 import { useBootstrapStore, flagOn } from "@/stores/bootstrap";
 import { trailerApi } from "./api";
 import { createTrailerPlayer, trailerTime, type Trailer } from "./player-model";
+import {
+  exitTrailerFullscreen,
+  requestTrailerFullscreen,
+  watchTrailerFullscreen,
+} from "./player-platform";
 import { trailerScopeKey } from "./scope";
 import "./player.scss";
 
@@ -24,12 +29,14 @@ export function TrailerPlayer({
   title,
   feed = false,
   blocked = false,
+  onLandscapeChange,
   children,
 }: {
   trailer: Trailer;
   title: string;
   feed?: boolean;
   blocked?: boolean;
+  onLandscapeChange?(landscape: boolean): void;
   children?: ReactNode;
 }) {
   const enabled = useBootstrapStore(
@@ -49,31 +56,84 @@ export function TrailerPlayer({
     }),
   );
   const state = useSyncExternalStore(model.subscribe, model.snapshot, model.snapshot);
-  const readyEpoch = useRef(-1);
+  const [readyEpoch, setReadyEpoch] = useState(-1);
+  const fullscreenEpoch = useRef<number | null>(null);
+  const gatedPauseEpoch = useRef<number | null>(null);
+  const fullscreenAttempt = useRef(0);
+  const fullscreenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearFullscreenWait = useCallback(() => {
+    fullscreenAttempt.current++;
+    if (fullscreenTimer.current !== null) clearTimeout(fullscreenTimer.current);
+    fullscreenTimer.current = null;
+  }, []);
   const [videoId] = useState(() => `catalog-trailer-${uuid()}`);
-  const context = useCallback(() => Taro.createVideoContext(videoId), [videoId]);
+  // 换源使用独立原生 id；旧媒体事件和清理只能操作自己的播放器。
+  const context = useCallback(
+    (epoch: number) => Taro.createVideoContext(`${videoId}-${epoch}`),
+    [videoId],
+  );
+  const stopNative = useCallback(
+    (epoch: number) => {
+      context(epoch)?.pause();
+      if (fullscreenEpoch.current === epoch) {
+        clearFullscreenWait();
+        fullscreenEpoch.current = null;
+        void Promise.resolve(exitTrailerFullscreen(`${videoId}-${epoch}`)).catch(() => undefined);
+      }
+    },
+    [context, videoId, clearFullscreenWait],
+  );
+  const landscape = Boolean(state.dimensions && state.dimensions.width > state.dimensions.height);
+  useEffect(() => onLandscapeChange?.(landscape), [landscape, onLandscapeChange]);
   useEffect(() => {
     model.mount();
     return () => {
-      context()?.pause();
+      stopNative(model.snapshot().epoch);
       model.dispose();
     };
-  }, [model, context]);
+  }, [model, stopNative]);
   useEffect(() => {
+    if (blocked || !enabled) stopNative(model.snapshot().epoch);
     model.block(blocked || !enabled);
-    if (blocked || !enabled) context()?.pause();
-  }, [model, blocked, enabled, context]);
+  }, [model, blocked, enabled, stopNative]);
   useEffect(() => {
-    if (!state.source || readyEpoch.current !== state.epoch) return;
-    if (model.canPlay(state.epoch)) context()?.play();
-    else context()?.pause();
-  }, [model, context, state.source, state.epoch, state.playing]);
+    const epoch = state.epoch;
+    return () => stopNative(epoch);
+  }, [state.epoch, stopNative]);
   useEffect(() => {
-    if (state.source && readyEpoch.current === state.epoch)
-      context()?.seek(model.snapshot().positionMs / 1000);
-  }, [model, context, state.source, state.epoch, state.seekNo]);
+    if (!state.source || state.mobilePrompt) stopNative(state.epoch);
+  }, [state.source, state.mobilePrompt, state.epoch, stopNative]);
+  const fullscreenChanged = useCallback(
+    (epoch: number, entered: boolean) => {
+      if (!model.fullscreenChanged(epoch, entered)) {
+        context(epoch)?.pause();
+        if (entered)
+          void Promise.resolve(exitTrailerFullscreen(`${videoId}-${epoch}`)).catch(() => undefined);
+        return;
+      }
+      clearFullscreenWait();
+      fullscreenEpoch.current = entered ? epoch : null;
+      if (!entered && !model.snapshot().playing) context(epoch)?.pause();
+    },
+    [model, context, videoId, clearFullscreenWait],
+  );
+  useEffect(() => {
+    if (!state.source || readyEpoch !== state.epoch) return;
+    return watchTrailerFullscreen(`${videoId}-${state.epoch}`, (entered) =>
+      fullscreenChanged(state.epoch, entered),
+    );
+  }, [state.source, state.epoch, readyEpoch, videoId, fullscreenChanged]);
+  useEffect(() => {
+    if (!state.source || readyEpoch !== state.epoch) return;
+    if (model.canPlay(state.epoch)) context(state.epoch)?.play();
+    else context(state.epoch)?.pause();
+  }, [model, context, state.source, state.epoch, state.playing, readyEpoch]);
+  useEffect(() => {
+    if (state.source && readyEpoch === state.epoch)
+      context(state.epoch)?.seek(model.snapshot().positionMs / 1000);
+  }, [model, context, state.source, state.epoch, state.seekNo, readyEpoch]);
   useDidHide(() => {
-    context()?.pause();
+    stopNative(model.snapshot().epoch);
     model.hide();
   });
   useDidShow(model.show);
@@ -82,44 +142,104 @@ export function TrailerPlayer({
     else if (state.error) void model.retry();
     else void model.play();
   };
+  const fullscreen = () => {
+    const epoch = state.epoch;
+    const direction = model.fullscreenRequest(epoch);
+    if (direction === null || model.snapshot().fullscreen) return;
+    clearFullscreenWait();
+    const attempt = fullscreenAttempt.current;
+    fullscreenEpoch.current = epoch;
+    fullscreenTimer.current = setTimeout(() => {
+      if (fullscreenAttempt.current !== attempt || fullscreenEpoch.current !== epoch) return;
+      fullscreenTimer.current = null;
+      fullscreenEpoch.current = null;
+      model.fullscreenFailed(epoch);
+    }, 2500);
+    const failed = () => {
+      if (fullscreenAttempt.current !== attempt) return;
+      clearFullscreenWait();
+      fullscreenEpoch.current = null;
+      model.fullscreenFailed(epoch);
+    };
+    try {
+      // H5 返回 Promise，微信原生接口返回 void；只显示固定文案，不暴露地址或平台异常。
+      void Promise.resolve(requestTrailerFullscreen(`${videoId}-${epoch}`, direction)).catch(
+        failed,
+      );
+    } catch {
+      failed();
+    }
+  };
   const buttonText = state.error ? "重新获取播放地址" : state.playing ? "暂停预告片" : "播放预告片";
   return (
-    <View className={`trailer-player${feed ? " trailer-player--feed" : ""}`}>
+    <View
+      className={`trailer-player${feed ? " trailer-player--feed" : ""}${landscape ? " trailer-player--landscape" : ""}`}
+      style={
+        state.dimensions
+          ? `--trailer-frame-padding: ${(state.dimensions.height / state.dimensions.width) * 100}%`
+          : undefined
+      }
+    >
       <View className="trailer-player__frame">
         {state.source && enabled && !blocked ? (
           <Video
             key={state.epoch}
-            id={videoId}
+            id={`${videoId}-${state.epoch}`}
             className="trailer-player__video"
             src={state.source}
             autoplay={false}
             muted={state.muted}
-            controls={false}
-            showCenterPlayBtn={false}
-            showPlayBtn={false}
-            showFullscreenBtn={false}
+            nativeProps={
+              process.env.TARO_ENV === "h5"
+                ? {
+                    controls: state.fullscreen,
+                    onVolumeChange: (event: Event) =>
+                      model.mute(state.epoch, (event.target as HTMLVideoElement).muted),
+                  }
+                : undefined
+            }
+            controls={state.fullscreen}
+            showCenterPlayBtn={state.fullscreen}
+            showPlayBtn={state.fullscreen}
+            showFullscreenBtn={state.fullscreen}
+            showMuteBtn={false}
             enablePlayGesture={false}
-            enableProgressGesture={false}
+            enableProgressGesture={state.fullscreen}
             initialTime={state.sourceAtMs / 1000}
             objectFit="contain"
-            onLoadedMetaData={() => {
+            onLoadedMetaData={(event) => {
               if (!model.hasSource(state.epoch)) return;
-              readyEpoch.current = state.epoch;
-              context()?.seek(model.snapshot().positionMs / 1000);
-              if (model.canPlay(state.epoch)) context()?.play();
+              model.metadata(state.epoch, event.detail.width, event.detail.height);
+              setReadyEpoch(state.epoch);
+              context(state.epoch)?.seek(model.snapshot().positionMs / 1000);
+              if (model.canPlay(state.epoch)) context(state.epoch)?.play();
             }}
             onPlay={() => {
-              if (!model.canPlay(state.epoch)) context()?.pause();
+              if (model.canPlay(state.epoch)) return;
+              if (model.hasSource(state.epoch) && model.snapshot().fullscreen)
+                gatedPauseEpoch.current = state.epoch;
+              context(state.epoch)?.pause();
+              // 原生全屏的继续播放也走既有网络确认、开关、到期换签与身份守卫。
+              void model.nativePlay(state.epoch);
             }}
             onPause={() => {
+              if (gatedPauseEpoch.current === state.epoch) {
+                gatedPauseEpoch.current = null;
+                return;
+              }
               if (model.hasSource(state.epoch)) model.pause(state.epoch);
             }}
             onTimeUpdate={(event) => model.time(state.epoch, event.detail.currentTime * 1000)}
             onEnded={() => model.ended(state.epoch)}
             onError={() => model.failed(state.epoch)}
+            onFullscreenChange={(event) => {
+              // H5 原生事件会冒泡到 Taro 节点，但没有小程序 detail；由专属 watcher 接管。
+              if (process.env.TARO_ENV === "h5" || !event.detail) return;
+              fullscreenChanged(state.epoch, Boolean(event.detail.fullScreen));
+            }}
           />
         ) : trailer.posterUrl?.url ? (
-          <Image className="trailer-player__poster" src={trailer.posterUrl.url} mode="aspectFill" />
+          <Image className="trailer-player__poster" src={trailer.posterUrl.url} mode="aspectFit" />
         ) : (
           <View className="trailer-player__placeholder">
             <View className="trailer-player__frame-line" />
@@ -149,8 +269,11 @@ export function TrailerPlayer({
           </View>
         ) : null}
         <View className="trailer-player__duration">预告片 {trailerTime(trailer.durationMs)}</View>
-        {children ? <View className="trailer-player__overlay">{children}</View> : null}
+        {children && !landscape ? (
+          <View className="trailer-player__overlay">{children}</View>
+        ) : null}
       </View>
+      {children && landscape ? <View className="trailer-player__facts">{children}</View> : null}
       <View className="trailer-player__controls">
         <Button
           size="sm"
@@ -160,6 +283,23 @@ export function TrailerPlayer({
           onClick={play}
         >
           {enabled ? buttonText : "预告片播放暂未开放"}
+        </Button>
+        <Button
+          className="trailer-player__fullscreen"
+          size="sm"
+          variant="secondary"
+          icon="fullscreen"
+          disabled={
+            blocked ||
+            !enabled ||
+            state.busy ||
+            !state.source ||
+            !state.dimensions ||
+            readyEpoch !== state.epoch
+          }
+          onClick={fullscreen}
+        >
+          全屏观看
         </Button>
         {!feed ? (
           <TextButton tone="muted" disabled={blocked || !enabled} onClick={model.toggleMute}>
@@ -186,6 +326,9 @@ export function TrailerPlayer({
         </View>
       </View>
       {state.error ? <View className="trailer-player__error">{state.error}</View> : null}
+      {state.fullscreenError ? (
+        <View className="trailer-player__error">{state.fullscreenError}</View>
+      ) : null}
       <Sheet
         visible={state.mobilePrompt && !blocked}
         title="使用移动网络播放"

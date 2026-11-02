@@ -11,6 +11,7 @@ import { link, release } from "./refs.js";
 import { contextHash, manualDerivationTarget } from "./production.js";
 import { DerivationInputSchema, ProbeInputSchema } from "./production-job-schemas.js";
 import { deliveryProductionFacts } from "./production/facts.js";
+import { trailerRendition } from "./production/trailer-rendition.js";
 import {
   LocalSamplePlayableInputSchema,
   PlayableInputSchema,
@@ -64,6 +65,8 @@ export async function enqueueTrailer(
     });
   if (!checked)
     throw new AppError("TRAILER_SOURCE_CHECKING", { details: { sourceFileId: input.fileId } });
+  const sd = info ? trailerRendition(info, "sd") : null,
+    hd = info ? trailerRendition(info, "hd") : null;
   if (
     checked.profile !== "trailer_src" ||
     checked.gate !== "pass" ||
@@ -140,6 +143,8 @@ export async function enqueueTrailer(
         orderBy: { id: "asc" },
       })
     ).map((v) => v.id);
+  if (!sd || !hd)
+    throw new AppError("TRAILER_SOURCE_REJECTED", { details: { reason: "dimensions" } });
   const ids: string[] = [],
     nonce = randomBytes(8).toString("hex");
   for (const quality of ["sd", "hd"] as const) {
@@ -165,7 +170,7 @@ export async function enqueueTrailer(
             quality,
             objectKey: `t/${drama.dramaId}/${nonce}/${quality}.mp4`,
             scratchKey: `ci-out/${id}/output.mp4`,
-            template: production.config.templates[quality],
+            rendition: quality === "sd" ? sd : hd,
             specVersion,
             aiUsed: drama.isAiGenerated,
             watermarks: [

@@ -53,6 +53,30 @@ function setup() {
   };
 }
 describe("预告片点击播放、短时地址与生命周期", () => {
+  it("内嵌尺寸取实际选中清晰度，保留任意横竖比例，顶层尺寸缺失也不影响", () => {
+    const current = playable();
+    expect(
+      trailerSource(
+        trailer,
+        {
+          ...current,
+          sources: [{ ...current.sources[0]!, width: 853, height: 480 }],
+        },
+        Date.parse("2026-11-02T00:00:00Z"),
+      ).dimensions,
+    ).toEqual({ width: 853, height: 480 });
+    expect(
+      trailerSource(
+        trailer,
+        {
+          ...current,
+          width: null,
+          height: null,
+        },
+        Date.parse("2026-11-02T00:00:00Z"),
+      ).dimensions,
+    ).toEqual({ width: 180, height: 320 });
+  });
   it("未点击不取地址且默认静音；移动网络确认前不取地址，取消后可再次确认", async () => {
     const { player, fetch, network } = setup();
     expect(player.snapshot()).toMatchObject({ source: null, playing: false, muted: true });
@@ -134,5 +158,95 @@ describe("预告片点击播放、短时地址与生命周期", () => {
     expect(player.snapshot().error).toContain("重新获取");
     await player.retry();
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+  it.each([
+    { width: 1920, height: 1080, direction: 90 },
+    { width: 1080, height: 1920, direction: 0 },
+    { width: 1000, height: 1000, direction: 0 },
+  ])("$width×$height 全屏方向正确，退出即暂停并保留当前位置", async (size) => {
+    const { player, fetch } = setup();
+    const current = playable();
+    fetch.mockResolvedValueOnce({
+      ...current,
+      sources: [{ ...current.sources[0]!, width: size.width, height: size.height }],
+    });
+    expect(player.fullscreenRequest(0)).toBeNull();
+    await player.play();
+    const epoch = player.snapshot().epoch;
+    expect(player.fullscreenRequest(epoch)).toBe(size.direction);
+    expect(player.fullscreenChanged(epoch, true)).toBe(true);
+    player.time(epoch, 12_000);
+    player.fullscreenChanged(epoch, false);
+    expect(player.snapshot()).toMatchObject({
+      fullscreen: false,
+      playing: false,
+      positionMs: 12_000,
+    });
+  });
+  it("全屏原生暂停后继续播放仍检查网络，移动网络重新确认前暂停并退出全屏", async () => {
+    const { player, fetch, network } = setup();
+    await player.play();
+    const epoch = player.snapshot().epoch;
+    player.fullscreenChanged(epoch, true);
+    player.pause(epoch);
+    await player.nativePlay(epoch);
+    expect(player.snapshot()).toMatchObject({ fullscreen: true, playing: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(network).toHaveBeenCalledTimes(2);
+    player.pause(epoch);
+    network.mockResolvedValueOnce("4g");
+    await player.nativePlay(epoch);
+    expect(player.snapshot()).toMatchObject({
+      source: null,
+      fullscreen: false,
+      playing: false,
+      mobilePrompt: true,
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each(["hide", "dispose", "block", "scope", "flag"])(
+    "%s后旧全屏和原生播放事件不恢复播放或串状态",
+    async (reason) => {
+      const { player, fetch, switchScope, disable } = setup();
+      await player.play();
+      const oldEpoch = player.snapshot().epoch;
+      player.fullscreenChanged(oldEpoch, true);
+      if (reason === "hide") player.hide();
+      else if (reason === "dispose") player.dispose();
+      else if (reason === "block") player.block(true);
+      else if (reason === "scope") switchScope();
+      else disable();
+      expect(player.fullscreenChanged(oldEpoch, true)).toBe(false);
+      await player.nativePlay(oldEpoch);
+      expect(player.canPlay(oldEpoch)).toBe(false);
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
+  it("换源后旧全屏退出、失败、尺寸和播放回调不影响新源；失败只提示固定文案", async () => {
+    const { player, fetch } = setup();
+    await player.play();
+    const oldEpoch = player.snapshot().epoch;
+    player.fullscreenChanged(oldEpoch, true);
+    player.failed(oldEpoch);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(player.snapshot().busy).toBe(false));
+    const epoch = player.snapshot().epoch;
+    expect(epoch).toBeGreaterThan(oldEpoch);
+    player.fullscreenChanged(oldEpoch, false);
+    player.fullscreenFailed(oldEpoch);
+    player.metadata(oldEpoch, 1920, 1080);
+    await player.nativePlay(oldEpoch);
+    expect(player.snapshot()).toMatchObject({
+      fullscreen: false,
+      playing: true,
+      fullscreenError: null,
+      dimensions: { width: 180, height: 320 },
+    });
+    player.fullscreenChanged(epoch, false);
+    expect(player.snapshot().playing).toBe(true);
+    player.fullscreenFailed(epoch);
+    expect(player.snapshot().fullscreenError).toBe("暂时无法进入全屏，请重试");
+    expect(player.fullscreenRequest(epoch)).toBe(0);
+    expect(player.snapshot().fullscreenError).toBeNull();
   });
 });

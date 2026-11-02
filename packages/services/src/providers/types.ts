@@ -747,6 +747,18 @@ export interface MediaAuditJob {
   readonly labels?: readonly string[];
 }
 
+/** CI gives TemplateId priority over inline parameters, so a request must choose one recipe. */
+export type MediaTranscodeRecipe =
+  | { readonly template: string; readonly rendition?: never }
+  | {
+      readonly template?: never;
+      readonly rendition: {
+        readonly quality: "sd" | "hd";
+        readonly width: number;
+        readonly height: number;
+      };
+    };
+
 export interface MediaProvider extends ProviderBase {
   /** 体检：分辨率、时长、编码、音轨。没有真正体检时 report 为 null */
   probe(input: {
@@ -754,23 +766,24 @@ export interface MediaProvider extends ProviderBase {
     signal?: AbortSignal;
   }): Promise<ProviderResult<{ processed: boolean; report: MediaProbeReport | null }>>;
   /** 转码 */
-  transcode(input: {
-    src: ObjectRef;
-    signal?: AbortSignal;
-    dst: ObjectRef;
-    template: string;
-    userData: string;
-    watermarks?: readonly (
-      | { readonly templateId: string }
-      | {
-          readonly text: string;
-          readonly position: "Center" | "TopRight";
-          readonly fontSize: number;
-          readonly transparency: number;
-        }
-      | { readonly image: ObjectRef; readonly position: "Center"; readonly transparency: number }
-    )[];
-  }): Promise<ProviderResult<MediaJob>>;
+  transcode(
+    input: {
+      src: ObjectRef;
+      signal?: AbortSignal;
+      dst: ObjectRef;
+      userData: string;
+      watermarks?: readonly (
+        | { readonly templateId: string }
+        | {
+            readonly text: string;
+            readonly position: "Center" | "TopRight";
+            readonly fontSize: number;
+            readonly transparency: number;
+          }
+        | { readonly image: ObjectRef; readonly position: "Center"; readonly transparency: number }
+      )[];
+    } & MediaTranscodeRecipe,
+  ): Promise<ProviderResult<MediaJob>>;
   /** 打包：把同一个桶里的几个对象打成一个压缩包 */
   pack(input: {
     bucket: StorageBucket;

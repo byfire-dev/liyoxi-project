@@ -150,10 +150,34 @@ export function createCiMedia(
         !object(input.dst) ||
         input.src.bucket !== "media" ||
         input.dst.bucket !== "media" ||
-        !id(input.template) ||
         !data(input.userData)
       )
         return bad();
+      let transcodeXml: string;
+      if (Object.hasOwn(input, "template") && !Object.hasOwn(input, "rendition")) {
+        if (!id(input.template)) return bad();
+        transcodeXml = `<TemplateId>${xmlEscape(input.template)}</TemplateId>`;
+      } else if (Object.hasOwn(input, "rendition") && !Object.hasOwn(input, "template")) {
+        const rendition = input.rendition;
+        if (
+          !rendition ||
+          typeof rendition !== "object" ||
+          Array.isArray(rendition) ||
+          Object.keys(rendition).length !== 3 ||
+          !Object.hasOwn(rendition, "quality") ||
+          !["sd", "hd"].includes(rendition.quality) ||
+          !Object.hasOwn(rendition, "width") ||
+          !Object.hasOwn(rendition, "height") ||
+          ![rendition.width, rendition.height].every(
+            (side) => Number.isInteger(side) && side >= 128 && side <= 1280 && side % 2 === 0,
+          )
+        )
+          return bad();
+        // Tiny padding absorbs even-pixel rounding without stretching or cropping the source.
+        // Rotate is an extra transform; omit it and verify the actual display orientation on readback.
+        const sd = rendition.quality === "sd";
+        transcodeXml = `<Transcode><Container><Format>mp4</Format></Container><Video><Codec>H.264</Codec><Profile>${sd ? "main" : "high"}</Profile><Pixfmt>yuv420p</Pixfmt><Width>${rendition.width}</Width><Height>${rendition.height}</Height><Fps>30</Fps><Gop>60</Gop><Bitrate>${sd ? 700 : 1500}</Bitrate></Video><Audio><Codec>aac</Codec><Samplerate>48000</Samplerate><Bitrate>${sd ? 64 : 96}</Bitrate><Channels>2</Channels><KeepAllTracks>false</KeepAllTracks></Audio><TransConfig><AdjDarMethod>pad</AdjDarMethod><IsCheckReso>false</IsCheckReso></TransConfig></Transcode>`;
+      } else return bad();
       const watermarks = input.watermarks ?? [];
       if (!Array.isArray(watermarks) || watermarks.length > 3) return bad();
       if (watermarks.some((mark) => !mark || typeof mark !== "object" || Array.isArray(mark)))
@@ -234,7 +258,7 @@ export function createCiMedia(
       }
       return submit(
         input.src.bucket,
-        `<Tag>Transcode</Tag><Input><Object>${xmlEscape(input.src.key)}</Object></Input><Operation><TemplateId>${xmlEscape(input.template)}</TemplateId>${watermarkXml.join("")}<Output><Region>${xmlEscape(config.region)}</Region><Bucket>${xmlEscape(config.buckets[input.dst.bucket])}</Bucket><Object>${xmlEscape(input.dst.key)}</Object></Output><UserData>${input.userData}</UserData></Operation>`,
+        `<Tag>Transcode</Tag><Input><Object>${xmlEscape(input.src.key)}</Object></Input><Operation>${transcodeXml}${watermarkXml.join("")}<Output><Region>${xmlEscape(config.region)}</Region><Bucket>${xmlEscape(config.buckets[input.dst.bucket])}</Bucket><Object>${xmlEscape(input.dst.key)}</Object></Output><UserData>${input.userData}</UserData></Operation>`,
         input.userData,
         input.signal,
       );
