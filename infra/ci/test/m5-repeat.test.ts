@@ -104,7 +104,14 @@ it("M5固定真实脚本不可覆盖，M1/2/3/4入口与单轮隔离日志自然
     expect(m5).toContain(required);
   expect(m5).not.toMatch(/continue-on-error|\|\| true|secrets\.|: write/);
   const ci = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8");
-  for (const command of ["run: pnpm e2e", "run: pnpm e2e:m3", "run: pnpm e2e:m4"])
+  for (const command of [
+    "run: pnpm e2e",
+    "run: pnpm e2e:m3",
+    "run: pnpm e2e:m4",
+    "run: pnpm e2e:m5",
+    "run: node infra/ci/landed.mjs --check --require M0,M1,M2,M3,M4,M5",
+    "run: node infra/ci/four-counts.mjs --require M0,M1,M2,M3,M4,M5",
+  ])
     expect(ci.split("\n").map((line) => line.trim())).toContain(command);
 });
 
