@@ -1,0 +1,156 @@
+.trailer-player--detail {
+  .trailer-player__frame {
+    padding-top: var(--trailer-frame-padding, 56.25%);
+  }
+  .trailer-player__brand,
+  .trailer-player__frame-line {
+    display: none;
+  }
+  .trailer-player__title {
+    top: auto;
+    right: 70px;
+    bottom: 16px;
+    left: 20px;
+    font-size: 18px;
+    letter-spacing: 1px;
+    writing-mode: horizontal-tb;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+.detail-trailer-controls {
+  position: absolute;
+  inset: 0;
+  color: $lyx-color-text-inverse;
+  &__surface {
+    position: absolute;
+    inset: 0;
+  }
+  &__centre {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    background: $lyx-color-mask;
+  }
+  &__start {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: $lyx-radius-pill;
+    background: $lyx-color-mask;
+  }
+  &__start--disabled {
+    opacity: 0.5;
+  }
+  &__play-icon {
+    width: 0;
+    height: 0;
+    margin-left: 4px;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 16px solid currentColor;
+  }
+  &__pause-icon {
+    box-sizing: border-box;
+    width: 16px;
+    height: 20px;
+    border-left: 5px solid currentColor;
+    border-right: 5px solid currentColor;
+  }
+  &__message {
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+  }
+  &__caption,
+  &__duration {
+    font-size: 12px;
+  }
+  &__duration {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    padding: 3px 6px;
+    border-radius: $lyx-radius-sm;
+    background: $lyx-color-mask;
+    pointer-events: none;
+  }
+  &__bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 12px 8px 0;
+    background: linear-gradient(transparent, $lyx-color-bg-inverse);
+  }
+  &__slider {
+    margin: 0 12px -8px;
+    padding: 16px 0;
+  }
+  &__row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  &__toggle {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: $lyx-size-touch-min;
+    height: $lyx-size-touch-min;
+  }
+  &__time {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  &__sound {
+    position: relative;
+  }
+  &__sound-hint {
+    position: absolute;
+    right: 0;
+    bottom: 44px;
+    padding: 4px 8px;
+    border-radius: $lyx-radius-sm;
+    background: $lyx-color-bg-inverse;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .lyx-icon-button {
+    color: $lyx-color-text-inverse;
+  }
+  .lyx-icon-button--disabled {
+    opacity: 0.5;
+  }
+  &__fullscreen-error {
+    padding: 0 12px 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  &__spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid $lyx-color-fill-on-dark;
+    border-top-color: $lyx-color-text-inverse;
+    border-radius: $lyx-radius-pill;
+    animation: detail-trailer-spin 0.8s linear infinite;
+  }
+}
+@keyframes detail-trailer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

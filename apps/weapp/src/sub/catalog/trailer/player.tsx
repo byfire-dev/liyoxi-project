@@ -22,12 +22,14 @@ import {
   watchTrailerFullscreen,
 } from "./player-platform";
 import { trailerScopeKey } from "./scope";
+import { DetailTrailerControls } from "./detail-controls";
 import "./player.scss";
 
 export function TrailerPlayer({
   trailer,
   title,
   feed = false,
+  compact = false,
   blocked = false,
   onLandscapeChange,
   children,
@@ -35,6 +37,7 @@ export function TrailerPlayer({
   trailer: Trailer;
   title: string;
   feed?: boolean;
+  compact?: boolean;
   blocked?: boolean;
   onLandscapeChange?(landscape: boolean): void;
   children?: ReactNode;
@@ -57,6 +60,8 @@ export function TrailerPlayer({
   );
   const state = useSyncExternalStore(model.subscribe, model.snapshot, model.snapshot);
   const [readyEpoch, setReadyEpoch] = useState(-1);
+  const [ended, setEnded] = useState(false);
+  const detailControls = compact && !feed;
   const fullscreenEpoch = useRef<number | null>(null);
   const gatedPauseEpoch = useRef<number | null>(null);
   const fullscreenAttempt = useRef(0);
@@ -138,6 +143,7 @@ export function TrailerPlayer({
   });
   useDidShow(model.show);
   const play = () => {
+    setEnded(false);
     if (state.playing) model.pause();
     else if (state.error) void model.retry();
     else void model.play();
@@ -173,7 +179,7 @@ export function TrailerPlayer({
   const buttonText = state.error ? "重新获取播放地址" : state.playing ? "暂停预告片" : "播放预告片";
   return (
     <View
-      className={`trailer-player${feed ? " trailer-player--feed" : ""}${landscape ? " trailer-player--landscape" : ""}`}
+      className={`trailer-player${feed ? " trailer-player--feed" : ""}${detailControls ? " trailer-player--detail" : ""}${landscape ? " trailer-player--landscape" : ""}`}
       style={
         state.dimensions
           ? `--trailer-frame-padding: ${(state.dimensions.height / state.dimensions.width) * 100}%`
@@ -215,6 +221,7 @@ export function TrailerPlayer({
               if (model.canPlay(state.epoch)) context(state.epoch)?.play();
             }}
             onPlay={() => {
+              if (model.hasSource(state.epoch)) setEnded(false);
               if (model.canPlay(state.epoch)) return;
               if (model.hasSource(state.epoch) && model.snapshot().fullscreen)
                 gatedPauseEpoch.current = state.epoch;
@@ -230,7 +237,10 @@ export function TrailerPlayer({
               if (model.hasSource(state.epoch)) model.pause(state.epoch);
             }}
             onTimeUpdate={(event) => model.time(state.epoch, event.detail.currentTime * 1000)}
-            onEnded={() => model.ended(state.epoch)}
+            onEnded={() => {
+              if (model.hasSource(state.epoch)) setEnded(true);
+              model.ended(state.epoch);
+            }}
             onError={() => model.failed(state.epoch)}
             onFullscreenChange={(event) => {
               // H5 原生事件会冒泡到 Taro 节点，但没有小程序 detail；由专属 watcher 接管。
@@ -247,7 +257,7 @@ export function TrailerPlayer({
             <View className="trailer-player__title">{title}</View>
           </View>
         )}
-        {!state.source && enabled ? (
+        {!detailControls && !state.source && enabled ? (
           <View className="trailer-player__start">
             <Button
               size="lg"
@@ -268,66 +278,100 @@ export function TrailerPlayer({
             </TextButton>
           </View>
         ) : null}
-        <View className="trailer-player__duration">预告片 {trailerTime(trailer.durationMs)}</View>
+        {!detailControls ? (
+          <View className="trailer-player__duration">预告片 {trailerTime(trailer.durationMs)}</View>
+        ) : null}
+        {detailControls && !state.fullscreen ? (
+          <DetailTrailerControls
+            key={state.epoch}
+            source={Boolean(state.source)}
+            ready={readyEpoch === state.epoch}
+            playing={state.playing}
+            muted={state.muted}
+            busy={state.busy}
+            ended={ended && Boolean(state.source)}
+            disabled={blocked || !enabled}
+            enabled={enabled}
+            error={state.error}
+            fullscreenError={state.fullscreenError}
+            canFullscreen={
+              !blocked &&
+              enabled &&
+              !state.busy &&
+              Boolean(state.source && state.dimensions) &&
+              readyEpoch === state.epoch
+            }
+            durationMs={trailer.durationMs}
+            positionMs={state.positionMs}
+            onPlay={play}
+            onMute={model.toggleMute}
+            onSeek={model.seek}
+            onFullscreen={fullscreen}
+          />
+        ) : null}
         {children && !landscape ? (
           <View className="trailer-player__overlay">{children}</View>
         ) : null}
       </View>
       {children && landscape ? <View className="trailer-player__facts">{children}</View> : null}
-      <View className="trailer-player__controls">
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={blocked || !enabled}
-          loading={state.busy}
-          onClick={play}
-        >
-          {enabled ? buttonText : "预告片播放暂未开放"}
-        </Button>
-        <Button
-          className="trailer-player__fullscreen"
-          size="sm"
-          variant="secondary"
-          icon="fullscreen"
-          disabled={
-            blocked ||
-            !enabled ||
-            state.busy ||
-            !state.source ||
-            !state.dimensions ||
-            readyEpoch !== state.epoch
-          }
-          onClick={fullscreen}
-        >
-          全屏观看
-        </Button>
-        {!feed ? (
-          <TextButton tone="muted" disabled={blocked || !enabled} onClick={model.toggleMute}>
-            {state.muted ? "已静音，开启声音" : "关闭声音"}
-          </TextButton>
-        ) : null}
-      </View>
-      <View className="trailer-player__progress">
-        <Slider
-          className="trailer-player__slider"
-          ariaLabel="预告片播放进度"
-          min={0}
-          max={Math.max(1, Math.ceil(trailer.durationMs / 1000))}
-          value={Math.floor(state.positionMs / 1000)}
-          disabled={blocked || state.busy || !state.source}
-          activeColor={sharedTokens.color.primary}
-          backgroundColor={sharedTokens.color.border}
-          blockColor={sharedTokens.color.primary}
-          blockSize={12}
-          onChange={(event) => model.seek(Number(event.detail.value) * 1000)}
-        />
-        <View className="trailer-player__time">
-          {trailerTime(state.positionMs)} / {trailerTime(trailer.durationMs)}
-        </View>
-      </View>
-      {state.error ? <View className="trailer-player__error">{state.error}</View> : null}
-      {state.fullscreenError ? (
-        <View className="trailer-player__error">{state.fullscreenError}</View>
+      {!detailControls ? (
+        <>
+          <View className="trailer-player__controls">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={blocked || !enabled}
+              loading={state.busy}
+              onClick={play}
+            >
+              {enabled ? buttonText : "预告片播放暂未开放"}
+            </Button>
+            <Button
+              className="trailer-player__fullscreen"
+              size="sm"
+              variant="secondary"
+              icon="fullscreen"
+              disabled={
+                blocked ||
+                !enabled ||
+                state.busy ||
+                !state.source ||
+                !state.dimensions ||
+                readyEpoch !== state.epoch
+              }
+              onClick={fullscreen}
+            >
+              全屏观看
+            </Button>
+            {!feed ? (
+              <TextButton tone="muted" disabled={blocked || !enabled} onClick={model.toggleMute}>
+                {state.muted ? "已静音，开启声音" : "关闭声音"}
+              </TextButton>
+            ) : null}
+          </View>
+          <View className="trailer-player__progress">
+            <Slider
+              className="trailer-player__slider"
+              ariaLabel="预告片播放进度"
+              min={0}
+              max={Math.max(1, Math.ceil(trailer.durationMs / 1000))}
+              value={Math.floor(state.positionMs / 1000)}
+              disabled={blocked || state.busy || !state.source}
+              activeColor={sharedTokens.color.primary}
+              backgroundColor={sharedTokens.color.border}
+              blockColor={sharedTokens.color.primary}
+              blockSize={12}
+              onChange={(event) => model.seek(Number(event.detail.value) * 1000)}
+            />
+            <View className="trailer-player__time">
+              {trailerTime(state.positionMs)} / {trailerTime(trailer.durationMs)}
+            </View>
+          </View>
+          {state.error ? <View className="trailer-player__error">{state.error}</View> : null}
+          {state.fullscreenError ? (
+            <View className="trailer-player__error">{state.fullscreenError}</View>
+          ) : null}
+        </>
       ) : null}
       <Sheet
         visible={state.mobilePrompt && !blocked}
