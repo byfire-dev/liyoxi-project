@@ -321,7 +321,7 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
           <View className="settings-page__brand-name">
             狸有戏<Text className="settings-page__brand-trademark">™</Text>
           </View>
-          <View className="settings-page__brand-tagline">让门店，出现在好故事里</View>
+          <View className="settings-page__brand-tagline">让好生意，更有戏</View>
         </View>
       </PageBody>
       <Sheet

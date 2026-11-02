@@ -56,7 +56,7 @@ export default function Login() {
         />
         <Text className="account-login__brand-trademark">™</Text>
       </View>
-      <View className="account-login__tagline">让门店，出现在好故事里</View>
+      <View className="account-login__tagline">让好生意，更有戏</View>
       <View className="account-login__intro">用短剧讲好门店故事，为生意带来新客</View>
       <View className="account-login__benefits">
         <View>
