@@ -86,6 +86,7 @@ function DetailContent({ id }: { id: string }) {
             key={detail.trailer.playableId}
             trailer={detail.trailer}
             title={detail.title}
+            compact
             blocked={resource.loading}
           />
         ) : (

@@ -7,7 +7,7 @@ import {
   offlineCatalogRequest,
 } from "./catalog-fixtures";
 
-export function trailerDetail(n = 1): Data<"m.drama.get"> {
+export function trailerDetail(n = 1, durationMs = 1000): Data<"m.drama.get"> {
   return {
     ...structuredClone(catalogDetail),
     ...catalogCard(n),
@@ -17,15 +17,16 @@ export function trailerDetail(n = 1): Data<"m.drama.get"> {
         : {
             playableId: `00000000-0000-4000-8000-${String(700 + n).padStart(12, "0")}`,
             posterUrl: null,
-            durationMs: 1000,
+            durationMs,
           },
   };
 }
 
-/** 显式 H5 场景专用；视频地址由截图脚本提供同源本地1秒媒体，不访问外网。 */
+/** 显式 H5 场景专用；截图脚本提供同源本地媒体，详情8秒、预告流1秒，不访问外网。 */
 export function offlineTrailerRequest(scene: string): RequestLayer["request"] {
   const width = scene.includes("landscape") ? 320 : 180,
-    height = scene.includes("landscape") ? 180 : 320;
+    height = scene.includes("landscape") ? 180 : 320,
+    durationMs = scene === "trailer-inline-landscape" ? 8000 : 1000;
   const calls: { path: string; method: string }[] = [];
   (globalThis as { __LYX_TRAILER_CALLS__?: typeof calls }).__LYX_TRAILER_CALLS__ = calls;
   const fallback = offlineCatalogRequest("detail-owner");
@@ -45,13 +46,13 @@ export function offlineTrailerRequest(scene: string): RequestLayer["request"] {
     }
     if (url.pathname.startsWith("/m/dramas/")) {
       const id = url.pathname.split("/").at(-1)!;
-      return trailerDetail(Number(id.slice(-3))) as T;
+      return trailerDetail(Number(id.slice(-3)), durationMs) as T;
     }
     if (url.pathname.startsWith("/m/playables/"))
       return {
         playableId: url.pathname.split("/").at(-1),
         kind: "trailer",
-        durationMs: 1000,
+        durationMs,
         width,
         height,
         posterUrl: null,
