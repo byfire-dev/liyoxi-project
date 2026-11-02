@@ -3,7 +3,6 @@ import { Image, Text, View } from "@tarojs/components";
 import { useDidShow } from "@tarojs/taro";
 
 import { Icon } from "@/components/Icon";
-import brandLockup from "@/assets/brand/04-horizontal-lockup-transparent.png";
 import { LoadError } from "@/components/LoadError";
 import { NavBar } from "@/components/NavBar";
 import { Skeleton } from "@/components/Skeleton";
@@ -50,7 +49,7 @@ export default function Login() {
       <View className="account-login__brand">
         <Image
           className="account-login__brand-image"
-          src={brandLockup}
+          src={`${process.env.TARO_ENV === "h5" ? "." : ""}/assets/brand/04-horizontal-lockup-transparent.png`}
           mode="aspectFit"
           ariaLabel="狸有戏"
         />

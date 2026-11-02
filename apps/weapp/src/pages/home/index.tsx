@@ -4,7 +4,6 @@ import Taro from "@tarojs/taro";
 import { formatInteger } from "@liyoxi/shared/format/money";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { NavBar } from "@/components/NavBar";
-import brandWordmark from "@/assets/brand/07-wordmark-transparent.png";
 import { Card } from "@/components/Card";
 import { PageBody } from "@/components/PageBody";
 import { Button } from "@/components/Button";
@@ -308,7 +307,7 @@ function HomeContent() {
           <View className="home-page__brand">
             <Image
               className="home-page__brand-image"
-              src={brandWordmark}
+              src={`${process.env.TARO_ENV === "h5" ? "." : ""}/assets/brand/07-wordmark-transparent.png`}
               mode="aspectFit"
               ariaLabel="狸有戏"
             />
