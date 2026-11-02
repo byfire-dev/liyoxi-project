@@ -204,7 +204,8 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         }
       }
     } finally {
-      redis?.disconnect();
+      // 初次连接已自然结束时不重复断开：ioredis 会为已关闭的流再建收尾定时器。
+      if (redis && redis.status !== "end") redis.disconnect();
     }
     if (errors.length) throw new AggregateError(errors, "M1 本轮资源未完整清理");
   };
@@ -217,7 +218,15 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
     });
     // 错误由 connect/命令 Promise 传回；不让 ioredis 默认日志暴露连接信息。
     redis.on("error", () => undefined);
-    await redis.connect();
+    // 首次 connect 失败本来就由本函数回收并抛出；不要在该窗口自动重连。
+    // 成功后恢复原策略，既有会话的连接恢复行为不变。
+    const retryStrategy = redis.options.retryStrategy;
+    redis.options.retryStrategy = null;
+    try {
+      await redis.connect();
+    } finally {
+      redis.options.retryStrategy = retryStrategy;
+    }
     if (attach) {
       if ((await redis.get(ownerKey)) !== ownerToken)
         throw new Error("M1 attach 自有Redis能力已失效");
