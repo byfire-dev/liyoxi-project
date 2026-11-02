@@ -11,6 +11,8 @@ import { coverImageFailure, coverImageIdentity } from "./diagnostics";
 
 import "./index.scss";
 
+const coverImageBuild = "cover-request-20261102b";
+
 /**
  * grid 宫格封面（占满所在列，圆角 8）；scroll 横滑卡封面（占满外层给的宽度，圆角 10）；
  * thumb 单张缩略图 60 × 80；thumb-sm 一行并排多张时 42 × 56（圆角都是 6）
@@ -73,6 +75,7 @@ function CoverForSource({
       onResult(result) {
         if (result.statusCode !== undefined)
           console.info("[短剧封面] 下载响应", {
+            build: coverImageBuild,
             ...coverImageIdentity(src),
             transport: "request",
             statusCode: result.statusCode,
@@ -85,12 +88,17 @@ function CoverForSource({
               : error instanceof Error
                 ? error.message
                 : undefined;
-          console.warn("[短剧封面] 下载失败", coverImageFailure(src, message));
+          console.warn("[短剧封面] 下载失败", {
+            build: coverImageBuild,
+            ...coverImageFailure(src, message),
+          });
         }
       },
     });
     recovery.current = retry;
     retry.activate();
+    // 原生图片可能先于 effect 报错；已记住的首次错误必须在激活后补发恢复。
+    if (reported.current === src) retry.retry();
     return () => {
       recovery.current = undefined;
       retry.dispose();
@@ -124,6 +132,7 @@ function CoverForSource({
           onLoad={({ detail }) => {
             if (source !== currentSource.current) return;
             console.info("[短剧封面] 图片加载成功", {
+              build: coverImageBuild,
               ...coverImageIdentity(src ?? ""),
               sourceKind: source === src ? "remote" : "downloaded",
               width: detail.width,
@@ -135,8 +144,10 @@ function CoverForSource({
             reported.current = source;
             setFailed(true);
             console.warn("[短剧封面] 图片加载失败", {
+              build: coverImageBuild,
               ...coverImageFailure(src ?? "", detail.errMsg),
               sourceKind: source === src ? "remote" : "downloaded",
+              recoveryReady: Boolean(recovery.current),
             });
             if (source === src) recovery.current?.retry();
           }}

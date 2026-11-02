@@ -44,10 +44,31 @@ describe("封面失败诊断", () => {
     ["image:fail TLS certificate failed ?token=tls-secret", "TLS"],
     ["image:fail network unavailable Authorization=network-secret", "network"],
     ["image:fail HTTP 403 ?X-Amz-Signature=status-secret", "HTTP 403"],
+    ["Image response exceeds upload limit", "image too large"],
+    ["Image response is not PNG or JPEG", "unsupported format"],
+    ["Local image directory is unavailable", "local file"],
+    ["writeFile:fail native error", "local file"],
+    ["writeFileSync failed", "local file"],
+    ["unlinkSync failed", "local file"],
+    ["no space left on device", "local file"],
+    ["permission denied", "local file"],
   ])("保留固定原因而丢弃其余内容：%s", (message, reason) => {
     expect(coverImageFailure("https://media.example.test/cover.jpg", message).errMsg).toBe(
       `image:fail ${reason}`,
     );
+  });
+
+  it("带签名URL的写文件错误只输出固定类别", () => {
+    expect(
+      coverImageFailure(
+        "https://user:password@media.example.test/cover.jpg?X-Amz-Signature=source-secret",
+        "writeFile:fail https://user:password@media.example.test/private/cover.jpg?X-Amz-Signature=write-secret#fragment-secret Authorization: Bearer token-secret /wxfile/private-file.jpg",
+      ),
+    ).toEqual({
+      origin: "https://media.example.test",
+      resourceHash: expect.stringMatching(/^[a-f\d]{8}$/),
+      errMsg: "image:fail local file",
+    });
   });
 
   it("兼容IPv6与非法来源，不把凭据当作origin", () => {

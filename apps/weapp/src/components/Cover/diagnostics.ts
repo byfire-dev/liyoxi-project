@@ -36,6 +36,14 @@ function safeErrorMessage(message: unknown) {
   const native = nativeErrors.find((code) => message.includes(code));
   if (native) return `image:fail ${native}`;
   const text = message.toLowerCase();
+  if (text.includes("image response exceeds upload limit")) return "image:fail image too large";
+  if (text.includes("image response is not png or jpeg")) return "image:fail unsupported format";
+  if (
+    /local image directory is unavailable|writefile|unlinksync|no space|permission denied/.test(
+      text,
+    )
+  )
+    return "image:fail local file";
   if (/not in (?:the )?domain list|domain not configured/.test(text))
     return "image:fail domain not configured";
   if (/timeout|timed out/.test(text)) return "image:fail timeout";
