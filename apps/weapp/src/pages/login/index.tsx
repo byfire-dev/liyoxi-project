@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "@tarojs/components";
+import { Image, Text, View } from "@tarojs/components";
 import { useDidShow } from "@tarojs/taro";
 
 import { Icon } from "@/components/Icon";
+import brandLockup from "@/assets/brand/04-horizontal-lockup-transparent.png";
 import { LoadError } from "@/components/LoadError";
 import { NavBar } from "@/components/NavBar";
 import { Skeleton } from "@/components/Skeleton";
@@ -46,7 +47,15 @@ export default function Login() {
       <NavBar>
         <View className="account-login__nav">商家登录</View>
       </NavBar>
-      <View className="account-login__brand">狸有戏</View>
+      <View className="account-login__brand">
+        <Image
+          className="account-login__brand-image"
+          src={brandLockup}
+          mode="aspectFit"
+          ariaLabel="狸有戏"
+        />
+        <Text className="account-login__brand-trademark">™</Text>
+      </View>
       <View className="account-login__tagline">让门店，出现在好故事里</View>
       <View className="account-login__intro">用短剧讲好门店故事，为生意带来新客</View>
       <View className="account-login__benefits">

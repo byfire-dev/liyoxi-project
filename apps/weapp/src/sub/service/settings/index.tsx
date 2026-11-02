@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Button as NativeButton, View } from "@tarojs/components";
+import { Button as NativeButton, Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { Button } from "@/components/Button";
+import brandIcon from "@/assets/brand/08-app-icon-light-1024.png";
 import { Card } from "@/components/Card";
 import { Checkbox } from "@/components/Checkbox";
 import { Empty } from "@/components/Empty";
@@ -310,6 +311,18 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
             ) : null}
           </List>
         ) : null}
+        <View className="settings-page__brand">
+          <Image
+            className="settings-page__brand-icon"
+            src={brandIcon}
+            mode="aspectFit"
+            ariaLabel="狸有戏品牌图形"
+          />
+          <View className="settings-page__brand-name">
+            狸有戏<Text className="settings-page__brand-trademark">™</Text>
+          </View>
+          <View className="settings-page__brand-tagline">让门店，出现在好故事里</View>
+        </View>
       </PageBody>
       <Sheet
         visible={sheet !== null}

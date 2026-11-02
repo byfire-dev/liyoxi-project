@@ -4,6 +4,7 @@ import Taro from "@tarojs/taro";
 import { formatInteger } from "@liyoxi/shared/format/money";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { NavBar } from "@/components/NavBar";
+import brandWordmark from "@/assets/brand/07-wordmark-transparent.png";
 import { Card } from "@/components/Card";
 import { PageBody } from "@/components/PageBody";
 import { Button } from "@/components/Button";
@@ -304,7 +305,15 @@ function HomeContent() {
           className="home-page__nav-title"
           style={{ paddingLeft: `${Math.max(nav.right - 16, 0)}px` }}
         >
-          <View className="home-page__brand">狸有戏</View>
+          <View className="home-page__brand">
+            <Image
+              className="home-page__brand-image"
+              src={brandWordmark}
+              mode="aspectFit"
+              ariaLabel="狸有戏"
+            />
+            <Text className="home-page__brand-trademark">™</Text>
+          </View>
         </View>
       </NavBar>
       <PageBody>

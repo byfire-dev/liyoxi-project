@@ -10,9 +10,27 @@
     text-align: center;
   }
   &__brand {
-    font-size: 20px;
-    font-weight: $lyx-font-weight-black;
-    white-space: nowrap;
+    position: relative;
+    width: 92px;
+    height: 32px;
+    margin: 0 auto;
+    letter-spacing: 0;
+  }
+  &__brand-image {
+    display: block;
+    width: 89px;
+    height: 32px;
+    // 防止 H5 aspectFit 的内部图片继承标题居中后偏移、被裁切。
+    text-align: left;
+  }
+  &__brand-trademark {
+    position: absolute;
+    top: 1px;
+    right: -3px;
+    font-family: $lyx-font-family-sans;
+    font-size: 9px;
+    font-weight: 400;
+    line-height: 1;
   }
   &__search-row {
     display: flex;

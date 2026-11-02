@@ -398,3 +398,7 @@ H5 替身只由显式样张标记进入；微信真机、真实云签名、真�
 2026-11-03 按业主确认的预览精简短剧详情播放器：未播放仅保留中央播放与总时长；播放后暂停、进度、声音、全屏全部放在画面内，闲置3秒收起，轻触画面唤回，暂停或拖动时保持显示。首次静音播放短暂提示开启声音；加载、重试与重播在画面中央呈现，不再显示技术地址文案。未知宽高时封面使用16:9容器，播放后按实际比例完整显示；图标点击区至少44px。详情专用模式不改变预告流布局、默认静音、移动网络确认及原生全屏守卫。
 
 定点验证：`pnpm --filter @liyoxi/weapp exec vitest run src/sub/catalog/trailer/player-model.test.ts --maxWorkers=1 --no-file-parallelism`；`LYX_E2E_CHANNEL=chrome pnpm weapp:shots --scene trailer-inline-landscape --scene trailer-landscape`。详情离线场景使用浏览器实际录制的8秒片段，覆盖闲置隐藏/唤回、暂停保持、进度拖动、全屏拒绝与进入退出；预告流仍用原1秒片段。额外截图为 `catalog__trailer-inline-initial/playing/hidden.png`，均在 `shots/dist/png/`。H5截图不代表微信同层控件及真机触摸验收，手机还需检查横竖素材、进度拖动和全屏返回。
+
+## 官方品牌标识
+
+2026-11-03 按业主提供的三份正式 PNG 接入：首页导航使用文字标，商家登录使用图文组合标，设置页底部使用图形标与品牌署名。素材以原文件随包发布，保留原色与比例，独立排版 ™；不替换门店、人员、剧目身份，也不改变微信公众平台的小程序头像配置。来源与使用约束见 [品牌素材说明](src/assets/brand/README.md)。

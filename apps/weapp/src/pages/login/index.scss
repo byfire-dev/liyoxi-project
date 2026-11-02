@@ -6,10 +6,27 @@
     font-size: 14px;
   }
   &__brand {
+    position: relative;
+    width: 256px;
+    height: 88px;
+    max-width: 100%;
     margin-top: 38px;
-    font-family: $lyx-font-family-serif;
-    font-size: 44px;
-    font-weight: 700;
+    overflow: hidden;
+  }
+  &__brand-image {
+    // 原图右侧透明留白较宽；仅收起画布空白，商标本体完整等比展示。
+    position: absolute;
+    width: 360px;
+    height: 124px;
+    left: -35px;
+    top: -22px;
+  }
+  &__brand-trademark {
+    position: absolute;
+    top: 13px;
+    right: 2px;
+    font-size: 12px;
+    line-height: 1;
   }
   &__tagline {
     margin-top: 12px;
