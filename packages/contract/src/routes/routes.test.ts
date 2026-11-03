@@ -217,19 +217,29 @@ describe("文档目录与登记表", () => {
 });
 
 describe("路由清单（验收 1、3、6）", () => {
-  it("条数：669 条，V1.0 613、V1.1 56；探活 5 条只登记；natural 15 条；四组 167、470、17、15", () => {
-    expect(routeCatalog).toHaveLength(669);
-    expect(allRoutes.length + allMetaOnlyRoutes.length + allRegistryOnly.length).toBe(669);
-    expect(count(routeCatalog, (e) => e.version === "V1.0")).toBe(613);
+  it("条数：667 条，V1.0 611、V1.1 56；探活 5 条只登记；natural 15 条；四组 167、470、15、15", () => {
+    expect(routeCatalog).toHaveLength(667);
+    expect(allRoutes.length + allMetaOnlyRoutes.length + allRegistryOnly.length).toBe(667);
+    expect(count(routeCatalog, (e) => e.version === "V1.0")).toBe(611);
     expect(count(routeCatalog, (e) => e.version === "V1.1")).toBe(56);
     expect(count(routeCatalog, (e) => e.registryKeyOnly === true)).toBe(5);
     expect(count(routeCatalog, (e) => e.xIdempotent === "natural")).toBe(15);
     const byGroup = (group: string) =>
       count(routeCatalog, (e) => e.operationId.startsWith(`${group}.`));
     expect([byGroup("m"), byGroup("admin"), byGroup("portal"), byGroup("hooks")]).toEqual([
-      167, 470, 17, 15,
+      167, 470, 15, 15,
     ]);
     expect(ROUTE_DOCS).toHaveLength(19);
+  });
+
+  it("Q9 两条历史电脑样片接口已撤销登记，不挂载也不移入 V1.1", () => {
+    for (const id of ["portal.orderItem.sample.get", "portal.sample.playbackUrls"]) {
+      expect(
+        routeCatalog.some((route) => route.operationId === id),
+        id,
+      ).toBe(false);
+      expect(Object.hasOwn(ROUTE_PLACEMENTS, id), id).toBe(false);
+    }
   });
 
   it("清单没有问题：都写了归属，权限点与能力点都在注册表里", () => {

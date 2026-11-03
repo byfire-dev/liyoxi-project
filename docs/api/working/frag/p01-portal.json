@@ -257,59 +257,6 @@
    "writes": []
   },
   {
-   "operationId": "portal.orderItem.sample.get",
-   "method": "GET",
-   "path": "/portal/order-items/{orderItemId}/sample",
-   "section": "3.10",
-   "requestSchemas": [],
-   "responseSchema": "PortalSampleView",
-   "errors": [
-    "NOT_FOUND"
-   ],
-   "events": [],
-   "permission": null,
-   "capability": "sample.view",
-   "transitions": [],
-   "xAuth": "portal",
-   "clerkView": null,
-   "xIdempotent": "none",
-   "idempotentBy": null,
-   "idempotentNote": "纯查询（A18、A19）：不写访问记录、不回写首次查看",
-   "rateLimit": "portal.global",
-   "version": "V1.0",
-   "writes": []
-  },
-  {
-   "operationId": "portal.sample.playbackUrls",
-   "method": "POST",
-   "path": "/portal/samples/{sampleId}/playback-urls",
-   "section": "3.11",
-   "requestSchemas": [],
-   "responseSchema": "Playable",
-   "errors": [
-    "STATE_NOT_ALLOWED",
-    "SAMPLE_VIEW_CHANNEL_NOT_OFFERED",
-    "SAMPLE_PREVIEW_NOT_READY",
-    "NOT_FOUND",
-    "ORIGIN_REJECTED"
-   ],
-   "events": [],
-   "permission": null,
-   "capability": "sample.view",
-   "transitions": [],
-   "xAuth": "portal",
-   "clerkView": null,
-   "xIdempotent": "none",
-   "idempotentBy": null,
-   "idempotentNote": "签发短时地址（A18、A19）：每次签发写访问审计，结果不进幂等记录",
-   "rateLimit": "portal.global",
-   "version": "V1.0",
-   "writes": [
-    "audit_log（stream = access，action = delivery.sample.portal_preview，target_type = sample，client = portal）",
-    "sample.first_viewed_at（为空时）"
-   ]
-  },
-  {
    "operationId": "portal.ad.list",
    "method": "GET",
    "path": "/portal/ads",
@@ -997,14 +944,11 @@
  "proposedCapabilities": [
   {
    "key": "sample.view",
-   "usedBy": [
-    "portal.orderItem.sample.get",
-    "portal.sample.playbackUrls"
-   ],
+   "usedBy": [],
    "owner": true,
    "clerk": false,
    "archivedStoreOwner": true,
-   "note": "仅下载页会话（d5-media.md:1645、2141）；已按 A65、A87 进增补表"
+   "note": "Q9保留历史能力身份；两条电脑样片接口已撤销当前登记，当前无接口使用"
   },
   {
    "key": "ad.view",
@@ -1025,8 +969,9 @@
    "stream": "access",
    "category": "file_access",
    "targetType": "sample",
-   "writtenBy": "portal.sample.playbackUrls",
-   "readBy": "m.sample.confirm（m05）"
+   "writtenBy": null,
+   "readBy": null,
+   "note": "仅保留历史审计身份；Q9不生成新电脑样片证据，也不用于当前样片确认放行"
   },
   {
    "action": "ad.version.portal_preview",
