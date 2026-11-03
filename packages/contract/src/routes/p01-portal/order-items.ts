@@ -47,14 +47,3 @@ export const portalOrderItemReleaseGet = portalMeta({
   "x-capability": "delivery.download",
   "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
 });
-
-export const portalOrderItemSampleGet = portalMeta({
-  method: "get",
-  path: "/portal/order-items/{orderItemId}/sample",
-  operationId: "portal.orderItem.sample.get",
-  summary:
-    "样片只读预览的元数据：当前已推送版本的 sampleId、版本号、时长、广告位标记、海报，并提示回小程序确认或提出修改意见；不含播放地址",
-  "x-auth": "portal",
-  "x-capability": "sample.view",
-  "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
-});
