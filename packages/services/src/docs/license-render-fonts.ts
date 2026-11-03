@@ -74,3 +74,8 @@ export async function loadLicenseFonts(directory: string): Promise<readonly Glyp
   })();
   return registered;
 }
+
+/** Explicit startup work; validates the selected files even after global registration. */
+export async function prepareLicensePdfFonts(directory: string): Promise<void> {
+  await loadLicenseFonts(directory);
+}

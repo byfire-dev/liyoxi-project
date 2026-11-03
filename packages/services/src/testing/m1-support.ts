@@ -33,7 +33,11 @@ import { installM1KnownMedia, m1Video } from "./m1-media.js";
 import { M1_PROFILE_DEFAULTS, seedM1ProfileDefaults } from "./m1-profile-defaults.js";
 import { readM1State } from "./m1-state.js";
 import { m1Transport } from "./m1-transport.js";
-import { createM1DocsConsumer, createM1LicenseRendering } from "./m1-docs.js";
+import {
+  createM1DocsConsumer,
+  createM1LicenseRendering,
+  prepareM1LicenseFonts,
+} from "./m1-docs.js";
 import { m1WorkerObserver, waitM1Worker } from "./m1-observe.js";
 import { completeWithQueuedPromote } from "./m1-upload.js";
 import { M1_LOCAL_WECHAT } from "./m1-wechat.js";
@@ -347,8 +351,11 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       }),
     });
     if (!options.backgroundWorker) {
-      if (licenseTestInputs)
+      if (licenseTestInputs) {
+        // Finish cold font parsing before docs slots and transaction polling are admitted.
+        await prepareM1LicenseFonts(base.LYX_PDF_FONT_DIR);
         licenseRendering = createM1LicenseRendering(clock, base.LYX_PDF_FONT_DIR);
+      }
       workerRuntime = createRuntime({
         entry: "worker",
         env: { ...env, MEDIA_PRODUCTION: productionTools.env },

@@ -18,7 +18,7 @@ import { readM1WorkerBacklog } from "./m1-observe.js";
 import { createM1BackupIo } from "./m1-backup.js";
 import { createM1WechatCallbackIo, M1_LOCAL_WECHAT } from "./m1-wechat.js";
 import { M1_LICENSE_TEST_INPUTS } from "./m1-license-inputs.js";
-import { createM1LicenseRendering } from "./m1-docs.js";
+import { createM1LicenseRendering, prepareM1LicenseFonts } from "./m1-docs.js";
 
 /** IPC input accepts public local fixture configuration only, never arbitrary provider URLs/keys. */
 export const M1WorkerAttachmentSchema = z.strictObject({
@@ -182,6 +182,7 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
         uploadLocation: { region: attach.storage.region, buckets: attach.storage.buckets },
       },
     };
+    if (attach.scope.licenseTestInputs) await prepareM1LicenseFonts(env.LYX_PDF_FONT_DIR);
     const licenseRendering = attach.scope.licenseTestInputs
       ? createM1LicenseRendering(clock, env.LYX_PDF_FONT_DIR)
       : undefined;

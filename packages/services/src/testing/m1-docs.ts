@@ -6,15 +6,23 @@ import type { Clock, QueueChannel, QueueConsumer, Tx } from "../kernel/index.js"
 import { createQueueChannel } from "../kernel/index.js";
 import type { Runtime } from "../runtime.js";
 import type { LicenseRenderingEngine } from "../ops/index.js";
-import { createLicensePdfRenderer } from "../docs/index.js";
+import { createLicensePdfRenderer, prepareLicensePdfFonts } from "../docs/index.js";
 import { createPlatformCertEsign } from "../providers/index.js";
 import { createTestMaterial } from "./esign-material.js";
 import { createTestLicenseTemplateCatalog } from "./license-render.js";
 
+const licenseFontDirectory = (directory?: string) =>
+  directory ?? resolve(import.meta.dirname, "../../../../infra/docker/server/fonts");
+
+/** Prepare before consumer admission; fault-injection renderers retain lazy failure behavior. */
+export async function prepareM1LicenseFonts(fontDir?: string): Promise<void> {
+  await prepareLicensePdfFonts(licenseFontDirectory(fontDir));
+}
+
 export function createM1LicenseRendering(clock: Clock, fontDir?: string): LicenseRenderingEngine {
   const fixture = createTestMaterial(clock.now());
   const renderer = createLicensePdfRenderer({
-    fontDir: fontDir ?? resolve(import.meta.dirname, "../../../../infra/docker/server/fonts"),
+    fontDir: licenseFontDirectory(fontDir),
     catalog: createTestLicenseTemplateCatalog(),
   });
   const signer = createPlatformCertEsign({ clock, loadMaterial: async () => fixture.material });
