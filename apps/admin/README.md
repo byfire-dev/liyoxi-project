@@ -379,8 +379,18 @@ PR #236最终head `3d26ab01` 的完整CI已通过，并实际合入main `53ae124
 
 ### W6-08 上线日历与发布工作台
 
-上线日历和逾期跟踪消费实际工作日、月历、任务列表与汇总；工单详情的“发布清单”页签支持逐集编辑、CSV/TSV 导入和完整门店账号候选。原工单操作保留，核验页支持先读取当前轮次再撤销，审批深链不回退选择其它任务。打包按钮显式调用现有 pack 公口，上次响应状态不作为持续轮询；失败后的再次调用可能立即进入 building，所以 failed 展示分支另由真实响应模型测试覆盖，不伪造浏览器失败画面。
+上线日历展示服务端月历、节假日、调休和缺历事实；逾期跟踪按同范围列表/汇总展示每个账号任务与跟进。工单“发布清单与打包”支持逐集/null 编辑、CSV/TSV 导入、完整替换及门店全部可用账号改选。字段错误保留路径并显示中文说明；400/409 保留输入，刷新后重新确认。核验撤销先读当前轮次，成功后 GET 新 pending 轮；旧轮标记 revoked，原审批与提交证据保留。
 
-定点命令：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/calendar src/features/publish/overdue src/features/delivery/ticket-detail src/features/publish/verify --maxWorkers=1 --no-file-parallelism`。真实隔离入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-publish-workbench.spec.ts`；验收状态以 W6-08 状态页及当前 PR CI 为准。
+定点单测：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/calendar src/features/publish/overdue src/features/delivery/ticket-detail src/features/publish/verify --maxWorkers=1 --no-file-parallelism`。
 
-私有 fixture 仅创建本轮独立两集初始订单与合法输入。控制器复用真实媒体工具、样片/成片检查和实际对象存储，页面的草稿、清单、推送、打包、跟进和核验仍走正式 HTTP；PDF 沿现有渲染及技术签名链，小 ZIP 由受控协议替身生成实际字节并核目录与校验和。scope 严格绑定当前库、前缀、员工、订单与目标；控制入口只存在于隔离服务器，需同源的本轮真实管理员会话。外店仅作拒绝反例，不进入媒体执行或清理范围。这些本地证据不代表真实云 5GB ZIP、外部证书或真机通过。
+真实隔离入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-publish-workbench.spec.ts`。沿原 runner 的合法媒体、字体、固定镜像及隔离范围核验，15 条业务用例与原 auth 依赖共 16 项；不增加并发或放宽 60 秒/10 秒窗口。最终固定候选与结果见 W6-08 状态页和当前 PR CI。
+
+16 组截图在 `apps/admin/dist/e2e-shots/w608-*.png`：真实门店账号候选、导入行错误、字段错误、保存结果、pack building/ready/传输错误、日历逾期与各账号任务、节假日/缺年/空结果、两页加载失败、撤销确认和重开的当前轮次。每组保留 initial 两帧、稳定两帧与 canonical；1440×900，稳定双帧与 canonical 应相同。失败 trace/测试报告在 `apps/admin/dist/e2e-live-results/`，私有 API 日志在 `apps/admin/dist/e2e-live-logs/`。trace 和临时 context 可能含会话资料，不复制到文档或公开日志。
+
+打包仅由“预打包 / 查看或重试打包”明确点击触发，页面保留上次响应状态，不自动轮询 POST。后台失败后的再次调用可能直接开始下一代 building；本轮验证真实失败回执、人工重试及最终 ZIP 字节，failed 展示分支由 DTO 模型测试覆盖，不伪造正式页 failed 截图。传输错误的同意图重试保留幂等键，新意图使用新键。
+
+私有 fixture 只创建本轮独立两集订单，使用既有真实媒体工具、样片/成片检查与对象存储；样片先经商家公口签发，再读取精确 owned rendition 核大小/SHA/与源不同，这不是 HTTP 下载验收。PDF 沿已有真实渲染器及技术测试证书链；小 ZIP 由受控协议替身生成实际对象并核目录和校验。控制仅存在于隔离测试服务，要求同源且本轮真实管理员会话；外店只作越权反例，不进入媒体执行和清理。海报按本轮 exact key/SHA 在 server.stop 回收，文书由本轮 CLI 回收。
+
+当前候选8a540775f已普通合并actual main 72ffab266，消费独立PR280的默认话题预填修复及W6-06主包内测试夹具的pollMs0；主动制造非法话题、中文错误/零写/合法替换反例仍保留。撤销后的新审批由原撤销人发起，其todo为空符合禁止自审；新轮截图使用本单既有发布专员的真实登录/MFA，并核实际me、权限、工单归属与新pending队列，未新增员工或改派。只有账号候选留桩由本包回补；本地结果不代表真实云5GB ZIP、外部证书、真实平台、真机或M6退出通过。
+
+最终候选8a540775ffe83134ecac51e1661191b53a9a3a23（actual main基线72ffab266）第八轮16/16通过；browser58.0秒、完整129.20秒、异人撤销2.3秒，run c73d517e320313fc，原runner已自动清理本轮scope。最终四目录106项、私有入口37项、services/API/admin类型与5081模块分层均通过。 16组稳定双帧与canonical SHA逐组一致，尺寸1440×900，关键状态已目检。 当前PR号由ROOT填写。
