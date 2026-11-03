@@ -215,12 +215,52 @@ export const tasks: Data<"m.launchTask.list"> = {
   nextCursor: null,
   hasMore: false,
 };
+export const takedown: Data<"m.takedownTask.list">["items"][number] = {
+  takedownTaskId: "00000000-0000-4000-8000-000000000071",
+  status: "pending_merchant",
+  triggerKind: "expiry",
+  basis: "live",
+  orderNo: "LYX202610070001",
+  orderItemId: DELIVERY_ID,
+  orderId: DELIVERY_ID,
+  dramaTitle: "烟火里的重逢",
+  episodeCount: 60,
+  usageEndDate: "2026-10-06",
+  dueDate: "2026-10-06",
+  isOverdue: true,
+  merchantMethod: null,
+  merchantConfirmedAt: null,
+  checkedAt: null,
+  stillOnlineCount: 1,
+  escalatedAt: null,
+  posterUrl: null,
+  channelAccount: account,
+  allowedMethods: ["delete", "private"],
+  actions: ["confirm"],
+};
 export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
   const p = structuredClone(plan),
     s = structuredClone(sample),
     r = structuredClone(release),
     t = structuredClone(task),
-    list = structuredClone(tasks);
+    list = structuredClone(tasks),
+    offline = structuredClone(takedown);
+  if (scene === "record-patrol-recovered")
+    t.patrols = [
+      {
+        patrolTaskId: DELIVERY_ID,
+        status: "recovered",
+        checkedAt: now,
+        checkedByName: "林经理",
+        results: [
+          { key: "visibility", label: "作品可正常访问", result: "pass", note: "已重新公开" },
+        ],
+        abnormalKind: { code: "private", name: "作品不可见" },
+        note: "复查作品已公开",
+        foundAt: "2026-10-06T02:00:00Z",
+        recoveredAt: now,
+      },
+    ];
   if (scene.startsWith("sample-")) {
     const bootstrap = useBootstrapStore.getState();
     bootstrap.apply(
@@ -424,6 +464,82 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
       return { ...s, replayed: true };
     }
     if (path.endsWith("/release")) return structuredClone(r);
+    if (path.endsWith("/publish-list"))
+      return {
+        orderItemId: DELIVERY_ID,
+        releaseNo: 1,
+        collectionName: "烟火里的重逢",
+        cover: null,
+        topics: ["邻里咖啡"],
+        intro: "街角咖啡店的故事",
+        isAiDeclarationRequired: false,
+        episodes: [
+          {
+            episodeNo: 1,
+            title: "第 1 集：再次相遇",
+            topics: ["邻里咖啡"],
+            intro: null,
+            isUpdated: false,
+          },
+        ],
+        text:
+          scene === "tasks-copy-unavailable" ? null : "烟火里的重逢\n第 1 集：再次相遇\n#邻里咖啡",
+      } satisfies Data<"m.orderItem.publishList.get">;
+    if (path.startsWith("/m/takedown-tasks/summary"))
+      return {
+        pending:
+          scene.startsWith("tasks-takedown") &&
+          scene !== "tasks-takedown-empty" &&
+          offline.status === "pending_merchant"
+            ? 1
+            : 0,
+        done: offline.status === "merchant_confirmed" ? 1 : 0,
+        overdue:
+          scene.startsWith("tasks-takedown") &&
+          scene !== "tasks-takedown-empty" &&
+          offline.status === "pending_merchant"
+            ? 1
+            : 0,
+        nextTakedown:
+          scene === "tasks-takedown-empty"
+            ? {
+                orderItemId: DELIVERY_ID,
+                dramaTitle: "烟火里的重逢",
+                usageEndDate: "2027-03-31",
+                createDate: "2027-03-01",
+              }
+            : null,
+      } satisfies Data<"m.takedownTask.summary">;
+    if (path.startsWith("/m/takedown-tasks?")) {
+      const tab = new URLSearchParams(path.split("?")[1]).get("tab");
+      return {
+        items:
+          scene.startsWith("tasks-takedown") &&
+          scene !== "tasks-takedown-empty" &&
+          (tab === "pending"
+            ? offline.status === "pending_merchant"
+            : offline.status !== "pending_merchant")
+            ? [structuredClone(offline)]
+            : [],
+        hasMore: false,
+        nextCursor: null,
+      } satisfies Data<"m.takedownTask.list">;
+    }
+    if (path.startsWith("/m/takedown-tasks/") && path.endsWith("/confirm")) {
+      const body = options.data as { method: "delete" | "private" | "not_published" };
+      if (!options.idempotencyKey || Object.keys(body).join() !== "method")
+        throw new Error("下架确认必须仅提交 method 和幂等键");
+      offline.status = "merchant_confirmed";
+      offline.merchantMethod = body.method;
+      offline.merchantConfirmedAt = now;
+      offline.actions = [];
+      offline.allowedMethods = [];
+      return {
+        ...offline,
+        posterUrl: null,
+        replayed: true,
+      } satisfies Data<"m.takedownTask.confirm">;
+    }
     if (path.includes("order-items") && path.endsWith("/download-urls"))
       return {
         url: "https://example.test/episode.mp4",
@@ -432,11 +548,21 @@ export function offlineDeliveryRequest(scene: string): RequestLayer["request"] {
         sizeBytes: "150000000",
         expiresAt: "2026-10-07T02:15:00Z",
       };
-    if (path === "/m/launch-tasks/summary")
+    if (path.startsWith("/m/launch-tasks/summary"))
       return { todo: 1, done: 0, needFix: scene === "record-returned" ? 1 : 0 };
-    if (path.startsWith("/m/launch-tasks?")) return structuredClone(list);
+    if (path.startsWith("/m/launch-tasks?")) {
+      if (
+        scene.startsWith("tasks-takedown") &&
+        new URLSearchParams(path.split("?")[1]).get("tab") === "done"
+      )
+        return { items: [], nextCursor: null, hasMore: false } satisfies Data<"m.launchTask.list">;
+      return structuredClone(list);
+    }
     if (path.endsWith("/submit")) return { ...t, replayed: true };
-    if (path.startsWith("/m/launch-tasks/")) return structuredClone(t);
+    if (path.startsWith("/m/launch-tasks/")) {
+      if (scene === "record-patrol-error") throw new Error("巡检与上线记录读取失败，请重试");
+      return structuredClone(t);
+    }
     throw new Error(`未登记离线交付请求 ${path}`);
   }) as RequestLayer["request"];
 }

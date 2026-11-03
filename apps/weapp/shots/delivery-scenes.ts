@@ -18,7 +18,17 @@ export const DELIVERY_SCENES = [
     name,
     route: `sub/order/sample/index?orderItemId=${id}`,
   })),
-  ...["tasks-todo", "tasks-verifying", "tasks-live", "tasks-submit"].map((name) => ({
+  ...[
+    "tasks-todo",
+    "tasks-verifying",
+    "tasks-live",
+    "tasks-submit",
+    "tasks-takedown",
+    "tasks-takedown-confirm",
+    "tasks-takedown-empty",
+    "tasks-copy",
+    "tasks-copy-unavailable",
+  ].map((name) => ({
     name,
     route:
       name === "tasks-submit"
@@ -29,8 +39,10 @@ export const DELIVERY_SCENES = [
     name,
     route: `sub/publish/downloads/index?orderItemId=${id}`,
   })),
-  ...["record-default", "record-returned"].map((name) => ({
-    name,
-    route: `sub/order/launch-record/index?orderItemId=${id}`,
-  })),
+  ...["record-default", "record-returned", "record-patrol-recovered", "record-patrol-error"].map(
+    (name) => ({
+      name,
+      route: `sub/order/launch-record/index?orderItemId=${id}`,
+    }),
+  ),
 ] as const;
