@@ -377,6 +377,33 @@ describe("验收 3：样例路由进三份文档", () => {
 });
 
 describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
+  it("发布清单可空封面不将旧图片数组的共享ImageRef组件变成可空", () => {
+    expect(contract.PublishListViewSchema.shape.cover.safeParse(null).success).toBe(true);
+    expect(contract.PublishListAdminViewSchema.shape.cover.safeParse(null).success).toBe(true);
+    expect(
+      contract.PublishListAdminViewSchema.shape.cover.safeParse({
+        fileId: "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+        url: null,
+        expiresAt: null,
+      }).success,
+    ).toBe(true);
+    expectTypeOf<AdminComponents["schemas"]["PublishListAdminView"]["cover"]>().toEqualTypeOf<
+      contract.PublishListAdminView["cover"]
+    >();
+    for (const name of ["admin", "merchant", "portal"]) {
+      const doc = JSON.parse(readFileSync(join(GENERATED_DIR, `${name}.openapi.json`), "utf8")) as {
+        components: { schemas: Record<string, Node> };
+      };
+      expect(doc.components.schemas.ImageRef?.type, name).toBe("object");
+      if (name !== "admin") {
+        const cover = (doc.components.schemas.PublishListView?.properties as Node).cover;
+        expect(cover, name).toEqual({
+          anyOf: [{ $ref: "#/components/schemas/ImageRef" }, { type: "null" }],
+        });
+      }
+    }
+  });
+
   // 下面这一条钉的是现状，不是长期的黄金条目，后面的包要按新的现状替换它：
   //   - 各域第一个后端 PR 把路由从“只有元数据”换成带结构的：改两个条数与“paths 为空”，
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。

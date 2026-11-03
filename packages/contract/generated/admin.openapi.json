@@ -20853,15 +20853,12 @@
             "type": "boolean"
           },
           "latestFollowUp": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/FollowUpItem"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },
@@ -31445,10 +31442,7 @@
             "type": "object"
           },
           "cover": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ImageRef"
-              },
+            "anyOf": [
               {
                 "additionalProperties": false,
                 "properties": {
@@ -31459,6 +31453,11 @@
                       "null"
                     ]
                   },
+                  "fileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
                   "url": {
                     "type": [
                       "string",
@@ -31466,10 +31465,15 @@
                     ]
                   }
                 },
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "required": [
+                  "fileId",
+                  "url",
+                  "expiresAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -31677,15 +31681,12 @@
             ]
           },
           "savedBy": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/StaffBrief"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           },

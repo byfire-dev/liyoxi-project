@@ -1,5 +1,5 @@
 import { z } from "../../zod.js";
-import { IdSchema, InstantSchema } from "../../common/index.js";
+import { IdSchema, InstantSchema, orNull } from "../../common/index.js";
 import { StaffBriefSchema } from "../a01-system/structures.js";
 import { TicketBriefSchema, OrderItemBriefSchema } from "./publish.schemas.js";
 import { ImageRefSchema } from "../m08-support-misc/image.schemas.js";
@@ -47,10 +47,13 @@ export const PublishListAdminViewSchema = z
     ticket: TicketBriefSchema,
     orderItem: OrderItemBriefSchema,
     collectionName: z.string().nullable(),
-    cover: ImageRefSchema.extend({
-      url: z.string().nullable(),
-      expiresAt: InstantSchema.nullable(),
-    }).nullable(),
+    cover: orNull(
+      z.strictObject({
+        ...ImageRefSchema.shape,
+        url: z.string().nullable(),
+        expiresAt: InstantSchema.nullable(),
+      }),
+    ),
     titleTemplate: z.string().nullable(),
     topics: z.array(z.string()),
     intro: z.string().nullable(),
@@ -73,7 +76,7 @@ export const PublishListAdminViewSchema = z
     }),
     isEditable: z.boolean(),
     lockReason: z.enum(["links_submitted", "ticket_paused", "ticket_step"]).nullable(),
-    savedBy: StaffBriefSchema.nullable(),
+    savedBy: orNull(StaffBriefSchema),
     savedAt: InstantSchema.nullable(),
     lockVersion: z.int().nonnegative(),
     activeRelease: z
@@ -101,7 +104,7 @@ export const PublishListViewSchema = z
     orderItemId: IdSchema,
     releaseNo: z.int().positive(),
     collectionName: z.string(),
-    cover: ImageRefSchema.nullable(),
+    cover: orNull(ImageRefSchema),
     topics: z.array(z.string()),
     intro: z.string(),
     isAiDeclarationRequired: z.boolean(),

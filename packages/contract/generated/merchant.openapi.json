@@ -7185,10 +7185,7 @@
           "url",
           "expiresAt"
         ],
-        "type": [
-          "object",
-          "null"
-        ]
+        "type": "object"
       },
       "InvitationCard": {
         "additionalProperties": false,
@@ -14622,7 +14619,14 @@
             "type": "string"
           },
           "cover": {
-            "$ref": "#/components/schemas/ImageRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "episodes": {
             "items": {

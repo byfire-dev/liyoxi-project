@@ -1,5 +1,11 @@
 import { z } from "../../zod.js";
-import { DateSchema, IdSchema, InstantSchema, PageQuerySchema } from "../../common/index.js";
+import {
+  DateSchema,
+  IdSchema,
+  InstantSchema,
+  PageQuerySchema,
+  orNull,
+} from "../../common/index.js";
 import { adminPage } from "../a01-system/structures.js";
 import { FollowUpItemSchema } from "../a03-merchant/follow-ups.schemas.js";
 import { AdminStoreBriefSchema } from "../a05-order-delivery/public.schemas.js";
@@ -63,7 +69,7 @@ export const LaunchCalendarItemSchema = z
     tasks: z.array(LaunchTaskBriefSchema),
     isDeliveryLate: z.boolean(),
     overdueDays: count.nullable(),
-    latestFollowUp: FollowUpItemSchema.nullable(),
+    latestFollowUp: orNull(FollowUpItemSchema),
     actions: z.array(z.literal("remind")),
   })
   .openapi("LaunchCalendarItem");

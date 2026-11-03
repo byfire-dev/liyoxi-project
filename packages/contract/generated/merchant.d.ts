@@ -3796,7 +3796,7 @@ export interface components {
             /** Format: uuid */
             fileId: string;
             url: string;
-        } | null;
+        };
         InvitationCard: {
             /** Format: date-time */
             expiresAt: string;
@@ -5267,7 +5267,7 @@ export interface components {
         };
         PublishListView: {
             collectionName: string;
-            cover: components["schemas"]["ImageRef"];
+            cover: components["schemas"]["ImageRef"] | null;
             episodes: {
                 episodeNo: number;
                 intro: string | null;

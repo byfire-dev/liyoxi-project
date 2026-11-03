@@ -84,10 +84,7 @@
           "url",
           "expiresAt"
         ],
-        "type": [
-          "object",
-          "null"
-        ]
+        "type": "object"
       },
       "PortalSessionView": {
         "additionalProperties": false,
@@ -288,7 +285,14 @@
             "type": "string"
           },
           "cover": {
-            "$ref": "#/components/schemas/ImageRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "episodes": {
             "items": {

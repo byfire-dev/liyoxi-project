@@ -116,7 +116,7 @@ export interface components {
             /** Format: uuid */
             fileId: string;
             url: string;
-        } | null;
+        };
         PortalSessionView: {
             /** Format: date-time */
             authorizedAt: string;
@@ -168,7 +168,7 @@ export interface components {
         };
         PublishListView: {
             collectionName: string;
-            cover: components["schemas"]["ImageRef"];
+            cover: components["schemas"]["ImageRef"] | null;
             episodes: {
                 episodeNo: number;
                 intro: string | null;

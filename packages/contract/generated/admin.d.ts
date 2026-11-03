@@ -9678,7 +9678,7 @@ export interface components {
             episodeCount: number;
             isDateTentative: boolean;
             isDeliveryLate: boolean;
-            latestFollowUp: components["schemas"]["FollowUpItem"] & (Record<string, never> | null);
+            latestFollowUp: components["schemas"]["FollowUpItem"] | null;
             /** Format: uuid */
             orderItemId: string;
             overdueDays: number | null;
@@ -11738,11 +11738,13 @@ export interface components {
                 missing: ("collection_name" | "cover" | "intro" | "topics" | "episode_titles")[];
                 untitledEpisodeNos: number[];
             };
-            cover: components["schemas"]["ImageRef"] & ({
+            cover: {
                 /** Format: date-time */
-                expiresAt?: string | null;
-                url?: string | null;
-            } | null);
+                expiresAt: string | null;
+                /** Format: uuid */
+                fileId: string;
+                url: string | null;
+            } | null;
             episodes: {
                 changedInReleaseNo: number | null;
                 episodeNo: number;
@@ -11784,7 +11786,7 @@ export interface components {
             publishListId: string;
             /** Format: date-time */
             savedAt: string | null;
-            savedBy: components["schemas"]["StaffBrief"] & (Record<string, never> | null);
+            savedBy: components["schemas"]["StaffBrief"] | null;
             ticket: {
                 deliveredAt: string | null;
                 deliveryManager: components["schemas"]["StaffBrief"] | null;
