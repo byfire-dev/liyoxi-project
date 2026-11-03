@@ -177,7 +177,7 @@ W2-13 设置页已补本人账号操作源码，入口与通知复用关系、�
 
 首页、商城、短剧详情与选剧单消费正式生成的 DTO；所有生产请求走现有中央 request。店员首页只读 city+banners，店员/游客选剧单不发 cart 请求。商城按配置给的筛选和 sort 加载，游标续页按 dramaId 去重；本域 revision、令牌与 contextRev 丢弃切店/卸载后的旧成功和旧错误。价格确认发送服务器当前原价 P，网络重试沿用同一次意图的 key；成功或 C50 重放后重新 GET 选剧单。选中合计只累加服务器逐项实扣 S，不在端上重算价格。确认订购页属 PR2，本轮入口明确显示“订购即将开放”。
 
-首页按参考图重排为城市与搜索、真实消息/公告、横幅、四项快捷入口、上线概览和横排推荐；素材需求及本人上传摘要保留在主推荐之后。消息角标、公告、封面、统计及套餐期限仍取真实接口；无横幅时只显示静态商城入口。首页待办继续等待 M7，客服中心尚未实现并明确标注暂未开放；店员与游客不开放老板快捷入口，不填入参考图的待办、城市、季节或统计示例。套餐日期仅将服务端日期格式化为 MM/DD，积分清零仍取实际数量和时间。
+首页按参考图重排为城市与搜索、真实消息/公告、横幅、四项快捷入口、上线概览和横排推荐；素材需求及本人上传摘要保留在主推荐之后。消息角标、公告、封面、统计及套餐期限仍取真实接口；无横幅时只显示静态商城入口。首页待办继续等待 M7；「联系客服」使用微信原生客服按钮，老板、店员与游客均可使用，H5 提示在微信小程序内打开。后台客服绑定、现有消息推送的转人工配置与真机验收见[客服接入说明](docs/customer-service.md)。店员与游客不开放其余老板快捷入口，不填入参考图的待办、城市、季节或统计示例。套餐日期仅将服务端日期格式化为 MM/DD，积分清零仍取实际数量和时间。
 
 十一态夹具在 `shots/catalog-fixtures.ts`，清单在 `shots/catalog-scenes.ts`。运行 `LYX_E2E_CHANNEL=chrome pnpm weapp:shots -- --scene home-owner --scene home-clerk --scene home-guest --scene mall-default --scene mall-end --scene mall-empty --scene detail-owner --scene cart-default --scene cart-invalid --scene cart-price-changed --scene cart-clerk`，产物为 `shots/dist/png/catalog__<场景>.png`。不带场景参数时旧账户八态、建档九态和支付十一态仍保留；每场景独立上下文与既有外发网络、console.error、pageerror 守卫全部生效。
 
