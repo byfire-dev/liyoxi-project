@@ -6,7 +6,49 @@ import {
 import {
   parseOutputBatchLiveManifest,
   parseInvoiceLiveEnvelope,
+  startupDiagnostic,
 } from "./upload-batch-live-server.js";
+
+it("startup diagnostics keep fixed phases and both finite elapsed clocks only", () => {
+  for (const stage of [
+    "relay_start",
+    "app_create_start",
+    "app_create_ready",
+    "startup_aborted",
+    "startup_failed",
+    ...["pass", "reject"].flatMap((outcome) =>
+      ["sample_start", "sample_ready", "final_start", "final_ready", "delivering"].map(
+        (phase) => `w120_${outcome}_${phase}`,
+      ),
+    ),
+  ])
+    expect(startupDiagnostic(stage, 12.4, 312.6)).toEqual({
+      evt: "w302.live.startup",
+      stage,
+      elapsedMs: 12,
+      processElapsedMs: 313,
+    });
+  expect(startupDiagnostic("ready", 0, 0)).toEqual({
+    evt: "w302.live.startup",
+    stage: "ready",
+    elapsedMs: 0,
+    processElapsedMs: 0,
+  });
+});
+
+it("startup diagnostics reject arbitrary details and invalid clocks", () => {
+  for (const stage of [
+    undefined,
+    "w120_pass_sample_secret",
+    "https://fixture.invalid/private",
+    { stage: "startup_failed", error: "arbitrary details" },
+  ])
+    expect(startupDiagnostic(stage, 0, 0)).toBeNull();
+  for (const invalid of [-1, NaN, Infinity, -Infinity]) {
+    expect(startupDiagnostic("startup_failed", invalid, 0)).toBeNull();
+    expect(startupDiagnostic("startup_failed", 0, invalid)).toBeNull();
+  }
+});
 
 const runId = "1234567890abcdef",
   id = "01950000-0000-7000-8000-000000000001";

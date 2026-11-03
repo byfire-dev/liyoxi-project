@@ -106,7 +106,19 @@ const STARTUP_STAGES = [
   "masters_start",
   "masters_ready",
   "w120_start",
+  "w120_pass_sample_start",
+  "w120_pass_sample_ready",
+  "w120_pass_final_start",
+  "w120_pass_final_ready",
+  "w120_pass_delivering",
+  "w120_reject_sample_start",
+  "w120_reject_sample_ready",
+  "w120_reject_final_start",
+  "w120_reject_final_ready",
+  "w120_reject_delivering",
   "w120_ready",
+  "app_create_start",
+  "app_create_ready",
   "checks_start",
   "checks_ready",
   "api_listen_start",
@@ -114,13 +126,27 @@ const STARTUP_STAGES = [
   "cos_listen_start",
   "cos_listening",
   "ready",
+  "startup_aborted",
+  "startup_failed",
 ] as const;
 type StartupStage = (typeof STARTUP_STAGES)[number];
 /** 诊断仅允许固定阶段和本地单调时钟耗时，不接受任意日志或附加字段。 */
-export function startupDiagnostic(stage: unknown, elapsedMs: number) {
+export function startupDiagnostic(stage: unknown, elapsedMs: number, processElapsedMs: number) {
   const approved = STARTUP_STAGES.find((value) => value === stage);
-  if (!approved || !Number.isFinite(elapsedMs) || elapsedMs < 0) return null;
-  return { evt: "w302.live.startup", stage: approved, elapsedMs: Math.round(elapsedMs) };
+  if (
+    !approved ||
+    !Number.isFinite(elapsedMs) ||
+    elapsedMs < 0 ||
+    !Number.isFinite(processElapsedMs) ||
+    processElapsedMs < 0
+  )
+    return null;
+  return {
+    evt: "w302.live.startup",
+    stage: approved,
+    elapsedMs: Math.round(elapsedMs),
+    processElapsedMs: Math.round(processElapsedMs),
+  };
 }
 export async function startOutputBatchLiveServer(options: {
   env: Env;
@@ -135,7 +161,7 @@ export async function startOutputBatchLiveServer(options: {
   version?: string;
   documentWorkerUrl?: URL;
   signal?: AbortSignal;
-  onStartupStage?: (stage: StartupStage, elapsedMs: number) => void;
+  onStartupStage?: (stage: StartupStage, elapsedMs: number, processElapsedMs: number) => void;
 }) {
   const startupStartedAt = performance.now();
   const w514 =
@@ -266,13 +292,18 @@ export async function startOutputBatchLiveServer(options: {
       )
         throw new Error("W302 live resources did not fully close");
     })());
+  const reportStartup = (stage: StartupStage) => {
+    const diagnostic = startupDiagnostic(
+      stage,
+      Math.max(0, performance.now() - startupStartedAt),
+      process.uptime() * 1_000,
+    );
+    if (!diagnostic) return;
+    process.stdout.write(`${JSON.stringify(diagnostic)}\n`);
+    options.onStartupStage?.(stage, diagnostic.elapsedMs, diagnostic.processElapsedMs);
+  };
   try {
     options.signal?.throwIfAborted();
-    const reportStartup = (stage: StartupStage) => {
-      const elapsedMs = Math.max(0, Math.round(performance.now() - startupStartedAt));
-      process.stdout.write(`${JSON.stringify(startupDiagnostic(stage, elapsedMs))}\n`);
-      options.onStartupStage?.(stage, elapsedMs);
-    };
     reportStartup("relay_start");
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
     reportStartup("relay_ready");
@@ -348,12 +379,20 @@ export async function startOutputBatchLiveServer(options: {
     options.signal?.throwIfAborted();
     reportStartup("w120_start");
     const w120 = inputs.w120
-      ? await finishW120LiveFixture(batch, inputs.w120, inputs.video, options.signal)
+      ? await finishW120LiveFixture(
+          batch,
+          inputs.w120,
+          inputs.video,
+          options.signal,
+          ({ outcome, stage }) => reportStartup(`w120_${outcome}_${stage}`),
+        )
       : undefined;
     reportStartup("w120_ready");
     options.signal?.throwIfAborted();
+    reportStartup("app_create_start");
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
+    reportStartup("app_create_ready");
     reportStartup("checks_start");
     await runStartupChecks(batch.startupChecks);
     reportStartup("checks_ready");
@@ -613,6 +652,11 @@ export async function startOutputBatchLiveServer(options: {
       w120,
     };
   } catch (error) {
+    try {
+      reportStartup(options.signal?.aborted ? "startup_aborted" : "startup_failed");
+    } catch {
+      // A failed diagnostic sink must not replace the original failure or skip cleanup.
+    }
     // The current startup await settles before cleanup, including relay creation before assignment.
     try {
       await startupCancellation;
@@ -679,8 +723,8 @@ async function main() {
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       signal: controller.signal,
-      onStartupStage: (stage, elapsedMs) => {
-        const diagnostic = startupDiagnostic(stage, elapsedMs);
+      onStartupStage: (stage, elapsedMs, processElapsedMs) => {
+        const diagnostic = startupDiagnostic(stage, elapsedMs, processElapsedMs);
         if (diagnostic) appendFileSync(diagnosticFile, `${JSON.stringify(diagnostic)}\n`);
       },
     });
