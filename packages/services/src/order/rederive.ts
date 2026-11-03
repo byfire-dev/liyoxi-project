@@ -83,6 +83,27 @@ async function deriveItem(tx: Tx, deps: OrderBinding, id: string, facts: Input["
     });
     phase = "to_launch";
   }
+  if (
+    phase !== target &&
+    ticket.step === "archived" &&
+    ["to_launch", "live"].includes(phase) &&
+    ["ended", "refunded"].includes(target)
+  ) {
+    await deps.flow.transition(tx, ctx(), {
+      machine: "order_item",
+      stateField: "phase",
+      id,
+      event: "takedown.all_checked",
+      ref: "09:358",
+      to: target,
+      args: derivationChecked(),
+      entityId: item.entityId,
+      storeId: item.storeId,
+      set: { phase_changed_at: now },
+      emit: { none: true, primary: "ticket.archived" },
+    });
+    phase = target;
+  }
   if (phase !== target) {
     if (phase !== "to_launch" || target !== "live")
       throw new AppError("STATE_NOT_ALLOWED", { message: "当前迁移表不能纠正该订单项阶段" });

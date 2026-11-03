@@ -18,6 +18,8 @@ export { readCancelReviewPublishTargets, closeCancelReviewPublish } from "./canc
 export {
   readDeliveryPublishTargets,
   closeExpiredDeliveryPublish,
+  ensureTakedownTasks,
+  extendDeliveryPublishUsage,
   resyncDeliveryPublishExpiry,
 } from "./delivery-lifecycle.js";
 export type { DeliveryPublishTargets } from "./delivery-lifecycle.js";

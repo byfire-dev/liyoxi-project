@@ -76,6 +76,13 @@ export const syncOrderManager: SyncStoreManager = async (tx, input) => {
 };
 export const registration = defineRegistration("order", {
   timerHandlers: [
+    ...["usage.resync"].map((kind) => ({
+      kind,
+      critical: true,
+      handle: async (): Promise<"fired" | "skipped"> => {
+        throw new TypeError("使用期运行时尚未绑定");
+      },
+    })),
     { kind: "order.start", critical: true, rearmAfterSkip: true, handle: handleOrderStart },
     { kind: "order.rejected_stale", critical: false, handle: handleRejectedStale },
   ],
@@ -208,6 +215,8 @@ export const registration = defineRegistration("order", {
         [rowKey("09:352", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
         [rowKey("09:355", "package.pushed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:356", "launch.changed")]: async (_tx, facts) => isDerivationChecked(facts.args),
+        [rowKey("09:358", "takedown.all_checked")]: async (_tx, facts) =>
+          isDerivationChecked(facts.args),
         [rowKey("09:351", "order.submit")]: async (tx, facts) => {
           const item = await tx.orderItem.findUnique({
             where: { id: facts.subjectId },

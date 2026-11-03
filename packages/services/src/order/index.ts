@@ -61,3 +61,8 @@ export {
 export type { OrderLicenseFact, LicenseCandidateItemsQuery } from "./license-facts.js";
 export { createOrderReconciler } from "./reconcile.js";
 export type { OrderReconcileDeps, OrderReconcileResult } from "./reconcile.js";
+
+export { createUsageLifecycle } from "./usage-lifecycle.js";
+export type { UsageLifecycle } from "./usage-lifecycle.js";
+
+export { deriveOrder } from "./rederive.js";

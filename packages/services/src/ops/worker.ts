@@ -1,3 +1,5 @@
+import { createUsageLifecycleAssembly } from "./usage-lifecycle-runtime.js";
+import { createUsageLifecycle } from "../order/index.js";
 import { createAdAssembly } from "./ad-timer-runtime.js";
 import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
 import type { LicenseRenderingEngine } from "./docs-render-runtime.js";
@@ -424,7 +426,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
-  const docsScope = createDocsAssembly(deliverySlaScope.assembly);
+  const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
+  const docsScope = createDocsAssembly(usageLifecycleScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -811,6 +814,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   };
   approvalSlaScope.attach({ clock, events, flow, timers, sla: deliveryCore.sla });
   const unbindDelivery = bindDelivery(deliveryCore);
+  usageLifecycleScope.attach(createUsageLifecycle(deliveryCore, timers));
   deliveryProductionScope.attach({ clock, flow, media });
   const closeDelivery = () => {
     deliveryProductionScope.close();
@@ -1137,7 +1141,11 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: async () => {
-      const results = await Promise.allSettled([orderReconciler.close(), adScope.close()]);
+      const results = await Promise.allSettled([
+        usageLifecycleScope.close(),
+        orderReconciler.close(),
+        adScope.close(),
+      ]);
       const failure = results.find(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );

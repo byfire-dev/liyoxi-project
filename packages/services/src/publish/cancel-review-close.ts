@@ -15,7 +15,12 @@ const ids = (values: readonly string[]) => [...new Set(values)].sort();
 const pass = Symbol("publish.cancel_close");
 type CloseAuthority =
   | { kind: "cancel"; requestId: string; itemIds: readonly string[] }
-  | { kind: "expiry" | "renewal"; ticketId: string; itemIds: readonly string[]; now: Date };
+  | {
+      kind: "expiry" | "renewal" | "ensure" | "extension";
+      ticketId: string;
+      itemIds: readonly string[];
+      now: Date;
+    };
 const active = new WeakMap<Tx, CloseAuthority>();
 const withdrawing = new WeakMap<Tx, string>();
 export const cancelPublishGuard = async (tx: Tx, facts: TransitionFacts) => {
@@ -24,7 +29,12 @@ export const cancelPublishGuard = async (tx: Tx, facts: TransitionFacts) => {
   // The private invocation is installed only after checking current delivery facts.
   // Rechecking after this writer creates missing takedowns would invalidate its
   // own early-end proof (the newly created task has no merchant confirmation).
-  if (call.kind !== "cancel") return call.kind === "expiry";
+  if (call.kind !== "cancel")
+    return (
+      call.kind === "expiry" ||
+      (call.kind === "ensure" && facts.event === "takedown.create") ||
+      (call.kind === "extension" && facts.event === "takedown.void")
+    );
   const request = await tx.cancelRequest.findUnique({ where: { id: call.requestId } });
   return request?.status === "pending_execution" && request.closedAt === null;
 };
@@ -138,6 +148,7 @@ export interface CloseDeps {
   readonly approval: Pick<Approval, "withdraw">;
   readonly sla: Sla;
 }
+export type TakedownDeps = Omit<CloseDeps, "approval">;
 interface CloseInput {
   readonly cancelRequestId: string;
   readonly approvalRequestId: string;
@@ -157,6 +168,7 @@ export async function closeCancelReviewPublish(
   targets: CancelReviewPublishTargets,
   input: CloseInput,
 ) {
+  if (!deps.approval) throw new AppError("INTERNAL", { message: "发布收尾缺少真实审批依赖" });
   return closePublish(tx, deps, ctx, targets, input, {
     kind: "cancel",
     requestId: input.cancelRequestId,
@@ -173,13 +185,20 @@ async function validDeliveryClose(tx: Tx, call: Exclude<CloseAuthority, { kind: 
     !ticket ||
     call.itemIds.length !== 1 ||
     call.itemIds[0] !== ticket.orderItemId ||
-    ticket.pauseCount !== 0 ||
+    ((call.kind === "expiry" || call.kind === "renewal") && ticket.pauseCount !== 0) ||
     !ticket.orderItem.usageEndDate
   )
     return false;
   const today = calendarDate(call.now),
     end = ticket.orderItem.usageEndDate.toISOString().slice(0, 10);
   if (call.kind === "renewal") return ticket.step === "in_service" && end > today;
+  if (call.kind === "extension")
+    return !["takedown", "archived", "terminated"].includes(ticket.step);
+  if (call.kind === "ensure")
+    return (
+      ["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(ticket.step) &&
+      today >= addDays(end, -30)
+    );
   if (!["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(ticket.step))
     return false;
   if (today > end) return true;
@@ -192,12 +211,14 @@ async function validDeliveryClose(tx: Tx, call: Exclude<CloseAuthority, { kind: 
 
 export async function closeDeliveryPublish(
   tx: Tx,
-  deps: CloseDeps,
+  deps: CloseDeps | TakedownDeps,
   ctx: IdentityContext,
   targets: CancelReviewPublishTargets,
   input: { deliveryTicketId: string; now: Date },
-  kind: "expiry" | "renewal",
+  kind: "expiry" | "renewal" | "ensure" | "extension",
 ) {
+  if ((kind === "expiry" || kind === "renewal") && (!("approval" in deps) || !deps.approval))
+    throw new AppError("INTERNAL", { message: "发布收尾缺少真实审批依赖" });
   const authority = {
     kind,
     ticketId: input.deliveryTicketId,
@@ -210,7 +231,7 @@ export async function closeDeliveryPublish(
 
 async function closePublish(
   tx: Tx,
-  deps: CloseDeps,
+  deps: CloseDeps | TakedownDeps,
   ctx: IdentityContext,
   targets: CancelReviewPublishTargets,
   input: CloseInput | { now: Date },
@@ -224,7 +245,7 @@ async function closePublish(
     throw new AppError("PRECONDITION_CHANGED", { message: "发布收尾锁图已变化" });
   active.set(tx, authority);
   const cancelling = authority.kind === "cancel";
-  const closing = authority.kind !== "renewal";
+  const closing = authority.kind === "cancel" || authority.kind === "expiry";
   const voidReason = cancelling ? "terminated" : "usage_expired";
   const payload =
     authority.kind === "cancel"
@@ -241,6 +262,8 @@ async function closePublish(
       for (const sub of task.launchSubmissions) {
         withdrawing.set(tx, sub.id);
         try {
+          if (!("approval" in deps))
+            throw new AppError("INTERNAL", { message: "发布收尾缺少真实审批依赖" });
           await deps.approval.withdraw(tx, system, {
             approvalId: sub.approvalRequestId,
             note: cancelling ? "订单项取消执行，撤回在途上线核验" : "使用期结束，撤回在途上线核验",
@@ -331,15 +354,42 @@ async function closePublish(
         const old = targets.takedowns.find(
           (t) => t.orderItemId === item.id && t.channelAccountId === channelAccountId,
         );
-        if (!closing && !old) continue;
-        if (old?.status === "checked") continue;
+        if (!closing && authority.kind !== "ensure" && !old) continue;
+        if (old?.status === "checked" || (authority.kind === "ensure" && old)) continue;
+        if (
+          authority.kind === "extension" &&
+          old?.status === "pending_merchant" &&
+          calendarDate(input.now) < addDays(due, -30)
+        ) {
+          await deps.flow.transition(tx, ctx, {
+            machine: "takedown_task",
+            stateField: "status",
+            id: old.id,
+            event: "takedown.void",
+            ref: "11:661",
+            args: pass,
+            entityId: launch.entityId,
+            storeId: launch.storeId,
+            emit: {
+              type: "takedown.voided",
+              payload: { v: 1, takedownTaskId: old.id, orderItemId: item.id },
+            },
+          });
+          await timers.cancel(tx, {
+            subject: { type: "takedown_task", id: old.id },
+            kinds: ["takedown.overdue"],
+          });
+          continue;
+        }
         const base = {
           triggerKind: cancelling
             ? line!.stage === "live"
               ? "platform_termination"
               : "terminated_after_delivery"
             : (TAKEDOWN_TASK_TRIGGER_KIND.values.find((v) => v === old?.triggerKind) ??
-              (calendarDate(input.now) > due ? "expiry" : "early_end")),
+              (authority.kind === "ensure" || calendarDate(input.now) > due
+                ? "expiry"
+                : "early_end")),
           usageEndDate,
           dueDate:
             !cancelling &&
@@ -468,7 +518,7 @@ async function closePublish(
                 dueDate: effectiveDue,
                 basis: launch.isLive ? "live" : "delivered_unverified",
                 triggerKind: base.triggerKind,
-                node: "created",
+                node: authority.kind === "ensure" ? "T-30" : "created",
               },
             },
           });
@@ -505,11 +555,22 @@ export const cancelReviewPublishMachines = [
     }),
   }),
   implementKeyed(machinePort, chainKey("takedown_task", "status"), {
-    guards: { [rowKey("11:653", "takedown.create")]: cancelPublishGuard },
+    guards: {
+      [rowKey("11:653", "takedown.create")]: cancelPublishGuard,
+      [rowKey("11:661", "takedown.void")]: cancelPublishGuard,
+    },
     activity: (facts) => ({
       category: "delivery",
-      action: "publish.takedown_task.create",
-      summary: facts.payload?.cancelRequestId ? "取消订单项创建下架核查" : "使用期结束创建下架核查",
+      action:
+        facts.event === "takedown.void"
+          ? "publish.takedown_task.void"
+          : "publish.takedown_task.create",
+      summary:
+        facts.event === "takedown.void"
+          ? "版权顺延作废尚未到期下架任务"
+          : facts.payload?.cancelRequestId
+            ? "取消订单项创建下架核查"
+            : "使用期生成下架核查",
     }),
   }),
 ];

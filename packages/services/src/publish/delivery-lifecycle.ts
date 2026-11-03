@@ -1,6 +1,6 @@
 import type { IdentityContext, Tx } from "../kernel/index.js";
 import { closeDeliveryPublish, readCancelReviewPublishTargets } from "./cancel-review-close.js";
-import type { CancelReviewPublishTargets, CloseDeps } from "./cancel-review-close.js";
+import type { CancelReviewPublishTargets, CloseDeps, TakedownDeps } from "./cancel-review-close.js";
 
 /** Read before locks: caller locks approval(30), the item/ticket, channel/release,
  * launch/patrol/takedown rows, and patrol follow-ups in the global order.
@@ -29,4 +29,27 @@ export function resyncDeliveryPublishExpiry(
   input: { deliveryTicketId: string; now: Date },
 ) {
   return closeDeliveryPublish(tx, deps, ctx, targets, input, "renewal");
+}
+
+/** Caller prelocks readDeliveryPublishTargets together with delivery's complete graph.
+ * Idempotent under the order_item parent lock; never closes launch/patrol tasks. */
+export function ensureTakedownTasks(
+  tx: Tx,
+  deps: TakedownDeps,
+  ctx: IdentityContext,
+  targets: DeliveryPublishTargets,
+  input: { deliveryTicketId: string; now: Date },
+) {
+  return closeDeliveryPublish(tx, deps, ctx, targets, input, "ensure");
+}
+
+/** Only automatic pre-takedown extension may void not-yet-due pending tasks. */
+export function extendDeliveryPublishUsage(
+  tx: Tx,
+  deps: TakedownDeps,
+  ctx: IdentityContext,
+  targets: DeliveryPublishTargets,
+  input: { deliveryTicketId: string; now: Date },
+) {
+  return closeDeliveryPublish(tx, deps, ctx, targets, input, "extension");
 }
