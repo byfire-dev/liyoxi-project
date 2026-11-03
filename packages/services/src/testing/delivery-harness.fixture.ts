@@ -149,6 +149,8 @@ export function harness(
     assembly,
     events,
     storage: fake.storage,
+    // This harness advances promote jobs explicitly after complete returns; no consumer can run during polling.
+    pollMs: 0,
     production: production?.({ prisma, clock, fake }),
   });
   const profile = createProfile({
