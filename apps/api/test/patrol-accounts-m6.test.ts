@@ -61,6 +61,7 @@ async function businessSnapshot() {
     prisma.channelAccount.findMany({ orderBy: { id: "asc" } }),
     prisma.timer.findMany({ orderBy: { id: "asc" } }),
     prisma.followUp.findMany({ orderBy: { id: "asc" } }),
+    prisma.manualReminderLog.findMany({ orderBy: { id: "asc" } }),
     prisma.statusTransition.count(),
     prisma.outboxEvent.count(),
     prisma.auditLog.count(),
@@ -83,11 +84,23 @@ it("十二条真实挂载；正常、异常、提醒、恢复与账号异常/解
     await request("admin.patrolTask.create", { json: createBody, key }),
   );
   const id = created.patrolTask.patrolTaskId;
+  async function rejectsReminderWithoutWrites(patrolTaskId: string) {
+    const before = await businessSnapshot();
+    // A fresh intent must reach the real status guard, not replay an earlier reminder.
+    const response = await request("admin.patrolTask.remind", {
+      id: patrolTaskId,
+      key: uuidv7(),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "STATE_NOT_ALLOWED" });
+    expect(await businessSnapshot()).toEqual(before);
+  }
   expect(created.isNew).toBe(true);
   expect(await data(await request("admin.patrolTask.create", { json: createBody, key }))).toEqual(
     created,
   );
   expect(await prisma.patrolTask.count({ where: { launchTaskId: live.taskId } })).toBe(1);
+  await rejectsReminderWithoutWrites(id);
   const normalBody = { ...(await h.checks("patrol.check")), evidenceFileIds: [await h.evidence()] },
     normalKey = uuidv7();
   expect(
@@ -101,6 +114,7 @@ it("十二条真实挂载；正常、异常、提醒、恢复与账号异常/解
   expect(
     await prisma.statusTransition.count({ where: { subjectId: id, event: "patrol.ok" } }),
   ).toBe(1);
+  await rejectsReminderWithoutWrites(id);
   api.clock.advance(1);
   const second = await data<{ patrolTask: { patrolTaskId: string } }>(
     await request("admin.patrolTask.create", { json: createBody }),
@@ -135,6 +149,7 @@ it("十二条真实挂载；正常、异常、提醒、恢复与账号异常/解
       }),
     ),
   ).toMatchObject({ status: "recovered" });
+  await rejectsReminderWithoutWrites(abnormalId);
   const query = `?storeId=${h.merchant.store.id}`;
   const snapshot = await businessSnapshot();
   for (const op of [

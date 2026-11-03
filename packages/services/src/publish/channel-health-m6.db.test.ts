@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
-import { createIdentityContext, staffWorkSourcesOf } from "../kernel/index.js";
+import { createIdentityContext, staffWorkSourcesOf, uuidv7 } from "../kernel/index.js";
 import {
   createPatrolTestRuntime,
   createPatrolTestSubject,
@@ -22,6 +22,47 @@ afterAll(async () => {
   await stack?.runtime.close();
 });
 const subject = async () => createPatrolTestSubject(stack.runtime, await db.prisma());
+it("账号搜索保留名称包含，ID仅按去空格小写前缀匹配，列表summary同口径", async () => {
+  const h = await subject();
+  const screenshot = await h.make.fileObject({
+    category: "channel_screenshot",
+    bucket: "asset",
+    scopeType: "store",
+    entityId: h.merchant.entity.id,
+    storeId: h.merchant.store.id,
+    uploadActorType: "merchant",
+    uploadActorId: h.merchant.user.id,
+    uploadClient: "weapp",
+  });
+  const bind = (accountName: string, accountUid: string) =>
+    h.publish.bind(h.viewer, {
+      platform: "douyin",
+      accountName,
+      accountUid: `${accountUid}${uuidv7()}`,
+      accountType: "none",
+      screenshotFileIds: [screenshot.id],
+    });
+  const suffix = await bind("仅账号中段命中", "zzABC123");
+  const prefix = await bind("规范化前缀", " A b C 123 ");
+  const named = await bind("名称中段ABC123匹配", "name");
+  for (const [q, ids] of [
+    ["ABC", [prefix.channelAccountId, named.channelAccountId]],
+    [" a B c ", [prefix.channelAccountId]],
+    ["zzABC", [suffix.channelAccountId]],
+  ] as const) {
+    const filter = { storeId: h.merchant.store.id, q };
+    const list = await h.health.list(h.staff, { ...filter, page: 1, pageSize: 20 });
+    expect(list.items.map((item) => item.channelAccountId).sort()).toEqual([...ids].sort());
+    expect(list.total).toBe(ids.length);
+    expect(await h.health.summary(h.staff, filter)).toEqual({
+      total: ids.length,
+      pendingVerify: ids.length,
+      available: 0,
+      abnormal: 0,
+      unbound: 0,
+    });
+  }
+});
 it("账号人工异常只改变健康状态、列表summary一致，真实订购引用仍阻止解绑", async () => {
   const h = await subject(),
     live = await h.launch();

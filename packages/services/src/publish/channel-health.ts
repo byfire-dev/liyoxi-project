@@ -7,7 +7,7 @@ import type { PublishDeps, PublishViewer, PublishWriteOptions } from "./context.
 import { accountInclude, accountOf } from "./repo.js";
 import { accountCard, accountDetail, accountRow } from "./views.js";
 import { checked } from "./machines.js";
-import { invalid, owner, reasonScene } from "./validate.js";
+import { invalid, normalize, owner, reasonScene } from "./validate.js";
 import { withAccountUnbind } from "./account-unbind.js";
 type Filter = { storeId?: string; platform?: string; q?: string };
 const activePhases = ["pending_start", "producing", "to_launch", "live"];
@@ -19,7 +19,7 @@ function where(staff: StaffContext, query: Filter): Prisma.ChannelAccountWhereIn
       ? {
           OR: [
             { accountName: { contains: query.q, mode: "insensitive" } },
-            { accountUid: { contains: query.q, mode: "insensitive" } },
+            { accountUidNorm: { startsWith: normalize(query.q) } },
           ],
         }
       : {}),

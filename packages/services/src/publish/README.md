@@ -77,6 +77,8 @@ W0-17 实际通知契约是通知框架调用各域的只读事实端口；本�
 
 `createPublishPatrol(deps)` 从 publish 公口提供 `list/summary/get/create/decide/remind`；`decide` 的 normal、abnormal、recover 三种模式对应三条写 API。事务内 `followup/reconcile/reconcileTimers` 与周期任务 `weekly` 供正式运行时装配使用，不由应用直接查表替代。
 
+账号列表与summary共用搜索条件：名称包含匹配，账号ID按原normalize后的accountUidNorm前缀匹配。巡检催办仅对abnormal状态开放；待检、正常或已恢复任务返回STATE_NOT_ALLOWED且不新增业务日志、事件或迁移。
+
 `createChannelHealth(deps)` 提供 `list/summary/markAbnormal/unbind`。后台门店筛选与员工原 scope 取交集；指定 storeId 不覆盖原范围。解绑沿审批→账号锁序，经既有 approval 公开撤回入口关闭在途核验，活跃订单引用或未核查下架任务仍拒绝解绑。
 
 W6-08 消费完整门店账号候选，W6-09 消费巡检、账号健康与商家解绑；页面与对应留桩仍由页面 owner 唯一交付。W6-04 消费巡检终态及现有发布收尾公口，本包不代做下架确认、核查或 R3。

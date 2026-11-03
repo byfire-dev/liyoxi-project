@@ -344,7 +344,7 @@ export async function remindPatrol(
     now = deps.clock.now();
   assertPatrolStaff(staff, row.deliveryTicket.publisherId);
   eligible(task, now);
-  if (row.status !== "abnormal") throw new AppError("REMIND_NOT_APPLICABLE");
+  if (row.status !== "abnormal") throw new AppError("STATE_NOT_ALLOWED");
   const bizDate = calendarDate(now),
     logId = uuidv7();
   const made = await tx.manualReminderLog.createMany({
