@@ -372,6 +372,9 @@ async function main(args) {
   database.searchParams.set("options", "-c role=lyx_app");
   const testEnv = { ...baseEnv, DATABASE_URL: database.toString() };
   try {
+    // Never inherit an external cache. This run owns the directory and the existing finally removes it.
+    const compileCache = join(temporary, "node-compile-cache");
+    mkdirSync(compileCache, { mode: 0o700 });
     const video = fixtureFile(values.video, "video"),
       resumeVideo = fixtureFile(values["resume-video"], "resume-video");
     if (resumeVideo.size <= 20 * 1024 * 1024)
@@ -571,6 +574,7 @@ async function main(args) {
         LYX_ADMIN_LIVE_ORIGIN: origin,
         LYX_ADMIN_LIVE_CONTEXT: contextFile,
         LYX_ADMIN_LIVE_STATE: stateFile,
+        ...(process.env.NODE_V8_COVERAGE === undefined ? { NODE_COMPILE_CACHE: compileCache } : {}),
       },
     );
   } finally {
