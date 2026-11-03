@@ -6,7 +6,7 @@ import {
 } from "@liyoxi/contract";
 import { createConfig, paramsAt } from "../config/index.js";
 import { formatMoney } from "@liyoxi/shared/format/money";
-import { calendarDate } from "@liyoxi/shared/time";
+import { addDays, atMinuteOfDay, calendarDate } from "@liyoxi/shared/time";
 import { notifyReadOf, remindersOf, uuidv7 } from "../kernel/index.js";
 import type { DeliveredEvent, Tx } from "../kernel/index.js";
 import type {
@@ -21,6 +21,9 @@ import {
   AD_PENDING_SPEC,
   AD_SLA_SPEC,
   PATROL_SPEC,
+  TAKEDOWN_REMINDER_SPEC,
+  TAKEDOWN_MANUAL_SPEC,
+  TAKEDOWN_OVERDUE_SPEC,
   RENEWAL_SPEC,
   DELIVERY_LAUNCH_REMINDER_SPEC,
   INVITATION_JOIN_SPEC,
@@ -111,7 +114,11 @@ export async function currentNotificationFact(
       )
     )
       return null;
-    const fact = await currentNotificationFact(tx, deps, source, original.bizId);
+    const reminder = await currentReminderFact(tx, deps, original);
+    const fact =
+      reminder === undefined
+        ? await currentNotificationFact(tx, deps, source, original.bizId)
+        : reminder;
     if (!fact || (source.pendingStatus && !source.pendingStatus.includes(fact.status))) return null;
     const guarded = NotifyFactSchema.shape.guardBizType.safeParse(fact.bizType);
     if (
@@ -175,6 +182,22 @@ export async function currentNotificationFact(
         isLead: true,
       })) ?? [];
   }
+  if (spec === TAKEDOWN_OVERDUE_SPEC) {
+    if (!fact.occurredAt || new Date(fact.occurredAt) > deps.clock.now()) return null;
+    const readers = notifyReadOf(deps.assembly);
+    fact.staffIds = [
+      ...new Set([
+        ...((await readers.read<string[]>(tx, "managerIdsForNotify", {
+          entityId: fact.entityId,
+          storeId: fact.storeId,
+        })) ?? []),
+        ...((await readers.read<string[]>(tx, "activeStaffForNotify", {
+          roleKey: "delivery_manager",
+          isLead: true,
+        })) ?? []),
+      ]),
+    ];
+  }
   if (["s.approval_pending", "s.approval_overdue"].includes(spec.sceneKey))
     fact.staffIds = await deps.approvalRecipients(tx, id);
   // 已发出的旧SLA事件可能晚于日历修正才消费，必须按当前截止复核。
@@ -222,10 +245,13 @@ export async function currentNotificationFact(
 export async function currentReminderFact(
   tx: Tx,
   deps: NotifyDispatchDeps,
-  notification: Pick<Notification, "sourceRule" | "vars">,
+  notification: Pick<Notification, "sourceRule" | "vars" | "notifySceneKey" | "bizType">,
 ) {
-  const rule = notification.sourceRule;
-  if (rule !== "R2" && rule !== "R6") return undefined;
+  const rule =
+    notification.notifySceneKey === "m.offline_remind" && notification.bizType === "store"
+      ? "R3"
+      : notification.sourceRule;
+  if (rule !== "R2" && rule !== "R3" && rule !== "R6") return undefined;
   const stored = NotifyFactSchema.safeParse(notification.vars);
   if (!stored.success) return null;
   const current = await remindersOf(deps.assembly).revalidate(tx, rule, {
@@ -255,6 +281,9 @@ const occurrenceEvents = new Set([
   "store.qualification.rejected",
   "account.verified",
   "account.abnormal",
+  "takedown.checked",
+  "takedown.found_online",
+  "takedown.basis_reopened",
 ]);
 
 /** Caller transaction is the only transaction: consumer status, inbox and deliveries roll back together. */
@@ -263,7 +292,13 @@ export async function dispatchFact(
   deps: NotifyDispatchDeps,
   spec: NotificationSpec,
   fact: NotifyFact,
-  source: { event?: DeliveredEvent; node: string; rule?: string; recipients?: NoticeRecipient[] },
+  source: {
+    event?: DeliveredEvent;
+    node: string;
+    rule?: string;
+    dedupeRule?: "R3";
+    recipients?: NoticeRecipient[];
+  },
 ): Promise<number> {
   const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: spec.sceneKey } });
   const mandatory =
@@ -363,11 +398,14 @@ export async function dispatchFact(
     const key =
       source.rule === "R2"
         ? `launch:${fact.storeId}:${fact.targetDate}:${source.node}:${recipient.merchantUserId}`
-        : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${
-            spec.sceneKey.startsWith("m.points_") || occurrenceEvents.has(source.event?.type ?? "")
-              ? (source.event?.id ?? "rule")
-              : fact.status
-          }:${recipient.merchantUserId}${mandatory ? `:${entityId}` : ""}`;
+        : (source.dedupeRule ?? source.rule) === "R3"
+          ? `offline:${fact.storeId}:${fact.targetDate}:${source.node}:${recipient.merchantUserId}`
+          : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${
+              spec.sceneKey.startsWith("m.points_") ||
+              occurrenceEvents.has(source.event?.type ?? "")
+                ? (source.event?.id ?? "rule")
+                : fact.status
+            }:${recipient.merchantUserId}${mandatory ? `:${entityId}` : ""}`;
     const vars = {
       ...fact,
       entityId,
@@ -476,6 +514,38 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  if (event.type.startsWith("takedown.")) {
+    if (
+      !(await notifyReadOf(deps.assembly).read<boolean>(tx, "takedownEventCurrentForNotify", {
+        eventId: event.id,
+        type: event.type,
+        payload: event.payload,
+      }))
+    )
+      return 0;
+    if (event.type === "takedown.created") {
+      const task = await currentNotificationFact(
+        tx,
+        deps,
+        TAKEDOWN_MANUAL_SPEC,
+        IdSchema.parse(event.payload.takedownTaskId),
+      );
+      if (!task?.storeId || !task.targetDate) return 0;
+      const current = await notifyReadOf(deps.assembly).read(
+        tx,
+        "takedownReminderFact",
+        task.storeId,
+        task.targetDate,
+      );
+      if (!current) return 0;
+      // The shared R3 key must not turn an event into two persisted source kinds.
+      return dispatchFact(tx, deps, TAKEDOWN_REMINDER_SPEC, NotifyFactSchema.parse(current), {
+        event,
+        node: "T-30",
+        dedupeRule: "R3",
+      });
+    }
+  }
   // These exact producers carry no arbitrary version or free text in their payloads.
   // Their owner checks the persisted event occurrence against the current business version.
   if (event.type === "publish_list.updated" || event.type === "launch.verify_revoked") {
@@ -533,6 +603,23 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       const fact = await currentNotificationFact(tx, deps, PATROL_SPEC, payload.subjectId);
       if (!fact || fact.bizType !== "patrol_task" || fact.status !== "abnormal") return 0;
       return dispatchFact(tx, deps, PATROL_SPEC, fact, { event, node: "M" });
+    }
+    if (payload.scene === "takedown" || payload.scene === "breach") {
+      if (payload.subjectType !== "takedown_task") return 0;
+      const fact = await currentNotificationFact(tx, deps, TAKEDOWN_MANUAL_SPEC, payload.subjectId);
+      if (!fact || fact.status !== "pending_merchant") return 0;
+      return dispatchFact(
+        tx,
+        deps,
+        TAKEDOWN_MANUAL_SPEC,
+        {
+          ...fact,
+          ...(payload.scene === "breach"
+            ? { summary: "作品已超过应下架日期，请在24小时内完成下架并确认。" }
+            : {}),
+        },
+        { event, node: "M" },
+      );
     }
     if (["confirm_plan", "confirm_sample", "golive"].includes(payload.scene)) {
       if ((payload.scene === "golive" ? "order_item" : "delivery_ticket") !== payload.subjectType)
@@ -599,6 +686,19 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
+    if (event.type === "takedown.basis_reopened" && spec === TAKEDOWN_OVERDUE_SPEC) {
+      const occurred = await tx.outboxEvent.findUnique({
+        where: { id: event.id },
+        select: { occurredAt: true },
+      });
+      if (
+        !occurred ||
+        !fact.dueDate ||
+        fact.occurredAt !== occurred.occurredAt.toISOString() ||
+        occurred.occurredAt < atMinuteOfDay(addDays(fact.dueDate, 1), 540)
+      )
+        continue;
+    }
     if (
       (event.type === "patrol.abnormal" || event.type === "patrol.recovered") &&
       (fact.bizType !== "patrol_task" ||

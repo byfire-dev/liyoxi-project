@@ -12,6 +12,7 @@ import {
   RENEWAL_SPEC,
   LAUNCH_REMINDER_SPEC,
   LAUNCH_OVERDUE_SPEC,
+  TAKEDOWN_REMINDER_SPEC,
   NotifyFactSchema,
 } from "./registry.js";
 
@@ -35,7 +36,7 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
   let notifications = 0;
   if (minuteOfDay(now) >= 9 * 60 && minuteOfDay(now) <= 9 * 60 + grace * 60) {
     const date = calendarDate(now);
-    for (const rule of ["R2", "R6"] as const) {
+    for (const rule of ["R2", "R3", "R6"] as const) {
       if (!reminders.has(rule)) throw new Error(`${rule} 缺少真实上线查询登记`);
       const queries =
         rule === "R2"
@@ -43,7 +44,12 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
               launchDate: addDays(date, days),
               node: `T-${days}`,
             }))
-          : [{ date, node: "N0" }];
+          : rule === "R3"
+            ? (await deps.params.get("remind.offline.days")).map((days) => ({
+                usageEndDate: addDays(date, days),
+                node: `T-${days}`,
+              }))
+            : [{ date, node: "N0" }];
       for (const query of queries) {
         const rows = await run((tx) => reminders.targets(tx, rule, query));
         for (const row of rows) {
@@ -56,7 +62,11 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
             return dispatchFact(
               tx,
               deps,
-              rule === "R2" ? LAUNCH_REMINDER_SPEC : LAUNCH_OVERDUE_SPEC,
+              rule === "R2"
+                ? LAUNCH_REMINDER_SPEC
+                : rule === "R3"
+                  ? TAKEDOWN_REMINDER_SPEC
+                  : LAUNCH_OVERDUE_SPEC,
               fact,
               { node: query.node, rule },
             );

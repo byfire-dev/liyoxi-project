@@ -138,3 +138,4 @@ export { createMerchantPlayables } from "./playable-runtime.js";
 
 export { createUsageLifecycleAssembly } from "./usage-lifecycle-runtime.js";
 export { createPatrolAssembly } from "./patrol-runtime.js";
+export { createTakedownAssembly } from "./takedown-runtime.js";

@@ -39,8 +39,22 @@ import { patrolNoticeFact } from "./patrol-notify.js";
 import { patrolOwnershipViolations, patrolObsoleteViolations } from "./patrol-invariants.js";
 import { invariantNow } from "../kernel/index.js";
 import type { Tx } from "../kernel/index.js";
+import { TAKEDOWN_INVARIANT_CODES, findTakedownViolations } from "./takedown-invariants.js";
+import { takedownReminderRule } from "./takedown-notify.js";
+import {
+  takedownNoticeFact,
+  takedownReminderFact,
+  takedownEventCurrentForNotify,
+} from "./takedown-notify.js";
 export const registration = defineRegistration("publish", {
   timerHandlers: [
+    ...["takedown.create", "takedown.overdue"].map((kind) => ({
+      kind,
+      critical: kind === "takedown.create",
+      handle: async (): Promise<"fired" | "skipped"> => {
+        throw new TypeError("下架运行时尚未绑定");
+      },
+    })),
     {
       kind: "patrol.followup",
       handle: async () => {
@@ -62,6 +76,14 @@ export const registration = defineRegistration("publish", {
   ],
   subscribers: [
     {
+      name: "publish.onCalendarImported",
+      critical: false,
+      events: ["calendar.imported"],
+      handle: async () => {
+        throw new TypeError("下架运行时尚未绑定");
+      },
+    },
+    {
       name: "publish.onLicenseExtended",
       critical: true,
       events: ["drama.license_extended"],
@@ -72,6 +94,30 @@ export const registration = defineRegistration("publish", {
   ],
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    implementKeyed(remindersPort, "R3", takedownReminderRule),
+    notifyFactImplementation(currentNotifyRead, "takedownNoticeFact", takedownNoticeFact),
+    notifyFactImplementation(currentNotifyRead, "takedownReminderFact", takedownReminderFact),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "takedownEventCurrentForNotify",
+      takedownEventCurrentForNotify,
+    ),
+    implementKeyed(fileRefTypePort, "takedown_task", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.takedownTask.findMany({
+            where: { evidenceFileIds: { has: fileId } },
+            select: { id: true },
+          })
+        ).map((r) => ({ fileId, refId: r.id, role: "evidence" })),
+      roles: {
+        evidence: { categories: ["evidence"], retentionDays: 1095, canRelease: async () => false },
+      },
+      readColumns: async (tx) =>
+        (await tx.takedownTask.findMany({ select: { id: true, evidenceFileIds: true } })).flatMap(
+          (r) => r.evidenceFileIds.map((fileId) => ({ fileId, refId: r.id, role: "evidence" })),
+        ),
+    }),
     implementKeyed(remindersPort, "R2", launchReminderRule),
     implementKeyed(remindersPort, "R6", overdueLaunchReminderRule),
     notifyFactImplementation(currentNotifyRead, "patrolNoticeFact", patrolNoticeFact),
@@ -228,6 +274,14 @@ export const registration = defineRegistration("publish", {
     }),
   ],
   invariants: [
+    ...TAKEDOWN_INVARIANT_CODES.map((code) => ({
+      code: `publish.${code}`,
+      severity: "P2" as const,
+      modes: ["full" as const],
+      heal: code === "I16" ? ("heal_and_alert" as const) : ("none" as const),
+      run: (tx: Tx, _scope: unknown, ctx: Parameters<typeof invariantNow>[0]) =>
+        findTakedownViolations(tx, code, invariantNow(ctx)),
+    })),
     ...PUBLISH_INVARIANT_CODES.map((code) => ({
       code: `publish.${code}`,
       severity: "P2" as const,

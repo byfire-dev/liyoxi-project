@@ -1,6 +1,8 @@
 import { z } from "../../zod.js";
 import { DateSchema, IdSchema } from "../../common/index.js";
+import { TakedownMethodSchema } from "../a06-publish/takedown-m6.schemas.js";
 export const M05_ERROR_DETAILS = {
+  TAKEDOWN_METHOD_NOT_ALLOWED: z.object({ allowedMethods: z.array(TakedownMethodSchema) }),
   DOWNLOAD_GRANT_INVALID: z.strictObject({
     reason: z.enum(["expired", "superseded", "revoked", "missing"]),
     expiresAt: z.string().datetime().nullable(),

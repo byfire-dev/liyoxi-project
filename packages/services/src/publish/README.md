@@ -137,3 +137,17 @@ W6-08 消费完整门店账号候选，W6-09 消费巡检、账号健康与商�
 `patrol-full-m6.test.ts` 另从已合主干的 `createM1Support` / `runM1Chain` 完整链起步，在原 `afterChain` 入口通过真实 HTTP 创建巡检、登记并上传提升截图、提交正常结论；随后执行 runner 原有的不筛域 full 检查。它不使用上述历史待上线输入，不等待或消费未合并的 W6-02 代码；通过与否以实际运行日志为准。对象存储、媒体探测等外部供应商仍沿 M1 既有替身，截图与平台 URL 是虚构测试输入，不能计作真实云或人工平台外验。定点验收不替代 required 全量 CI、M6 合流或原真实外部验收。
 
 本次本地首轮完整链1/1通过：二十集制作上线、巡检正常、全仓full143项零违规；含初始化和清理23.752秒（Vitest命令31.80秒）。日志与精确代码基线见[W6-03状态](../../../../docs/plan/status/W6-03.md)，该结果不替代未运行的远端CI或外部验收。
+
+## W6-04 下架确认与核查
+
+`createPublishTakedown` 提供商家列表、计数和确认，后台队列、计数、详情、单条/批量核查、仍在线、升级及违约提醒。确认只有方式；逐条核查必须提供当前口径的完整清单和2–9张不同截图。批量1–50个不同任务先一次锁定完整图并校验全部项，任何业务拒绝以 `TAKEDOWN_BATCH_REJECTED.details.items` 返回，整批不写业务、历史、引用或通知；成功顺序与请求一致。
+
+商家确认时读取当时核查模式，按万分比抽签并将参数与结果留在历史中；幂等重放不再次抽签。部分账号确认不提前推进，全数确认进入下架阶段，全数核查（含抽查放行）才归档。已终止工单的残留任务可继续核查，工单保持终止。确认“未发布”后实际核验上线会重新要求确认；仍在线、升级、违约提醒分别走冻结事件和原限频，逾期不自动制造人工跟进。
+
+`takedown.create`、不足30天推包与 I16 修复共用 `ensureTakedownTasks` 唯一 writer；日期和状态晚到均重新核对。`takedown.overdue` 的代次键绑定应完成日，日期变化撤旧再登记。`publish.onCalendarImported` 只根据已冻结SLA策略重算核查截止和快照版本，以 `sla.recalculated` 同态历史记录前后值，使用期止日保持。
+
+运行时在巡检装配外再包一层下架装配，关闭先等待下架调用再关闭巡检。`timers.I7` 保留原巡检修复，再执行下架修复；I16–I20覆盖漏建、依据、归属、日期和证据引用。R3按门店×止日×节点×收件人去重，T-30新建事件与定时提醒共用键；通知前重核当前任务，旧事件不能复活作废提醒。
+
+下架证据引用保留1095天且禁止主动释放；工单归档通过既有公开流程关闭授权/下载并延续原使用期止日次日+90天留存。这里的截图只代表人员提交的核查依据，真实平台核查、法律判断与机构签章不由替身测试确认。
+
+验收入口：`publish/takedown-m6.db.test.ts`、`publish/takedown-close-m6.db.test.ts`、`ops/takedown-runtime.db.test.ts`、`notify/takedown-reminders.db.test.ts`（project services）；`apps/api/test/takedown-m6.test.ts` 和 `takedown-full-m6.test.ts`（project api）。统一使用 `pnpm exec vitest run --project <project> <file> --maxWorkers=1 --no-file-parallelism`。完整链保留20集、上传并发4、包含清理90秒及全仓full检查；单包实际结果见[W6-04状态](../../../../docs/plan/status/W6-04.md)。

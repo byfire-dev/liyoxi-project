@@ -351,6 +351,7 @@ describe("真实的迁移表与分组文档：0 差异（验收 1–3）", () =>
       "10:196 ticket.created",
       "10:1377 reissue.cancelled",
       "10:1375 sla.recalculated",
+      "11:671 sla.recalculated",
     ]);
   });
 });

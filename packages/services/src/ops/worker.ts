@@ -1,6 +1,7 @@
 import { createUsageLifecycleAssembly } from "./usage-lifecycle-runtime.js";
 import { createPatrolAssembly } from "./patrol-runtime.js";
-import { createPublishPatrol } from "../publish/index.js";
+import { createTakedownAssembly } from "./takedown-runtime.js";
+import { createPublishPatrol, createPublishTakedown } from "../publish/index.js";
 import { createUsageLifecycle } from "../order/index.js";
 import { createAdAssembly } from "./ad-timer-runtime.js";
 import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
@@ -430,7 +431,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
   const patrolScope = createPatrolAssembly(usageLifecycleScope.assembly);
-  const docsScope = createDocsAssembly(patrolScope.assembly);
+  const takedownScope = createTakedownAssembly(patrolScope.assembly);
+  const docsScope = createDocsAssembly(takedownScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -851,6 +853,19 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   patrolScope.attach(
     createPublishPatrol({ tx, clock, assembly, approval, flow, events, timers, media }),
   );
+  takedownScope.attach(
+    createPublishTakedown({
+      tx,
+      clock,
+      assembly,
+      approval,
+      flow,
+      events,
+      timers,
+      media,
+      sla: deliveryCore.sla,
+    }),
+  );
   const orderCancelDeps = {
     tx,
     clock,
@@ -1147,13 +1162,14 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeAnalytics,
     reprocessWebhooks: (beat) => webhooks.scan(beat),
     closeOrder: async () => {
+      const takedownResults = await Promise.allSettled([takedownScope.close()]);
       const results = await Promise.allSettled([
         usageLifecycleScope.close(),
         patrolScope.close(),
         orderReconciler.close(),
         adScope.close(),
       ]);
-      const failure = results.find(
+      const failure = [...takedownResults, ...results].find(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
       closeStart();

@@ -52,4 +52,5 @@ export const takedownTask = chain("takedown_task", "status", TAKEDOWN_TASK_STATU
   ["11:659", ["pending_merchant"], "takedown.escalate", SAME, NO_GUARD],
   ["11:660", ["pending_merchant"], "takedown.breach_notice", SAME],
   ["11:661", ["pending_merchant"], "takedown.void", ["void"]],
+  ["11:671", ["merchant_confirmed"], "sla.recalculated", SAME],
 ]);

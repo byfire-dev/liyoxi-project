@@ -57,6 +57,12 @@ export { createW501Publish, prepareW501AdCancel } from "./w501.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。
 export { createM1Support } from "./m1-support.js";
+export {
+  runM6TakedownCreate,
+  drainM6TakedownEvents,
+  settleM6TakedownBackground,
+} from "./m6-takedown.js";
+export { requestsHarness as createCancelRequestsFixture } from "./order-cancel-requests.fixture.js";
 export { M1OwnerNetworkSchema } from "./m1-owner-network.js";
 export { createM1WorkerResources, M1WorkerAttachmentSchema } from "./m1-worker.js";
 export type { M1LoopWorkerSnapshot } from "./m1-worker.js";
@@ -267,3 +273,37 @@ export type {
   M5Order as M5DeliveryOrder,
   M5Staff as M5DeliveryStaff,
 } from "./delivery-release.fixture.js";
+
+export { createTakedownFixture } from "./publish-takedown.fixture.js";
+export { claimTakedownTimer, claimTakedownCalendar } from "./takedown-transport.js";
+
+// Order fixture compatibility bridges use this public boundary; fixtures depend only on leaves.
+export {
+  harness as createOrderBaseFixture,
+  buyer as createOrderFixtureBuyer,
+  body as createOrderFixtureBody,
+  residual as readOrderFixtureResidual,
+} from "./order-base.fixture.js";
+export type { Harness as OrderBaseFixtureHarness } from "./order-base.fixture.js";
+export {
+  startHarness as createOrderStartFixture,
+  startSnapshot as readOrderStartFixtureSnapshot,
+  pendingCancel as createOrderPendingCancelFixture,
+} from "./order-start.fixture.js";
+export type { StartHarness as OrderStartFixtureHarness } from "./order-start.fixture.js";
+export {
+  cancelHarness as createOrderCancelFixture,
+  readCancelRequest as readOrderCancelRequestFixture,
+  CANCEL_TABLES as ORDER_CANCEL_FIXTURE_TABLES,
+  ORDER_STAGES as ORDER_CANCEL_FIXTURE_STAGES,
+} from "./order-cancel.fixture.js";
+export type {
+  OrderStage as OrderCancelFixtureStage,
+  CancelHarness as OrderCancelFixtureHarness,
+  CancelFixture as OrderCancelFixture,
+} from "./order-cancel.fixture.js";
+export {
+  REQUEST_TABLES as ORDER_CANCEL_REQUEST_FIXTURE_TABLES,
+  MONEY_TABLES as ORDER_CANCEL_REQUEST_FIXTURE_MONEY_TABLES,
+} from "./order-cancel-requests.fixture.js";
+export type { RequestsHarness as CancelRequestsFixtureHarness } from "./order-cancel-requests.fixture.js";

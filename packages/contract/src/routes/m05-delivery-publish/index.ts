@@ -47,3 +47,5 @@ export * from "./download.schemas.js";
 export * from "./license.schemas.js";
 
 export * from "./license-letters.js";
+export * from "./takedown.schemas.js";
+export * from "./takedown-tasks.js";
