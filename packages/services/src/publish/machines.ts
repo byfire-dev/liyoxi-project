@@ -21,12 +21,15 @@ const account: MachineBinding = {
     "abnormal_source",
     "abnormal_reason_code",
     "abnormal_note",
+    "unbound_at",
   ],
   guards: guards([
     ["11:129", "account.bind"],
     ["11:130", "account.verify_pass"],
     ["11:131", "account.verify_reject"],
     ["11:132", "account.resubmit"],
+    ["11:133", "account.mark_abnormal"],
+    ["11:134", "account.unbind"],
   ]),
   activity: (f) => ({
     category: "review",

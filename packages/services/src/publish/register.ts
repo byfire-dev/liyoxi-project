@@ -27,7 +27,31 @@ import { findPublishViolations, PUBLISH_INVARIANT_CODES } from "./invariants.js"
 import { launchInclude, accountInclude } from "./repo.js";
 import { accountCard, todo } from "./views.js";
 import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
+import { patrolNoticeFact } from "./patrol-notify.js";
+import { patrolOwnershipViolations, patrolObsoleteViolations } from "./patrol-invariants.js";
+import { invariantNow } from "../kernel/index.js";
+import type { Tx } from "../kernel/index.js";
 export const registration = defineRegistration("publish", {
+  timerHandlers: [
+    {
+      kind: "patrol.followup",
+      handle: async () => {
+        throw new TypeError("巡检运行时尚未绑定");
+      },
+    },
+  ],
+  recurringJobs: [
+    {
+      kind: "patrol.weekly_generate",
+      schedule: { every: "week", weekday: 1, at: "09:00" },
+      mode: "tx",
+      missSeverity: "P2",
+      catchUp: true,
+      run: async () => {
+        throw new TypeError("巡检运行时尚未绑定");
+      },
+    },
+  ],
   subscribers: [
     {
       name: "publish.onLicenseExtended",
@@ -40,6 +64,23 @@ export const registration = defineRegistration("publish", {
   ],
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    notifyFactImplementation(currentNotifyRead, "patrolNoticeFact", patrolNoticeFact),
+    implementKeyed(fileRefTypePort, "patrol_task", {
+      inUse: async (tx, fileId) =>
+        (
+          await tx.patrolTask.findMany({
+            where: { evidenceFileIds: { has: fileId } },
+            select: { id: true },
+          })
+        ).map((r) => ({ fileId, refId: r.id, role: "evidence" })),
+      roles: {
+        evidence: { categories: ["evidence"], retentionDays: 1095, canRelease: async () => false },
+      },
+      readColumns: async (tx) =>
+        (await tx.patrolTask.findMany({ select: { id: true, evidenceFileIds: true } })).flatMap(
+          (r) => r.evidenceFileIds.map((fileId) => ({ fileId, refId: r.id, role: "evidence" })),
+        ),
+    }),
     implementTenantCloseFacts(publishCloseFactsPort, { countPendingChannelAccountsByStore }),
     implementKeyed(staffFollowUpPort, "takedown_task", async (tx, id) => {
       const row = await tx.takedownTask.findUnique({
@@ -170,11 +211,27 @@ export const registration = defineRegistration("publish", {
       return { stores };
     }),
   ],
-  invariants: PUBLISH_INVARIANT_CODES.map((code) => ({
-    code: `publish.${code}`,
-    severity: "P2",
-    modes: ["full"],
-    heal: "none",
-    run: (tx) => findPublishViolations(tx, code),
-  })),
+  invariants: [
+    ...PUBLISH_INVARIANT_CODES.map((code) => ({
+      code: `publish.${code}`,
+      severity: "P2" as const,
+      modes: ["full" as const],
+      heal: "none" as const,
+      run: (tx: Tx) => findPublishViolations(tx, code),
+    })),
+    {
+      code: "publish.I14",
+      severity: "P2",
+      modes: ["full"],
+      heal: "none",
+      run: patrolOwnershipViolations,
+    },
+    {
+      code: "publish.I15",
+      severity: "P2",
+      modes: ["full"],
+      heal: "heal_and_alert",
+      run: (tx, _scope, ctx) => patrolObsoleteViolations(tx, invariantNow(ctx)),
+    },
+  ],
 });

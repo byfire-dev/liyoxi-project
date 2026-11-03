@@ -243,6 +243,12 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 
 10条票据/会话API由同一portal→identity安全机制承接。API装配复用merchantServicesOf；下游02/06/10等本包actual main后消费PortalPrincipal、当前会话/固定store scope与既有revokePortalGrants，不借未合代码。Cookie、Origin、自定义头、只读操作白名单沿原槽位，GET不写库；sample.view不恢复Q9样片接口。现有ops.retention收集7天票据清理，0新增x01。真实扫码V8、M5业主演示和外验仍按原边界，本地HTTP不能替代。
 
+### W6-03 巡检与账号健康移交（随本包 PR 交付）
+
+| 编号 | 接收方 | 交付与边界 | 出处 |
+| --- | --- | --- | --- |
+| — | W6-08、W6-09、W6-04、W6-13 | W6-03交12条typed API、`createPublishPatrol`/`createChannelHealth`和真实`patrol.weekly_generate`/`patrol.followup`；08消费门店可用账号，09消费巡检/账号健康/解绑及原媒体证据签发，页面桩仍由页面owner关闭。staff跟进经真实公口创建/恢复关闭，通知按当前上线/使用期重验；04沿已合取消/到期公开收尾作废巡检，不另写巡检状态或借私有authority。`timers.I7`目前只交patrol贡献，04须在同一timers登记扩下架检查；runtime未绑定明确失败，关闭拒绝新调用并等待准入调用。13按实际CI及真实full结果收证，不能把历史待上线夹具当支付/交付验收，预发周生成与真实平台证据仍按原点验。 | W6-03；publish README W6-03节；11第2.5、2.6节；a06第3.20–3.27节 |
+
 ### W6-06 Q9登记治理移交（独立前置）
 
 | 编号 | 接收方 | 实际移交 | 依据 |

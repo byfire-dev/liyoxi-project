@@ -29,6 +29,8 @@ export const A06_PUBLISH = defineRouteDoc("a06-publish", [
 ]);
 
 export * from "./publish.schemas.js";
+export * from "./patrol-m6.schemas.js";
+export * from "./patrol-tasks.js";
 export * from "./channel-account-submissions.js";
 export * from "./channel-accounts.js";
 export * from "./launch-submissions.js";

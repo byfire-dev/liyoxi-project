@@ -19,6 +19,8 @@ import {
   EVENT_SCENES,
   AD_PENDING_SPEC,
   AD_SLA_SPEC,
+  PATROL_SPEC,
+  RENEWAL_SPEC,
   DELIVERY_LAUNCH_REMINDER_SPEC,
   INVITATION_JOIN_SPEC,
   NotifyFactSchema,
@@ -156,7 +158,7 @@ export async function currentNotificationFact(
     tx,
     spec.reader,
     id,
-    ...(spec === AD_SLA_SPEC ? [{ now: deps.clock.now() }] : []),
+    ...([AD_SLA_SPEC, PATROL_SPEC].includes(spec) ? [{ now: deps.clock.now() }] : []),
   );
   if (found === null) return null;
   const fact = NotifyFactSchema.parse(found);
@@ -487,6 +489,12 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       if (!parsed.success || parsed.data.bizType !== "ad") return 0;
       return dispatchFact(tx, deps, AD_PENDING_SPEC, parsed.data, { event, node: "M" });
     }
+    if (payload.scene === "patrol_fix") {
+      if (payload.subjectType !== "patrol_task") return 0;
+      const fact = await currentNotificationFact(tx, deps, PATROL_SPEC, payload.subjectId);
+      if (!fact || fact.bizType !== "patrol_task" || fact.status !== "abnormal") return 0;
+      return dispatchFact(tx, deps, PATROL_SPEC, fact, { event, node: "M" });
+    }
     if (["confirm_plan", "confirm_sample", "golive"].includes(payload.scene)) {
       if ((payload.scene === "golive" ? "order_item" : "delivery_ticket") !== payload.subjectType)
         return 0;
@@ -516,6 +524,10 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
       ).valid
     )
       return 0;
+    // 人工催办已经按 scene 选定来源，不再遍历其他场景的不同 refField。
+    const fact = await currentNotificationFact(tx, deps, RENEWAL_SPEC, payload.subjectId);
+    if (!fact) return 0;
+    return dispatchFact(tx, deps, RENEWAL_SPEC, fact, { event, node: "M" });
   }
   if (event.type === "store.archived" || event.type === "entity_member.removed") {
     const source = await storeArchiveSource(tx, event.id);
@@ -548,6 +560,14 @@ export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: Del
     if (!parsedId.success) throw new TypeError(`通知对象标识不符合契约：${event.type}`);
     const fact = await currentNotificationFact(tx, deps, spec, parsedId.data);
     if (fact === null) continue;
+    if (
+      (event.type === "patrol.abnormal" || event.type === "patrol.recovered") &&
+      (fact.bizType !== "patrol_task" ||
+        fact.status !== (event.type === "patrol.abnormal" ? "abnormal" : "recovered") ||
+        fact.guardBizId !== event.payload.launchTaskId ||
+        (event.type === "patrol.abnormal" && fact.orderItemId !== event.payload.orderItemId))
+    )
+      continue;
     if (
       event.type === "ad.version_pushed" &&
       fact.version !== EVENT_PAYLOAD_SCHEMAS["ad.version_pushed"].parse(event.payload).versionNo

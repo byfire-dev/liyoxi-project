@@ -280,6 +280,8 @@ export { seedDemoContent } from "./content/index.js";
 
 export {
   createPublish,
+  createPublishPatrol,
+  createChannelHealth,
   createLaunchTasks,
   getLaunchFacts,
   bindPublish,
@@ -292,6 +294,8 @@ export {
 export type {
   Publish,
   PublishDeps,
+  PublishPatrol,
+  PatrolDeps,
   PublishViewer,
   CreateLaunchTasksInput,
 } from "./publish/index.js";

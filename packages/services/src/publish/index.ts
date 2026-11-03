@@ -25,3 +25,7 @@ export {
 export type { DeliveryPublishTargets } from "./delivery-lifecycle.js";
 export { readLicenseAccounts } from "./license-facts.js";
 export type { LicenseAccountFact } from "./license-facts.js";
+export { createPublishPatrol } from "./patrol-service.js";
+export type { PublishPatrol } from "./patrol-service.js";
+export type { PatrolDeps } from "./patrol-context.js";
+export { createChannelHealth } from "./channel-health.js";

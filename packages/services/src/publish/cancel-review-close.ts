@@ -10,6 +10,8 @@ import { SLA_UNITS, workHoursAt } from "../sla/index.js";
 import type { Sla } from "../sla/index.js";
 import { closeSystemFollowUps } from "../staff/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
+import { patrolCompanions, patrolGuards } from "./patrol-machine.js";
+import { patrolRepairGuard } from "./patrol-invariants.js";
 
 const ids = (values: readonly string[]) => [...new Set(values)].sort();
 const pass = Symbol("publish.cancel_close");
@@ -547,11 +549,21 @@ async function closePublish(
 
 export const cancelReviewPublishMachines = [
   implementKeyed(machinePort, chainKey("patrol_task", "status"), {
-    guards: { [rowKey("11:547", "patrol.void")]: cancelPublishGuard },
+    companions: patrolCompanions,
+    guards: {
+      ...patrolGuards,
+      [rowKey("11:547", "patrol.void")]: async (tx, facts) =>
+        (await cancelPublishGuard(tx, facts)) || patrolRepairGuard(tx, facts),
+    },
     activity: (facts) => ({
       category: "delivery",
-      action: "publish.patrol_task.void",
-      summary: facts.payload?.cancelRequestId ? "取消订单项作废巡检" : "使用期结束作废巡检",
+      action: `publish.patrol_task.${facts.event.split(".")[1]}`,
+      summary:
+        facts.event === "patrol.void"
+          ? facts.payload?.cancelRequestId
+            ? "取消订单项作废巡检"
+            : "使用期结束作废巡检"
+          : "作品巡检",
     }),
   }),
   implementKeyed(machinePort, chainKey("takedown_task", "status"), {
