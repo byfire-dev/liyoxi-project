@@ -1,0 +1,46 @@
+name: spike-weapp-probe
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - spikes/weapp-probe/**
+      - .github/workflows/spike-weapp-probe.yml
+permissions:
+  contents: read
+concurrency:
+  group: spike-weapp-probe-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+jobs:
+  weapp-probe:
+    name: weapp-probe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PROBE_MODE: fake
+    steps:
+      - name: 检出
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 装 pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: 装 Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: 冻结安装独立工程
+        run: pnpm --dir spikes/weapp-probe install --frozen-lockfile
+      - name: 类型检查
+        run: pnpm --dir spikes/weapp-probe typecheck
+      - name: 四组替身端点与 secrets 守卫
+        run: pnpm --dir spikes/weapp-probe test
+      - name: 构建四页探针
+        run: pnpm --dir spikes/weapp-probe build
+      - name: 检查误提交私密文件与四项清单
+        shell: bash
+        run: |
+          if git ls-files spikes/weapp-probe | grep -E '(^|/)\.env($|\.)|server/\.logs/' | grep -v '\.env\.example$'; then exit 1; fi
+          test "$(grep -cE '^## (V19|V8|V3|V7)' spikes/weapp-probe/CHECKLIST.md)" = 4
+          test "$(grep -c '通过线' spikes/weapp-probe/CHECKLIST.md)" -ge 4
+
+# 独立可选验证；不接入现有 required，也不改保护规则。
