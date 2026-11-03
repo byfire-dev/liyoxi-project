@@ -39,8 +39,15 @@ export async function lockParents(tx: Tx, v: DeliveryViewer, ticketId: string) {
   await lockTickets(tx, [ticketId]);
 }
 export async function itemOf(tx: Tx, v: DeliveryViewer, id: string) {
+  return itemInScope(tx, v.membership, id);
+}
+export async function itemInScope(
+  tx: Tx,
+  scope: { readonly entityId: string; readonly storeId: string },
+  id: string,
+) {
   const r = await tx.orderItem.findFirst({
-    where: { id, entityId: v.membership.entityId, storeId: v.membership.storeId },
+    where: { id, entityId: scope.entityId, storeId: scope.storeId },
     include: { dramaOrder: true, deliveryTicket: true },
   });
   if (
@@ -59,6 +66,7 @@ export type DownloadItem = Awaited<ReturnType<typeof itemOf>>;
 export async function currentRelease(tx: Tx, item: DownloadItem) {
   const where = {
     orderItemId: item.id,
+    variant: "common",
     entityId: item.entityId,
     storeId: item.storeId,
     ...(item.deliveryTicket ? { deliveryTicketId: item.deliveryTicket.id } : {}),

@@ -30,3 +30,11 @@ W5-08 的提交、重提、修改通过既有三阶段事务执行：先核当�
 `adStaffWork` 按 producing/revising/pending_confirm/returned 的当前 editor 列出真实在办，登记 owner=ad、source=ad_editor；正式 staff 管理组合声明该 owner 必需。移交按原员工/业务锁顺序，在 ad owner 重核原归属与启用剪辑师目标，再由原 staff 事务写 assignment_history/outbox。移交不重置 first/due 时间、SLA快照或已扣积分。
 
 `handleAdSlaBreach` 只消费唯一 `sla.breach` 中的 ad 主体，核持久 dispatched timer、当前 key/purpose/轮次/deadline/快照以及未满足事实；日历重臂与初始快照载荷均严格对照。旧轮次、退回、已推送、取消中或迟到载荷跳过。资质在审待指派只提醒，不写 first_breached_at。实例关闭后旧回调拒绝，工单环节等其他主体沿原处理器。手工催办与两自然日提醒沿通知框架，实际投递成功、真实小程序播放与法务验收单列，不由队列入列推断已送达。
+
+## 电脑端只读广告与访问证据（W6-06）
+
+`createPortalAds` 提供 `list(principal, query)`、`get(principal, adId)`、`playbackUrls(principal, adId, { versionNo }, meta)`。固定会话主体/门店与当前已推送最大版本；列表按当前推送时间、广告 id 倒序分页，不泄露计价或内部文件字段。只有 portal 渠道或实时开关关闭下的 weapp / weapp+wecom 兜底可在电脑播放。GET 仅技术签封面，既不写审计也不建立查看或相册保存事实。
+
+播放先只读准备、事务外签源文件 3600 秒，再通过注入的 identity `assertPortalPrincipal(..., { write: true })` 冻结授权，按广告、可播放资产、文件原锁序核对同版本、真实生产就绪、引用与字节事实。提供者失败、会话到期/撤销、老板失效、版本替换均不得写成功证据；最终成功才追加 `ad.version.portal_preview`，操作人为 merchant/portal/owner，sessionId 与 authMethod 取重验的电脑会话。每次签发一条证据，不缓存幂等 URL、不借用 album_download；原广告确认守卫直接消费这条真实记录。
+
+`portal-m6.db.test.ts` 沿真实登录、广告生产/推送、票据换会话与旧确认用例覆盖渠道兜底、分页/跨店、GET 零写、短签失败、逐次证据及签名后的撤销、到期、版本变化。该替身验证不代表真机或外部平台已验。

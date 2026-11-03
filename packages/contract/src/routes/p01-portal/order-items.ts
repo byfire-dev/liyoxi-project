@@ -1,14 +1,21 @@
 // 电脑端下载页 · order-items（docs/api/p01-portal.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { portalMeta } from "../meta-only.js";
 import { portalRoute } from "../builders.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
   PublishListViewSchema,
   PublishListItemParamsSchema,
 } from "../a06-publish/publish-list.schemas.js";
+import {
+  PortalOrderItemParamsSchema,
+  PortalOrderItemListQuerySchema,
+  PortalOrderItemPageSchema,
+  PortalReleaseViewSchema,
+  PortalDownloadBodySchema,
+  PortalDownloadResultSchema,
+} from "./download.schemas.js";
 
-export const portalOrderItemList = portalMeta({
+export const portalOrderItemList = portalRoute({
   method: "get",
   path: "/portal/order-items",
   operationId: "portal.orderItem.list",
@@ -17,9 +24,11 @@ export const portalOrderItemList = portalMeta({
   "x-auth": "portal",
   "x-capability": "delivery.download",
   "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
+  request: { query: PortalOrderItemListQuerySchema },
+  responses: { ...okResponse(PortalOrderItemPageSchema), ...errorResponses(400, 401, 403, 500) },
 });
 
-export const portalOrderItemDownloadUrls = portalMeta({
+export const portalOrderItemDownloadUrls = portalRoute({
   method: "post",
   path: "/portal/order-items/{orderItemId}/download-urls",
   operationId: "portal.orderItem.downloadUrls",
@@ -30,6 +39,14 @@ export const portalOrderItemDownloadUrls = portalMeta({
   "x-idempotent": "none",
   "x-idempotent-reason":
     "签发短时地址（A18；C47、C60）：每次签发都是一次真实访问、都要留痕；结果不进幂等记录，避免回放已过期的地址；ZIP 打包自身按 zip_gen 与 media_job.dedupe_key 去重（06-media.md:962-964）",
+  request: {
+    params: PortalOrderItemParamsSchema,
+    body: { required: true, content: { "application/json": { schema: PortalDownloadBodySchema } } },
+  },
+  responses: {
+    ...okResponse(PortalDownloadResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 500),
+  },
 });
 
 export const portalOrderItemPublishListGet = portalRoute({
@@ -45,7 +62,7 @@ export const portalOrderItemPublishListGet = portalRoute({
   responses: { ...okResponse(PublishListViewSchema), ...errorResponses(400, 401, 403, 404, 500) },
 });
 
-export const portalOrderItemReleaseGet = portalMeta({
+export const portalOrderItemReleaseGet = portalRoute({
   method: "get",
   path: "/portal/order-items/{orderItemId}/release",
   operationId: "portal.orderItem.release.get",
@@ -54,4 +71,6 @@ export const portalOrderItemReleaseGet = portalMeta({
   "x-auth": "portal",
   "x-capability": "delivery.download",
   "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
+  request: { params: PortalOrderItemParamsSchema },
+  responses: { ...okResponse(PortalReleaseViewSchema), ...errorResponses(400, 401, 403, 404, 500) },
 });

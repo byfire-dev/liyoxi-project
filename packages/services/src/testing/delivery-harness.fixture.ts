@@ -149,6 +149,8 @@ export function harness(
     assembly,
     events,
     storage: fake.storage,
+    // This harness advances promote jobs explicitly after complete returns; no consumer can run during polling.
+    pollMs: 0,
     production: production?.({ prisma, clock, fake }),
   });
   const profile = createProfile({
@@ -198,7 +200,12 @@ export function harness(
     count = 1,
     posterFileId?: string,
     episodeCount?: number,
+    dramaId?: string,
   ) {
+    // Optional real upstream input: freeze its facts on INSERT, never edit the
+    // immutable order-item snapshot after the order has been created.
+    const drama = dramaId ? await prisma.drama.findUniqueOrThrow({ where: { id: dramaId } }) : null;
+    const snapshotPoster = posterFileId ?? drama?.posterFileId;
     await prisma.dictItem.upsert({
       where: { dictTypeKey_code: { dictTypeKey: "custom_focus", code: "CF01" } },
       create: {
@@ -241,11 +248,12 @@ export function harness(
         await make.orderItem({
           dramaOrderId: order.id,
           phase: "producing",
+          ...(drama ? { dramaId: drama.id } : {}),
           ...(episodeCount !== undefined ? { episodeCount } : {}),
           dramaSnapshot: {
-            title: `测试短剧${i + 1}`,
-            genreCodes: ["G01"],
-            ...(posterFileId ? { posterFileId } : {}),
+            title: drama?.title ?? `测试短剧${i + 1}`,
+            genreCodes: drama?.genreCodes ?? ["G01"],
+            ...(snapshotPoster ? { posterFileId: snapshotPoster } : {}),
           },
         }),
       );

@@ -1,5 +1,5 @@
 /** 私有map的component + pair.path：未来上传name必须等于abs_path，dist等于component。 */
-export type ClientErrorComponent = "admin" | "weapp";
+export type ClientErrorComponent = "admin" | "weapp" | "portal";
 export interface ClientErrorFrame {
   readonly filename: string;
   readonly abs_path: string;
@@ -21,7 +21,7 @@ const rootScripts = new Set([
   "custom-wrapper.js",
 ]);
 function component(value: unknown): value is ClientErrorComponent {
-  return value === "admin" || value === "weapp";
+  return value === "admin" || value === "weapp" || value === "portal";
 }
 function artifactPath(kind: ClientErrorComponent, value: string): boolean {
   if (
@@ -30,7 +30,7 @@ function artifactPath(kind: ClientErrorComponent, value: string): boolean {
     value.split("/").some((part) => !part || part === "." || part === "..")
   )
     return false;
-  return kind === "admin"
+  return kind === "admin" || kind === "portal"
     ? /^assets\/[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8}\.js$/.test(value)
     : rootScripts.has(value) ||
         /^(?:pages\/[A-Za-z0-9_-]+|sub\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)+)\/index\.js$/.test(
@@ -51,7 +51,7 @@ function localPath(kind: ClientErrorComponent, raw: string, origin?: string): st
     return;
   let path: string;
   if (raw.startsWith(`app:///${kind}/`)) path = raw.slice(`app:///${kind}/`.length);
-  else if (kind === "admin") {
+  else if (kind === "admin" || kind === "portal") {
     if (!origin) return;
     try {
       const url = new URL(raw),

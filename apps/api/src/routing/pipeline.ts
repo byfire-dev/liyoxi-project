@@ -90,7 +90,7 @@ export const ROUTE_MIDDLEWARES: readonly PipelineEntry[] = [
   { slot: "csrf", groups: ["admin"], factory: adminCsrf },
   { slot: "authz", groups: ["admin"], factory: adminAuthz },
   { slot: "stepUp", groups: ["admin"], factory: adminStepUp },
-  { slot: "bodyLimit", groups: ["m", "admin"], factory: reportingBody },
+  { slot: "bodyLimit", groups: ["m", "admin", "portal"], factory: reportingBody },
   { slot: "auth", groups: ["portal"], factory: portalAuth },
   { slot: "csrf", groups: ["portal"], factory: portalCsrf },
   { slot: "authz", groups: ["portal"], factory: portalCapability },

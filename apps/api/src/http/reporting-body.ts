@@ -4,6 +4,7 @@ const LIMITS: Readonly<Record<string, number>> = {
   "m.analyticsEvent.batchCreate": 64 * 1024,
   "m.clientError.create": 200 * 1024,
   "admin.clientError.create": 200 * 1024,
+  "portal.clientError.create": 200 * 1024,
 };
 
 /** 只读一次真实流；Content-Length 不参与放行，有界 bytes 缓存供 Hono 的正式解析器复用。 */

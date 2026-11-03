@@ -86,6 +86,1356 @@
         ],
         "type": "object"
       },
+      "LicenseRevisionBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "contentFp": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "isCurrent": {
+            "type": "boolean"
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pdfSha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "initial",
+              "go_live",
+              "period_changed",
+              "correction",
+              "resign"
+            ],
+            "type": "string"
+          },
+          "revNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revNo",
+          "reason",
+          "contentFp",
+          "pdfSha256",
+          "issuedAt",
+          "isCurrent"
+        ],
+        "type": "object"
+      },
+      "LicenseRevisionProof": {
+        "additionalProperties": false,
+        "properties": {
+          "certIssuer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "certSerial": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contentFp": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "issuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pdfSha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "platformSignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "initial",
+              "go_live",
+              "period_changed",
+              "correction",
+              "resign"
+            ],
+            "type": "string"
+          },
+          "revNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "signMode": {
+            "enum": [
+              "platform_cert",
+              "esign_seal",
+              "stamp"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "revNo",
+          "reason",
+          "contentFp",
+          "pdfSha256",
+          "issuedAt",
+          "signMode",
+          "certSerial",
+          "certIssuer",
+          "platformSignedAt"
+        ],
+        "type": "object"
+      },
+      "LicenseVerificationView": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "accountId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "platform": {
+                "enum": [
+                  "douyin",
+                  "wechat_channels"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "platform",
+              "name",
+              "accountId"
+            ],
+            "type": "object"
+          },
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "consent": {
+            "additionalProperties": false,
+            "properties": {
+              "agreementName": {
+                "type": "string"
+              },
+              "consentNo": {
+                "type": "string"
+              },
+              "consentedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "operatorMask": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "consentNo",
+              "agreementName",
+              "consentedAt",
+              "operatorMask"
+            ],
+            "type": "object"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/LicenseRevisionProof"
+          },
+          "displayStatus": {
+            "enum": [
+              "pending_effective",
+              "effective",
+              "expired",
+              "voided"
+            ],
+            "type": "string"
+          },
+          "dramaName": {
+            "type": "string"
+          },
+          "episodes": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "hasPendingRevision": {
+            "type": "boolean"
+          },
+          "letterNo": {
+            "type": "string"
+          },
+          "licenseeCreditCodeMask": {
+            "type": "string"
+          },
+          "licenseeNameMask": {
+            "type": "string"
+          },
+          "licensorName": {
+            "type": "string"
+          },
+          "period": {
+            "additionalProperties": false,
+            "properties": {
+              "endDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "startDate": {
+                "format": "date",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "startText": {
+                "type": "string"
+              },
+              "territory": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "startDate",
+              "startText",
+              "endDate",
+              "territory"
+            ],
+            "type": "object"
+          },
+          "platform": {
+            "enum": [
+              "douyin",
+              "wechat_channels"
+            ],
+            "type": "string"
+          },
+          "requestedRevNo": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "requestedRevisionState": {
+            "enum": [
+              "not_requested",
+              "current",
+              "outdated",
+              "not_found"
+            ],
+            "type": "string"
+          },
+          "revisions": {
+            "items": {
+              "$ref": "#/components/schemas/LicenseRevisionBrief"
+            },
+            "type": "array"
+          },
+          "voidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "letterNo",
+          "displayStatus",
+          "voidedAt",
+          "platform",
+          "licensorName",
+          "licenseeNameMask",
+          "licenseeCreditCodeMask",
+          "dramaName",
+          "episodes",
+          "account",
+          "period",
+          "consent",
+          "currentRevision",
+          "hasPendingRevision",
+          "revisions",
+          "requestedRevNo",
+          "requestedRevisionState",
+          "checkedAt"
+        ],
+        "type": "object"
+      },
+      "Playable": {
+        "additionalProperties": false,
+        "properties": {
+          "autoplay": {
+            "type": "boolean"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "trailer",
+              "sample",
+              "ad"
+            ],
+            "type": "string"
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "playableId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "posterUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PlayableSource"
+            },
+            "type": "array"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "playableId",
+          "kind",
+          "durationMs",
+          "width",
+          "height",
+          "posterUrl",
+          "sources",
+          "expiresAt",
+          "autoplay",
+          "muted"
+        ],
+        "type": "object"
+      },
+      "PlayableSource": {
+        "additionalProperties": false,
+        "properties": {
+          "bitrateKbps": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "quality": {
+            "enum": [
+              "sd",
+              "hd",
+              "source"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quality",
+          "url",
+          "width",
+          "height",
+          "bitrateKbps"
+        ],
+        "type": "object"
+      },
+      "PortalAdCard": {
+        "additionalProperties": false,
+        "properties": {
+          "adId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "adNo": {
+            "type": "string"
+          },
+          "confirmedVersionNo": {
+            "exclusiveMinimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "copy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currentPreviewChannels": {
+            "items": {
+              "enum": [
+                "weapp",
+                "album",
+                "portal",
+                "wecom"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "currentVersionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "currentVersionPushedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "displayStatus": {
+            "enum": [
+              "producing",
+              "pending_confirm",
+              "revising",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "durationSec": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "isPortalPreviewable": {
+            "type": "boolean"
+          },
+          "poster": {
+            "additionalProperties": false,
+            "properties": {
+              "expiresAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "expiresAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending_assign",
+              "producing",
+              "returned",
+              "pending_confirm",
+              "revising",
+              "confirmed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "opening",
+              "ending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "adId",
+          "adNo",
+          "type",
+          "durationSec",
+          "status",
+          "displayStatus",
+          "copy",
+          "currentVersionNo",
+          "currentVersionPushedAt",
+          "currentPreviewChannels",
+          "confirmedVersionNo",
+          "poster",
+          "isPortalPreviewable"
+        ],
+        "type": "object"
+      },
+      "PortalAdDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PortalAdCard"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "currentVersion": {
+                "$ref": "#/components/schemas/PortalAdVersionView"
+              }
+            },
+            "required": [
+              "currentVersion"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PortalAdPage": {
+        "additionalProperties": false,
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PortalAdCard"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "hasMore",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "PortalAdPlaybackBody": {
+        "additionalProperties": false,
+        "properties": {
+          "versionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "versionNo"
+        ],
+        "type": "object"
+      },
+      "PortalAdVersionView": {
+        "additionalProperties": false,
+        "properties": {
+          "decidedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decision": {
+            "enum": [
+              "confirmed",
+              "revision_requested",
+              "superseded",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMs": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "height": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "previewChannels": {
+            "items": {
+              "enum": [
+                "weapp",
+                "album",
+                "portal",
+                "wecom"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pushedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "fromMs": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "toMs": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "index",
+                "fromMs",
+                "toMs",
+                "label"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "versionNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "width": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "versionNo",
+          "pushedAt",
+          "durationMs",
+          "width",
+          "height",
+          "segments",
+          "previewChannels",
+          "decision",
+          "decidedAt"
+        ],
+        "type": "object"
+      },
+      "PortalDownloadBody": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "episodeNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "episode"
+                ],
+                "type": "string"
+              },
+              "retry": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "episodeNo"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "zip"
+                ],
+                "type": "string"
+              },
+              "retry": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "publish_list"
+                ],
+                "type": "string"
+              },
+              "retry": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PortalDownloadResult": {
+        "additionalProperties": false,
+        "properties": {
+          "downloadId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "episodeNo": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "episode",
+              "zip",
+              "publish_list"
+            ],
+            "type": "string"
+          },
+          "pollAfterSec": {
+            "anyOf": [
+              {
+                "enum": [
+                  5
+                ],
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sizeBytes": {
+            "anyOf": [
+              {
+                "pattern": "^\\d+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "building",
+              "failed",
+              "none"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "state",
+          "downloadId",
+          "episodeNo",
+          "url",
+          "expiresAt",
+          "fileName",
+          "sizeBytes",
+          "pollAfterSec"
+        ],
+        "type": "object"
+      },
+      "PortalGrantView": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isExpired": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "superseded",
+              "revoked"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "expiresAt",
+          "isExpired"
+        ],
+        "type": "object"
+      },
+      "PortalOrderItemCard": {
+        "additionalProperties": false,
+        "properties": {
+          "activityAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "downloadBlocker": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "grant_invalid"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "enum": [
+                      "expired",
+                      "superseded",
+                      "revoked",
+                      "missing"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "not_available"
+                    ],
+                    "type": "string"
+                  },
+                  "reason": {
+                    "enum": [
+                      "not_delivered",
+                      "release_closed",
+                      "order_item_closed",
+                      "usage_ended",
+                      "file_unavailable"
+                    ],
+                    "type": "string",
+                    "x-open-enum": true
+                  }
+                },
+                "required": [
+                  "kind",
+                  "reason"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "grant": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PortalGrantView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isDownloadable": {
+            "type": "boolean"
+          },
+          "orderId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "pendingSample": {
+            "type": "null"
+          },
+          "phase": {
+            "enum": [
+              "pending_start",
+              "producing",
+              "to_launch",
+              "live",
+              "ended",
+              "cancelled",
+              "refunded",
+              "terminated"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "poster": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignedUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "release": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PortalReleaseBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderItemId",
+          "orderId",
+          "orderNo",
+          "dramaTitle",
+          "poster",
+          "episodeCount",
+          "phase",
+          "usageEndDate",
+          "release",
+          "grant",
+          "isDownloadable",
+          "downloadBlocker",
+          "pendingSample",
+          "activityAt"
+        ],
+        "type": "object"
+      },
+      "PortalOrderItemPage": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PortalOrderItemCard"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object"
+      },
+      "PortalReleaseBrief": {
+        "additionalProperties": false,
+        "properties": {
+          "changedEpisodeNos": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "deliveryReleaseId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "initial",
+              "reissue"
+            ],
+            "type": "string"
+          },
+          "pushedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "releaseNo": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "totalBytes": {
+            "pattern": "^\\d+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliveryReleaseId",
+          "releaseNo",
+          "kind",
+          "pushedAt",
+          "episodeCount",
+          "totalBytes",
+          "changedEpisodeNos"
+        ],
+        "type": "object"
+      },
+      "PortalReleaseView": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PortalReleaseBrief"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "closeReason": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "cancelled",
+                      "usage_ended"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "downloadBlocker": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "grant_invalid"
+                        ],
+                        "type": "string"
+                      },
+                      "reason": {
+                        "enum": [
+                          "expired",
+                          "superseded",
+                          "revoked",
+                          "missing"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "not_available"
+                        ],
+                        "type": "string"
+                      },
+                      "reason": {
+                        "enum": [
+                          "not_delivered",
+                          "release_closed",
+                          "order_item_closed",
+                          "usage_ended",
+                          "file_unavailable"
+                        ],
+                        "type": "string",
+                        "x-open-enum": true
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dramaTitle": {
+                "type": "string"
+              },
+              "episodes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "episodeNo": {
+                      "exclusiveMinimum": 0,
+                      "type": "integer"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    },
+                    "isChanged": {
+                      "type": "boolean"
+                    },
+                    "lastPortalDownloadAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "sizeBytes": {
+                      "pattern": "^\\d+$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "episodeNo",
+                    "fileName",
+                    "sizeBytes",
+                    "isChanged",
+                    "lastPortalDownloadAt"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "grant": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PortalGrantView"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hasPublishList": {
+                "type": "boolean"
+              },
+              "isDownloadable": {
+                "type": "boolean"
+              },
+              "orderItemId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderNo": {
+                "type": "string"
+              },
+              "reissueReason": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "enum": [
+                  "pushed",
+                  "superseded",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "usageEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "zipFileName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "orderItemId",
+              "orderNo",
+              "dramaTitle",
+              "usageEndDate",
+              "state",
+              "closeReason",
+              "reissueReason",
+              "episodes",
+              "grant",
+              "isDownloadable",
+              "downloadBlocker",
+              "zipFileName",
+              "hasPublishList"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "PortalSessionView": {
         "additionalProperties": false,
         "properties": {
@@ -378,6 +1728,24 @@
         "maxLength": 204800,
         "minLength": 1,
         "type": "string"
+      },
+      "SignedUrl": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
+        ],
+        "type": "object"
       }
     }
   },
@@ -387,6 +1755,813 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/portal/ads": {
+      "get": {
+        "operationId": "portal.ad.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": [
+                "pending_confirm"
+              ],
+              "items": {
+                "enum": [
+                  "pending_assign",
+                  "producing",
+                  "returned",
+                  "pending_confirm",
+                  "revising",
+                  "confirmed",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalAdPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "本门店待确认的广告列表（当前版本已推送、可在电脑上预览：查看方式含电脑端或属于开关兜底）；游标分页",
+        "x-auth": "portal",
+        "x-capability": "ad.view",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/ads/{adId}": {
+      "get": {
+        "operationId": "portal.ad.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalAdDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "广告只读预览的元数据：最新已推送版本的版本号、时长、分段标注、海报，并提示回小程序确认或提出修改意见；不含播放地址",
+        "x-auth": "portal",
+        "x-capability": "ad.view",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/ads/{adId}/playback-urls": {
+      "post": {
+        "operationId": "portal.ad.playbackUrls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "adId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalAdPlaybackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Playable"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "签发广告当前版本的播放地址（源文件，不加水印，A97；60 分钟）并留痕：每次写 audit_log 访问流，对象为广告版本",
+        "x-auth": "portal",
+        "x-capability": "ad.view",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时地址（A18；C47、C60）：每次签发都是一次真实访问、都要留痕；结果不进幂等记录，避免回放已过期的地址"
+      }
+    },
+    "/api/v1/portal/client-errors": {
+      "post": {
+        "operationId": "portal.clientError.create",
+        "requestBody": {
+          "content": {
+            "application/x-sentry-envelope": {
+              "schema": {
+                "$ref": "#/components/schemas/SentryEnvelope"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "已收下，未处理"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "下载页前端错误上报（Sentry envelope）同源转发，收到即回 202",
+        "x-auth": "optional",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "埋点与错误上报（A18；C47）：转发后即丢，不落库，不经幂等记录"
+      }
+    },
+    "/api/v1/portal/license-verifications": {
+      "get": {
+        "operationId": "portal.licenseVerification.get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revNo",
+            "required": false,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LicenseVerificationView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "授权书验真：按查询参数 code（验真码）与可选的 revNo（二维码里的版次）返回编号、版次、显示状态、授权方、被授权方（脱敏）、剧名、平台与账号、期限、内容指纹、当前版文件 SHA-256、签署方式与证书序列号，以及扫的那一版是否为当前版次",
+        "x-auth": "public",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/order-items": {
+      "get": {
+        "operationId": "portal.orderItem.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "downloadable",
+                "sample_pending"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalOrderItemPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "本门店名下有生效中成片包或有待预览样片的订购项（剧名、集数、总大小、授权到期时间、是否有变更的集、待确认样片）；查询参数 tab（all | downloadable | sample_pending）；按成片包与样片推送时间的较晚者倒序；游标分页",
+        "x-auth": "portal",
+        "x-capability": "delivery.download",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/order-items/{orderItemId}/download-urls": {
+      "post": {
+        "operationId": "portal.orderItem.downloadUrls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalDownloadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalDownloadResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "签发下载直链并留痕：kind = episode 取单集 15 分钟直链；kind = zip 触发或取 ZIP（就绪给 3 小时直链，未就绪返回打包中，失败后带 retry: true 才重打）；kind = publish_list 只查不建，ZIP 已就绪时取随 ZIP 生成的发布清单文件（15 分钟），否则返回当前打包状态、不触发打包",
+        "x-auth": "portal",
+        "x-capability": "delivery.download",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "签发短时地址（A18；C47、C60）：每次签发都是一次真实访问、都要留痕；结果不进幂等记录，避免回放已过期的地址；ZIP 打包自身按 zip_gen 与 media_job.dedupe_key 去重（06-media.md:962-964）"
+      }
+    },
     "/api/v1/portal/order-items/{orderItemId}/publish-list": {
       "get": {
         "operationId": "portal.orderItem.publishList.get",
@@ -487,6 +2662,112 @@
           }
         },
         "summary": "发布清单：合集名称、每集标题、话题、简介（生效成片包上的清单文本），供一键复制与生成文本文件",
+        "x-auth": "portal",
+        "x-capability": "delivery.download",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/order-items/{orderItemId}/release": {
+      "get": {
+        "operationId": "portal.orderItem.release.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "orderItemId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalReleaseView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "成片下载页数据：当前成片包清单（集号、文件名、大小、相对上一包是否变更）、推送序号、下载授权状态与到期时间",
         "x-auth": "portal",
         "x-capability": "delivery.download",
         "x-idempotent": "none",

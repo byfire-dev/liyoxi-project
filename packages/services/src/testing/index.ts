@@ -328,3 +328,11 @@ export {
   createW608ZipIo,
   cleanupW608LivePoster,
 } from "./admin-live/w608-live.js";
+
+// W6-06 HTTP reuses the real ad lifecycle fixture through the testing boundary.
+export { createPortalAdFixture } from "./ad-lifecycle.fixture.js";
+export {
+  createPortalDownloadFixture,
+  PORTAL_DOWNLOAD_TEST_APPID,
+  PORTAL_DOWNLOAD_TEST_ORIGIN,
+} from "./portal-download.fixture.js";

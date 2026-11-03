@@ -10,6 +10,7 @@ import {
   assertM1ReadyDocuments,
   createM1DocsConsumer,
   createM1LicenseRendering,
+  prepareM1LicenseFonts,
   readM1DocsBacklog,
 } from "./m1-docs.js";
 import { m1Transport } from "./m1-transport.js";
@@ -40,6 +41,8 @@ it("自有scope真实docs两槽消费者出件，排空覆盖ready/hash/current/
     redisKeyPrefix: redis.prefix,
   });
   const own = fixture;
+  // Match the existing M1 harness: finish cold font preparation before consumer admission.
+  await prepareM1LicenseFonts();
   const engine = createM1LicenseRendering(own.clock);
   worker = createRuntime({
     entry: "worker",
@@ -96,6 +99,8 @@ it("历史失败与作废待渲染不阻塞当前任务，但作废历史ready�
     redisKeyPrefix: redis.prefix,
   });
   const own = fixture;
+  // Match the existing M1 harness: finish cold font preparation before consumer admission.
+  await prepareM1LicenseFonts();
   worker = createRuntime({
     entry: "worker",
     env: own.runtime.env,

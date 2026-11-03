@@ -1,8 +1,7 @@
 // 商家端：交付与发布 · order-items（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
 
-export const mOrderItemDownloadGrantCreate = merchantMeta({
+export const mOrderItemDownloadGrantCreate = merchantRoute({
   method: "post",
   path: "/m/order-items/{orderItemId}/download-grants",
   operationId: "m.orderItem.downloadGrant.create",
@@ -10,6 +9,14 @@ export const mOrderItemDownloadGrantCreate = merchantMeta({
   "x-capability": "delivery.download",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: OrderItemDownloadParamSchema,
+    body: { required: true, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: {
+    ...okResponse(DownloadGrantResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 500),
+  },
 });
 
 export const mOrderItemDownloadUrls = merchantRoute({
@@ -86,4 +93,5 @@ import {
   EpisodeDownloadBodySchema,
   EpisodeDownloadUrlSchema,
   ReleaseViewSchema,
+  DownloadGrantResultSchema,
 } from "./download.schemas.js";
