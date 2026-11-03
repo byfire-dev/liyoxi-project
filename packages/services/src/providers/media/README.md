@@ -13,3 +13,11 @@ UserData严格`小写UUIDv7 jobId:attemptNo`。按UserData查找没有虚构平�
 2026-10-08 已查阅的腾讯primary来源：[COSv5请求签名](https://cloud.tencent.com/document/product/436/7778)、[转码提交](https://cloud.tencent.com/document/product/460/84790)、[媒体查询](https://cloud.tencent.com/document/product/460/84765)、[任务列表](https://cloud.tencent.com/document/product/460/84766)、[媒体取消](https://cloud.tencent.com/document/product/460/84803)、[FileCompress提交](https://cloud.tencent.com/document/product/436/121031)、[文件任务查询](https://cloud.tencent.com/document/product/436/121032)、[FileCompress列表](https://cloud.tencent.com/document/product/436/120622)、[同步图片审核](https://cloud.tencent.com/document/product/436/119478)、[回调XML与JSON JobsDetail数组](https://cloud.tencent.com/document/product/436/119472)。没有借第三方博客推断接口。
 
 本地HTTP签名回归使用公开假key与独立Python标准库计算的固定COSv5预期值；不是复用生产签名器自算，也不伪称官方提供了该假key向量。有限fake/native本机HTTP验证固定origin/字段/一次请求/超限/取消，不证明真实云已开通、外部任务执行或公网回调到达。
+
+## W6-07 ZIP结果与目录
+
+FileCompress成功结果只保留经配置核验的逻辑media桶、输出key、成员数及零错误数。`Operation.Output`与`FileCompressResult`的地域、物理桶和key必须一致；缺结果、跨桶/地域、无效总数或任何错误成员不能成为成功证明。原始ErrorFile/UserInfo不返回。调用者再核对当前job/attempt唯一输出key和冻结完整manifest，沿原任务fencing安装文件；Provider不访问ZIP业务表，不把提交成功当成业务ready。
+
+`previewZip`只对固定media COS对象发GET `?ci-process=zippreview`，复用原HTTP签名、2MiB实际应答界限、10秒期限与取消/关闭。目录必须明确未截断、总数与条目一致且少于1000，成员名称唯一无路径穿越，解压前大小为有界十进制整数；缺字段不猜完整。支持地域限北京、上海、广州、成都、南京、重庆、中国香港、新加坡、硅谷。目录不含成员hash，接口不承诺If-Match语义；业务使用attempt唯一key、HEAD的etag/size/CRC64、条件读取ZIP头、完整目录比对及再次HEAD校验，不整包下载到内存。
+
+unconfigured返回未配置，local明确unsupported。Fake仅显式fixture可设置任务output与独立目录事实；默认pack/describe不产生ZIP证明，FakeStorage只有显式crc64元信息才返回CRC。测试不以ETag冒充CRC，不等同真实V10；V10仍需合法5GB输入、真实耗时/恢复、下载解压及逐集hash验证。2026-11-04补核官方[压缩结果](https://cloud.tencent.com/document/product/436/121032)、[压缩包预览](https://cloud.tencent.com/document/product/436/121033)与其[公共请求头](https://cloud.tencent.com/document/product/460/42865)，后两者未声明预览If-Match保证。

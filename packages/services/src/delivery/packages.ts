@@ -14,6 +14,7 @@ import { publishListFacts } from "./publish-list.js";
 import { step } from "./reevaluate.js";
 import { scheduleDeliveryUsage } from "./usage-lifecycle.js";
 import { orderSidePort } from "./ports.js";
+import { readReleaseZipInput } from "./zip-package.js";
 export async function releaseAdminView(tx: Tx, r: DeliveryRelease) {
   const tpl = await tx.checklistTemplate.findUnique({
       where: { code_versionNo: { code: r.checklistCode, versionNo: r.checklistVersionNo } },
@@ -159,6 +160,10 @@ export async function pushPackage(
     channelAccountIds: accounts.map((a) => a.id),
   });
   await scheduleDeliveryUsage(tx, deps, ctx, t.id);
+  await deps.media.ensureZip(
+    tx,
+    await readReleaseZipInput(tx, deps.media, release.id, deps.clock.now()),
+  );
   // 全部文件先排序锁，media.link 只重入；历史 manifest 与旧包引用保持。
   await lockRows(
     tx,

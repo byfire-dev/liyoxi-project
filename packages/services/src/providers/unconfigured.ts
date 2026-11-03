@@ -185,6 +185,7 @@ export const unconfiguredMedia: MediaProvider = {
   probe: mediaOff,
   transcode: mediaOff,
   pack: mediaOff,
+  previewZip: mediaOff,
   audit: mediaOff,
   auditText: mediaOff,
   auditVideo: mediaOff,
@@ -210,6 +211,9 @@ export function createLocalMedia(): MediaProvider {
     },
     async pack({ userData }) {
       return ok({ jobId: `local-pack-${userData}`, state: "done", processed: false });
+    },
+    async previewZip() {
+      return failed("unsupported", "本地媒体未执行压缩包预览");
     },
     async audit() {
       return ok({ verdict: "pass", processed: false });

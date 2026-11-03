@@ -42,6 +42,8 @@ import { m1WorkerObserver, waitM1Worker } from "./m1-observe.js";
 import { completeWithQueuedPromote } from "./m1-upload.js";
 import { M1_LOCAL_WECHAT } from "./m1-wechat.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
+import { installZipPackageFixture } from "./zip-package-fixture.js";
+import { createM1ZipDrain } from "./m1-zip.js";
 import {
   m1ProductionVideo,
   createM1ProductionMasterPreparer,
@@ -136,6 +138,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
   let ownRedisScope = false;
   let runtime: Awaited<ReturnType<typeof createRuntime>> | undefined;
   let productionTools: ReturnType<typeof createDeliveryProductionTools> | undefined;
+  let zipFixture: ReturnType<typeof installZipPackageFixture> | undefined;
   let httpStorage: ReturnType<typeof createM1HttpStorage> | undefined;
   let workerRuntime: ReturnType<typeof createRuntime> | undefined;
   let docsConsumer: Awaited<ReturnType<typeof createM1DocsConsumer>> | undefined;
@@ -178,6 +181,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         () => licenseRendering?.close(),
         () => runtime?.close(),
         () => productionTools?.tools.close(),
+        () => zipFixture?.close(),
         () => httpStorage?.close(),
         () => db?.$disconnect(),
         async () => {
@@ -311,12 +315,13 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       return fact.report;
     };
     if (attach) httpStorage = createM1HttpStorage(attach);
+    zipFixture = installZipPackageFixture(providers, httpStorage?.storage);
     const boundProviders =
       httpStorage && attach
         ? {
             ...providers,
             storage: {
-              ...httpStorage.storage,
+              ...zipFixture.storage,
               uploadLocation: {
                 region: attach.storage.region,
                 buckets: attach.storage.buckets,
@@ -326,7 +331,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
               logger: { info: () => undefined, warn: () => undefined, error: () => undefined },
             }),
           }
-        : providers;
+        : { ...providers, storage: zipFixture.storage };
     productionTools = createDeliveryProductionTools(
       providers,
       options.additionalProductionReports ? resolveSourceReport : productionInput.report,
@@ -415,6 +420,16 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
         }));
       return transport.drainEvents();
     };
+    const drainZipPackages = createM1ZipDrain({
+      runtime: jobRuntime,
+      clock,
+      startedAt,
+      assertOwned,
+      drainEvents,
+      background: Boolean(observer),
+      realTime: Boolean(attach || ownerNetwork),
+      signal: options.signal,
+    });
     const video = await m1Video();
     const runPromote: M1Support["promote"] = async (fileId) => {
       assertOwned();
@@ -569,6 +584,7 @@ export async function createM1Support(options: M1SupportOptions = {}): Promise<M
       },
       ...transport,
       drainEvents,
+      drainZipPackages,
       promote,
       ...(!observer ? { completeWithPromote } : {}),
       installKnownMedia(fileId, scope) {

@@ -312,6 +312,7 @@ export {
   createDelivery,
   createPublishLists,
   createDeliveryDownloads,
+  createDeliveryZipPackages,
   bindDelivery,
   orderSidePort,
   createTickets,

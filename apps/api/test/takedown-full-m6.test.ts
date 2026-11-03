@@ -4,6 +4,7 @@ import {
   createM1Support,
   runM6TakedownCreate,
   settleM6TakedownBackground,
+  readM6ZipFacts,
 } from "@liyoxi/services/testing";
 import { createM1Api } from "./e2e/in-process.js";
 import { createM1Caller } from "./e2e/runner-api.js";
@@ -44,6 +45,12 @@ it("W6-04 真实二十集制作上线、创建下架、商家确认和留证核�
         const live = await support.readState(scope);
         expect(live.item).toMatchObject({ phase: "live", liveEpisodeCount: 20 });
         expect(live.ticket?.step).toBe("in_service");
+        const zip = await readM6ZipFacts(support, scope);
+        expect(zip.bundle).toMatchObject({ zipState: "ready", zipGen: 1 });
+        expect(zip.bundle.zipFileId).toBeTruthy();
+        expect(zip.bundle.publishListFileId).toBeTruthy();
+        expect(zip.jobs).toEqual([{ state: "succeeded", attemptNo: 1 }]);
+        expect(zip.refs.filter((ref) => ref.refType === "zip_bundle")).toHaveLength(2);
         await runM6TakedownCreate(support, scope);
         await settleM6TakedownBackground(support, scope);
         // A distinct operations client follows the M2/M3/M4 clock-advance checks;
@@ -156,6 +163,34 @@ it("W6-04 真实二十集制作上线、创建下架、商家确认和留证核�
         expect(closed.ticket?.step).toBe("archived");
         expect(closed.item?.phase).toBe("ended");
         expect(closed.order?.status).toBe("ended");
+        const retiredZip = await readM6ZipFacts(support, scope);
+        expect(retiredZip.bundle).toMatchObject({
+          id: zip.bundle.id,
+          zipState: "none",
+          zipFileId: null,
+          publishListFileId: null,
+        });
+        expect(retiredZip.bundle.zipGen).toBeGreaterThan(zip.bundle.zipGen);
+        const cacheRefs = retiredZip.refs.filter((ref) => ref.refType === "zip_bundle");
+        expect(cacheRefs).toHaveLength(2);
+        expect(
+          cacheRefs.every(
+            (ref) =>
+              ref.state === "released" &&
+              ref.keepUntil !== null &&
+              ref.keepUntil <= support.clock.now(),
+          ),
+        ).toBe(true);
+        const episodes = retiredZip.refs.filter((ref) => ref.refType === "delivery_release");
+        expect(episodes).toHaveLength(20);
+        expect(
+          episodes.every(
+            (ref) =>
+              ref.state === "released" &&
+              ref.keepUntil !== null &&
+              ref.keepUntil > support.clock.now(),
+          ),
+        ).toBe(true);
         for (const fileId of files)
           expect(
             await call("admin.file.get", freshAdmin.headers, { params: { fileId } }),

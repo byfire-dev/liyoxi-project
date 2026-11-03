@@ -65,8 +65,7 @@ export async function invalidateZipBundles(
   for (const ref of releasedRefs) {
     const old = await tx.fileRef.findUniqueOrThrow({ where: { id: ref.id } });
     const file = await tx.fileObject.findUniqueOrThrow({ where: { id: ref.fileId } });
-    // Release snapshots keep their evidence for at least 90 days. Cancelling a
-    // cache never shortens an explicit retention deadline already on its reference.
+    // Release evidence retains its original minimum; disposable cache refs expire now.
     const keepUntil =
       ref.refType === "delivery_release"
         ? new Date(
@@ -76,7 +75,7 @@ export async function invalidateZipBundles(
               old.keepUntil?.getTime() ?? 0,
             ),
           )
-        : new Date(Math.max(now.getTime(), old.keepUntil?.getTime() ?? 0));
+        : now;
     await tx.fileRef.update({
       where: { id: old.id },
       data: { state: "released", releasedAt: old.releasedAt ?? now, keepUntil, updatedAt: now },

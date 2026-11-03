@@ -285,3 +285,13 @@ worker配置接线另由独立伴随合入，不能把本源码装配当预发�
 ## M5 后台代录反馈截图
 
 `ticket_attachment` 的后台上传仅在交付模块可见且持有 `delivery.sample.feedback_on_behalf` 时开放。上传身份必须是同一 admin 员工，门店须在范围内，给定主体须与门店一致，不接受 `onBehalfStore` 或制作上下文。文件保持本人 staff 归属；样片/广告代录 writer 继续核已入库、分类、本人与本门店。通用下载只给当前有该权限的范围内上传本人，业务附件阅读仍沿所属 reader。M6 客服上传尚未由此启用。
+
+## W6-07 成片 ZIP 缓存
+
+`ensureZip(tx, input, { retry?, peek? })` 消费交付域传来的完整只读 manifest、发布清单、归属与留存截止，返回 bundle 身份、代次、状态及两个文件ID。`peek` 优先于 `retry`，无行不创建，ZIP缺失保留现有身份但返回none；失败只有显式retry才排新代。ready调用会延长现存缓存引用，不能放进GET；清单已清理时返回null文件ID，由签发方拒绝该目标。
+
+推包事务仅登记原 `zip_package` 任务；worker在事务外用ifAbsent上传发布清单并核HEAD，然后提交、恢复及回查数据万象FileCompress。每个attempt使用独立的 `pkg/{orderItemId}/{releaseId}-{zipGen}/{jobId}-{attemptNo}.zip` 与同前缀`.txt`，整包内清单名为`发布清单.txt`。源CRC沿原manifest可空语义；已记录时严格比对。ZIP产物必须有目标身份、数量/错误数、实际HEAD的size/etag/CRC、文件头和完整目录证明，才能在原租约/attempt/代次锁内安装两个released引用并发zip_ready事件。
+
+已提交的旧代任务按原60分钟deadline继续观察实际目标；未知提交只查询已受理结果，作废后不再提交。晚到、错误或取消产物登记后立即释放清理，不能安装为ready。缓存作废使两引用即时到期，成片引用仍沿原保留规则。自动任务退避不提前把building改成failed，原三次attempt、首轮5秒回查和shutdown窗口保持。
+
+`zip-package.db.test.ts` 与 `ops/zip-runtime.db.test.ts` 使用真实交付producer和显式小ZIP字节夹具；默认Fake不提供成功证明。真实云5GB制作、解压逐集hash、耗时和恢复仍属V10外验，本地验证不替代它。

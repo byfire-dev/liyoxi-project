@@ -1663,7 +1663,7 @@ ensureZip(releaseId):                       # “取 ZIP 直链”与“预打�
 ```
 
 1. 触发：商家在下载页点“打包下载”时，或发布专员在推送时勾选“预打包”。
-2. 打包任务：worker 先把成片包上的发布清单文本写成一个 `publish_list` 文件；再提交多文件打包任务，`KeyConfig` 逐项列出 `{ Key: 对象键, Rename: 清单里的文件名 }` 与发布清单文件，格式 zip，输出到 `pkg/{orderItemId}/{releaseId}-{zip_gen}.zip`。一单 ≤100 个文件，在 `KeyConfig` 方式 1000 个的限制内【核实 cos-2】；包内文件名由 `Rename` 指定，与对象键无关【实查】。ZIP 可达数 GB，是唯一直接输出到正式键、不经暂存区取回的数据万象产物。
+2. 打包任务：worker 先把成片包上的发布清单文本写成一个 `publish_list` 文件；再提交多文件打包任务，`KeyConfig` 逐项列出 `{ Key: 对象键, Rename: 清单里的文件名 }` 与发布清单文件，格式 zip，输出到 `pkg/{orderItemId}/{releaseId}-{zip_gen}/{jobId}-{attemptNo}.zip`（清单同前缀 `.txt`，包内名为 `发布清单.txt`）。每次新认领 attempt 换键，恢复与回查沿原 attempt；避免旧云任务晚到覆写当前对象，收尾仍核当前代次与 fencing。一单 ≤100 个文件，在 `KeyConfig` 方式 1000 个的限制内【核实 cos-2】；包内文件名由 `Rename` 指定，与对象键无关【实查】。ZIP 可达数 GB，是唯一直接输出到正式键、不经暂存区取回的数据万象产物。
 3. 成功（收尾事务，先锁成片包行）：任务的代次等于成片包当前的 `zip_gen` → 登记 `file_object(category = 'package_zip')`，建立引用（`released`，`keep_until = 有效授权最晚到期 + 1 天`），`zip_state = 'ready'`。代次对不上（期间清单被修订或成片包被取代）→ 登记后立即把保留期置为当前，等清除。
 4. 失败：`zip_state = 'failed'`，下载页显示逐集下载并提供重试（重试即再调 `ensureZip`，新的代次、新的任务）。逐集下载始终可用，打包失败不阻塞交付。
 5. 清除：ZIP 过了保留期被清除任务删除时，清除后钩子在同一事务把 `zip_state` 置回 `none`、`zip_file_id` 置空。之后任何一次 `ensureZip` 都会重新打包。桶上不再有“`pkg/` 31 天后删除”的规则。
