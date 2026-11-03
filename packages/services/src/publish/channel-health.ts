@@ -84,7 +84,7 @@ async function unbindTx(tx: Tx, deps: PublishDeps, viewer: PublishViewer, id: st
       payload: { v: 1, channelAccountId: id, entityId: row.entityId, storeId: row.storeId },
     },
   });
-  return accountCard(tx, await accountOf(tx, id));
+  return accountCard(tx, await accountOf(tx, id), viewer);
 }
 export function createChannelHealth(deps: PublishDeps) {
   return {

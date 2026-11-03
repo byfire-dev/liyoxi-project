@@ -9,7 +9,7 @@ import { Section } from "@/components/Section";
 import { Timeline } from "@/components/Timeline";
 import { deliveryRequest } from "../components/delivery-runtime";
 import { createTaskReadApi } from "../../publish/components/task-read-api";
-import { readLaunchRecord } from "./model";
+import { patrolLabel, readLaunchRecord } from "./model";
 import { useDeliveryResource } from "../components/resource";
 import {
   DeliveryEmpty,
@@ -117,16 +117,60 @@ function RecordContent({ id }: { id: string }) {
                 }))}
               />
             </Card>
+            <Card title="巡检记录">
+              {detail.patrols.length ? (
+                detail.patrols.map((patrol) => (
+                  <View key={patrol.patrolTaskId} className="delivery-stack delivery-separator">
+                    <View className="delivery-row">
+                      <View>{patrolLabel(patrol.status)}</View>
+                    </View>
+                    <DescList
+                      items={[
+                        { label: "巡检时间", value: appDateTimeFormat.dateTime(patrol.checkedAt) },
+                        { label: "巡检人", value: patrol.checkedByName ?? "—" },
+                        ...(patrol.abnormalKind
+                          ? [{ label: "异常类型", value: patrol.abnormalKind.name }]
+                          : []),
+                        ...(patrol.foundAt
+                          ? [
+                              {
+                                label: "发现时间",
+                                value: appDateTimeFormat.dateTime(patrol.foundAt),
+                              },
+                            ]
+                          : []),
+                        ...(patrol.recoveredAt
+                          ? [
+                              {
+                                label: "恢复时间",
+                                value: appDateTimeFormat.dateTime(patrol.recoveredAt),
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                    {patrol.note ? (
+                      <Note tone={patrol.status === "abnormal" ? "warning" : "neutral"}>
+                        {patrol.note}
+                      </Note>
+                    ) : null}
+                    {patrol.results.length ? (
+                      <DescList
+                        items={patrol.results.map((item) => ({
+                          label: item.label,
+                          value: `${item.result === "pass" ? "通过" : item.result === "fail" ? "未通过" : "不适用"}${item.note ? ` · ${item.note}` : ""}`,
+                        }))}
+                      />
+                    ) : null}
+                  </View>
+                ))
+              ) : (
+                <View className="delivery-caption">暂无巡检记录，尚无巡检结论</View>
+              )}
+            </Card>
           </Section>
         ))}
         {r.data && !r.data.length ? <DeliveryEmpty text="暂无上线记录" /> : null}
-        {r.data ? (
-          <Section title="巡检记录">
-            <Card>
-              <View className="delivery-caption">暂无巡检记录</View>
-            </Card>
-          </Section>
-        ) : null}
       </PageBody>
     </View>
   );

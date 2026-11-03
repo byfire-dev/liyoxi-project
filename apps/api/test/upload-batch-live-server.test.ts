@@ -66,6 +66,36 @@ const original = {
   video,
   resumeVideo: video,
 };
+it("W609证据scope独立严格解析，保留原信封与旧scope校验", () => {
+  const evidence = { ...owned, startedAt: scope.startedAt, staffId: id, entityId: id, storeId: id };
+  const invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] };
+  expect(parseInvoiceLiveEnvelope({ ...original, w609: evidence })).toEqual({
+    manifest: parseSharedManifest(original),
+    w318: undefined,
+    w418Invoice: undefined,
+    w609: evidence,
+  });
+  expect(
+    parseInvoiceLiveEnvelope({ ...original, w418Invoice: invoice, w609: evidence }),
+  ).toMatchObject({
+    manifest: parseSharedManifest(original),
+    w418Invoice: invoice,
+    w609: evidence,
+  });
+  for (const w609 of [
+    undefined,
+    null,
+    { ...evidence, storeId: "invalid" },
+    { ...evidence, verified: true },
+  ])
+    expect(() => parseInvoiceLiveEnvelope({ ...original, w609 })).toThrow();
+  for (const extra of [
+    { unexpected: true },
+    { w418Invoice: { ...invoice, verified: true } },
+    { current: { ...original.current, anotherTarget: id } },
+  ])
+    expect(() => parseInvoiceLiveEnvelope({ ...original, ...extra, w609: evidence })).toThrow();
+});
 it("可选发票scope保留无新scope的W318旧manifest，双方严格字段与未知键校验不丢失", () => {
   const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id },
     invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] },

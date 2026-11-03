@@ -27,6 +27,11 @@ export function offlinePublishRequest(scene: string): RequestLayer["request"] {
   (globalThis as { __LYX_PUBLISH_CALLS__?: typeof calls }).__LYX_PUBLISH_CALLS__ = calls;
   let creates = 0;
   let submitted: components["schemas"]["ChannelAccountCard"] | null = null;
+  const currentAccount = structuredClone(orderAccount);
+  if (scene === "accounts-unbind-rejected") {
+    currentAccount.actions = ["unbind"];
+    currentAccount.usage = { inProgressCount: 0, toLaunchCount: 0, liveCount: 0 };
+  }
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     const method = options?.method ?? "GET";
     calls.push({
@@ -42,7 +47,7 @@ export function offlinePublishRequest(scene: string): RequestLayer["request"] {
           ? [orderAccount, submitted]
           : scene === "accounts-rejected"
             ? [orderAccount, rejectedAccount]
-            : [orderAccount],
+            : [currentAccount],
         hasMore: false,
         nextCursor: null,
       } satisfies Data<"m.channelAccount.list">;
@@ -70,6 +75,15 @@ export function offlinePublishRequest(scene: string): RequestLayer["request"] {
         actions: [],
       };
       data = submitted satisfies Data<"m.channelAccount.create">;
+    } else if (method === "POST" && path.endsWith("/unbind")) {
+      currentAccount.openTakedownTaskCount = 1;
+      currentAccount.actions = [];
+      throw new ApiError({
+        error: "CHANNEL_ACCOUNT_IN_USE",
+        message: "账号刚产生关联下架任务，暂不能解绑",
+        status: 409,
+        requestId: "publish-offline",
+      });
     } else if (method === "POST" && path.endsWith("/submit")) {
       if (!options?.idempotencyKey) throw new Error("重提必须携带幂等键");
       submitted = {

@@ -29,6 +29,8 @@ import {
   createMerchantAssetLiveUploadPump,
   createInvoiceLiveUploadPump,
   parseInvoiceLiveUploadScope,
+  createW609EvidenceLiveUploadPump,
+  parseW609EvidenceUploadScope,
   finishW120LiveFixture,
   assertAdTaskLiveScope,
   parseAdTaskLiveScope,
@@ -64,8 +66,14 @@ function assertScope(env: Env, prefix: string) {
 }
 
 export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
-/** Only the optional invoice scope is stripped; the original strict parser validates all older fields. */
+/** Strip independently validated optional scopes; the original strict parser retains older fields. */
 export function parseInvoiceLiveEnvelope(raw: unknown) {
+  let w609: ReturnType<typeof parseW609EvidenceUploadScope> | undefined;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w609" in raw) {
+    const { w609: evidenceScope, ...legacy } = raw;
+    w609 = parseW609EvidenceUploadScope(evidenceScope);
+    raw = legacy;
+  }
   let w514: AdTaskLiveScope | undefined;
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w514" in raw) {
     parseOutputBatchLiveManifest(raw);
@@ -80,6 +88,7 @@ export function parseInvoiceLiveEnvelope(raw: unknown) {
       w318: "w318" in legacy ? legacy.w318 : undefined,
       w418Invoice: parseInvoiceLiveUploadScope(w418Invoice),
       ...(w514 ? { w514 } : {}),
+      ...(w609 ? { w609 } : {}),
     };
   }
   return {
@@ -87,6 +96,7 @@ export function parseInvoiceLiveEnvelope(raw: unknown) {
     w318: typeof raw === "object" && raw !== null && "w318" in raw ? raw.w318 : undefined,
     w418Invoice: undefined,
     ...(w514 ? { w514 } : {}),
+    ...(w609 ? { w609 } : {}),
   };
 }
 const STARTUP_STAGES = [
@@ -119,6 +129,7 @@ export async function startOutputBatchLiveServer(options: {
   w318?: unknown;
   w418Invoice?: unknown;
   w514?: AdTaskLiveScope;
+  w609?: unknown;
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
@@ -179,6 +190,7 @@ export async function startOutputBatchLiveServer(options: {
   let startupCancellation: Promise<PromiseSettledResult<void>[]> | undefined;
   let merchantUploads: ReturnType<typeof createMerchantAssetLiveUploadPump> | undefined;
   let invoiceUploads: ReturnType<typeof createInvoiceLiveUploadPump> | undefined;
+  let evidenceUploads: ReturnType<typeof createW609EvidenceLiveUploadPump> | undefined;
   const cancelStartup = () => {
     closing = true;
     startupCancellation ??= Promise.allSettled(
@@ -191,6 +203,7 @@ export async function startOutputBatchLiveServer(options: {
       closing = true;
       merchantUploads?.beginStop();
       invoiceUploads?.beginStop();
+      evidenceUploads?.beginStop();
       for (const api of apis) api.readiness.state = "draining";
       if (interval) clearInterval(interval);
       // Cancel executor IO before waiting for a pump which may itself be awaiting that IO.
@@ -201,6 +214,7 @@ export async function startOutputBatchLiveServer(options: {
       const agreementResults = await Promise.allSettled([...agreementPending]);
       const receiptResults = await Promise.allSettled([...receiptPending]);
       const invoiceResults = await Promise.allSettled([invoiceUploads?.close()]);
+      const evidenceResults = await Promise.allSettled([evidenceUploads?.close()]);
       receiptFiles.clear();
       agreementFiles.clear();
       contentFiles.clear();
@@ -239,6 +253,7 @@ export async function startOutputBatchLiveServer(options: {
           ...agreementResults,
           ...receiptResults,
           ...invoiceResults,
+          ...evidenceResults,
           ...serverResults,
           ...merchantUploadResults,
           ...inputResults,
@@ -323,6 +338,8 @@ export async function startOutputBatchLiveServer(options: {
       merchantUploads = createMerchantAssetLiveUploadPump(batch, options.w318, options.prefix);
     if (options.w418Invoice !== undefined)
       invoiceUploads = createInvoiceLiveUploadPump(batch, options.w418Invoice, options.prefix);
+    if (options.w609 !== undefined)
+      evidenceUploads = createW609EvidenceLiveUploadPump(batch, options.w609, options.prefix);
     if (w312) await assertContentAdminLiveTargets(batch, w312);
     reportStartup("masters_start");
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
@@ -509,15 +526,25 @@ export async function startOutputBatchLiveServer(options: {
                     },
                   )
                 : agreementFetch(request, env);
-            const response = invoiceUploads
-              ? await invoiceUploads.fetch(
+            const invoiceFetch = () =>
+              invoiceUploads
+                ? invoiceUploads.fetch(
+                    request,
+                    originalFetch,
+                    async () =>
+                      StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"))
+                        .staff.staffId,
+                  )
+                : originalFetch();
+            const response = evidenceUploads
+              ? await evidenceUploads.fetch(
                   request,
-                  originalFetch,
+                  invoiceFetch,
                   async () =>
                     StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"))
                       .staff.staffId,
                 )
-              : await originalFetch();
+              : await invoiceFetch();
             if (contentRegistration && response.ok && !closing) {
               const value: unknown = await response.clone().json();
               const parsed = FileRegistrationSchema.safeParse(
@@ -621,7 +648,7 @@ async function main() {
   if (!path.endsWith(`${sep}${ownedSuffix}`))
     throw new Error("Input manifest must be the exact owned temporary file");
   const raw: unknown = JSON.parse(await readFile(path, "utf8"));
-  const { manifest, w318, w418Invoice, w514 } = parseInvoiceLiveEnvelope(raw);
+  const { manifest, w318, w418Invoice, w514, w609 } = parseInvoiceLiveEnvelope(raw);
   const diagnosticDir = join(dirname(dirname(dirname(path))), "e2e-live-results");
   mkdirSync(diagnosticDir, { recursive: true });
   const diagnosticFile = join(diagnosticDir, `w302-startup-${runId}.jsonl`);
@@ -646,6 +673,7 @@ async function main() {
       w318,
       w418Invoice,
       w514,
+      w609,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),

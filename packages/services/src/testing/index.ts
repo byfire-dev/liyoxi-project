@@ -158,6 +158,10 @@ export {
   createInvoiceLiveUploadPump,
   parseInvoiceLiveUploadScope,
 } from "./admin-live/invoice-upload.js";
+export {
+  createW609EvidenceLiveUploadPump,
+  parseW609EvidenceUploadScope,
+} from "./admin-live/w609-evidence.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
 
 // W3-12: exact owned content scope for the existing private live server.
