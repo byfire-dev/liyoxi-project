@@ -39,6 +39,7 @@ import { adminOrderCancelRequestHandlers } from "./admin/order-cancel-requests.j
 import { publishHandlers } from "./publish.js";
 import { publishWorkbenchHandlers } from "./publish-workbench.js";
 import { patrolAccountHandlers } from "./patrol-accounts-m6.js";
+import { takedownHandlers } from "./takedown-m6.js";
 import { deliveryHandlers } from "./delivery.js";
 import { adminDeliveryM5Handlers } from "./admin/delivery-m5.js";
 import { adminSampleOrderM5Handlers } from "./admin/sample-order-m5.js";
@@ -88,6 +89,7 @@ import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
   ...patrolAccountHandlers,
+  ...takedownHandlers,
   ...portalHandlers,
   ...portalAuthorizationHandlers,
   ...adHandlers,

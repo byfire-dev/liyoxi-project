@@ -13,6 +13,7 @@ import { createTimers, timerKey } from "../timers/index.js";
 import { launchRevokePatrolGuard } from "./launch-revoke-guard.js";
 import { patrolCompanions, patrolGuards } from "./patrol-machine.js";
 import { patrolRepairGuard } from "./patrol-invariants.js";
+import { takedownCompanions, takedownGuards } from "./takedown-machine.js";
 
 const ids = (values: readonly string[]) => [...new Set(values)].sort();
 const pass = Symbol("publish.cancel_close");
@@ -548,6 +549,18 @@ async function closePublish(
   }
 }
 
+const takedownActivities: Record<string, string> = {
+  "takedown.void": "版权顺延作废尚未到期下架任务",
+  "takedown.merchant_confirm": "商家确认下架",
+  "takedown.check_pass": "逐条核查下架证据",
+  "takedown.sample_release": "按抽查口径放行下架",
+  "takedown.still_online": "抽查仍在线重新下架",
+  "takedown.basis_reopen": "上线依据变更重新下架",
+  "takedown.escalate": "升级逾期下架任务",
+  "takedown.breach_notice": "发送下架违约提醒",
+  "sla.recalculated": "重算下架核查时限",
+};
+
 export const cancelReviewPublishMachines = [
   implementKeyed(machinePort, chainKey("patrol_task", "status"), {
     companions: patrolCompanions,
@@ -570,7 +583,9 @@ export const cancelReviewPublishMachines = [
     }),
   }),
   implementKeyed(machinePort, chainKey("takedown_task", "status"), {
+    companions: takedownCompanions,
     guards: {
+      ...takedownGuards,
       [rowKey("11:653", "takedown.create")]: cancelPublishGuard,
       [rowKey("11:661", "takedown.void")]: cancelPublishGuard,
     },
@@ -579,13 +594,13 @@ export const cancelReviewPublishMachines = [
       action:
         facts.event === "takedown.void"
           ? "publish.takedown_task.void"
-          : "publish.takedown_task.create",
+          : `publish.takedown_task.${facts.event.split(".")[1]}`,
       summary:
-        facts.event === "takedown.void"
-          ? "版权顺延作废尚未到期下架任务"
-          : facts.payload?.cancelRequestId
+        facts.event === "takedown.create"
+          ? facts.payload?.cancelRequestId
             ? "取消订单项创建下架核查"
-            : "使用期生成下架核查",
+            : "使用期生成下架核查"
+          : (takedownActivities[facts.event] ?? "下架任务变更"),
     }),
   }),
 ];

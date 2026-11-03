@@ -84,6 +84,17 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  get("m.takedownTask.list", "/m/takedown-tasks"),
+  get("m.takedownTask.summary", "/m/takedown-tasks/summary"),
+  {
+    operationId: "m.takedownTask.confirm",
+    play: (api, ctx) =>
+      api.request(`/api/v1/m/takedown-tasks/${uuidv7()}/confirm`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+        json: { method: "delete" },
+      }),
+  },
   get("m.portalTicket.lookup", "/m/portal-tickets/lookup?code=0123ABCD"),
   get("m.portalSession.list", "/m/portal-sessions"),
   ...(

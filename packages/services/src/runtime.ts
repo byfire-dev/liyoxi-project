@@ -1,5 +1,9 @@
-import { createUsageLifecycleAssembly, createPatrolAssembly } from "./ops/index.js";
-import { createPublishPatrol } from "./publish/index.js";
+import {
+  createUsageLifecycleAssembly,
+  createPatrolAssembly,
+  createTakedownAssembly,
+} from "./ops/index.js";
+import { createPublishPatrol, createPublishTakedown } from "./publish/index.js";
 import { createUsageLifecycle } from "./order/index.js";
 import type { AdWriteDeps } from "./ad/index.js";
 import type { DeliveryCoreDeps } from "./delivery/index.js";
@@ -551,7 +555,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
   const patrolScope = createPatrolAssembly(usageLifecycleScope.assembly);
-  const docsScope = createDocsAssembly(patrolScope.assembly);
+  const takedownScope = createTakedownAssembly(patrolScope.assembly);
+  const docsScope = createDocsAssembly(takedownScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -946,6 +951,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
   patrolScope.attach(
     createPublishPatrol({ tx, clock, assembly, approval, flow, events, timers, media }),
+  );
+  takedownScope.attach(
+    createPublishTakedown({ tx, clock, assembly, approval, flow, events, timers, media, sla }),
   );
   profileConsistencyScope.attach(
     createProfileQualificationConsistency({
@@ -1449,6 +1457,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
+        await settle([() => takedownScope.close()]);
         await settle([
           () => orderReconciler.close(),
           () => usageLifecycleScope.close(),

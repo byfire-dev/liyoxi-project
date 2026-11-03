@@ -255,6 +255,13 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | --- | --- | --- | --- |
 | — | W6-08、W6-09、W6-04、W6-13 | W6-03交12条typed API、`createPublishPatrol`/`createChannelHealth`和真实`patrol.weekly_generate`/`patrol.followup`；08消费门店可用账号，09消费巡检/账号健康/解绑及原媒体证据签发，页面桩仍由页面owner关闭。staff跟进经真实公口创建/恢复关闭，通知按当前上线/使用期重验；04沿已合取消/到期公开收尾作废巡检，不另写巡检状态或借私有authority。`timers.I7`目前只交patrol贡献，04须在同一timers登记扩下架检查；runtime未绑定明确失败，关闭拒绝新调用并等待准入调用。13按实际CI及真实full结果收证，不能把历史待上线夹具当支付/交付验收，预发周生成与真实平台证据仍按原点验。 | W6-03；publish README W6-03节；11第2.5、2.6节；a06第3.20–3.27节 |
 
+### W6-04 下架闭环移交（随本包 PR 交付）
+
+| 编号 | 接收方 | 交付与边界 | 出处 |
+| --- | --- | --- | --- |
+| — | W6-09、W6-13 | 11条typed API及`createPublishTakedown`；两端按原字段、过滤和计数取服务端actions。商家确认仅method；后台核查每项2–9张证据，1–50项批量整批原子，失败details.items与成功items顺序沿请求。部分确认不提前推进、全确认进入takedown、全核查才archived；终止工单保持终止。09消费真实接口，13收当前CI与20集full结果，真实平台核查仍未验。 | W6-04；publish README；a06第3.28–3.35节、m05下架三接口 |
+| — | W6-07、W6-13 | 创建/不足30天推包/I16共用01唯一writer；两timer及日历订阅实例装配，I7追加下架贡献并保留巡检，I16–20真实检查。下架完成经原关闭链处理release/grant/ZIP及止日次日+90天保留，证据1095天且不可释放；07收本包下架部分回执，复合桩由07关闭，本包不代关。R3四节点真实去重及事件发前重验；预发闭环和机构签章保持原外验边界。 | W6-04；11第2.7节、x01两timer/日历订阅；publish README |
+
 ### W6-06 Q9登记治理移交（独立前置）
 
 | 编号 | 接收方 | 实际移交 | 依据 |

@@ -6975,6 +6975,72 @@
         ],
         "type": "object"
       },
+      "AdminTakedownTaskPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TakedownTaskRow"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "AdminTakedownTaskSummary": {
+        "properties": {
+          "checkOverdue": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "checked": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "dueToday": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overdue": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "waiting": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pending",
+          "waiting",
+          "checked",
+          "overdue",
+          "dueToday",
+          "checkOverdue"
+        ],
+        "type": "object"
+      },
       "AdminTransferProofCreateBody": {
         "additionalProperties": false,
         "properties": {
@@ -38881,6 +38947,694 @@
           "boolean",
           "null"
         ]
+      },
+      "TakedownEventView": {
+        "properties": {
+          "actorName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actorType": {
+            "enum": [
+              "merchant",
+              "staff",
+              "system"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "created",
+              "auto_reminded",
+              "manual_reminded",
+              "merchant_confirmed",
+              "sample_released",
+              "found_online",
+              "basis_reopened",
+              "escalated",
+              "breach_notified",
+              "checked",
+              "voided",
+              "check_due_recalculated",
+              "follow_up"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "node": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "actorType",
+          "actorName",
+          "node",
+          "note"
+        ],
+        "type": "object"
+      },
+      "TakedownTaskBatchCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TakedownTaskCheckBody"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "takedownTaskId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "takedownTaskId"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "TakedownTaskBatchCheckResult": {
+        "properties": {
+          "archivedTicketIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TakedownTaskRow"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "archivedTicketIds"
+        ],
+        "type": "object"
+      },
+      "TakedownTaskCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "checklistCode": {
+            "enum": [
+              "takedown.check",
+              "takedown.absence_check"
+            ],
+            "type": "string"
+          },
+          "checklistVersionNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidenceFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 2,
+            "type": "array"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "na"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "result"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "checklistCode",
+          "checklistVersionNo",
+          "results",
+          "evidenceFileIds"
+        ],
+        "type": "object"
+      },
+      "TakedownTaskDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TakedownTaskRow"
+          },
+          {
+            "properties": {
+              "checkedBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "checklistCode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "checklistVersionNo": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "evidenceFileIds": {
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "expectedChecklistCode": {
+                "enum": [
+                  "takedown.check",
+                  "takedown.absence_check"
+                ],
+                "type": "string"
+              },
+              "isBreachNoticedToday": {
+                "type": "boolean"
+              },
+              "launchTaskId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "merchantConfirmedByName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "orderItem": {
+                "additionalProperties": false,
+                "properties": {
+                  "agreedLaunchDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "dramaTitle": {
+                    "type": "string"
+                  },
+                  "episodeCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "liveEpisodeCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "orderId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "orderItemId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "orderNo": {
+                    "type": "string"
+                  },
+                  "orderedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "phase": {
+                    "enum": [
+                      "pending_start",
+                      "producing",
+                      "to_launch",
+                      "live",
+                      "ended",
+                      "cancelled",
+                      "refunded",
+                      "terminated"
+                    ],
+                    "type": "string"
+                  },
+                  "productionModel": {
+                    "enum": [
+                      "standard",
+                      "advanced",
+                      "top"
+                    ],
+                    "type": "string"
+                  },
+                  "usageEndDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "usageEndSource": {
+                    "enum": [
+                      "license",
+                      "early_end",
+                      "expired"
+                    ],
+                    "type": "string"
+                  },
+                  "usageStartDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "orderItemId",
+                  "orderId",
+                  "orderNo",
+                  "orderedAt",
+                  "dramaTitle",
+                  "episodeCount",
+                  "productionModel",
+                  "phase",
+                  "agreedLaunchDate",
+                  "usageStartDate",
+                  "usageEndDate",
+                  "usageEndSource",
+                  "liveEpisodeCount"
+                ],
+                "type": "object"
+              },
+              "results": {
+                "items": {
+                  "$ref": "#/components/schemas/AdminChecklistItemView"
+                },
+                "type": "array"
+              },
+              "ticket": {
+                "additionalProperties": false,
+                "properties": {
+                  "deliveredAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliveryManager": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliveryTargetAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "deliveryTicketId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "isPaused": {
+                    "type": "boolean"
+                  },
+                  "pauseReasons": {
+                    "items": {
+                      "enum": [
+                        "cancel_review",
+                        "plan_amendment"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "publisher": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "step": {
+                    "enum": [
+                      "assigning",
+                      "plan_confirm",
+                      "ad_prep",
+                      "sample_making",
+                      "sample_confirm",
+                      "batch_compose",
+                      "delivering",
+                      "awaiting_launch",
+                      "launch_verify",
+                      "in_service",
+                      "takedown",
+                      "archived",
+                      "terminated"
+                    ],
+                    "type": "string"
+                  },
+                  "ticketNo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "deliveryTicketId",
+                  "ticketNo",
+                  "step",
+                  "isPaused",
+                  "pauseReasons",
+                  "deliveryManager",
+                  "publisher",
+                  "deliveryTargetAt",
+                  "deliveredAt"
+                ],
+                "type": "object"
+              },
+              "timeline": {
+                "items": {
+                  "$ref": "#/components/schemas/TakedownEventView"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "orderItem",
+              "ticket",
+              "launchTaskId",
+              "merchantConfirmedByName",
+              "expectedChecklistCode",
+              "checklistCode",
+              "checklistVersionNo",
+              "results",
+              "evidenceFileIds",
+              "checkedBy",
+              "isBreachNoticedToday",
+              "timeline"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TakedownTaskRow": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ChannelAccountBrief"
+          },
+          "actions": {
+            "items": {
+              "enum": [
+                "check",
+                "mark-online",
+                "escalate",
+                "send-breach-notice"
+              ],
+              "type": "string",
+              "x-open-enum": true
+            },
+            "type": "array"
+          },
+          "basis": {
+            "enum": [
+              "live",
+              "delivered_unverified"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "breachNoticeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "checkDueAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkMethod": {
+            "anyOf": [
+              {
+                "enum": [
+                  "evidence",
+                  "sampled_out"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "episodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "escalatedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "isCheckOverdue": {
+            "type": "boolean"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "merchantConfirmedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchantMethod": {
+            "anyOf": [
+              {
+                "enum": [
+                  "delete",
+                  "private",
+                  "not_published"
+                ],
+                "type": "string",
+                "x-open-enum": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "overdueDays": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending_merchant",
+              "merchant_confirmed",
+              "checked"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "stillOnlineCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "takedownTaskId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "triggerKind": {
+            "enum": [
+              "expiry",
+              "early_end",
+              "platform_termination",
+              "terminated_after_delivery"
+            ],
+            "type": "string",
+            "x-open-enum": true
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "takedownTaskId",
+          "status",
+          "triggerKind",
+          "basis",
+          "orderNo",
+          "orderItemId",
+          "dramaTitle",
+          "episodeCount",
+          "usageEndDate",
+          "dueDate",
+          "isOverdue",
+          "merchantMethod",
+          "merchantConfirmedAt",
+          "checkedAt",
+          "stillOnlineCount",
+          "escalatedAt",
+          "store",
+          "account",
+          "overdueDays",
+          "checkDueAt",
+          "isCheckOverdue",
+          "breachNoticeCount",
+          "checkMethod",
+          "publisher",
+          "actions"
+        ],
+        "type": "object"
       },
       "TicketActivityPage": {
         "properties": {
@@ -100270,6 +101024,1147 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "order.renewal.remind"
+      }
+    },
+    "/api/v1/admin/takedown-tasks": {
+      "get": {
+        "operationId": "admin.takedownTask.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "isOverdue",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "basis",
+            "required": false,
+            "schema": {
+              "enum": [
+                "live",
+                "delivered_unverified"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderItemId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dueFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dueTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "enum": [
+                "pending",
+                "waiting",
+                "checked"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTakedownTaskPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "下架核查队列：待核查、已核查（逾期、今日截止标记）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/check": {
+      "post": {
+        "operationId": "admin.takedownTask.batchCheck",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakedownTaskBatchCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskBatchCheckResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "批量核查下架（每个任务各带证据截图）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.takedown.check"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/summary": {
+      "get": {
+        "operationId": "admin.takedownTask.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "isOverdue",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "basis",
+            "required": false,
+            "schema": {
+              "enum": [
+                "live",
+                "delivered_unverified"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderItemId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dueFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dueTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTakedownTaskSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "下架核查页签计数：待核查、已核查（含逾期、今日截止）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}": {
+      "get": {
+        "operationId": "admin.takedownTask.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "takedownTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "下架任务详情：使用期、结束依据、下架方式与商家确认、处理记录、证据截图",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/check": {
+      "post": {
+        "operationId": "admin.takedownTask.check",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "takedownTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TakedownTaskCheckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "核查通过（清单全过，证据截图 ≥2 张，长期留存）；全部账号核查后工单归档",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.takedown.check"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/escalate": {
+      "post": {
+        "operationId": "admin.takedownTask.escalate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "takedownTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "逾期未下架手动升级（通知交付主管与交付经理）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.takedown.check"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/mark-online": {
+      "post": {
+        "operationId": "admin.takedownTask.markOnline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "takedownTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "note": {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "抽查仍在线：记录结果、通知商家、升级交付主管",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.takedown.check"
+      }
+    },
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/send-breach-notice": {
+      "post": {
+        "operationId": "admin.takedownTask.sendBreachNotice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "takedownTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TakedownTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "发送违约提醒：要求 24 小时内删除作品或设为仅自己可见（限频）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.takedown.breach_notice"
       }
     },
     "/api/v1/admin/term-extension-requests": {

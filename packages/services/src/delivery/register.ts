@@ -148,7 +148,8 @@ export const registration = defineRegistration("delivery", {
     implement(deliveryManagerPort, (tx, input) => assignStoreTickets(tx, boundDelivery(), input)),
     implement(launchChangedPort, async (tx, input) => {
       if (input.phase === "prelock") {
-        await prepareReevaluation(tx, [input.deliveryTicketId], {
+        await prepareReevaluation(tx, input.deliveryTicketIds ?? [input.deliveryTicketId], {
+          ...(input.takedownTaskIds ? { takedownTaskIds: input.takedownTaskIds } : {}),
           ...(input.staffId ? { staffIds: [input.staffId] } : {}),
           ...(input.approvalRequestId ? { approvalRequestId: input.approvalRequestId } : {}),
           ...(input.fileIds ? { fileIds: input.fileIds } : {}),

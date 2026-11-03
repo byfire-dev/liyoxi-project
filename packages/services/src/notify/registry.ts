@@ -19,6 +19,10 @@ export const NotifyFactSchema = z.strictObject({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   notifyScope: z.enum(["owner_only", "owner_and_clerks"]).optional(),
   amountFen: z.int().nonnegative().max(2_147_483_647).optional(),
   quantity: z.int().min(-2_147_483_647).max(2_147_483_647).optional(),
@@ -32,6 +36,8 @@ export const NotifyFactSchema = z.strictObject({
       "delivery_release",
       "channel_account",
       "launch_task",
+      "takedown_task",
+      "store",
       "sample",
       "billing_order",
       "invoice_request",
@@ -107,6 +113,47 @@ export const PATROL_SPEC = spec(
   (fact) => MessageDeepLinkSchema.parse(fact.link),
   ["abnormal", "recovered"],
 );
+
+export const TAKEDOWN_REMINDER_SPEC: NotificationSpec = {
+  sceneKey: "m.offline_remind",
+  reader: "takedownReminderFact",
+  refField: "takedownTaskId",
+  category: "launch",
+  ownerOnly: true,
+  pendingStatus: ["pending"],
+  link: (fact) => MessageDeepLinkSchema.parse(fact.link),
+};
+export const TAKEDOWN_MANUAL_SPEC = spec(
+  "m.offline_remind",
+  "takedownNoticeFact",
+  "takedownTaskId",
+  "launch",
+  (fact) => MessageDeepLinkSchema.parse(fact.link),
+  ["pending_merchant"],
+);
+export const TAKEDOWN_PROGRESS_SPEC = spec(
+  "m.order_progress",
+  "takedownNoticeFact",
+  "takedownTaskId",
+  "launch",
+  (fact) => MessageDeepLinkSchema.parse(fact.link),
+  ["pending_merchant", "checked"],
+);
+export const TAKEDOWN_CHECK_SPEC: NotificationSpec = {
+  sceneKey: "s.publish_progress",
+  reader: "takedownNoticeFact",
+  refField: "takedownTaskId",
+  category: "launch",
+  ownerOnly: false,
+  pendingStatus: ["merchant_confirmed"],
+  link: () => ({ route: "messages.list", params: {} }),
+  staffLink: () => ({ route: "publish.offline", params: {} }),
+};
+export const TAKEDOWN_OVERDUE_SPEC: NotificationSpec = {
+  ...TAKEDOWN_CHECK_SPEC,
+  sceneKey: "s.offline_overdue",
+  pendingStatus: ["pending_merchant"],
+};
 
 /** Actual M2 producers only. The remaining catalog keys stay future coverage, not fake handlers. */
 const staffSpec = (
@@ -241,6 +288,12 @@ export const INVITATION_JOIN_SPEC = spec(
   ["accepted"],
 );
 export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>> = {
+  "takedown.created": [TAKEDOWN_REMINDER_SPEC],
+  "takedown.merchant_confirmed": [TAKEDOWN_CHECK_SPEC],
+  "takedown.checked": [TAKEDOWN_PROGRESS_SPEC],
+  "takedown.found_online": [TAKEDOWN_PROGRESS_SPEC, TAKEDOWN_OVERDUE_SPEC],
+  "takedown.basis_reopened": [TAKEDOWN_PROGRESS_SPEC, TAKEDOWN_OVERDUE_SPEC],
+  "takedown.escalated": [TAKEDOWN_OVERDUE_SPEC],
   "patrol.abnormal": [PATROL_SPEC],
   "patrol.recovered": [PATROL_SPEC],
   "ad.version_pushed": [AD_PENDING_SPEC],
@@ -460,7 +513,12 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   "billing.subscription.upgraded": [
     spec("m.plan_upgraded", "termForNotify", "termId", "plan_points", wallet),
   ],
-  "manual_reminder.sent": [RENEWAL_SPEC, DELIVERY_LAUNCH_REMINDER_SPEC, AD_PENDING_SPEC],
+  "manual_reminder.sent": [
+    RENEWAL_SPEC,
+    DELIVERY_LAUNCH_REMINDER_SPEC,
+    AD_PENDING_SPEC,
+    TAKEDOWN_MANUAL_SPEC,
+  ],
   "billing.points.granted": [
     spec("m.points_changed", "billingAccountForNotify", "entityId", "plan_points", points),
   ],
@@ -598,47 +656,59 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
           .map(([event]) => event),
 }));
 export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
-  key === "m.order_progress" && bizType === "publish_list"
-    ? PUBLISH_LIST_UPDATED_SPEC
-    : key === "m.order_progress" && bizType === "launch_task"
-      ? LAUNCH_REVOKED_MERCHANT_SPEC
-      : key === "s.publish_progress" && bizType === "launch_task"
-        ? LAUNCH_REVOKED_STAFF_SPEC
-        : key === "m.launch_remind" && bizType === "store"
-          ? LAUNCH_REMINDER_SPEC
-          : key === "s.launch_overdue"
-            ? LAUNCH_OVERDUE_SPEC
-            : key === "s.step_overdue" && bizType === "ad"
-              ? AD_SLA_SPEC
-              : key === "s.delivery_progress" && bizType === "delivery_reissue"
-                ? REISSUE_EDITOR_SPEC
-                : key === "m.order_progress" && bizType === "delivery_release"
-                  ? REISSUED_RELEASE_SPEC
-                  : key === "m.order_progress" && bizType === "order_item"
-                    ? LAUNCH_RESCHEDULED_SPEC
-                    : key === "m.asset_feedback" && bizType === "store_asset_demand"
-                      ? ASSET_DEMAND_SPEC
-                      : key === "m.member_changed" && bizType === "invitation"
-                        ? INVITATION_JOIN_SPEC
-                        : [
-                            ...Object.values(EVENT_SCENES)
-                              .flat()
-                              .filter(
-                                (s) =>
-                                  s !== INVITATION_JOIN_SPEC &&
-                                  s !== ASSET_DEMAND_SPEC &&
-                                  s !== REISSUE_EDITOR_SPEC &&
-                                  s !== REISSUED_RELEASE_SPEC &&
-                                  s !== LAUNCH_RESCHEDULED_SPEC &&
-                                  s !== PUBLISH_LIST_UPDATED_SPEC &&
-                                  s !== LAUNCH_REVOKED_MERCHANT_SPEC &&
-                                  s !== LAUNCH_REVOKED_STAFF_SPEC,
-                              ),
-                            QUOTA_EXCEEDED_SPEC,
-                            FOLLOWUP_SPEC,
-                            UNREACHED_SPEC,
-                            COPYRIGHT_SPEC,
-                          ].find((s) => s.sceneKey === key);
+  key === "m.offline_remind"
+    ? bizType === "store"
+      ? TAKEDOWN_REMINDER_SPEC
+      : TAKEDOWN_MANUAL_SPEC
+    : key === "m.order_progress" && bizType === "takedown_task"
+      ? TAKEDOWN_PROGRESS_SPEC
+      : key === "s.publish_progress" && bizType === "takedown_task"
+        ? TAKEDOWN_CHECK_SPEC
+        : key === "s.offline_overdue"
+          ? TAKEDOWN_OVERDUE_SPEC
+          : key === "m.order_progress" && bizType === "publish_list"
+            ? PUBLISH_LIST_UPDATED_SPEC
+            : key === "m.order_progress" && bizType === "launch_task"
+              ? LAUNCH_REVOKED_MERCHANT_SPEC
+              : key === "s.publish_progress" && bizType === "launch_task"
+                ? LAUNCH_REVOKED_STAFF_SPEC
+                : key === "m.launch_remind" && bizType === "store"
+                  ? LAUNCH_REMINDER_SPEC
+                  : key === "s.launch_overdue"
+                    ? LAUNCH_OVERDUE_SPEC
+                    : key === "s.step_overdue" && bizType === "ad"
+                      ? AD_SLA_SPEC
+                      : key === "s.delivery_progress" && bizType === "delivery_reissue"
+                        ? REISSUE_EDITOR_SPEC
+                        : key === "m.order_progress" && bizType === "delivery_release"
+                          ? REISSUED_RELEASE_SPEC
+                          : key === "m.order_progress" && bizType === "order_item"
+                            ? LAUNCH_RESCHEDULED_SPEC
+                            : key === "m.asset_feedback" && bizType === "store_asset_demand"
+                              ? ASSET_DEMAND_SPEC
+                              : key === "m.member_changed" && bizType === "invitation"
+                                ? INVITATION_JOIN_SPEC
+                                : [
+                                    ...Object.values(EVENT_SCENES)
+                                      .flat()
+                                      .filter(
+                                        (s) =>
+                                          s !== INVITATION_JOIN_SPEC &&
+                                          s !== ASSET_DEMAND_SPEC &&
+                                          s !== REISSUE_EDITOR_SPEC &&
+                                          s !== REISSUED_RELEASE_SPEC &&
+                                          s !== LAUNCH_RESCHEDULED_SPEC &&
+                                          s !== PUBLISH_LIST_UPDATED_SPEC &&
+                                          s !== TAKEDOWN_PROGRESS_SPEC &&
+                                          s !== TAKEDOWN_CHECK_SPEC &&
+                                          s !== LAUNCH_REVOKED_MERCHANT_SPEC &&
+                                          s !== LAUNCH_REVOKED_STAFF_SPEC,
+                                      ),
+                                    QUOTA_EXCEEDED_SPEC,
+                                    FOLLOWUP_SPEC,
+                                    UNREACHED_SPEC,
+                                    COPYRIGHT_SPEC,
+                                  ].find((s) => s.sceneKey === key);
 
 export const FOLLOWUP_SPEC = staffSpec(
   "s.followup_due",
