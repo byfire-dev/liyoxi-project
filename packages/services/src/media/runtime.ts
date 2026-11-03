@@ -296,7 +296,7 @@ export function createMedia(options: MediaDeps) {
       (
         await signRead(
           { fileId: input.fileId, audience: "merchant", disposition: "attachment" },
-          { kind: "delivery-download", fileName: input.fileName },
+          { kind: "delivery-download", fileName: input.fileName, downloadKind: input.kind },
         )
       ).signed,
     signLicenseDownload: async (input: DeliveryDownloadSignInput) =>

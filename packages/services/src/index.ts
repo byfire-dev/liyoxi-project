@@ -312,6 +312,7 @@ export {
   createDelivery,
   createPublishLists,
   createDeliveryDownloads,
+  createPortalDeliveryDownloads,
   createDeliveryZipPackages,
   bindDelivery,
   orderSidePort,
@@ -447,6 +448,7 @@ export type { DocsRenderRuntime, LicenseRenderingEngine } from "./ops/index.js";
 export {
   createLicensePdfRenderer,
   claimLicenseRevision,
+  completeLicenseRevision,
   failLicenseRevision,
   reconcileLetters,
 } from "./docs/index.js";
@@ -463,7 +465,11 @@ export { createPortalTickets, portalPairChoices } from "./portal/index.js";
 export type { PortalTickets, PortalTicketDeps } from "./portal/index.js";
 export {
   createPortalSessions,
+  assertPortalPrincipal,
   PORTAL_CAPABILITIES,
   PORTAL_SESSION_TTL_SECONDS,
 } from "./identity/index.js";
 export type { PortalPrincipal, PortalSessions, PortalOwnerRequest } from "./identity/index.js";
+
+export { createPortalAds } from "./ad/index.js";
+export { createLicenseVerification } from "./docs/index.js";

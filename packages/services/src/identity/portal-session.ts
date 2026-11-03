@@ -1,8 +1,10 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { IdSchema } from "@liyoxi/contract";
 import type { PortalSessionItem, PortalSessionView } from "@liyoxi/contract";
+import { Prisma } from "@liyoxi/db";
 import type { PortalSession } from "@liyoxi/db";
 import { record as recordAudit, recordAuthEvent } from "../audit/index.js";
-import { AppError, uuidv7 } from "../kernel/index.js";
+import { AppError, lockRows, uuidv7 } from "../kernel/index.js";
 import type { Clock, IdempotencyContext, Tx, TxRunner } from "../kernel/index.js";
 import { assertPortalOwner } from "./portal-owner.js";
 import type { PortalOwnerRequest } from "./portal-owner.js";
@@ -136,23 +138,23 @@ export async function createPortalSession(
   return { token, view: portalSessionView(row, now) };
 }
 
-/** Read-only per-request authority. One SQL snapshot includes membership; no renewal or repair. */
-export async function authenticatePortalSession(
+type SessionFacts = PortalSession & {
+  storeName: string | null;
+  storeLifecycle: string;
+  entityName: string | null;
+  phoneMask: string | null;
+  accountStatus: string;
+  isOwner: boolean;
+};
+async function sessionFacts(
   tx: Tx,
-  token: string,
-  now: Date,
-): Promise<PortalPrincipal> {
-  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) invalid("not_found");
-  const [row] = await tx.$queryRaw<
-    (PortalSession & {
-      storeName: string | null;
-      storeLifecycle: string;
-      entityName: string | null;
-      phoneMask: string | null;
-      accountStatus: string;
-      isOwner: boolean;
-    })[]
-  >`
+  selector: { tokenHash: Uint8Array } | { sessionId: string },
+): Promise<SessionFacts | undefined> {
+  const where =
+    "tokenHash" in selector
+      ? Prisma.sql`s.token_hash=${selector.tokenHash}`
+      : Prisma.sql`s.id=${selector.sessionId}::uuid`;
+  const [row] = await tx.$queryRaw<SessionFacts[]>(Prisma.sql`
     SELECT s.id, s.approved_by_user_id AS "approvedByUserId", s.entity_id AS "entityId",
       s.store_id AS "storeId", s.grant_scope AS "grantScope", s.created_at AS "createdAt",
       s.expires_at AS "expiresAt", s.revoked_at AS "revokedAt", s.revoke_reason AS "revokeReason",
@@ -162,8 +164,11 @@ export async function authenticatePortalSession(
         AND m.merchant_user_id=s.approved_by_user_id AND m.role='owner' AND m.status='active') AS "isOwner"
     FROM portal_session s JOIN merchant_user u ON u.id=s.approved_by_user_id
     JOIN store t ON t.id=s.store_id AND t.entity_id=s.entity_id JOIN entity e ON e.id=s.entity_id
-    WHERE s.token_hash=${portalSecretHash(token)}
-  `;
+    WHERE ${where}
+  `);
+  return row;
+}
+function principalFromFacts(row: SessionFacts | undefined, now: Date): PortalPrincipal {
   if (!row) invalid("not_found");
   if (row.revokedAt) invalid("revoked", row.revokeReason);
   if (row.expiresAt.getTime() <= now.getTime()) invalid("expired");
@@ -185,6 +190,60 @@ export async function authenticatePortalSession(
     storeId: row.storeId,
     view,
   };
+}
+
+/** Read-only per-request authority. One SQL snapshot includes membership; no renewal or repair. */
+export async function authenticatePortalSession(
+  tx: Tx,
+  token: string,
+  now: Date,
+): Promise<PortalPrincipal> {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) invalid("not_found");
+  return principalFromFacts(await sessionFacts(tx, { tokenHash: portalSecretHash(token) }), now);
+}
+
+/** 业务写锁之前调用；外部签名后重新复核，不能信任此前认证的角色或view快照。 */
+export async function assertPortalPrincipal(
+  tx: Tx,
+  principal: PortalPrincipal,
+  now: Date,
+  options: { write?: boolean } = {},
+): Promise<PortalPrincipal> {
+  if (
+    ![principal.sessionId, principal.merchantUserId, principal.entityId, principal.storeId].every(
+      (id) => IdSchema.safeParse(id).success,
+    )
+  )
+    invalid("not_found");
+  if (options.write) {
+    // 与assertPortalOwner/revoke相同顺序；portal_session是其后的技术行锁。
+    await lockRows(tx, "merchant_user", [principal.merchantUserId], "share");
+    await lockRows(tx, "entity", [principal.entityId], "share");
+    const member = await tx.entityMember.findFirst({
+      where: {
+        entityId: principal.entityId,
+        merchantUserId: principal.merchantUserId,
+        status: "active",
+      },
+      select: { id: true },
+    });
+    if (!member) invalid("authorizer_invalid");
+    await lockRows(tx, "entity_member", [member.id], "share");
+    await lockRows(tx, "store", [principal.storeId], "share");
+    await tx.$queryRaw`SELECT id FROM portal_session WHERE id=${principal.sessionId}::uuid FOR SHARE`;
+  }
+  const canonical = principalFromFacts(
+    await sessionFacts(tx, { sessionId: principal.sessionId }),
+    now,
+  );
+  if (
+    canonical.sessionId !== principal.sessionId ||
+    canonical.merchantUserId !== principal.merchantUserId ||
+    canonical.entityId !== principal.entityId ||
+    canonical.storeId !== principal.storeId
+  )
+    invalid("not_found");
+  return canonical;
 }
 
 export function createPortalSessions(deps: PortalSessionDeps) {

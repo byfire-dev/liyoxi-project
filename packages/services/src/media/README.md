@@ -278,7 +278,7 @@ worker配置接线另由独立伴随合入，不能把本源码装配当预发�
 
 `adProductionFacts` 复用与成片相同的任务、输入、摘要、时刻和来源链证据，广告 gate 沿原 probe 的片头/片尾规则与 AI 回读重算；不要求广告带原片上下文。原 `deliveryProductionFacts` 的样片/成片规则保持原行为。
 
-`signMaterialDownload` 是内部员工取料窄口，固定1800秒，外呼在事务外，回读核真实文件版本；业务范围、当前集合、访问审计和master_checkout由delivery同事务收口。商家下载窄口保持900秒。
+`signMaterialDownload` 是内部员工取料窄口，固定1800秒，外呼在事务外，回读核真实文件版本；业务范围、当前集合、访问审计和master_checkout由delivery同事务收口。`signDeliveryDownload` 默认单集900秒；W6-06仅新增受限kind：episode/publish_list仍900秒，zip须为package_zip文件才用10800秒，不接受任意TTL。门户业务在签名前后核当前会话、版本、授权及ZIP代次，成功后才登记逐次访问；此技术签名公口不代替业务授权。
 
 验证：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/media/production-actions.db.test.ts`。替身只替换codec/cloud/storage IO，不能证明真实云和外部合规验收。
 

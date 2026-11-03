@@ -145,3 +145,9 @@ APP_ENV=test DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyox
 ```
 
 定点用例已核实际 PDF、技术证书签名字节及真实队列出件；完整 M1、正式 N6 与发布证据以调度对应验收为准。E8 法务正文、E11 真实机构证书/授权和签后 V12 均未因此关闭；SSM/KMS、worker 专用临时身份刷新与挂载/CAM 隔离、受信阅读器及微信真机仍需外部验收。正式 catalog 为空时生产不可出件属于如实未配置，不将技术样张当作正式法律交付。
+
+### 公开验真只读投影（W6-06）
+
+`createLicenseVerification({ tx, clock }).get({ code, revNo? })` 只按真实验真码读取信件：格式错误、不存在或没有已出件当前版次均为 `LICENSE_VERIFICATION_NOT_FOUND`。当前快照只来自 ready 且具有文件、出件时刻、签署时刻与最终哈希的版本；更高 queued/rendering 版仅显示 `hasPendingRevision`，不泄露未出件内容。全部已出件版次按版号倒序给出内容指纹及 PDF SHA-256，revNo 损坏按未带处理，旧版、当前版、不存在版分别明确返回。
+
+公共 DTO 明列字段：被授权方名称按 A100 脱敏，信用代码复用公用掩码，经办人沿出件快照的脱敏值；状态按当前信件及北京时间止日派生。没有 PDF 地址、文件 id、内部主体/门店 id、验真 URL、原始快照或作废原因，GET 不写访问或修复版次。`license-verification-m6.db.test.ts` 通过实际认领、传输样张上传和 owner 完成入口建立出件事实，验证新旧版、掩码、作废及零写入；传输样张不是 PDF 排版、真实证书或法务验收，E8/E11/V12 状态保持原样。

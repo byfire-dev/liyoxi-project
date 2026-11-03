@@ -4,6 +4,125 @@
  */
 
 export interface paths {
+    "/api/v1/portal/ads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 本门店待确认的广告列表（当前版本已推送、可在电脑上预览：查看方式含电脑端或属于开关兜底）；游标分页 */
+        get: operations["portal.ad.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/ads/{adId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 广告只读预览的元数据：最新已推送版本的版本号、时长、分段标注、海报，并提示回小程序确认或提出修改意见；不含播放地址 */
+        get: operations["portal.ad.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/ads/{adId}/playback-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发广告当前版本的播放地址（源文件，不加水印，A97；60 分钟）并留痕：每次写 audit_log 访问流，对象为广告版本 */
+        post: operations["portal.ad.playbackUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 下载页前端错误上报（Sentry envelope）同源转发，收到即回 202 */
+        post: operations["portal.clientError.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/license-verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 授权书验真：按查询参数 code（验真码）与可选的 revNo（二维码里的版次）返回编号、版次、显示状态、授权方、被授权方（脱敏）、剧名、平台与账号、期限、内容指纹、当前版文件 SHA-256、签署方式与证书序列号，以及扫的那一版是否为当前版次 */
+        get: operations["portal.licenseVerification.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/order-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 本门店名下有生效中成片包或有待预览样片的订购项（剧名、集数、总大小、授权到期时间、是否有变更的集、待确认样片）；查询参数 tab（all | downloadable | sample_pending）；按成片包与样片推送时间的较晚者倒序；游标分页 */
+        get: operations["portal.orderItem.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/order-items/{orderItemId}/download-urls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 签发下载直链并留痕：kind = episode 取单集 15 分钟直链；kind = zip 触发或取 ZIP（就绪给 3 小时直链，未就绪返回打包中，失败后带 retry: true 才重打）；kind = publish_list 只查不建，ZIP 已就绪时取随 ZIP 生成的发布清单文件（15 分钟），否则返回当前打包状态、不触发打包 */
+        post: operations["portal.orderItem.downloadUrls"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/order-items/{orderItemId}/publish-list": {
         parameters: {
             query?: never;
@@ -13,6 +132,23 @@ export interface paths {
         };
         /** 发布清单：合集名称、每集标题、话题、简介（生效成片包上的清单文本），供一键复制与生成文本文件 */
         get: operations["portal.orderItem.publishList.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/order-items/{orderItemId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 成片下载页数据：当前成片包清单（集号、文件名、大小、相对上一包是否变更）、推送序号、下载授权状态与到期时间 */
+        get: operations["portal.orderItem.release.get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -117,6 +253,269 @@ export interface components {
             fileId: string;
             url: string;
         };
+        LicenseRevisionBrief: {
+            contentFp: string;
+            isCurrent: boolean;
+            /** Format: date-time */
+            issuedAt: string;
+            pdfSha256: string;
+            /** @enum {string} */
+            reason: "initial" | "go_live" | "period_changed" | "correction" | "resign";
+            revNo: number;
+        };
+        LicenseRevisionProof: {
+            certIssuer: string | null;
+            certSerial: string | null;
+            contentFp: string;
+            /** Format: date-time */
+            issuedAt: string;
+            pdfSha256: string;
+            /** Format: date-time */
+            platformSignedAt: string;
+            /** @enum {string} */
+            reason: "initial" | "go_live" | "period_changed" | "correction" | "resign";
+            revNo: number;
+            /** @enum {string} */
+            signMode: "platform_cert" | "esign_seal" | "stamp";
+        };
+        LicenseVerificationView: {
+            account: {
+                accountId: string;
+                name: string;
+                /** @enum {string} */
+                platform: "douyin" | "wechat_channels";
+            };
+            /** Format: date-time */
+            checkedAt: string;
+            consent: {
+                agreementName: string;
+                consentNo: string;
+                /** Format: date-time */
+                consentedAt: string;
+                operatorMask: string;
+            };
+            currentRevision: components["schemas"]["LicenseRevisionProof"];
+            /** @enum {string} */
+            displayStatus: "pending_effective" | "effective" | "expired" | "voided";
+            dramaName: string;
+            episodes: number;
+            hasPendingRevision: boolean;
+            letterNo: string;
+            licenseeCreditCodeMask: string;
+            licenseeNameMask: string;
+            licensorName: string;
+            period: {
+                /** Format: date */
+                endDate: string;
+                /** Format: date */
+                startDate: string | null;
+                startText: string;
+                territory: string;
+            };
+            /** @enum {string} */
+            platform: "douyin" | "wechat_channels";
+            requestedRevNo: number | null;
+            /** @enum {string} */
+            requestedRevisionState: "not_requested" | "current" | "outdated" | "not_found";
+            revisions: components["schemas"]["LicenseRevisionBrief"][];
+            /** Format: date-time */
+            voidedAt: string | null;
+        };
+        Playable: {
+            autoplay: boolean;
+            durationMs: number | null;
+            expiresAt: string | null;
+            height: number | null;
+            /** @enum {string} */
+            kind: "trailer" | "sample" | "ad";
+            muted: boolean;
+            /** Format: uuid */
+            playableId: string;
+            posterUrl: string | null;
+            sources: components["schemas"]["PlayableSource"][];
+            width: number | null;
+        };
+        PlayableSource: {
+            bitrateKbps: number | null;
+            height: number;
+            /** @enum {string} */
+            quality: "sd" | "hd" | "source";
+            url: string;
+            width: number;
+        };
+        PortalAdCard: {
+            /** Format: uuid */
+            adId: string;
+            adNo: string;
+            confirmedVersionNo: number | null;
+            copy: string | null;
+            currentPreviewChannels: ("weapp" | "album" | "portal" | "wecom")[];
+            currentVersionNo: number;
+            /** Format: date-time */
+            currentVersionPushedAt: string;
+            /** @enum {string} */
+            displayStatus: "producing" | "pending_confirm" | "revising" | "confirmed" | "cancelled";
+            durationSec: number;
+            isPortalPreviewable: boolean;
+            poster: {
+                /** Format: date-time */
+                expiresAt: string;
+                url: string;
+            } | null;
+            /** @enum {string} */
+            status: "pending_assign" | "producing" | "returned" | "pending_confirm" | "revising" | "confirmed" | "cancelled";
+            /** @enum {string} */
+            type: "opening" | "ending";
+        };
+        PortalAdDetail: components["schemas"]["PortalAdCard"] & {
+            currentVersion: components["schemas"]["PortalAdVersionView"];
+        };
+        PortalAdPage: {
+            hasMore: boolean;
+            items: components["schemas"]["PortalAdCard"][];
+            nextCursor: string | null;
+        };
+        PortalAdPlaybackBody: {
+            versionNo: number;
+        };
+        PortalAdVersionView: {
+            /** Format: date-time */
+            decidedAt: string | null;
+            /** @enum {string|null} */
+            decision: "confirmed" | "revision_requested" | "superseded" | null;
+            durationMs: number;
+            height: number;
+            previewChannels: ("weapp" | "album" | "portal" | "wecom")[];
+            /** Format: date-time */
+            pushedAt: string;
+            segments: {
+                fromMs: number;
+                index: number;
+                label: string;
+                toMs: number;
+            }[];
+            versionNo: number;
+            width: number;
+        };
+        PortalDownloadBody: {
+            episodeNo: number;
+            /** @enum {string} */
+            kind: "episode";
+            retry?: boolean;
+        } | {
+            /** @enum {string} */
+            kind: "zip";
+            retry?: boolean;
+        } | {
+            /** @enum {string} */
+            kind: "publish_list";
+            retry?: boolean;
+        };
+        PortalDownloadResult: {
+            downloadId: string | null;
+            episodeNo: number | null;
+            expiresAt: string | null;
+            fileName: string | null;
+            /** @enum {string} */
+            kind: "episode" | "zip" | "publish_list";
+            pollAfterSec: 5 | null;
+            sizeBytes: string | null;
+            /** @enum {string} */
+            state: "ready" | "building" | "failed" | "none";
+            url: string | null;
+        };
+        PortalGrantView: {
+            /** Format: date-time */
+            expiresAt: string;
+            isExpired: boolean;
+            /** @enum {string} */
+            state: "active" | "superseded" | "revoked";
+        };
+        PortalOrderItemCard: {
+            /** Format: date-time */
+            activityAt: string;
+            downloadBlocker: {
+                /** @enum {string} */
+                kind: "grant_invalid";
+                /** @enum {string} */
+                reason: "expired" | "superseded" | "revoked" | "missing" | (string & {});
+            } | {
+                /** @enum {string} */
+                kind: "not_available";
+                /** @enum {string} */
+                reason: "not_delivered" | "release_closed" | "order_item_closed" | "usage_ended" | "file_unavailable" | (string & {});
+            } | null;
+            dramaTitle: string;
+            episodeCount: number;
+            grant: components["schemas"]["PortalGrantView"] | null;
+            isDownloadable: boolean;
+            /** Format: uuid */
+            orderId: string;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            pendingSample: null;
+            /** @enum {string} */
+            phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated" | (string & {});
+            poster: components["schemas"]["SignedUrl"] | null;
+            release: components["schemas"]["PortalReleaseBrief"] | null;
+            /** Format: date */
+            usageEndDate: string;
+        };
+        PortalOrderItemPage: {
+            hasMore: boolean;
+            items: components["schemas"]["PortalOrderItemCard"][];
+            nextCursor: string | null;
+        };
+        PortalReleaseBrief: {
+            changedEpisodeNos: number[];
+            /** Format: uuid */
+            deliveryReleaseId: string;
+            episodeCount: number;
+            /** @enum {string} */
+            kind: "initial" | "reissue";
+            /** Format: date-time */
+            pushedAt: string;
+            releaseNo: number;
+            totalBytes: string;
+        };
+        PortalReleaseView: components["schemas"]["PortalReleaseBrief"] & {
+            closeReason: ("cancelled" | "usage_ended") | null;
+            downloadBlocker: {
+                /** @enum {string} */
+                kind: "grant_invalid";
+                /** @enum {string} */
+                reason: "expired" | "superseded" | "revoked" | "missing" | (string & {});
+            } | {
+                /** @enum {string} */
+                kind: "not_available";
+                /** @enum {string} */
+                reason: "not_delivered" | "release_closed" | "order_item_closed" | "usage_ended" | "file_unavailable" | (string & {});
+            } | null;
+            dramaTitle: string;
+            episodes: {
+                episodeNo: number;
+                fileName: string;
+                isChanged: boolean;
+                lastPortalDownloadAt: string | null;
+                sizeBytes: string;
+            }[];
+            grant: components["schemas"]["PortalGrantView"] | null;
+            hasPublishList: boolean;
+            isDownloadable: boolean;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            reissueReason: {
+                code: string;
+                name: string;
+            } | null;
+            /** @enum {string} */
+            state: "pushed" | "superseded" | "closed";
+            /** Format: date */
+            usageEndDate: string;
+            zipFileName: string;
+        };
         PortalSessionView: {
             /** Format: date-time */
             authorizedAt: string;
@@ -186,6 +585,11 @@ export interface components {
         };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
+        SignedUrl: {
+            /** Format: date-time */
+            expiresAt: string;
+            url: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -195,6 +599,514 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "portal.ad.list": {
+        parameters: {
+            query?: {
+                status?: ("pending_assign" | "producing" | "returned" | "pending_confirm" | "revising" | "confirmed" | "cancelled")[];
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalAdPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.ad.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalAdDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.ad.playbackUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                adId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalAdPlaybackBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["Playable"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.clientError.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-sentry-envelope": components["schemas"]["SentryEnvelope"];
+            };
+        };
+        responses: {
+            /** @description 已收下，未处理 */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.licenseVerification.get": {
+        parameters: {
+            query: {
+                code: string;
+                revNo?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["LicenseVerificationView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.orderItem.list": {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                tab?: "all" | "downloadable" | "sample_pending";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalOrderItemPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.orderItem.downloadUrls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortalDownloadBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalDownloadResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "portal.orderItem.publishList.get": {
         parameters: {
             query?: never;
@@ -216,6 +1128,79 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: components["schemas"]["PublishListView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.orderItem.release.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalReleaseView"];
                         /** @enum {string} */
                         message: "ok";
                     };

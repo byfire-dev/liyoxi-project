@@ -318,3 +318,11 @@ export {
   MONEY_TABLES as ORDER_CANCEL_REQUEST_FIXTURE_MONEY_TABLES,
 } from "./order-cancel-requests.fixture.js";
 export type { RequestsHarness as CancelRequestsFixtureHarness } from "./order-cancel-requests.fixture.js";
+
+// W6-06 HTTP reuses the real ad lifecycle fixture through the testing boundary.
+export { createPortalAdFixture } from "./ad-lifecycle.fixture.js";
+export {
+  createPortalDownloadFixture,
+  PORTAL_DOWNLOAD_TEST_APPID,
+  PORTAL_DOWNLOAD_TEST_ORIGIN,
+} from "./portal-download.fixture.js";
