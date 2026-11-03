@@ -67,10 +67,20 @@ export async function readCalendarYear(
   query: z.infer<typeof CalendarListQuerySchema>,
 ) {
   await lockCalendarImport(tx);
-  const rows = await tx.workCalendarDay.findMany({
-    where: { day: { gte: utc(`${query.year}-01-01`), lt: utc(`${query.year + 1}-01-01`) } },
-    orderBy: { day: "asc" },
-  });
+  const yearStart = (year: number) => {
+    const date = new Date(0);
+    date.setUTCFullYear(year, 0, 1);
+    return date;
+  };
+  // 原上线日历 month 接受 0000；PostgreSQL date 没有公历 0 年，不能存有该年事实。
+  // 只表达缺历，不发送不可表示的日期；下方仍沿同锁读取版本与原年度导入标记。
+  const rows =
+    query.year === 0
+      ? []
+      : await tx.workCalendarDay.findMany({
+          where: { day: { gte: yearStart(query.year), lt: yearStart(query.year + 1) } },
+          orderBy: { day: "asc" },
+        });
   const items = rows
     .filter((row) => row.kind === "holiday" || row.kind === "adjusted_workday")
     .map((row) => ({
