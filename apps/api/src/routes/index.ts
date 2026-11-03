@@ -38,6 +38,7 @@ import { adminOrderCancelExecuteHandlers } from "./admin/order-cancel-execute.js
 import { adminOrderCancelRequestHandlers } from "./admin/order-cancel-requests.js";
 import { publishHandlers } from "./publish.js";
 import { publishWorkbenchHandlers } from "./publish-workbench.js";
+import { patrolAccountHandlers } from "./patrol-accounts-m6.js";
 import { deliveryHandlers } from "./delivery.js";
 import { adminDeliveryM5Handlers } from "./admin/delivery-m5.js";
 import { adminSampleOrderM5Handlers } from "./admin/sample-order-m5.js";
@@ -86,6 +87,7 @@ import { notifySettingHandlers } from "./notify-settings.js";
 import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...patrolAccountHandlers,
   ...portalHandlers,
   ...portalAuthorizationHandlers,
   ...adHandlers,

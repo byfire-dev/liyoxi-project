@@ -11780,6 +11780,25 @@
           }
         ]
       },
+      "ChannelAccountMarkAbnormalBody": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reasonCode": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reasonCode",
+          "note"
+        ],
+        "type": "object"
+      },
       "ChannelAccountRow": {
         "additionalProperties": false,
         "properties": {
@@ -12510,6 +12529,39 @@
           "otherRounds",
           "history",
           "actions"
+        ],
+        "type": "object"
+      },
+      "ChannelAccountSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "abnormal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "available": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pendingVerify": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unbound": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "pendingVerify",
+          "available",
+          "abnormal",
+          "unbound"
         ],
         "type": "object"
       },
@@ -24630,6 +24682,914 @@
         },
         "required": [
           "subscriber"
+        ],
+        "type": "object"
+      },
+      "PatrolSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "abnormal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "all": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "generatedAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "liveTotal": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "patrolBatchId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "sampledCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "patrolBatchId",
+                  "liveTotal",
+                  "sampledCount",
+                  "generatedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checked": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "normal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "weekEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "weekStartDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weekStartDate",
+          "weekEndDate",
+          "batch",
+          "all",
+          "pending",
+          "abnormal",
+          "normal",
+          "checked"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskCreateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "launchTaskId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "launchTaskId"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskCreateResult": {
+        "additionalProperties": false,
+        "properties": {
+          "isNew": {
+            "type": "boolean"
+          },
+          "patrolTask": {
+            "$ref": "#/components/schemas/PatrolTaskDetail"
+          }
+        },
+        "required": [
+          "isNew",
+          "patrolTask"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PatrolTaskRow"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "actions": {
+                "items": {
+                  "enum": [
+                    "mark-normal",
+                    "mark-abnormal",
+                    "recover",
+                    "remind"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "checkedBy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "checklistCode": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "patrol.check"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "checklistVersionNo": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "evidenceFileIds": {
+                "items": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "followUpDueAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "history": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "abnormalKind": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/DictRef"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "checkedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "patrolTaskId": {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "normal",
+                        "abnormal",
+                        "recovered",
+                        "void"
+                      ],
+                      "type": "string"
+                    },
+                    "weekStartDate": {
+                      "format": "date",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "patrolTaskId",
+                    "weekStartDate",
+                    "status",
+                    "checkedAt",
+                    "abnormalKind"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              "isRemindedToday": {
+                "type": "boolean"
+              },
+              "lastRemindedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "liveLink": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "collectionUrl": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "episodeUrls": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "episodeNo": {
+                              "type": "integer"
+                            },
+                            "url": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "episodeNo",
+                            "url"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      },
+                      "linkKind": {
+                        "enum": [
+                          "collection",
+                          "episodes"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "linkKind",
+                      "collectionUrl",
+                      "episodeUrls"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "note": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "notifiedAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "orderItem": {
+                "additionalProperties": false,
+                "properties": {
+                  "agreedLaunchDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "dramaTitle": {
+                    "type": "string"
+                  },
+                  "episodeCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "liveEpisodeCount": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "orderId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "orderItemId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "orderNo": {
+                    "type": "string"
+                  },
+                  "orderedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "phase": {
+                    "enum": [
+                      "pending_start",
+                      "producing",
+                      "to_launch",
+                      "live",
+                      "ended",
+                      "cancelled",
+                      "refunded",
+                      "terminated"
+                    ],
+                    "type": "string"
+                  },
+                  "productionModel": {
+                    "enum": [
+                      "standard",
+                      "advanced",
+                      "top"
+                    ],
+                    "type": "string"
+                  },
+                  "usageEndDate": {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  "usageEndSource": {
+                    "enum": [
+                      "license",
+                      "early_end",
+                      "expired"
+                    ],
+                    "type": "string"
+                  },
+                  "usageStartDate": {
+                    "anyOf": [
+                      {
+                        "format": "date",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "orderItemId",
+                  "orderId",
+                  "orderNo",
+                  "orderedAt",
+                  "dramaTitle",
+                  "episodeCount",
+                  "productionModel",
+                  "phase",
+                  "agreedLaunchDate",
+                  "usageStartDate",
+                  "usageEndDate",
+                  "usageEndSource",
+                  "liveEpisodeCount"
+                ],
+                "type": "object"
+              },
+              "remindCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "results": {
+                "items": {
+                  "$ref": "#/components/schemas/AdminChecklistItemView"
+                },
+                "type": "array"
+              },
+              "ticket": {
+                "additionalProperties": false,
+                "properties": {
+                  "deliveredAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliveryManager": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deliveryTargetAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "deliveryTicketId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "isPaused": {
+                    "type": "boolean"
+                  },
+                  "pauseReasons": {
+                    "items": {
+                      "enum": [
+                        "cancel_review",
+                        "plan_amendment"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "publisher": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/StaffBrief"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "step": {
+                    "enum": [
+                      "assigning",
+                      "plan_confirm",
+                      "ad_prep",
+                      "sample_making",
+                      "sample_confirm",
+                      "batch_compose",
+                      "delivering",
+                      "awaiting_launch",
+                      "launch_verify",
+                      "in_service",
+                      "takedown",
+                      "archived",
+                      "terminated"
+                    ],
+                    "type": "string"
+                  },
+                  "ticketNo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "deliveryTicketId",
+                  "ticketNo",
+                  "step",
+                  "isPaused",
+                  "pauseReasons",
+                  "deliveryManager",
+                  "publisher",
+                  "deliveryTargetAt",
+                  "deliveredAt"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "orderItem",
+              "ticket",
+              "liveLink",
+              "checklistCode",
+              "checklistVersionNo",
+              "results",
+              "note",
+              "evidenceFileIds",
+              "checkedBy",
+              "notifiedAt",
+              "remindCount",
+              "lastRemindedAt",
+              "isRemindedToday",
+              "followUpDueAt",
+              "history",
+              "actions"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PatrolTaskMarkAbnormalBody": {
+        "additionalProperties": false,
+        "properties": {
+          "abnormalKindCode": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "checklistVersionNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidenceFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          },
+          "note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "na"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "result"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "abnormalKindCode",
+          "note",
+          "evidenceFileIds"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskMarkNormalBody": {
+        "additionalProperties": false,
+        "properties": {
+          "checklistVersionNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidenceFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "na"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "result"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "checklistVersionNo",
+          "results",
+          "evidenceFileIds"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskRecoverBody": {
+        "additionalProperties": false,
+        "properties": {
+          "checklistVersionNo": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "evidenceFileIds": {
+            "items": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 9,
+            "minItems": 1,
+            "type": "array"
+          },
+          "results": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "note": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "na"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "key",
+                "result"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "checklistVersionNo",
+          "results",
+          "evidenceFileIds"
+        ],
+        "type": "object"
+      },
+      "PatrolTaskRow": {
+        "additionalProperties": false,
+        "properties": {
+          "abnormalKind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DictRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "account": {
+            "$ref": "#/components/schemas/ChannelAccountBrief"
+          },
+          "checkedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "foundAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "launchTaskId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "patrolTaskId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "previousPatrol": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "checkedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "patrolTaskId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "normal",
+                      "abnormal",
+                      "recovered",
+                      "void"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "patrolTaskId",
+                  "status",
+                  "checkedAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recoveredAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "enum": [
+              "weekly_sample",
+              "manual",
+              "reissue"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "normal",
+              "abnormal",
+              "recovered",
+              "void"
+            ],
+            "type": "string"
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "usageEndDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "weekStartDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patrolTaskId",
+          "weekStartDate",
+          "source",
+          "status",
+          "store",
+          "orderItemId",
+          "dramaTitle",
+          "episodeCount",
+          "usageEndDate",
+          "launchTaskId",
+          "account",
+          "previousPatrol",
+          "abnormalKind",
+          "checkedAt",
+          "foundAt",
+          "recoveredAt",
+          "publisher"
         ],
         "type": "object"
       },
@@ -49680,6 +50640,335 @@
         ]
       }
     },
+    "/api/v1/admin/channel-accounts": {
+      "get": {
+        "operationId": "admin.channelAccount.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/ChannelAccountRow"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "渠道账号列表（商家详情“渠道账号”页签）：平台、账号名、账号 ID、状态、类型、认证主体、核验记录、使用中的剧目",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/channel-accounts/summary": {
+      "get": {
+        "operationId": "admin.channelAccount.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "platform",
+            "required": false,
+            "schema": {
+              "enum": [
+                "douyin",
+                "wechat_channels"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "渠道账号计数（商家详情“渠道账号”页签角标，按状态）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
     "/api/v1/admin/channel-accounts/{channelAccountId}": {
       "get": {
         "operationId": "admin.channelAccount.get",
@@ -49793,6 +51082,131 @@
         "x-auth": "staff",
         "x-idempotent": "none",
         "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/channel-accounts/{channelAccountId}/mark-abnormal": {
+      "post": {
+        "operationId": "admin.channelAccount.markAbnormal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channelAccountId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelAccountMarkAbnormalBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelAccountDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "把可用账号人工标记为异常（原因与说明必填）；新订购与新方案不可选，不影响在办订单",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.account.mark_abnormal"
       }
     },
     "/api/v1/admin/checklist-templates": {
@@ -70774,6 +72188,1114 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "sys.param.edit"
+      }
+    },
+    "/api/v1/admin/patrol-tasks": {
+      "get": {
+        "operationId": "admin.patrolTask.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "weekStartDate",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "openOnly",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "weekly_sample",
+                "manual",
+                "reissue"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "pending",
+                "abnormal",
+                "normal"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/PatrolTaskRow"
+                          },
+                          "type": "array"
+                        },
+                        "page": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "pageSize": {
+                          "minimum": 1,
+                          "type": "integer"
+                        },
+                        "total": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "page",
+                        "pageSize",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "作品巡检列表：本周批次、页签（全部、待巡检、异常、正常），异常排前",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "post": {
+        "operationId": "admin.patrolTask.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatrolTaskCreateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskCreateResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "手动发起巡检（同一上线任务已有在办巡检时返回那一条）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.patrol.do"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/summary": {
+      "get": {
+        "operationId": "admin.patrolTask.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "weekStartDate",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "openOnly",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "enum": [
+                "weekly_sample",
+                "manual",
+                "reissue"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "本周巡检页头：上线中部数、抽查数、已巡检、异常",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/{patrolTaskId}": {
+      "get": {
+        "operationId": "admin.patrolTask.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patrolTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "巡检任务详情：账号、使用期、异常信息、巡检项",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/{patrolTaskId}/mark-abnormal": {
+      "post": {
+        "operationId": "admin.patrolTask.markAbnormal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patrolTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatrolTaskMarkAbnormalBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "发现异常：异常类型与说明、截图；通知商家，3 天后仍异常转交付经理待办",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.patrol.do"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/{patrolTaskId}/mark-normal": {
+      "post": {
+        "operationId": "admin.patrolTask.markNormal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patrolTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatrolTaskMarkNormalBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "巡检正常（清单全过，截图至少 1 张）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.patrol.do"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/{patrolTaskId}/recover": {
+      "post": {
+        "operationId": "admin.patrolTask.recover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patrolTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatrolTaskRecoverBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "复查已恢复（清单全过，追加复查截图）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.patrol.do"
+      }
+    },
+    "/api/v1/admin/patrol-tasks/{patrolTaskId}/remind": {
+      "post": {
+        "operationId": "admin.patrolTask.remind",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patrolTaskId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PatrolTaskDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "外部能力不可用、系统繁忙或停机维护"
+          }
+        },
+        "summary": "再次提醒商家处理异常（限频）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.patrol.do"
       }
     },
     "/api/v1/admin/payment-exceptions": {

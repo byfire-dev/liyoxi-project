@@ -98,6 +98,16 @@ export const AD_PENDING_SPEC = spec(
   ["pending_confirm"],
 );
 
+// a09 §2.9：异常、恢复和人工催办共用已登记的巡检场景；消费时再匹配事件状态。
+export const PATROL_SPEC = spec(
+  "m.patrol_abnormal",
+  "patrolNoticeFact",
+  "patrolTaskId",
+  "launch",
+  (fact) => MessageDeepLinkSchema.parse(fact.link),
+  ["abnormal", "recovered"],
+);
+
 /** Actual M2 producers only. The remaining catalog keys stay future coverage, not fake handlers. */
 const staffSpec = (
   sceneKey: string,
@@ -231,6 +241,8 @@ export const INVITATION_JOIN_SPEC = spec(
   ["accepted"],
 );
 export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>> = {
+  "patrol.abnormal": [PATROL_SPEC],
+  "patrol.recovered": [PATROL_SPEC],
   "ad.version_pushed": [AD_PENDING_SPEC],
   "ad.sla_breached": [AD_SLA_SPEC],
   "package.reissue_opened": [REISSUE_EDITOR_SPEC],

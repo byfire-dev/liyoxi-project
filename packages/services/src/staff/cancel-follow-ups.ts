@@ -53,6 +53,7 @@ export async function closeSystemFollowUps(
   input: {
     readonly subjects: readonly Subject[];
     readonly now: Date;
+    readonly reason?: "recovered";
   },
 ) {
   if (input.subjects.length === 0) return 0;
@@ -71,7 +72,10 @@ export async function closeSystemFollowUps(
       where: { id: row.id, channel: "system", doneAt: null, lockVersion: row.lockVersion },
       data: {
         doneAt: input.now,
-        doneNote: "关联业务已取消，关闭系统跟进",
+        doneNote:
+          input.reason === "recovered"
+            ? "巡检已复查恢复，关闭系统跟进"
+            : "关联业务已取消，关闭系统跟进",
         updatedAt: input.now,
         lockVersion: { increment: 1 },
       },
@@ -92,7 +96,7 @@ export async function closeSystemFollowUps(
         stream: "activity",
         category: "follow_up",
         action: "staff.follow_up.complete",
-        summary: "业务取消后关闭系统跟进",
+        summary: input.reason === "recovered" ? "巡检恢复后关闭系统跟进" : "业务取消后关闭系统跟进",
         target: { type: "follow_up", id: row.id },
         entityId: row.entityId,
         storeId: row.storeId,

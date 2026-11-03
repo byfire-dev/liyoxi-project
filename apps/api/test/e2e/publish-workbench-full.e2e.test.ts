@@ -119,6 +119,11 @@ it("W6-02 完整二十集真实链：清单保存、核验撤销及全域 full �
           params: { launchSubmissionId: submissionId },
         });
         expect(old).toMatchObject({ result: "passed", verifiedEpisodeCount: 20 });
+        // W6-03 is now actual main: exercise its producer before the real revoke consumer.
+        const patrol = await call("admin.patrolTask.create", admin.headers, {
+          body: { launchTaskId: old.launchTaskId, reason: "撤销前真实巡检互通验收" },
+        });
+        expect(patrol).toMatchObject({ isNew: true, patrolTask: { status: "pending" } });
         const reopened = LaunchSubmissionDetailSchema.parse(
           await m1Data(
             await base.request(`/api/v1/admin/launch-submissions/${submissionId}/revoke`, {
@@ -141,6 +146,11 @@ it("W6-02 完整二十集真实链：清单保存、核验撤销及全域 full �
           ticket: { step: "launch_verify" },
         });
         expect(reopened.link).toEqual(old.link);
+        expect(
+          await call("admin.patrolTask.get", admin.headers, {
+            params: { patrolTaskId: patrol.patrolTask.patrolTaskId },
+          }),
+        ).toMatchObject({ status: "void" });
         const history = await call("admin.launchSubmission.get", admin.headers, {
           params: { launchSubmissionId: submissionId },
         });

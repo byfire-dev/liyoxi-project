@@ -29,5 +29,18 @@ export async function purgeFiredRecurring(tx: Tx, ctx: CleanupContext): Promise<
 }
 
 export const registration = defineRegistration("timers", {
+  // Domain contributions are attached by each runtime instance, never process-global.
+  // W6-03 supplies patrol.followup; later takedown work extends the same I7.
+  invariants: [
+    {
+      code: "timers.I7",
+      severity: "P2",
+      modes: ["full"],
+      heal: "heal_only",
+      run: async () => {
+        throw new TypeError("定时器主体一致性运行时尚未绑定");
+      },
+    },
+  ],
   cleanups: [{ name: "timers.recurring_fired", every: "day", run: purgeFiredRecurring }],
 });

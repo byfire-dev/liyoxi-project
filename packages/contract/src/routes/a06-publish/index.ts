@@ -35,6 +35,8 @@ export * from "./launch-workbench.schemas.js";
 export * from "./delivery-tickets.js";
 export * from "./launch-calendar.js";
 export * from "./launch-tasks.js";
+export * from "./patrol-m6.schemas.js";
+export * from "./patrol-tasks.js";
 export * from "./channel-account-submissions.js";
 export * from "./channel-accounts.js";
 export * from "./launch-submissions.js";

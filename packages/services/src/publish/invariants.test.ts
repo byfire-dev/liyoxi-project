@@ -34,7 +34,24 @@ describe("publish 九项真库巡检", { timeout: 60000 }, () => {
     });
     for (const code of PUBLISH_INVARIANT_CODES)
       expect(await h.tx.run((tx) => findPublishViolations(tx, code)), code).toEqual([]);
-    expect(h.assembly.invariants.filter((i) => i.code.startsWith("publish."))).toHaveLength(9);
+    expect(
+      h.assembly.invariants
+        .filter((i) => i.code.startsWith("publish."))
+        .map((i) => i.code)
+        .sort(),
+    ).toEqual([
+      "publish.I1",
+      "publish.I14",
+      "publish.I15",
+      "publish.I2",
+      "publish.I3",
+      "publish.I4",
+      "publish.I5",
+      "publish.I6",
+      "publish.I7",
+      "publish.I8",
+      "publish.I9",
+    ]);
     for (const code of PUBLISH_INVARIANT_CODES) {
       const rollback = new Error(`lyxtest_${code}_rollback`);
       await expect(

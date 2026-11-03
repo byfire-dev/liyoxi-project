@@ -76,3 +76,4 @@ export {
 } from "./cancel-follow-ups.js";
 
 export { createLicenseFollowUp } from "./license-follow-up.js";
+export { createPatrolFollowUp } from "./patrol-follow-up.js";

@@ -1,6 +1,6 @@
 // 商家端：交付与发布 · channel-accounts（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { ChannelAccountUnbindBodySchema } from "../a06-publish/patrol-m6.schemas.js";
 
 export const mChannelAccountList = merchantRoute({
   method: "get",
@@ -60,7 +60,7 @@ export const mChannelAccountSubmit = merchantRoute({
   },
 });
 
-export const mChannelAccountUnbind = merchantMeta({
+export const mChannelAccountUnbind = merchantRoute({
   method: "post",
   path: "/m/channel-accounts/{channelAccountId}/unbind",
   operationId: "m.channelAccount.unbind",
@@ -68,6 +68,17 @@ export const mChannelAccountUnbind = merchantMeta({
   "x-capability": "channel.manage",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: ChannelAccountParamSchema,
+    body: {
+      content: { "application/json": { schema: ChannelAccountUnbindBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(ChannelAccountCardSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
 import { merchantRoute } from "../builders.js";

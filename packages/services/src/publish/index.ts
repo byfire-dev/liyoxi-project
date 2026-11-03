@@ -38,3 +38,7 @@ export type {
   LaunchOverdueTaskFact,
   OverdueLaunchItem,
 } from "./launch-overdue.js";
+export { createPublishPatrol } from "./patrol-service.js";
+export type { PublishPatrol } from "./patrol-service.js";
+export type { PatrolDeps } from "./patrol-context.js";
+export { createChannelHealth } from "./channel-health.js";

@@ -282,6 +282,8 @@ export {
   createPublish,
   createLaunchRevoke,
   createLaunchWorkbench,
+  createPublishPatrol,
+  createChannelHealth,
   createLaunchTasks,
   getLaunchFacts,
   bindPublish,
@@ -294,6 +296,8 @@ export {
 export type {
   Publish,
   PublishDeps,
+  PublishPatrol,
+  PatrolDeps,
   PublishViewer,
   CreateLaunchTasksInput,
   LaunchRevoke,

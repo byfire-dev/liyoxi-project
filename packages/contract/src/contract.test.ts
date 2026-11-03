@@ -382,7 +382,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
   //     加具名结构时再改组件清单（现在只有 DictRef、ErrorBody、SentryEnvelope）。
   // 这是预期替换，不算“删改已有黄金条目”。替换时把断言换成新的现状（条数、组件名），不要整条删掉。
   // 路由清单本身的条数、与路线图的对账在 src/routes/routes.test.ts 与 pnpm contract:docs-check。
-  it("路由都已登记：带结构的 504 条按商家、后台与下载页进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
+  it("路由都已登记：带结构的 516 条按商家、后台与下载页进入各自文档，回调不进入客户端文档；其余还只有元数据，三份文档都有通用结构与错误体", async () => {
     // W1-03：协议与主体门店 8 条；W1-04：商家会话与当前账号 6 条；W1-01a：后台登录链路 9 条；W1-01b：员工增查与角色只读 4 条；W1-06：审批与字典读侧 4 条；W1-04b：商家字典 1 条；W1-07：文件 9 条；W1-13：内容读侧4条；W1-08a：商家档案13条；W1-11b：付款13条；W1-08b：后台档案6条；W1-14：发布15条；W1-15a：报价与订购2条；W1-15b：选剧单与读侧12条；W1-16a PR1：工单与方案10条；PR2：样片成片包10条；W1-16b：登录逐集下载4条
     // 最新 main 补 W3-01 两条后台文件操作与 W2-21 两条微信回调；W3-11 补站点/Banner/搜索 11 条；W2-03 补员工全量 18 条；W3-02 补批量上传 8 条；W3-10 补版权/调价 9 条；W2-12 PR2 补协议管理 8 条；W3-09 补短剧生命周期 19 条。
     // 已合 main 补素材/需求 20 条；W3-15 补原 ASR 回调的正式结构 1 条。
@@ -405,6 +405,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
     // W5-09 PR2 将十条既有广告meta-only落为typed：475+10=485、189-10=179，后台十个新唯一path：310+10=320。
     // W6-05：10条票据/会话落为typed；W6-06按Q9移出2条未实现样片登记，typed仍495、meta-only167。
     // W6-02：9条发布清单/上线工作台资源落为typed；495+9=504，167-9=158，原具名结构保留。
+    // W6-03：巡检与账号健康12条落为typed；495+12=507，meta-only167-12=155。
+    // 两包合流：495+9+12=516，meta-only167-9-12=146；所有原具名结构和精确集合保留。
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.accountChangeRequest.approve",
       "admin.accountChangeRequest.create",
@@ -468,6 +470,9 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.cancelRequest.void",
       "admin.cancelRequest.withdraw",
       "admin.channelAccount.get",
+      "admin.channelAccount.list",
+      "admin.channelAccount.markAbnormal",
+      "admin.channelAccount.summary",
       "admin.channelAccountSubmission.approve",
       "admin.channelAccountSubmission.get",
       "admin.channelAccountSubmission.reject",
@@ -600,6 +605,14 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "admin.paramValue.list",
       "admin.paramValue.replace",
       "admin.paramValue.withdraw",
+      "admin.patrolTask.create",
+      "admin.patrolTask.get",
+      "admin.patrolTask.list",
+      "admin.patrolTask.markAbnormal",
+      "admin.patrolTask.markNormal",
+      "admin.patrolTask.recover",
+      "admin.patrolTask.remind",
+      "admin.patrolTask.summary",
       "admin.paymentException.create",
       "admin.paymentException.get",
       "admin.paymentException.list",
@@ -785,6 +798,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "m.channelAccount.create",
       "m.channelAccount.list",
       "m.channelAccount.submit",
+      "m.channelAccount.unbind",
       "m.clientError.create",
       "m.deliveryPlan.confirm",
       "m.deliveryPlan.get",
@@ -911,12 +925,12 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "portal.session.current.delete",
       "portal.session.current.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(158);
+    expect(allMetaOnlyRoutes).toHaveLength(146);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
       merchant: {
-        paths: 128,
+        paths: 129,
         schemas: [
           "PublishListView",
           "AdState",
@@ -1093,7 +1107,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
         ],
       },
       admin: {
-        paths: 326,
+        paths: 336,
         schemas: [
           "PublishListAdminView",
           "PublishListSaveResult",
@@ -1431,6 +1445,16 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
           "StoreListSummary",
           "TransferProofApproveReviewBody",
           "TransferProofRejectReviewBody",
+          "ChannelAccountMarkAbnormalBody",
+          "ChannelAccountSummary",
+          "PatrolSummary",
+          "PatrolTaskCreateBody",
+          "PatrolTaskCreateResult",
+          "PatrolTaskDetail",
+          "PatrolTaskMarkAbnormalBody",
+          "PatrolTaskMarkNormalBody",
+          "PatrolTaskRecoverBody",
+          "PatrolTaskRow",
         ],
       },
       portal: {

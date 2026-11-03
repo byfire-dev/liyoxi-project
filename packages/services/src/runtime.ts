@@ -1,4 +1,5 @@
-import { createUsageLifecycleAssembly } from "./ops/index.js";
+import { createUsageLifecycleAssembly, createPatrolAssembly } from "./ops/index.js";
+import { createPublishPatrol } from "./publish/index.js";
 import { createUsageLifecycle } from "./order/index.js";
 import type { AdWriteDeps } from "./ad/index.js";
 import type { DeliveryCoreDeps } from "./delivery/index.js";
@@ -549,7 +550,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
-  const docsScope = createDocsAssembly(usageLifecycleScope.assembly);
+  const patrolScope = createPatrolAssembly(usageLifecycleScope.assembly);
+  const docsScope = createDocsAssembly(patrolScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -942,6 +944,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const bizNo = createBizNoIssuer({ clock, appEnv: env.APP_ENV });
   const sla = createSla({ clock, assembly });
   const approval = createApproval({ assembly, clock, flow, events, bizNo, sla, timers });
+  patrolScope.attach(
+    createPublishPatrol({ tx, clock, assembly, approval, flow, events, timers, media }),
+  );
   profileConsistencyScope.attach(
     createProfileQualificationConsistency({
       assembly,
@@ -1447,6 +1452,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         await settle([
           () => orderReconciler.close(),
           () => usageLifecycleScope.close(),
+          () => patrolScope.close(),
           () => adScope.close(),
         ]);
         await settle([() => docsRender.close()]);
