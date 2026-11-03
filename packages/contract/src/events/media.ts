@@ -3,6 +3,13 @@ import { IdSchema } from "../common/index.js";
 import { z } from "../zod.js";
 const fileFact = z.object({ v: z.literal(1), fileId: IdSchema }).strict();
 export const payloads = {
+  "media.release.zip_ready": z.strictObject({
+    v: z.literal(1),
+    zipBundleId: IdSchema,
+    ownerType: z.literal("delivery_release"),
+    ownerId: IdSchema,
+    zipGen: z.int().positive(),
+  }),
   "media.ocr.completed": z.strictObject({
     v: z.literal(1),
     ocrResultId: IdSchema,

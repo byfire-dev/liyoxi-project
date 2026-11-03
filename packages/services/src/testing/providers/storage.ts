@@ -26,6 +26,8 @@ export interface FakeStoredObject {
   body: Uint8Array;
   mime: string;
   etag: string;
+  /** 显式fixture事实；未提供时不以etag或常量伪造CRC。 */
+  crc64?: string;
   contentDisposition?: string;
   contentIdentity?: string;
 }
@@ -286,6 +288,7 @@ export function createFakeStorage(
             size: stored.body.byteLength,
             mime: stored.mime,
             etag: stored.etag,
+            ...(stored.crc64 !== undefined ? { crc64: stored.crc64 } : {}),
           });
         },
         input.signal,

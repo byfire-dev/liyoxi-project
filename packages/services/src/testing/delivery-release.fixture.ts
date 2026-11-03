@@ -175,52 +175,82 @@ export async function productionFile(
   return file.fileId;
 }
 
+/** Split the same real release producers across sequential bounded test setup hooks. */
+export function releaseSteps(
+  h: ProductionHarness,
+  twoAccounts = false,
+  beforePush?: (f: Awaited<ReturnType<typeof prepared>>) => Promise<void>,
+  episodeCount = 1,
+) {
+  let f: Awaited<ReturnType<typeof prepared>>, fileId: string;
+  let sample: Awaited<ReturnType<typeof h.delivery.sampleCreate>>;
+  const items: Array<{ episodeNo: number; sampleId?: string; fileId?: string }> = [];
+  return {
+    async prepare() {
+      f = await prepared(h, twoAccounts, undefined, episodeCount);
+    },
+    async sampleFile() {
+      fileId = await productionFile(h, f.o, f.editor, "sample_video");
+    },
+    async confirmSample() {
+      sample = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
+        fileId,
+        adSlots: [],
+      });
+      await h.delivery.sampleInspect(
+        f.qc.ctx,
+        f.qc.staff,
+        sample.sampleId,
+        await checks(h, "qc.sample"),
+      );
+      await h.delivery.samplePush(f.qc.ctx, f.qc.staff, sample.sampleId, {});
+      await h.delivery.merchantSample(f.o.viewer, f.item.id);
+      await h.delivery.sampleConfirm(f.o.viewer, sample.sampleId, {
+        versionNo: 1,
+        viewedVia: "weapp",
+        hasViewed: true,
+      });
+      items.push({ episodeNo: 1, sampleId: sample.sampleId });
+    },
+    async finalEpisode(episodeNo: number) {
+      items.push({
+        episodeNo,
+        fileId: await productionFile(h, f.o, f.editor, "final_episode", episodeNo),
+      });
+    },
+    async push() {
+      const episodes = await h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
+        items,
+      });
+      const checklist = await checks(h, "qc.episode");
+      await h.delivery.episodeInspect(f.qc.ctx, f.qc.staff, f.id, {
+        episodeOutputIds: episodes.items.map((e) => e.episodeOutputId),
+        checklistVersionNo: checklist.checklistVersionNo,
+        defaultResults: checklist.results,
+      });
+      await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
+      await h.prepareLicenseInputs(f.o.items.map((item) => item.id));
+      await h.prepareLicenseReady(f.o.items.map((item) => item.id));
+      await beforePush?.(f);
+      const pushed = await h.delivery.packagePush(f.qc.ctx, f.qc.staff, f.id, {
+        precheck: await checks(h, "delivery.precheck"),
+      });
+      return { ...f, sample, original: episodes.items[0]!, release: pushed.release };
+    },
+  };
+}
+
 export async function released(
   h: ProductionHarness,
   twoAccounts = false,
   beforePush?: (f: Awaited<ReturnType<typeof prepared>>) => Promise<void>,
   episodeCount = 1,
 ) {
-  const f = await prepared(h, twoAccounts, undefined, episodeCount),
-    fileId = await productionFile(h, f.o, f.editor, "sample_video");
-  const sample = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
-    fileId,
-    adSlots: [],
-  });
-  await h.delivery.sampleInspect(
-    f.qc.ctx,
-    f.qc.staff,
-    sample.sampleId,
-    await checks(h, "qc.sample"),
-  );
-  await h.delivery.samplePush(f.qc.ctx, f.qc.staff, sample.sampleId, {});
-  await h.delivery.merchantSample(f.o.viewer, f.item.id);
-  await h.delivery.sampleConfirm(f.o.viewer, sample.sampleId, {
-    versionNo: 1,
-    viewedVia: "weapp",
-    hasViewed: true,
-  });
-  const items: Array<{ episodeNo: number; sampleId?: string; fileId?: string }> = [
-    { episodeNo: 1, sampleId: sample.sampleId },
-  ];
+  const steps = releaseSteps(h, twoAccounts, beforePush, episodeCount);
+  await steps.prepare();
+  await steps.sampleFile();
+  await steps.confirmSample();
   for (let episodeNo = 2; episodeNo <= episodeCount; episodeNo++)
-    items.push({
-      episodeNo,
-      fileId: await productionFile(h, f.o, f.editor, "final_episode", episodeNo),
-    });
-  const episodes = await h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, { items });
-  const checklist = await checks(h, "qc.episode");
-  await h.delivery.episodeInspect(f.qc.ctx, f.qc.staff, f.id, {
-    episodeOutputIds: episodes.items.map((e) => e.episodeOutputId),
-    checklistVersionNo: checklist.checklistVersionNo,
-    defaultResults: checklist.results,
-  });
-  await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
-  await h.prepareLicenseInputs(f.o.items.map((item) => item.id));
-  await h.prepareLicenseReady(f.o.items.map((item) => item.id));
-  await beforePush?.(f);
-  const pushed = await h.delivery.packagePush(f.qc.ctx, f.qc.staff, f.id, {
-    precheck: await checks(h, "delivery.precheck"),
-  });
-  return { ...f, sample, original: episodes.items[0]!, release: pushed.release };
+    await steps.finalEpisode(episodeNo);
+  return steps.push();
 }

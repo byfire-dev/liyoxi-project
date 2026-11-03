@@ -118,3 +118,9 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 核验撤销通过原 `launchChangedPort` 驱动 delivery：最后一个已上线账号撤销后，`in_service → launch_verify` 清除 `liveAt`，再调用真实 order owner 重推阶段与使用期。仍有账号已上线时保持服务中。验收入口是 `publish-list-m6.db.test.ts` 和 `publish/launch-workbench.db.test.ts`，不把历史 ZIP 缓存输入当作 W6-07 打包 producer 已完成。
 
 完整整装另由 API `publish-workbench-full.e2e.test.ts` 验证：保留原20集、上传并发4和含清理90秒，在真实回填前保存清单，核验后确认清单锁定，再撤销并核全域full不变量零违规、零错误。当前测试22.41秒、命令29.52秒；M5局部writer夹具不替代该整装证据。共用制作前置已移入testing叶模块，旧delivery夹具路径兼容转导出，默认1集与原广告/取消专用helper保持；不新增生产port。
+
+## W6-07 后台预打包
+
+首次推包在同事务用完整manifest及当前发布清单预排ZIP任务。`readReleaseZipInput(tx, media, releaseId, now)` 核pushed状态、当前有效授权、全部集序/文件唯一性/总字节数及真实源文件，留存取最晚有效授权截止加一天；不改变授权或使用期。源CRC允许原契约的null，不填造CRC。
+
+`createDeliveryZipPackages({ tx, clock, media }).pack(ctx, staff, releaseId, { idem })` 沿 `publish.package.push` 权限、任务范围及工单/release/ZIP/文件锁序调用media公口，显式retry后返回真实异步状态并记审计。同键精确重放原响应，新键读取最新状态；building不重复排队，failed的下一次pack必须代表用户重试。GET不读取或延长ZIP缓存。W6-06签发端须按公口返回的文件身份再验当前代次及可用性。

@@ -32,6 +32,7 @@ export type { ClockBoundFileRefType } from "./ports.js";
 export { findI2Violations, findI14Violations } from "./invariants.js";
 export type { PromoteRef } from "./promote.js";
 export { registration } from "./register.js";
+export type { EnsureZipInput, ZipResult } from "./zip-types.js";
 export type { MediaBatchDeps, BatchTargetFacts } from "./batches/types.js";
 
 export { seedPlaceholderFiles, placeholderPdf } from "./demo-seed.js";

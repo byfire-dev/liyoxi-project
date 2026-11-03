@@ -21,6 +21,9 @@ let h: ReturnType<typeof createPublishWorkbenchFixture>;
 let secondFixture: ReturnType<typeof createPublishWorkbenchFixture>;
 let live: Awaited<ReturnType<typeof h.release>>;
 let unverified: Awaited<ReturnType<typeof h.release>>;
+let liveSteps: ReturnType<typeof h.releaseSteps>;
+let unverifiedSteps: ReturnType<typeof h.releaseSteps>;
+let liveLaunchIds: string[];
 let liveIds: string[];
 let unverifiedIds: string[];
 let owner: SignedInMerchant;
@@ -115,8 +118,8 @@ async function businessSnapshot() {
     h.prisma.auditLog.count(),
   ]);
 }
-async function pushInTakedownWindow(subject = h) {
-  return subject.release(true, 1, async (f) => {
+function releaseInTakedownWindow(subject = h) {
+  return subject.releaseSteps(true, 1, async (f) => {
     subject.clock.set(dayRange(addDays(f.item.usageEndDate.toISOString().slice(0, 10), -10)).start);
   });
 }
@@ -127,20 +130,36 @@ beforeAll(async () => {
   await seedUserAgreements(handle, api);
   h = createPublishWorkbenchFixture(prisma);
 });
-beforeAll(async () => {
+beforeAll(() => {
   // Actual production/QC/approval/push writers create the lower-window takedown tasks.
   // No HTTP fixture seeds a live/confirmed/checked/archived business state.
-  live = await pushInTakedownWindow();
-  const tasks = await h.prisma.launchTask.findMany({ where: { deliveryTicketId: live.id } });
-  for (const task of tasks) {
-    await h.deps.publish.submitLaunch(live.o.viewer, task.id, {
+  // Each release phase runs once in its own hook, retaining the default 10s budget.
+  liveSteps = releaseInTakedownWindow();
+  return liveSteps.prepare();
+});
+beforeAll(() => liveSteps.sampleFile());
+beforeAll(() => liveSteps.confirmSample());
+beforeAll(async () => {
+  live = await liveSteps.push();
+  liveLaunchIds = (
+    await h.prisma.launchTask.findMany({
+      where: { deliveryTicketId: live.id },
+      orderBy: { id: "asc" },
+    })
+  ).map((task) => task.id);
+  expect(liveLaunchIds).toHaveLength(2);
+});
+for (const index of [0, 1])
+  beforeAll(async () => {
+    const taskId = liveLaunchIds[index]!;
+    await h.deps.publish.submitLaunch(live.o.viewer, taskId, {
       linkKind: "collection",
-      collectionUrl: `https://example.invalid/http-takedown/${task.id}`,
+      collectionUrl: `https://example.invalid/http-takedown/${taskId}`,
       reportedEpisodeCount: 1,
       actualLaunchDate: calendarDate(h.clock.now()),
     });
     const sub = await h.prisma.launchSubmission.findFirstOrThrow({
-      where: { launchTaskId: task.id },
+      where: { launchTaskId: taskId },
       include: { approvalRequest: true },
       orderBy: { roundNo: "desc" },
     });
@@ -150,7 +169,8 @@ beforeAll(async () => {
       verifiedEpisodeCount: 1,
       ...(await h.checks("launch.verify")),
     });
-  }
+  });
+beforeAll(async () => {
   liveIds = (
     await h.prisma.takedownTask.findMany({
       where: { deliveryTicketId: live.id, status: { not: "void" } },
@@ -159,11 +179,17 @@ beforeAll(async () => {
   ).map((row) => row.id);
   expect(liveIds).toHaveLength(2);
 });
-beforeAll(async () => {
+beforeAll(() => {
   // Each delivery fixture has its own business clock: the first order's window
   // advance must not make the second fixture's frozen draft date historical.
   secondFixture = createPublishWorkbenchFixture(h.prisma);
-  unverified = await pushInTakedownWindow(secondFixture);
+  unverifiedSteps = releaseInTakedownWindow(secondFixture);
+  return unverifiedSteps.prepare();
+});
+beforeAll(() => unverifiedSteps.sampleFile());
+beforeAll(() => unverifiedSteps.confirmSample());
+beforeAll(async () => {
+  unverified = await unverifiedSteps.push();
   unverifiedIds = (
     await h.prisma.takedownTask.findMany({
       where: { deliveryTicketId: unverified.id, status: { not: "void" } },
@@ -171,6 +197,8 @@ beforeAll(async () => {
     })
   ).map((row) => row.id);
   expect(unverifiedIds).toHaveLength(2);
+});
+beforeAll(async () => {
   // Establish each owned fake WeChat identity before the time advance. Re-login
   // later keeps that identity; it must not bypass the dormant-owner protection.
   await signInAsMerchant(api, {
@@ -181,6 +209,8 @@ beforeAll(async () => {
     phone: openSealed("merchant_user.phone_enc", unverified.o.user.phoneEnc!),
     openid: "oLyxTakedownOther",
   });
+});
+beforeAll(async () => {
   api.clock.set(h.clock.now());
   owner = await signInAsMerchant(api, {
     phone: openSealed("merchant_user.phone_enc", live.o.user.phoneEnc!),
@@ -190,6 +220,8 @@ beforeAll(async () => {
     phone: openSealed("merchant_user.phone_enc", unverified.o.user.phoneEnc!),
     openid: "oLyxTakedownOther",
   });
+});
+beforeAll(async () => {
   clerk = await signInAsMerchant(api);
   const member = await h.make.entityMember({
     entityId: live.o.entity.id,
@@ -200,12 +232,16 @@ beforeAll(async () => {
     storeId: live.o.store.id,
     addedByMemberId: live.o.member.id,
   });
+});
+beforeAll(async () => {
   admin = await signInAsStaff(h.prisma, { roleKey: "super_admin", now: api.clock.now() });
   publisher = await signInAsStaff(h.prisma, {
     roleKey: "publisher",
     staffGroupId: null,
     now: api.clock.now(),
   });
+});
+beforeAll(async () => {
   const assignee = await signInAsStaff(h.prisma, { roleKey: "publisher", now: api.clock.now() });
   publishingLead = await signInAsStaff(h.prisma, {
     roleKey: "publisher",

@@ -67,7 +67,7 @@ export const UPLOAD_CATEGORIES = {
   sample_wm: category("media", "store", video),
   final_episode: category("media", "store", video, { admin: true }),
   package_zip: category("media", "store", ["zip"], { minKeepDays: 0 }),
-  publish_list: category("media", "store", ["txt"]),
+  publish_list: category("media", "store", ["txt"], { minKeepDays: 0 }),
   trailer_out: category("pub", "platform", ["mp4"]),
   poster: category("pub", "platform", image, { admin: true, system: true }),
   banner: category("pub", "platform", image, { admin: true }),
