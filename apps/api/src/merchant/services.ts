@@ -11,6 +11,8 @@
 // 用例与本地的演示装配经 provideMerchantDeps 换成测试密钥环与 appid（要在第一次取服务之前给）。
 import {
   createFlow,
+  createPortalTickets,
+  createPortalSessions,
   createIdentity,
   createTenant,
   readTenantAdminBillingFacts,
@@ -32,6 +34,8 @@ import type { Docs, Identity, Runtime, Tenant, Profile, WechatProvider } from "@
 import { docsOf } from "./docs.js";
 
 export interface MerchantServices {
+  readonly portalTickets: ReturnType<typeof createPortalTickets>;
+  readonly portalSessions: ReturnType<typeof createPortalSessions>;
   readonly docs: Docs;
   readonly tenant: Tenant;
   readonly identity: Identity;
@@ -237,7 +241,20 @@ export function merchantServicesOf(runtime: Runtime): MerchantServices {
         }),
     },
   });
-  const services: MerchantServices = { docs, tenant, identity, profile };
+  const services: MerchantServices = {
+    docs,
+    tenant,
+    identity,
+    profile,
+    portalTickets: createPortalTickets({
+      tx,
+      clock,
+      appid,
+      ...(runtime.env.PORTAL_PUBLIC_ORIGIN ? { origin: runtime.env.PORTAL_PUBLIC_ORIGIN } : {}),
+      ticketTtlSeconds: runtime.env.PORTAL_TICKET_TTL ?? 120,
+    }),
+    portalSessions: createPortalSessions({ tx, clock, appid }),
+  };
   const initializer = createStoreProfileAssetInitializer({
     clock,
     tenant,

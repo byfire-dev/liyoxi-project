@@ -14,6 +14,8 @@ export const REDACTED_QUERY_KEYS: readonly string[] = [
   "msg_signature",
   "echostr",
   "secret",
+  "pollsecret",
+  "x-poll-secret",
   "ticket",
   "password",
 ];

@@ -63,6 +63,198 @@
         ],
         "type": "object"
       },
+      "PortalSessionView": {
+        "additionalProperties": false,
+        "properties": {
+          "authorizedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "authorizerPhoneMask": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "entityId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "entityName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "grantScope": {
+            "enum": [
+              "store"
+            ],
+            "type": "string"
+          },
+          "isStoreArchived": {
+            "type": "boolean"
+          },
+          "portalSessionId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "serverTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "storeId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "storeName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "portalSessionId",
+          "storeId",
+          "storeName",
+          "isStoreArchived",
+          "entityId",
+          "entityName",
+          "authorizerPhoneMask",
+          "grantScope",
+          "capabilities",
+          "authorizedAt",
+          "expiresAt",
+          "serverTime"
+        ],
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "PortalTicketCreated": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pairDigits": {
+            "pattern": "^\\d{2}$",
+            "type": "string"
+          },
+          "pollIntervalMs": {
+            "enum": [
+              2000
+            ],
+            "type": "number"
+          },
+          "pollSecret": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          },
+          "portalTicketId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "qrUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "shortCode": {
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{8}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "portalTicketId",
+          "qrUrl",
+          "shortCode",
+          "pairDigits",
+          "pollSecret",
+          "expiresAt",
+          "pollIntervalMs"
+        ],
+        "type": "object"
+      },
+      "PortalTicketExchangeResult": {
+        "additionalProperties": false,
+        "properties": {
+          "rejectReason": {
+            "enum": [
+              "secret_mismatch",
+              "attempts_exceeded",
+              "window_passed",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "session": {
+            "$ref": "#/components/schemas/PortalSessionView"
+          },
+          "status": {
+            "enum": [
+              "consumed",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "session",
+          "rejectReason"
+        ],
+        "type": "object"
+      },
+      "PortalTicketStatusView": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "portalTicketId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "consumed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "portalTicketId",
+          "status",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "SentryEnvelope": {
         "description": "Sentry envelope 原文，≤200KB",
         "maxLength": 204800,
@@ -76,6 +268,435 @@
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
-  "paths": {},
+  "paths": {
+    "/api/v1/portal/portal-tickets": {
+      "post": {
+        "operationId": "portal.portalTicket.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalTicketCreated"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "电脑端创建扫码登录票据，返回 portalTicketId（uuid）、qrUrl（二维码内容，由 public_id 拼成）、shortCode、pairDigits、pollSecret（只出现这一次）、expiresAt、pollIntervalMs，页面据此渲染二维码、两位配对数字与倒计时",
+        "x-auth": "public",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "匿名建下载页票据（A18；C47 点名 portal.portalTicket.create）：没有会话，幂等记录没有 actor_key；重复创建只多一张 120 秒的短时票据"
+      }
+    },
+    "/api/v1/portal/portal-tickets/{portalTicketId}": {
+      "get": {
+        "operationId": "portal.portalTicket.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "portalTicketId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-poll-secret",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{43}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalTicketStatusView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "轮询票据状态（pending / approved / rejected / expired / consumed），凭请求头 X-Poll-Secret，只返回状态",
+        "x-auth": "public",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    },
+    "/api/v1/portal/portal-tickets/{portalTicketId}/exchange": {
+      "post": {
+        "operationId": "portal.portalTicket.exchange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "portalTicketId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "pollSecret": {
+                    "pattern": "^[A-Za-z0-9_-]{43}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "pollSecret"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalTicketExchangeResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "凭证类资源已失效"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "限流"
+          }
+        },
+        "summary": "凭 pollSecret 换取下载页会话：票据置 consumed，同事务建 portal_session 并 Set-Cookie __Host-lyx_portal；确认后密钥不符、尝试达上限或超过 60 秒时票据置 rejected，返回 200 与 status = rejected（作废随事务提交，A101 同一做法）",
+        "x-auth": "public",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "登录与换会话（A18；C47 点名 portal.portalTicket.exchange）：匿名请求没有 actor_key，不经幂等记录；票据状态守卫与 uq_portal_session_portal_ticket_id 保证一张票据只换出一个会话"
+      }
+    },
+    "/api/v1/portal/sessions/current": {
+      "delete": {
+        "operationId": "portal.session.current.delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "电脑端退出（DELETE /portal/sessions/current）：写 portal_session.revoked_at 与 revoke_reason = portal_logout，写 auth_event，清除 Cookie",
+        "x-auth": "portal",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "退出登录（A43；C47 的 none 白名单登记 portal.session.current.delete）：重复退出无副作用，端上把 401 当作已退出"
+      },
+      "get": {
+        "operationId": "portal.session.current.get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PortalSessionView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "当前下载页会话（GET /portal/sessions/current）：授权门店与主体名称、授权老板（脱敏）、能力点、到期时间；需要会话的页面加载时先调，401 时进入会话失效说明页",
+        "x-auth": "portal",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键"
+      }
+    }
+  },
   "webhooks": {}
 }

@@ -1,3 +1,5 @@
+import { portalHandlers } from "./portal.js";
+import { portalAuthorizationHandlers } from "./portal-authorizations.js";
 import { adHandlers } from "./ads.js";
 import { adminAdHandlers } from "./admin/ads.js";
 import { adminAdCancelHandlers } from "./admin/ad-cancel.js";
@@ -83,6 +85,8 @@ import { notifySettingHandlers } from "./notify-settings.js";
 import { siteHandlers } from "./admin/site.js";
 
 export const HANDLERS: readonly HandlerEntry[] = [
+  ...portalHandlers,
+  ...portalAuthorizationHandlers,
   ...adHandlers,
   ...adminAdCancelHandlers,
   ...adminAdHandlers,

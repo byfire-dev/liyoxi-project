@@ -231,3 +231,9 @@ export { createW508OrderAdFixture } from "./w508-order-ad.fixture.js";
 
 export { createM1LicenseRendering } from "./m1-docs.js";
 export { M1_LICENSE_TEST_INPUTS, prepareM1LicenseInputs } from "./m1-license-inputs.js";
+
+export {
+  createPortalTestStack,
+  createPortalTestOwner,
+  createPortalTestSession,
+} from "./portal-auth.fixture.js";

@@ -84,6 +84,23 @@ const playClerkFile = (operationId: string, action?: string): Sample => ({
   },
 });
 export const CLERK_SAMPLES: readonly Sample[] = [
+  get("m.portalTicket.lookup", "/m/portal-tickets/lookup?code=0123ABCD"),
+  get("m.portalSession.list", "/m/portal-sessions"),
+  ...(
+    [
+      ["m.portalTicket.approve", `/m/portal-tickets/${uuidv7()}/approve`, { pairDigits: "07" }],
+      ["m.portalTicket.reject", `/m/portal-tickets/${uuidv7()}/reject`, {}],
+      ["m.portalSession.revoke", `/m/portal-sessions/${uuidv7()}/revoke`, {}],
+    ] as const
+  ).map(([operationId, path, json]): Sample => ({
+    operationId,
+    play: (api, ctx) =>
+      api.request(`/api/v1${path}`, {
+        method: "POST",
+        headers: { ...ctx.clerk.withStore(ctx.storeId), "Idempotency-Key": uuidv7() },
+        json,
+      }),
+  })),
   {
     operationId: "m.me.deletion.create",
     expectedStatus: 400,

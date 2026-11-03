@@ -53,6 +53,22 @@ export { currentSessionOpenid } from "./current-openid.js";
 export { assertCurrentSession } from "./current-session.js";
 
 export { identityPiiFields } from "./pii-fields.js";
+export { assertPortalOwner } from "./portal-owner.js";
+export type { PortalOwnerRequest } from "./portal-owner.js";
+export {
+  createPortalSessions,
+  createPortalSession,
+  authenticatePortalSession,
+  portalSessionView,
+  PORTAL_CAPABILITIES,
+  PORTAL_SESSION_TTL_SECONDS,
+  portalSecretHash,
+  newPortalSecret,
+  portalSecretMatches,
+  portalBrowser,
+} from "./portal-session.js";
+export type { PortalPrincipal, PortalSessions, PortalSessionDeps } from "./portal-session.js";
+export { findI20Violations } from "./portal-invariants.js";
 export { membershipAuthorizations, revokePortalGrants } from "./portal-grants.js";
 export { findWechatIdentityId, recentWechatOpenid } from "./wechat-lookup.js";
 

@@ -31,3 +31,9 @@ export * from "./store-create.schemas.js";
 export * from "./stores.js";
 export * from "./tenant.schemas.js";
 export * from "./invitations.js";
+
+export * from "./portal.schemas.js";
+
+export * from "./portal-tickets.js";
+
+export * from "./portal-sessions.js";

@@ -12,6 +12,7 @@
 //   c.var.staff      后台请求的员工：会话校验的结果与判权用的上下文，后台的会话中间件放进来（W1-01a）；
 //                    处理器不直接读它，用 defineAdminHandler 的第二个入参
 import type {
+  PortalPrincipal,
   IdempotencyContext,
   IdentityContext,
   Logger,
@@ -40,6 +41,7 @@ export interface ApiVariables {
   sessionId?: string;
   idem?: IdempotencyContext;
   merchantSession?: SessionPrincipal;
+  portalSession?: PortalPrincipal;
   membership?: StoreMembership;
   staff?: RequestStaff;
 }

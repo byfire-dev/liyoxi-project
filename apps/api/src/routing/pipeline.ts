@@ -17,6 +17,7 @@ import { adminAuthz, adminStepUp } from "../http/admin/authz.js";
 import { adminCsrf } from "../http/admin/csrf.js";
 import { adminSession } from "../http/admin/session.js";
 import { idempotency } from "../http/idempotency.js";
+import { portalAuth, portalCsrf, portalCapability } from "../http/portal-auth.js";
 import { merchantAuth } from "../http/merchant-auth.js";
 import { merchantConsent } from "../http/merchant-consent.js";
 import { merchantCapability, merchantMembership } from "../http/merchant-membership.js";
@@ -90,4 +91,7 @@ export const ROUTE_MIDDLEWARES: readonly PipelineEntry[] = [
   { slot: "authz", groups: ["admin"], factory: adminAuthz },
   { slot: "stepUp", groups: ["admin"], factory: adminStepUp },
   { slot: "bodyLimit", groups: ["m", "admin"], factory: reportingBody },
+  { slot: "auth", groups: ["portal"], factory: portalAuth },
+  { slot: "csrf", groups: ["portal"], factory: portalCsrf },
+  { slot: "authz", groups: ["portal"], factory: portalCapability },
 ];

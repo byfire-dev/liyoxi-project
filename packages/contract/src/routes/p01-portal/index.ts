@@ -21,3 +21,9 @@ export const P01_PORTAL = defineRouteDoc("p01-portal", [
   samples,
   sessions,
 ]);
+
+export * from "./auth.schemas.js";
+
+export * from "./portal-tickets.js";
+
+export * from "./sessions.js";

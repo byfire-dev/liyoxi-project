@@ -233,6 +233,10 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-30 | 两新页 system.roles、approval.mine，旧 system.staff/shell.user_menu 不重复计页；原纯测 89、样例 16、完整 live 31 及类型/门禁通过。唯一正式审查 534.498 秒的原 0 P1/2 P2/0 D 保留，两项作者定点闭环后原 31+新增焦点/CAS 例同轮 32/32 通过；真实 Modal 新 12 图及旧证据分别保留，交接时待实际 main 合流。保持真实 actions/权限交集、打开快照的版本冲突重新核对、在办确认与一次性码清理；限定 visibility 探针与物理切窗/有头未验边界见 W2-06 状态。 |
 | W4-18、W4-20 拆出的 M5 页面包 | 在既有 `/approvals` 追加实际注册类型与领域授权入口。当前 finance_config_change 五资源无 schema/handler，保持只读详情；未来未落地类型不作占位菜单或通用执行动作。 |
 
+### W6-05 票据与电脑会话移交（本地目标验收完成，未合并）
+
+10条票据/会话API由同一portal→identity安全机制承接。API装配复用merchantServicesOf；下游02/06/10等本包actual main后消费PortalPrincipal、当前会话/固定store scope与既有revokePortalGrants，不借未合代码。Cookie、Origin、自定义头、只读操作白名单沿原槽位，GET不写库；sample.view不恢复Q9样片接口。现有ops.retention收集7天票据清理，0新增x01。真实扫码V8、M5业主演示和外验仍按原边界，本地HTTP不能替代。
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。
