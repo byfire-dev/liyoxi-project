@@ -20718,6 +20718,371 @@
         ],
         "type": "object"
       },
+      "LaunchCalendar": {
+        "additionalProperties": false,
+        "properties": {
+          "days": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "items": {
+                  "items": {
+                    "$ref": "#/components/schemas/LaunchCalendarItem"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "date",
+                "items"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "isTruncated": {
+            "type": "boolean"
+          },
+          "stats": {
+            "additionalProperties": false,
+            "properties": {
+              "overdue": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "producing": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "toLaunch": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "verifying": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "producing",
+              "toLaunch",
+              "verifying",
+              "overdue"
+            ],
+            "type": "object"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "today",
+          "stats",
+          "days",
+          "total",
+          "isTruncated"
+        ],
+        "type": "object"
+      },
+      "LaunchCalendarItem": {
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelAccountBrief"
+            },
+            "type": "array"
+          },
+          "actions": {
+            "items": {
+              "enum": [
+                "remind"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "agreedLaunchDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "calendarStatus": {
+            "enum": [
+              "producing",
+              "to_launch",
+              "verifying",
+              "overdue"
+            ],
+            "type": "string"
+          },
+          "dramaTitle": {
+            "type": "string"
+          },
+          "episodeCount": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "isDateTentative": {
+            "type": "boolean"
+          },
+          "isDeliveryLate": {
+            "type": "boolean"
+          },
+          "latestFollowUp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FollowUpItem"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderItemId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "overdueDays": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "tasks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/ChannelAccountBrief"
+                },
+                "currentRoundNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "currentSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstLaunchDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isLive": {
+                  "type": "boolean"
+                },
+                "isOverdue": {
+                  "type": "boolean"
+                },
+                "latestPassedSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "launchTaskId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                },
+                "reviewStatus": {
+                  "enum": [
+                    "pending",
+                    "verifying",
+                    "need_fix",
+                    "passed",
+                    "void"
+                  ],
+                  "type": "string"
+                },
+                "verifiedEpisodeCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "launchTaskId",
+                "platform",
+                "account",
+                "reviewStatus",
+                "isLive",
+                "currentRoundNo",
+                "verifiedEpisodeCount",
+                "firstLaunchDate",
+                "isOverdue",
+                "currentSubmissionId",
+                "latestPassedSubmissionId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "ticket": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveredAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryManager": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryTargetAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "deliveryTicketId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "isPaused": {
+                "type": "boolean"
+              },
+              "pauseReasons": {
+                "items": {
+                  "enum": [
+                    "cancel_review",
+                    "plan_amendment"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "ticketNo": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "deliveryTicketId",
+              "ticketNo",
+              "step",
+              "isPaused",
+              "pauseReasons",
+              "deliveryManager",
+              "publisher",
+              "deliveryTargetAt",
+              "deliveredAt"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "orderItemId",
+          "ticket",
+          "store",
+          "dramaTitle",
+          "episodeCount",
+          "agreedLaunchDate",
+          "isDateTentative",
+          "calendarStatus",
+          "accounts",
+          "tasks",
+          "isDeliveryLate",
+          "overdueDays",
+          "latestFollowUp",
+          "actions"
+        ],
+        "type": "object"
+      },
       "LaunchSubmissionDetail": {
         "additionalProperties": false,
         "properties": {
@@ -21550,6 +21915,470 @@
           "otherTasks",
           "revoke",
           "actions"
+        ],
+        "type": "object"
+      },
+      "LaunchTrackItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "remind"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "daysUntilLaunch": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "followUpCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "followUps": {
+            "items": {
+              "$ref": "#/components/schemas/FollowUpItem"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "isDelivered": {
+            "type": "boolean"
+          },
+          "isRemindedToday": {
+            "type": "boolean"
+          },
+          "lastRemindedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "orderItem": {
+            "additionalProperties": false,
+            "properties": {
+              "agreedLaunchDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dramaTitle": {
+                "type": "string"
+              },
+              "episodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "orderId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderItemId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderNo": {
+                "type": "string"
+              },
+              "orderedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "phase": {
+                "enum": [
+                  "pending_start",
+                  "producing",
+                  "to_launch",
+                  "live",
+                  "ended",
+                  "cancelled",
+                  "refunded",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top"
+                ],
+                "type": "string"
+              },
+              "usageEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "usageEndSource": {
+                "enum": [
+                  "license",
+                  "early_end",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              "usageStartDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "orderItemId",
+              "orderId",
+              "orderNo",
+              "orderedAt",
+              "dramaTitle",
+              "episodeCount",
+              "productionModel",
+              "phase",
+              "agreedLaunchDate",
+              "usageStartDate",
+              "usageEndDate",
+              "usageEndSource",
+              "liveEpisodeCount"
+            ],
+            "type": "object"
+          },
+          "overdue": {
+            "additionalProperties": false,
+            "properties": {
+              "days": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reason": {
+                "enum": [
+                  "merchant",
+                  "late_delivery"
+                ],
+                "type": "string"
+              },
+              "startDate": {
+                "format": "date",
+                "type": "string"
+              }
+            },
+            "required": [
+              "startDate",
+              "days",
+              "reason"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "store": {
+            "$ref": "#/components/schemas/AdminStoreBrief"
+          },
+          "tasks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "$ref": "#/components/schemas/ChannelAccountBrief"
+                },
+                "currentRoundNo": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "currentSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstLaunchDate": {
+                  "anyOf": [
+                    {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isLive": {
+                  "type": "boolean"
+                },
+                "isOverdue": {
+                  "type": "boolean"
+                },
+                "latestPassedSubmissionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "launchTaskId": {
+                  "format": "uuid",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "platform": {
+                  "enum": [
+                    "douyin",
+                    "wechat_channels"
+                  ],
+                  "type": "string"
+                },
+                "reviewStatus": {
+                  "enum": [
+                    "pending",
+                    "verifying",
+                    "need_fix",
+                    "passed",
+                    "void"
+                  ],
+                  "type": "string"
+                },
+                "verifiedEpisodeCount": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "launchTaskId",
+                "platform",
+                "account",
+                "reviewStatus",
+                "isLive",
+                "currentRoundNo",
+                "verifiedEpisodeCount",
+                "firstLaunchDate",
+                "isOverdue",
+                "currentSubmissionId",
+                "latestPassedSubmissionId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "ticket": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveredAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryManager": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryTargetAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "deliveryTicketId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "isPaused": {
+                "type": "boolean"
+              },
+              "pauseReasons": {
+                "items": {
+                  "enum": [
+                    "cancel_review",
+                    "plan_amendment"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "ticketNo": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "deliveryTicketId",
+              "ticketNo",
+              "step",
+              "isPaused",
+              "pauseReasons",
+              "deliveryManager",
+              "publisher",
+              "deliveryTargetAt",
+              "deliveredAt"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "orderItem",
+          "ticket",
+          "store",
+          "isDelivered",
+          "overdue",
+          "daysUntilLaunch",
+          "tasks",
+          "followUpCount",
+          "followUps",
+          "lastRemindedAt",
+          "isRemindedToday",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "LaunchTrackPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchTrackItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "LaunchTrackSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "deliveringSoon": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "last30Days": {
+            "additionalProperties": false,
+            "properties": {
+              "avgOverdueDays": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "liveItemCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "overdueItemCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "overdueItemCount",
+              "avgOverdueDays",
+              "liveItemCount"
+            ],
+            "type": "object"
+          },
+          "overdue": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "upcoming": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "overdue",
+          "upcoming",
+          "deliveringSoon",
+          "all",
+          "last30Days"
         ],
         "type": "object"
       },
@@ -30537,6 +31366,498 @@
               "submitClient",
               "checklist",
               "confirmChecks"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PublishListAdminView": {
+        "additionalProperties": false,
+        "properties": {
+          "activeRelease": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveryReleaseId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "pushedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "releaseNo": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "deliveryReleaseId",
+              "releaseNo",
+              "pushedAt"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "collectionName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completeness": {
+            "additionalProperties": false,
+            "properties": {
+              "isComplete": {
+                "type": "boolean"
+              },
+              "missing": {
+                "items": {
+                  "enum": [
+                    "collection_name",
+                    "cover",
+                    "intro",
+                    "topics",
+                    "episode_titles"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "untitledEpisodeNos": {
+                "items": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "isComplete",
+              "missing",
+              "untitledEpisodeNos"
+            ],
+            "type": "object"
+          },
+          "cover": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "expiresAt": {
+                    "format": "date-time",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "fileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "fileId",
+                  "url",
+                  "expiresAt"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "episodes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "changedInReleaseNo": {
+                  "exclusiveMinimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "episodeNo": {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                "highlight": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "intro": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "renderedTitle": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "topics": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "episodeNo",
+                "highlight",
+                "title",
+                "renderedTitle",
+                "topics",
+                "intro",
+                "changedInReleaseNo"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "intro": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isAiDeclarationRequired": {
+            "type": "boolean"
+          },
+          "isEditable": {
+            "type": "boolean"
+          },
+          "lockReason": {
+            "enum": [
+              "links_submitted",
+              "ticket_paused",
+              "ticket_step",
+              null
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lockVersion": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "orderItem": {
+            "additionalProperties": false,
+            "properties": {
+              "agreedLaunchDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "dramaTitle": {
+                "type": "string"
+              },
+              "episodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "liveEpisodeCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "orderId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderItemId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "orderNo": {
+                "type": "string"
+              },
+              "orderedAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "phase": {
+                "enum": [
+                  "pending_start",
+                  "producing",
+                  "to_launch",
+                  "live",
+                  "ended",
+                  "cancelled",
+                  "refunded",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "productionModel": {
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "top"
+                ],
+                "type": "string"
+              },
+              "usageEndDate": {
+                "format": "date",
+                "type": "string"
+              },
+              "usageEndSource": {
+                "enum": [
+                  "license",
+                  "early_end",
+                  "expired"
+                ],
+                "type": "string"
+              },
+              "usageStartDate": {
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "orderItemId",
+              "orderId",
+              "orderNo",
+              "orderedAt",
+              "dramaTitle",
+              "episodeCount",
+              "productionModel",
+              "phase",
+              "agreedLaunchDate",
+              "usageStartDate",
+              "usageEndDate",
+              "usageEndSource",
+              "liveEpisodeCount"
+            ],
+            "type": "object"
+          },
+          "publishListId": {
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "savedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "savedBy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StaffBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ticket": {
+            "additionalProperties": false,
+            "properties": {
+              "deliveredAt": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryManager": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deliveryTargetAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "deliveryTicketId": {
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              "isPaused": {
+                "type": "boolean"
+              },
+              "pauseReasons": {
+                "items": {
+                  "enum": [
+                    "cancel_review",
+                    "plan_amendment"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/StaffBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "step": {
+                "enum": [
+                  "assigning",
+                  "plan_confirm",
+                  "ad_prep",
+                  "sample_making",
+                  "sample_confirm",
+                  "batch_compose",
+                  "delivering",
+                  "awaiting_launch",
+                  "launch_verify",
+                  "in_service",
+                  "takedown",
+                  "archived",
+                  "terminated"
+                ],
+                "type": "string"
+              },
+              "ticketNo": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "deliveryTicketId",
+              "ticketNo",
+              "step",
+              "isPaused",
+              "pauseReasons",
+              "deliveryManager",
+              "publisher",
+              "deliveryTargetAt",
+              "deliveredAt"
+            ],
+            "type": "object"
+          },
+          "titleTemplate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "publishListId",
+          "ticket",
+          "orderItem",
+          "collectionName",
+          "cover",
+          "titleTemplate",
+          "topics",
+          "intro",
+          "isAiDeclarationRequired",
+          "episodes",
+          "completeness",
+          "isEditable",
+          "lockReason",
+          "savedBy",
+          "savedAt",
+          "lockVersion",
+          "activeRelease"
+        ],
+        "type": "object"
+      },
+      "PublishListImportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "importedRowCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "publishList": {
+            "$ref": "#/components/schemas/PublishListAdminView"
+          },
+          "replayed": {
+            "type": "boolean"
+          },
+          "updatedEpisodeNos": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "publishList",
+          "importedRowCount",
+          "updatedEpisodeNos",
+          "replayed"
+        ],
+        "type": "object"
+      },
+      "PublishListSaveResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublishListAdminView"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "replayed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "replayed"
             ],
             "type": "object"
           }
@@ -53397,6 +54718,496 @@
         "x-permission": "delivery.download"
       }
     },
+    "/api/v1/admin/delivery-tickets/{deliveryTicketId}/publish-list": {
+      "get": {
+        "operationId": "admin.deliveryTicket.publishList.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryTicketId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublishListAdminView"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "发布清单：合集名称、封面、每集标题模板与逐集标题、话题、简介；交付前检查项",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      },
+      "put": {
+        "operationId": "admin.deliveryTicket.publishList.replace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryTicketId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "collectionName": {
+                    "maxLength": 60,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "coverFileId": {
+                    "format": "uuid",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "episodes": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "episodeNo": {
+                          "exclusiveMinimum": 0,
+                          "type": "integer"
+                        },
+                        "highlight": {
+                          "maxLength": 30,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "intro": {
+                          "maxLength": 200,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "title": {
+                          "maxLength": 100,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "topics": {
+                          "items": {
+                            "maxLength": 21,
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "maxItems": 10,
+                          "type": [
+                            "array",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "episodeNo",
+                        "highlight",
+                        "title",
+                        "topics",
+                        "intro"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "intro": {
+                    "maxLength": 200,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "titleTemplate": {
+                    "maxLength": 100,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "topics": {
+                    "items": {
+                      "maxLength": 21,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "collectionName",
+                  "coverFileId",
+                  "titleTemplate",
+                  "topics",
+                  "intro",
+                  "episodes"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublishListSaveResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "保存发布清单（带 lockVersion）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.list.edit",
+        "x-redact-on-replay": [
+          "cover.url",
+          "cover.expiresAt"
+        ]
+      }
+    },
+    "/api/v1/admin/delivery-tickets/{deliveryTicketId}/publish-list/import": {
+      "post": {
+        "operationId": "admin.deliveryTicket.publishList.import",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "deliveryTicketId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "enum": [
+                      "csv",
+                      "tsv"
+                    ],
+                    "type": "string"
+                  },
+                  "lockVersion": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "lockVersion",
+                  "format",
+                  "content"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PublishListImportResult"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "表格导入逐集标题与看点（行级校验）",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.list.edit",
+        "x-redact-on-replay": [
+          "publishList.cover.url",
+          "publishList.cover.expiresAt"
+        ]
+      }
+    },
     "/api/v1/admin/delivery-tickets/{deliveryTicketId}/push-package": {
       "post": {
         "operationId": "admin.deliveryTicket.pushPackage",
@@ -65001,6 +66812,128 @@
         "x-permission": "finance.invoice.issue"
       }
     },
+    "/api/v1/admin/launch-calendar": {
+      "get": {
+        "operationId": "admin.launchCalendar.get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "pattern": "^\\d{4}-(?:0[1-9]|1[0-2])$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchCalendar"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "上线日历：按约定上线日聚合交付中的工单（制作中、待上线、上线核验、已逾期），可按交付经理筛选；当日与逾期面板",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
     "/api/v1/admin/launch-submissions/{launchSubmissionId}": {
       "get": {
         "operationId": "admin.launchSubmission.get",
@@ -65474,6 +67407,464 @@
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "publish.link.verify"
+      }
+    },
+    "/api/v1/admin/launch-submissions/{launchSubmissionId}/revoke": {
+      "post": {
+        "operationId": "admin.launchSubmission.revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "launchSubmissionId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "confirm": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "roundNo": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      "verifiedEpisodeCount": {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "roundNo",
+                      "verifiedEpisodeCount"
+                    ],
+                    "type": "object"
+                  },
+                  "reason": {
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "reason",
+                  "confirm"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchSubmissionDetail"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "资源不存在，或不在当前门店、主体、数据范围内"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "状态不允许、版本冲突、唯一性冲突或幂等键冲突"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "内部错误"
+          }
+        },
+        "summary": "撤销核验通过（1 个工作日内；无已确认或已核查的下架任务）：重开新一轮核验",
+        "x-auth": "staff",
+        "x-idempotent": "required",
+        "x-permission": "publish.link.verify_revoke"
+      }
+    },
+    "/api/v1/admin/launch-tasks": {
+      "get": {
+        "operationId": "admin.launchTask.list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deliveryTicketId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderItemId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "readyOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tab",
+            "required": false,
+            "schema": {
+              "default": "overdue",
+              "enum": [
+                "overdue",
+                "upcoming",
+                "all"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchTrackPage"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "上线任务查询：逾期未上线（任务粒度，带跟进时间线）、7 日内待上线（可仅看成片已交付）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
+      }
+    },
+    "/api/v1/admin/launch-tasks/summary": {
+      "get": {
+        "operationId": "admin.launchTask.summary",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "deliveryTicketId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orderItemId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "readyOnly",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        0
+                      ],
+                      "type": "number"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LaunchTrackSummary"
+                    },
+                    "message": {
+                      "enum": [
+                        "ok"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "成功"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "入参不合约定，或业务规则拒绝了输入本身"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "未登录或会话失效"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "已登录但无权"
+          }
+        },
+        "summary": "逾期跟踪指标卡：逾期未上线、7 日内待上线、7 日内成片交付中、近 30 天逾期（平均逾期天数、已上线数）",
+        "x-auth": "staff",
+        "x-idempotent": "none",
+        "x-idempotent-reason": "纯查询（GET 不写库，A19）"
       }
     },
     "/api/v1/admin/license-letter-revisions/{licenseLetterRevisionId}/rerender": {

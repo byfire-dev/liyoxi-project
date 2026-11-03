@@ -46,6 +46,19 @@ export const NotifyFactSchema = z.strictObject({
   summary: z.string().max(200).optional(),
   summaryNoPrice: z.string().max(200).nullable().optional(),
   link: MessageDeepLinkSchema.optional(),
+  items: z
+    .array(
+      z.strictObject({
+        orderItemId: IdSchema,
+        dramaName: z.string(),
+        overdueDays: z.int().nonnegative().optional(),
+        reason: z.enum(["merchant", "late_delivery"]).optional(),
+        pendingAccounts: z
+          .array(z.strictObject({ platform: z.string(), name: z.string() }))
+          .optional(),
+      }),
+    )
+    .optional(),
 });
 
 const wallet = () => ({ route: "wallet.home" as const, params: {} });
@@ -158,6 +171,31 @@ export const LAUNCH_RESCHEDULED_SPEC = spec(
   order,
   ["scheduled"],
 );
+export const PUBLISH_LIST_UPDATED_SPEC = spec(
+  "m.order_progress",
+  "publishListForNotify",
+  "publishListId",
+  "delivery",
+  order,
+  ["pushed"],
+);
+export const LAUNCH_REVOKED_MERCHANT_SPEC = spec(
+  "m.order_progress",
+  "launchRevokedForNotify",
+  "launchTaskId",
+  "launch",
+  (fact) => ({
+    route: "publish.task",
+    params: { launchTaskId: fact.bizId, storeId: fact.storeId! },
+  }),
+  ["verifying"],
+);
+export const LAUNCH_REVOKED_STAFF_SPEC: NotificationSpec = {
+  ...staffSpec("s.publish_progress", "launchRevokedForNotify", "launchTaskId", "publish.verify", [
+    "verifying",
+  ]),
+  staffLink: () => ({ route: "publish.verify", params: {} }),
+};
 
 export const QUOTA_EXCEEDED_SPEC = spec(
   "m.quota_exceeded",
@@ -210,6 +248,8 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   "package.reissue_opened": [REISSUE_EDITOR_SPEC],
   "package.reissued": [REISSUED_RELEASE_SPEC],
   "order.item.launch_rescheduled": [LAUNCH_RESCHEDULED_SPEC],
+  "publish_list.updated": [PUBLISH_LIST_UPDATED_SPEC],
+  "launch.verify_revoked": [LAUNCH_REVOKED_MERCHANT_SPEC, LAUNCH_REVOKED_STAFF_SPEC],
   "entity_member.joined": [INVITATION_JOIN_SPEC],
   "entity_member.stores_changed": [
     spec(
@@ -441,6 +481,9 @@ export const EVENT_SCENES: Readonly<Record<string, readonly NotificationSpec[]>>
   ],
   "order.submitted": [spec("m.order_submitted", "orderForNotify", "dramaOrderId", "order", order)],
   "order.started": [spec("m.order_progress", "orderForNotify", "dramaOrderId", "order", order)],
+  "order.item.live_revoked": [
+    spec("m.order_progress", "orderForNotify", "dramaOrderId", "order", order),
+  ],
   "order.rejected_stale": [
     {
       ...staffSpec("s.kf_todo", "orderRejectedForNotify", "dramaOrderId", "order.detail", [
@@ -555,34 +598,47 @@ export const SCENE_COVERAGE = NOTIFY_SCENES.map((scene) => ({
           .map(([event]) => event),
 }));
 export const specFor = (key: string, bizType?: string | null): NotificationSpec | undefined =>
-  key === "s.step_overdue" && bizType === "ad"
-    ? AD_SLA_SPEC
-    : key === "s.delivery_progress" && bizType === "delivery_reissue"
-      ? REISSUE_EDITOR_SPEC
-      : key === "m.order_progress" && bizType === "delivery_release"
-        ? REISSUED_RELEASE_SPEC
-        : key === "m.order_progress" && bizType === "order_item"
-          ? LAUNCH_RESCHEDULED_SPEC
-          : key === "m.asset_feedback" && bizType === "store_asset_demand"
-            ? ASSET_DEMAND_SPEC
-            : key === "m.member_changed" && bizType === "invitation"
-              ? INVITATION_JOIN_SPEC
-              : [
-                  ...Object.values(EVENT_SCENES)
-                    .flat()
-                    .filter(
-                      (s) =>
-                        s !== INVITATION_JOIN_SPEC &&
-                        s !== ASSET_DEMAND_SPEC &&
-                        s !== REISSUE_EDITOR_SPEC &&
-                        s !== REISSUED_RELEASE_SPEC &&
-                        s !== LAUNCH_RESCHEDULED_SPEC,
-                    ),
-                  QUOTA_EXCEEDED_SPEC,
-                  FOLLOWUP_SPEC,
-                  UNREACHED_SPEC,
-                  COPYRIGHT_SPEC,
-                ].find((s) => s.sceneKey === key);
+  key === "m.order_progress" && bizType === "publish_list"
+    ? PUBLISH_LIST_UPDATED_SPEC
+    : key === "m.order_progress" && bizType === "launch_task"
+      ? LAUNCH_REVOKED_MERCHANT_SPEC
+      : key === "s.publish_progress" && bizType === "launch_task"
+        ? LAUNCH_REVOKED_STAFF_SPEC
+        : key === "m.launch_remind" && bizType === "store"
+          ? LAUNCH_REMINDER_SPEC
+          : key === "s.launch_overdue"
+            ? LAUNCH_OVERDUE_SPEC
+            : key === "s.step_overdue" && bizType === "ad"
+              ? AD_SLA_SPEC
+              : key === "s.delivery_progress" && bizType === "delivery_reissue"
+                ? REISSUE_EDITOR_SPEC
+                : key === "m.order_progress" && bizType === "delivery_release"
+                  ? REISSUED_RELEASE_SPEC
+                  : key === "m.order_progress" && bizType === "order_item"
+                    ? LAUNCH_RESCHEDULED_SPEC
+                    : key === "m.asset_feedback" && bizType === "store_asset_demand"
+                      ? ASSET_DEMAND_SPEC
+                      : key === "m.member_changed" && bizType === "invitation"
+                        ? INVITATION_JOIN_SPEC
+                        : [
+                            ...Object.values(EVENT_SCENES)
+                              .flat()
+                              .filter(
+                                (s) =>
+                                  s !== INVITATION_JOIN_SPEC &&
+                                  s !== ASSET_DEMAND_SPEC &&
+                                  s !== REISSUE_EDITOR_SPEC &&
+                                  s !== REISSUED_RELEASE_SPEC &&
+                                  s !== LAUNCH_RESCHEDULED_SPEC &&
+                                  s !== PUBLISH_LIST_UPDATED_SPEC &&
+                                  s !== LAUNCH_REVOKED_MERCHANT_SPEC &&
+                                  s !== LAUNCH_REVOKED_STAFF_SPEC,
+                              ),
+                            QUOTA_EXCEEDED_SPEC,
+                            FOLLOWUP_SPEC,
+                            UNREACHED_SPEC,
+                            COPYRIGHT_SPEC,
+                          ].find((s) => s.sceneKey === key);
 
 export const FOLLOWUP_SPEC = staffSpec(
   "s.followup_due",
@@ -607,4 +663,24 @@ export const COPYRIGHT_SPEC: NotificationSpec = {
   ownerOnly: false,
   staffLink: () => ({ route: "drama.list", params: {} }),
   link: () => ({ route: "messages.list", params: {} }),
+};
+
+export const LAUNCH_REMINDER_SPEC: NotificationSpec = {
+  sceneKey: "m.launch_remind",
+  reader: "launchReminderAggregate",
+  refField: "storeId",
+  category: "launch",
+  ownerOnly: true,
+  pendingStatus: ["pending"],
+  link: (fact) => fact.link!,
+};
+export const LAUNCH_OVERDUE_SPEC: NotificationSpec = {
+  sceneKey: "s.launch_overdue",
+  reader: "launchOverdueAggregate",
+  refField: "staffId",
+  category: "launch",
+  ownerOnly: false,
+  pendingStatus: ["overdue"],
+  link: () => ({ route: "messages.list", params: {} }),
+  staffLink: () => ({ route: "publish.overdue", params: {} }),
 };

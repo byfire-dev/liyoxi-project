@@ -25,11 +25,28 @@ export const DELIVERY_INVARIANT_CODES = [
   "I13",
   "I14",
   "I15",
+  "I16",
 ] as const;
 export async function findDeliveryViolations(tx: Tx, code: string): Promise<InvariantViolation[]> {
   const result: InvariantViolation[] = [],
     bad = (type: string, id: string, entityId: string, detail: Record<string, unknown>) =>
       result.push({ subject: { type, id }, entityId, detail });
+  if (code === "I16") {
+    const rows = await tx.publishListEpisode.findMany({
+      include: { deliveryTicket: { include: { orderItem: true, publishList: true } } },
+      orderBy: [{ deliveryTicketId: "asc" }, { episodeNo: "asc" }],
+    });
+    for (const row of rows) {
+      const ticket = row.deliveryTicket;
+      if (!ticket.publishList || row.episodeNo > ticket.orderItem.episodeCount)
+        bad("publish_list_episode", `${row.deliveryTicketId}:${row.episodeNo}`, ticket.entityId, {
+          deliveryTicketId: row.deliveryTicketId,
+          episodeNo: row.episodeNo,
+          missingPublishList: !ticket.publishList,
+          episodeCount: ticket.orderItem.episodeCount,
+        });
+    }
+  }
   if (code === "I2") {
     const rows = await tx.deliveryTicket.findMany({
       include: ticketInclude,

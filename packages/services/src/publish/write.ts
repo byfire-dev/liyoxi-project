@@ -675,7 +675,7 @@ export const accountKind = defineApprovalKind<SubmissionInput>({
   onRejected: (tx, row, d) => accountDecision(tx, row, d, false),
   onWithdrawn: accountUnbindWithdrawal,
 });
-export const launchKind = defineApprovalKind<SubmissionInput>({
+export const launchKind = defineApprovalKind<SubmissionInput & { taskId: string }>({
   category: "review",
   domain: { table: "launch_submission", column: "approval_request_id" },
   viewModules: ["publish"],
@@ -683,7 +683,10 @@ export const launchKind = defineApprovalKind<SubmissionInput>({
   groupBound: false,
   hasExecution: false,
   numberPrefix: null,
-  dedupeKey: (s) => `launch_link:${s.input.submissionId}`,
+  dedupeKey: (s) => {
+    if (!s.input.taskId) throw new TypeError("链接核验审批必须提供上线任务标识");
+    return `launch_link:${s.input.taskId}`;
+  },
   roundNo: async (_tx, s) => s.input.roundNo,
   operations: {
     get: "admin.launchSubmission.get",

@@ -15,6 +15,7 @@ import type {
   NotificationSpec,
   NoticeRecipient,
 } from "./context.js";
+import type { Notification } from "@liyoxi/db";
 import {
   EVENT_SCENES,
   AD_PENDING_SPEC,
@@ -217,6 +218,23 @@ export async function currentNotificationFact(
   return fact;
 }
 
+/** Date aggregates are reloaded by their owner, including recipient reassignment. */
+export async function currentReminderFact(
+  tx: Tx,
+  deps: NotifyDispatchDeps,
+  notification: Pick<Notification, "sourceRule" | "vars">,
+) {
+  const rule = notification.sourceRule;
+  if (rule !== "R2" && rule !== "R6") return undefined;
+  const stored = NotifyFactSchema.safeParse(notification.vars);
+  if (!stored.success) return null;
+  const current = await remindersOf(deps.assembly).revalidate(tx, rule, {
+    ...stored.data,
+    now: deps.clock.now(),
+  });
+  return current.valid && current.vars ? NotifyFactSchema.parse(current.vars) : null;
+}
+
 export const smsNodeAllowed = (nodes: unknown, node: string): boolean =>
   nodes === null || (Array.isArray(nodes) && nodes.includes(node));
 
@@ -227,6 +245,7 @@ const occurrenceEvents = new Set([
   "package.reissue_opened",
   "package.reissued",
   "order.item.launch_rescheduled",
+  "order.item.live_revoked",
   "entity_member.removed",
   "store.archived",
   "entity_member.stores_changed",
@@ -260,11 +279,13 @@ export async function dispatchFact(
       if (!active?.includes(staffId)) continue;
       const id = uuidv7();
       const key =
-        spec.sceneKey === "s.copyright_expiring"
-          ? `copyright:${staffId}:${fact.targetDate}`
-          : source.event?.type === "store.archived"
-            ? `${spec.sceneKey}:${source.event.id}:${staffId}`
-            : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
+        source.rule === "R6"
+          ? `launch_overdue:${staffId}:${fact.targetDate}`
+          : spec.sceneKey === "s.copyright_expiring"
+            ? `copyright:${staffId}:${fact.targetDate}`
+            : source.event?.type === "store.archived"
+              ? `${spec.sceneKey}:${source.event.id}:${staffId}`
+              : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${fact.status}:${fact.targetDate ?? ""}:${staffId}`;
       const created = await tx.notification.createMany({
         skipDuplicates: true,
         data: [
@@ -275,8 +296,8 @@ export async function dispatchFact(
             sourceOutboxEventId: source.event?.id ?? null,
             sourceRule: source.rule ?? null,
             node: source.node,
-            bizType: fact.bizType,
-            bizId: fact.bizId,
+            bizType: source.rule === "R6" ? null : fact.bizType,
+            bizId: source.rule === "R6" ? null : fact.bizId,
             staffId,
             entityId: fact.entityId,
             storeId: fact.storeId,
@@ -339,11 +360,14 @@ export async function dispatchFact(
     const entityId = recipient.entityId;
     const mode = entityId === null ? null : await deps.purchaseMode(tx, entityId, now);
     const id = uuidv7();
-    const key = `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${
-      spec.sceneKey.startsWith("m.points_") || occurrenceEvents.has(source.event?.type ?? "")
-        ? (source.event?.id ?? "rule")
-        : fact.status
-    }:${recipient.merchantUserId}${mandatory ? `:${entityId}` : ""}`;
+    const key =
+      source.rule === "R2"
+        ? `launch:${fact.storeId}:${fact.targetDate}:${source.node}:${recipient.merchantUserId}`
+        : `${spec.sceneKey}:${fact.bizId}:v${fact.version}:${source.node}:${
+            spec.sceneKey.startsWith("m.points_") || occurrenceEvents.has(source.event?.type ?? "")
+              ? (source.event?.id ?? "rule")
+              : fact.status
+          }:${recipient.merchantUserId}${mandatory ? `:${entityId}` : ""}`;
     const vars = {
       ...fact,
       entityId,
@@ -452,6 +476,21 @@ export async function dispatchFact(
 }
 
 export async function dispatchEvent(tx: Tx, deps: NotifyDispatchDeps, event: DeliveredEvent) {
+  // These exact producers carry no arbitrary version or free text in their payloads.
+  // Their owner checks the persisted event occurrence against the current business version.
+  if (event.type === "publish_list.updated" || event.type === "launch.verify_revoked") {
+    const reader =
+      event.type === "publish_list.updated"
+        ? "publishListEventCurrentForNotify"
+        : "launchRevokeEventCurrentForNotify";
+    if (
+      !(await notifyReadOf(deps.assembly).read<boolean>(tx, reader, {
+        eventId: event.id,
+        payload: event.payload,
+      }))
+    )
+      return 0;
+  }
   // These progress events describe a particular persisted correction. A delayed old event
   // must not borrow a newer release or launch date merely because its parent still exists.
   if (

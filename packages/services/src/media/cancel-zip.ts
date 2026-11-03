@@ -36,7 +36,12 @@ export async function readCancelZipTargets(tx: Tx, releaseIds: readonly string[]
 export type CancelZipTargets = Awaited<ReturnType<typeof readCancelZipTargets>>;
 
 /** Called before the account lock, after the complete zip/file union has been locked. */
-export async function invalidateZipBundles(tx: Tx, targets: CancelZipTargets, now: Date) {
+export async function invalidateZipBundles(
+  tx: Tx,
+  targets: CancelZipTargets,
+  now: Date,
+  options: { preserveReleaseFiles?: boolean } = {},
+) {
   if (
     JSON.stringify(targets) !== JSON.stringify(await readCancelZipTargets(tx, targets.releaseIds))
   )
@@ -54,7 +59,10 @@ export async function invalidateZipBundles(tx: Tx, targets: CancelZipTargets, no
         updatedAt: now,
       },
     });
-  for (const ref of targets.refs) {
+  const releasedRefs = targets.refs.filter(
+    (ref) => !options.preserveReleaseFiles || ref.refType !== "delivery_release",
+  );
+  for (const ref of releasedRefs) {
     const old = await tx.fileRef.findUniqueOrThrow({ where: { id: ref.id } });
     const file = await tx.fileObject.findUniqueOrThrow({ where: { id: ref.fileId } });
     // Release snapshots keep their evidence for at least 90 days. Cancelling a
@@ -74,7 +82,15 @@ export async function invalidateZipBundles(tx: Tx, targets: CancelZipTargets, no
       data: { state: "released", releasedAt: old.releasedAt ?? now, keepUntil, updatedAt: now },
     });
   }
-  for (const id of targets.fileObjectIds) {
+  const changedFiles = options.preserveReleaseFiles
+    ? ids([
+        ...targets.bundles.flatMap((b) =>
+          [b.zipFileId, b.publishListFileId].filter((id): id is string => id !== null),
+        ),
+        ...releasedRefs.map((r) => r.fileId),
+      ])
+    : targets.fileObjectIds;
+  for (const id of changedFiles) {
     const refs = await tx.fileRef.findMany({
       where: { fileId: id },
       select: { state: true, keepUntil: true },

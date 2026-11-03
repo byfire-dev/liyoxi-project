@@ -25,6 +25,19 @@ export {
 export type { DeliveryPublishTargets } from "./delivery-lifecycle.js";
 export { readLicenseAccounts } from "./license-facts.js";
 export type { LicenseAccountFact } from "./license-facts.js";
+export { createLaunchRevoke } from "./launch-revoke.js";
+export type { LaunchRevoke, LaunchRevokeDeps } from "./launch-revoke.js";
+export { createLaunchWorkbench, launchCalendarBounds } from "./launch-workbench.js";
+export {
+  deriveLaunchOverdue,
+  listOverdueLaunchItems,
+  countOverdueLaunchItems,
+} from "./launch-overdue.js";
+export type {
+  LaunchOverdueFacts,
+  LaunchOverdueTaskFact,
+  OverdueLaunchItem,
+} from "./launch-overdue.js";
 export { createPublishPatrol } from "./patrol-service.js";
 export type { PublishPatrol } from "./patrol-service.js";
 export type { PatrolDeps } from "./patrol-context.js";

@@ -243,6 +243,12 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 
 10条票据/会话API由同一portal→identity安全机制承接。API装配复用merchantServicesOf；下游02/06/10等本包actual main后消费PortalPrincipal、当前会话/固定store scope与既有revokePortalGrants，不借未合代码。Cookie、Origin、自定义头、只读操作白名单沿原槽位，GET不写库；sample.view不恢复Q9样片接口。现有ops.retention收集7天票据清理，0新增x01。真实扫码V8、M5业主演示和外验仍按原边界，本地HTTP不能替代。
 
+### W6-02 发布清单与上线工作台移交（随本包 PR 交付）
+
+| 原桩编号 | 接收方 | 实际交付与接入要求 | 依据 |
+| --- | --- | --- | --- |
+| — | W6-08、W6-11 | 9条清单/日历/上线列表/汇总/撤销接口；三端当前 pushed 包文本同源。页面使用 lockVersion、isEditable/lockReason、revoke/actions 与服务端逾期统计，不自算权限或状态。portal沿W6-05真实会话固定门店，GET不留下载记录。 | W6-02；a06第2.3、2.4、3.8–3.15、3.19节；m05第3.16节；p01第3.9节 |
+| — | W6-04、W6-07、W6-13 | 07消费完整清单快照与ZIP失效语义，现行成片引用保留；04消费撤销后重新计算的上线事实、pending下架依据和原order/delivery回退。局部测试保留历史pending输入边界；合流已合03后，完整二十集链新增真实HTTP巡检创建→撤销核验→巡检void互通。R2/R6真实扫描与发前重验已接，外部通知、M5业主演示、分批上线与三端复制演示仍未验；不关闭E8/E11。 | W6-02；delivery/publish/notify README；10第2.14、2.15节；11第2.3、2.4节 |
 ### W6-03 巡检与账号健康移交（随本包 PR 交付）
 
 | 编号 | 接收方 | 交付与边界 | 出处 |

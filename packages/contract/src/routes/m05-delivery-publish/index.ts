@@ -40,6 +40,7 @@ export {
   mOrderItemSampleGet,
   mOrderItemReleaseGet,
   mOrderItemDownloadUrls,
+  mOrderItemPublishListGet,
 } from "./order-items.js";
 export * from "./download.schemas.js";
 

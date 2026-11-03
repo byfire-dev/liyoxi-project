@@ -53,6 +53,7 @@ const launch: MachineBinding = {
       ["11:300", "launch.submit"],
       ["11:301", "launch.verify_pass"],
       ["11:302", "launch.return"],
+      ["11:303", "launch.verify_revoke"],
     ]),
     [rowKey("11:304", "launch.void")]: cancelPublishGuard,
     [rowKey("11:305", "launch.settle")]: cancelPublishGuard,

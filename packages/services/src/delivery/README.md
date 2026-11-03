@@ -105,3 +105,16 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 原M5归档分支缺失的关包与订单 ended/refunded 推导已补齐；真实到期producer验到takedown。归档消费者测试使用明确标注的历史核查输入并保留状态历史，验证实际order端口与同事务产物，不代表W6-04商家确认/核查handler完成。对应完整核查→归档端到端仍由W6-04补验。
 
 历史兼容边界：当前新链在归档才关闭 usage_ended 包，而自动续期禁止复活归档工单，因此重开能力按10:884保留给仍处到期下架前的历史关闭包。专属测试明确标注该历史输入，验证最后一版、文件缺失/取消/归档负例、引用恢复且不新授grant；不虚构自然可达的新producer，不在本包改原双守卫。
+
+
+## W6-02 发布清单
+
+`createPublishLists` 提供后台读取、整份替换、CSV/TSV 导入及商家/portal 当前包清单读取。首次进入 delivering 预填每集一行，再次进入不覆盖保存内容。替换中未列出的逐集覆盖清空；导入只改变表内集号和出现列，一行错误回滚整表。父工单锁下依次重验首次回填锁定、暂停、步骤与版本，并保留 `changedInReleaseNo`。同一幂等键重放不重复保存或事件，签名封面按契约返回脱敏空值。
+
+模板展开与逐集话题回退使用 `@liyoxi/shared/publish-list` 的同一纯函数。保存同步当前 pushed 包的 `publishListText`，通过 media 原公口的 `preserveReleaseFiles` 选项仅失效 ZIP/文本文件缓存，保留现行成片文件引用和下载授权。GET 不懒创建清单、ZIP 或下载记录；merchant/portal 均显式提取主体与门店，按当前 pushed 包读取。`delivery.I16` 报告逐集行缺总清单或超出整部集数，保持不自愈。
+
+三端清单 GET 先校验范围，再经既有 `lockRows(..., "delivery_ticket", ..., "share")` 与保存/导入的工单排他锁互斥；锁后重读同范围工单及完整清单、逐集行、当前包投影，防止 READ COMMITTED 下混合两个版本。封面签名仍在事务外；不改变隔离级别或 GET 零业务写约束。并发回归分别暂停后台清单头、商家/Portal 当前包的真实查询，观察 PostgreSQL 的实际阻塞关系，再验证旧版完整返回、写入完成后新版完整读回。
+
+核验撤销通过原 `launchChangedPort` 驱动 delivery：最后一个已上线账号撤销后，`in_service → launch_verify` 清除 `liveAt`，再调用真实 order owner 重推阶段与使用期。仍有账号已上线时保持服务中。验收入口是 `publish-list-m6.db.test.ts` 和 `publish/launch-workbench.db.test.ts`，不把历史 ZIP 缓存输入当作 W6-07 打包 producer 已完成。
+
+完整整装另由 API `publish-workbench-full.e2e.test.ts` 验证：保留原20集、上传并发4和含清理90秒，在真实回填前保存清单，核验后确认清单锁定，再撤销并核全域full不变量零违规、零错误。当前测试22.41秒、命令29.52秒；M5局部writer夹具不替代该整装证据。共用制作前置已移入testing叶模块，旧delivery夹具路径兼容转导出，默认1集与原广告/取消专用helper保持；不新增生产port。
