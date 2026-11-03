@@ -3,21 +3,23 @@ import { statusToneByEnum } from "@liyoxi/shared/design/status-tone";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getRouteApi, useRouteContext } from "@tanstack/react-router";
 import { Alert, Button, Spin } from "antd";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { showSuccessNotice } from "../../../app/feedback";
 import { PageHeader } from "../../../components/PageHeader";
 import { QueueWorkbench } from "../../../components/QueueWorkbench";
 import { ErrorState } from "../../../components/StateBlock";
 import { StatusTag } from "../../../components/StatusTag";
-import { useCan } from "../../../lib/permissions";
+import { AccessContext, useCan } from "../../../lib/permissions";
+import { actorScope } from "../../system/staff-access";
 import { DETAIL_QUERY, DICT_QUERY, QUEUE_QUERY } from "../../../lib/query";
-import { currentKey, writeQueueSearch } from "../../../lib/queue";
+import { writeQueueSearch } from "../../../lib/queue";
 import { createVerifyApi } from "./api";
 import { VerifyDetails, type Controller } from "./details";
-import { verifySearch, VERIFY_KEY } from "./model";
+import { selectedVerify, verifySearch, VERIFY_KEY } from "./model";
 import "./verify.css";
 const route = getRouteApi("/publish/verify");
 export function VerifyPage() {
+  const scope = actorScope(useContext(AccessContext));
   const { services } = useRouteContext({ from: "__root__" }),
     navigate = route.useNavigate(),
     search = verifySearch(route.useSearch()),
@@ -32,7 +34,7 @@ export function VerifyPage() {
     void services.queryClient.invalidateQueries({ queryKey: VERIFY_KEY });
   }, [services]);
   const list = useInfiniteQuery({
-    queryKey: [...VERIFY_KEY, "list", search.tab, search.q],
+    queryKey: [...VERIFY_KEY, scope, "list", search.tab, search.q],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       api.list(search.tab === "done_today" ? "done_today" : "todo", search.q, pageParam),
@@ -41,29 +43,29 @@ export function VerifyPage() {
     ...QUEUE_QUERY,
   });
   const summary = useQuery({
-    queryKey: [...VERIFY_KEY, "summary", search.q],
+    queryKey: [...VERIFY_KEY, scope, "summary", search.q],
     queryFn: () => api.summary(search.q),
     ...QUEUE_QUERY,
   });
   const template = useQuery({
-    queryKey: [...VERIFY_KEY, "template"],
+    queryKey: [...VERIFY_KEY, scope, "template"],
     queryFn: api.template,
     ...DICT_QUERY,
   });
   const items = list.data?.pages.flatMap((page) => page.items) ?? [],
-    selected = items.find(
-      (row) =>
-        row.approvalId ===
-        currentKey(
-          items.map((item) => item.approvalId),
-          search.id,
-        ),
-    ),
+    selected = selectedVerify(items, search.id),
     id = selected?.domain.id;
+  const requestedMissing = !!search.id && !selected;
+  const { hasNextPage, isFetching, isError, fetchNextPage } = list;
+  useEffect(() => {
+    if (requestedMissing && hasNextPage && !isFetching && !isError) void fetchNextPage();
+  }, [requestedMissing, hasNextPage, isFetching, isError, fetchNextPage]);
+  const locating =
+    requestedMissing && !list.isError && (list.hasNextPage || list.isFetchingNextPage);
   const detail = useQuery({
-    queryKey: [...VERIFY_KEY, "detail", id],
+    queryKey: [...VERIFY_KEY, scope, "detail", id],
     enabled: !!id && !list.isPlaceholderData,
-    queryFn: () => api.detail(id!),
+    queryFn: ({ signal }) => api.detail(id!, signal),
     ...DETAIL_QUERY,
   });
   const current =
@@ -84,7 +86,7 @@ export function VerifyPage() {
       />
       {summary.isError ? <Alert type="warning" title="页签计数暂未刷新" /> : null}
       <QueueWorkbench
-        key={`${id ?? "empty"}:${current?.approval.lockVersion ?? "loading"}:${current?.roundNo ?? "loading"}:${template.data?.versionNo ?? "loading"}`}
+        key={`${scope}:${id ?? "empty"}:${current?.approval.lockVersion ?? "loading"}:${current?.roundNo ?? "loading"}:${template.data?.versionNo ?? "loading"}`}
         label="链接核验"
         tabs={[
           { key: "todo", label: "待核验", count: summary.data?.todo },
@@ -94,11 +96,13 @@ export function VerifyPage() {
         onSearchChange={(next) => void navigate({ search: writeQueueSearch(next) })}
         searchPlaceholder="搜索门店、账号、短剧"
         queue={
-          list.isPending || list.isPlaceholderData
+          list.isPending || list.isPlaceholderData || locating
             ? { status: "loading" }
             : list.isError
               ? { status: "error", message: list.error.message }
-              : { status: "success", items }
+              : requestedMissing
+                ? { status: "error", message: "所选核验事项不在当前队列，请核对链接或切换筛选条件" }
+                : { status: "success", items }
         }
         onRetry={() => void list.refetch()}
         onQueueChanged={refresh}

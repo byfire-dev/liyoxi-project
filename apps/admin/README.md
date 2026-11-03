@@ -376,3 +376,11 @@ PR #236最终head `3d26ab01` 的完整CI已通过，并实际合入main `53ae124
 从P1已合的实际main接入原订单详情“售后与取消”“授权与下载”“订单活动”，以及原审批页的取消队列和同页处理。试算与申请、批准与实际执行分别展示；授权更正/作废/失败重生成使用真实版次与actions，只有当前ready文件可现签下载。写前GET复核，未知结果保原意图键，已受理后只重读；切订单或权限范围废弃旧请求和确认。
 
 本片最终真实浏览器验收3/3通过：独立finance批准、申请人执行后实际97积分账及拒绝边界，真实PDF更正/缺字体失败/原版次重生/作废重出及现签字节hash均已核。当前可用PDF与最新生成版分开；新版本排队或失败时保留合法旧current下载，失败重生成选择实际失败revision。8组1440×900精确双帧截图已核hash并目检，原单worker/180秒预算保持；外部签章、真实云和业主看样另验。正式命令为 `pnpm admin:e2e:live --test-file test/e2e/live-m5-cancel-approval.spec.ts`；最终CI与实际发布见W5-13台账，0新页/API。
+
+### W6-08 上线日历与发布工作台
+
+上线日历和逾期跟踪消费实际工作日、月历、任务列表与汇总；工单详情的“发布清单”页签支持逐集编辑、CSV/TSV 导入和完整门店账号候选。原工单操作保留，核验页支持先读取当前轮次再撤销，审批深链不回退选择其它任务。打包按钮显式调用现有 pack 公口，上次响应状态不作为持续轮询；失败后的再次调用可能立即进入 building，所以 failed 展示分支另由真实响应模型测试覆盖，不伪造浏览器失败画面。
+
+定点命令：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/calendar src/features/publish/overdue src/features/delivery/ticket-detail src/features/publish/verify --maxWorkers=1 --no-file-parallelism`。真实隔离入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-publish-workbench.spec.ts`；验收状态以 W6-08 状态页及当前 PR CI 为准。
+
+私有 fixture 仅创建本轮独立两集初始订单与合法输入。控制器复用真实媒体工具、样片/成片检查和实际对象存储，页面的草稿、清单、推送、打包、跟进和核验仍走正式 HTTP；PDF 沿现有渲染及技术签名链，小 ZIP 由受控协议替身生成实际字节并核目录与校验和。scope 严格绑定当前库、前缀、员工、订单与目标；控制入口只存在于隔离服务器，需同源的本轮真实管理员会话。外店仅作拒绝反例，不进入媒体执行或清理范围。这些本地证据不代表真实云 5GB ZIP、外部证书或真机通过。

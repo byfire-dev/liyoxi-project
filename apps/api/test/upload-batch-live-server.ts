@@ -34,6 +34,9 @@ import {
   parseAdTaskLiveScope,
   findAdTaskLiveJobIds,
   M1_LICENSE_TEST_INPUTS,
+  createW608LiveController,
+  createW608ZipIo,
+  cleanupW608LivePoster,
 } from "@liyoxi/services/testing";
 import type {
   AdTaskLiveScope,
@@ -47,6 +50,7 @@ import { createOutputBatchCosStorage } from "./upload-batch-live-cos.js";
 import { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
 import { createContentTrailerCloud } from "./upload-batch-live-trailer.js";
 import { attachOutputBatchLiveCloud } from "./upload-batch-live-cloud.js";
+import { handleW608LiveControl } from "./w608-live-control.js";
 
 function assertScope(env: Env, prefix: string) {
   const database = new URL(env.DATABASE_URL),
@@ -144,7 +148,9 @@ export async function startOutputBatchLiveServer(options: {
   // The isolated W513 render CLI and package writer share the same fictional test origin.
   const scopedEnv: Env = {
     ...legacyEnv,
-    ...(inputs.w513 ? { PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin } : {}),
+    ...(inputs.w513 || inputs.w608
+      ? { PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin }
+      : {}),
   };
   const base: RuntimeOptions = {
     entry: "api",
@@ -167,6 +173,9 @@ export async function startOutputBatchLiveServer(options: {
   let apiServer: ReturnType<typeof serve> | undefined,
     cosServer: ReturnType<typeof serve> | undefined;
   let interval: ReturnType<typeof setInterval> | undefined, pending: Promise<void> | undefined;
+  const publishPending = new Set<Promise<Response>>();
+  let publishControl: Awaited<ReturnType<typeof createW608LiveController>> | undefined;
+  let publishZip: ReturnType<typeof createW608ZipIo> | undefined;
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
   let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
   let cloud: ReturnType<typeof attachOutputBatchLiveCloud> | undefined;
@@ -201,6 +210,11 @@ export async function startOutputBatchLiveServer(options: {
       const agreementResults = await Promise.allSettled([...agreementPending]);
       const receiptResults = await Promise.allSettled([...receiptPending]);
       const invoiceResults = await Promise.allSettled([invoiceUploads?.close()]);
+      const publishResults = await Promise.allSettled([...publishPending]);
+      const publishCloseResults = await Promise.allSettled([publishControl?.close()]);
+      const publishPosterResults = await Promise.allSettled([
+        inputs.w608 ? cleanupW608LivePoster(realOwner, inputs.w608) : undefined,
+      ]);
       receiptFiles.clear();
       agreementFiles.clear();
       contentFiles.clear();
@@ -223,6 +237,7 @@ export async function startOutputBatchLiveServer(options: {
         }),
       );
       const transportResults = await Promise.allSettled([
+        Promise.resolve().then(() => publishZip?.close()),
         Promise.resolve().then(() => cloud?.close()),
         Promise.resolve().then(() => cos.close()),
       ]);
@@ -239,6 +254,9 @@ export async function startOutputBatchLiveServer(options: {
           ...agreementResults,
           ...receiptResults,
           ...invoiceResults,
+          ...publishResults,
+          ...publishCloseResults,
+          ...publishPosterResults,
           ...serverResults,
           ...merchantUploadResults,
           ...inputResults,
@@ -301,6 +319,7 @@ export async function startOutputBatchLiveServer(options: {
         inputs.current.storeId,
         inputs.legacy.storeId,
         ...(inputs.w513 ? [inputs.w513.storeId] : []),
+        ...(inputs.w608 ? [inputs.w608.storeId] : []),
         ...(inputs.w120?.items.map((p) => p.scope.storeId) ?? []),
       ],
       ...(w312
@@ -317,7 +336,27 @@ export async function startOutputBatchLiveServer(options: {
         : {}),
       pngProof: (ref) => renderedPng.get(`${ref.bucket}/${ref.key}`),
     });
-    const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
+    if (inputs.w608)
+      publishZip = createW608ZipIo({
+        runtime: () => batch,
+        scope: inputs.w608,
+        providers: harness.providers,
+        storage: cos.storage,
+      });
+    const batch = createRuntime({
+      ...borrowed,
+      env: batchEnv,
+      mediaProductionTools: tools,
+      ...(publishZip
+        ? {
+            providers: {
+              ...borrowed.providers,
+              media: publishZip.media,
+              storage: publishZip.storage,
+            },
+          }
+        : {}),
+    });
     runtimes.push(batch);
     if (options.w318 !== undefined)
       merchantUploads = createMerchantAssetLiveUploadPump(batch, options.w318, options.prefix);
@@ -327,6 +366,14 @@ export async function startOutputBatchLiveServer(options: {
     reportStartup("masters_start");
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
     reportStartup("masters_ready");
+    if (inputs.w608 && publishZip)
+      publishControl = await createW608LiveController({
+        runtime: batch,
+        scope: inputs.w608,
+        video: inputs.video,
+        zipIo: publishZip,
+        signal: options.signal,
+      });
     options.signal?.throwIfAborted();
     reportStartup("w120_start");
     const w120 = inputs.w120
@@ -475,6 +522,21 @@ export async function startOutputBatchLiveServer(options: {
           port: 0,
           fetch: async (request, env) => {
             const path = new URL(request.url).pathname;
+            if (path === "/api/v1/__test/w608/control") {
+              const work = handleW608LiveControl({
+                request,
+                scope: inputs.w608,
+                controller: publishControl,
+                closing,
+                fetch: (req) => batchApi.app.fetch(req, env),
+              });
+              publishPending.add(work);
+              try {
+                return await work;
+              } finally {
+                publishPending.delete(work);
+              }
+            }
             let contentRegistration = false;
             if (w312 && request.method === "POST" && path === "/api/v1/admin/files") {
               const body = AdminFileCreateBodySchema.safeParse(

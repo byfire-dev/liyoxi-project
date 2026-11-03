@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Drawer, Input, Select } from "antd";
-import { useContext, useState } from "react";
+import { Alert, Button, Checkbox, Drawer, Input, Select } from "antd";
+import { useContext, useEffect, useRef, useState } from "react";
 import { FormField } from "../../../components/FormField";
 import { AccessContext, Can } from "../../../lib/permissions";
 import { actorScope } from "../../system/staff-access";
-import { DICT_QUERY } from "../../../lib/query";
+import { DETAIL_QUERY, DICT_QUERY } from "../../../lib/query";
 import type { DetailApi, DraftBody, Plan } from "./api";
 import { DETAIL_KEY, planInput } from "./model";
-import { useDeliveryWrite } from "./write";
+import { usePublishWrite } from "./publish-write";
+import { allPublishAccounts, publishError } from "./publish-api";
 export function PlanDrawer({
   plan,
   api,
@@ -24,21 +25,42 @@ export function PlanDrawer({
   const focus = useQuery({ queryKey: [...DETAIL_KEY, "focus"], queryFn: api.focus, ...DICT_QUERY });
   const scope = actorScope(useContext(AccessContext));
   const order = useQuery({
-    queryKey: [...DETAIL_KEY, scope, "order", plan.orderId],
-    queryFn: ({ signal }) => api.order(plan.orderId, signal),
-    ...DICT_QUERY,
+    queryKey: [...DETAIL_KEY, scope, "available-accounts", plan.store.storeId],
+    queryFn: ({ signal }) => allPublishAccounts(api.publish, plan.store.storeId, signal),
+    ...DETAIL_QUERY,
   });
-  const write = useDeliveryWrite(() => {
-    onRefresh();
-    onClose();
-  });
-  const globalEditable = plan.itemWindows.every((w) => w.canChangeContent);
-  const update = (index: number, patch: Partial<DraftBody["content"]["items"][number]>) =>
+  const write = usePublishWrite();
+  const [confirmed, setConfirmed] = useState(false),
+    [refreshing, setRefreshing] = useState(false),
+    [refreshError, setRefreshError] = useState<string>();
+  const [windows, setWindows] = useState(plan.itemWindows);
+  const lifetime = useRef<AbortController | null>(null),
+    refreshBusy = useRef(false);
+  useEffect(() => {
+    const own = new AbortController();
+    lifetime.current = own;
+    return () => own.abort();
+  }, []);
+  const blocked = write.pending || write.phase !== "idle" || refreshing;
+  const available = new Set(order.data?.map((a) => a.channelAccountId) ?? []);
+  const globalEditable = windows.every((w) => w.canChangeContent);
+  const update = (index: number, patch: Partial<DraftBody["content"]["items"][number]>) => {
+    setConfirmed(false);
     setContent((old) => ({
       ...old,
       items: old.items.map((r, i) => (i === index ? { ...r, ...patch } : r)),
     }));
-  const valid = content.focusCodes.length > 0 && (content.note?.length ?? 0) <= 200;
+  };
+  const valid =
+    content.focusCodes.length > 0 &&
+    (content.note?.length ?? 0) <= 200 &&
+    !!order.data &&
+    content.items.every(
+      (item) =>
+        !windows.find((w) => w.orderItemId === item.orderItemId)?.canChangeAccounts ||
+        (item.channelAccountIds.length > 0 &&
+          item.channelAccountIds.every((id) => available.has(id))),
+    );
   return (
     <Drawer
       open
@@ -58,9 +80,12 @@ export function PlanDrawer({
               {...field}
               mode="multiple"
               value={content.focusCodes}
-              disabled={!globalEditable || write.pending}
+              disabled={!globalEditable || blocked}
               loading={focus.isPending}
-              onChange={(focusCodes: string[]) => setContent({ ...content, focusCodes })}
+              onChange={(focusCodes: string[]) => {
+                setConfirmed(false);
+                setContent({ ...content, focusCodes });
+              }}
               options={
                 focus.data?.items
                   .filter((r) => r.isEnabled)
@@ -77,8 +102,11 @@ export function PlanDrawer({
               value={content.note ?? ""}
               rows={3}
               maxLength={200}
-              disabled={!globalEditable || write.pending}
-              onChange={(e) => setContent({ ...content, note: e.target.value || null })}
+              disabled={!globalEditable || blocked}
+              onChange={(e) => {
+                setConfirmed(false);
+                setContent({ ...content, note: e.target.value || null });
+              }}
             />
           )}
         </FormField>
@@ -88,9 +116,9 @@ export function PlanDrawer({
         </p>
         {content.items.map((item, index) => {
           const source = plan.draft.items[index]!,
-            window = plan.itemWindows.find((r) => r.orderItemId === item.orderItemId);
-          const accounts =
-            order.data?.items.find((r) => r.orderItemId === item.orderItemId)?.accounts ?? [];
+            window = windows.find((r) => r.orderItemId === item.orderItemId);
+          const accounts = order.data ?? [];
+          const unavailable = item.channelAccountIds.filter((id) => !available.has(id));
           return (
             <section className="lyx-production-card" key={item.orderItemId}>
               <h3>
@@ -103,15 +131,46 @@ export function PlanDrawer({
                     mode="multiple"
                     value={item.channelAccountIds}
                     loading={order.isPending}
-                    disabled={!window?.canChangeAccounts || write.pending || order.isError}
-                    options={accounts.map((a) => ({
-                      value: a.channelAccountId,
-                      label: a.accountName,
-                    }))}
+                    disabled={
+                      !window?.canChangeAccounts || blocked || order.isError || order.isPending
+                    }
+                    options={[
+                      ...accounts.map((a) => ({
+                        value: a.channelAccountId,
+                        label: `${a.accountName} · ${a.platform === "douyin" ? "抖音" : "视频号"}`,
+                      })),
+                      ...unavailable.map((id) => ({
+                        value: id,
+                        label: `${source.accounts.find((a) => a.channelAccountId === id)?.accountName ?? "已选账号"}（当前不可用）`,
+                        disabled: true,
+                      })),
+                    ]}
                     onChange={(channelAccountIds: string[]) => update(index, { channelAccountIds })}
                   />
                 )}
               </FormField>
+              {unavailable.length > 0 && order.isSuccess ? (
+                <Alert
+                  type="warning"
+                  title="已选账号中有当前不可用项，未自动移除"
+                  action={
+                    window?.canChangeAccounts ? (
+                      <Button
+                        disabled={blocked}
+                        onClick={() =>
+                          update(index, {
+                            channelAccountIds: item.channelAccountIds.filter((id) =>
+                              available.has(id),
+                            ),
+                          })
+                        }
+                      >
+                        移除失效账号
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : null}
               <div className="lyx-production-two">
                 <FormField label="约定上线日">
                   {(field) => (
@@ -119,7 +178,7 @@ export function PlanDrawer({
                       {...field}
                       type="date"
                       value={item.agreedLaunchDate ?? ""}
-                      disabled={!window?.canReschedule || write.pending}
+                      disabled={!window?.canReschedule || blocked}
                       onChange={(e) => update(index, { agreedLaunchDate: e.target.value || null })}
                     />
                   )}
@@ -130,7 +189,7 @@ export function PlanDrawer({
                       {...field}
                       type="date"
                       value={item.expectedDeliveryDate ?? ""}
-                      disabled={!window?.canChangeContent || write.pending}
+                      disabled={!window?.canChangeContent || blocked}
                       onChange={(e) =>
                         update(index, { expectedDeliveryDate: e.target.value || null })
                       }
@@ -146,28 +205,51 @@ export function PlanDrawer({
         {write.error ? (
           <Alert
             type="error"
-            title={write.error}
+            title={publishError(write.error)}
             action={
               <Button
                 disabled={write.pending}
                 onClick={() => {
+                  if (refreshBusy.current || write.phase !== "blocked") return;
+                  refreshBusy.current = true;
+                  setRefreshing(true);
                   void api
-                    .plan(plan.deliveryPlanId)
+                    .plan(plan.deliveryPlanId, lifetime.current!.signal)
                     .then((latest) => {
+                      if (lifetime.current?.signal.aborted) return;
                       setVersion(latest.draftLockVersion);
-                      write.setError(undefined);
+                      setWindows(latest.itemWindows);
+                      setConfirmed(false);
+                      write.clear();
+                      setRefreshError(undefined);
                       onRefresh();
+                      void order.refetch();
                     })
-                    .catch((e: unknown) =>
-                      write.setError(e instanceof Error ? e.message : "刷新失败，请重试"),
-                    );
+                    .catch((e: unknown) => {
+                      if (!lifetime.current?.signal.aborted) setRefreshError(publishError(e));
+                    })
+                    .finally(() => {
+                      if (!lifetime.current?.signal.aborted) {
+                        refreshBusy.current = false;
+                        setRefreshing(false);
+                      }
+                    });
                 }}
+                hidden={write.phase !== "blocked"}
               >
                 刷新版本并保留输入
               </Button>
             }
           />
         ) : null}
+        {refreshError ? <Alert type="error" title={refreshError} /> : null}
+        <Checkbox
+          checked={confirmed}
+          disabled={blocked}
+          onChange={(e) => setConfirmed(e.target.checked)}
+        >
+          我已核对全部发布账号与方案
+        </Checkbox>
         <div className="lyx-production-footer">
           <Button disabled={write.pending} onClick={onClose}>
             取消
@@ -177,16 +259,34 @@ export function PlanDrawer({
               <Button
                 type="primary"
                 loading={write.pending}
-                disabled={!valid || focus.isError || order.isError}
+                disabled={
+                  (write.phase === "idle" &&
+                    (!valid || !confirmed || focus.isError || order.isError)) ||
+                  write.phase === "blocked" ||
+                  refreshing
+                }
                 onClick={() =>
-                  void write.submit(
-                    { id: plan.deliveryPlanId, draftLockVersion: version, content },
-                    (key) =>
-                      api.draft(plan.deliveryPlanId, { draftLockVersion: version, content }, key),
-                  )
+                  void write
+                    .run(
+                      { id: plan.deliveryPlanId, draftLockVersion: version, content },
+                      (key, signal) =>
+                        api.draft(
+                          plan.deliveryPlanId,
+                          { draftLockVersion: version, content },
+                          key,
+                          signal,
+                        ),
+                      (signal) => api.plan(plan.deliveryPlanId, signal),
+                    )
+                    .then((done) => {
+                      if (done) {
+                        onRefresh();
+                        onClose();
+                      }
+                    })
                 }
               >
-                保存方案
+                {write.phase === "accepted" ? "重试读取方案结果" : "保存方案"}
               </Button>
             </Can>
           ) : null}

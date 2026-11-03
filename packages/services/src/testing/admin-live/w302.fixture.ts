@@ -12,6 +12,7 @@ import type { Runtime } from "../../runtime.js";
 import { createFactories } from "../data/factories/index.js";
 import type { AdminLiveFixture, AdminLiveFixtureContext } from "./context.js";
 import { W120PendingSchema } from "./w120-media.js";
+import { assertW608LiveScope, W608LiveScopeSchema } from "./w608-scope.js";
 import {
   assertDeliveryLiveEnvironment,
   assertDeliveryScope,
@@ -141,6 +142,7 @@ export const OutputBatchLiveInputSchema = z
     video: OutputBatchVideoInputSchema,
     resumeVideo: OutputBatchVideoInputSchema,
     w120: W120PendingSchema.optional(),
+    w608: W608LiveScopeSchema.optional(),
   })
   .refine(
     (input) =>
@@ -155,7 +157,39 @@ export const OutputBatchLiveInputSchema = z
             input.w513![key] !== input.current[key] && input.w513![key] !== input.legacy[key],
         )),
     { message: "W513 requires an independent target on this exact run and existing actors" },
-  );
+  )
+  .superRefine((input, ctx) => {
+    if (!Object.hasOwn(input, "w608")) return;
+    const scope = input.w608;
+    const others = [
+      input.current,
+      input.legacy,
+      ...(input.w513 ? [input.w513] : []),
+      ...(input.w120?.items.map((item) => item.scope) ?? []),
+    ];
+    if (
+      !scope ||
+      scope.runId !== input.current.runId ||
+      scope.name !== input.current.name ||
+      scope.prefix !== input.current.prefix ||
+      scope.uploaderId !== input.current.uploaderId ||
+      scope.managerId !== input.current.managerId ||
+      others.some((other) =>
+        (["entityId", "storeId", "orderId", "itemId", "ticketId"] as const).some(
+          (key) => scope[key] === other[key],
+        ),
+      ) ||
+      others.some(
+        (other) =>
+          scope.foreign.entityId === other.entityId || scope.foreign.storeId === other.storeId,
+      )
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["w608"],
+        message: "W608 requires an independent target on this exact run and existing actors",
+      });
+  });
 export type OutputBatchLiveInput = z.infer<typeof OutputBatchLiveInputSchema>;
 
 async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
@@ -168,6 +202,7 @@ async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
     void ignored;
     assertDeliveryScope(runtime.env, scope);
   }
+  if (input.w608) await assertW608LiveScope(runtime, input.w608);
   return runtime.tx.run(async (tx) => {
     const rows = [];
     for (const [scope, expected] of [
@@ -175,6 +210,7 @@ async function inputTargets(runtime: Runtime, input: OutputBatchLiveInput) {
       [input.legacy, 2],
       ...(input.w513 ? [[input.w513, 2] as const] : []),
       ...(input.w120?.items.map((p) => [p.scope, 2] as const) ?? []),
+      ...(input.w608 ? [[input.w608, 2] as const] : []),
     ] as const) {
       const item = await tx.orderItem.findUniqueOrThrow({
         where: { id: scope.itemId },
