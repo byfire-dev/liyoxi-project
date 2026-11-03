@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { buildLiveMediatool } from "./live-mediatool-cache.mjs";
 import { selectedLiveTests } from "./live-selection.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -102,13 +103,13 @@ export async function prepareLiveMedia(args, { run = runTool } = {}) {
   try {
     if (!values["mediatool-image"]) {
       const imageFile = join(directory, "image-id");
-      // Dockerfile 固定基础镜像与 ffmpeg；默认构建可复用本机缓存，不更新依赖。
-      await run(["build", "--iidfile", imageFile, "infra/docker/mediatool"], {
-        timeout: 30 * 60_000,
+      // CI 可恢复完整上下文匹配的工具镜像；本机未配置时仍走原构建，只消费精确 ID。
+      values["mediatool-image"] = await buildLiveMediatool({
+        imageFile,
+        cacheDirectory: process.env.LYX_ADMIN_MEDIATOOL_CACHE_DIR,
+        contextDigest: process.env.LYX_ADMIN_MEDIATOOL_CONTEXT_HASH,
+        run,
       });
-      const image = readFileSync(imageFile, "utf8").trim();
-      if (!imagePattern.test(image)) throw new Error("Docker 未返回精确镜像 ID");
-      values["mediatool-image"] = image;
     }
     if (supplied.length === 0) {
       const output = join(directory, "legal-media");

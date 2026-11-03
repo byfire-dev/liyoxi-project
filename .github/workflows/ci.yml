@@ -1234,8 +1234,18 @@ jobs:
       - name: 后台真实接口验收的 MinIO
         if: steps.admin-e2e.outputs.run == 'true'
         run: docker pull ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb && docker tag ghcr.io/sanqianyuejia/liyoxi/minio:RELEASE.2025-09-07T16-13-09Z@sha256:37a173a1c3042bdbbd9904bd3ab7c4c7b17f607b268220a607a685c14d94d1cb ghcr.io/byfire-dev/minio:latest && docker compose -f infra/compose/local.yml up -d --wait --pull never minio
+      # 只存工具镜像；热路径核本轮完整上下文与iid，冷路径构建当前Dockerfile；均现场生成20秒媒体。
+      - name: 后台真实接口验收的工具镜像缓存
+        if: steps.admin-e2e.outputs.run == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/liyoxi-web-live-mediatool
+          key: web-live-mediatool-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('infra/docker/mediatool/**') }}
       - name: 后台登录真实接口验收
         if: steps.admin-e2e.outputs.run == 'true'
+        env:
+          LYX_ADMIN_MEDIATOOL_CACHE_DIR: ${{ runner.temp }}/liyoxi-web-live-mediatool
+          LYX_ADMIN_MEDIATOOL_CONTEXT_HASH: ${{ hashFiles('infra/docker/mediatool/**') }}
         run: pnpm admin:e2e:live
       # live正常截图与失败现场均在本作业生成；独立artifact避免与web的样例截图争用名称。
       - name: 上传后台真实接口截图

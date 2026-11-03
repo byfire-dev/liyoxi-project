@@ -28,8 +28,15 @@ export function parseIsolationTimings(value) {
   return { defaultMilliseconds: value.defaultMilliseconds, weights };
 }
 
-export function balanceIsolationShards(baseline, timings) {
+export function balanceIsolationShards(baseline, timings, initialLoads = baseline.map(() => 0)) {
   if (baseline.length === 0) throw new Error("隔离调度缺少 Vitest 原始分片");
+  if (
+    !Array.isArray(initialLoads) ||
+    initialLoads.length !== baseline.length ||
+    Array.from(initialLoads).some((load) => !Number.isSafeInteger(load) || load < 0)
+  ) {
+    throw new Error("分片初始负载须与原分片数一致且为非负安全整数");
+  }
   const capacities = baseline.map((files) => files.length);
   if (Math.max(...capacities) - Math.min(...capacities) > 1) {
     throw new Error("Vitest 原始分片的文件数不均衡");
@@ -52,7 +59,7 @@ export function balanceIsolationShards(baseline, timings) {
         compare(identity(a), identity(b)),
     );
   const weightedIds = new Set(weighted.map(identity));
-  const loads = baseline.map(() => 0);
+  const loads = [...initialLoads];
   const heavyCounts = baseline.map(() => 0);
   for (const row of weighted) {
     const key = identity(row);
