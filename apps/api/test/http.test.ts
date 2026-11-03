@@ -19,6 +19,8 @@ const start = () =>
     middlewares: [
       fakeAuth({ actor: { type: "merchant", id: userId, client: "weapp", role: "owner" } }),
       stubMiddleware("signature"),
+      // Pure HTTP fixtures supply their own portal slot; production keeps its strict allowlist.
+      { ...stubMiddleware("authz"), groups: ["portal"] },
     ],
   });
 

@@ -54,6 +54,7 @@ export const ENV_KEYS: readonly string[] = [
   "ADMIN_IP_ALLOWLIST",
   "CERT_DOMAINS",
   "PORTAL_PUBLIC_ORIGIN",
+  "PORTAL_TICKET_TTL",
   "LYX_PDF_FONT_DIR",
   "ESIGN_SSM_REGION",
   "ESIGN_SSM_SECRET_NAME",
@@ -299,6 +300,8 @@ export interface Env {
   readonly CERT_DOMAINS?: readonly string[];
   /** 授权书版次的验真链接根地址；缺配不推导域名，创建快照时由文书服务受控拒绝。 */
   readonly PORTAL_PUBLIC_ORIGIN?: string;
+  /** 一次性扫码票据有效期，部署配置，默认120秒。 */
+  readonly PORTAL_TICKET_TTL?: number;
   /** 仅预发显式候选主体；配置名单不启用自动退款或任何资金动作。 */
   readonly STAGING_PAY?: Readonly<{ entityIds: readonly string[] }>;
   readonly BACKUP?: BackupEnvConfig;
@@ -1472,6 +1475,16 @@ export function loadEnv(
   const adminIpAllowlist = readAdminIpAllowlist(source, issues);
   const certDomains = readCertDomains(source, issues);
   const portalPublicOrigin = readPortalPublicOrigin(source, issues);
+  const ticketTtlText = read(source, "PORTAL_TICKET_TTL");
+  const portalTicketTtl = ticketTtlText === undefined ? undefined : Number(ticketTtlText);
+  if (
+    ticketTtlText !== undefined &&
+    (!/^[1-9][0-9]*$/.test(ticketTtlText) ||
+      !Number.isSafeInteger(portalTicketTtl) ||
+      portalTicketTtl === undefined ||
+      portalTicketTtl > 2_147_483_647)
+  )
+    issues.push({ key: "PORTAL_TICKET_TTL", reason: "须为正整数秒（不超过2147483647）" });
   const esignSsm = readEsignSsm(source, issues);
   const pdfFontDir = readPdfFontDir(source, issues);
   const stagingPay = readStagingPay(source, appEnv, issues);
@@ -1556,6 +1569,7 @@ export function loadEnv(
     ...(adminIpAllowlist ? { ADMIN_IP_ALLOWLIST: adminIpAllowlist } : {}),
     ...(certDomains ? { CERT_DOMAINS: certDomains } : {}),
     ...(portalPublicOrigin ? { PORTAL_PUBLIC_ORIGIN: portalPublicOrigin } : {}),
+    ...(portalTicketTtl === undefined ? {} : { PORTAL_TICKET_TTL: portalTicketTtl }),
     ...(esignSsm ? { ESIGN_SSM: esignSsm } : {}),
     ...(pdfFontDir ? { LYX_PDF_FONT_DIR: pdfFontDir } : {}),
     ...(stagingPay ? { STAGING_PAY: stagingPay } : {}),

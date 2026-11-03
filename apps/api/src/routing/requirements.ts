@@ -42,6 +42,16 @@ const rateLimited = (route: AnyContractRoute): boolean =>
 
 export const MIDDLEWARE_REQUIREMENTS: readonly MiddlewareRequirement[] = [
   {
+    slot: "csrf",
+    declared: "portal非GET必须校验Origin和X-LYX-Portal",
+    when: (route) => routeGroupOf(route) === "portal" && route.method !== "get",
+  },
+  {
+    slot: "authz",
+    declared: "portal只读操作白名单（含公开路由）",
+    when: (route) => routeGroupOf(route) === "portal",
+  },
+  {
     slot: "auth",
     declared: "x-auth（optional、user、member、staff、portal）",
     when: (route) => route["x-auth"] !== "public" && route["x-auth"] !== "signed",

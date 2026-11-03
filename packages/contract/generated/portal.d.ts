@@ -3,7 +3,77 @@
  * Do not make direct changes to the file.
  */
 
-export type paths = Record<string, never>;
+export interface paths {
+    "/api/v1/portal/portal-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 电脑端创建扫码登录票据，返回 portalTicketId（uuid）、qrUrl（二维码内容，由 public_id 拼成）、shortCode、pairDigits、pollSecret（只出现这一次）、expiresAt、pollIntervalMs，页面据此渲染二维码、两位配对数字与倒计时 */
+        post: operations["portal.portalTicket.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/portal-tickets/{portalTicketId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 轮询票据状态（pending / approved / rejected / expired / consumed），凭请求头 X-Poll-Secret，只返回状态 */
+        get: operations["portal.portalTicket.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/portal-tickets/{portalTicketId}/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 凭 pollSecret 换取下载页会话：票据置 consumed，同事务建 portal_session 并 Set-Cookie __Host-lyx_portal；确认后密钥不符、尝试达上限或超过 60 秒时票据置 rejected，返回 200 与 status = rejected（作废随事务提交，A101 同一做法） */
+        post: operations["portal.portalTicket.exchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/sessions/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 当前下载页会话（GET /portal/sessions/current）：授权门店与主体名称、授权老板（脱敏）、能力点、到期时间；需要会话的页面加载时先调，401 时进入会话失效说明页 */
+        get: operations["portal.session.current.get"];
+        put?: never;
+        post?: never;
+        /** 电脑端退出（DELETE /portal/sessions/current）：写 portal_session.revoked_at 与 revoke_reason = portal_logout，写 auth_event，清除 Cookie */
+        delete: operations["portal.session.current.delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+}
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
@@ -23,6 +93,55 @@ export interface components {
             requestId: string;
             retryable: boolean;
         };
+        PortalSessionView: {
+            /** Format: date-time */
+            authorizedAt: string;
+            authorizerPhoneMask: string | null;
+            capabilities: string[];
+            /** Format: uuid */
+            entityId: string;
+            entityName: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @enum {string} */
+            grantScope: "store";
+            isStoreArchived: boolean;
+            /** Format: uuid */
+            portalSessionId: string;
+            /** Format: date-time */
+            serverTime: string;
+            /** Format: uuid */
+            storeId: string;
+            storeName: string | null;
+        } | null;
+        PortalTicketCreated: {
+            /** Format: date-time */
+            expiresAt: string;
+            pairDigits: string;
+            /** @enum {number} */
+            pollIntervalMs: 2000;
+            pollSecret: string;
+            /** Format: uuid */
+            portalTicketId: string;
+            /** Format: uri */
+            qrUrl: string;
+            shortCode: string;
+        };
+        PortalTicketExchangeResult: {
+            /** @enum {string|null} */
+            rejectReason: "secret_mismatch" | "attempts_exceeded" | "window_passed" | null;
+            session: components["schemas"]["PortalSessionView"];
+            /** @enum {string} */
+            status: "consumed" | "rejected";
+        };
+        PortalTicketStatusView: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            portalTicketId: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected" | "expired" | "consumed";
+        };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
     };
@@ -33,4 +152,286 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    "portal.portalTicket.create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalTicketCreated"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.portalTicket.get": {
+        parameters: {
+            query?: never;
+            header: {
+                "x-poll-secret": string;
+            };
+            path: {
+                portalTicketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalTicketStatusView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.portalTicket.exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portalTicketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pollSecret: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalTicketExchangeResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 凭证类资源已失效 */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 限流 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.session.current.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PortalSessionView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "portal.session.current.delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: null;
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+}

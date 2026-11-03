@@ -233,7 +233,15 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | W2-30 | 两新页 system.roles、approval.mine，旧 system.staff/shell.user_menu 不重复计页；原纯测 89、样例 16、完整 live 31 及类型/门禁通过。唯一正式审查 534.498 秒的原 0 P1/2 P2/0 D 保留，两项作者定点闭环后原 31+新增焦点/CAS 例同轮 32/32 通过；真实 Modal 新 12 图及旧证据分别保留，交接时待实际 main 合流。保持真实 actions/权限交集、打开快照的版本冲突重新核对、在办确认与一次性码清理；限定 visibility 探针与物理切窗/有头未验边界见 W2-06 状态。 |
 | W4-18、W4-20 拆出的 M5 页面包 | 在既有 `/approvals` 追加实际注册类型与领域授权入口。当前 finance_config_change 五资源无 schema/handler，保持只读详情；未来未落地类型不作占位菜单或通用执行动作。 |
 
+### W6-01 使用期移交（#263已合并）
+
+| 原桩编号 | 接收方 | 实际交付与接入要求 | 依据 |
+| --- | --- | --- | --- |
 | — | W6-02、W6-03、W6-04、W6-06、W6-07 | W6-01交使用期两timer及版权扇出实例装配；先 `delivery.prepareReevaluation` 完整预锁（审批30在领域锁前），再使用publish `readDeliveryPublishTargets` / `ensureTakedownTasks` / `extendDeliveryPublishUsage`。推包与顺延唯一重排usage.end/takedown.create；04登记后者处理器及真实确认/核查，消费已有归档关包/撤授权/ZIP和09:358订单推导。归档消费者以受控历史核查输入验证，不冒称04生产入口验收；07仅消费使用期部分证据，不由01关闭复合桩。 | W6-01；order/delivery/publish README；10第2.10节、11第2.7节、x01第4.1节 |
+
+### W6-05 票据与电脑会话移交（#262，随本包PR交付）
+
+10条票据/会话API由同一portal→identity安全机制承接。API装配复用merchantServicesOf；下游02/06/10等本包actual main后消费PortalPrincipal、当前会话/固定store scope与既有revokePortalGrants，不借未合代码。Cookie、Origin、自定义头、只读操作白名单沿原槽位，GET不写库；sample.view不恢复Q9样片接口。现有ops.retention收集7天票据清理，0新增x01。真实扫码V8、M5业主演示和外验仍按原边界，本地HTTP不能替代。
 
 ## 6. 任务书加的前置（计划依赖列没有）
 

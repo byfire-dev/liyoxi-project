@@ -1,8 +1,17 @@
 // 电脑端下载页 · portal-tickets（docs/api/p01-portal.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { portalMeta } from "../meta-only.js";
+import { errorResponses, okResponse } from "../../common/index.js";
+import { z } from "../../zod.js";
+import { portalRoute } from "../builders.js";
+import {
+  PortalSecretSchema,
+  PortalTicketParamsSchema,
+  PortalTicketCreatedSchema,
+  PortalTicketStatusViewSchema,
+  PortalTicketExchangeResultSchema,
+} from "./auth.schemas.js";
 
-export const portalPortalTicketCreate = portalMeta({
+export const portalPortalTicketCreate = portalRoute({
   method: "post",
   path: "/portal/portal-tickets",
   operationId: "portal.portalTicket.create",
@@ -12,9 +21,14 @@ export const portalPortalTicketCreate = portalMeta({
   "x-idempotent": "none",
   "x-idempotent-reason":
     "匿名建下载页票据（A18；C47 点名 portal.portalTicket.create）：没有会话，幂等记录没有 actor_key；重复创建只多一张 120 秒的短时票据",
+
+  request: {
+    body: { required: true, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: { ...okResponse(PortalTicketCreatedSchema), ...errorResponses(400, 403, 429) },
 });
 
-export const portalPortalTicketGet = portalMeta({
+export const portalPortalTicketGet = portalRoute({
   method: "get",
   path: "/portal/portal-tickets/{portalTicketId}",
   operationId: "portal.portalTicket.get",
@@ -22,9 +36,15 @@ export const portalPortalTicketGet = portalMeta({
     "轮询票据状态（pending / approved / rejected / expired / consumed），凭请求头 X-Poll-Secret，只返回状态",
   "x-auth": "public",
   "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
+
+  request: {
+    params: PortalTicketParamsSchema,
+    headers: z.object({ "x-poll-secret": PortalSecretSchema }),
+  },
+  responses: { ...okResponse(PortalTicketStatusViewSchema), ...errorResponses(400, 404, 429) },
 });
 
-export const portalPortalTicketExchange = portalMeta({
+export const portalPortalTicketExchange = portalRoute({
   method: "post",
   path: "/portal/portal-tickets/{portalTicketId}/exchange",
   operationId: "portal.portalTicket.exchange",
@@ -34,4 +54,18 @@ export const portalPortalTicketExchange = portalMeta({
   "x-idempotent": "none",
   "x-idempotent-reason":
     "登录与换会话（A18；C47 点名 portal.portalTicket.exchange）：匿名请求没有 actor_key，不经幂等记录；票据状态守卫与 uq_portal_session_portal_ticket_id 保证一张票据只换出一个会话",
+
+  request: {
+    params: PortalTicketParamsSchema,
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: z.strictObject({ pollSecret: PortalSecretSchema }) },
+      },
+    },
+  },
+  responses: {
+    ...okResponse(PortalTicketExchangeResultSchema),
+    ...errorResponses(400, 403, 409, 410, 429),
+  },
 });

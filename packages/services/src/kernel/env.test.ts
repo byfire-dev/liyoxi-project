@@ -35,6 +35,21 @@ function failure(source: EnvSource, groups?: readonly EnvGroup[]): EnvError {
 
 const keysOf = (error: EnvError) => error.issues.map((issue) => issue.key);
 
+describe("PORTAL_TICKET_TTL 部署配置", () => {
+  const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
+  it("未配置保持Env原形（装配默认120秒）；明确配置进入真实Env", () => {
+    expect(loadEnv(base)).not.toHaveProperty("PORTAL_TICKET_TTL");
+    expect(loadEnv({ ...base, PORTAL_TICKET_TTL: "90" }).PORTAL_TICKET_TTL).toBe(90);
+  });
+  it.each(["0", "-1", "1.5", "NaN", "120s", "2147483648"])("拒绝无效秒数 %s 且不回显", (value) => {
+    const error = failure({ ...base, PORTAL_TICKET_TTL: value });
+    expect(keysOf(error)).toContain("PORTAL_TICKET_TTL");
+    expect(error.issues.find((issue) => issue.key === "PORTAL_TICKET_TTL")?.reason).toBe(
+      "须为正整数秒（不超过2147483647）",
+    );
+  });
+});
+
 describe("MinIO 本地端点", () => {
   const base = { APP_ENV: "local", DATABASE_URL, REDIS_URL };
   const endpoint = "http://127.0.0.1:9100";
@@ -360,6 +375,7 @@ describe("键名清单", () => {
       "ADMIN_IP_ALLOWLIST",
       "CERT_DOMAINS",
       "PORTAL_PUBLIC_ORIGIN",
+      "PORTAL_TICKET_TTL",
       "LYX_PDF_FONT_DIR",
       "ESIGN_SSM_REGION",
       "ESIGN_SSM_SECRET_NAME",

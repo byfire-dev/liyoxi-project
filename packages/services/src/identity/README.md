@@ -121,3 +121,10 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 `identity.referralCodes.list/create/disable/enable` 核当前员工会话、角色配置与既有manage权限；同键重放也鉴权。数据是global资源，列表不套门店scope。表写与投影交tenant公开同Tx函数；sales归属员工在共享staff锁后必须active，码统一大写、sales/campaign共用命名空间，状态动作CAS且只写ops审计，不写flow历史/事件。
 
 首次登录仍只消费tenant既有findActiveReferralCode：邀请码优先、仅active命中、老号不回溯。停用/启用不改旧归因，注册/主体统计现算。定点为referral-codes.db.test.ts的6组与API admin-referral-codes.test.ts的4组；正式外部驱动验证与本地代码完成分开记录。
+
+
+### W6-05 电脑只读会话
+
+`createPortalSessions({tx,clock,appid})` 提供 authenticate/list/revoke/logout；`createPortalSession(tx,now,grant,meta)` 只由 portal 在一次性消费票据的同一事务调用。Cookie 使用32字节随机数的base64url，库内只存SHA256；2小时从exchange创建会话起算，不滑动。鉴权以同一SELECT快照核会话、账号active、有效owner及store/entity复合归属，门店archived仍可用。无效返回原PORTAL_SESSION_INVALID原因，GET没有修复写入。
+
+老板撤销只改本人当前主体的指定且未过期/未撤销会话；已过期或已有撤销证据保留。logout只撤当前会话并记portal/ticket/logout。成员变化继续调用既有`revokePortalGrants`，不扩成全账号误吊销。I20只报告真实失配，不自愈；票据I31和7天清理归portal登记。详见[portal说明](../portal/README.md)，本包不代表真实微信扫码或下载业务已验收。

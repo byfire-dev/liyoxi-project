@@ -443,3 +443,12 @@ export type { LicenseTemplateCatalog } from "./docs/index.js";
 
 export type { AdActor } from "./ad/index.js";
 export { readAdOrderReferences } from "./order/index.js";
+
+export { createPortalTickets, portalPairChoices } from "./portal/index.js";
+export type { PortalTickets, PortalTicketDeps } from "./portal/index.js";
+export {
+  createPortalSessions,
+  PORTAL_CAPABILITIES,
+  PORTAL_SESSION_TTL_SECONDS,
+} from "./identity/index.js";
+export type { PortalPrincipal, PortalSessions, PortalOwnerRequest } from "./identity/index.js";

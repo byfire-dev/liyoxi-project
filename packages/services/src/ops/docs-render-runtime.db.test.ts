@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createDocsRenderRuntime } from "./docs-render-runtime.js";
 import type { LicenseRenderingEngine } from "./docs-render-runtime.js";
 import {
@@ -12,6 +12,10 @@ import type { AlertInput, Alerts } from "../kernel/index.js";
 
 const db = useSeededDatabase("services", { max: 1 }),
   redis = useTestRedis();
+// Prepare the isolated database before measuring the first business operation.
+beforeAll(async () => {
+  await db.prisma();
+});
 type Fixture = Awaited<ReturnType<typeof createLicenseConvergenceFixture>>;
 let fixture: Fixture | undefined;
 const closers: Array<() => Promise<void>> = [];
