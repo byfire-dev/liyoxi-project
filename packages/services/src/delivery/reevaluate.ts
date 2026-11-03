@@ -222,7 +222,12 @@ export async function reevaluate(
     if (["awaiting_launch", "launch_verify", "in_service"].includes(t.step)) {
       const facts = await getLaunchFacts(tx, t.orderItemId);
       launchFacts = facts;
-      if (t.step !== "in_service") {
+      if (t.step === "in_service" && !facts.hasLive && facts.hasVerifying) {
+        await step(tx, deps, ctx, t, "launch.verify_revoked", "launch_verify", "10:193", {
+          live_at: null,
+        });
+        moved++;
+      } else if (t.step !== "in_service") {
         const to = facts.hasLive
           ? "in_service"
           : facts.hasVerifying

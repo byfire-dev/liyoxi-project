@@ -1,76 +1,33 @@
-import { AdPricingSnapshotSchema, ChecklistItemsSchema, COMPARE_FIELDS } from "@liyoxi/contract";
-import type { PlanContentInput } from "@liyoxi/contract";
-import type { PrismaClient } from "@liyoxi/db";
+import { AdPricingSnapshotSchema } from "@liyoxi/contract";
 import { calendarDate } from "@liyoxi/shared/time";
-import { createApproval } from "../../approval/index.js";
-import { createFlow } from "../../flow/index.js";
-import { readAdminFlowStaff } from "../../staff/index.js";
-import { bindDelivery, createDeliveryM5 } from "../index.js";
-import { createBizNoIssuer, createIdentityContext, uuidv7 } from "../../kernel/index.js";
-import { createLedgerHarness } from "../../testing/index.js";
-import type { Harness } from "./harness.js";
-import { draft } from "./harness.js";
-import { productionHarness } from "./production-tools.js";
-import type { ProductionHarness } from "./production-tools.js";
+import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
+import {
+  createLedgerHarness,
+  deliveryChecklistForTest as checks,
+  releaseM5DeliveryForTest as released,
+} from "../../testing/index.js";
+import type {
+  DeliveryFixtureHarness as Harness,
+  DeliveryProductionFixture as ProductionHarness,
+  M5DeliveryFixture as M5Harness,
+  M5DeliveryOrder as M5Order,
+  M5DeliveryStaff as M5Staff,
+} from "../../testing/index.js";
 
-/** Preserve shared fixtures while supplying actual approval withdrawal to lifecycle effects. */
-export function m5Harness(prisma: PrismaClient) {
-  const h = productionHarness(prisma);
-  const flow = createFlow({
-    assembly: h.assembly,
-    clock: h.clock,
-    events: h.events,
-    adminStaffReader: readAdminFlowStaff,
-  });
-  const approval = createApproval({
-    assembly: h.assembly,
-    clock: h.clock,
-    flow,
-    events: h.events,
-    bizNo: createBizNoIssuer({ clock: h.clock, appEnv: "test" }),
-  });
-  const deps = { ...h.deps, flow, approval },
-    unbind = bindDelivery(deps);
-  return {
-    ...h,
-    flow,
-    approval,
-    deps,
-    async close() {
-      unbind();
-      await h.close();
-    },
-  };
-}
-export type M5Harness = ReturnType<typeof m5Harness>;
-
-export function m5Service(h: Harness) {
-  return createDeliveryM5({
-    ...h.deps,
-    flow: createFlow({
-      assembly: h.assembly,
-      clock: h.clock,
-      events: h.events,
-      adminStaffReader: readAdminFlowStaff,
-    }),
-  });
-}
-
-export type M5Order = Awaited<ReturnType<Harness["order"]>>;
-export type M5Staff = Awaited<ReturnType<Harness["staff"]>>;
-
-export async function checks(h: Harness, code: string) {
-  const template = await h.prisma.checklistTemplate.findFirstOrThrow({
-    where: { code, status: "active" },
-  });
-  return {
-    checklistVersionNo: template.versionNo,
-    results: ChecklistItemsSchema.parse(template.items).map(({ key }) => ({
-      key,
-      result: "pass" as const,
-    })),
-  };
-}
+// Existing callers keep the same helpers; the shared production prerequisites live in testing.
+export {
+  createM5DeliveryFixture as m5Harness,
+  createM5DeliveryService as m5Service,
+  deliveryChecklistForTest as checks,
+  prepareM5DeliveryForTest as prepared,
+  createM5ProductionFile as productionFile,
+  releaseM5DeliveryForTest as released,
+} from "../../testing/index.js";
+export type {
+  M5DeliveryFixture as M5Harness,
+  M5DeliveryOrder as M5Order,
+  M5DeliveryStaff as M5Staff,
+} from "../../testing/index.js";
 
 let adSequence = 50300;
 /** W5-08's producer is absent. Only upstream ad declaration/decision is seeded; money/probe are real. */
@@ -241,153 +198,6 @@ export async function confirmedPlacementAd(h: ProductionHarness, o: M5Order, edi
   return { ad, version, file, probeJobId, held };
 }
 
-export async function prepared(
-  h: Harness,
-  twoAccounts = false,
-  withPlacement?: (o: M5Order, editor: M5Staff) => ReturnType<typeof confirmedPlacementAd>,
-) {
-  const poster = await h.make.fileObject();
-  const o = await h.order(true, 1, poster.id, 1);
-  const editor = await h.staff("editor"),
-    qc = await h.staff();
-  await h.prisma.drama.update({
-    where: { id: o.items[0]!.dramaId },
-    data: { synopsis: "补发真实制作链路的虚构短剧简介" },
-  });
-  const content: PlanContentInput = draft(o),
-    placement = await withPlacement?.(o, editor);
-  if (placement) content.items[0]!.placements.push({ slot: "opening", adId: placement.ad.id });
-  if (twoAccounts) {
-    const screenshot = await h.make.fileObject({
-      category: "channel_screenshot",
-      bucket: "asset",
-      scopeType: "store",
-      entityId: o.entity.id,
-      storeId: o.store.id,
-      uploadActorType: "merchant",
-      uploadActorId: o.user.id,
-      uploadClient: "weapp",
-    });
-    const bound = await h.deps.publish.bind(o.viewer, {
-      platform: "wechat_channels",
-      accountName: "第二个真实核验号",
-      accountUid: `M5${uuidv7()}`,
-      accountType: "none",
-      screenshotFileIds: [screenshot.id],
-    });
-    const submission = await h.prisma.channelAccountSubmission.findFirstOrThrow({
-      where: { channelAccountId: bound.channelAccountId },
-      include: { approvalRequest: true, channelAccount: true },
-    });
-    await h.deps.publish.approveAccount(qc.ctx, qc.staff, submission.id, {
-      lockVersion: submission.approvalRequest.lockVersion,
-      confirm: { roundNo: submission.roundNo, accountUid: submission.channelAccount.accountUid },
-      accountType: "none",
-      certSubjectName: null,
-      compareRows: COMPARE_FIELDS.map((field) => ({ field, recognized: null, match: true })),
-      ...(await checks(h, "account.verify")),
-    });
-    content.items[0]!.channelAccountIds.push(bound.channelAccountId);
-  }
-  await h.delivery.replaceDraft(qc.ctx, qc.staff, o.deliveryPlanId, {
-    draftLockVersion: 0,
-    content,
-  });
-  await h.delivery.push(qc.ctx, qc.staff, o.deliveryPlanId, { draftLockVersion: 1 });
-  await h.delivery.confirm(o.viewer, o.deliveryPlanId, { versionNo: 1 });
-  await m5Service(h).assignEditor(qc.ctx, qc.staff, o.deliveryTicketIds[0]!, {
-    staffId: editor.row.id,
-  });
-  return {
-    o,
-    editor,
-    qc,
-    id: o.deliveryTicketIds[0]!,
-    item: o.items[0]!,
-    accountIds: content.items[0]!.channelAccountIds,
-    placement,
-  };
-}
-
-/** Only codecs/storage are doubles. Registration, promote, probe and production facts are real. */
-export async function productionFile(
-  h: ProductionHarness,
-  o: M5Order,
-  editor: M5Staff,
-  category: "sample_video" | "final_episode",
-  episodeNo = 1,
-) {
-  await h.master(o.items[0]!.dramaId, episodeNo, editor.row.id);
-  const actor = { identity: editor.ctx, staff: editor.staff },
-    bytes = new Uint8Array(1234);
-  bytes.set([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
-  const result = await h.media.register(actor, {
-    category,
-    storeId: o.store.id,
-    production: {
-      kind: category === "sample_video" ? "sample" : "final",
-      orderItemId: o.items[0]!.id,
-      episodeNo,
-      aiUsage: { used: false, tools: [] },
-    },
-    files: [
-      { fileName: `m5-${episodeNo}.mp4`, sizeBytes: String(bytes.length), clientToken: uuidv7() },
-    ],
-  });
-  const file = result.items[0]!;
-  h.fake.storage.put({ bucket: "media", key: file.key }, bytes, "video/mp4");
-  await h.media.completeAdmin(actor, file.fileId);
-  const job = await h.prisma.mediaJob.findUniqueOrThrow({
-    where: { dedupeKey: `promote:${file.fileId}` },
-  });
-  await h.media.promote({ jobId: job.id });
-  await h.finish(file.fileId, category === "sample_video");
-  return file.fileId;
-}
-
-export async function released(
-  h: ProductionHarness,
-  twoAccounts = false,
-  beforePush?: (f: Awaited<ReturnType<typeof prepared>>) => Promise<void>,
-) {
-  const f = await prepared(h, twoAccounts),
-    fileId = await productionFile(h, f.o, f.editor, "sample_video");
-  const sample = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
-    fileId,
-    adSlots: [],
-  });
-  await h.delivery.sampleInspect(
-    f.qc.ctx,
-    f.qc.staff,
-    sample.sampleId,
-    await checks(h, "qc.sample"),
-  );
-  await h.delivery.samplePush(f.qc.ctx, f.qc.staff, sample.sampleId, {});
-  await h.delivery.merchantSample(f.o.viewer, f.item.id);
-  await h.delivery.sampleConfirm(f.o.viewer, sample.sampleId, {
-    versionNo: 1,
-    viewedVia: "weapp",
-    hasViewed: true,
-  });
-  const episodes = await h.delivery.episodeRegister(f.editor.ctx, f.editor.staff, f.id, {
-    items: [{ episodeNo: 1, sampleId: sample.sampleId }],
-  });
-  const checklist = await checks(h, "qc.episode");
-  await h.delivery.episodeInspect(f.qc.ctx, f.qc.staff, f.id, {
-    episodeOutputIds: episodes.items.map((e) => e.episodeOutputId),
-    checklistVersionNo: checklist.checklistVersionNo,
-    defaultResults: checklist.results,
-  });
-  await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
-  await h.prepareLicenseInputs(f.o.items.map((item) => item.id));
-  await h.prepareLicenseReady(f.o.items.map((item) => item.id));
-  await beforePush?.(f);
-  const pushed = await h.delivery.packagePush(f.qc.ctx, f.qc.staff, f.id, {
-    precheck: await checks(h, "delivery.precheck"),
-  });
-  return { ...f, sample, original: episodes.items[0]!, release: pushed.release };
-}
-
 /** Pending cancellation facts only; never manufacture captured/refunded money or a terminal state. */
 export async function cancellationCause(h: Harness, o: M5Order, qualification = false) {
   const now = h.clock.now(),
@@ -505,7 +315,12 @@ export async function pendingTwoAccountLaunches(h: M5Harness) {
       entityId: f.o.entity.id,
       storeId: f.o.store.id,
       deliveryTicketId: f.id,
-      input: { submissionId: id, roundNo, title: "已上线账号重新核验的在途夹具" },
+      input: {
+        submissionId: id,
+        roundNo,
+        taskId: first.launchTaskId,
+        title: "已上线账号重新核验的在途夹具",
+      },
     });
     await tx.launchSubmission.update({
       where: { id: first.id },

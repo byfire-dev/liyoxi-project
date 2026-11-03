@@ -1,6 +1,5 @@
 // 后台：发布与巡检 · launch-submissions（docs/api/a06-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
 
 export const adminLaunchSubmissionGet = adminRoute({
   method: "get",
@@ -50,16 +49,28 @@ export const adminLaunchSubmissionReject = adminRoute({
   },
 });
 
-export const adminLaunchSubmissionRevoke = adminMeta({
+export const adminLaunchSubmissionRevoke = adminRoute({
   method: "post",
   path: "/admin/launch-submissions/{launchSubmissionId}/revoke",
   operationId: "admin.launchSubmission.revoke",
   summary: "撤销核验通过（1 个工作日内；无已确认或已核查的下架任务）：重开新一轮核验",
   "x-permission": "publish.link.verify_revoke",
   "x-idempotent": "required",
+  request: {
+    params: LaunchSubmissionParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: LaunchSubmissionRevokeBodySchema } },
+    },
+  },
+  responses: {
+    ...okResponse(LaunchSubmissionDetailSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });
 
 import { adminRoute } from "../builders.js";
+import { LaunchSubmissionRevokeBodySchema } from "./launch-revoke.schemas.js";
 import { okResponse, errorResponses } from "../../common/index.js";
 import {
   LaunchApproveBodySchema,

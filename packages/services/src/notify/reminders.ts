@@ -10,6 +10,9 @@ import {
   FOLLOWUP_SPEC,
   COPYRIGHT_SPEC,
   RENEWAL_SPEC,
+  LAUNCH_REMINDER_SPEC,
+  LAUNCH_OVERDUE_SPEC,
+  NotifyFactSchema,
 } from "./registry.js";
 
 /** Real pending-action and staff facts; no placeholder future business scanners. */
@@ -30,6 +33,38 @@ export async function remindScan(deps: NotifyDispatchDeps, context: RecurringRun
       : [];
   let targets = 0;
   let notifications = 0;
+  if (minuteOfDay(now) >= 9 * 60 && minuteOfDay(now) <= 9 * 60 + grace * 60) {
+    const date = calendarDate(now);
+    for (const rule of ["R2", "R6"] as const) {
+      if (!reminders.has(rule)) throw new Error(`${rule} 缺少真实上线查询登记`);
+      const queries =
+        rule === "R2"
+          ? (await deps.params.get("remind.launch.days")).map((days) => ({
+              launchDate: addDays(date, days),
+              node: `T-${days}`,
+            }))
+          : [{ date, node: "N0" }];
+      for (const query of queries) {
+        const rows = await run((tx) => reminders.targets(tx, rule, query));
+        for (const row of rows) {
+          if (context.signal?.aborted) break;
+          notifications += await run(async (tx) => {
+            const current = await reminders.revalidate(tx, rule, { ...row, now });
+            if (!current.valid || !current.vars) return 0;
+            const fact = NotifyFactSchema.parse(current.vars);
+            targets++;
+            return dispatchFact(
+              tx,
+              deps,
+              rule === "R2" ? LAUNCH_REMINDER_SPEC : LAUNCH_OVERDUE_SPEC,
+              fact,
+              { node: query.node, rule },
+            );
+          });
+        }
+      }
+    }
+  }
   if (reminders.has("R1")) {
     const shape = z.strictObject({
       termId: IdSchema,

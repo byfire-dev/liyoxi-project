@@ -25,6 +25,8 @@ import {
   reissuedReleaseForNotify,
   launchRescheduledItemForNotify,
   deliveryEventCurrentForNotify,
+  publishListForNotify,
+  publishListEventCurrentForNotify,
 } from "./notify-facts.js";
 import { deliveryManagerPort } from "../profile/index.js";
 import { implementAdminProfileFacts } from "../profile/index.js";
@@ -92,6 +94,12 @@ export const registration = defineRegistration("delivery", {
     notifyReaderImplementation(currentNotifyReadPort, "planForNotify", planForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "sampleForNotify", sampleForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "releaseForNotify", releaseForNotify),
+    notifyReaderImplementation(currentNotifyReadPort, "publishListForNotify", publishListForNotify),
+    notifyReaderImplementation(
+      currentNotifyReadPort,
+      "publishListEventCurrentForNotify",
+      publishListEventCurrentForNotify,
+    ),
     notifyReaderImplementation(
       currentNotifyReadPort,
       "deliveryEventCurrentForNotify",

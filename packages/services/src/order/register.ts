@@ -215,6 +215,8 @@ export const registration = defineRegistration("order", {
         [rowKey("09:352", "order.start")]: async (_tx, facts) => isStartChecked(facts.args),
         [rowKey("09:355", "package.pushed")]: async (_tx, facts) => isDerivationChecked(facts.args),
         [rowKey("09:356", "launch.changed")]: async (_tx, facts) => isDerivationChecked(facts.args),
+        [rowKey("09:357", "launch.verify_revoked")]: async (_tx, facts) =>
+          isDerivationChecked(facts.args),
         [rowKey("09:358", "takedown.all_checked")]: async (_tx, facts) =>
           isDerivationChecked(facts.args),
         [rowKey("09:351", "order.submit")]: async (tx, facts) => {

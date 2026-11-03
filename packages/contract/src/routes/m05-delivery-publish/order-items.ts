@@ -36,7 +36,7 @@ export const mOrderItemDownloadUrls = merchantRoute({
   },
 });
 
-export const mOrderItemPublishListGet = merchantMeta({
+export const mOrderItemPublishListGet = merchantRoute({
   method: "get",
   path: "/m/order-items/{orderItemId}/publish-list",
   operationId: "m.orderItem.publishList.get",
@@ -44,6 +44,8 @@ export const mOrderItemPublishListGet = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { params: PublishListItemParamsSchema },
+  responses: { ...okResponse(PublishListViewSchema), ...errorResponses(400, 401, 403, 404, 500) },
 });
 
 export const mOrderItemReleaseGet = merchantRoute({
@@ -72,6 +74,10 @@ export const mOrderItemSampleGet = merchantRoute({
 });
 
 import { merchantRoute } from "../builders.js";
+import {
+  PublishListViewSchema,
+  PublishListItemParamsSchema,
+} from "../a06-publish/publish-list.schemas.js";
 import { okResponse, errorResponses, IdSchema } from "../../common/index.js";
 import { z } from "../../zod.js";
 import { SampleViewSchema } from "./sample.schemas.js";
