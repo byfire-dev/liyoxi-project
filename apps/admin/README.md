@@ -155,6 +155,8 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 显式提供本地 Compose 的公开测试连接参数（APP_ENV=test、DATABASE_URL、REDIS_URL），执行 `pnpm admin:e2e:live`；不读取 .env。正常 Node24，nightly 沿用仓库 Node26 兼容作业。CI 先安装 Chromium；本机可 `LYX_E2E_CHANNEL=chrome`。脚本为本轮生成严格配对的测试库与 Redis 前缀，seed 与 staff:bootstrap 后启动真实 API 构建产物和生产后台静态文件；/api 转发保留 Host/Origin 及端口。结束或中断后停止本轮子进程、精确清理数据库/Redis 与私有临时文件；失败时保留截图、trace 和 API 脱敏日志（dist/e2e-live-logs）。
 
+私有 owner 桥仅接受当前 checkout 的 `dist/tmp/admin-live-<本轮ID>/node-compile-cache` 编译缓存：须与本轮 `context.json` 同目录，目录权限 0700、context 权限 0600、属主及真实路径均通过校验；没有本轮缓存时沿用原行为。外部缓存路径不透传，启用 `NODE_V8_COVERAGE` 时不使用缓存；缓存仅复用编译结果，每次仍经 pnpm 启动独立进程、执行真实业务与清理，不复用业务 context 或连接，不写入 CI 持久缓存。
+
 W3-02 后完整入口还需要 Docker 和本机 MinIO。缺省先从固定 mediatool Dockerfile 构建镜像（可复用缓存），在 CPU1、1GiB、无网络且根只读的本轮容器内生成两份合法20秒视频及真实 probe 报告，再运行完整 live 集合。标准片用于20集批次，真实大于20MiB的另一片用于跨刷新续传；认证、样片、两集原质检和新批次用例全部保留，不减少集数、内部并发、原断言或超时。自动准备的容器和卷在确认终止后回收；成功后删除临时输入，失败保留首次观察，不自动补片或重造。
 
 真实样片的静态水印 PNG 输入与正式 mediatool 使用相同的 `-loop 1 -framerate 1`；输出帧率仍由主视频决定，原编码质量、CPU1、单线程和真实制作流程保留。服务启动前的 W120 准备包含实际样片与成片质检，原 60 秒就绪期限不变；出现超时时先查 `dist/e2e-live-results/w302-startup-*.jsonl` 的固定阶段记录，不把失败或未进入浏览器的短运行记为完整验收提速。

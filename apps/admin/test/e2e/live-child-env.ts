@@ -1,13 +1,18 @@
+import { liveCompileCacheEnv } from "./live-compile-cache.mjs";
+
 /** 测试子进程只继承调用方原白名单，不带服务配置或密钥。 */
 export function liveChildEnv(
   keys: readonly string[],
   source: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    [...keys, "NPM_CONFIG_ENGINE_STRICT"].flatMap((key) =>
-      source[key] === undefined ? [] : [[key, source[key]]],
+  return {
+    ...Object.fromEntries(
+      [...keys, "NPM_CONFIG_ENGINE_STRICT"].flatMap((key) =>
+        key === "NODE_COMPILE_CACHE" || source[key] === undefined ? [] : [[key, source[key]]],
+      ),
     ),
-  );
+    ...liveCompileCacheEnv(source),
+  };
 }
 
 /** 仅识别固定非秘密错误符号；不输出子进程原始 stderr 或连接配置。 */
