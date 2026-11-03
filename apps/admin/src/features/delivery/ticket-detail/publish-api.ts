@@ -19,6 +19,7 @@ export class PublishFailure extends Error {
     readonly code: string,
     readonly status = 0,
     readonly details?: unknown,
+    readonly fieldErrors?: unknown,
   ) {
     super(message);
   }
@@ -37,7 +38,13 @@ export async function publishResult<T>(result: {
           headers: result.response.headers,
         });
   const failure = await readFailure(response);
-  throw new PublishFailure(failure.message, failure.symbol, failure.status, failure.body?.details);
+  throw new PublishFailure(
+    failure.message,
+    failure.symbol,
+    failure.status,
+    failure.body?.details,
+    failure.body?.fieldErrors,
+  );
 }
 export function createPublishApi(services: Pick<AppServices, "api">) {
   const c = services.api.client;
@@ -128,9 +135,58 @@ export async function allPublishAccounts(
     if (!result.items.length) throw new Error("发布账号分页不完整，请重新加载");
   }
 }
+function publishFields(error: unknown): { path: string; message: string }[] {
+  if (!(error instanceof PublishFailure) || !Array.isArray(error.fieldErrors)) return [];
+  return error.fieldErrors.filter(
+    (field): field is { path: string; message: string } =>
+      field !== null &&
+      typeof field === "object" &&
+      typeof field.path === "string" &&
+      typeof field.message === "string",
+  );
+}
+function publishFieldLabel(path: string) {
+  const labels: Record<string, string> = {
+    collectionName: "合集名称",
+    coverFileId: "清单封面",
+    titleTemplate: "标题模板",
+    topics: "通用话题",
+    intro: "通用简介",
+    lockVersion: "清单版本",
+  };
+  const [field, index, child, item] = path.split(".");
+  if (field === "episodes" && index && /^\d+$/.test(index)) {
+    const name = (
+      { highlight: "看点", title: "标题", topics: "话题", intro: "简介" } as Record<string, string>
+    )[child ?? ""];
+    if (name)
+      return `第 ${Number(index) + 1} 集${name}${item && /^\d+$/.test(item) ? ` · 第 ${Number(item) + 1} 项` : ""}`;
+  }
+  return `${labels[field ?? ""] ?? path}${field === "topics" && index && /^\d+$/.test(index) ? ` · 第 ${Number(index) + 1} 项` : ""}`;
+}
+function publishFieldMessage(field: { path: string; message: string }) {
+  if (/^(?:episodes\.\d+\.)?topics(?:\.\d+)?$/.test(field.path)) {
+    if (field.message === "Too big: expected string to have <=21 characters")
+      return "话题内容（不含开头的 #）不能超过20个字符";
+    if (field.message === "Invalid input") return "每个话题须为1–20个字符，最多10项，且不能重复";
+  }
+  return field.message;
+}
+export function publishFieldError(error: unknown, path: string) {
+  return (
+    publishFields(error)
+      .filter((field) => field.path === path || field.path.startsWith(`${path}.`))
+      .map((field) => `${publishFieldLabel(field.path)}：${publishFieldMessage(field)}`)
+      .join("\n") || undefined
+  );
+}
 export function publishError(error: unknown) {
   if (!(error instanceof Error)) return "请求失败，请重试";
-  if (!(error instanceof PublishFailure) || !error.details) return error.message;
+  const fields = publishFields(error).map(
+    (field) => `${publishFieldLabel(field.path)}：${publishFieldMessage(field)}`,
+  );
+  const message = [error.message, ...fields].join("\n");
+  if (!(error instanceof PublishFailure) || !error.details) return message;
   const details = error.details;
   const rows =
     typeof details === "object" && details !== null
@@ -153,5 +209,5 @@ export function publishError(error: unknown) {
         })
         .join("\n")
     : JSON.stringify(rows);
-  return `${error.message}\n${text}`;
+  return `${message}\n${text}`;
 }

@@ -78,7 +78,11 @@ export function VerifyPage() {
         subtitle="核对商家上线链接与实际可播放集数"
         extra={
           list.hasNextPage ? (
-            <Button loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+            <Button
+              aria-label="加载更多事项"
+              loading={list.isFetchingNextPage}
+              onClick={() => void list.fetchNextPage()}
+            >
               加载更多事项
             </Button>
           ) : undefined

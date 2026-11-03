@@ -63,7 +63,7 @@ export function RevokePanel({
   return (
     <>
       {allowed && canRevoke(detail) ? (
-        <Button danger loading={loading} onClick={() => void reload()}>
+        <Button aria-label="撤销核验" danger loading={loading} onClick={() => void reload()}>
           撤销核验
         </Button>
       ) : null}
@@ -124,7 +124,11 @@ export function RevokePanel({
               />
             ) : null}
             {write.phase === "blocked" ? (
-              <Button loading={loading} onClick={() => void reload()}>
+              <Button
+                aria-label="刷新核验记录并重新确认"
+                loading={loading}
+                onClick={() => void reload()}
+              >
                 刷新核验记录并重新确认
               </Button>
             ) : null}
@@ -143,6 +147,7 @@ export function RevokePanel({
               <Button
                 danger
                 type="primary"
+                aria-label={write.phase === "accepted" ? "重试读取撤销结果" : "确认撤销核验"}
                 loading={write.pending}
                 disabled={!checked || !body || write.phase === "blocked" || loading}
                 onClick={() => {

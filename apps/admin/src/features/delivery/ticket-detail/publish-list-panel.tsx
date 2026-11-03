@@ -12,6 +12,7 @@ import type { DetailApi, Ticket } from "./api";
 import {
   createPublishApi,
   publishError,
+  publishFieldError,
   type PublishApi,
   type PublishList,
   type PublishReplace,
@@ -253,7 +254,7 @@ function PublishEditor({
         />
       ) : null}
       <fieldset disabled={!editable || locked} className="lyx-production-form">
-        <FormField label="合集名称">
+        <FormField label="合集名称" error={publishFieldError(write.error, "collectionName")}>
           {(f) => (
             <Input
               {...f}
@@ -286,7 +287,7 @@ function PublishEditor({
             </>
           ) : null}
         </div>
-        <FormField label="标题模板">
+        <FormField label="标题模板" error={publishFieldError(write.error, "titleTemplate")}>
           {(f) => (
             <Input
               {...f}
@@ -297,7 +298,7 @@ function PublishEditor({
             />
           )}
         </FormField>
-        <FormField label="通用话题">
+        <FormField label="通用话题" error={publishFieldError(write.error, "topics")}>
           {(f) => (
             <Select
               {...f}
@@ -309,7 +310,7 @@ function PublishEditor({
             />
           )}
         </FormField>
-        <FormField label="通用简介">
+        <FormField label="通用简介" error={publishFieldError(write.error, "intro")}>
           {(f) => (
             <Input.TextArea
               {...f}
@@ -327,7 +328,10 @@ function PublishEditor({
                 ? ` · 第 ${view.episodes[index]?.changedInReleaseNo} 版更新`
                 : ""}
             </h4>
-            <FormField label={`第 ${episode.episodeNo} 集看点`}>
+            <FormField
+              label={`第 ${episode.episodeNo} 集看点`}
+              error={publishFieldError(write.error, `episodes.${index}.highlight`)}
+            >
               {(f) => (
                 <Input
                   {...f}
@@ -337,7 +341,10 @@ function PublishEditor({
                 />
               )}
             </FormField>
-            <FormField label={`第 ${episode.episodeNo} 集标题`}>
+            <FormField
+              label={`第 ${episode.episodeNo} 集标题`}
+              error={publishFieldError(write.error, `episodes.${index}.title`)}
+            >
               {(f) => (
                 <Input
                   {...f}
@@ -356,7 +363,10 @@ function PublishEditor({
               第 {episode.episodeNo} 集继承通用话题
             </Checkbox>
             {episode.topics !== null ? (
-              <FormField label={`第 ${episode.episodeNo} 集话题`}>
+              <FormField
+                label={`第 ${episode.episodeNo} 集话题`}
+                error={publishFieldError(write.error, `episodes.${index}.topics`)}
+              >
                 {(f) => (
                   <Select
                     {...f}
@@ -376,7 +386,10 @@ function PublishEditor({
               第 {episode.episodeNo} 集继承通用简介
             </Checkbox>
             {episode.intro !== null ? (
-              <FormField label={`第 ${episode.episodeNo} 集简介`}>
+              <FormField
+                label={`第 ${episode.episodeNo} 集简介`}
+                error={publishFieldError(write.error, `episodes.${index}.intro`)}
+              >
                 {(f) => (
                   <Input.TextArea
                     {...f}
@@ -438,7 +451,7 @@ function PublishEditor({
         />
       ) : null}
       {write.phase === "blocked" ? (
-        <Button loading={refreshing} onClick={() => void refresh()}>
+        <Button aria-label="刷新版本并保留输入" loading={refreshing} onClick={() => void refresh()}>
           刷新版本并保留输入
         </Button>
       ) : null}
@@ -454,6 +467,7 @@ function PublishEditor({
           <div className="lyx-production-actions">
             <Button
               type="primary"
+              aria-label={write.phase === "accepted" ? "重试读取保存结果" : "保存发布清单"}
               loading={write.pending}
               disabled={
                 !checked ||
@@ -467,6 +481,11 @@ function PublishEditor({
               {write.phase === "accepted" ? "重试读取保存结果" : "保存发布清单"}
             </Button>
             <Button
+              aria-label={
+                write.phase === "accepted" && operation === "import"
+                  ? "重试读取导入结果"
+                  : "导入逐集清单"
+              }
               loading={write.pending}
               disabled={
                 !checked ||

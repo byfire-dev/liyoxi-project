@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { setTimeout as waitFor } from "node:timers/promises";
-import { ChecklistItemsSchema } from "@liyoxi/contract";
+import { ChecklistItemsSchema, MEDIA_JOB_STATE } from "@liyoxi/contract";
 import type { Runtime } from "../../runtime.js";
 import type { MediaProvider, StorageProvider } from "../../providers/types.js";
 import { failed } from "../../providers/types.js";
@@ -335,21 +335,36 @@ export async function createW608LiveController(input: {
         });
     });
     const facts = await runtime.tx.run((tx) => runtime.media.deliveryProductionFacts(tx, fileId));
-    const failedJobs = await runtime.tx.run((tx) =>
-      tx.mediaJob.count({
+    const stages = await runtime.tx.run((tx) =>
+      tx.mediaJob.findMany({
         where: {
+          subjectType: "file_object",
           subjectId: fileId,
           kind: { in: ["probe", "watermark_sample"] },
-          state: { in: ["failed", "canceled"] },
         },
+        orderBy: { id: "asc" },
+        take: 8,
+        select: { kind: true, state: true, nextRunAt: true, deadlineAt: true },
       }),
     );
-    guard(failedJobs === 0);
-    return {
-      fileId,
+    guard(stages.every((job) => MEDIA_JOB_STATE.values.some((state) => state === job.state)));
+    const proof = {
+      productionReady: facts.ready,
       ready: facts.ready && (!watermarked || !!facts.playable),
       playable: !!facts.playable,
+      stages: stages.map((job) => ({
+        kind: job.kind,
+        state: job.state,
+        due: job.nextRunAt <= runtime.clock.now(),
+        unexpired: job.deadlineAt > runtime.clock.now(),
+      })),
     };
+    runtime.logger.info(
+      { evt: "w608.production.state", watermarked, ...proof },
+      "本轮发布夹具的实际制作阶段",
+    );
+    guard(stages.every((job) => !["failed", "canceled"].includes(job.state)));
+    return { fileId, ...proof };
   }
   async function observeZip() {
     const { release, bundle, job } = await currentZip(runtime, scope);
@@ -407,7 +422,21 @@ export async function createW608LiveController(input: {
       if (action === "upload_sample") {
         guard(!sampleFile);
         sampleFile = await upload("sample_video", 1);
-        return { fileId: sampleFile };
+        // Perform the real producer work before opening the existing 10s ready observation.
+        // Two exact owned stages only; the remote poll still respects its persisted nextRunAt.
+        const probed = await finish(sampleFile, true);
+        guard(
+          probed.productionReady &&
+            probed.stages.some((job) => job.kind === "probe" && job.state === "succeeded"),
+        );
+        const submitted = await finish(sampleFile, true);
+        guard(
+          submitted.stages.some(
+            (job) =>
+              job.kind === "watermark_sample" && ["submitted", "succeeded"].includes(job.state),
+          ),
+        );
+        return submitted;
       }
       if (action === "finish_sample") {
         guard(sampleFile);
@@ -429,9 +458,6 @@ export async function createW608LiveController(input: {
         const view = await delivery.merchantSample(viewer, scope.itemId),
           url = view.playable?.sources[0]?.url;
         guard(url);
-        const response = await fetch(url, { signal });
-        guard(response.ok);
-        const downloaded = new Uint8Array(await response.arrayBuffer());
         const facts = await runtime.tx.run((tx) =>
           runtime.media.deliveryProductionFacts(tx, sampleFile!),
         );
@@ -441,8 +467,24 @@ export async function createW608LiveController(input: {
           tx.fileObject.findUniqueOrThrow({ where: { id: rendition } }),
         );
         guard(
-          output.sha256 === hash(downloaded) &&
-            output.sizeBytes === BigInt(downloaded.length) &&
+          output.bucket === "media" &&
+            output.entityId === scope.entityId &&
+            output.storeId === scope.storeId &&
+            output.sizeBytes &&
+            output.sizeBytes <= 200n * 1024n * 1024n,
+        );
+        // The public service signed successfully above. Read the exact owned object here;
+        // this proves its bytes without treating a local fake signing host as HTTP evidence.
+        const read = await runtime.providers.storage.readObject({
+          bucket: "media",
+          key: output.objectKey,
+          maxBytes: Number(output.sizeBytes),
+          signal,
+        });
+        guard(read.ok);
+        guard(
+          output.sha256 === hash(read.value) &&
+            output.sizeBytes === BigInt(read.value.length) &&
             output.sha256 !== input.video.sha256,
         );
         await delivery.sampleConfirm(viewer, sampleId, {

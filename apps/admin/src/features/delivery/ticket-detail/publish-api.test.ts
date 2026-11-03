@@ -1,6 +1,12 @@
 import { expect, it, vi } from "vitest";
 import { createAdminApi, type ApiHandlers } from "../../../lib/api";
-import { allPublishAccounts, createPublishApi, publishError, PublishFailure } from "./publish-api";
+import {
+  allPublishAccounts,
+  createPublishApi,
+  publishError,
+  publishFieldError,
+  PublishFailure,
+} from "./publish-api";
 import { createVerifyApi } from "../../publish/verify/api";
 const id = "019aa000-0000-7000-8000-000000000001";
 const handlers = (): ApiHandlers => ({
@@ -155,4 +161,69 @@ it("import保全部行列问题，正文保格式与空值", async () => {
     format: "tsv",
     content: "集数\t标题\n1\t",
   });
+});
+
+it("完整替换400保留顶层fieldErrors，details为空仍定位话题且不丢用户输入", async () => {
+  const requests: Request[] = [];
+  const fields = [
+    { path: "topics.0", message: "Too big: expected string to have <=21 characters" },
+    { path: "topics", message: "Invalid input" },
+    { path: "episodes.1.title", message: "标题过长" },
+  ];
+  const api = createPublishApi({
+    api: createAdminApi({
+      baseUrl: "https://publish.test",
+      build: "w608",
+      handlers: handlers(),
+      fetch: async (request) => {
+        requests.push(request.clone());
+        return new Response(
+          JSON.stringify({
+            error: "VALIDATION_FAILED",
+            message: "输入有误",
+            details: null,
+            fieldErrors: fields,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    }),
+  });
+  const body = {
+    lockVersion: 7,
+    collectionName: null,
+    coverFileId: null,
+    titleTemplate: null,
+    topics: ["超".repeat(22)],
+    intro: null,
+    episodes: [],
+  };
+  const failure = await api
+    .replace(id, body, "replace-fields", new AbortController().signal)
+    .catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(PublishFailure);
+  expect(failure).toMatchObject({
+    status: 400,
+    code: "VALIDATION_FAILED",
+    details: null,
+    fieldErrors: fields,
+  });
+  expect(publishError(failure)).toContain(
+    "通用话题 · 第 1 项：话题内容（不含开头的 #）不能超过20个字符",
+  );
+  expect(publishFieldError(failure, "topics")).toBe(
+    "通用话题 · 第 1 项：话题内容（不含开头的 #）不能超过20个字符\n通用话题：每个话题须为1–20个字符，最多10项，且不能重复",
+  );
+  expect(publishFieldError(failure, "episodes.1.title")).toBe("第 2 集标题：标题过长");
+  expect(publishFieldError(failure, "intro")).toBeUndefined();
+  expect(requests).toHaveLength(1);
+  expect(await requests[0]!.json()).toEqual(body);
+  expect(
+    publishError(
+      new PublishFailure("输入有误", "VALIDATION_FAILED", 400, null, [
+        null,
+        { path: 1, message: "invalid" },
+      ]),
+    ),
+  ).toBe("输入有误");
 });

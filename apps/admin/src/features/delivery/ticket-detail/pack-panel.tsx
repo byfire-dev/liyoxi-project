@@ -55,6 +55,7 @@ function PackAction({ api, release }: { api: PublishApi; release: Release }) {
       {write.error ? <Alert type="error" title={publishError(write.error)} /> : null}
       {canPack ? (
         <Button
+          aria-label="预打包 / 查看或重试打包"
           loading={write.pending}
           disabled={
             write.phase === "blocked" || (release.state !== "pushed" && write.phase === "idle")

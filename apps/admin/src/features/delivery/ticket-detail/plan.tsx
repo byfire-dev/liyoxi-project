@@ -258,6 +258,7 @@ export function PlanDrawer({
             <Can module="delivery" need="o" action="delivery.plan.edit">
               <Button
                 type="primary"
+                aria-label={write.phase === "accepted" ? "重试读取方案结果" : "保存方案"}
                 loading={write.pending}
                 disabled={
                   (write.phase === "idle" &&

@@ -298,13 +298,22 @@ export async function expectedResourceError(
 }
 
 /** Native fetch keeps temporary test passwords/recovery codes outside Playwright traces. */
-export async function viewerLogin() {
+async function fixtureLogin(source: "viewer" | "publisher", expectedStaffId?: string) {
   const path = process.env.LYX_ADMIN_LIVE_CONTEXT;
   if (!path) throw new Error("W608 requires the current-run context");
   const context = JSON.parse(readFileSync(path, "utf8")),
-    actor = context.fixtures.fixtures.w608.viewer as W608Fixture["viewer"];
+    actor = (
+      source === "viewer"
+        ? context.fixtures.fixtures.w608.viewer
+        : context.fixtures.fixtures.w513.publisher
+    ) as W608Fixture["viewer"] & { roleKey?: string };
+  if (
+    !actor ||
+    (source === "publisher" && (actor.roleKey !== "publisher" || actor.staffId !== expectedStaffId))
+  )
+    throw new Error("W608 existing publisher differs from the real ticket assignee");
   const code = actor.recoveryCodes.shift();
-  if (!code) throw new Error("W608 viewer has no unused recovery code");
+  if (!code) throw new Error(`W608 ${source} has no unused recovery code`);
   chmodSync(path, 0o600);
   writeFileSync(path, `${JSON.stringify(context)}\n`, { mode: 0o600 });
   const cookies = new Map<string, string>(),
@@ -320,7 +329,7 @@ export async function viewerLogin() {
       body: JSON.stringify(data),
     });
     if (response.status !== 200)
-      throw new Error(`W608 viewer login failed: HTTP ${response.status}`);
+      throw new Error(`W608 ${source} login failed: HTTP ${response.status}`);
     for (const value of response.headers.getSetCookie()) {
       const pair = value.split(";")[0]!,
         at = pair.indexOf("=");
@@ -330,7 +339,7 @@ export async function viewerLogin() {
   };
   const first = await send("login", { phone: actor.phone, password: actor.password });
   if (first.next !== "mfa" || !first.ticket)
-    throw new Error("W608 viewer login did not require the real second factor");
+    throw new Error(`W608 ${source} login did not require the real second factor`);
   await send("verify-mfa", { ticket: first.ticket, method: "recovery", code });
   return {
     staffId: actor.staffId,
@@ -346,3 +355,6 @@ export async function viewerLogin() {
     })),
   };
 }
+export const viewerLogin = () => fixtureLogin("viewer");
+export const publisherLogin = (expectedStaffId: string) =>
+  fixtureLogin("publisher", expectedStaffId);

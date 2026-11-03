@@ -12,6 +12,7 @@ import {
   expectedResourceError,
   launchCalendar,
   publishList,
+  publisherLogin,
   read,
   shot,
   submission,
@@ -101,7 +102,18 @@ test("W608 全店候选包含订单外账号，跨店真实拒绝，方案替换
 });
 
 test("W608 实际样片上传、探测与水印到就绪", async ({ page }) => {
-  expect((await control(page.request, "upload_sample")).fileId).toBeTruthy();
+  const uploaded = await control(page.request, "upload_sample");
+  expect(uploaded.fileId).toBeTruthy();
+  expect(uploaded.productionReady).toBe(true);
+  expect(uploaded.stages).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ kind: "probe", state: "succeeded" }),
+      expect.objectContaining({
+        kind: "watermark_sample",
+        state: expect.stringMatching(/^(submitted|succeeded)$/),
+      }),
+    ]),
+  );
   await expect.poll(async () => (await control(page.request, "finish_sample")).ready).toBe(true);
 });
 test("W608 实际样片确认与第二集成片上传、探测", async ({ page }) => {
@@ -152,7 +164,11 @@ test("W608 CSV多错行零写、修正导入与完整替换均真实读回", asy
   await expect(page.getByText(/第 3 行 · 看点：/)).toBeVisible();
   expect((await publishList(page.request)).lockVersion).toBe(before.lockVersion);
   expect((await publishList(page.request)).episodes).toEqual(before.episodes);
-  await shot(page, "w608-02-list-import-errors");
+  await shot(
+    page,
+    "w608-02-list-import-errors",
+    page.getByRole("alert").filter({ hasText: "第 2 行 · 标题：" }),
+  );
   await page.getByRole("button", { name: "刷新版本并保留输入", exact: true }).click();
   await expect(input).toHaveValue(/长/);
   await input.fill(
@@ -177,14 +193,58 @@ test("W608 CSV多错行零写、修正导入与完整替换均真实读回", asy
     .getByRole("textbox", { name: "通用简介", exact: true })
     .fill("真实写入后重新读取的通用简介。");
   const topics = page.getByRole("combobox", { name: "通用话题", exact: true });
+  const topicField = page.locator(".lyx-auth-field").filter({ has: topics });
+  const removeTopics = topicField.locator(".ant-select-selection-item-remove");
+  const previousTopicCount = await removeTopics.count();
+  for (let index = 0; index < previousTopicCount; index++) await removeTopics.first().click();
+  await expect(removeTopics).toHaveCount(0);
+  // Own this invalid input explicitly; the negative must not depend on backend default topics.
+  const invalidTopic = "超".repeat(22);
+  await topics.fill(invalidTopic);
+  await topics.press("Enter");
+  const invalidChip = topicField
+    .locator(".ant-select-selection-item")
+    .filter({ hasText: invalidTopic });
+  await expect(invalidChip).toHaveCount(1);
+  const beforeTopicError = await publishList(page.request);
+  await confirmList(page);
+  const invalidReplacement = await expectedResourceError(page, errors, 400, () =>
+    page.getByRole("button", { name: "保存发布清单", exact: true }).click(),
+  );
+  expect(await invalidReplacement.json()).toMatchObject({
+    error: "VALIDATION_FAILED",
+    fieldErrors: expect.arrayContaining([
+      expect.objectContaining({ path: "topics.0", message: expect.any(String) }),
+    ]),
+  });
+  await expect(topicField.getByRole("alert")).toContainText(
+    "话题内容（不含开头的 #）不能超过20个字符",
+  );
+  await expect(topics).toHaveAttribute("aria-invalid", "true");
+  expect(publishInput(await publishList(page.request))).toEqual(publishInput(beforeTopicError));
+  await shot(page, "w608-03-list-field-errors", topicField);
+  await page.getByRole("button", { name: "刷新版本并保留输入", exact: true }).click();
+  await expect(invalidChip).toHaveCount(1);
+  await expect(
+    page.getByRole("checkbox", { name: "我已核对完整清单及本次修改", exact: true }),
+  ).not.toBeChecked();
+  await invalidChip.locator(".ant-select-selection-item-remove").click();
+  await expect(removeTopics).toHaveCount(0);
   await topics.fill("同城门店");
   await topics.press("Enter");
   await confirmList(page);
+  const replacementRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && new URL(request.url()).pathname === listPath())
+      replacementRequests.push(request.headers()["idempotency-key"]!);
+  });
   const replacement = page.waitForResponse(
     (r) => r.request().method() === "PUT" && new URL(r.url()).pathname === listPath(),
   );
   await doubleClick(page, "保存发布清单");
   expect((await replacement).status()).toBe(200);
+  expect(replacementRequests).toHaveLength(1);
+  expect(replacementRequests[0]).toBeTruthy();
   const saved = await publishList(page.request);
   expect(saved).toMatchObject({
     collectionName: "门店的两集故事",
@@ -192,13 +252,17 @@ test("W608 CSV多错行零写、修正导入与完整替换均真实读回", asy
     intro: "真实写入后重新读取的通用简介。",
     cover: { fileId: w608Fixture().scope.posterFileId },
   });
-  expect(saved.topics).toContain("同城门店");
+  expect(saved.topics).toEqual(["同城门店"]);
   expect(saved.completeness.isComplete).toBe(true);
   await page.reload();
   await expect(page.getByRole("textbox", { name: "合集名称", exact: true })).toHaveValue(
     "门店的两集故事",
   );
-  await shot(page, "w608-03-list-saved");
+  await shot(
+    page,
+    "w608-03-list-saved",
+    page.getByRole("textbox", { name: "通用简介", exact: true }),
+  );
   expect(errors).toEqual([]);
 });
 
@@ -269,7 +333,11 @@ test("W608 推包后显式pack building，真实压缩失败后人工重试至re
   await doubleClick(page, "预打包 / 查看或重试打包");
   await expect(page.getByText("正在打包 · 第 1 次打包", { exact: true })).toBeVisible();
   expect(packs).toHaveLength(1);
-  await shot(page, "w608-04-pack-building");
+  await shot(
+    page,
+    "w608-04-pack-building",
+    page.getByText("正在打包 · 第 1 次打包", { exact: true }),
+  );
   expect(await control(page.request, "fail_next_zip")).toMatchObject({ zipGen: 1, armed: true });
   expect(await control(page.request, "run_zip")).toMatchObject({
     zipGen: 1,
@@ -295,7 +363,7 @@ test("W608 推包后显式pack building，真实压缩失败后人工重试至re
   await expect(page.getByText("打包完成 · 第 2 次打包", { exact: true })).toBeVisible();
   expect(packs).toHaveLength(3);
   expect(new Set(packs).size).toBe(3);
-  await shot(page, "w608-05-pack-ready");
+  await shot(page, "w608-05-pack-ready", page.getByText("打包完成 · 第 2 次打包", { exact: true }));
   await page.reload();
   await expect(button).toBeVisible();
   await expect(page.getByText("尚未确认打包状态", { exact: true })).toBeVisible();
@@ -325,7 +393,11 @@ test("W608 pack传输错误真实可见，同意图重试仍用原幂等键", as
     await expect.poll(() => failed).toEqual(["net::ERR_FAILED"]);
     await expect.poll(() => errors).toEqual(["Failed to load resource: net::ERR_FAILED"]);
     expect(keys).toHaveLength(1);
-    await shot(page, "w608-05b-pack-transport-error");
+    await shot(
+      page,
+      "w608-05b-pack-transport-error",
+      page.getByRole("alert").filter({ hasText: "Failed to fetch" }),
+    );
     errors.splice(0, 1);
   } finally {
     await page.unroute(`**${path}`);
@@ -347,7 +419,9 @@ test("W608 实际日历与按账号逾期状态，跟进写入后GET读回", asy
   const item = current.days
     .flatMap((day) => day.items)
     .find((r) => r.orderItemId === f.scope.itemId);
-  expect(item).toMatchObject({ calendarStatus: "overdue", isDeliveryLate: true });
+  // a06: this flag means still undelivered past target; the preceding real push already delivered it.
+  expect((await ticket(page.request)).milestones.deliveredAt).toEqual(expect.any(String));
+  expect(item).toMatchObject({ calendarStatus: "overdue", isDeliveryLate: false });
   expect(item!.tasks).toHaveLength(2);
   await page.goto(
     `/publish/calendar?month=${f.launchDate.slice(0, 7)}&date=${f.launchDate}&managerId=${f.scope.managerId}`,
@@ -359,7 +433,11 @@ test("W608 实际日历与按账号逾期状态，跟进写入后GET读回", asy
   const details = page.getByRole("complementary", { name: "当日上线安排", exact: true });
   await expect(details).toContainText(f.storeName);
   await expect(details).toContainText(f.title);
-  await shot(page, "w608-06-calendar-overdue");
+  await shot(
+    page,
+    "w608-06-calendar-overdue",
+    details.getByRole("article").filter({ hasText: f.title }),
+  );
   await page.goto(
     `/publish/overdue?tab=overdue&orderItemId=${f.scope.itemId}&id=${f.scope.itemId}`,
   );
@@ -369,7 +447,11 @@ test("W608 实际日历与按账号逾期状态，跟进写入后GET读回", asy
   const panel = page.getByRole("complementary", { name: "上线任务详情", exact: true });
   await expect(panel).toContainText("成片晚交");
   for (const account of f.accounts) await expect(panel).toContainText(account.name);
-  await shot(page, "w608-07-overdue-tasks");
+  await shot(
+    page,
+    "w608-07-overdue-tasks",
+    panel.getByRole("region", { name: "各账号上线任务", exact: true }),
+  );
   await panel.getByRole("button", { name: "记录跟进", exact: true }).click();
   const modal = page.getByRole("dialog", { name: "记录跟进", exact: true }),
     text = "已电话确认两平台发布安排，继续核对上线链接。";
@@ -402,7 +484,11 @@ test("W608 日历真实节假日、调休与未导入年度，空结果可见", 
   await expect(page.getByRole("button", { name: adjusted!.date, exact: true })).toContainText(
     "调休上班",
   );
-  await shot(page, "w608-08-calendar-holidays");
+  await shot(
+    page,
+    "w608-08-calendar-holidays",
+    page.getByRole("region", { name: "2026-10 月历", exact: true }),
+  );
   const missing = await launchCalendar(page.request, "2099-01-01", "2099-01-31");
   expect(missing.workCalendar.years.every((year) => year.importedAt === null)).toBe(true);
   await page.goto("/publish/calendar?month=2099-01&date=2099-01-01");
@@ -410,10 +496,18 @@ test("W608 日历真实节假日、调休与未导入年度，空结果可见", 
   await expect(page.getByRole("button", { name: "2099-01-01", exact: true })).toContainText(
     "缺少日历",
   );
-  await shot(page, "w608-09-calendar-missing-empty");
+  await shot(
+    page,
+    "w608-09-calendar-missing-empty",
+    page.getByRole("alert").filter({ hasText: "2099 年节假日安排尚未导入" }),
+  );
   await page.goto("/publish/overdue?tab=all&q=W608不存在的订单");
   await expect(page.getByText("当前范围暂无上线任务", { exact: true })).toBeVisible();
-  await shot(page, "w608-10-overdue-empty");
+  await shot(
+    page,
+    "w608-10-overdue-empty",
+    page.getByText("当前范围暂无上线任务", { exact: true }),
+  );
   expect(errors).toEqual([]);
 });
 
@@ -448,7 +542,7 @@ for (const scenario of [
       expect(new URL(failures[0]!.url).pathname).toBe(scenario.api);
       expect(failures[0]!.reason).toBe("net::ERR_FAILED");
       await expect.poll(() => errors).toEqual(["Failed to load resource: net::ERR_FAILED"]);
-      await shot(page, scenario.shot);
+      await shot(page, scenario.shot, failed);
       errors.splice(0, 1);
     } finally {
       await page.unroute(pattern);
@@ -467,6 +561,12 @@ for (const scenario of [
 test("W608 商家真实提交两账号链接，实际核验通过", async ({ page }) => {
   const f = w608Fixture();
   await ensureLiveStepUp(page);
+  // The agreed date is overdue; actual launch must be on or after this run's real delivery.
+  const { today: actualLaunchDate } = await launchCalendar(
+    page.request,
+    f.launchDate,
+    f.launchDate,
+  );
   for (const task of (await tracks(page.request)).items[0]!.tasks) {
     await write(
       page.request,
@@ -479,7 +579,7 @@ test("W608 商家真实提交两账号链接，实际核验通过", async ({ pag
           url: `https://example.invalid/w608/${task.launchTaskId}/${episodeNo}`,
         })),
         reportedEpisodeCount: 2,
-        actualLaunchDate: f.launchDate,
+        actualLaunchDate,
       },
       "post",
       f.ownerHeaders,
@@ -489,6 +589,7 @@ test("W608 商家真实提交两账号链接，实际核验通过", async ({ pag
     )!;
     expect(latest.currentSubmissionId).toBeTruthy();
     const detail = await submission(page.request, latest.currentSubmissionId!);
+    expect(detail.link.actualLaunchDate).toBe(actualLaunchDate);
     const passed = await write(
       page.request,
       `/api/v1/admin/launch-submissions/${detail.launchSubmissionId}/approve`,
@@ -574,11 +675,17 @@ test("W608 真实publish只读且无system查看：入口可读，清单替换�
   }
 });
 
-test("W608 撤销确认取最新轮次与集数，实际执行后GET新pending轮次", async ({ page }) => {
+test("W608 撤销确认取最新轮次与集数，实际执行后GET新pending轮次", async ({ page, browser }) => {
   const errors = recordErrors(page);
   await ensureLiveStepUp(page);
   await page.goto(`/publish/verify?tab=done_today&id=${approvedApprovalId}`);
   const old = await submission(page.request, approvedSubmissionId);
+  expect(old).toMatchObject({
+    result: "passed",
+    isCurrentRound: true,
+    verifiedEpisodeCount: 2,
+    approval: { status: "approved" },
+  });
   expect(old.revoke?.canRevoke).toBe(true);
   const refreshed = page.waitForResponse(
     (r) =>
@@ -611,25 +718,128 @@ test("W608 撤销确认取最新轮次与集数，实际执行后GET新pending�
   expect(result.launchSubmissionId).not.toBe(approvedSubmissionId);
   const fresh = await submission(page.request, result.launchSubmissionId);
   expect(fresh).toMatchObject({
+    launchTaskId: old.launchTaskId,
     result: "pending",
     isCurrentRound: true,
     roundNo: old.roundNo + 1,
     reopenOfLaunchSubmissionId: approvedSubmissionId,
+    verifiedEpisodeCount: null,
     approval: { status: "pending" },
   });
+  expect(fresh.approval.approvalId).not.toBe(old.approval.approvalId);
+  expect(fresh.link).toEqual(old.link);
   const historical = await submission(page.request, approvedSubmissionId);
-  expect(historical.isCurrentRound).toBe(false);
-  expect(historical.result).toBe("passed");
+  expect(historical).toMatchObject({
+    launchSubmissionId: old.launchSubmissionId,
+    launchTaskId: old.launchTaskId,
+    roundNo: old.roundNo,
+    result: "revoked",
+    isCurrentRound: false,
+    verifiedEpisodeCount: old.verifiedEpisodeCount,
+    approval: { approvalId: old.approval.approvalId, status: "approved" },
+    revoke: null,
+  });
+  expect(historical.link).toEqual(old.link);
+  expect(historical.actions).not.toContain("revoke");
+  expect(fresh.rounds).toHaveLength(old.rounds.length + 1);
+  expect(fresh.rounds).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        launchSubmissionId: old.launchSubmissionId,
+        roundNo: old.roundNo,
+        result: "revoked",
+      }),
+      expect.objectContaining({
+        launchSubmissionId: fresh.launchSubmissionId,
+        roundNo: fresh.roundNo,
+        result: "pending",
+        reopenOfLaunchSubmissionId: old.launchSubmissionId,
+      }),
+    ]),
+  );
   const task = (await tracks(page.request)).items[0]!.tasks.find(
     (item) => item.launchTaskId === fresh.launchTaskId,
   )!;
   expect(task).toMatchObject({
     currentSubmissionId: fresh.launchSubmissionId,
+    currentRoundNo: fresh.roundNo,
     reviewStatus: "verifying",
     isLive: false,
   });
+  const isTodo = (url: string) => {
+    const value = new URL(url);
+    return (
+      value.pathname === "/api/v1/admin/approvals" &&
+      value.searchParams.get("kind") === "launch_link" &&
+      value.searchParams.get("tab") === "todo"
+    );
+  };
+  // Revocation creates a new approval requested by this actor; requesters cannot self-review.
+  const ownQueue = page.waitForResponse((r) => r.request().method() === "GET" && isTodo(r.url()));
   await page.goto(`/publish/verify?tab=todo&id=${fresh.approval.approvalId}`);
-  await expect(page.getByText(fresh.account.accountName, { exact: true }).first()).toBeVisible();
-  await shot(page, "w608-12-reopened-verification");
+  const ownResponse = await ownQueue;
+  expect(ownResponse.status()).toBe(200);
+  expect((await ownResponse.json()).data).toMatchObject({ total: 0, items: [] });
+  await expect(
+    page.getByText("所选核验事项不在当前队列，请核对链接或切换筛选条件", { exact: true }),
+  ).toBeVisible();
+  expect(fresh.ticket.publisher).not.toBeNull();
+  const login = await publisherLogin(fresh.ticket.publisher!.staffId),
+    context = await browser.newContext({
+      baseURL: liveContext().origin,
+      storageState: { cookies: login.cookies, origins: [] },
+      viewport: { width: 1366, height: 768 },
+      locale: "zh-CN",
+      timezoneId: "Asia/Shanghai",
+    });
+  try {
+    const reviewerPage = await context.newPage(),
+      reviewerErrors = recordErrors(reviewerPage),
+      me = await read(reviewerPage.request, "/api/v1/admin/auth/me");
+    expect(me.staff.staffId).toBe(login.staffId);
+    expect(me.staff.staffId).toBe(fresh.ticket.publisher!.staffId);
+    expect(me.staff.staffId).not.toBe(fresh.approval.submitter.actorId);
+    expect(me.moduleLevels.publish).toBe("o");
+    expect(me.permissions).toContain("publish.link.verify");
+    const reviewerQueue = reviewerPage.waitForResponse(
+      (r) => r.request().method() === "GET" && isTodo(r.url()),
+    );
+    await reviewerPage.goto(`/publish/verify?tab=todo&id=${fresh.approval.approvalId}`);
+    const reviewerResponse = await reviewerQueue;
+    expect(reviewerResponse.status()).toBe(200);
+    expect((await reviewerResponse.json()).data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          approvalId: fresh.approval.approvalId,
+          status: "pending",
+          domain: { type: "launch_submission", id: fresh.launchSubmissionId },
+          actions: expect.arrayContaining(["approve"]),
+        }),
+      ]),
+    );
+    const reviewerDetail = await submission(reviewerPage.request, fresh.launchSubmissionId);
+    expect(reviewerDetail).toMatchObject({
+      launchTaskId: old.launchTaskId,
+      result: "pending",
+      isCurrentRound: true,
+      roundNo: fresh.roundNo,
+      reopenOfLaunchSubmissionId: approvedSubmissionId,
+      approval: { approvalId: fresh.approval.approvalId, status: "pending" },
+    });
+    expect(reviewerDetail.link).toEqual(old.link);
+    const panel = reviewerPage.getByRole("region", { name: "链接核验的详情", exact: true });
+    await expect(
+      panel.getByRole("heading", { name: fresh.account.accountName, exact: true }),
+    ).toBeVisible();
+    await expect(panel.getByRole("button", { name: "核验通过", exact: true })).toBeVisible();
+    await shot(
+      reviewerPage,
+      "w608-12-reopened-verification",
+      panel.getByText(`第 ${fresh.roundNo} 轮 · 当前轮次`, { exact: true }),
+    );
+    expect(reviewerErrors).toEqual([]);
+  } finally {
+    await context.close();
+  }
   expect(errors).toEqual([]);
 });
