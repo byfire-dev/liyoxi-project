@@ -2,13 +2,13 @@
 
 由 `working/routemap.json` 生成，请勿手改；每条接口的字段级定义见对应文档的章节。
 
-共 669 条（V1.0 613，V1.1 56）。列说明：“判权”为后台权限点或商家端能力点（`assert-in-handler` 表示处理器内按对象判定，见约定 C66）；“幂等”见约定 C46–C50。
+共 667 条（V1.0 611，V1.1 56）。列说明：“判权”为后台权限点或商家端能力点（`assert-in-handler` 表示处理器内按对象判定，见约定 C66）；“幂等”见约定 C46–C50。
 
 | 端 | 前缀 | 文档 | 接口数 |
 | --- | --- | --- | --- |
 | 商家端（小程序） | `/api/v1/m` | [m01-account](m01-account.md)、[m02-tenant](m02-tenant.md)、[m03-profile-asset](m03-profile-asset.md)、[m04-mall-order](m04-mall-order.md)、[m05-delivery-publish](m05-delivery-publish.md)、[m06-ad](m06-ad.md)、[m07-billing](m07-billing.md)、[m08-support-misc](m08-support-misc.md) | 167 |
 | 运营管理后台 | `/api/v1/admin` | [a01-system](a01-system.md)、[a02-workbench-report](a02-workbench-report.md)、[a03-merchant](a03-merchant.md)、[a04-content](a04-content.md)、[a05-order-delivery](a05-order-delivery.md)、[a06-publish](a06-publish.md)、[a07-billing-finance](a07-billing-finance.md)、[a08-support](a08-support.md)、[a09-ops](a09-ops.md) | 470 |
-| 电脑端下载页 | `/api/v1/portal` | [p01-portal](p01-portal.md) | 17 |
+| 电脑端下载页 | `/api/v1/portal` | [p01-portal](p01-portal.md) | 15 |
 | 外部回调与探活 | `/api/v1/hooks` | [h01-hooks](h01-hooks.md) | 15 |
 
 ## 商家端（小程序）
@@ -753,11 +753,9 @@
 | `portal.orderItem.downloadUrls` | POST | `/portal/order-items/{orderItemId}/download-urls` | 签发下载直链并留痕：kind = episode 取单集 15 分钟直链；kind = zip 触发或取 ZIP（就绪给 3 小时直链，未就绪返回打包中，失败后带 retry: true 才重打）；kind = publish_list 只查不建，ZIP 已就绪时取随 ZIP 生成的发布清单文件（15 分钟），否则返回当前打包状态、不触发打包 | `delivery.download` | none | V1.0 | 3.8 |
 | `portal.orderItem.publishList.get` | GET | `/portal/order-items/{orderItemId}/publish-list` | 发布清单：合集名称、每集标题、话题、简介（生效成片包上的清单文本），供一键复制与生成文本文件 | `delivery.download` | none | V1.0 | 3.9 |
 | `portal.orderItem.release.get` | GET | `/portal/order-items/{orderItemId}/release` | 成片下载页数据：当前成片包清单（集号、文件名、大小、相对上一包是否变更）、推送序号、下载授权状态与到期时间 | `delivery.download` | none | V1.0 | 3.7 |
-| `portal.orderItem.sample.get` | GET | `/portal/order-items/{orderItemId}/sample` | 样片只读预览的元数据：当前已推送版本的 sampleId、版本号、时长、广告位标记、海报，并提示回小程序确认或提出修改意见；不含播放地址 | `sample.view` | none | V1.0 | 3.10 |
 | `portal.portalTicket.create` | POST | `/portal/portal-tickets` | 电脑端创建扫码登录票据，返回 portalTicketId（uuid）、qrUrl（二维码内容，由 public_id 拼成）、shortCode、pairDigits、pollSecret（只出现这一次）、expiresAt、pollIntervalMs，页面据此渲染二维码、两位配对数字与倒计时 | — | none | V1.0 | 3.1 |
 | `portal.portalTicket.get` | GET | `/portal/portal-tickets/{portalTicketId}` | 轮询票据状态（pending / approved / rejected / expired / consumed），凭请求头 X-Poll-Secret，只返回状态 | — | none | V1.0 | 3.2 |
 | `portal.portalTicket.exchange` | POST | `/portal/portal-tickets/{portalTicketId}/exchange` | 凭 pollSecret 换取下载页会话：票据置 consumed，同事务建 portal_session 并 Set-Cookie __Host-lyx_portal；确认后密钥不符、尝试达上限或超过 60 秒时票据置 rejected，返回 200 与 status = rejected（作废随事务提交，A101 同一做法） | — | none | V1.0 | 3.3 |
-| `portal.sample.playbackUrls` | POST | `/portal/samples/{sampleId}/playback-urls` | 签发样片水印版播放地址（60 分钟）并留痕：每次写 audit_log 访问流（target_type = sample），首次访问同事务回写 sample.first_viewed_at | `sample.view` | none | V1.0 | 3.11 |
 | `portal.session.current.get` | GET | `/portal/sessions/current` | 当前下载页会话（GET /portal/sessions/current）：授权门店与主体名称、授权老板（脱敏）、能力点、到期时间；需要会话的页面加载时先调，401 时进入会话失效说明页 | — | none | V1.0 | 3.4 |
 | `portal.session.current.delete` | DELETE | `/portal/sessions/current` | 电脑端退出（DELETE /portal/sessions/current）：写 portal_session.revoked_at 与 revoke_reason = portal_logout，写 auth_event，清除 Cookie | — | none | V1.0 | 3.5 |
 

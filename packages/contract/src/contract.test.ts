@@ -403,8 +403,8 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
     // W5-09 补原后台广告十条：typed 475+10=485、meta-only 189-10=179；商家 paths 122 保持，后台 310+10=320。
     // W5-09 只增后台广告相关具名结构；原所有条目继续保留。
     // W5-09 PR2 将十条既有广告meta-only落为typed：475+10=485、189-10=179，后台十个新唯一path：310+10=320。
-    // W6-05：10条既有票据/会话资源落为typed；485+10=495，179-10=169，旧条目全部保留。
-    // W6-02：9条发布清单/上线工作台资源落为typed；495+9=504，169-9=160，原具名结构保留。
+    // W6-05：10条票据/会话落为typed；W6-06按Q9移出2条未实现样片登记，typed仍495、meta-only167。
+    // W6-02：9条发布清单/上线工作台资源落为typed；495+9=504，167-9=158，原具名结构保留。
     expect(allRoutes.map((route) => route.operationId).sort()).toEqual([
       "admin.accountChangeRequest.approve",
       "admin.accountChangeRequest.create",
@@ -911,7 +911,7 @@ describe("提交的生成物（任务书 W0-08 第 11 节第 1 项）", () => {
       "portal.session.current.delete",
       "portal.session.current.get",
     ]);
-    expect(allMetaOnlyRoutes).toHaveLength(160);
+    expect(allMetaOnlyRoutes).toHaveLength(158);
     expect(allRegistryOnly).toHaveLength(5);
     /** 各文档的 paths 条数与具名结构 */
     const expected: Record<string, { paths: number; schemas: string[] }> = {
