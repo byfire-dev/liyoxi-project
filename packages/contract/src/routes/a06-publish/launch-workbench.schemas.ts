@@ -6,6 +6,8 @@ import {
   PageQuerySchema,
   orNull,
 } from "../../common/index.js";
+import { WORK_CALENDAR_DAY_KIND } from "../../enums/index.js";
+import { zodEnum } from "../../enums/zod.js";
 import { adminPage } from "../a01-system/structures.js";
 import { FollowUpItemSchema } from "../a03-merchant/follow-ups.schemas.js";
 import { AdminStoreBriefSchema } from "../a05-order-delivery/public.schemas.js";
@@ -86,6 +88,24 @@ export const LaunchCalendarSchema = z
       overdue: count,
     }),
     days: z.array(z.strictObject({ date: DateSchema, items: z.array(LaunchCalendarItemSchema) })),
+    workCalendar: z.strictObject({
+      calendarVersion: count,
+      years: z
+        .array(z.strictObject({ year: z.int(), importedAt: orNull(InstantSchema) }))
+        .min(1)
+        .max(2),
+      days: z
+        .array(
+          z.strictObject({
+            date: DateSchema,
+            kind: orNull(zodEnum(WORK_CALENDAR_DAY_KIND)),
+            isWorkday: orNull(z.boolean()),
+            name: orNull(z.string().min(1).max(20)),
+          }),
+        )
+        .min(1)
+        .max(42),
+    }),
     total: count,
     isTruncated: z.boolean(),
   })

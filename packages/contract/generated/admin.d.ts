@@ -9816,6 +9816,20 @@ export interface components {
             /** Format: date */
             today: string;
             total: number;
+            workCalendar: {
+                calendarVersion: number;
+                days: {
+                    /** Format: date */
+                    date: string;
+                    isWorkday: boolean | null;
+                    kind: ("weekday" | "weekend" | "holiday" | "adjusted_workday") | null;
+                    name: string | null;
+                }[];
+                years: {
+                    importedAt: string | null;
+                    year: number;
+                }[];
+            };
         };
         LaunchCalendarItem: {
             accounts: components["schemas"]["ChannelAccountBrief"][];
