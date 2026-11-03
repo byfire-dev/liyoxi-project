@@ -40,7 +40,9 @@ import {
   createRuntimeDocsLicense,
   createNotifyAssembly,
   createRuntimeNotify,
+  createPatrolAssembly,
 } from "../index.js";
+import { createPublishPatrol } from "../../publish/index.js";
 import { bindOps } from "../binding.js";
 import { runInvariants } from "./run.js";
 import { selectChecks } from "./select.js";
@@ -122,7 +124,8 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
   const profileScope = createProfileConsistencyAssembly(invitationScope.assembly);
   let profileCommits: ReturnType<typeof createProfileConsistencyTransactions>;
   const mediaScope = createMediaAssembly(profileScope.assembly);
-  const docsLicenseScope = createDocsLicenseAssembly(mediaScope.assembly);
+  const patrolScope = createPatrolAssembly(mediaScope.assembly);
+  const docsLicenseScope = createDocsLicenseAssembly(patrolScope.assembly);
   const assembly = docsLicenseScope.assembly;
   beforeAll(async () => {
     const config = createConfig({ db: prisma, clock, redis: null });
@@ -139,6 +142,24 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
       storage: createFakeProviders({ clock }).storage,
     });
     mediaScope.attach(media.jobs, media.retention);
+    patrolScope.attach(
+      createPublishPatrol({
+        tx,
+        clock,
+        assembly,
+        events,
+        flow,
+        media,
+        timers: createTimers({ assembly }),
+        approval: createApproval({
+          assembly,
+          clock,
+          flow,
+          events,
+          bizNo: createBizNoIssuer({ clock, appEnv: "test" }),
+        }),
+      }),
+    );
     profileCommits = createProfileConsistencyTransactions(tx, () => {});
     profileScope.attach(
       createProfileQualificationConsistency({
@@ -196,6 +217,7 @@ describe("真实装配：空库加种子（验收 1、2）", () => {
   });
   afterAll(async () => {
     await docsLicenseScope.close();
+    await patrolScope.close();
     mediaScope.close();
     await profileScope.close();
     invitationScope.close();

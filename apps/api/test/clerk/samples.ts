@@ -461,6 +461,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
     ["m.channelAccount.list", "GET", "/m/channel-accounts"],
     ["m.channelAccount.create", "POST", "/m/channel-accounts"],
     ["m.channelAccount.submit", "POST", `/m/channel-accounts/${uuidv7()}/submit`],
+    ["m.channelAccount.unbind", "POST", `/m/channel-accounts/${uuidv7()}/unbind`],
     ["m.launchTask.list", "GET", "/m/launch-tasks"],
     ["m.launchTask.summary", "GET", "/m/launch-tasks/summary"],
     ["m.launchTask.get", "GET", `/m/launch-tasks/${uuidv7()}`],

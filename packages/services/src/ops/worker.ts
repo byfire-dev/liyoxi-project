@@ -1,4 +1,6 @@
 import { createUsageLifecycleAssembly } from "./usage-lifecycle-runtime.js";
+import { createPatrolAssembly } from "./patrol-runtime.js";
+import { createPublishPatrol } from "../publish/index.js";
 import { createUsageLifecycle } from "../order/index.js";
 import { createAdAssembly } from "./ad-timer-runtime.js";
 import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./docs-render-runtime.js";
@@ -427,7 +429,8 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
   const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
-  const docsScope = createDocsAssembly(usageLifecycleScope.assembly);
+  const patrolScope = createPatrolAssembly(usageLifecycleScope.assembly);
+  const docsScope = createDocsAssembly(patrolScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -845,6 +848,9 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     sla: deliveryCore.sla,
     bizNo: createBizNoIssuer({ clock, appEnv: options.appEnv }),
   });
+  patrolScope.attach(
+    createPublishPatrol({ tx, clock, assembly, approval, flow, events, timers, media }),
+  );
   const orderCancelDeps = {
     tx,
     clock,
@@ -1143,6 +1149,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
     closeOrder: async () => {
       const results = await Promise.allSettled([
         usageLifecycleScope.close(),
+        patrolScope.close(),
         orderReconciler.close(),
         adScope.close(),
       ]);

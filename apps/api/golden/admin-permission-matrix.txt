@@ -58,6 +58,9 @@ admin.cancelRequest.summary | - | - | 11 11 11 11 11 11 11 11
 admin.cancelRequest.void | - | order.refund.request | 11 11 00 00 00 00 00 00
 admin.cancelRequest.withdraw | - | assert-in-handler | 11 11 11 11 11 11 11 11
 admin.channelAccount.get | - | - | 11 11 11 11 11 11 11 11
+admin.channelAccount.list | - | - | 11 11 11 11 11 11 11 11
+admin.channelAccount.markAbnormal | publish:edit | publish.account.mark_abnormal | 11 00 00 00 11 00 00 00
+admin.channelAccount.summary | - | - | 11 11 11 11 11 11 11 11
 admin.channelAccountSubmission.approve | publish:edit | publish.account.verify | 11 00 00 00 11 00 00 00
 admin.channelAccountSubmission.get | - | - | 11 11 11 11 11 11 11 11
 admin.channelAccountSubmission.reject | publish:edit | publish.account.verify | 11 00 00 00 11 00 00 00
@@ -182,6 +185,14 @@ admin.outboxEvent.retry | - | flow.ops.manage | 11 00 00 00 00 00 00 00
 admin.paramValue.list | system:view | - | 11 00 00 00 00 00 00 00
 admin.paramValue.replace | - | sys.param.edit | 11 00 00 00 00 00 00 00
 admin.paramValue.withdraw | - | sys.param.edit | 11 00 00 00 00 00 00 00
+admin.patrolTask.create | publish:edit | publish.patrol.do | 11 00 00 00 11 00 00 00
+admin.patrolTask.get | publish:view | - | 11 11 11 00 11 11 00 00
+admin.patrolTask.list | publish:view | - | 11 11 11 00 11 11 00 00
+admin.patrolTask.markAbnormal | publish:edit | publish.patrol.do | 11 00 00 00 11 00 00 00
+admin.patrolTask.markNormal | publish:edit | publish.patrol.do | 11 00 00 00 11 00 00 00
+admin.patrolTask.recover | publish:edit | publish.patrol.do | 11 00 00 00 11 00 00 00
+admin.patrolTask.remind | publish:edit | publish.patrol.do | 11 00 00 00 11 00 00 00
+admin.patrolTask.summary | publish:view | - | 11 11 11 00 11 11 00 00
 admin.paymentException.create | - | finance.recon.resolve | 11 00 00 00 00 00 00 11
 admin.paymentException.get | finance:view | - | 11 00 00 00 00 00 00 11
 admin.paymentException.list | finance:view | - | 11 00 00 00 00 00 00 11
