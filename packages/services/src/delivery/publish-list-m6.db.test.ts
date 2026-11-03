@@ -1,6 +1,8 @@
 import { createPrismaClient } from "@liyoxi/db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { useSeededDatabase } from "../testing/index.js";
+import { installZipPackageFixture, useSeededDatabase } from "../testing/index.js";
+import { createMedia } from "../media/index.js";
+import { readReleaseZipInput } from "./zip-package.js";
 import { createIdempotencyContext, createTxRunner, uuidv7 } from "../kernel/index.js";
 import type { TxRunner } from "../kernel/index.js";
 import { createPublishLists } from "./publish-list-service.js";
@@ -13,11 +15,27 @@ import type { M5Harness } from "./__fixtures__/m5.js";
 const db = useSeededDatabase("services", { max: 2 });
 let h: M5Harness;
 let pushed: Awaited<ReturnType<typeof released>>;
+let protocol: ReturnType<typeof installZipPackageFixture>;
+let zipMedia: ReturnType<typeof createMedia>;
 beforeAll(async () => {
   h = m5Harness(await db.prisma());
+  protocol = installZipPackageFixture(h.fake);
+  zipMedia = createMedia({
+    tx: h.tx,
+    clock: h.clock,
+    assembly: h.assembly,
+    events: h.events,
+    storage: protocol.storage,
+    zipProvider: h.fake.media,
+  });
+  h.media.ensureZip = zipMedia.ensureZip;
   pushed = await released(h);
 }, 120_000);
-afterAll(() => h?.close());
+afterAll(async () => {
+  await zipMedia?.jobs.shutdown();
+  protocol?.close();
+  await h?.close();
+});
 const service = () => createPublishLists(h.deps);
 const gate = () => {
   let open!: () => void;
@@ -325,41 +343,29 @@ describe("M6发布清单真实内容事务", () => {
       where: { refType: "delivery_release", refId: pushed.release.deliveryReleaseId },
     });
     expect(refs.length).toBeGreaterThan(0);
-    const file = await h.make.fileObject({
-      category: "package_zip",
-      bucket: "media",
-      scopeType: "store",
-      entityId: pushed.o.entity.id,
-      storeId: pushed.o.store.id,
-      ext: "zip",
-      mime: "application/zip",
-      declaredMime: "application/zip",
+    // Use the actual cache producer: release push now owns prequeueing its bundle.
+    let zip = await h.tx.run(async (tx) =>
+      zipMedia.ensureZip(
+        tx,
+        await readReleaseZipInput(tx, zipMedia, pushed.release.deliveryReleaseId, h.clock.now()),
+      ),
+    );
+    const job = await h.prisma.mediaJob.findUniqueOrThrow({
+      where: { dedupeKey: `zip:${zip.zipBundleId}:${zip.zipGen}` },
     });
-    const zip = await h.prisma.zipBundle.create({
-      data: {
-        id: uuidv7(),
-        ownerType: "delivery_release",
-        ownerId: pushed.release.deliveryReleaseId,
-        zipState: "ready",
-        zipGen: 1,
-        zipFileId: file.id,
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
-    // Existing ZIP cache is historical input; W6-07 owns its producer. The actual invalidator is exercised below.
-    await h.prisma.fileRef.create({
-      data: {
-        id: uuidv7(),
-        fileId: file.id,
-        refType: "zip_bundle",
-        refId: zip.id,
-        role: "zip",
-        state: "live",
-        createdAt: h.clock.now(),
-        updatedAt: h.clock.now(),
-      },
-    });
+    await zipMedia.jobs.run({ jobId: job.id });
+    const submitted = await h.prisma.mediaJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(submitted.state).toBe("submitted");
+    h.clock.set(submitted.nextRunAt);
+    await zipMedia.jobs.run({ jobId: job.id });
+    zip = await h.tx.run(async (tx) =>
+      zipMedia.ensureZip(
+        tx,
+        await readReleaseZipInput(tx, zipMedia, pushed.release.deliveryReleaseId, h.clock.now()),
+        { peek: true },
+      ),
+    );
+    expect(zip.zipState).toBe("ready");
     const grants = await h.prisma.downloadGrant.findMany({
       where: { orderItemId: pushed.item.id },
     });
@@ -373,9 +379,9 @@ describe("M6发布清单真实内容事务", () => {
       episodes: [],
     });
     expect(saved.lockVersion).toBe(view.lockVersion + 1);
-    expect(await h.prisma.zipBundle.findUnique({ where: { id: zip.id } })).toMatchObject({
+    expect(await h.prisma.zipBundle.findUnique({ where: { id: zip.zipBundleId! } })).toMatchObject({
       zipState: "none",
-      zipGen: 2,
+      zipGen: zip.zipGen! + 1,
       zipFileId: null,
     });
     expect(

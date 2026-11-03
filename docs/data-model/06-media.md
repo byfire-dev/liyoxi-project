@@ -976,7 +976,7 @@ M8 之后 media 不写、不读 `delivery_release`：打包所需的清单、发
 | `ready` | ZIP 过了保留期被清除 | `none` | 清除事务提交后另起事务，按 `uq_zip_bundle_zip_file_id` 找到本行，先锁本行再改（`WHERE zip_file_id = ? AND zip_state = 'ready'`）；两个文件列置空 | worker |
 | `ready` | 发布清单文件被清除（保留期与 ZIP 相同，正常不会先于 ZIP） | `ready` | 同上的另起事务；只把 `publish_list_file_id` 置空 | worker |
 
-发布清单文件由打包任务在提交数据万象任务前生成：worker 把 `input.publishListText` 写成 `publish_list` 文件（系统写入，`stored`），文件 id 记在任务的 `output`，收尾时写进本表；任务没走到收尾的，文件从未被引用，入库 24 小时后按“从未被引用”清除。下载页的“复制发布清单”读成片包上的清单文本，不读这个文件。
+发布清单文件由打包任务在提交数据万象任务前生成：worker 把 `input.publishListText` 写成 `publish_list` 文件（系统写入，`stored`），文件 id 记在任务的 `output`，收尾时写进本表；任务没走到收尾的，文件从未被引用，入库 24 小时后按“从未被引用”清除。下载页的“复制发布清单”读成片包上的清单文本，不读这个文件。`package_zip` 与 `publish_list` 分类的最短引用保留天数均为 0，由同一 `input.keepUntil` 决定两份缓存的保留期，作废时均可立即到期；不改变从未被引用文件的 24 小时清理规则。
 
 `ensureZip` 的选项（A99、A148；p01-portal.md 3.8、a06-publish.md 3.12）：`retry`（boolean，缺省 false）——为 true 时 `failed` 才重打，下载页“重试”与后台预打包 `admin.deliveryRelease.pack` 传 true，推送时预打包与下载页轮询不传；`peek`（boolean，缺省 false）——只查不建：不建行、不升代次、不建任务，`ready` 且 ZIP 仍 `stored` 时照常顺延保留期，ZIP 已不在时返回 `none`、不重打；供下载页 `kind = publish_list` 使用。两者同时给出时以 `peek` 为准。
 
@@ -1744,7 +1744,7 @@ ffprobe 输出裁剪后的 `{ format: {...}, streams: [...] }`，另带顶层 bo
 | 任务 | `input` 的键 | 出处 |
 | --- | --- | --- |
 | `transcode_mp4`、`watermark_sample`、`normalize` | `src`、`dst`（暂存区键）、`template`、`watermarks` | d5:214 |
-| `zip_package` | `items: [{ key, name }]`、`dstKey`；另由调用方（delivery）在 `ensureZip` 时传入：`entityId`、`storeId`（登记 ZIP 与清单文件的归属）、`orderItemId`（对象键 `pkg/{orderItemId}/{ownerId}-{zip_gen}.zip`）、`ownerType`、`ownerId`、`publishListText`（可空，≤200KB）、`publishListKey`、`keepUntil`（有效授权最晚到期 + 1 天）、`zipFileName`（`{安全剧名}_全{N}集.zip`）；`output` 带 `publishListFileId` | d5:215、1680-1684；M8 |
+| `zip_package` | `items: [{ fileId, key, name, size, crc64, etag }]`（CRC可空，执行时须核非空etag）；`dstKey`与清单键由media按任务/attempt生成；另由调用方（delivery）在 `ensureZip` 时传入：`entityId`、`storeId`（登记 ZIP 与清单文件的归属）、`orderItemId`（对象键 `pkg/{orderItemId}/{ownerId}-{zip_gen}/{jobId}-{attemptNo}.zip`；清单同前缀 `.txt`）、`ownerType`、`ownerId`、`publishListText`（可空，≤200KB）、`keepUntil`（有效授权最晚到期 + 1 天）、`zipFileName`（`{安全剧名}_全{N}集.zip`）；`output` 带 `publishListFileId` | d5:215、1680-1684；M8 |
 | `audit_image`、`audit_video`、`audit_text` | `src` 或文本、`scenes` | d5:216-218 |
 | `ocr` | `fieldNames`（通用抽取） | d5:1851 |
 | `audit_image_wx` | `src`、`scenes`；不存 openid。提交时经 `WechatOpenIdPort`（identity 实现）按 `file_object.upload_actor_id` 取近两小时活跃的小程序 openid，取不到则直接改建数据万象审核任务 | d5:1915、1927 |

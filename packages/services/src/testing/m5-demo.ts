@@ -65,6 +65,8 @@ async function snapshot(support: M5Support, scope: M5Scope) {
       revisions: await tx.licenseLetterRevision.count(),
       files: await tx.fileObject.count(),
       fileRefs: await tx.fileRef.count(),
+      zipBundles: await tx.zipBundle.count(),
+      mediaJobs: await tx.mediaJob.count(),
       production: await tx.productionRecord.count(),
       history: await tx.statusTransition.count(),
       audits: await tx.auditLog.count(),
@@ -79,12 +81,14 @@ async function snapshot(support: M5Support, scope: M5Scope) {
   });
 }
 export async function verifyM5DemoReplay(support: M5Support, context: M5DemoReplayContext) {
+  await support.drainZipPackages();
   await support.drainEvents();
   const before = await snapshot(support, context.scope);
   assert.ok(before.types.length && before.items.length);
   const seeded = await support.seedDemo();
   assert.equal(seeded.inserted, 0, "M5同库第二遍种子不得新增");
   await context.replaySameIntent();
+  await support.drainZipPackages();
   await support.drainEvents();
   const after = await snapshot(support, context.scope);
   assert.deepEqual(after.counts, before.counts, "M5原意图重放不得新增任何业务行");

@@ -1,4 +1,8 @@
 import { UPLOAD_CATEGORIES } from "@liyoxi/shared/uploads";
+import { ensureZip } from "./zip-package.js";
+import { createZipHandler } from "./zip-handler.js";
+import { readZipSourceFiles } from "./zip-types.js";
+import type { EnsureZipInput } from "./zip-types.js";
 import { fileCategoryGuardPort, fileRefTypePort } from "./ports.js";
 import type { ClockBoundFileRefType, StoreBoundFileRefType } from "./ports.js";
 import type { DeliveryDownloadSignInput, MediaDeps } from "./context.js";
@@ -129,6 +133,7 @@ export function createMedia(options: MediaDeps) {
     : [];
   const assetDeps = options.assets ? { ...deps, assets: options.assets } : undefined;
   const baseHandlers = [
+    createZipHandler(deps),
     createPromoteHandler(deps),
     createBankReceiptOcrHandler(deps),
     ...createWechatImageHandlers(deps),
@@ -165,6 +170,9 @@ export function createMedia(options: MediaDeps) {
     ],
   });
   return {
+    ensureZip: (tx: Tx, input: EnsureZipInput, options: { retry?: boolean; peek?: boolean } = {}) =>
+      ensureZip(deps, tx, input, options),
+    readZipSourceFiles,
     productionActions: createProductionActions(deps),
     ocr: createQualificationOcr(deps),
     enqueueBankReceiptOcr: (

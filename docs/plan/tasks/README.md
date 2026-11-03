@@ -268,6 +268,13 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | --- | --- | --- | --- |
 | — | W6-11、W6-13 | 两新后台页巡检/下架及账号健康，三旧小程序页的解绑/下架确认/清单复制/巡检历史；共2新页4旧页，0新增API/x01。批量按正式整批原子409保留逐项原因；按钮只消费真实actions，解绑拒绝刷新后禁止旧权限再次提交。W1-20-m6-publish-future唯一回补，11不并改tasks旧页；下载能力仍归11，真实平台核查、V16及真机结论仍按原外验。 | W6-09；admin README；weapp publish/tasks README；publish README |
 
+### W6-07 ZIP缓存生命周期移交（随本包 PR 交付）
+
+| 编号 | 接收方 | 交付与边界 | 出处 |
+| --- | --- | --- | --- |
+| — | W6-06、W6-08、W6-11、W6-13 | 单条 `admin.deliveryRelease.pack` 与 `zip_package` 接既有媒体循环；推包同事务预排，完整不可变manifest及清单经真实对象验证后才ready。media公开 `ensureZip`、`readZipSourceFiles`，delivery公开 `readReleaseZipInput`、`createDeliveryZipPackages`；06只经公口消费当前代次，签发时仍须重验当前授权/文件。ensureZip的ready/peek会顺延缓存引用，禁止接入GET；08通过明确用户意图及新幂等键调用pack查看当前状态，不能自动循环重试failed。06下载状态沿冻结HTTP200，202仅clientError。 | W6-07；media/delivery README；a06第3.12节、p01第3.8节、06第2.12节 |
+| — | W6-06、W6-11、W6-13 | ZIP与独立清单缓存使用代次/任务/attempt唯一对象键、同一keepUntil；旧任务回查只登记可清理产物，不能安装或覆盖当前代。清单单独清理允许ready且publishListFileId为空，签发须核目标文件可用；清单修订/真实下架归档即失效两缓存，成片90天及无引用24小时规则保持。01使用期、04下架与07真实20集归档链共同回补复合桩；小ZIP实物/协议替身不替代V10真实5GB耗时、恢复及下载逐集hash外验，逐集退路仍由06/11承接。 | W6-07；本包复合桩与状态；V10原最晚点 |
+
 ### W6-06 Q9登记治理移交（独立前置）
 
 | 编号 | 接收方 | 实际移交 | 依据 |
