@@ -1,3 +1,9 @@
 {
-  "extends": "../config/tsconfig/node-lib.json"
+  "extends": "../config/tsconfig/node-lib.json",
+  "compilerOptions": {
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/*": ["./node_modules/@types/react/*.d.ts"]
+    }
+  }
 }

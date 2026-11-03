@@ -1,3 +1,9 @@
 {
-  "extends": "../../packages/config/tsconfig/node-app.json"
+  "extends": "../../packages/config/tsconfig/node-app.json",
+  "compilerOptions": {
+    "paths": {
+      "react": ["../../packages/services/node_modules/@types/react/index.d.ts"],
+      "react/*": ["../../packages/services/node_modules/@types/react/*.d.ts"]
+    }
+  }
 }
