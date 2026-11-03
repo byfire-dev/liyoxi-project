@@ -309,6 +309,14 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 | `.npmrc` 里用 `hoist-pattern` 把两个 React 类型包排除出提升 | `.npmrc` 按 `frozen` 登记，判放松。单用它也不行：antd 的类型找不到 `react`，属性退成 `any`，后台的类型检查红 25 条，还是得钉 `paths` |
 | `pnpm-workspace.yaml` 里用 `packageExtensions` 给缺声明的包补 `@types/react` 的 peer | 判放松 3 项：`pnpm-workspace.yaml` 按 `frozen` 登记；锁文件头部多一行校验值；被补的包在锁文件里已有的条目跟着变。四十多个包要逐个列，antd 升级后还要跟着改 |
 
+服务端 PDF 也要固定类型来源。PR #275 的 `verify` 在未改依赖的情况下，`services` 的 `license-render.ts` 与 `providers/esign` 类型检查再次遇到同一问题：`@react-pdf/renderer` 4.9.0 的声明引用 `react`，但只声明运行时 peer；`Text` / `Document` 的 `contextType` 来自 React 18，源码 `createElement` 来自 React 19。CI 的 pnpm 缓存命中不能单独证明缓存是原因。
+
+`infra/ci/server-react-types/{services,api,worker}.json` 将 `react`、`react/*` 固定到 services 已声明的 `@types/react` 19 的 `index.d.ts`、`*.d.ts`。这里是 NodeNext ESM，必须指向带扩展名的声明文件，不能照搬前端 Bundler 模式的目录映射。两个应用直接检查 services 的源码导出，不继承 services 的 tsconfig，所以三个入口缺一不可。三个包的 `typecheck` 脚本显式使用对应配置，根 `pnpm typecheck` 及 CI 递归调用这些脚本。专用配置继承各自的默认 `tsconfig.json`；因 Node 预设的 `${configDir}` 随入口配置位置变化，专用配置显式还原原项目的 `rootDir` 与完整 `src`、`test`、`scripts`、根目录 `*.ts` 范围，其余检查选项继承原值。通用 Node 预设和 React 18 小程序不受影响。
+
+声明映射只放在 `infra/ci/server-react-types/` 的专用配置，默认 `tsconfig.json` 不含这些 paths。`tsx` 会读取默认配置并把显式 `.d.ts` 映射当作运行时模块，曾导致 `seeded-db` 在导入 `react.createElement` 时直接退出；构建及 CLI 因此继续使用默认配置。API 构建将非 workspace 包 external，worker 的 external 清单已有 `react` 与 renderer，保留原运行时依赖。手动检查这三个包时也应执行包的 `typecheck` 脚本，或在仓库根目录用 `tsc --noEmit -p infra/ci/server-react-types/<包名>.json`。
+
+`test/server-react-types.test.ts` 将真实 renderer 声明与已安装的 React 18/19 声明复制到临时树，固定其私有提升为 18，并读取三个入口的真实类型检查配置：先核脚本入口、与默认配置相同的完整文件集合和所有非 paths 编译选项，再移除 paths 重现 `contextType` 冲突，保留 paths 后同一 `renderToBuffer(createElement(...))` 必须零诊断，连 `react/jsx-runtime` 也解析到 19。文件集合夹具同时覆盖 `src`、`test`、`scripts` 与根目录；选项对比只排除 paths 及配置文件/paths 解析位置元数据。三个用例都完整检查 TypeScript Program；单项解析明确使用 renderer 实际的 ESM mode，不能用缺省 CJS 解析通过代替。另有三个独立子进程用例，从各入口 cwd 执行真实 `node --import tsx`，核默认配置下 `createElement` 与 `jsx` 都产生有效 React 19 元素。测试不改真实 `node_modules`，不依赖本次安装恰好提升哪一份。
+
 ### 7.3 检查
 
 `pnpm check:type-hoist`（`check-type-hoist.mjs`），`verify` 里排在“类型”之后。对工作区里每个写 JSX 的工程（展开后的 tsconfig 里有 `jsx` 选项的），照它的 tsconfig 建一遍程序：只读文件、解析导入，不做类型检查。然后查两条：
@@ -327,7 +335,7 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 限度：
 
 - 第 1 条只认“各工程直接装得不一样”的包，这正是出事的那一种：pnpm 把各项目直接声明的依赖排在最前、并成一层，同名的按项目的先后取第一个。没有哪个工程直接声明、只作为传递依赖装了几份的包，经提升目录解析到也不判：它们提升哪一份由 pnpm 按依赖的深度与名字排序定，不随项目的次序变（依赖图里同一个包在不同工程下深浅差很多时理论上仍可能变，没有遇到过）。判了会误伤：锁文件里多出一份不相干的传递依赖（比如第二个版本的 `zod`，Playwright 的类型经提升目录引它），就会让后台的这道检查红，而后台没法把一个自己没装的包钉到“自己那一份”上。
-- 只查写 JSX 的工程。两个 React 大版本是仓库里唯一有意装两份的；服务端各包每个都要多建一遍程序，耗时跟着代码量涨，CI 里不查。要全查：`node infra/ci/check-type-hoist.mjs --all`（现在 9 个工程都通过）。
+- 只查写 JSX 的工程。两个 React 大版本是仓库里唯一有意装两份的；服务端各包每个都要多建一遍程序，耗时跟着代码量涨，CI 里不查。服务端 PDF 的三个入口由上述临时树用例固定反例；要全查实际安装树：`node infra/ci/check-type-hoist.mjs --all`。
 - 根上的 `tsconfig.json`、`infra/tsconfig.json` 与 `fixtures/` 下的最小工程不是工作区包，不查。
 - 只看类型解析。一个包运行时不声明就引 `react`（不是类型）时，构建工具同样会落到提升目录里的那一份 `react` 上；现在的依赖里没有这样的包，这道检查也看不到。
 - 工作区清单（`pnpm-workspace.yaml` 的 `packages`）只认“目录/\*”与不带通配符的目录两种写法，别的写法报错退出。
