@@ -315,7 +315,12 @@ export async function pendingTwoAccountLaunches(h: M5Harness) {
       entityId: f.o.entity.id,
       storeId: f.o.store.id,
       deliveryTicketId: f.id,
-      input: { submissionId: id, roundNo, title: "已上线账号重新核验的在途夹具" },
+      input: {
+        submissionId: id,
+        roundNo,
+        taskId: first.launchTaskId,
+        title: "已上线账号重新核验的在途夹具",
+      },
     });
     await tx.launchSubmission.update({
       where: { id: first.id },
