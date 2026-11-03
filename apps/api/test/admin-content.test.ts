@@ -1,6 +1,6 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runSeed, seedDemoContent, uuidv7 } from "@liyoxi/services";
 import {
   createCodecDemoMasterPreparer,
@@ -266,50 +266,55 @@ it("上下架真flow守卫与媒体错误，不以缺母版或错误文件假通
   expect(await trailer.json()).toMatchObject({ error: "FILE_NOT_USABLE" });
 });
 
-it("真实全母版种子后上下架重放只产生一次业务迁移；签名URL不持久化且初修订不重复", async () => {
-  const runtime = app.runtime,
-    db = await h.db.prisma();
-  await seedDemoContent(
-    {
-      ...runtime,
-      appEnv: "test",
-      prepareMasters: createCodecDemoMasterPreparer({ ...runtime, appEnv: "test" }),
-    },
-    admin.staff.id,
-  );
-  const drama = await db.drama.findFirstOrThrow({ where: { title: "巷口那家店" } });
-  const original = drama.firstListedAt,
-    revisionCount = await db.dramaCopyrightRevision.count({ where: { dramaId: drama.id } });
-  const delistKey = uuidv7();
-  await data(
-    await write("POST", `/dramas/${drama.id}/delist`, { reasonCode: "ops_strategy" }, delistKey),
-  );
-  const replay = await write(
-    "POST",
-    `/dramas/${drama.id}/delist`,
-    { reasonCode: "ops_strategy" },
-    delistKey,
-  );
-  expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
-  await data(replay);
-  const shelveKey = uuidv7();
-  const shelved = await data<AdminDramaDetail>(
-    await write("POST", `/dramas/${drama.id}/shelve`, {}, shelveKey),
-  );
-  expect(shelved.status).toBe("listed");
-  expect(shelved.posterUrl).not.toBeNull();
-  const replayShelve = await write("POST", `/dramas/${drama.id}/shelve`, {}, shelveKey);
-  expect(replayShelve.headers.get("Idempotent-Replayed")).toBe("true");
-  expect((await data<AdminDramaDetail>(replayShelve)).posterUrl).toBeNull();
-  expect((await db.drama.findUniqueOrThrow({ where: { id: drama.id } })).firstListedAt).toEqual(
-    original,
-  );
-  expect(await db.dramaCopyrightRevision.count({ where: { dramaId: drama.id } })).toBe(
-    revisionCount,
-  );
-  expect(
-    await db.statusTransition.count({ where: { subjectId: drama.id, event: "drama.relist" } }),
-  ).toBe(1);
+describe("真实母版准备后的内容操作", () => {
+  beforeAll(async () => {
+    const runtime = app.runtime;
+    await seedDemoContent(
+      {
+        ...runtime,
+        appEnv: "test",
+        prepareMasters: createCodecDemoMasterPreparer({ ...runtime, appEnv: "test" }),
+      },
+      admin.staff.id,
+    );
+  });
+
+  it("真实全母版种子后上下架重放只产生一次业务迁移；签名URL不持久化且初修订不重复", async () => {
+    const db = await h.db.prisma();
+    const drama = await db.drama.findFirstOrThrow({ where: { title: "巷口那家店" } });
+    const original = drama.firstListedAt,
+      revisionCount = await db.dramaCopyrightRevision.count({ where: { dramaId: drama.id } });
+    const delistKey = uuidv7();
+    await data(
+      await write("POST", `/dramas/${drama.id}/delist`, { reasonCode: "ops_strategy" }, delistKey),
+    );
+    const replay = await write(
+      "POST",
+      `/dramas/${drama.id}/delist`,
+      { reasonCode: "ops_strategy" },
+      delistKey,
+    );
+    expect(replay.headers.get("Idempotent-Replayed")).toBe("true");
+    await data(replay);
+    const shelveKey = uuidv7();
+    const shelved = await data<AdminDramaDetail>(
+      await write("POST", `/dramas/${drama.id}/shelve`, {}, shelveKey),
+    );
+    expect(shelved.status).toBe("listed");
+    expect(shelved.posterUrl).not.toBeNull();
+    const replayShelve = await write("POST", `/dramas/${drama.id}/shelve`, {}, shelveKey);
+    expect(replayShelve.headers.get("Idempotent-Replayed")).toBe("true");
+    expect((await data<AdminDramaDetail>(replayShelve)).posterUrl).toBeNull();
+    expect((await db.drama.findUniqueOrThrow({ where: { id: drama.id } })).firstListedAt).toEqual(
+      original,
+    );
+    expect(await db.dramaCopyrightRevision.count({ where: { dramaId: drama.id } })).toBe(
+      revisionCount,
+    );
+    expect(
+      await db.statusTransition.count({ where: { subjectId: drama.id, event: "drama.relist" } }),
+    ).toBe(1);
+  });
 });
 it("预告片真实source检查/180秒及同file-spec复用，失败可重试、retired严格拒，不新建重复任务", async () => {
   const db = await h.db.prisma(),
