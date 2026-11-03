@@ -450,10 +450,55 @@ const fixture: AdminLiveFixture = async ({ runtime, make }) => {
       },
     );
     if (login.me.user.merchantUserId !== user.id) throw new Error("W609 商家会话归属不符");
+    phase = "staff_manifest";
+    // Only describe rows already created by this fixture, including make.drama's implicit creator.
+    // Bare historical dramas have no copyright row, so admin.drama.get intentionally cannot read them.
+    const deliveries = [live, ...offline];
+    const staffManifest = await tx.run(async (db) => {
+      const items = await db.orderItem.findMany({
+        where: {
+          id: { in: deliveries.map((item) => item.itemId) },
+          entityId: entity.id,
+          storeId: store.id,
+        },
+        select: { id: true, drama: { select: { id: true, createdByStaffId: true } } },
+      });
+      if (items.length !== deliveries.length) throw new Error("W609 员工清单订购项范围不完整");
+      const staffIds = [
+        manager.id,
+        publisher.id,
+        ...items.map((item) => item.drama.createdByStaffId),
+      ];
+      if (new Set(staffIds).size !== staffIds.length)
+        throw new Error("W609 员工清单未保留独立创建人");
+      const rows = await db.staff.findMany({
+        where: { id: { in: staffIds } },
+        select: { id: true, name: true, staffRoleKey: true, status: true },
+      });
+      const actor = (id: string, roleKey: string) => {
+        const row = rows.find((person) => person.id === id);
+        if (!row || row.staffRoleKey !== roleKey || row.status !== "active")
+          throw new Error("W609 员工清单角色或状态不符");
+        return { staffId: row.id, name: row.name, roleKey: row.staffRoleKey, status: row.status };
+      };
+      return {
+        manager: actor(manager.id, "delivery_manager"),
+        publisher: actor(publisher.id, "publisher"),
+        creators: deliveries.map((delivery) => {
+          const item = items.find((row) => row.id === delivery.itemId)!;
+          return {
+            orderItemId: item.id,
+            dramaId: item.drama.id,
+            staff: actor(item.drama.createdByStaffId, "content_ops"),
+          };
+        }),
+      };
+    });
     return {
       scope: { ...scope, startedAt, staffId: admin.id, entityId: entity.id, storeId: store.id },
       runId: scope.runId,
       storeId: store.id,
+      staffManifest,
       live: { ...live, patrolTaskId: patrolTask.patrolTask.patrolTaskId },
       offline,
       health,

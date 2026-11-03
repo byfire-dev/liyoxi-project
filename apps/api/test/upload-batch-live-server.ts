@@ -70,6 +70,7 @@ export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
 export function parseInvoiceLiveEnvelope(raw: unknown) {
   let w609: ReturnType<typeof parseW609EvidenceUploadScope> | undefined;
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w609" in raw) {
+    parseOutputBatchLiveManifest(raw);
     const { w609: evidenceScope, ...legacy } = raw;
     w609 = parseW609EvidenceUploadScope(evidenceScope);
     raw = legacy;

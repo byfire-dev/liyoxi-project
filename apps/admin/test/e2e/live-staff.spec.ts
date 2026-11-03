@@ -1,7 +1,13 @@
 // W1-02②：生产后台连真实 API，复用登录态与专属库的员工造数。
 import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { StaffListItemSchema, adminPage } from "@liyoxi/contract";
+import {
+  DeliveryTicketDetailSchema,
+  IdSchema,
+  StaffListItemSchema,
+  adminPage,
+  z,
+} from "@liyoxi/contract";
 import { liveContext, noHorizontalScroll, recordErrors } from "./live-context";
 import { ensureLiveStepUp } from "./live-step-up";
 
@@ -9,6 +15,78 @@ interface StaffFixture {
   staff: { id: string; name: string; roleKey: string; status: string; phoneLast4: string }[];
   newStaff: { name: string; phone: string };
 }
+interface StaffActor {
+  staffId: string;
+  name: string;
+  roleKey: string;
+  status: string;
+}
+interface W609StaffFixture {
+  runId: string;
+  scope: { entityId: string; storeId: string };
+  live: { orderId: string; itemId: string; ticketId: string };
+  offline: { orderId: string; itemId: string; ticketId: string }[];
+  staffManifest: unknown;
+}
+const StaffActorSchema = StaffListItemSchema.pick({
+  staffId: true,
+  name: true,
+  roleKey: true,
+  status: true,
+}).strict();
+const W609StaffManifestSchema = z.strictObject({
+  manager: StaffActorSchema,
+  publisher: StaffActorSchema,
+  creators: z.array(
+    z.strictObject({ orderItemId: IdSchema, dramaId: IdSchema, staff: StaffActorSchema }),
+  ),
+});
+async function w609StaffActors(page: Page, fixture: W609StaffFixture): Promise<StaffActor[]> {
+  // 独立期望来自本轮夹具的已建行清单，再用工单关联复核；不从员工列表反推。
+  expect(fixture.offline).toHaveLength(3);
+  const deliveries = [fixture.live, ...fixture.offline];
+  expect(new Set(deliveries.map((item) => item.ticketId)).size).toBe(deliveries.length);
+  const manifest = W609StaffManifestSchema.parse(fixture.staffManifest);
+  expect(manifest.manager).toMatchObject({
+    name: `W609交付-${fixture.runId}`,
+    roleKey: "delivery_manager",
+    status: "active",
+  });
+  expect(manifest.publisher).toMatchObject({
+    name: `W609发布-${fixture.runId}`,
+    roleKey: "publisher",
+    status: "active",
+  });
+  expect(manifest.creators.map((item) => item.orderItemId).sort()).toEqual(
+    deliveries.map((item) => item.itemId).sort(),
+  );
+  const assigned = [manifest.manager, manifest.publisher];
+  const creators = manifest.creators.map((item) => item.staff);
+  for (const actor of creators)
+    expect(actor).toMatchObject({ roleKey: "content_ops", status: "active" });
+  for (const item of deliveries) {
+    const creator = manifest.creators.find((row) => row.orderItemId === item.itemId)!;
+    const response = await page.request.get(`/api/v1/admin/delivery-tickets/${item.ticketId}`);
+    expect(response.status()).toBe(200);
+    const ticket = DeliveryTicketDetailSchema.parse((await response.json()).data);
+    expect(ticket).toMatchObject({
+      deliveryTicketId: item.ticketId,
+      orderItemId: item.itemId,
+      order: { orderId: item.orderId },
+      store: { storeId: fixture.scope.storeId, entityId: fixture.scope.entityId },
+      orderItem: { orderItemId: item.itemId, dramaId: creator.dramaId },
+      deliveryManager: manifest.manager,
+      publisher: manifest.publisher,
+    });
+  }
+  expect(assigned).toHaveLength(2);
+  expect(new Set(creators.map((actor) => actor.staffId)).size).toBe(deliveries.length);
+  const actors = [...assigned, ...creators];
+  expect(new Set(actors.map((actor) => actor.staffId)).size).toBe(actors.length);
+  return actors;
+}
+const pageItemCount = (total: number, pageSize: number, page: number) =>
+  Math.min(pageSize, Math.max(0, total - (page - 1) * pageSize));
 async function shot(page: Page, name: string) {
   await noHorizontalScroll(page, name);
   mkdirSync("dist/e2e-shots", { recursive: true });
@@ -39,12 +117,13 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
           invoices: { reviewerStaffId: string };
         };
         w514: { editor: { staffId: string } };
+        w609: W609StaffFixture;
       };
     }
   ).fixtures;
   const fixture = fixtures.staff;
   expect(fixture.staff).toHaveLength(10);
-  const addedActors = [
+  const existingAddedActors = [
     {
       staffId: fixtures.w514.editor.staffId,
       name: "W514广告剪辑师",
@@ -82,12 +161,15 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
       status: "active",
     },
   ];
-  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(6);
-  // 原19人逐项保留；W513 P2仅追加一位真实激活的独立财务审批人。
+  expect(new Set(existingAddedActors.map((actor) => actor.staffId)).size).toBe(6);
+  // 保留原14人与W513/W514/W418六人的精确基数，再计本轮W609独立名单。
   const originalStaffCount = 1 + fixture.staff.length + 2 + 1;
   expect(originalStaffCount).toBe(14);
+  expect(originalStaffCount + existingAddedActors.length).toBe(20);
+  const w609Actors = await w609StaffActors(page, fixtures.w609);
+  const addedActors = [...existingAddedActors, ...w609Actors];
+  expect(new Set(addedActors.map((actor) => actor.staffId)).size).toBe(addedActors.length);
   const expectedStaffCount = originalStaffCount + addedActors.length;
-  expect(expectedStaffCount).toBe(20);
   const errors = recordErrors(page);
   const firstList = page.waitForRequest(
     (request) =>
@@ -104,22 +186,55 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   expect(firstResponse!.status()).toBe(200);
   const initialStaff = adminPage(StaffListItemSchema).parse((await firstResponse!.json()).data);
   expect(initialStaff.total).toBe(expectedStaffCount);
-  expect(initialStaff.items).toHaveLength(expectedStaffCount);
-  for (const actor of addedActors) {
-    expect(fixture.staff.map((item) => item.id)).not.toContain(actor.staffId);
-    expect(initialStaff.items.filter((item) => item.staffId === actor.staffId)).toEqual([
-      expect.objectContaining(actor),
-    ]);
-  }
+  expect(initialStaff.page).toBe(1);
+  expect(initialStaff.pageSize).toBe(20);
+  expect(initialStaff.items).toHaveLength(pageItemCount(expectedStaffCount, 20, 1));
   await expect(page.getByRole("heading", { name: "员工账号", exact: true })).toBeVisible();
   const table = page.getByRole("table");
   await expect(table.getByRole("columnheader")).toHaveCount(8);
   await expect(table.getByRole("columnheader", { name: /手机号.*已脱敏/ })).toBeVisible();
   await expect(table).toContainText("****");
-  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount + 1);
+  const allStaff = [...initialStaff.items];
+  let currentStaff = initialStaff;
+  const initialPageCount = Math.ceil(expectedStaffCount / 20);
+  for (let pageNo = 1; pageNo <= initialPageCount; pageNo++) {
+    if (pageNo > 1) {
+      const nextList = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          response.request().method() === "GET" &&
+          url.pathname === "/api/v1/admin/staff" &&
+          url.searchParams.get("page") === String(pageNo) &&
+          url.searchParams.get("pageSize") === "20"
+        );
+      });
+      await page.getByRole("button", { name: "下一页", exact: true }).click();
+      const response = await nextList;
+      expect(response.status()).toBe(200);
+      currentStaff = adminPage(StaffListItemSchema).parse((await response.json()).data);
+      allStaff.push(...currentStaff.items);
+    }
+    expect(currentStaff.total).toBe(expectedStaffCount);
+    expect(currentStaff.page).toBe(pageNo);
+    expect(currentStaff.pageSize).toBe(20);
+    expect(currentStaff.items).toHaveLength(pageItemCount(expectedStaffCount, 20, pageNo));
+    await expect(table.getByRole("row")).toHaveCount(currentStaff.items.length + 1);
+    for (const actor of currentStaff.items) {
+      await expect(table.getByText(actor.name, { exact: true })).toHaveCount(1);
+      await expect(table.getByText(actor.name, { exact: true })).toBeVisible();
+    }
+  }
+  expect(allStaff).toHaveLength(expectedStaffCount);
+  expect(new Set(allStaff.map((actor) => actor.staffId)).size).toBe(expectedStaffCount);
   for (const actor of addedActors) {
-    await expect(table.getByText(actor.name, { exact: true })).toHaveCount(1);
-    await expect(table.getByText(actor.name, { exact: true })).toBeVisible();
+    expect(fixture.staff.map((item) => item.id)).not.toContain(actor.staffId);
+    expect(allStaff.filter((item) => item.staffId === actor.staffId)).toEqual([
+      expect.objectContaining({ ...actor }),
+    ]);
+  }
+  for (let pageNo = initialPageCount; pageNo > 1; pageNo--) {
+    await page.getByRole("button", { name: "上一页", exact: true }).click();
+    await expect(page.getByLabel(`第 ${pageNo - 1} 页`, { exact: true })).toBeVisible();
   }
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("演练渠道", { exact: true })).toBeVisible();
@@ -130,9 +245,12 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
 
   await select(page, "全部角色", "交付经理");
   await expect(page).toHaveURL(/roleKey=delivery_manager/);
-  await expect(table.getByRole("row")).toHaveCount(3);
+  const addedManagers = w609Actors.filter((actor) => actor.roleKey === "delivery_manager");
+  await expect(table.getByRole("row")).toHaveCount(3 + addedManagers.length);
   await expect(table.getByText("演练交付", { exact: true })).toBeVisible();
   await expect(table.getByText("W215原交付经理", { exact: true })).toBeVisible();
+  for (const actor of addedManagers)
+    await expect(table.getByText(actor.name, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "重置筛选", exact: true }).click();
   await select(page, "全部状态", "已禁用");
   await expect(page).toHaveURL(/status=disabled/);
@@ -149,11 +267,22 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await expect(page).toHaveURL(/pageSize=10/);
   await page.getByRole("button", { name: "下一页", exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount - 10 + 1);
+  await expect(table.getByRole("row")).toHaveCount(pageItemCount(expectedStaffCount, 10, 2) + 1);
   await page.reload();
   await expect(page.getByLabel("第 2 页", { exact: true })).toBeVisible();
-  await expect(table.getByRole("row")).toHaveCount(expectedStaffCount - 10 + 1);
-  await page.getByRole("button", { name: "上一页", exact: true }).click();
+  await expect(table.getByRole("row")).toHaveCount(pageItemCount(expectedStaffCount, 10, 2) + 1);
+  const smallPageCount = Math.ceil(expectedStaffCount / 10);
+  for (let pageNo = 3; pageNo <= smallPageCount; pageNo++) {
+    await page.getByRole("button", { name: "下一页", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`page=${pageNo}(?:&|$)`));
+    await expect(table.getByRole("row")).toHaveCount(
+      pageItemCount(expectedStaffCount, 10, pageNo) + 1,
+    );
+  }
+  for (let pageNo = smallPageCount; pageNo > 1; pageNo--) {
+    await page.getByRole("button", { name: "上一页", exact: true }).click();
+    await expect(page.getByLabel(`第 ${pageNo - 1} 页`, { exact: true })).toBeVisible();
+  }
   await noHorizontalScroll(page, "员工分页");
 
   await page.getByRole("button", { name: "＋ 新增员工", exact: true }).click();
@@ -185,10 +314,16 @@ test("员工筛选、分页URL与新增manual一次性激活码，同步双提�
   await page.getByRole("button", { name: "我已记下，关闭", exact: true }).click();
   await expect(code).toHaveCount(0);
   await expect(page).toHaveURL(`${context.origin}/sys/staff`);
-  // 初始20人完整保留，新建的第21人按原默认排序位于第二页；不扩大pageSize。
-  await page.getByRole("button", { name: "下一页", exact: true }).click();
-  await expect(page).toHaveURL(/page=2/);
-  await expect(table.getByRole("row")).toHaveCount(2);
+  // 原名单完整保留；新员工按工号排序位于默认20条分页的末页，不扩大pageSize。
+  const createdStaffCount = expectedStaffCount + 1;
+  const createdPageCount = Math.ceil(createdStaffCount / 20);
+  for (let pageNo = 2; pageNo <= createdPageCount; pageNo++) {
+    await page.getByRole("button", { name: "下一页", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`page=${pageNo}(?:&|$)`));
+  }
+  await expect(table.getByRole("row")).toHaveCount(
+    pageItemCount(createdStaffCount, 20, createdPageCount) + 1,
+  );
   const row = table.getByRole("row").filter({ hasText: fixture.newStaff.name });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("待激活");
