@@ -6,9 +6,9 @@
 | 原因 | 系统首次预填值可能超过现有保存契约，需在生成处修复；页面仍保留真实字段错误及手动纠正路径 |
 | 影响的包 | W6-02 首次预填与本域回归；W6-08 消费合入后的后端，不承担该 writer 修改；不改变任务书依赖、规模或评审级别 |
 | 类别 | 拆并 |
-| PR | 待调度填写 |
+| PR | #280 |
 
-代码基线为调度核实的 actual main `27eb`，独立分支 `codex/m6-publish-defaults`。依据为 a06-publish §3.9、a04-content §3.1/3.4、10-delivery §2.14/2.15 及实际请求 schema。只涉及 delivery 首次预填、纯函数/真库回归及本域 README；无新 API、迁移、依赖、门禁或契约变更。
+开工基线为调度核实的 actual main `27eb`；已普通同步 W6-06 合入后的 `eced55735`，独立分支 `codex/m6-publish-defaults`。依据为 a06-publish §3.9、a04-content §3.1/3.4、10-delivery §2.14/2.15 及实际请求 schema。只涉及 delivery 首次预填、纯函数/真库回归及本域 README；无新 API、迁移、依赖、门禁或契约变更。
 
 ## 查实的问题
 
