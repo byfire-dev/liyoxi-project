@@ -1,6 +1,16 @@
 import { Button, Text, View } from "@tarojs/components";
 import { useState } from "react";
-import { api, ensurePrivacy, errorCode, isFake, login, observe, report } from "../../lib/api";
+import {
+  api,
+  ensurePrivacy,
+  errorCode,
+  getProbeMode,
+  isFake,
+  login,
+  observe,
+  report,
+} from "../../lib/api";
+import type { ProbeMode } from "../../lib/api";
 import { Frame } from "../../lib/frame";
 
 type PhoneEvent = { detail: { code?: string; errno?: number; errMsg?: string } };
@@ -34,8 +44,10 @@ export default function LoginPage() {
     if (busy) return;
     setBusy(true);
     let code = "";
+    let originMode: ProbeMode | "unknown" = "unknown";
     let result: "success" | "failure" | "cancelled" = "success";
     try {
+      originMode = await getProbeMode(true);
       if (!event.detail.code) throw event.detail;
       const value = await api<Phone>("/phone", "POST", { code: event.detail.code, kind });
       setMessage(
@@ -46,14 +58,17 @@ export default function LoginPage() {
       result = code === "CANCELLED" ? "cancelled" : "failure";
       setMessage(code);
     } finally {
-      await report({
-        item: "V19",
-        scenario: `${kind}_${scenario}`,
-        sizeBytes: 0,
-        durationMs: Date.now() - (started || Date.now()),
-        result,
-        errorCode: code,
-      });
+      await report(
+        {
+          item: "V19",
+          scenario: `${kind}_${scenario}`,
+          sizeBytes: 0,
+          durationMs: Date.now() - (started || Date.now()),
+          result,
+          errorCode: code,
+        },
+        originMode,
+      );
       setBusy(false);
     }
   };

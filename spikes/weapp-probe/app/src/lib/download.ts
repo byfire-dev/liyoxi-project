@@ -1,5 +1,16 @@
 import Taro from "@tarojs/taro";
-import { api, ensurePrivacy, errorCode, isFake, newId, ProbeError, report } from "./api";
+import {
+  api,
+  baseUrl,
+  ensurePrivacy,
+  errorCode,
+  getProbeMode,
+  newId,
+  ProbeError,
+  quarantine,
+  report,
+} from "./api";
+import type { ProbeMode } from "./api";
 import { fileInfo } from "./native";
 import { keepAwake } from "./awake";
 
@@ -12,6 +23,8 @@ type Job = {
   started?: number;
 };
 export type Queue = {
+  probeMode: ProbeMode;
+  serviceUrl: string;
   runId: string;
   sizeMb: number;
   mode: DiskMode;
@@ -73,12 +86,33 @@ export async function cleanResidualFiles() {
   const files = Taro.getStorageSync<string[]>(filesKey) || [];
   for (const file of files) await unlink(file);
 }
-export function initializeDownloads(): Promise<void> {
-  initialization ||= initialize();
-  return initialization;
+export async function initializeDownloads(): Promise<void> {
+  if (!initialization) {
+    initialization = initialize();
+    try {
+      await initialization;
+    } catch (error) {
+      initialization = undefined;
+      throw error;
+    }
+  } else {
+    await initialization;
+    isolateQueue(await getProbeMode(true));
+  }
+}
+function isolateQueue(mode: ProbeMode) {
+  if (!queue || (queue.probeMode === mode && queue.serviceUrl === baseUrl)) return;
+  queue.paused = true;
+  tasks.forEach((task) => task.abort());
+  quarantine("download_queue", queue);
+  queue = undefined;
+  Taro.removeStorageSync(queueKey);
+  publish();
 }
 async function initialize() {
+  const mode = await getProbeMode(true);
   queue = Taro.getStorageSync<Queue>(queueKey) || undefined;
+  isolateQueue(mode);
   if (queue) {
     queue.paused = true;
     for (const job of queue.jobs) {
@@ -86,19 +120,22 @@ async function initialize() {
         const previous = job.status;
         job.status = previous === "saving" ? "failed" : "interrupted";
         job.error = previous === "saving" ? "SAVE_RESULT_UNKNOWN" : "PROCESS_INTERRUPTED";
-        await report({
-          item: "V7",
-          scenario: queue.scenario,
-          sizeBytes: queue.sizeMb * 1000000,
-          durationMs: Date.now() - (job.started || Date.now()),
-          result: "interrupted",
-          errorCode: job.error,
-          mode: queue.mode,
-          runId: queue.runId,
-          index: job.index,
-          attemptId: `${queue.runId}-${job.index}-${job.attempt}`,
-          phase: previous,
-        });
+        await report(
+          {
+            item: "V7",
+            scenario: queue.scenario,
+            sizeBytes: queue.sizeMb * 1000000,
+            durationMs: Date.now() - (job.started || Date.now()),
+            result: "interrupted",
+            errorCode: job.error,
+            mode: queue.mode,
+            runId: queue.runId,
+            index: job.index,
+            attemptId: `${queue.runId}-${job.index}-${job.attempt}`,
+            phase: previous,
+          },
+          queue.probeMode,
+        );
       }
     }
   }
@@ -128,23 +165,29 @@ export async function startDownloads(
   )
     throw new ProbeError("QUEUE_NOT_FINISHED");
   const started = Date.now();
+  const originMode = await getProbeMode();
   try {
-    if (!(await isFake())) await authorizeAlbum();
+    if (originMode === "real") await authorizeAlbum();
   } catch (error) {
     const code = errorCode(error);
-    await report({
-      item: "V7",
-      scenario,
-      sizeBytes: sizeMb * 1000000,
-      durationMs: Date.now() - started,
-      result: code === "CANCELLED" ? "cancelled" : "failure",
-      errorCode: code,
-      mode,
-      phase: "preflight",
-    });
+    await report(
+      {
+        item: "V7",
+        scenario,
+        sizeBytes: sizeMb * 1000000,
+        durationMs: Date.now() - started,
+        result: code === "CANCELLED" ? "cancelled" : "failure",
+        errorCode: code,
+        mode,
+        phase: "preflight",
+      },
+      originMode,
+    );
     throw error;
   }
   queue = {
+    probeMode: originMode,
+    serviceUrl: baseUrl,
     runId: newId(),
     sizeMb,
     mode,
@@ -196,18 +239,21 @@ export async function resolveUnknownDownload(index: number, saved: boolean) {
   job.status = saved ? "saved" : "pending";
   job.error = "";
   publish();
-  await report({
-    item: "V7",
-    scenario: queue.scenario,
-    sizeBytes: queue.sizeMb * 1000000,
-    durationMs: 0,
-    result: saved ? "success" : "interrupted",
-    errorCode: saved ? "" : "MANUALLY_NOT_SAVED",
-    mode: queue.mode,
-    runId: queue.runId,
-    index,
-    phase: saved ? "album_manually_confirmed" : "album_retry_confirmed",
-  });
+  await report(
+    {
+      item: "V7",
+      scenario: queue.scenario,
+      sizeBytes: queue.sizeMb * 1000000,
+      durationMs: 0,
+      result: saved ? "success" : "interrupted",
+      errorCode: saved ? "" : "MANUALLY_NOT_SAVED",
+      mode: queue.mode,
+      runId: queue.runId,
+      index,
+      phase: saved ? "album_manually_confirmed" : "album_retry_confirmed",
+    },
+    queue.probeMode,
+  );
   if (!saved) resumeDownloads();
 }
 export async function abandonDownloads() {
@@ -215,18 +261,21 @@ export async function abandonDownloads() {
   for (const job of queue.jobs) {
     if (job.status === "pending" || job.status === "interrupted") {
       job.status = "cancelled";
-      await report({
-        item: "V7",
-        scenario: queue.scenario,
-        sizeBytes: queue.sizeMb * 1000000,
-        durationMs: 0,
-        result: "cancelled",
-        errorCode: "QUEUE_ABANDONED",
-        mode: queue.mode,
-        runId: queue.runId,
-        index: job.index,
-        phase: "queue",
-      });
+      await report(
+        {
+          item: "V7",
+          scenario: queue.scenario,
+          sizeBytes: queue.sizeMb * 1000000,
+          durationMs: 0,
+          result: "cancelled",
+          errorCode: "QUEUE_ABANDONED",
+          mode: queue.mode,
+          runId: queue.runId,
+          index: job.index,
+          phase: "queue",
+        },
+        queue.probeMode,
+      );
     }
   }
   publish();
@@ -257,9 +306,13 @@ async function perform(run: Queue, job: Job) {
   let result: "success" | "failure" | "interrupted" = "success";
   let size = run.sizeMb * 1000000;
   try {
+    if (run.probeMode !== (await getProbeMode(true)) || run.serviceUrl !== baseUrl) {
+      run.paused = true;
+      throw new ProbeError("PROBE_MODE_MISMATCH");
+    }
     const signed = await api<Signed>(`/downloads/${run.sizeMb}?mode=${run.mode}`);
     size = signed.size;
-    if (await isFake()) {
+    if (run.probeMode === "fake") {
       job.status = "saved";
       phase = "fake_endpoints_only";
       return;
@@ -317,18 +370,21 @@ async function perform(run: Queue, job: Job) {
         phase = saved ? "saved_cleanup_failed" : "cleanup_failed";
       }
     }
-    await report({
-      item: "V7",
-      scenario: run.scenario,
-      sizeBytes: size,
-      durationMs: Date.now() - (job.started || Date.now()),
-      result,
-      errorCode: code,
-      mode: run.mode,
-      runId: run.runId,
-      index: job.index,
-      attemptId: `${run.runId}-${job.index}-${job.attempt}`,
-      phase,
-    });
+    await report(
+      {
+        item: "V7",
+        scenario: run.scenario,
+        sizeBytes: size,
+        durationMs: Date.now() - (job.started || Date.now()),
+        result,
+        errorCode: code,
+        mode: run.mode,
+        runId: run.runId,
+        index: job.index,
+        attemptId: `${run.runId}-${job.index}-${job.attempt}`,
+        phase,
+      },
+      run.probeMode,
+    );
   }
 }

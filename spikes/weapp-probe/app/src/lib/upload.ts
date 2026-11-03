@@ -1,7 +1,18 @@
 import Taro from "@tarojs/taro";
 import COS from "cos-wx-sdk-v5";
 import type { CosClient } from "cos-wx-sdk-v5";
-import { api, ensurePrivacy, errorCode, isFake, newId, ProbeError, report } from "./api";
+import {
+  api,
+  baseUrl,
+  ensurePrivacy,
+  errorCode,
+  getProbeMode,
+  newId,
+  ProbeError,
+  quarantine,
+  report,
+} from "./api";
+import type { ProbeMode } from "./api";
 import { fileInfo } from "./native";
 import { keepAwake } from "./awake";
 
@@ -16,6 +27,8 @@ type Credential = {
   Key: string;
 };
 type Pending = {
+  probeMode: ProbeMode;
+  serviceUrl: string;
   runId: string;
   started: number;
   size: number;
@@ -44,18 +57,26 @@ let current: Pending | undefined;
 export async function recoverUpload() {
   const pending = Taro.getStorageSync<Pending>(pendingKey);
   if (!pending || current) return;
-  await report({
-    item: "V3",
-    scenario: pending.scenario,
-    sizeBytes: pending.size,
-    durationMs: Date.now() - pending.started,
-    result: "interrupted",
-    errorCode: "PROCESS_INTERRUPTED",
-    runId: pending.runId,
-    attemptId: `${pending.runId}-interrupted`,
-    completedParts: pending.completedParts,
-    totalParts: pending.totalParts,
-  });
+  if (pending.probeMode !== (await getProbeMode(true)) || pending.serviceUrl !== baseUrl) {
+    quarantine("upload_pending", pending);
+    Taro.removeStorageSync(pendingKey);
+    return;
+  }
+  await report(
+    {
+      item: "V3",
+      scenario: pending.scenario,
+      sizeBytes: pending.size,
+      durationMs: Date.now() - pending.started,
+      result: "interrupted",
+      errorCode: "PROCESS_INTERRUPTED",
+      runId: pending.runId,
+      attemptId: `${pending.runId}-interrupted`,
+      completedParts: pending.completedParts,
+      totalParts: pending.totalParts,
+    },
+    pending.probeMode,
+  );
   Taro.removeStorageSync(pendingKey);
 }
 export function pauseUpload() {
@@ -108,12 +129,14 @@ export async function upload(
   const refresh = () => update({ ...view });
   let result: "success" | "failure" | "cancelled" = "success";
   let code = "";
+  let originMode: ProbeMode | "unknown" = "unknown";
   refresh();
   try {
+    originMode = await getProbeMode(true);
     // Native digest avoids reading a 500 MB file into JavaScript memory. A platform size failure is a measured failure.
     const info = await fileInfo(file.path, "sha1");
     if (info.size !== file.size) throw new ProbeError("FILE_CHANGED");
-    const fingerprint = `${info.digest}-${info.size}`;
+    const fingerprint = `${originMode}:${baseUrl}:${info.digest}-${info.size}`;
     const tokens = Taro.getStorageSync<Record<string, string>>(tokensKey) || {};
     view.matched = !!tokens[fingerprint];
     const clientToken = tokens[fingerprint] || `file-${newId()}`;
@@ -124,14 +147,22 @@ export async function upload(
       clientToken,
       size: info.size,
     });
-    current = { started, runId, size: info.size, scenario, totalParts: view.totalParts };
+    current = {
+      probeMode: originMode,
+      serviceUrl: baseUrl,
+      started,
+      runId,
+      size: info.size,
+      scenario,
+      totalParts: view.totalParts,
+    };
     Taro.setStorageSync(pendingKey, current);
     const credentials = await api<Credential>(
       `/uploads/${registered.fileId}/credentials`,
       "POST",
       {},
     );
-    if (await isFake()) {
+    if (originMode === "fake") {
       view.state = "FAKE：只验证登记、临时凭证与确认端点，未传文件";
     } else {
       await new Promise<void>((resolve, reject) => {
@@ -229,7 +260,7 @@ export async function upload(
     }
     await api(`/uploads/${registered.fileId}/confirm`, "POST", { size: info.size });
     view.percent = 100;
-    if (!(await isFake())) view.state = "上传与大小核对成功";
+    if (originMode === "real") view.state = "上传与大小核对成功";
   } catch (error) {
     if (active) active.cos.cancelTask(active.taskId);
     code = errorCode(error);
@@ -241,21 +272,24 @@ export async function upload(
     complete = undefined;
     current = undefined;
     Taro.removeStorageSync(pendingKey);
-    await report({
-      item: "V3",
-      scenario,
-      sizeBytes: file.size,
-      durationMs: Date.now() - started,
-      result,
-      errorCode: code,
-      runId,
-      totalParts: view.totalParts,
-      sentParts: view.sentParts,
-      ...(view.partsObserved
-        ? { completedParts: view.completedParts, retransmittedParts: view.retransmittedParts }
-        : {}),
-      phase: view.partsObserved ? "parts_observed" : "parts_unobserved",
-    });
+    await report(
+      {
+        item: "V3",
+        scenario,
+        sizeBytes: file.size,
+        durationMs: Date.now() - started,
+        result,
+        errorCode: code,
+        runId,
+        totalParts: view.totalParts,
+        sentParts: view.sentParts,
+        ...(view.partsObserved
+          ? { completedParts: view.completedParts, retransmittedParts: view.retransmittedParts }
+          : {}),
+        phase: view.partsObserved ? "parts_observed" : "parts_unobserved",
+      },
+      originMode,
+    );
     refresh();
   }
 }

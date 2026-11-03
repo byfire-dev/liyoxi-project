@@ -30,6 +30,7 @@ const mock = vi.hoisted(() => {
 vi.mock("@tarojs/taro", () => ({
   default: {
     env: { USER_DATA_PATH: "/user" },
+    removeStorageSync: (key: string) => mock.storage.delete(key),
     getStorageSync: (key: string) => mock.storage.get(key),
     setStorageSync: (key: string, value: unknown) =>
       mock.storage.set(key, JSON.parse(JSON.stringify(value))),
@@ -53,7 +54,9 @@ vi.mock("@tarojs/taro", () => ({
 }));
 vi.mock("../src/lib/api", () => ({
   api: mock.api,
-  isFake: mock.fake,
+  baseUrl: "https://probe.example.invalid",
+  getProbeMode: async () => ((await mock.fake()) ? "fake" : "real"),
+  quarantine: (source: string, value: unknown) => mock.storage.set("quarantine", { source, value }),
   report: mock.report,
   ensurePrivacy: mock.privacy,
   newId: () => "test-run",
@@ -112,6 +115,7 @@ describe("download lifecycle with fake platform", () => {
     expect(mock.unlink).toHaveBeenCalledWith(expect.objectContaining({ filePath: "/temp/0.mp4" }));
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ result: "failure", phase: "saving" }),
+      "real",
     );
     expect(download.residualFiles()).toBe(0);
   });
@@ -129,6 +133,8 @@ describe("download lifecycle with fake platform", () => {
   });
   it("recovers interrupted downloads but keeps an unknown album result for manual review", async () => {
     mock.storage.set("lyx_probe_download_queue", {
+      probeMode: "real",
+      serviceUrl: "https://probe.example.invalid",
       runId: "old-run",
       sizeMb: 30,
       mode: "temp",
@@ -145,6 +151,7 @@ describe("download lifecycle with fake platform", () => {
     await download.initializeDownloads();
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ errorCode: "SAVE_RESULT_UNKNOWN", index: 3 }),
+      "real",
     );
     expect(download.residualFiles()).toBe(0);
     download.retryFailedDownloads();
@@ -158,11 +165,14 @@ describe("download lifecycle with fake platform", () => {
     await download.resolveUnknownDownload(3, true);
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ phase: "album_manually_confirmed", index: 3 }),
+      "real",
     );
     expect(mock.album).toHaveBeenCalledTimes(1);
   });
   it("retries an unknown save only after that episode is confirmed absent from the album", async () => {
     mock.storage.set("lyx_probe_download_queue", {
+      probeMode: "real",
+      serviceUrl: "https://probe.example.invalid",
       runId: "old-run",
       sizeMb: 30,
       mode: "temp",
@@ -181,6 +191,7 @@ describe("download lifecycle with fake platform", () => {
     expect(mock.album).toHaveBeenCalledTimes(1);
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ phase: "album_retry_confirmed", index: 1 }),
+      "real",
     );
   });
   it("records a preflight permission failure before any download is started", async () => {
@@ -196,6 +207,7 @@ describe("download lifecycle with fake platform", () => {
         result: "failure",
         errorCode: "PERMISSION_DENIED",
       }),
+      "real",
     );
   });
   it("fake mode never downloads files or asks for album permission", async () => {
@@ -208,6 +220,61 @@ describe("download lifecycle with fake platform", () => {
     expect(mock.privacy).not.toHaveBeenCalled();
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ phase: "fake_endpoints_only" }),
+      "fake",
     );
   });
 });
+
+it("does not carry fake saved episodes into a real queue after reconnect", async () => {
+  mock.fake.mockResolvedValue(true);
+  const fake = await import("../src/lib/download");
+  await fake.startDownloads(30, 2, "temp", "fake_run");
+  await vi.waitFor(() => expect(mock.report).toHaveBeenCalledTimes(2));
+  expect(mock.storage.get("lyx_probe_download_queue")).toMatchObject({
+    probeMode: "fake",
+    jobs: [{ status: "saved" }, { status: "saved" }],
+  });
+  mock.fake.mockResolvedValue(false);
+  vi.resetModules();
+  mock.report.mockClear();
+  const real = await import("../src/lib/download");
+  await real.initializeDownloads();
+  expect(mock.storage.has("lyx_probe_download_queue")).toBe(false);
+  expect(mock.storage.get("quarantine")).toMatchObject({
+    source: "download_queue",
+    value: { probeMode: "fake", jobs: [{ status: "saved" }, { status: "saved" }] },
+  });
+  expect(mock.report).not.toHaveBeenCalled();
+  real.resumeDownloads();
+  expect(mock.requests).toHaveLength(0);
+  await real.startDownloads(30, 1, "temp", "real_run");
+  await vi.waitFor(() => expect(mock.requests).toHaveLength(1));
+  expect(mock.storage.get("lyx_probe_download_queue")).toMatchObject({
+    probeMode: "real",
+    jobs: [{ status: "downloading" }],
+  });
+  finish(0);
+  await vi.waitFor(() => expect(mock.album).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(mock.report).toHaveBeenCalledTimes(1));
+});
+it.each([{}, { probeMode: "real", serviceUrl: "https://different.example.invalid" }])(
+  "quarantines legacy or foreign queues rather than restoring their saved count: %j",
+  async (origin) => {
+    mock.storage.set("lyx_probe_download_queue", {
+      ...origin,
+      runId: "old-run",
+      sizeMb: 30,
+      mode: "temp",
+      scenario: "baseline",
+      paused: false,
+      jobs: [{ index: 1, status: "saved", error: "", attempt: 1 }],
+    });
+    const download = await import("../src/lib/download");
+    await download.initializeDownloads();
+    download.resumeDownloads();
+    expect(mock.storage.has("lyx_probe_download_queue")).toBe(false);
+    expect(mock.storage.get("quarantine")).toMatchObject({ source: "download_queue" });
+    expect(mock.requests).toHaveLength(0);
+    expect(mock.report).not.toHaveBeenCalled();
+  },
+);

@@ -258,6 +258,7 @@ export function createProbe(
   });
   app.post("/api/probe/attempts", async (c) => {
     const attempt = attemptSchema.parse(await c.req.json());
+    if (attempt.probeMode !== config.mode) throw new ProbeError("PROBE_MODE_MISMATCH", 409);
     const id = attempt.attemptId ? `${c.get("session").identity}:${attempt.attemptId}` : undefined;
     if (!id || !attemptIds.has(id)) {
       record(redactor.row(attempt));

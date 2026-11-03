@@ -75,7 +75,7 @@ export function generateReport(root: string, mode: "fake" | "real") {
     const { recordedAt, probeMode, ...attempt } = input;
     if (!/^\d{4}-\d{2}-\d{2}T/.test(recordedAt) || !["real", "fake"].includes(probeMode))
       throw new Error("REPORT_INVALID_ROW");
-    return { ...attemptSchema.parse(attempt), recordedAt, probeMode };
+    return { ...attemptSchema.parse({ ...attempt, probeMode }), recordedAt, probeMode };
   });
   mkdirSync(path.join(root, "results"), { recursive: true });
   writeFileSync(

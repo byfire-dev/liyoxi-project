@@ -2,7 +2,7 @@ import { Button, Text, View } from "@tarojs/components";
 import Taro, { useDidShow } from "@tarojs/taro";
 import { useState } from "react";
 import type { PropsWithChildren } from "react";
-import { baseUrl, errorCode, flushAttempts, isFake, pendingCount } from "./api";
+import { baseUrl, errorCode, flushAttempts, isFake, pendingCount, quarantinedCount } from "./api";
 
 export function Frame({
   title,
@@ -11,11 +11,13 @@ export function Frame({
 }: PropsWithChildren<{ title: string; locked?: boolean }>) {
   const [mode, setMode] = useState("未连接");
   const [pending, setPending] = useState(0);
+  const [isolated, setIsolated] = useState(0);
   useDidShow(() => {
-    void isFake()
+    void isFake(true)
       .then((value) => setMode(value ? "FAKE：仅端点演练，不计真机结论" : "REAL：真实平台验证"))
       .catch((error) => setMode(errorCode(error)));
     setPending(pendingCount());
+    setIsolated(quarantinedCount());
   });
   return (
     <View>
@@ -44,11 +46,17 @@ export function Frame({
         onClick={() =>
           void flushAttempts()
             .catch(() => undefined)
-            .finally(() => setPending(pendingCount()))
+            .finally(() => {
+              setPending(pendingCount());
+              setIsolated(quarantinedCount());
+            })
         }
       >
         补传脱敏记录（待传 {pending}）
       </Button>
+      <Text className="line muted">
+        模式或服务来源不符/未知的记录与队列已隔离：{isolated}；不会混入当前实测。
+      </Text>
       <Text className="line muted">
         界面只显示脱敏结果。测试前核对清单的设备、网络与次数；每次手机号成功取号会计费。
       </Text>

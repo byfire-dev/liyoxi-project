@@ -1,9 +1,11 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
+import { ProbeError } from "./errors.ts";
 
 export const attemptSchema = z
   .object({
+    probeMode: z.enum(["fake", "real"]),
     item: z.enum(["V19", "V8", "V3", "V7"]),
     scenario: z.string().max(100),
     device: z.string().max(100),
@@ -49,7 +51,9 @@ export class Redactor {
     return Object.fromEntries(
       Object.entries(attempt).map(([key, value]) => [
         key,
-        typeof value === "string" ? this.text(value) : value,
+        typeof value === "string" && !["probeMode", "item", "result", "mode"].includes(key)
+          ? this.text(value)
+          : value,
       ]),
     ) as Attempt;
   }
@@ -60,11 +64,12 @@ export function fileRecorder(
   root = path.resolve(import.meta.dirname, "../.logs"),
 ) {
   return (attempt: Attempt) => {
+    if (attempt.probeMode !== mode) throw new ProbeError("PROBE_MODE_MISMATCH", 409);
     // Sanitize before write; never keep an unsanitized intermediate log.
     const row: RecordRow = {
       ...redactor.row(attempt),
       recordedAt: new Date().toISOString(),
-      probeMode: mode,
+      probeMode: attempt.probeMode,
     };
     mkdirSync(root, { recursive: true, mode: 0o700 });
     appendFileSync(path.join(root, `${mode}.jsonl`), `${JSON.stringify(row)}\n`, { mode: 0o600 });

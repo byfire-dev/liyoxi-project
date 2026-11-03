@@ -7,6 +7,7 @@ const mock = vi.hoisted(() => ({
   report: vi.fn(async () => undefined),
   refreshFailure: false,
   cancel: vi.fn(),
+  quarantine: vi.fn(),
   instances: [] as unknown[],
 }));
 vi.mock("@tarojs/taro", () => ({
@@ -22,7 +23,9 @@ vi.mock("@tarojs/taro", () => ({
 }));
 vi.mock("../src/lib/api", () => ({
   api: mock.api,
-  isFake: async () => false,
+  getProbeMode: async () => "real",
+  baseUrl: "https://probe.example.invalid",
+  quarantine: mock.quarantine,
   report: mock.report,
   ensurePrivacy: async () => undefined,
   newId: () => "generated-file-token",
@@ -113,6 +116,7 @@ describe("upload resume observations with fake platform", () => {
     );
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ completedParts: 2, sentParts: 1, result: "success" }),
+      "real",
     );
     expect(JSON.stringify(mock.report.mock.calls)).not.toMatch(
       /private-upload-id|temporary-key|temporary-token/,
@@ -131,7 +135,30 @@ describe("upload resume observations with fake platform", () => {
     expect(mock.cancel).toHaveBeenCalledWith("fake-task");
     expect(mock.report).toHaveBeenCalledWith(
       expect.objectContaining({ result: "failure", errorCode: "CREDENTIALS_UNAVAILABLE" }),
+      "real",
     );
     expect(mock.storage.has("lyx_probe_upload_pending")).toBe(false);
   });
+});
+
+it.each([
+  {},
+  { probeMode: "fake", serviceUrl: "https://probe.example.invalid" },
+  { probeMode: "real", serviceUrl: "https://different.example.invalid" },
+])("quarantines an interrupted upload whose origin is unknown or differs: %j", async (origin) => {
+  const pending = {
+    ...origin,
+    runId: "old-run",
+    started: Date.now(),
+    size: 150_000_000,
+    scenario: "process_reselect",
+    totalParts: 36,
+  };
+  mock.storage.set("lyx_probe_upload_pending", pending);
+  const upload = await import("../src/lib/upload");
+  await upload.recoverUpload();
+  expect(mock.quarantine).toHaveBeenCalledWith("upload_pending", pending);
+  expect(mock.report).not.toHaveBeenCalled();
+  expect(mock.api).not.toHaveBeenCalled();
+  expect(mock.storage.has("lyx_probe_upload_pending")).toBe(false);
 });

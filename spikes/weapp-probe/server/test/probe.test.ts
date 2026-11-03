@@ -20,6 +20,7 @@ const secrets: Secrets = {
   COS_TEST_PREFIX: "x01/test/",
 };
 const attempt: Attempt = {
+  probeMode: "fake",
   item: "V19",
   scenario: "quick",
   device: "test-device",
@@ -379,4 +380,31 @@ it("report separates fake/real, counts failures, computes median/max, and does n
   expect(report).toContain("| 4 | 3 | 75.0% | 250 | 400 |");
   expect(report).toContain("V7 | 未实测");
   expect(report).toContain("不自动宣告通过");
+});
+
+it("rejects fake or missing source mode at a real server before recording", async () => {
+  const rows: Attempt[] = [];
+  const app = createProbe({ ...fakeConfig, mode: "real" }, createFakeProvider(), (row) =>
+    rows.push(row),
+  );
+  const session = await app.request("/api/probe/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: "fake-test-only" }),
+  });
+  const { sessionToken } = (await session.json()) as { sessionToken: string };
+  const send = (body: object) =>
+    app.request("/api/probe/attempts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
+      body: JSON.stringify(body),
+    });
+  const mismatched = await send(attempt);
+  expect(mismatched.status).toBe(409);
+  expect(await mismatched.json()).toEqual({ error: "PROBE_MODE_MISMATCH" });
+  const { probeMode: _mode, ...legacy } = attempt;
+  expect((await send(legacy)).status).toBe(400);
+  expect(rows).toHaveLength(0);
+  expect((await send({ ...attempt, probeMode: "real" })).status).toBe(200);
+  expect(rows).toEqual([expect.objectContaining({ probeMode: "real" })]);
 });

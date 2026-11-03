@@ -1,5 +1,6 @@
 import Taro from "@tarojs/taro";
 
+export type ProbeMode = "fake" | "real";
 export type Item = "V19" | "V8" | "V3" | "V7";
 export type Attempt = {
   item: Item;
@@ -18,11 +19,18 @@ export type Attempt = {
   index?: number;
   attemptId?: string;
 };
-type Recorded = Attempt & { device: string; system: string; baseLibrary: string; network: string };
+type Recorded = Attempt & {
+  probeMode: ProbeMode | "unknown";
+  serviceUrl: string;
+  device: string;
+  system: string;
+  baseLibrary: string;
+  network: string;
+};
 type Identity = { sessionToken: string; identityTag: string; accountId: string | null };
 let identity: Identity | undefined;
 let loginPending: Promise<Identity> | undefined;
-let fake: boolean | undefined;
+let probeMode: ProbeMode | undefined;
 const pendingKey = "lyx_probe_attempts";
 export const baseUrl = __PROBE_BASE_URL__.replace(/\/$/, "");
 export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -81,13 +89,31 @@ async function request<T>(
   }
   return response.data;
 }
-export async function isFake() {
-  if (fake === undefined)
-    fake = (await request<{ mode: string }>("/api/probe/health", "GET")).mode === "fake";
-  return fake;
+export async function getProbeMode(refresh = false): Promise<ProbeMode> {
+  if (refresh || probeMode === undefined) {
+    const value = (await request<{ mode: unknown }>("/api/probe/health", "GET")).mode;
+    if (value !== "fake" && value !== "real") throw new ProbeError("PROBE_MODE_INVALID");
+    if (probeMode !== value) identity = undefined;
+    probeMode = value;
+  }
+  return probeMode;
+}
+export async function isFake(refresh = false) {
+  return (await getProbeMode(refresh)) === "fake";
+}
+const quarantineKey = "lyx_probe_quarantined";
+export function quarantine(source: string, value: unknown) {
+  const entries = Taro.getStorageSync<unknown[]>(quarantineKey) || [];
+  Taro.setStorageSync(quarantineKey, [...entries, { source, value }]);
+}
+export function quarantinedCount(): number {
+  return (Taro.getStorageSync<unknown[]>(quarantineKey) || []).length;
 }
 export async function login(force = false): Promise<Identity> {
-  if (force) identity = undefined;
+  if (force) {
+    identity = undefined;
+    await getProbeMode(true);
+  }
   if (identity) return identity;
   if (loginPending) return loginPending;
   loginPending = (async () => {
@@ -115,26 +141,43 @@ export async function flushAttempts(): Promise<void> {
   flushing = true;
   try {
     while (true) {
+      if (!pendingCount()) return;
+      const currentMode = await getProbeMode(true);
       const pending = Taro.getStorageSync<Recorded[]>(pendingKey) || [];
-      if (!pending.length) return;
-      await api("/attempts", "POST", pending[0]);
+      const compatible = pending.filter(
+        (entry) => entry.probeMode === currentMode && entry.serviceUrl === baseUrl,
+      );
+      const incompatible = pending.filter(
+        (entry) => entry.probeMode !== currentMode || entry.serviceUrl !== baseUrl,
+      );
+      incompatible.forEach((entry) => quarantine("attempt", entry));
+      Taro.setStorageSync(pendingKey, compatible);
+      const entry = compatible[0];
+      if (!entry) return;
+      const { serviceUrl: _serviceUrl, ...payload } = entry;
+      await api("/attempts", "POST", payload);
       const current = Taro.getStorageSync<Recorded[]>(pendingKey) || [];
       Taro.setStorageSync(
         pendingKey,
-        current.filter((entry) => entry.attemptId !== pending[0].attemptId),
+        current.filter((value) => value.attemptId !== entry.attemptId),
       );
     }
   } finally {
     flushing = false;
   }
 }
-export async function report(attempt: Attempt) {
+export async function report(
+  attempt: Attempt,
+  originMode: ProbeMode | "unknown" = probeMode ?? "unknown",
+) {
   const info = Taro.getSystemInfoSync();
   const network = await Taro.getNetworkType()
     .then((value) => value.networkType)
     .catch(() => "unknown");
   const record: Recorded = {
     ...attempt,
+    probeMode: originMode,
+    serviceUrl: baseUrl,
     durationMs: Math.min(86400000, Math.max(0, attempt.durationMs)),
     attemptId: attempt.attemptId || newId(),
     device: info.model,
@@ -142,6 +185,10 @@ export async function report(attempt: Attempt) {
     baseLibrary: info.SDKVersion || "unknown",
     network,
   };
+  if (originMode === "unknown") {
+    quarantine("attempt", record);
+    return;
+  }
   const pending = Taro.getStorageSync<Recorded[]>(pendingKey) || [];
   pending.push(record);
   Taro.setStorageSync(pendingKey, pending);
@@ -163,26 +210,33 @@ export async function observe(
   sizeBytes = 0,
 ) {
   const started = Date.now();
+  const originMode = await getProbeMode(true).catch(() => "unknown" as const);
   try {
     await work();
-    await report({
-      item,
-      scenario,
-      sizeBytes,
-      durationMs: Date.now() - started,
-      result: "success",
-      errorCode: "",
-    });
+    await report(
+      {
+        item,
+        scenario,
+        sizeBytes,
+        durationMs: Date.now() - started,
+        result: "success",
+        errorCode: "",
+      },
+      originMode,
+    );
   } catch (error) {
     const code = errorCode(error);
-    await report({
-      item,
-      scenario,
-      sizeBytes,
-      durationMs: Date.now() - started,
-      result: code === "CANCELLED" ? "cancelled" : "failure",
-      errorCode: code,
-    });
+    await report(
+      {
+        item,
+        scenario,
+        sizeBytes,
+        durationMs: Date.now() - started,
+        result: code === "CANCELLED" ? "cancelled" : "failure",
+        errorCode: code,
+      },
+      originMode,
+    );
     throw error;
   }
 }

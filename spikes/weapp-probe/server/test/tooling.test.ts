@@ -31,6 +31,7 @@ it("secrets are redacted before the recorder writes; report produces only the se
     const logs = path.join(root, "server/.logs");
     const record = fileRecorder("fake", redactor, logs);
     record({
+      probeMode: "fake",
       item: "V3",
       scenario: "resume",
       device: "private-test-value",

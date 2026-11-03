@@ -1,10 +1,12 @@
 import { Button, Input, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useState } from "react";
-import { api, errorCode, report, ProbeError } from "../../lib/api";
+import { useRef, useState } from "react";
+import { api, errorCode, getProbeMode, report, ProbeError } from "../../lib/api";
+import type { ProbeMode } from "../../lib/api";
 import { Frame } from "../../lib/frame";
 type Ticket = { ticketId: string; candidates: string[]; expiresAt: string };
 export default function ScanPage() {
+  const originMode = useRef<ProbeMode | "unknown">("unknown");
   const [shortCode, setCode] = useState("");
   const [ticket, setTicket] = useState<Ticket>();
   const [message, setMessage] = useState("电脑打开验证服务 /desktop，点击下方开始。");
@@ -14,23 +16,28 @@ export default function ScanPage() {
   const recordFailure = async (error: unknown, start: number, route: string) => {
     const code = errorCode(error);
     setMessage(code);
-    await report({
-      item: "V8",
-      scenario: route,
-      sizeBytes: 0,
-      durationMs: Date.now() - start,
-      result: code === "CANCELLED" ? "cancelled" : "failure",
-      errorCode: code,
-    });
+    await report(
+      {
+        item: "V8",
+        scenario: route,
+        sizeBytes: 0,
+        durationMs: Date.now() - start,
+        result: code === "CANCELLED" ? "cancelled" : "failure",
+        errorCode: code,
+      },
+      originMode.current,
+    );
   };
   const lookup = async (manual: boolean) => {
     if (busy) return;
+    originMode.current = "unknown";
     const start = Date.now();
     setStarted(start);
     setTicket(undefined);
     setBusy(true);
     const route = manual ? "manual_code" : scenario;
     try {
+      originMode.current = await getProbeMode(true);
       let query: string;
       if (manual) {
         if (!/^[A-Za-z0-9]{8}$/.test(shortCode)) throw new ProbeError("SHORT_CODE_INVALID");
@@ -55,14 +62,17 @@ export default function ScanPage() {
     setBusy(true);
     try {
       await api("/scan/confirm", "POST", { ticketId: ticket.ticketId, digit });
-      await report({
-        item: "V8",
-        scenario,
-        sizeBytes: 0,
-        durationMs: Date.now() - started,
-        result: "success",
-        errorCode: "",
-      });
+      await report(
+        {
+          item: "V8",
+          scenario,
+          sizeBytes: 0,
+          durationMs: Date.now() - started,
+          result: "success",
+          errorCode: "",
+        },
+        originMode.current,
+      );
       setTicket(undefined);
       setMessage("已确认，请核对电脑已在 2 秒轮询内显示成功；电脑端另记录完整耗时。");
     } catch (error) {
