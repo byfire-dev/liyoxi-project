@@ -795,6 +795,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
         })
       : undefined;
   const media = createMedia({
+    zipProvider: providers.media,
     licenseAccess: assertLicenseFileVisible,
     ocr: {
       provider: providers.ocr,

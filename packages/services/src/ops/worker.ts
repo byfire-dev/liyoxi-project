@@ -684,6 +684,7 @@ export function buildWorkerServices(options: WorkerServicesOptions): WorkerServi
   });
   notifyScope.attachSmsHealth(smsHealth);
   const media = createMedia({
+    zipProvider: providers.media,
     licenseAccess: assertLicenseFileVisible,
     ...(options.sessionMutex
       ? {

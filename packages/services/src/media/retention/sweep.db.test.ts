@@ -266,6 +266,7 @@ describe("media.sweep真实租约、分步清扫与持久恢复", { timeout: 120
     );
     const result = await sweep();
     expect(result.failed).toEqual(["incoming"]);
+    expect(result).toMatchObject({ zipArtifacts: 0 });
     expect(await h.prisma.fileObject.findUnique({ where: { id: pending.id } })).toMatchObject({
       status: "expired",
       incomingKey: null,

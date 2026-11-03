@@ -144,6 +144,7 @@ export const SAMPLE_PROVIDER_INPUTS: ProviderInputs = {
     },
   },
   media: {
+    previewZip: { src: { bucket: "media", key: "files/sample.zip" } },
     probe: { src: SAMPLE_REF },
     transcode: {
       src: SAMPLE_REF,

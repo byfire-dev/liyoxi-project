@@ -885,7 +885,7 @@ stateDiagram-v2
 
 推送后修订发布清单只改 `publish_list_text`，同事务调 media 把该成片包的 ZIP 缓存作废（d5:1559）；成片包被取代或关闭时同样调作废。作废在任何 `zip_state` 下都可以调，打包中（`building`）也要调：media 升代次，旧任务收尾时守卫不成立，产物直接等清除（06 分组 `zip_bundle` 状态机）。ZIP 与随它生成的发布清单文件都在 `zip_bundle`，作废时 media 一并置空，下次打包按新文本重新生成。
 
-调用 `media.ensureZip` 时，由 delivery 传入打包任务 `input` 需要的全部字段（M8：media 不读本表；06 分组的请求）：清单 `items`（对象键与包内文件名，取自 `manifest_snapshot`）、`entityId`、`storeId`、`orderItemId`、`ownerType = delivery_release`、`ownerId`（本行 id）、`publishListText`（本行的 `publish_list_text`，可空）、`publishListKey`（发布清单文件的键，格式按 06 分组 `zip_package` 任务的约定）、`keepUntil`（该成片包有效授权最晚的 `expires_at` + 1 天）、`zipFileName`（`{安全剧名}_全{N}集.zip`）。返回的 `zipFileId`、`publishListFileId` 用于写下载记录（2.13）。
+调用 `media.ensureZip` 时，由 delivery 传入打包任务 `input` 需要的全部字段（M8：media 不读本表；06 分组的请求）：清单 `items`（manifest快照中的fileId/包内名/size/crc64与media公口返回的不可变对象键/etag）、`entityId`、`storeId`、`orderItemId`、`ownerType = delivery_release`、`ownerId`（本行 id）、`publishListText`（本行的 `publish_list_text`，可空）（ZIP与清单键由media按代次/任务/attempt生成，不由调用方预猜）、`keepUntil`（该成片包有效授权最晚的 `expires_at` + 1 天）、`zipFileName`（`{安全剧名}_全{N}集.zip`）。返回的 `zipFileId`、`publishListFileId` 用于写下载记录（2.13）。
 
 **不变量**（d5:2053-2056 的 I3 后半、I4、I6，06 分组的请求改由本分组登记）
 

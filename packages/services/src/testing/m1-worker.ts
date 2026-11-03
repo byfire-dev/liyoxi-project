@@ -11,6 +11,7 @@ import type { WorkerServicesOptions } from "../ops/index.js";
 import { SMS_TEMPLATE_PARAMS } from "../providers/index.js";
 import { createProviderHarness } from "./data/provider-harness.js";
 import { createDeliveryProductionTools } from "./delivery-production-tools.js";
+import { installZipPackageFixture } from "./zip-package-fixture.js";
 import { fakeKeyEnv } from "./m1-fake-keys.js";
 import { m1ProductionVideo } from "./m1-production.js";
 import { assertM1SharedScope, createM1HttpStorage, createM1RealClock } from "./m1-shared.js";
@@ -173,11 +174,13 @@ export async function createM1WorkerResources(raw: unknown, workerQueues: readon
     });
     const input = await m1ProductionVideo();
     tools = createDeliveryProductionTools(providers, input.report, storage.storage);
+    const zipFixture = installZipPackageFixture(providers, storage.storage);
+    providerClosers.push(async () => zipFixture.close());
     const boundProviders = {
       ...providers,
       wechat: wechat.provider,
       storage: {
-        ...storage.storage,
+        ...zipFixture.storage,
         ...backup.storage,
         uploadLocation: { region: attach.storage.region, buckets: attach.storage.buckets },
       },

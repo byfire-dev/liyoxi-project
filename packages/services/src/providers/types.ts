@@ -729,7 +729,25 @@ export interface MediaRemoteJob {
     readonly durationMs?: number;
     readonly sizeBytes?: string;
     readonly etag?: string;
+    readonly zip?: MediaZipResult;
   };
+}
+
+/** CI报告的压缩结果；不代替对象头、ZIP目录与当前任务代次验证。 */
+export type MediaZipResult = {
+  readonly dst: { readonly bucket: "media"; readonly key: string };
+  readonly fileCount: number;
+  readonly errorCount: number;
+};
+
+/** 有界ZIP目录；不提供成员hash或条件对象读取保证。 */
+export interface MediaZipPreview {
+  readonly fileCount: number;
+  readonly truncated: boolean;
+  readonly entries: readonly {
+    readonly name: string;
+    readonly sizeBytes: string;
+  }[];
 }
 
 /** CI moderation projection. No recognized text, URLs, snapshots, or raw provider objects. */
@@ -792,6 +810,11 @@ export interface MediaProvider extends ProviderBase {
     dstKey: string;
     userData: string;
   }): Promise<ProviderResult<MediaJob>>;
+  /** 缺失能力必须受控失败；只返回完整目录，调用方另核当前attempt对象身份。 */
+  previewZip?(input: {
+    readonly src: ObjectRef;
+    readonly signal?: AbortSignal;
+  }): Promise<ProviderResult<MediaZipPreview>>;
   /** 同步图片审核；保留原方法名，视频走 auditVideo。 */
   audit(input: {
     src: ObjectRef;
@@ -1264,6 +1287,7 @@ export const PROVIDER_METHODS = {
     "probe",
     "transcode",
     "pack",
+    "previewZip",
     "audit",
     "describe",
     "find",
