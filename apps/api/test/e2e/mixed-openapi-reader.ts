@@ -6,6 +6,7 @@ import type { M1Api } from "./in-process.js";
 import { loginM1Staff } from "./m1-auth.js";
 import { createM1Caller } from "./runner-api.js";
 import { m1HttpIdentity } from "./http-bridge.js";
+import { prepareMixedPortalReads } from "./mixed-portal-reader.js";
 import { MixedFailure, MixedReadFailure, MixedSource } from "./mixed-http-driver.protocol.js";
 import type { MixedPrivateAccess } from "./mixed-http-driver.protocol.js";
 
@@ -101,6 +102,7 @@ export function mixedReadPlan(
     access: MixedPrivateAccess;
     observedReads: readonly string[];
     token: string;
+    portalTicketCode: string;
     year: number;
   },
 ) {
@@ -111,6 +113,7 @@ export function mixedReadPlan(
     "admin.dictItem.list": { typeKey: "industry" },
     "m.drama.search": { q: "修车" },
     "m.invitation.lookup": { token: input.token },
+    "m.portalTicket.lookup": { code: input.portalTicketCode },
     "admin.assetDemand.list": { storeId: input.access.ids.storeId },
     "admin.calendarDay.list": { year: String(input.year) },
     "admin.followUp.list": { entityId: input.access.ids.entityId },
@@ -152,13 +155,18 @@ export async function readMixedGets(
   adminHeaders: Readonly<Record<string, string>>,
   merchantHeaders: Readonly<Record<string, string>>,
   signal: AbortSignal,
+  portalHeaders: Readonly<Record<string, string>> = {},
 ) {
   const result: { operationId: string; status: number }[] = [];
   for (const row of rows) {
     signal.throwIfAborted();
     try {
       const response = await api.request(row.path, {
-        headers: row.path.startsWith("/api/v1/admin/") ? adminHeaders : merchantHeaders,
+        headers: row.path.startsWith("/api/v1/admin/")
+          ? adminHeaders
+          : row.path.startsWith("/api/v1/portal/")
+            ? portalHeaders
+            : merchantHeaders,
         signal,
       });
       await response.body?.cancel();
@@ -235,14 +243,22 @@ export async function readMixedOpenApi(
       body: { clientRequestId: randomUUID() },
     });
   let invitation: Awaited<ReturnType<typeof makeInvitation>> | undefined;
+  let portal: Awaited<ReturnType<typeof prepareMixedPortalReads>> | undefined;
   try {
     input.signal.throwIfAborted();
     if (operations.some((row) => row.operationId === "m.invitation.lookup"))
       invitation = await makeInvitation();
+    portal = await prepareMixedPortalReads(api, {
+      operationIds: operations.map((row) => row.operationId),
+      merchantHeaders,
+      origin: api.support.runtime.env.PORTAL_PUBLIC_ORIGIN,
+      signal: input.signal,
+    });
     const plan = mixedReadPlan(operations, {
       access: input.previousAccess,
       observedReads: input.observedReads,
       token: invitation?.token ?? "",
+      portalTicketCode: portal.lookupCode,
       year: new Date(Date.now() + 8 * 3600_000).getUTCFullYear(),
     });
     return {
@@ -252,6 +268,7 @@ export async function readMixedOpenApi(
         signedIn.headers,
         merchantHeaders,
         input.signal,
+        portal.headers,
       ),
       details: await readMixedGets(
         api,
@@ -259,14 +276,19 @@ export async function readMixedOpenApi(
         signedIn.headers,
         merchantHeaders,
         input.signal,
+        portal.headers,
       ),
       readSpec,
     };
   } finally {
-    if (invitation)
-      await call("m.invitation.revoke", merchantHeaders, {
-        params: { invitationId: invitation.invitationId },
-        body: { reason: "by_owner" },
-      });
+    try {
+      await portal?.close();
+    } finally {
+      if (invitation)
+        await call("m.invitation.revoke", merchantHeaders, {
+          params: { invitationId: invitation.invitationId },
+          body: { reason: "by_owner" },
+        });
+    }
   }
 }

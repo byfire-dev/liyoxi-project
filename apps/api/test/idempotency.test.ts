@@ -16,6 +16,8 @@ const start = () =>
     middlewares: [
       fakeAuth({ actor: { type: "merchant", id: userId, client: "weapp", role: "owner" } }),
       stubMiddleware("signature"),
+      // 仅样例路由的测试授权槽；真实portal白名单仍由生产中间件验证。
+      { ...stubMiddleware("authz"), groups: ["portal"] },
     ],
   });
 

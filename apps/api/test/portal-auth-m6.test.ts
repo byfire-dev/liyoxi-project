@@ -20,6 +20,9 @@ import { useTestApi } from "../src/testing/index.js";
 import type { TestApi, TestRequestInit } from "../src/testing/index.js";
 import { seedUserAgreements, signInAsMerchant } from "../src/testing/merchant.js";
 import type { SignedInMerchant } from "../src/testing/merchant.js";
+import { prepareMixedPortalReads } from "./e2e/mixed-portal-reader.js";
+import { readMixedGets } from "./e2e/mixed-openapi-reader.js";
+import type { M1RequestInit } from "./e2e/in-process.js";
 
 const testApi = useTestApi();
 const origin = "https://portal.example.invalid";
@@ -408,6 +411,130 @@ describe("W6-05生产HTTP鉴权链：10API", () => {
       expect(failed.status).toBe(500);
     } finally {
       check.mockRestore();
+    }
+  });
+  it("mixed reader真实票据与会话分别读取，Cookie不借给商家；清理后原凭据均失效", async () => {
+    const selected = [
+      "m.portalTicket.lookup",
+      "m.portalSession.list",
+      "portal.session.current.get",
+    ];
+    const requests: { path: string; init: M1RequestInit }[] = [];
+    const transport = {
+      request: async (path: string, init: M1RequestInit = {}) => {
+        requests.push({ path, init });
+        return api.request(path, { peer: `198.18.10.${(peer++ % 240) + 1}`, ...init });
+      },
+    };
+    const signal = new AbortController().signal;
+    const merchantHeaders = owner.withStore(storeId);
+    const prepared = await prepareMixedPortalReads(transport, {
+      operationIds: selected,
+      merchantHeaders,
+      origin,
+      signal,
+    });
+    const lookupPath = `/api/v1/m/portal-tickets/lookup?code=${prepared.lookupCode}`;
+    try {
+      const reads = await readMixedGets(
+        transport,
+        [
+          { operationId: selected[0]!, path: lookupPath },
+          { operationId: selected[1]!, path: "/api/v1/m/portal-sessions" },
+          { operationId: selected[2]!, path: "/api/v1/portal/sessions/current" },
+        ],
+        {},
+        merchantHeaders,
+        signal,
+        prepared.headers,
+      );
+      expect(reads).toEqual(selected.map((operationId) => ({ operationId, status: 200 })));
+      expect(JSON.stringify(reads)).not.toContain(prepared.lookupCode);
+      expect(JSON.stringify(reads)).not.toContain(prepared.headers.Cookie);
+      for (const { path, init } of requests) {
+        const headers = new Headers(init.headers);
+        if (path.startsWith("/api/v1/portal/")) expect(headers.has("authorization")).toBe(false);
+        else expect(headers.has("cookie")).toBe(false);
+      }
+      expect(requests.filter((row) => row.path === "/api/v1/portal/portal-tickets")).toHaveLength(
+        2,
+      );
+    } finally {
+      await prepared.close();
+    }
+    const count = requests.length;
+    await prepared.close();
+    expect(requests).toHaveLength(count);
+    expect((await api.request(lookupPath, { headers: merchantHeaders })).status).toBe(410);
+    expect(
+      (await api.request("/api/v1/portal/sessions/current", { headers: prepared.headers })).status,
+    ).toBe(401);
+  });
+  it("mixed reader准备失败不伪造会话，已经创建的两张pending票据都正式拒绝", async () => {
+    const tickets: Awaited<ReturnType<typeof create>>[] = [];
+    const transport = {
+      request: async (path: string, init: M1RequestInit = {}) => {
+        if (path.endsWith("/approve")) return new Response(null, { status: 502 });
+        const response = await api.request(path, {
+          peer: `198.18.10.${(peer++ % 240) + 1}`,
+          ...init,
+        });
+        if (path === "/api/v1/portal/portal-tickets") {
+          const body = (await response.clone().json()) as { data: unknown };
+          tickets.push(PortalTicketCreatedSchema.parse(body.data));
+        }
+        return response;
+      },
+    };
+    await expect(
+      prepareMixedPortalReads(transport, {
+        operationIds: ["m.portalTicket.lookup", "portal.session.current.get"],
+        merchantHeaders: owner.withStore(storeId),
+        origin,
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ code: "read_failed" });
+    expect(tickets).toHaveLength(2);
+    for (const ticket of tickets) {
+      const poll = await call(`/portal/portal-tickets/${ticket.portalTicketId}`, {
+        headers: { "X-Poll-Secret": ticket.pollSecret },
+      });
+      expect(poll.response.status).toBe(200);
+      expect(PortalTicketStatusViewSchema.parse(poll.body.data).status).toBe("rejected");
+    }
+  });
+  it("mixed reader一项清理失败仍退出真实会话，并保留cleanup_failed", async () => {
+    let failedReject: string | undefined;
+    const transport = {
+      request: async (path: string, init: M1RequestInit = {}) => {
+        if (path.endsWith("/reject")) {
+          failedReject = path;
+          return new Response(null, { status: 502 });
+        }
+        return api.request(path, { peer: `198.18.10.${(peer++ % 240) + 1}`, ...init });
+      },
+    };
+    const prepared = await prepareMixedPortalReads(transport, {
+      operationIds: ["m.portalTicket.lookup", "portal.session.current.get"],
+      merchantHeaders: owner.withStore(storeId),
+      origin,
+      signal: new AbortController().signal,
+    });
+    try {
+      await expect(prepared.close()).rejects.toMatchObject({ code: "cleanup_failed" });
+      expect(failedReject).toBeDefined();
+      expect(
+        (await api.request("/api/v1/portal/sessions/current", { headers: prepared.headers }))
+          .status,
+      ).toBe(401);
+    } finally {
+      if (failedReject) {
+        const rejected = await api.request(failedReject, {
+          method: "POST",
+          headers: { ...owner.withStore(storeId), "Idempotency-Key": uuidv7() },
+        });
+        expect(rejected.status).toBe(200);
+      }
     }
   });
 });

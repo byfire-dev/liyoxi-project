@@ -62,12 +62,18 @@ HTTP transport固定注入对应X-Forwarded-For；真实TCP及各版口令/MFA�
 
 ## 旧 OpenAPI reader
 
-old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（当前95），
-六个必填query用正式字典、实际店、北京时间年份、搜索词和真实HTTP邀请令牌。
+old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路径参数GET（以选中readSpec为准），
+必填query用正式字典、实际店、北京时间年份、搜索词和真实HTTP邀请令牌。
 跟进列表另带实际entityId，素材列表另带实际storeId，制作记录列表带真实链orderItemId，满足字段各自可选但组合必需的正式约束；
 原pure聚合逐项校验现有canonical query，并精确比较全部operationId集合，不用旧固定数量漏读。
 邀请经正式创建，读取后正式撤回；不是SQL假行。未来新增未知必填输入直接失败，
 不省略接口。真实跨版admin口令/MFA、商家phoneLogin重登；不复用上版headers。
+W6-05起，只有选中旧readSpec含相应能力才准备portal：lookup单独正式建pending票据，
+code显式交读规划；current另经真实create/approve/exchange取得Cookie。两张票据不能混用，
+lookup不接受已消费票据。portal请求使用独立请求头，Cookie不借给商家或后台；shortCode、
+pollSecret和Cookie仅留本轮私有内存，不加进readSpec、协议或公开结果。finally正式拒绝
+lookup票据并退出会话，任一清理失败仍尝试其余清理并报错；旧spec无此能力不造票据。
+缺code与未知必填query继续失败，全部计划GET仍必须200；这不替代双SHA四步真链验收。
 HTTP重登仅在当前TOTP步已由正式认证消费时等待真实下一步；由受保护隔离支架只读
 staff.totp_last_step，未消费则使用当前真实码。不试错登录、不改步号、不预用未来码。
 30秒read RPC预算保持。

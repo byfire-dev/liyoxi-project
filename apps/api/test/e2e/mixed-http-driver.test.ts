@@ -15,6 +15,7 @@ import {
   replayMixedReadSpec,
   readMixedGets,
 } from "./mixed-openapi-reader.js";
+import { prepareMixedPortalReads } from "./mixed-portal-reader.js";
 
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value) + "\n");
 const input = async function* (chunks: readonly Uint8Array[]) {
@@ -140,6 +141,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   const options = {
     access,
     token: "A".repeat(43),
+    portalTicketCode: "1234ABCD",
     year: 2026,
     observedReads: ["/api/v1/admin/staff/" + id],
   };
@@ -150,7 +152,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
       .map((row) => row.operationId)
       .sort(),
   );
-  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(11);
+  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(12);
   for (const row of plan.operations) {
     const route = allRoutes.find((one) => one.operationId === row.operationId);
     expect(route, row.operationId).toBeDefined();
@@ -182,6 +184,10 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   expect(plan.operations.find((row) => row.operationId === "m.drama.search")?.path).toContain(
     "q=" + encodeURIComponent("修车"),
   );
+  expect(plan.operations.find((row) => row.operationId === "m.portalTicket.lookup")?.path).toBe(
+    "/api/v1/m/portal-tickets/lookup?code=1234ABCD",
+  );
+  expect(() => mixedReadPlan(operations, { ...options, portalTicketCode: "" })).toThrow();
   expect(
     plan.operations.find((row) => row.operationId === "admin.subscriptionTerm.list")?.path,
   ).toBe("/api/v1/admin/subscription-terms?tab=expiring");
@@ -205,6 +211,12 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
       options,
     ),
   ).toThrow();
+  expect(() =>
+    mixedReadPlan(
+      [...operations, { operationId: "m.new.lookup", path: "/api/v1/m/new", required: ["code"] }],
+      options,
+    ),
+  ).toThrow(); // A known input name does not confer support on an unknown operation.
   expect(() =>
     mixedReadPlan(operations, {
       ...options,
@@ -276,6 +288,21 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   });
   expect(failureOutput[0]).not.toContain("synthetic-private");
   expect(failureOutput[0]).not.toContain("status");
+  const oldPortal = await prepareMixedPortalReads(
+    {
+      request: async () => {
+        throw new Error("old spec must not create a portal capability");
+      },
+    },
+    {
+      operationIds: [oldOnly.operationId],
+      merchantHeaders: {},
+      signal: new AbortController().signal,
+    },
+  );
+  expect(oldPortal.headers).toEqual({});
+  expect(oldPortal.lookupCode).toBe("");
+  await oldPortal.close();
 });
 
 it("私有日志只累计固定级别错误，不保留原文或把损坏记录当成功", () => {
