@@ -1,5 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { createIdentityContext, uuidv7 } from "@liyoxi/services";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { createClientErrorForwarder, createIdentityContext, uuidv7 } from "@liyoxi/services";
+import { clientErrorFrames } from "@liyoxi/shared/telemetry";
 import {
   createPortalTestSession,
   createPortalTestStack,
@@ -83,6 +84,113 @@ beforeAll(async () => {
 });
 
 describe("portal.clientError.create 真实 HTTP", () => {
+  it("portal编译帧经真实handler、清洗和队列精确转发，跨组件及源码上下文仍丢弃", async () => {
+    const dsn = "https://fictionalportal@errors.example.invalid/42";
+    const upstreamDsn = "https://fictionalupstream@relay.example.invalid/sentry/7";
+    const asset = "assets/index-Ab12_cd3.js";
+    const canonical = {
+      filename: asset,
+      abs_path: `app:///portal/${asset}`,
+      lineno: 2,
+      colno: 9,
+      in_app: true,
+    };
+    const parsed = clientErrorFrames(
+      `Error: fixture\n at fail (${origin}/${asset}:2:9)`,
+      "portal",
+      origin,
+    );
+    expect(parsed).toEqual([canonical]);
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    const forwarder = createClientErrorForwarder({
+      clock: api.clock,
+      logger: api.runtime.logger,
+      projects: [{ dsn, upstreamDsn }],
+      fetch,
+    });
+    // 只替换本测试的虚构上游配置边界；handler委托真实factory的accept，清洗与队列均非替身。
+    const accept = vi
+      .spyOn(api.runtime.clientErrors, "accept")
+      .mockImplementation(forwarder.accept);
+    try {
+      const prisma = await handle.db.prisma();
+      const before = await snapshotTables(prisma, tables);
+      for (const dist of ["portal", "admin", "weapp", "unknown", "api", "worker"]) {
+        const eventId = uuidv7().replaceAll("-", "");
+        const event = {
+          event_id: eventId,
+          release: "sha-0123456789ab",
+          dist,
+          debug_meta: { images: [{ debug_id: "private-debug" }] },
+          exception: {
+            values: [
+              {
+                type: "Error",
+                value: "13800138000 Bearer portal-private-token",
+                stacktrace: {
+                  frames:
+                    dist === "portal"
+                      ? [
+                          {
+                            ...parsed[0],
+                            function: "private function",
+                            vars: { token: "portal-private-token" },
+                            pre_context: ["private source"],
+                            context_line: "private source",
+                            post_context: ["private source"],
+                          },
+                          { ...canonical, abs_path: `app:///admin/${asset}` },
+                          { ...canonical, abs_path: `app:///weapp/${asset}` },
+                          { ...canonical, abs_path: `https://other.example.invalid/${asset}` },
+                          { ...canonical, filename: `../${asset}` },
+                          { ...canonical, lineno: 0 },
+                          { ...canonical, colno: 2_147_483_648 },
+                        ]
+                      : [canonical],
+                },
+              },
+            ],
+          },
+        };
+        const body = `${JSON.stringify({ dsn, event_id: eventId })}\n{"type":"event"}\n${JSON.stringify(event)}`;
+        const response = await send({ body });
+        expect(response.status, await response.clone().text()).toBe(202);
+        expect(response.headers.get("Cache-Control")).toBe("no-store");
+        expect(await response.json()).toEqual({ code: 0, message: "ok", data: null });
+      }
+      await forwarder.drain();
+      expect(accept).toHaveBeenCalledTimes(6);
+      expect(accept.mock.calls.every(([raw]) => raw instanceof Uint8Array)).toBe(true);
+      expect(fetch).toHaveBeenCalledTimes(6);
+      const events = fetch.mock.calls.map(([url, init]) => {
+        expect(url).toBe("https://relay.example.invalid/sentry/api/7/envelope/");
+        expect(init).toMatchObject({ method: "POST", redirect: "error", credentials: "omit" });
+        const body = String(init!.body);
+        expect(body).not.toMatch(
+          /13800138000|portal-private-token|private function|private source|private-debug/,
+        );
+        const [header, item, payload] = body.split("\n");
+        expect(JSON.parse(header!).dsn).toBe(upstreamDsn);
+        expect(JSON.parse(item!).length).toBe(Buffer.byteLength(payload!));
+        return JSON.parse(payload!);
+      });
+      expect(events[0]).toMatchObject({ release: "sha-0123456789ab", dist: "portal" });
+      expect(events[0].exception.values[0].stacktrace).toEqual({ frames: [canonical] });
+      for (const event of events.slice(1))
+        expect(event.exception.values[0].stacktrace).toBeUndefined();
+      expect(forwarder.snapshot()).toMatchObject({ forwarded: 6, failed: 0, queued: 0, active: 0 });
+      expect(await snapshotTables(prisma, tables)).toEqual(before);
+      expect(JSON.stringify(api.logs)).not.toMatch(
+        /13800138000|portal-private-token|private source/,
+      );
+    } finally {
+      accept.mockRestore();
+      await forwarder.close();
+    }
+  });
+
   it("匿名、有效、无效与实际过期会话均 optional 受理 202；不写业务、不转发未配置上游", async () => {
     expect(api.api.mountedOperations.filter((op) => op === "portal.clientError.create")).toEqual([
       "portal.clientError.create",
