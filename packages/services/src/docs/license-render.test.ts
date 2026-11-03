@@ -1,9 +1,12 @@
-import { resolve } from "node:path";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { resolve, join } from "node:path";
 import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { licenseContentFingerprint } from "./license-convergence.js";
 import { parseLicenseLetterSnapshot } from "./license-facts.js";
 import { createLicensePdfRenderer } from "./license-render.js";
+import { prepareLicensePdfFonts } from "./license-render-fonts.js";
 import {
   createTestLicenseTemplateCatalog,
   createTestPlatformCertEsign,
@@ -78,6 +81,23 @@ const request = (snapshot = fixture()) => ({
 });
 
 describe("不可变授权快照真实PDF", () => {
+  it("显式字体准备校验真实文件，热注册后也不接受缺失或被替换的字体", async () => {
+    await prepareLicensePdfFonts(fontDir);
+    const directory = await mkdtemp(join(tmpdir(), "lyx-license-fonts-"));
+    try {
+      await expect(prepareLicensePdfFonts(directory)).rejects.toThrow();
+      await Promise.all(
+        ["NotoSerifSC-Regular.ttf", "NotoSerifSC-Bold.ttf", "NotoSansSC-Bold.ttf"].map((name) =>
+          writeFile(join(directory, name), "invalid-font"),
+        ),
+      );
+      await expect(prepareLicensePdfFonts(directory)).rejects.toThrow("授权书字体版本不匹配");
+      await prepareLicensePdfFonts(fontDir);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("正式v1缺法务正文时未配置，不能使用历史占位条款出件", async () => {
     const renderer = createLicensePdfRenderer({ fontDir });
     expect(renderer.configured).toBe(false);
