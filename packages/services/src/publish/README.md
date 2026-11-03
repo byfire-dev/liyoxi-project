@@ -113,10 +113,13 @@ W6-08 消费完整门店账号候选，W6-09 消费巡检、账号健康与商�
 | `pnpm exec vitest run --project services packages/services/src/publish/channel-health-m6.db.test.ts --maxWorkers=1 --no-file-parallelism` | 范围隔离、活跃引用、审批撤回/核验竞争及三日跟进真实写入和关闭 |
 | `pnpm exec vitest run --project services packages/services/src/ops/patrol-runtime.db.test.ts --maxWorkers=1 --no-file-parallelism` | 真实认领/执行、实例隔离、关闭拒绝新调用、违规检出与自愈落库 |
 | `pnpm exec vitest run --project api apps/api/test/patrol-accounts-m6.test.ts --maxWorkers=1 --no-file-parallelism` | 12 条实际挂载、scope/角色拒绝、GET 零写与幂等重放零重复 |
+| `pnpm exec vitest run --project api apps/api/test/patrol-full-m6.test.ts --maxWorkers=1 --no-file-parallelism` | 沿实际主干 M1 二十集真实制作、QC、授权、推包、上线，追加真实 HTTP 巡检和证据提升，再执行全仓 full 零违规；原上传并发 4、含清理总时限 90 秒 |
 | `pnpm exec vitest run --project services packages/services/src/notify/patrol-renewal.db.test.ts --maxWorkers=1 --no-file-parallelism` | 既有 R1 真实 producer→manual_reminder.sent→M 消息，重放/不合法日志/过期守卫 |
 | `pnpm --filter @liyoxi/services typecheck`；`pnpm --filter @liyoxi/api typecheck`；`pnpm depcheck` | 类型与依赖层次无旁路 |
 | `pnpm contract:check`；`pnpm registry:check`；`pnpm enums:check` | 本包契约与两项 x01 接线吻合，旧集合与冻结元数据保持 |
 
 巡检测试从明确标注的历史待上线输入（pending_launch 边界，实际字段为订单/订单项 to_launch、工单 awaiting_launch）开始，再走真实账号/上线提交、核验与订单/工单推导。该夹具不能证明支付、生产、交付推包或全链已经通过，也不把人工测试 URL 当真实平台核验。
 
-本包没有消费尚未合并的 W6-02 真链；待其 actual main 交付后，由后续合流补验对应真实来源。定点验收不替代 required 全量 CI、M6 合流或原真实外部验收。
+`patrol-full-m6.test.ts` 另从已合主干的 `createM1Support` / `runM1Chain` 完整链起步，在原 `afterChain` 入口通过真实 HTTP 创建巡检、登记并上传提升截图、提交正常结论；随后执行 runner 原有的不筛域 full 检查。它不使用上述历史待上线输入，不等待或消费未合并的 W6-02 代码；通过与否以实际运行日志为准。对象存储、媒体探测等外部供应商仍沿 M1 既有替身，截图与平台 URL 是虚构测试输入，不能计作真实云或人工平台外验。定点验收不替代 required 全量 CI、M6 合流或原真实外部验收。
+
+本次本地首轮完整链1/1通过：二十集制作上线、巡检正常、全仓full143项零违规；含初始化和清理23.752秒（Vitest命令31.80秒）。日志与精确代码基线见[W6-03状态](../../../../docs/plan/status/W6-03.md)，该结果不替代未运行的远端CI或外部验收。
