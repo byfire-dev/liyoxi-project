@@ -191,6 +191,7 @@
 | `pnpm design:generate` | 由 `design/tokens.json` 与图标源重新生成样式变量、后台主题、图标数据，并出一页预览（不入库）。来源、生成物与子路径见 [README](packages/shared/scripts/README.md) |
 | `pnpm design:check` | 生成物无差异：重新生成后 `git diff --exit-code`，且生成物目录下没有未跟踪的文件。生成物不手改 |
 | `pnpm lint:colors` | 页面不写色值：三个前端的 `src` 里出现十六进制、颜色函数（`rgb()`、`hsl()`、`oklch()`、`color-mix()` 等）或 Sass 的颜色运算（`darken()`、`mix()` 等）即失败。口径与白名单见 [脚本](infra/ci/check-colors.mjs) 开头的注释；页面里颜色从哪取见 [README](packages/shared/scripts/README.md)“页面里怎么取颜色” |
+| `pnpm --dir spikes/weapp-probe build`（另有 `typecheck`、`test`、`server`、`fixtures`、`report`） | X-01 独立四页真机探针与验证服务；先在该目录冻结安装。会话只用 `PROBE_MODE=fake`，真实服务/测试片由业主带仓库外凭据运行；结果待三机实测，不提前关闭 V19/V8/V3/V7。见 [README](spikes/weapp-probe/README.md)与[清单](spikes/weapp-probe/CHECKLIST.md) |
 | `pnpm --dir spikes/license-pdf render`（另有 `test`、`render:container`、`typecheck`） | 授权书 PDF 渲染验证（X-03）：出三份样张与报告；跑用例；在 `node:24-slim` 容器里复跑。独立工程，先 `pnpm --dir spikes/license-pdf install --frozen-lockfile`。见 [README](spikes/license-pdf/README.md) |
 | `pnpm mediatool:verify` | mediatool 隔离容器的验证：构建镜像，起验证用的 Compose，现场造测试片，在调用端容器里跑用例，再核对容器配置；跑完删掉容器与卷。本机要有 Docker。见 [README](infra/docker/mediatool/README.md) |
 | `pnpm mediatool:bench` | 同上，另造一条约 200MB 的片子，量“体检 + 封面”与加标的耗时 |
