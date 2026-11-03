@@ -122,6 +122,7 @@ export interface ReadSignInput {
 export interface DeliveryDownloadSignInput {
   readonly fileId: string;
   readonly fileName: string;
+  readonly kind?: "episode" | "zip" | "publish_list";
 }
 export interface SystemFileInput extends FileOwnerScope {
   readonly category: UploadCategory;

@@ -65,3 +65,21 @@ export const ReleaseViewSchema = z
   })
   .openapi("ReleaseView");
 export type EpisodeDownloadBody = z.infer<typeof EpisodeDownloadBodySchema>;
+export const DownloadGrantResultSchema = z
+  .strictObject({ grant: DownloadGrantViewSchema, regrantRemainingToday: n })
+  .openapi("DownloadGrantResult");
+export const DownloadReportParamsSchema = z.strictObject({ downloadId: IdSchema });
+export const DownloadReportBodySchema = z
+  .strictObject({ result: z.enum(["saved", "failed"]) })
+  .openapi("DownloadReportBody");
+export const DownloadReportResultSchema = z
+  .strictObject({
+    downloadId: IdSchema,
+    episodeNo: z.int().positive(),
+    clientAck: z.enum(["saved", "failed"]),
+    clientAckAt: InstantSchema,
+  })
+  .openapi("DownloadReportResult");
+export type DownloadReportBody = z.infer<typeof DownloadReportBodySchema>;
+export type DownloadReportResult = z.infer<typeof DownloadReportResultSchema>;
+export type DownloadGrantResult = z.infer<typeof DownloadGrantResultSchema>;

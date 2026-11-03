@@ -65,10 +65,9 @@ export async function prepareAdVideoForTest(
       aiUsage: { used: false, tools: [] },
     }),
   );
-  const probe = await db.mediaJob.findFirstOrThrow({
-      where: { kind: "probe", subjectId: id },
-      orderBy: { createdAt: "desc" },
-    }),
+  // Promote and ad preparation may enqueue different contexts at the same clock instant.
+  // The public deduplicating writer returns this ad context's job; timestamps do not identify it.
+  const probeId = await h.runtime.tx.run((tx) => h.runtime.media.enqueueProbe(tx, id)),
     original = h.adCodec.tool.probe;
   h.adCodec.tool.probe = async (input) => {
     const value = await original(input);
@@ -85,7 +84,7 @@ export async function prepareAdVideoForTest(
     });
   };
   try {
-    await h.runtime.media.jobs.run({ jobId: probe.id });
+    await h.runtime.media.jobs.run({ jobId: probeId });
   } finally {
     h.adCodec.tool.probe = original;
   }

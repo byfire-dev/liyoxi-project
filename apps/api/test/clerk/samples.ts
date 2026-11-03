@@ -152,6 +152,8 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   ...(
     [
       ["m.sample.downloadUrls", `/m/samples/${uuidv7()}/download-urls`, {}],
+      ["m.orderItem.downloadGrant.create", `/m/order-items/${uuidv7()}/download-grants`, {}],
+      ["m.download.report", `/m/downloads/${uuidv7()}/report`, { result: "saved" }],
       [
         "m.orderItem.downloadUrls",
         `/m/order-items/${uuidv7()}/download-urls`,

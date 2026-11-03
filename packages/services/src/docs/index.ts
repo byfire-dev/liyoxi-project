@@ -92,3 +92,5 @@ export { createLicenseAdmin } from "./license-admin.js";
 export { readLicenseReadiness } from "./license-readiness.js";
 export type { LicenseReadiness, LicenseReadyFile } from "./license-readiness.js";
 export { readAdAgreementFacts, readAdAgreementConsent } from "./ad-agreement-facts.js";
+export { createLicenseVerification } from "./license-verification.js";
+export type { LicenseVerification } from "./license-verification.js";

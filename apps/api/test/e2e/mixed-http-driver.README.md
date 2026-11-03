@@ -69,11 +69,25 @@ old阶段只读本版提交的merchant/admin/portal OpenAPI，枚举全部无路
 邀请经正式创建，读取后正式撤回；不是SQL假行。未来新增未知必填输入直接失败，
 不省略接口。真实跨版admin口令/MFA、商家phoneLogin重登；不复用上版headers。
 W6-05起，只有选中旧readSpec含相应能力才准备portal：lookup单独正式建pending票据，
-code显式交读规划；current另经真实create/approve/exchange取得Cookie。两张票据不能混用，
+code显式交读规划；受保护portal GET另经真实create/approve/exchange取得Cookie。两张票据不能混用，
 lookup不接受已消费票据。portal请求使用独立请求头，Cookie不借给商家或后台；shortCode、
 pollSecret和Cookie仅留本轮私有内存，不加进readSpec、协议或公开结果。finally正式拒绝
 lookup票据并退出会话，任一清理失败仍尝试其余清理并报错；旧spec无此能力不造票据。
 缺code与未知必填query继续失败，全部计划GET仍必须200；这不替代双SHA四步真链验收。
+
+W6-06新增公开验真GET带必填code，reader仅在所选spec含该operation时准备：用刚重登的商家身份，
+按本链orderId/storeId读取授权书列表，匹配实际orderItemId并要求已出件，再GET详情提取preview.verifyUrl。
+同时校验详情归属、当前版次及实际HTTPS验真地址的origin、code、rev；取不到ready预览、404或错误归属均失败，
+不假造验真码、不创建或替换证书、不签PDF下载地址。M1原生产链推包/上线后的drainEvents已等待真实docs消费者，
+assertM1ReadyDocuments核ready/current、技术证书、真实PDF字节/hash与已发布issued事件；这里仅增加只读准备。
+列表分页有界并拒绝重复游标；验真code只留本轮私有内存和实际请求，不进入MixedAccess、readSpec或错误输出。
+公共验真单独被选中时不创建portal会话；所选spec只要含orderItem列表/成片/清单或广告列表/详情等受保护GET，
+即使没有portal.session.current.get也必须正式换取并最终退出自己的会话。
+portal.orderItem.release.get与portal.orderItem.publishList.get按已有orderItemId加入真实详情读，
+仅在旧spec确有该operation时执行，不让HEAD新增操作混进旧spec。未知必填输入仍失败，原全部GET集合及200要求保持。
+定点用例覆盖真实OpenAPI全覆盖、缺code/未知query、私有spec脱敏、只读准备的缺出件/错误scope/404/坏地址，
+及不含current的每种受保护GET的票据准备/退出。模拟DTO仅证明reader运输约束，不替代M1真实出件或双SHA混版验收。
+
 HTTP重登仅在当前TOTP步已由正式认证消费时等待真实下一步；由受保护隔离支架只读
 staff.totp_last_step，未消费则使用当前真实码。不试错登录、不改步号、不预用未来码。
 30秒read RPC预算保持。
