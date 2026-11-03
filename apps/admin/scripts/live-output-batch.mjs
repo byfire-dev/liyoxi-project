@@ -515,6 +515,15 @@ async function main(args) {
         { mode: 0o600 },
       );
     }
+    // Carry only this run's optional publish-workbench scope to the existing private server.
+    if (fixtures.fixtures.w608?.scope) {
+      const manifest = JSON.parse(readFileSync(inputFile, "utf8"));
+      writeFileSync(
+        inputFile,
+        `${JSON.stringify({ ...manifest, w608: fixtures.fixtures.w608.scope })}\n`,
+        { mode: 0o600 },
+      );
+    }
     await run(
       "pnpm",
       [
