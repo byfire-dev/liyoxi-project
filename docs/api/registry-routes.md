@@ -185,7 +185,7 @@
 | `m.plan.quote` | POST | `/m/plans/quote` | 套餐报价（不落库）：{planId, months}→ 动作类型（开通/续费/升级/降级/下期换版本）、应付、新周期、积分发放与补发、补差价、降级须移除的门店与成员数；附购买策略 | `plan.purchase` | none | V1.0 | 3.5 |
 | `m.pointLedgerEntry.list` | GET | `/m/point-ledger-entries` | 积分明细（?tab=all\|gain\|use\|expire&month=YYYY-MM，默认当月，逐月加载）：标题、积分来源、时间、门店与关联单号、计算式备注、数量；响应带 prevMonth 与 firstEntryAt | `ledger.read` | none | V1.0 | 3.2 |
 | `m.pointPack.list` | GET | `/m/point-packs` | 上架中的加购积分包（积分数、价格） | `points.topup` | none | V1.0 | 3.6 |
-| `m.purchasePolicy.get` | GET | `/m/purchase-policy` | 购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导） | `plan.purchase` | none | V1.0 | 3.3 |
+| `m.purchasePolicy.get` | GET | `/m/purchase-policy` | 购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），可按交易类型求值，给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导） | `plan.purchase` | none | V1.0 | 3.3 |
 | `m.wallet.get` | GET | `/m/wallet` | 套餐与积分：当前套餐（版本、状态、有效期、剩余天数、周期、权益）、门店与成员名额（同 m02 2.1）、两类积分余额、冻结数、即将清零数量与时刻、过期态（已清零数量、加购积分停用）、是否退款处理中（主体级）、加购拦截态、积分规则参数 | `wallet.read` | none | V1.0 | 3.1 |
 
 ### [商家端：客服、消息与通用接口](m08-support-misc.md)

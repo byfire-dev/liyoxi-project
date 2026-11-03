@@ -26,6 +26,7 @@ import { createWalletApi } from "./api";
 import { billingRequest } from "./runtime";
 import { billingCopy, purchaseVisible, walletPurchaseLabel } from "./model";
 import { ledgerContext } from "../ledger/model";
+import { upgradeChoices } from "../plan-pick/selection";
 
 import "./index.scss";
 
@@ -77,7 +78,9 @@ function WalletContent() {
         const plans =
           wallet.subscription.status === "expired" && purchaseVisible(policy)
             ? await api.plans()
-            : null;
+            : wallet.subscription.status === "active" && purchaseVisible(policy)
+              ? await api.plans().catch(() => null)
+              : null;
         if (current()) setData({ wallet, policy, plans });
       })
       .catch((failure: unknown) => {
@@ -106,6 +109,7 @@ function WalletContent() {
   const purchaseAllowed = currentPurchaseContext("plan.purchase").allowed;
   const purchase =
     data && purchaseAllowed ? walletPurchaseLabel(data.wallet, data.policy, copy) : null;
+  const highestPlan = data?.plans && upgradeChoices(data.plans.items).status === "highest";
   function openPurchase(path: string, renew = false) {
     if (!data || !purchaseVisible(data.policy) || !currentPurchaseContext("plan.purchase").allowed)
       return;
@@ -218,12 +222,18 @@ function WalletContent() {
                   >
                     续费 / 下期变更
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => openPurchase("/sub/billing/plan-pick/index?intent=upgrade_now")}
-                  >
-                    立即升级
-                  </Button>
+                  {highestPlan ? (
+                    <InfoTag>当前已是最高档</InfoTag>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        openPurchase("/sub/billing/plan-pick/index?intent=upgrade_now")
+                      }
+                    >
+                      立即升级
+                    </Button>
+                  )}
                 </View>
               ) : null}
             </Card>

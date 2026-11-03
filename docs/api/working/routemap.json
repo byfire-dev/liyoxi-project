@@ -21445,7 +21445,7 @@
   "doc": "m07-billing",
   "method": "GET",
   "path": "/m/purchase-policy",
-  "summary": "购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导）",
+  "summary": "购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），可按交易类型求值，给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导）",
   "xAuth": "member",
   "capability": "plan.purchase",
   "permission": null,
@@ -21474,7 +21474,7 @@
    "05-risks-and-open-issues.md:41"
   ],
   "version": "V1.0",
-  "notes": "能力点 plan.purchase（店员 403）。只读聚合视图（资源登记表 purchase-policy，读 finance_config_revision）。策略为 offline_contract 或 hidden 时页面不出现价格货架、支付按钮与购买引导（d7:733）；用于应对“虚拟支付”定性（05-risks-and-open-issues.md:41）。求值函数 billing.getPurchasePolicy 也供 m08 启动引导裁剪订阅点位。草案写作 GET /m/billing/purchase-policy。"
+  "notes": "能力点 plan.purchase（店员 403）。可选查询 type=plan_new|plan_renew|plan_upgrade|topup；加购按 topup 类型返回 points 协议及类型规则，未传保留原入口策略，非法类型返回 VALIDATION_FAILED。只读聚合视图（资源登记表 purchase-policy，读 finance_config_revision）。策略为 offline_contract 或 hidden 时页面不出现价格货架、支付按钮与购买引导（d7:733）；用于应对“虚拟支付”定性（05-risks-and-open-issues.md:41）。求值函数 billing.getPurchasePolicy 也供 m08 启动引导裁剪订阅点位。草案写作 GET /m/billing/purchase-policy。"
  },
  {
   "id": "m07.wallet.get",

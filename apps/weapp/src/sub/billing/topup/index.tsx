@@ -221,7 +221,19 @@ function TopupContent() {
             </View>
             {state.policy &&
             (docs.length === 0 || docs.length !== state.policy.copy.agreementKeys.length) ? (
-              <Note>购买协议暂未加载完整，请刷新后重新确认</Note>
+              <View>
+                <Note>购买协议暂未加载完整，请重新加载后确认</Note>
+                <TextButton
+                  disabled={busy}
+                  onClick={() => {
+                    if (locked.current) return;
+                    invalidate();
+                    void model.refresh();
+                  }}
+                >
+                  重新加载购买协议
+                </TextButton>
+              </View>
             ) : null}
             {state.policy ? (
               enabledChannels(state.policy).length === 0 ? (

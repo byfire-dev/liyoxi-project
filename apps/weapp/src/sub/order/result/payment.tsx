@@ -14,7 +14,7 @@ import { account, useAccount } from "@/lib/account-runtime";
 import type { Data } from "@/lib/account-api";
 import { useContextStore } from "@/stores/context";
 import { useSessionStore } from "@/stores/session";
-import { createPurchaseApi } from "../../billing/plan-pick/api";
+import { createPurchaseApi, purchasePolicyType } from "../../billing/plan-pick/api";
 import { paymentView, type Payment } from "../../billing/plan-pick/model";
 import { ReceiptPicker } from "../../billing/plan-pick/receipt";
 import { billingRequest } from "../../billing/wallet/runtime";
@@ -83,9 +83,12 @@ function PaymentContent({ id }: { id: string }) {
       token === useSessionStore.getState().accessToken;
     void account
       .start()
-      .then(() => {
+      .then(async () => {
         if (!valid()) return null;
-        return Promise.all([api.detail(id), api.policy()]);
+        const detail = await api.detail(id);
+        if (!valid()) return null;
+        const type = purchasePolicyType(detail.type);
+        return [detail, type ? await api.policy(type) : null] as const;
       })
       .then((v) => {
         if (v && valid()) {

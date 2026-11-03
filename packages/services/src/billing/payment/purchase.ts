@@ -11,6 +11,7 @@ import type {
   TransferProofRejectReviewBody,
   PaymentOrderCreateBody,
   PlanQuoteBody,
+  PurchasePolicyQuery,
   TransferProofConfirmBody,
   TransferProofRejectBody,
 } from "@liyoxi/contract";
@@ -77,8 +78,11 @@ export function createBillingPurchase(deps: BillingPurchaseDeps) {
     syncOrder: wechatChannel.sync,
     cancelOrder: wechatChannel.cancel,
     wechatPrepay: createWechatPrepay(deps),
-    getPurchasePolicy: (actor: PurchaseActor, client: PurchaseClient) =>
-      deps.tx.run((tx) => policy(tx, actor, client)),
+    getPurchasePolicy: (
+      actor: PurchaseActor,
+      client: PurchaseClient,
+      query: PurchasePolicyQuery = {},
+    ) => deps.tx.run((tx) => policy(tx, actor, client, query.type)),
     listPlans: (actor: PurchaseActor, client: PurchaseClient) =>
       deps.tx.run(async (tx) =>
         listPlans(tx, actor.membership.entityId, deps.clock.now(), await policy(tx, actor, client)),

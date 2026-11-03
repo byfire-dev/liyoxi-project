@@ -179,6 +179,24 @@ it("最新渠道disabled/未配与服务端actions缺失均不调用平台", asy
   await h.intent.pay("id");
   expect(h.pay).not.toHaveBeenCalled();
 });
+it.each(["plan_new", "plan_renew", "plan_upgrade", "topup"])(
+  "支付前按真实付款单的%s类型读取策略，避免混用套餐与加购渠道",
+  async (type) => {
+    const h = setup();
+    h.api.detail.mockResolvedValue({ ...waiting(), type });
+    await h.intent.pay("id");
+    expect(h.api.policy).toHaveBeenCalledExactlyOnceWith(type);
+    expect(h.pay).toHaveBeenCalledOnce();
+  },
+);
+it("未知付款单类型保留结果且不猜策略或调用支付", async () => {
+  const h = setup();
+  h.api.detail.mockResolvedValue({ ...waiting(), type: "future_type" });
+  expect((await h.intent.pay("id"))?.notice).toContain("暂不支持在线支付");
+  expect(h.api.policy).not.toHaveBeenCalled();
+  expect(h.api.prepay).not.toHaveBeenCalled();
+  expect(h.pay).not.toHaveBeenCalled();
+});
 it("ctxRev/角色/卸载失效后平台迟到success零订阅和零后续回查", async () => {
   const h = setup(),
     held = deferred<"success">();

@@ -35344,6 +35344,22 @@
     "/api/v1/m/purchase-policy": {
       "get": {
         "operationId": "m.purchasePolicy.get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "plan_new",
+                "plan_renew",
+                "plan_upgrade",
+                "topup"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -35438,7 +35454,7 @@
             "description": "外部能力不可用、系统繁忙或停机维护"
           }
         },
-        "summary": "购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导）",
+        "summary": "购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），可按交易类型求值，给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导）",
         "x-auth": "member",
         "x-capability": "plan.purchase",
         "x-clerk-view": "none",

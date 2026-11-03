@@ -32,6 +32,14 @@ const packs: Data<"m.pointPack.list"> = {
     { pointPackId: "zero-price", points: 100, priceFen: 0 },
   ],
 };
+const topupPolicy = {
+  ...billingPolicy,
+  copy: { ...billingPolicy.copy, agreementKeys: ["points"] },
+};
+const topupAgreements = {
+  ...billingAgreements,
+  items: billingAgreements.items.filter((doc) => doc.agreementKey === "points"),
+};
 function setup() {
   const input = {
     me: makeMe(),
@@ -43,8 +51,9 @@ function setup() {
   const response = vi.fn(async (path: string): Promise<unknown> => {
     if (path === "/m/wallet") return wallet();
     if (path === "/m/purchase-policy") return billingPolicy;
+    if (path === "/m/purchase-policy?type=topup") return topupPolicy;
     if (path === "/m/point-packs") return packs;
-    if (path.startsWith("/m/agreements?")) return billingAgreements;
+    if (path.startsWith("/m/agreements?scene=topup&")) return topupAgreements;
     throw new Error("unexpected route");
   });
   const call: RequestLayer["request"] = async <T>(path: string) => {
@@ -64,7 +73,7 @@ it("只读真实wallet/policy/pack DTO与topup协议scene；null与0保留", asy
   await h.model.show();
   expect(h.calls).toEqual([
     "/m/wallet",
-    "/m/purchase-policy",
+    "/m/purchase-policy?type=topup",
     "/m/point-packs",
     "/m/agreements?scene=topup&limit=50",
   ]);
@@ -83,7 +92,7 @@ it.each(["offline_contract", "hidden"] as const)(
       path === "/m/wallet" ? wallet() : { ...billingPolicy, mode },
     );
     await h.model.show();
-    expect(h.calls).toEqual(["/m/wallet", "/m/purchase-policy"]);
+    expect(h.calls).toEqual(["/m/wallet", "/m/purchase-policy?type=topup"]);
     expect(topupBlock(h.model.snapshot())).toContain("暂未开放");
     expect(topupBody(h.model.snapshot(), "bank_transfer")).toBeNull();
   },
@@ -157,13 +166,37 @@ it("同意当前协议才生成typed创建体，渠道禁用/协议换版会产�
     pointPackId: BILLING_ID,
     channel: "bank_transfer",
     expectAmountFen: 9900,
-    agreementVersionIds: billingAgreements.items.map((d) => d.currentVersion!.agreementVersionId),
+    agreementVersionIds: topupAgreements.items.map((d) => d.currentVersion!.agreementVersionId),
   });
   expect(topupBody(state, "wechat_jsapi")).toBeNull();
   expect(topupBody({ ...state, agreements: [] }, "bank_transfer")).toBeNull();
   const changed = structuredClone(state);
   changed.agreements[0]!.currentVersion!.agreementVersionId = "new-version";
   expect(topupBody(changed, "bank_transfer")).not.toEqual(body);
+});
+it("加购协议缺失、无生效版本或同意方式不符仍禁止建单，刷新后恢复", async () => {
+  const h = setup();
+  await h.model.show();
+  const state = h.model.snapshot();
+  for (const agreements of [
+    [],
+    topupAgreements.items.map((doc) => ({ ...doc, currentVersion: null })),
+    topupAgreements.items.map((doc) => ({ ...doc, consentMode: "checkbox" })),
+  ]) {
+    expect(topupBody({ ...state, agreements }, "bank_transfer")).toBeNull();
+  }
+  expect(topupBody(state, "bank_transfer")?.agreementVersionIds).toHaveLength(1);
+  expect(
+    planPurchaseBody(
+      billingQuote,
+      { planId: BILLING_ID },
+      topupAgreements.items,
+      "bank_transfer",
+      true,
+    ),
+  ).toBeNull();
+  await h.model.refresh();
+  expect(topupBody(h.model.snapshot(), "bank_transfer")).not.toBeNull();
 });
 it("续费/升级/降级仅消费真实quote，意图与精确降级影响回传；滚动期限不误作币价变更", () => {
   for (const action of ["subscribe", "renew", "renew_upgrade", "upgrade", "downgrade"] as const) {
