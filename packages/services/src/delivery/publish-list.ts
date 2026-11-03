@@ -3,6 +3,7 @@ import { renderPublishListEpisode } from "@liyoxi/shared/publish-list";
 import type { Tx } from "../kernel/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
 import type { TicketRow } from "./repo.js";
+import { publishListDefaults } from "./publish-list-defaults.js";
 export async function prefillPublishList(tx: Tx, deps: DeliveryCoreDeps, t: TicketRow) {
   if (await tx.publishList.findUnique({ where: { deliveryTicketId: t.id } })) return;
   const drama = await tx.drama.findUniqueOrThrow({ where: { id: t.dramaId } }),
@@ -13,21 +14,32 @@ export async function prefillPublishList(tx: Tx, deps: DeliveryCoreDeps, t: Tick
     };
   const title = shot.title ?? drama.title,
     cover = shot.posterFileId ?? drama.posterFileId,
+    genreCodes = shot.genreCodes ?? drama.genreCodes,
     genres = await tx.dictItem.findMany({
-      where: { dictTypeKey: "genre", code: { in: shot.genreCodes ?? drama.genreCodes } },
+      where: { dictTypeKey: "genre", code: { in: genreCodes } },
     }),
     now = deps.clock.now();
+  const genreNames = new Map(genres.map((genre) => [genre.code, genre.name]));
+  const defaults = publishListDefaults({
+    title,
+    episodeCount: t.orderItem.episodeCount,
+    genreNames: genreCodes.flatMap((code) => {
+      const name = genreNames.get(code);
+      return name === undefined ? [] : [name];
+    }),
+    synopsis: drama.synopsis,
+  });
   const p = await tx.publishList.create({
     data: {
       id: uuidv7(),
       entityId: t.entityId,
       storeId: t.storeId,
       deliveryTicketId: t.id,
-      collectionName: `${title}（全 ${t.orderItem.episodeCount} 集）`,
+      collectionName: defaults.collectionName,
       coverFileId: cover,
       titleTemplate: "{剧名} 第{集数}集",
-      topics: genres.length ? genres.map((g) => g.name) : [title],
-      intro: drama.synopsis?.slice(0, 200) ?? null,
+      topics: defaults.topics,
+      intro: defaults.intro,
       isAiDeclarationRequired: drama.isAiGenerated,
       createdAt: now,
       updatedAt: now,
