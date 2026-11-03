@@ -47,6 +47,70 @@ afterEach(async () => {
 });
 
 describe("错误信封：有界解析、固定白名单与二次去敏", () => {
+  it("M6 portal真实队列保留精确编译帧，跨组件、外域、穿越与未知组件仍不转发堆栈", async () => {
+    const { instance, send } = setup();
+    const canonical = {
+      filename: "assets/index-Ab12_cd3.js",
+      abs_path: "app:///portal/assets/index-Ab12_cd3.js",
+      lineno: 2,
+      colno: 9,
+      in_app: true,
+    };
+    instance.accept(
+      envelope({
+        ...EVENT,
+        dist: "portal",
+        release: "sha-0123456789ab",
+        debug_meta: { images: [{ debug_id: "private-debug" }] },
+        exception: {
+          values: [
+            {
+              type: "Error",
+              value: "13800138000 Bearer portal-private-token",
+              stacktrace: {
+                frames: [
+                  {
+                    ...canonical,
+                    function: "private function",
+                    vars: { token: "portal-private-token" },
+                    pre_context: ["private source"],
+                    context_line: "private source",
+                    post_context: ["private source"],
+                  },
+                  { ...canonical, abs_path: "app:///admin/assets/index-Ab12_cd3.js" },
+                  { ...canonical, abs_path: "app:///weapp/assets/index-Ab12_cd3.js" },
+                  { ...canonical, abs_path: "https://elsewhere.invalid/assets/index-Ab12_cd3.js" },
+                  { ...canonical, filename: "../assets/index-Ab12_cd3.js" },
+                  { ...canonical, lineno: 0 },
+                  { ...canonical, colno: 2_147_483_648 },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    );
+    for (const dist of ["admin", "weapp", "unknown", "api", "worker"])
+      instance.accept(
+        envelope({
+          ...EVENT,
+          dist,
+          exception: { values: [{ type: "Error", stacktrace: { frames: [canonical] } }] },
+        }),
+      );
+    await instance.drain();
+    expect(send).toHaveBeenCalledTimes(6);
+    const sent = send.mock.calls.map((call) => JSON.parse(String(call[1]!.body).split("\n")[2]!));
+    expect(sent[0]).toMatchObject({ release: "sha-0123456789ab", dist: "portal" });
+    expect(sent[0].exception.values[0].stacktrace).toEqual({ frames: [canonical] });
+    for (const event of sent.slice(1)) expect(event.exception.values[0]).toEqual({ type: "Error" });
+    for (const call of send.mock.calls)
+      expect(String(call[1]!.body)).not.toMatch(
+        /13800138000|portal-private-token|private source|private function|private-debug|debug_meta/,
+      );
+    expect(instance.snapshot()).toMatchObject({ forwarded: 6, failed: 0, active: 0, queued: 0 });
+  });
+
   it("W227帧：转发只留规范组件路径及正坐标，旧无dist仅诊断文件名，PII与debug_meta仍丢弃", async () => {
     const { instance, send } = setup();
     const canonical = {
@@ -584,10 +648,43 @@ describe("真实本地 HTTP：仅虚构上游、无外网", () => {
         return nativeFetch(`${origin}${path}`, init);
       };
       const { instance } = setup({ fetch: send });
-      instance.accept(envelope({ ...EVENT, message: "13800138000 lyxm_secret" }));
+      const portalFrame = {
+        filename: "assets/index-Ab12_cd3.js",
+        abs_path: "app:///portal/assets/index-Ab12_cd3.js",
+        lineno: 2,
+        colno: 9,
+        in_app: true,
+      };
+      instance.accept(
+        envelope({
+          ...EVENT,
+          message: "13800138000 lyxm_secret",
+          dist: "portal",
+          exception: {
+            values: [
+              {
+                stacktrace: {
+                  frames: [
+                    {
+                      ...portalFrame,
+                      vars: { token: "raw-secret" },
+                      context_line: "private source",
+                    },
+                    { ...portalFrame, abs_path: "app:///admin/assets/index-Ab12_cd3.js" },
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+      );
       await instance.drain();
       expect(instance.snapshot().forwarded).toBe(1);
       expect(received[0]).not.toMatch(/13800138000|lyxm_secret/);
+      expect(received[0]).not.toMatch(/raw-secret|private source/);
+      expect(JSON.parse(received[0]!.split("\n")[2]!).exception.values[0].stacktrace).toEqual({
+        frames: [portalFrame],
+      });
       path = "/redirect";
       instance.accept(envelope());
       await instance.drain();

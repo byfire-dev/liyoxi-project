@@ -5,6 +5,8 @@ import {
 } from "./ops/index.js";
 import { createPublishPatrol, createPublishTakedown } from "./publish/index.js";
 import { createUsageLifecycle } from "./order/index.js";
+import { createPortalAds } from "./ad/index.js";
+import { createPortalDeliveryDownloads } from "./delivery/index.js";
 import type { AdWriteDeps } from "./ad/index.js";
 import type { DeliveryCoreDeps } from "./delivery/index.js";
 import type { LicenseTemplateCatalog } from "./docs/index.js";
@@ -21,6 +23,7 @@ import { createDocsRenderRuntime, createLicenseRenderingEngine } from "./ops/ind
 import type { LicenseRenderingEngine, DocsRenderRuntime } from "./ops/index.js";
 import {
   createLicenseRead,
+  createLicenseVerification,
   createLicenseAdmin,
   readLicenseTemplateClauses,
   assertLicenseFileVisible,
@@ -70,6 +73,7 @@ import type { NotifyDispatcherService } from "./notify/index.js";
 import { bindAgreementNoticeLink } from "./config/index.js";
 import { createSubscribeResults, createWechatReceiptHandler } from "./notify/index.js";
 import {
+  assertPortalPrincipal,
   currentSessionOpenid,
   createIdentity,
   findWechatIdentityId,
@@ -328,6 +332,9 @@ export interface RuntimeOptions {
 }
 
 export interface Runtime {
+  readonly portalAds: ReturnType<typeof createPortalAds>;
+  readonly portalDeliveryDownloads: ReturnType<typeof createPortalDeliveryDownloads>;
+  readonly licenseVerification: ReturnType<typeof createLicenseVerification>;
   readonly ads: ReturnType<typeof createAdRuntime>;
   readonly adminAds: ReturnType<typeof createAdminAdRuntime>;
   readonly playables: ReturnType<typeof createMerchantPlayables>;
@@ -886,6 +893,21 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     enqueueLicenseRevision: docsRender.enqueue,
   });
   docsLicenseScope.attach(licenseConvergence);
+  const licenseVerification = createLicenseVerification({ tx, clock });
+  const portalDeliveryDownloads = createPortalDeliveryDownloads({
+    tx,
+    clock,
+    assembly,
+    media,
+    assertPortalPrincipal,
+  });
+  const portalAds = createPortalAds({
+    tx,
+    clock,
+    media,
+    assertPortalPrincipal,
+    playback: (entityId) => config.flags.isEnabled("weapp.video.ad.enabled", { entityId }),
+  });
   const licenseRead = createLicenseRead({
     tx,
     clock,
@@ -1378,6 +1400,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     licenseLetters: docsLicenseScope,
     docsRender,
     licenseRead,
+    licenseVerification,
+    portalDeliveryDownloads,
+    portalAds,
     licenseAdmin,
     docs: docsServices.docs,
     docsAdmin: docsServices.admin,

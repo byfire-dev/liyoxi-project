@@ -1,6 +1,8 @@
 // Private, per-read preparation; capabilities never enter the replay spec or public report.
 import { randomUUID } from "node:crypto";
 import {
+  LicenseLetterDetailSchema,
+  LicenseLetterPageSchema,
   NoDataSchema,
   PortalTicketCreatedSchema,
   PortalTicketDecisionSchema,
@@ -9,18 +11,30 @@ import {
 } from "@liyoxi/contract";
 import type { M1Api, M1RequestInit } from "./in-process.js";
 import { MixedFailure } from "./mixed-http-driver.protocol.js";
+import type { MixedPrivateAccess } from "./mixed-http-driver.protocol.js";
+
+const sessionReads = new Set([
+  "portal.session.current.get",
+  "portal.orderItem.list",
+  "portal.orderItem.release.get",
+  "portal.orderItem.publishList.get",
+  "portal.ad.list",
+  "portal.ad.get",
+]);
 
 export async function prepareMixedPortalReads(
   api: Pick<M1Api, "request">,
   input: {
     operationIds: readonly string[];
     merchantHeaders: Readonly<Record<string, string>>;
+    licenseScope?: Pick<MixedPrivateAccess["ids"], "orderId" | "orderItemId" | "storeId">;
     origin?: string;
     signal: AbortSignal;
   },
 ) {
   const lookup = input.operationIds.includes("m.portalTicket.lookup");
-  const session = input.operationIds.includes("portal.session.current.get");
+  const session = input.operationIds.some((operationId) => sessionReads.has(operationId));
+  const verification = input.operationIds.includes("portal.licenseVerification.get");
   const pending = new Set<string>();
   let cookie: string | undefined;
   let closing: Promise<void> | undefined;
@@ -38,6 +52,80 @@ export async function prepareMixedPortalReads(
       // Preparation writes are not part of the selected GET spec; expose no operation context.
       throw new MixedFailure("read_failed");
     }
+  };
+  const readVerificationCode = async () => {
+    const scope = input.licenseScope;
+    if (!scope || !input.origin) throw new MixedFailure("read_failed");
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      input.signal.throwIfAborted();
+      const query = new URLSearchParams({
+        orderId: scope.orderId,
+        storeId: scope.storeId,
+        limit: "50",
+        ...(cursor ? { cursor } : {}),
+      });
+      const { data: list } = await request(
+        "/api/v1/m/license-letters?" + query,
+        { headers: input.merchantHeaders, signal: input.signal },
+        LicenseLetterPageSchema,
+      );
+      const letter = list.items.find(
+        (row) =>
+          row.orderId === scope.orderId &&
+          row.orderItemId === scope.orderItemId &&
+          row.storeId === scope.storeId &&
+          row.currentRevNo !== null &&
+          row.issuedAt !== null &&
+          !row.isRendering,
+      );
+      if (letter) {
+        const { data: detail } = await request(
+          "/api/v1/m/license-letters/" + encodeURIComponent(letter.licenseLetterId),
+          { headers: input.merchantHeaders, signal: input.signal },
+          LicenseLetterDetailSchema,
+        );
+        if (
+          detail.licenseLetterId !== letter.licenseLetterId ||
+          detail.orderId !== scope.orderId ||
+          detail.orderItemId !== scope.orderItemId ||
+          detail.storeId !== scope.storeId ||
+          !detail.preview ||
+          detail.currentRevNo !== detail.preview.revNo ||
+          !detail.issuedAt ||
+          detail.isRendering
+        )
+          throw new MixedFailure("read_failed");
+        // The completed M1 chain already rendered/signed/issued this version. Only read its URL;
+        // do not create a certificate, sign a download, or put its capability in the replay spec.
+        try {
+          const url = new URL(detail.preview.verifyUrl),
+            code = url.searchParams.get("code");
+          if (
+            url.protocol !== "https:" ||
+            url.origin !== new URL(input.origin).origin ||
+            url.username ||
+            url.password ||
+            url.pathname !== "/v" ||
+            url.hash ||
+            !code ||
+            !/^[0-9A-Za-z]{16}$/.test(code) ||
+            url.searchParams.get("rev") !== String(detail.preview.revNo) ||
+            [...url.searchParams.keys()].sort().join(",") !== "code,rev"
+          )
+            throw new MixedFailure("read_failed");
+          return code;
+        } catch {
+          throw new MixedFailure("read_failed");
+        }
+      }
+      if (!list.hasMore || !list.nextCursor || cursors.has(list.nextCursor))
+        throw new MixedFailure("read_failed");
+      cursor = list.nextCursor;
+      cursors.add(cursor);
+    }
+    throw new MixedFailure("read_failed");
   };
   const close = () =>
     (closing ??= (async () => {
@@ -67,7 +155,8 @@ export async function prepareMixedPortalReads(
     })());
   try {
     input.signal.throwIfAborted();
-    if (!lookup && !session) return { lookupCode: "", headers, close };
+    const licenseVerificationCode = verification ? await readVerificationCode() : "";
+    if (!lookup && !session) return { lookupCode: "", licenseVerificationCode, headers, close };
     if (!input.origin) throw new MixedFailure("read_failed");
     headers.Origin = input.origin;
     headers["X-LYX-Portal"] = "1";
@@ -117,7 +206,7 @@ export async function prepareMixedPortalReads(
       cookie = issued;
       headers.Cookie = cookie;
     }
-    return { lookupCode: lookupTicket?.shortCode ?? "", headers, close };
+    return { lookupCode: lookupTicket?.shortCode ?? "", licenseVerificationCode, headers, close };
   } catch (error) {
     await close();
     throw error;

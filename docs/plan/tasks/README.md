@@ -279,6 +279,14 @@ W6-08独立日历前置补充：`admin.launchCalendar.get.workCalendar`只读提
 | --- | --- | --- | --- |
 | — | W6-06、W6-12、W6-13 | 两条未实现的电脑样片接口撤销当前登记；M6正式53条、本包10条实施，原55资源分配保留历史对账。实现数不增加，其余667条元数据保持；主包仍等02/07。 | [治理记录](../changes/W6-06-q9-route-governance.md)；Q9 |
 
+
+### W6-06 门户投影与下载证据移交（随主包PR交付）
+
+| 编号 | 接收方 | 交付与边界 | 出处 |
+| --- | --- | --- | --- |
+| — | W6-11、W6-12、W6-13 | 10条typed API及公开portalDeliveryDownloads/portalAds/licenseVerification服务；固定会话scope、GET零写。单集/ZIP/清单TTL为900/10800/900秒，POST最终复核身份、当前授权和代次后才记访问；ZIP状态HTTP200，clientError独有202。W602清单GET保持；Q9样片资源不恢复。 | W6-06；p01/m05；identity/ad/docs/delivery/media README |
+| — | W6-11、W6-13 | 商家重授权沿原每日5次和1–30天参数；本人weapp逐集下载回报一次ack，旧记录允许迟到但仅当前release计saved。页面只回报实际保存结果，不把签发/播放记为saved。混版reader从本链真实已出件授权书GET取得验真码，未知能力/不ready/404仍拒绝；验真无PDF地址或内部身份，不代签E8/E11/V12。候选M6接口53/53不等于页面/真机/里程碑完成。 | W6-06；保存进度桩；原V7/V8/V10及预发最晚点 |
+
 ## 6. 任务书加的前置（计划依赖列没有）
 
 写任务书时查实的三处。已由一条计划小改补进计划 第 7.2 节依赖列与第 12 节（[changes/W0-04-post-kickoff-fixes.md](../changes/W0-04-post-kickoff-fixes.md)）。下表留作出处，“怎么办”一栏照旧有效（默认，W0-04 定）。

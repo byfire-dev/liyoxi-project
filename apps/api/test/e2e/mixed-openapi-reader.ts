@@ -85,6 +85,12 @@ const details: Readonly<Record<string, keyof MixedPrivateAccess["ids"]>> = {
   "admin.deliveryTicket.get": "deliveryTicketId",
   "admin.deliveryTicket.episodeOutput.list": "deliveryTicketId",
 };
+// These capabilities were added after the original read spec. When selected, read the real item;
+// replaying an older spec must neither require them nor replace that spec with HEAD's operations.
+const portalDetails: Readonly<Record<string, keyof MixedPrivateAccess["ids"]>> = {
+  "portal.orderItem.release.get": "orderItemId",
+  "portal.orderItem.publishList.get": "orderItemId",
+};
 const escapeRegex = (value: string) => value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
 function matches(template: string, path: string): boolean {
   return new RegExp(
@@ -103,6 +109,7 @@ export function mixedReadPlan(
     observedReads: readonly string[];
     token: string;
     portalTicketCode: string;
+    licenseVerificationCode: string;
     year: number;
     month: number;
   },
@@ -115,6 +122,7 @@ export function mixedReadPlan(
     "m.drama.search": { q: "修车" },
     "m.invitation.lookup": { token: input.token },
     "m.portalTicket.lookup": { code: input.portalTicketCode },
+    "portal.licenseVerification.get": { code: input.licenseVerificationCode },
     "admin.assetDemand.list": { storeId: input.access.ids.storeId },
     "admin.calendarDay.list": { year: String(input.year) },
     "admin.followUp.list": { entityId: input.access.ids.entityId },
@@ -140,6 +148,14 @@ export function mixedReadPlan(
     if (!row) throw new MixedFailure("read_failed");
     const path = row.path.replace(/\{[^}]+\}/g, encodeURIComponent(input.access.ids[id]));
     objects.push({ operationId, path });
+  }
+  for (const [operationId, id] of Object.entries(portalDetails)) {
+    const row = operations.find((one) => one.operationId === operationId);
+    if (row)
+      objects.push({
+        operationId,
+        path: row.path.replace(/\{[^}]+\}/g, encodeURIComponent(input.access.ids[id])),
+      });
   }
   for (const path of input.observedReads) {
     const url = new URL(path, "http://api.localhost");
@@ -255,6 +271,7 @@ export async function readMixedOpenApi(
     portal = await prepareMixedPortalReads(api, {
       operationIds: operations.map((row) => row.operationId),
       merchantHeaders,
+      licenseScope: input.previousAccess.ids,
       origin: api.support.runtime.env.PORTAL_PUBLIC_ORIGIN,
       signal: input.signal,
     });
@@ -264,6 +281,7 @@ export async function readMixedOpenApi(
       observedReads: input.observedReads,
       token: invitation?.token ?? "",
       portalTicketCode: portal.lookupCode,
+      licenseVerificationCode: portal.licenseVerificationCode,
       year: businessTime.getUTCFullYear(),
       month: businessTime.getUTCMonth() + 1,
     });
