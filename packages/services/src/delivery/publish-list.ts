@@ -1,4 +1,5 @@
 import { AppError, uuidv7 } from "../kernel/index.js";
+import { renderPublishListEpisode } from "@liyoxi/shared/publish-list";
 import type { Tx } from "../kernel/index.js";
 import type { DeliveryCoreDeps } from "./context.js";
 import type { TicketRow } from "./repo.js";
@@ -32,6 +33,15 @@ export async function prefillPublishList(tx: Tx, deps: DeliveryCoreDeps, t: Tick
       updatedAt: now,
     },
   });
+  await tx.publishListEpisode.createMany({
+    data: Array.from({ length: t.orderItem.episodeCount }, (_, index) => ({
+      deliveryTicketId: t.id,
+      episodeNo: index + 1,
+      topics: [],
+      createdAt: now,
+      updatedAt: now,
+    })),
+  });
   if (cover) {
     if (!deps.media) throw new AppError("INTERNAL", { message: "发布清单封面引用尚未装配" });
     await deps.media.link(tx, {
@@ -50,28 +60,29 @@ export async function publishListFacts(tx: Tx, t: TicketRow) {
     title = (t.orderItem.dramaSnapshot as { title: string }).title;
   const episodes = Array.from({ length: t.orderItem.episodeCount }, (_, i) => {
     const r = rows.find((r) => r.episodeNo === i + 1);
-    return {
+    return renderPublishListEpisode({
+      dramaTitle: title,
       episodeNo: i + 1,
-      title:
-        r?.title ??
-        p?.titleTemplate
-          ?.replaceAll("{剧名}", title)
-          .replaceAll("{集数}", String(i + 1))
-          .replaceAll("{看点}", r?.highlight ?? "") ??
-        "",
-      topics: r?.topics.length ? r.topics : (p?.topics ?? []),
-      intro: r?.intro ?? p?.intro ?? null,
-    };
+      titleTemplate: p?.titleTemplate ?? null,
+      topics: p?.topics ?? [],
+      intro: p?.intro ?? null,
+      ...(r ? { override: r } : {}),
+    });
   });
-  const complete =
-    !!p?.collectionName?.trim() &&
-    !!p.coverFileId &&
-    !!p.intro?.trim() &&
-    episodes.every((e) => !!e.title.trim() && e.topics.length > 0);
+  const untitledEpisodeNos = episodes.filter((e) => !e.title.trim()).map((e) => e.episodeNo);
+  const missing: Array<"collection_name" | "cover" | "intro" | "topics" | "episode_titles"> = [];
+  if (!p?.collectionName?.trim()) missing.push("collection_name");
+  if (!p?.coverFileId) missing.push("cover");
+  if (!p?.intro?.trim()) missing.push("intro");
+  if (episodes.some((e) => !e.topics.length)) missing.push("topics");
+  if (untitledEpisodeNos.length) missing.push("episode_titles");
+  const complete = missing.length === 0;
   return {
     p,
+    rows,
     episodes,
     complete,
+    completeness: { isComplete: complete, missing, untitledEpisodeNos },
     text: p
       ? [
           p.collectionName,

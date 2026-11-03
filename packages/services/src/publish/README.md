@@ -51,3 +51,16 @@ W0-17 实际通知契约是通知框架调用各域的只读事实端口；本�
 `ensureTakedownTasks(tx,deps,ctx,targets,{deliveryTicketId,now})` 与 `extendDeliveryPublishUsage(...)` 共用既有发布收尾内部writer。targets由 `readDeliveryPublishTargets` 读取，调用方先锁审批、订单/工单、账号、成片及发布/巡检/下架完整图，再在同一事务重读校验；不允许逆序补锁。首次创建须已交付且到T-30，依据取当前上线事实，同一账号仅一条未作废任务；它不结清上线任务或作废巡检。
 
 顺延仅用于到期下架前，更新未核查日期、按原SLA快照重算已确认任务、作废尚未到新T-30的pending任务并取消旧overdue。原 `resyncDeliveryPublishExpiry` 保留人工版权纠偏用途（已回到in_service），不混为自动顺延入口。W6-04继续唯一拥有下架定时器、确认/核查接口及其真实触发归档验收。
+
+
+## W6-02 上线工作台与核验撤销
+
+`createLaunchWorkbench` 的日历、任务列表和汇总复用工单范围及日期/负责人筛选，日历截断前计算全量统计。`listOverdueLaunchItems` / `countOverdueLaunchItems` 是唯一当前逾期口径，任务卡与 R6 共用；晚交付从交付次日起计天数。历史等待区间重放只增状态历史、当时部分上线参数与顺延审计中的旧日期，不依赖会清理的 outbox。草稿方案不进入日历，未确认时只取已推送方案日期与账号。
+
+`createLaunchRevoke` 在真实 delivery 预锁图下重验权限、最近通过轮、工单、工作日时限、下架确认与回显。旧审批保留 approved；旧回填改 revoked，新审批由撤销人提交，新回填保留原商家提交内容与身份，避免撤销人自审。剩余已通过轮重算上线事实，关联未完成巡检作废、取消 timer 并关闭系统跟进；delivery/order 按真实 owner 端口收尾。旧详情返回同一条件的可撤销投影，GET 只读工作日历，不调用缺历告警写口。
+
+两个请求同时撤销时，先完成者新建审批；后等待者若预读锁图因新审批变化，由既有完整图守卫返回 `PRECONDITION_CHANGED`，不能在高序锁之后补锁。重新读取已撤销轮再请求时按接口状态守卫返回 `STATE_NOT_ALLOWED`。两种拒绝均不产生第二份审批、迁移或事件。理由仅留审计/状态历史，冻结出站载荷不携带自由文本。
+
+R2 按门店与约定日聚合待回填账号，R6 按交付负责人聚合逾期项；发前重取当前任务、日期、暂停、负责人和收件人。扫描注册与 notify 执行均已接线，外部真实发送仍未验。目标验收为 `launch-workbench-read.test.ts`、`launch-workbench-read.db.test.ts`、`launch-workbench.db.test.ts` 及 API `publish-workbench-m6.test.ts`；历史投影输入不冒称巡检/打包生产者已完成。
+
+完整M1接口链在原核验成功后真实撤销，检查历史审批仍approved、新轮pending、最后live清零及order使用期回退；drain实际出站消费后授权书回到pending_effective，再运行原full不变量。`avgOverdueDays` 依a06第3.15节保留1位小数，使用shared唯一HALF_UP函数计算。

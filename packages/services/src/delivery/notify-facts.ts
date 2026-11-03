@@ -1,6 +1,60 @@
 import type { Tx } from "../kernel/index.js";
 import { EVENT_PAYLOAD_SCHEMAS } from "@liyoxi/contract";
 
+export async function publishListForNotify(tx: Tx, id: string) {
+  const row = await tx.publishList.findUnique({ where: { id }, include: { deliveryTicket: true } });
+  const ticket = row?.deliveryTicket;
+  if (
+    !row ||
+    !ticket ||
+    ticket.pauseCount ||
+    ticket.linksSubmittedAt ||
+    ticket.step !== "awaiting_launch"
+  )
+    return null;
+  const release = await tx.deliveryRelease.findFirst({
+    where: { deliveryTicketId: ticket.id, state: "pushed" },
+    orderBy: { releaseNo: "desc" },
+  });
+  if (!release) return null;
+  return {
+    bizType: "publish_list",
+    bizId: row.id,
+    entityId: ticket.entityId,
+    storeId: ticket.storeId,
+    status: "pushed",
+    version: row.lockVersion,
+    name: "发布清单已更新",
+    orderId: ticket.dramaOrderId,
+    orderItemId: ticket.orderItemId,
+    deliveryTicketId: ticket.id,
+  };
+}
+
+export async function publishListEventCurrentForNotify(
+  tx: Tx,
+  input: { eventId: string; payload: Record<string, unknown> },
+) {
+  const schema = EVENT_PAYLOAD_SCHEMAS["publish_list.updated"],
+    payload = schema.parse(input.payload);
+  if (!payload.isAfterPush) return false;
+  const fact = await publishListForNotify(tx, payload.publishListId);
+  if (!fact || fact.deliveryTicketId !== payload.deliveryTicketId) return false;
+  const latest = await tx.outboxEvent.findFirst({
+    where: {
+      eventType: "publish_list.updated",
+      aggregateType: "publish_list",
+      aggregateId: fact.bizId,
+    },
+    orderBy: { seq: "desc" },
+  });
+  return (
+    latest?.id === input.eventId &&
+    latest.dedupeKey === `publish_list.updated:${fact.bizId}:${fact.version}` &&
+    JSON.stringify(schema.parse(latest.payload)) === JSON.stringify(payload)
+  );
+}
+
 /** Only delivery owns these rows; notify asks a boolean before projecting the current fact. */
 export async function deliveryEventCurrentForNotify(
   tx: Tx,

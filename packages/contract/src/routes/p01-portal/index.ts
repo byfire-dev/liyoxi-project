@@ -27,3 +27,4 @@ export * from "./auth.schemas.js";
 export * from "./portal-tickets.js";
 
 export * from "./sessions.js";
+export { portalOrderItemPublishListGet } from "./order-items.js";

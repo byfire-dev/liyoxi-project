@@ -280,6 +280,8 @@ export { seedDemoContent } from "./content/index.js";
 
 export {
   createPublish,
+  createLaunchRevoke,
+  createLaunchWorkbench,
   createLaunchTasks,
   getLaunchFacts,
   bindPublish,
@@ -294,11 +296,14 @@ export type {
   PublishDeps,
   PublishViewer,
   CreateLaunchTasksInput,
+  LaunchRevoke,
+  LaunchRevokeDeps,
 } from "./publish/index.js";
 
 // W1-16a PR1：工单与方案，以及 W1-17 的同事务接管端口。
 export {
   createDelivery,
+  createPublishLists,
   createDeliveryDownloads,
   bindDelivery,
   orderSidePort,
@@ -322,6 +327,8 @@ export type { DeliveryDownloads, DeliveryDownloadDeps } from "./delivery/index.j
 export type {
   Delivery,
   DeliveryDeps,
+  PublishLists,
+  PublishListsDeps,
   DeliveryCoreDeps,
   DeliveryViewer,
   OrderSide,

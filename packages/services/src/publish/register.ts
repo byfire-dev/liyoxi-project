@@ -1,4 +1,6 @@
 import { implement as implementTenantCloseFacts } from "../kernel/index.js";
+import { remindersPort } from "../kernel/index.js";
+import { launchReminderRule, overdueLaunchReminderRule } from "./launch-reminders.js";
 import { publishCloseFactsPort } from "../tenant/index.js";
 import { countPendingChannelAccountsByStore } from "./service.js";
 import { staffWorkPort, staffFollowUpPort } from "../kernel/index.js";
@@ -7,7 +9,13 @@ import {
   implementKeyed as notifyFactImplementation,
   notifyReadPort as currentNotifyRead,
 } from "../kernel/index.js";
-import { accountNoticeFact, launchNoticeFact, launchLinkForItem } from "./notify-facts.js";
+import {
+  accountNoticeFact,
+  launchNoticeFact,
+  launchLinkForItem,
+  launchRevokedForNotify,
+  launchRevokeEventCurrentForNotify,
+} from "./notify-facts.js";
 import { approvalKindPort } from "../approval/index.js";
 import { hasPermission } from "../authz/index.js";
 import { fileCategoryGuardPort } from "../media/index.js";
@@ -40,6 +48,8 @@ export const registration = defineRegistration("publish", {
   ],
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
+    implementKeyed(remindersPort, "R2", launchReminderRule),
+    implementKeyed(remindersPort, "R6", overdueLaunchReminderRule),
     implementTenantCloseFacts(publishCloseFactsPort, { countPendingChannelAccountsByStore }),
     implementKeyed(staffFollowUpPort, "takedown_task", async (tx, id) => {
       const row = await tx.takedownTask.findUnique({
@@ -71,6 +81,12 @@ export const registration = defineRegistration("publish", {
     notifyFactImplementation(currentNotifyRead, "launchLinkForItem", launchLinkForItem),
     notifyFactImplementation(currentNotifyRead, "accountNoticeFact", accountNoticeFact),
     notifyFactImplementation(currentNotifyRead, "launchNoticeFact", launchNoticeFact),
+    notifyFactImplementation(currentNotifyRead, "launchRevokedForNotify", launchRevokedForNotify),
+    notifyFactImplementation(
+      currentNotifyRead,
+      "launchRevokeEventCurrentForNotify",
+      launchRevokeEventCurrentForNotify,
+    ),
     ...publishMachines,
     ...cancelReviewPublishMachines,
     implementKeyed(approvalKindPort, "channel_account", accountKind),

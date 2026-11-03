@@ -125,6 +125,7 @@ const rows = [
   ["10:183", "launch.changed"],
   ["10:184", "launch.changed"],
   ["10:185", "launch.changed"],
+  ["10:193", "launch.verify_revoked"],
   ["10:179", "ad.reopened"],
   ["10:181", "ticket.rework"],
   ["10:186", "usage.ended"],

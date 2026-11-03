@@ -55,6 +55,7 @@ async function deriveItem(tx: Tx, deps: OrderBinding, id: string, facts: Input["
     if (!Number.isSafeInteger(count) || count < 0 || count > item.episodeCount)
       throw new AppError("INTERNAL", { message: "上线集数越界" });
     if (facts.hasLive) start = facts.firstLaunchDate;
+    else if (item.phase === "live" && ticket.step === "launch_verify") start = null;
   }
   if (target === "live" && !start)
     throw new AppError("INTERNAL", { message: "上线阶段缺少真实首日" });
@@ -101,6 +102,40 @@ async function deriveItem(tx: Tx, deps: OrderBinding, id: string, facts: Input["
       storeId: item.storeId,
       set: { phase_changed_at: now },
       emit: { none: true, primary: "ticket.archived" },
+    });
+    phase = target;
+  }
+  if (
+    phase === "live" &&
+    target === "to_launch" &&
+    ticket.step === "launch_verify" &&
+    facts &&
+    !facts.hasLive
+  ) {
+    await deps.flow.transition(tx, ctx(), {
+      machine: "order_item",
+      stateField: "phase",
+      id,
+      event: "launch.verify_revoked",
+      ref: "09:357",
+      to: "to_launch",
+      args: derivationChecked(),
+      entityId: item.entityId,
+      storeId: item.storeId,
+      set,
+      audit: {
+        stream: "activity",
+        category: "flow",
+        action: "order.item.live_revoke",
+        summary: "核验撤销后恢复待上线",
+        target: { type: "order_item", id },
+        entityId: item.entityId,
+        storeId: item.storeId,
+      },
+      emit: {
+        type: "order.item.live_revoked",
+        payload: { v: 1, orderItemId: id, dramaOrderId: item.dramaOrderId },
+      },
     });
     phase = target;
   }

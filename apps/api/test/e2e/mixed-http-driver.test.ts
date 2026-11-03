@@ -143,6 +143,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
     token: "A".repeat(43),
     portalTicketCode: "1234ABCD",
     year: 2026,
+    month: 11,
     observedReads: ["/api/v1/admin/staff/" + id],
   };
   const plan = mixedReadPlan(operations, options);
@@ -152,7 +153,7 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
       .map((row) => row.operationId)
       .sort(),
   );
-  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(12);
+  expect(plan.operations.filter((row) => row.path.includes("?"))).toHaveLength(13);
   for (const row of plan.operations) {
     const route = allRoutes.find((one) => one.operationId === row.operationId);
     expect(route, row.operationId).toBeDefined();
@@ -194,6 +195,14 @@ it("本版旧OpenAPI全无参GET、合法组合query与实际详情全部规划�
   expect(plan.operations.find((row) => row.operationId === "admin.reconciliation.list")?.path).toBe(
     "/api/v1/admin/reconciliations?month=2026-01",
   );
+  expect(plan.operations.find((row) => row.operationId === "admin.launchCalendar.get")?.path).toBe(
+    "/api/v1/admin/launch-calendar?month=2026-11",
+  );
+  expect(
+    allRoutes
+      .find((row) => row.operationId === "admin.launchCalendar.get")
+      ?.request?.query?.safeParse({}).success,
+  ).toBe(false);
   expect(
     plan.details.some((row) => row.operationId === "admin.deliveryTicket.episodeOutput.list"),
   ).toBe(true);

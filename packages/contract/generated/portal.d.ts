@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/portal/order-items/{orderItemId}/publish-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 发布清单：合集名称、每集标题、话题、简介（生效成片包上的清单文本），供一键复制与生成文本文件 */
+        get: operations["portal.orderItem.publishList.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/portal-tickets": {
         parameters: {
             query?: never;
@@ -93,6 +110,13 @@ export interface components {
             requestId: string;
             retryable: boolean;
         };
+        ImageRef: {
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            fileId: string;
+            url: string;
+        } | null;
         PortalSessionView: {
             /** Format: date-time */
             authorizedAt: string;
@@ -142,6 +166,24 @@ export interface components {
             /** @enum {string} */
             status: "pending" | "approved" | "rejected" | "expired" | "consumed";
         };
+        PublishListView: {
+            collectionName: string;
+            cover: components["schemas"]["ImageRef"];
+            episodes: {
+                episodeNo: number;
+                intro: string | null;
+                isUpdated: boolean;
+                title: string;
+                topics: string[];
+            }[];
+            intro: string;
+            isAiDeclarationRequired: boolean;
+            /** Format: uuid */
+            orderItemId: string;
+            releaseNo: number;
+            text: string | null;
+            topics: string[];
+        };
         /** @description Sentry envelope 原文，≤200KB */
         SentryEnvelope: string;
     };
@@ -153,6 +195,79 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "portal.orderItem.publishList.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orderItemId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["PublishListView"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "portal.portalTicket.create": {
         parameters: {
             query?: never;

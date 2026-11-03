@@ -37,6 +37,7 @@ import { orderHandlers } from "./order.js";
 import { adminOrderCancelExecuteHandlers } from "./admin/order-cancel-execute.js";
 import { adminOrderCancelRequestHandlers } from "./admin/order-cancel-requests.js";
 import { publishHandlers } from "./publish.js";
+import { publishWorkbenchHandlers } from "./publish-workbench.js";
 import { deliveryHandlers } from "./delivery.js";
 import { adminDeliveryM5Handlers } from "./admin/delivery-m5.js";
 import { adminSampleOrderM5Handlers } from "./admin/sample-order-m5.js";
@@ -155,6 +156,7 @@ export const HANDLERS: readonly HandlerEntry[] = [
   ...adminBillingCatalogHandlers,
   ...profileHandlers,
   ...publishHandlers,
+  ...publishWorkbenchHandlers,
   ...deliveryHandlers,
   ...adminDeliveryM5Handlers,
   ...adminProductionMaterialsHandlers,

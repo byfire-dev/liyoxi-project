@@ -10,6 +10,7 @@ import { SLA_UNITS, workHoursAt } from "../sla/index.js";
 import type { Sla } from "../sla/index.js";
 import { closeSystemFollowUps } from "../staff/index.js";
 import { createTimers, timerKey } from "../timers/index.js";
+import { launchRevokePatrolGuard } from "./launch-revoke-guard.js";
 
 const ids = (values: readonly string[]) => [...new Set(values)].sort();
 const pass = Symbol("publish.cancel_close");
@@ -547,7 +548,10 @@ async function closePublish(
 
 export const cancelReviewPublishMachines = [
   implementKeyed(machinePort, chainKey("patrol_task", "status"), {
-    guards: { [rowKey("11:547", "patrol.void")]: cancelPublishGuard },
+    guards: {
+      [rowKey("11:547", "patrol.void")]: async (tx, facts) =>
+        (await cancelPublishGuard(tx, facts)) || (await launchRevokePatrolGuard(tx, facts)),
+    },
     activity: (facts) => ({
       category: "delivery",
       action: "publish.patrol_task.void",

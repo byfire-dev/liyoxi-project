@@ -136,6 +136,7 @@ export const CLERK_SAMPLES: readonly Sample[] = [
   ...reportingClerkSamples,
   ...licenseClerkSamples,
   ...adsClerkSamples,
+  get("m.orderItem.publishList.get", `/m/order-items/${uuidv7()}/publish-list`),
   get("m.orderItem.release.get", `/m/order-items/${uuidv7()}/release`),
   ...(
     [
