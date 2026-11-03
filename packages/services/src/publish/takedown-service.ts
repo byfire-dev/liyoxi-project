@@ -24,7 +24,7 @@ import {
   takedownRow,
   takedownSummary,
 } from "./takedown-read.js";
-import { assertTakedownStaff, takedownAccess, takedownOf } from "./takedown-repo.js";
+import { assertTakedownStaff, takedownAccess, takedownForWrite } from "./takedown-repo.js";
 import { snapshotOf } from "./repo.js";
 import { invalid, owner } from "./validate.js";
 import {
@@ -49,7 +49,8 @@ export function createPublishTakedown(deps: TakedownDeps) {
     takedownAccess(staff);
     // C50 must not replay a frozen response after the caller loses task ownership/scope.
     await deps.tx.run(async (tx) => {
-      for (const id of ids) assertTakedownStaff(staff, await takedownOf(tx, id, staff), breach);
+      for (const id of ids)
+        assertTakedownStaff(staff, await takedownForWrite(tx, id, staff), breach);
     });
     return deps.tx.run(write, options);
   }
@@ -96,10 +97,10 @@ export function createPublishTakedown(deps: TakedownDeps) {
       options: PublishWriteOptions = {},
     ) {
       owner(viewer);
-      await deps.tx.run((tx) => takedownOf(tx, id, viewer));
+      await deps.tx.run((tx) => takedownForWrite(tx, id, viewer));
       const raw = await deps.tx.run(async (tx) => {
         await confirmTakedown(tx, deps, viewer, id, body);
-        const row = await takedownOf(tx, id, viewer);
+        const row = await takedownForWrite(tx, id, viewer);
         return {
           card: takedownCard(row, deps.clock.now()),
           posterFileId: snapshotOf(row.orderItem.dramaSnapshot).posterFileId ?? null,
@@ -121,9 +122,9 @@ export function createPublishTakedown(deps: TakedownDeps) {
       options: PublishWriteOptions = {},
     ) =>
       runStaff(ctx, staff, [id], false, options, async (tx) => {
-        const first = await takedownOf(tx, id, staff);
+        const first = await takedownForWrite(tx, id, staff);
         await prelockTakedowns(tx, deps, [first], staff.staff.id, body.evidenceFileIds);
-        const row = await takedownOf(tx, id, staff);
+        const row = await takedownForWrite(tx, id, staff);
         await validateTakedownCheck(tx, row, staff, body);
         await applyTakedownCheck(tx, deps, ctx, staff, row, body);
         await evaluateTakedowns(tx, deps, [row]);
@@ -151,7 +152,7 @@ export function createPublishTakedown(deps: TakedownDeps) {
           // Scope failures stay 404 before collecting business errors; they disclose no row facts.
           const first = [];
           for (const item of body.items)
-            first.push(await takedownOf(tx, item.takedownTaskId, staff));
+            first.push(await takedownForWrite(tx, item.takedownTaskId, staff));
           await prelockTakedowns(
             tx,
             deps,
@@ -162,7 +163,7 @@ export function createPublishTakedown(deps: TakedownDeps) {
           const rows = [],
             errors = [];
           for (const [index, item] of body.items.entries()) {
-            const row = await takedownOf(tx, item.takedownTaskId, staff);
+            const row = await takedownForWrite(tx, item.takedownTaskId, staff);
             rows.push(row);
             try {
               await validateTakedownCheck(tx, row, staff, item);
@@ -188,7 +189,12 @@ export function createPublishTakedown(deps: TakedownDeps) {
             items = [];
           for (const row of rows)
             items.push(
-              await takedownRow(tx, await takedownOf(tx, row.id, staff), staff, deps.clock.now()),
+              await takedownRow(
+                tx,
+                await takedownForWrite(tx, row.id, staff),
+                staff,
+                deps.clock.now(),
+              ),
             );
           return { items, archivedTicketIds };
         },

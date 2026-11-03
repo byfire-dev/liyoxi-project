@@ -85,13 +85,18 @@ export function takedownWhere(
     ],
   };
 }
-export async function takedownOf(tx: Tx, id: string, access?: StaffContext | PublishViewer) {
+async function scopedTakedown(
+  tx: Tx,
+  id: string,
+  access: StaffContext | PublishViewer | undefined,
+  includeVoid: boolean,
+) {
   const merchant = access && "membership" in access ? access : null;
   if (merchant) owner(merchant);
   const row = await tx.takedownTask.findFirst({
     where: {
       id,
-      status: { not: "void" },
+      ...(includeVoid ? {} : { status: { not: "void" } }),
       ...(merchant
         ? { entityId: merchant.membership.entityId, storeId: merchant.membership.storeId }
         : {}),
@@ -102,3 +107,11 @@ export async function takedownOf(tx: Tx, id: string, access?: StaffContext | Pub
   if (!row) throw new AppError("NOT_FOUND");
   return row;
 }
+
+export const takedownOf = (tx: Tx, id: string, access?: StaffContext | PublishViewer) =>
+  scopedTakedown(tx, id, access, false);
+
+// A stale write must distinguish an in-scope void task from a missing/foreign task.
+// The writer's state guard returns 409; read projections continue to hide void rows.
+export const takedownForWrite = (tx: Tx, id: string, access: StaffContext | PublishViewer) =>
+  scopedTakedown(tx, id, access, true);

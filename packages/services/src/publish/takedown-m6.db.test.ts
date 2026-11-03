@@ -1,12 +1,14 @@
-import { afterEach, beforeAll, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { addDays, atMinuteOfDay, dayRange } from "@liyoxi/shared/time";
 import { alertsOf, createIdentityContext } from "../kernel/index.js";
+import { ownTaskScope } from "../authz/index.js";
 import { createTimers, runTimer } from "../timers/index.js";
 import {
   createUsageLifecycleForTest,
   createTakedownFixture,
   claimTakedownTimer,
   useSeededDatabase,
+  snapshotTables,
 } from "../testing/index.js";
 import {
   createContent,
@@ -228,7 +230,7 @@ it("I7补缺并取消孤儿，逾期timer真升级且不制造系统跟进", asy
     [],
   );
 });
-it("真实版权顺延作废旧代任务与timer，晚到旧代零效果，新T-30重新生成", async () => {
+async function rescheduledFixture() {
   const h = await fixture(),
     f = await h.ready({ daysBeforeEnd: 31 });
   const oldCreate = await h.prisma.timer.findFirstOrThrow({
@@ -304,28 +306,140 @@ it("真实版权顺延作废旧代任务与timer，晚到旧代零效果，新T-
       life.handle(tx, { ...resync, payload: resync.payload as Record<string, unknown> }),
     ),
   ).toBe("fired");
-  expect(await h.prisma.takedownTask.findUnique({ where: { id: task.id } })).toMatchObject({
-    status: "void",
+  return { h, f, task, oldCreate, oldOverdue, end };
+}
+
+describe("真实版权顺延后的作废下架任务", () => {
+  let prepared: Awaited<ReturnType<typeof rescheduledFixture>>;
+  beforeAll(async () => {
+    prepared = await rescheduledFixture();
   });
-  expect(await h.prisma.timer.findUnique({ where: { id: oldOverdue.id } })).toMatchObject({
-    status: "cancelled",
-  });
-  for (const timer of [oldCreate, oldOverdue])
-    expect(
-      await h.tx.run((tx) =>
-        h.wrapper.assembly
-          .timerHandler(timer.kind)!
-          .handle(tx, { ...timer, payload: timer.payload as Record<string, unknown> }),
-      ),
-    ).toBe("skipped");
-  const next = await h.prisma.timer.findFirstOrThrow({
-    where: { kind: "takedown.create", subjectId: f.item.id, status: "scheduled" },
-  });
-  h.clock.set(next.fireAt);
-  expect((await h.fire(next.id)).result).toBe("fired");
-  expect(
-    await h.prisma.takedownTask.findMany({
+  it("旧代失效、新T-30生成；作废写返回状态冲突，混批零写且读取和外范围隐藏", async () => {
+    const { h, f, task, oldCreate, oldOverdue, end } = prepared;
+    expect(await h.prisma.takedownTask.findUnique({ where: { id: task.id } })).toMatchObject({
+      status: "void",
+    });
+    expect(await h.prisma.timer.findUnique({ where: { id: oldOverdue.id } })).toMatchObject({
+      status: "cancelled",
+    });
+    for (const timer of [oldCreate, oldOverdue])
+      expect(
+        await h.tx.run((tx) =>
+          h.wrapper.assembly
+            .timerHandler(timer.kind)!
+            .handle(tx, { ...timer, payload: timer.payload as Record<string, unknown> }),
+        ),
+      ).toBe("skipped");
+    const next = await h.prisma.timer.findFirstOrThrow({
+      where: { kind: "takedown.create", subjectId: f.item.id, status: "scheduled" },
+    });
+    h.clock.set(next.fireAt);
+    expect((await h.fire(next.id)).result).toBe("fired");
+    const active = await h.prisma.takedownTask.findMany({
       where: { deliveryTicketId: f.id, status: { not: "void" } },
-    }),
-  ).toEqual([expect.objectContaining({ usageEndDate: new Date(end), dueDate: new Date(end) })]);
+    });
+    expect(active).toEqual([
+      expect.objectContaining({
+        status: "pending_merchant",
+        usageEndDate: new Date(end),
+        dueDate: new Date(end),
+      }),
+    ]);
+    const current = active[0]!,
+      oldBody = await h.checkBody(f, task.id),
+      currentBody = await h.checkBody(f, current.id),
+      stranger = await h.staff("publisher"),
+      scoped = { ...stranger.staff, scope: ownTaskScope(stranger.row) },
+      foreign = await h.make.merchant({ verified: true });
+    const foreignMember = await h.prisma.entityMember.findFirstOrThrow({
+      where: { entityId: foreign.entity.id, merchantUserId: foreign.user.id },
+    });
+    const outsider = {
+      ctx: createIdentityContext({
+        actor: { type: "merchant", id: foreign.user.id, client: "weapp" },
+      }),
+      membership: {
+        memberId: foreignMember.id,
+        entityId: foreign.entity.id,
+        storeId: foreign.store.id,
+        role: "owner" as const,
+        storeMode: "active" as const,
+      },
+    };
+    const snapshot = () =>
+      snapshotTables(h.prisma, [
+        "takedown_task",
+        "delivery_ticket",
+        "delivery_ticket_stage",
+        "order_item",
+        "drama_order",
+        "status_transition",
+        "outbox_event",
+        "audit_log",
+        "timer",
+        "file_ref",
+        "file_object",
+        "manual_reminder_log",
+        "download_grant",
+        "delivery_release",
+        "follow_up",
+        "launch_task",
+        "launch_submission",
+        "approval_request",
+      ]);
+    const before = await snapshot();
+    const oldItem = { takedownTaskId: task.id, ...oldBody },
+      currentItem = { takedownTaskId: current.id, ...currentBody };
+    for (const items of [
+      [currentItem, oldItem],
+      [oldItem, currentItem],
+    ]) {
+      await expect(h.takedown.batchCheck(f.qc.ctx, f.qc.staff, { items })).rejects.toMatchObject({
+        error: "TAKEDOWN_BATCH_REJECTED",
+        details: {
+          items: [
+            {
+              index: items.findIndex((item) => item.takedownTaskId === task.id),
+              takedownTaskId: task.id,
+              error: "STATE_NOT_ALLOWED",
+            },
+          ],
+        },
+      });
+      expect(await snapshot()).toEqual(before);
+    }
+    for (const write of [
+      () => h.takedown.confirm(f.o.viewer, task.id, { method: "not_published" }),
+      () => h.takedown.check(f.qc.ctx, f.qc.staff, task.id, oldBody),
+      () => h.takedown.markOnline(f.qc.ctx, f.qc.staff, task.id, {}),
+      () => h.takedown.escalate(f.qc.ctx, f.qc.staff, task.id, {}),
+      () => h.takedown.sendBreachNotice(f.qc.ctx, f.qc.staff, task.id),
+    ])
+      await expect(write()).rejects.toMatchObject({ error: "STATE_NOT_ALLOWED" });
+    await expect(h.takedown.get(f.qc.staff, task.id)).rejects.toMatchObject({ error: "NOT_FOUND" });
+    const list = await h.takedown.list(f.qc.staff, {
+      orderItemId: f.item.id,
+      tab: "waiting",
+      page: 1,
+      pageSize: 20,
+    });
+    expect(list.items.map((item) => item.takedownTaskId)).toEqual([current.id]);
+    const merchantList = await h.takedown.merchantList(f.o.viewer, {
+      tab: "pending",
+      orderId: f.o.order.id,
+      limit: 20,
+    });
+    expect(merchantList.items.map((item) => item.takedownTaskId)).toEqual([current.id]);
+    for (const write of [
+      () => h.takedown.confirm(outsider, task.id, { method: "not_published" }),
+      () => h.takedown.check(stranger.ctx, scoped, task.id, oldBody),
+      () => h.takedown.batchCheck(stranger.ctx, scoped, { items: [currentItem, oldItem] }),
+      () => h.takedown.markOnline(stranger.ctx, scoped, task.id, {}),
+      () => h.takedown.escalate(stranger.ctx, scoped, task.id, {}),
+      () => h.takedown.sendBreachNotice(stranger.ctx, scoped, task.id),
+      () => h.takedown.get(scoped, task.id),
+    ])
+      await expect(write()).rejects.toMatchObject({ error: "NOT_FOUND" });
+    expect(await snapshot()).toEqual(before);
+  });
 });

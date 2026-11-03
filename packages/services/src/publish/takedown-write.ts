@@ -19,7 +19,7 @@ import {
   allowedMethods,
   assertTakedownStaff,
   expectedChecklist,
-  takedownOf,
+  takedownForWrite,
 } from "./takedown-repo.js";
 import type { TakedownRow } from "./takedown-repo.js";
 import { checklist, files, invalid, owner } from "./validate.js";
@@ -111,9 +111,9 @@ export async function confirmTakedown(
   body: TakedownTaskConfirmBody,
 ) {
   owner(viewer);
-  const first = await takedownOf(tx, id, viewer);
+  const first = await takedownForWrite(tx, id, viewer);
   await prelockTakedowns(tx, deps, [first]);
-  const row = await takedownOf(tx, id, viewer),
+  const row = await takedownForWrite(tx, id, viewer),
     now = deps.clock.now();
   if (row.status !== "pending_merchant") throw new AppError("STATE_NOT_ALLOWED");
   if (!(allowedMethods(row) as readonly string[]).includes(body.method))
@@ -242,9 +242,9 @@ export async function adminTakedownAction(
   action: "markOnline" | "escalate" | "sendBreachNotice",
   body: TakedownTaskNoteBody = {},
 ) {
-  const first = await takedownOf(tx, id, staff);
+  const first = await takedownForWrite(tx, id, staff);
   await prelockTakedowns(tx, deps, [first], staff.staff.id);
-  const row = await takedownOf(tx, id, staff),
+  const row = await takedownForWrite(tx, id, staff),
     now = deps.clock.now();
   assertTakedownStaff(staff, row, action === "sendBreachNotice");
   if (body.note !== undefined && body.note.length > 200) throw invalid("note", "说明最多200字");
