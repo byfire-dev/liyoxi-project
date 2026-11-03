@@ -90,7 +90,7 @@ describe("限流档位的登记（约定 C68）", () => {
       "m.login.silent",
       "m.global",
     ]);
-    // 签发类的档位跨组：下载页的三条挂 m.sign，同时受下载页的缺省档位约束
+    // 签发类的档位跨组：下载页的两条挂 m.sign，同时受下载页的缺省档位约束
     expect(rateLimitTiersOf({ operationId: "portal.orderItem.downloadUrls" })).toEqual([
       "m.sign",
       "portal.global",

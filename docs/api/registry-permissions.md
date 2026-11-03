@@ -5,7 +5,7 @@
 | 状态 | 评审稿（2026-10-03）；接口契约的唯一来源 |
 | 依据 | d4-identity.md 第 7.1 节（后台权限点）、第 5.2 节（商家能力点）；裁决 A13、A15、A36、A45、A46、A53、A60、A65、A87、A88、A92、A127、A128、A129、A136、A139、A140、A149；约定 C54、C56、C66、C67、C86；各文档第 1 节与清单 |
 | 生成方式 | 脚本 `tools/api-check/gen_permissions.py` 读路线图（`routemap.json`）统计每个键被哪些接口引用，读各文档“回显”栏算二次确认回显；键的默认值由汇总人按上述依据统一 |
-| 核对 | 路线图引用的后台权限点 92 个、能力点 38 个，全部在本表 |
+| 核对 | 路线图引用的后台权限点 92 个、能力点 37 个，全部在本表 |
 
 说明：
 - **本表是唯一来源**。代码落在 `packages/contract/src/permissions.ts`（后台）与 `packages/contract/src/authz/merchant-caps.ts`（商家端）。路由只能引用表里的键，写错编译不过（d4 7.1 第 3 条）。d4 附录的旧表不再回改（A129）；d4 里作废的旧名不列。
@@ -246,7 +246,7 @@ d4 已作废、本表不列的：`sys.staff.mfa_reset`（并入 `sys.staff.secur
 | `me.*` | 本人资料、账号与安全、退出、注销、退出门店（组键） | ✔ | ✔ | ✔ | `m.me.update`、`m.me.changePhone`、`m.me.deletion.create`、`m.me.userNotice.acknowledge` 等 10 条 | d4；A128 |
 | `todo.read` | 首页待办 | ✔ | ✔（仅素材相关） | ✔ | `m.todo.list` | A87；m04 |
 | `support.manager.read` | 服务经理名片 | ✔ | ✔ | ✔ | `m.serviceManager.get` | A87、A128；m08 |
-| `sample.view` | 下载页预览样片 | ✔ | ✘ | ✔ | `portal.orderItem.sample.get`、`portal.sample.playbackUrls` | A65、A87；p01（仅下载页会话） |
+| `sample.view` | 下载页预览样片 | ✔ | ✘ | ✔ | — | A65、A87；p01（仅下载页会话） |
 | `ad.view` | 下载页预览广告 | ✔ | ✘ | ✔ | `portal.ad.list`、`portal.ad.get`、`portal.ad.playbackUrls` | A65、A87；p01（仅下载页会话） |
 
 下载页（`portal`）会话代表授权它的老板：`delivery.download`、`sample.view`、`ad.view` 在下载页按老板判定（C5）。
@@ -342,24 +342,25 @@ d4 已作废、本表不列的：`sys.staff.mfa_reset`（并入 `sys.staff.secur
 
 不登记的：`admin.transferProof.reject`（`finance.receipt.reject` 本身不要求再验证，也不是审批决定）；`admin.qualificationSubmission.reject`、`admin.channelAccountSubmission.reject`、`admin.launchSubmission.reject`（权限点在注册表里没有标再验证，无需豁免）；`admin.purgeRun.reject` 已按 A149 登记（不是审批单，但同属“决定类权限点”的驳回）。
 
-## 5. 不一致与待定（12 条）
+## 5. 不一致与待定（13 条）
 
 - 路线图引用了、本表没有的键：0 个。
 
 | # | 类别 | 键 | 情况 | 建议 |
 | --- | --- | --- | --- | --- |
 | 1 | 注册表有、没有接口用 | `billing.month.close` | d4 财务行登记了“月结”，路线图没有接口用它；月结由定时任务做，重出用 `report.month_close.reissue`（a02） | 从注册表删去，或并入 `report.month_close.reissue`；d4 不回改（A129），在本表标“作废”即可 |
-| 2 | 默认授予不一 | `flow.checklist.manage` | d4：仅超级管理员；a01 1.1：超级管理员、内容运营 | 取 d4（仅超级管理员）；若要内容运营维护清单，由业务拍板后改本表 |
-| 3 | 默认授予不一 | `order.refund.request` | d4：客服；D3 草案允许交付经理发起广告取消（a05 第 6 节第 9 项） | 维持客服；交付经理要发起广告取消时由业务拍板，再给交付经理默认开 |
-| 4 | 默认授予不一 | `delivery.ticket.rework` | d4 只写“见 D3 附录 A”，D3 附录 A 没有默认值；a05 写交付经理（仅主管） | 取 a05：交付经理* |
-| 5 | 默认授予不一 | `delivery.ticket.assign_publisher` | d4 写“交付经理、发布专员*”；a05 写“交付经理、发布专员（仅主管）”，“仅主管”是否也限交付经理有歧义 | 定为：交付经理不限主管，发布专员仅主管（同 d4 写法）；a05 1.2 措辞按此改 |
-| 6 | 待拍板 | `merchant.qualification.review` | d4 默认客服，注明“PRD 未指明岗位，待拍板” | 先按客服落库，业务拍板后只改本表默认值 |
-| 7 | 待拍板 | `order.payment.create_offline` | d4 默认财务，注明“默认值由 D2 确认”；D2 未见明确结论 | 先按财务落库，待财务确认 |
-| 8 | 回显说法不一 | `drama.copyright.revise` | a04 2.1 写本文权限点（含 `billing.price.edit`）“都不要求二次确认回显”；但 a04 的版权期限修订（`confirm.prevEndDate`）与单剧调价（`confirm.currentPoints`）都要求 `confirm` | 以接口为准（要回显）；改 a04 2.1 的说法 |
-| 9 | 规则例外 | `flow.ops.view` | 查看类键，与“查看类不设权限点”（d4 7.1 第 2 条）相抵；A129 已采纳 | 保留为登记的例外：只在处理器内与模块等级“或”判定；不再新增同类键 |
-| 10 | 命名 | `refund.override.request` | 领域段 `refund` 不是服务模块名（d4 7.1 第 1 条要求取拥有该动作的服务模块） | 建议改名 `order.refund.override_request`（与 `order.refund.request` 同组）；改名前不阻塞 |
-| 11 | d3 旧键未登记 | `delivery.sample.download_watermarked` | d3 附录 A 列了“下载水印版（用于企业微信发送）”，d4 与路线图都没有；水印版签发现走样片推送与 `admin.file.downloadUrls` | 不登记；在 d3 待回写清单里注明由 `delivery.sample.push` / `delivery.download` 覆盖 |
-| 12 | 能力点待定 | （V1.1 占位） | 商家端 V1.1 占位接口没有能力点：`m.delegation.create`、`m.cancelRequest.create`、`m.favorite.create`、`m.favorite.delete`、`m.performanceReport.list`、`m.performanceUpload.create`、`m.faq.list`、`m.siteNotice.list` | V1.1 设计时补键；V1.0 不挂载，不阻塞 |
+| 2 | 注册表有、没有接口用 | `sample.view` | 路线图与说明都未引用 |  |
+| 3 | 默认授予不一 | `flow.checklist.manage` | d4：仅超级管理员；a01 1.1：超级管理员、内容运营 | 取 d4（仅超级管理员）；若要内容运营维护清单，由业务拍板后改本表 |
+| 4 | 默认授予不一 | `order.refund.request` | d4：客服；D3 草案允许交付经理发起广告取消（a05 第 6 节第 9 项） | 维持客服；交付经理要发起广告取消时由业务拍板，再给交付经理默认开 |
+| 5 | 默认授予不一 | `delivery.ticket.rework` | d4 只写“见 D3 附录 A”，D3 附录 A 没有默认值；a05 写交付经理（仅主管） | 取 a05：交付经理* |
+| 6 | 默认授予不一 | `delivery.ticket.assign_publisher` | d4 写“交付经理、发布专员*”；a05 写“交付经理、发布专员（仅主管）”，“仅主管”是否也限交付经理有歧义 | 定为：交付经理不限主管，发布专员仅主管（同 d4 写法）；a05 1.2 措辞按此改 |
+| 7 | 待拍板 | `merchant.qualification.review` | d4 默认客服，注明“PRD 未指明岗位，待拍板” | 先按客服落库，业务拍板后只改本表默认值 |
+| 8 | 待拍板 | `order.payment.create_offline` | d4 默认财务，注明“默认值由 D2 确认”；D2 未见明确结论 | 先按财务落库，待财务确认 |
+| 9 | 回显说法不一 | `drama.copyright.revise` | a04 2.1 写本文权限点（含 `billing.price.edit`）“都不要求二次确认回显”；但 a04 的版权期限修订（`confirm.prevEndDate`）与单剧调价（`confirm.currentPoints`）都要求 `confirm` | 以接口为准（要回显）；改 a04 2.1 的说法 |
+| 10 | 规则例外 | `flow.ops.view` | 查看类键，与“查看类不设权限点”（d4 7.1 第 2 条）相抵；A129 已采纳 | 保留为登记的例外：只在处理器内与模块等级“或”判定；不再新增同类键 |
+| 11 | 命名 | `refund.override.request` | 领域段 `refund` 不是服务模块名（d4 7.1 第 1 条要求取拥有该动作的服务模块） | 建议改名 `order.refund.override_request`（与 `order.refund.request` 同组）；改名前不阻塞 |
+| 12 | d3 旧键未登记 | `delivery.sample.download_watermarked` | d3 附录 A 列了“下载水印版（用于企业微信发送）”，d4 与路线图都没有；水印版签发现走样片推送与 `admin.file.downloadUrls` | 不登记；在 d3 待回写清单里注明由 `delivery.sample.push` / `delivery.download` 覆盖 |
+| 13 | 能力点待定 | （V1.1 占位） | 商家端 V1.1 占位接口没有能力点：`m.delegation.create`、`m.cancelRequest.create`、`m.favorite.create`、`m.favorite.delete`、`m.performanceReport.list`、`m.performanceUpload.create`、`m.faq.list`、`m.siteNotice.list` | V1.1 设计时补键；V1.0 不挂载，不阻塞 |
 
 只在处理器内用到、路由字段不直接引用的键（20 个，属正常，不计入上表）：`merchant.qualification.override`、`pii.phone.reveal`、`pii.license.view`、`refund.override.request`、`billing.invariant.resolve`、`pii.bank.reveal`、`agreement.short_notice`、`docs.consent.evidence`、`audit.export`、`flow.ops.view`、`order.export`、`finance.export`、`merchant.export`、`report.export`、`delivery.export`、`service.export`、`drama.export`、`billing.export`、`export.unmasked`、`message.read`。契约测试按 C66 核对它们出现在处理器判定规则里。
 

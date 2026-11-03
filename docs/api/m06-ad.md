@@ -163,7 +163,7 @@
 
 ### 2.8 `Playable`、`PlayableSource`（全仓唯一定义）
 
-小程序内播放与下载页播放共用这一份 schema：本文的广告详情与 `m.playable.get`、m05-delivery-publish 的样片页、p01-portal 的 `portal.sample.playbackUrls` 与 `portal.ad.playbackUrls`、m04-mall-order 的预告片都引用它，不另行定义（C62）。三种情形（A135、A147；C62）：资产未就绪（`playable_asset.state` 不是 `ready`）时所在字段返回 `null`；资产就绪而此刻不能在小程序内播放（开关关闭，或推送时的查看方式不含 `weapp`）时返回只带海报的对象，`sources = []`、`expiresAt = null`（键照常出现，C38）；就绪且可播放时返回完整对象。`m.playable.get` 与下载页的签发接口返回的对象 `sources` 恒非空。
+小程序内播放与下载页播放共用这一份 schema：本文的广告详情与 `m.playable.get`、m05-delivery-publish 的样片页、p01-portal 的 `portal.ad.playbackUrls`（历史电脑样片签发已按 Q9 撤销登记）、m04-mall-order 的预告片都引用它，不另行定义（C62）。三种情形（A135、A147；C62）：资产未就绪（`playable_asset.state` 不是 `ready`）时所在字段返回 `null`；资产就绪而此刻不能在小程序内播放（开关关闭，或推送时的查看方式不含 `weapp`）时返回只带海报的对象，`sources = []`、`expiresAt = null`（键照常出现，C38）；就绪且可播放时返回完整对象。`m.playable.get` 与下载页的签发接口返回的对象 `sources` 恒非空。
 
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |

@@ -3,10 +3,12 @@
 | 项 | 内容 |
 | --- | --- |
 | 文档 | `p01-portal` |
-| 范围 | 商家电脑端下载页（`portal.<域名>`，前缀 `/api/v1/portal`）的全部接口：扫码登录（建票据、轮询、换会话）、当前会话与退出、可下载清单、成片下载（逐集、打包、发布清单文件）、发布清单复制、样片与广告的只读预览（元数据与留痕签发分开）、授权书验真（`/v?code=` 页面的数据接口）、前端错误上报；V1.1 的电脑端上传占位。页面：原型无，按 d7-platform.md:1270 的 5 个页面加 `/a` 落地页、`/v` 验真页（05-risks-and-open-issues.md:271 列为待补原型；design-spec.md 第 12 节：按后台规格实现） |
-| 接口数 | 17（V1.0 16，V1.1 1） |
+| 范围 | 商家电脑端下载页（`portal.<域名>`，前缀 `/api/v1/portal`）的全部接口：扫码登录（建票据、轮询、换会话）、当前会话与退出、可下载清单、成片下载（逐集、打包、发布清单文件）、发布清单复制、广告的只读预览（元数据与留痕签发分开）、授权书验真（`/v?code=` 页面的数据接口）、前端错误上报；V1.1 的电脑端上传占位。页面：原型无，按 d7-platform.md:1270 的 5 个页面加 `/a` 落地页、`/v` 验真页（05-risks-and-open-issues.md:271 列为待补原型；design-spec.md 第 12 节：按后台规格实现） |
+| 接口数 | 15（V1.0 14，V1.1 1）；Q9 两条历史样片资源已撤销当前登记 |
 | 依据 | 数据模型 `02-identity-tenant.md` 2.4 `portal_session`、2.15 `portal_ticket`；`10-delivery.md` 2.7 `sample`、2.10 `delivery_release`、2.12 `download_grant`、2.13 `delivery_download_log`、2.14–2.15 发布清单；`06-media.md` 2.1 `file_object`、2.4 `media_info`（封面帧兜底）、2.11 `playable_asset`、2.12 `zip_bundle`；`13-notify-docs.md` 2.13–2.14 授权书与版次、第 4 节 `letter_snapshot`；`09-order-ad.md` 2.3 `order_item`、2.8 `ad`、2.9 `ad_version`；`03-staff-authz-audit.md` 2.10 `audit_log`、2.11 `auth_event`；`14-config-data.md` 2.9 `analytics_event`。草案 d7-platform.md 第 6 节（下载页最小形态与票据），d5-media.md 第 7、8 节与第 12 节接口清单，d4-identity.md 第 3.7 节与附录 A、B，d6-notify-docs-data.md 3.5.4、3.6（验真页）。接口裁决 A1–A150（`api-rulings.md`）；通用约定 C1–C87（`conventions.md`）；资源登记表 `resources.json` |
 | 状态 | 第二轮修订（2026-10-03） |
+
+> Q9 登记治理（2026-11-03）：[W6-06 独立治理前置](../plan/changes/W6-06-q9-route-governance.md)撤销两条从未实现的样片资源登记；本文件第3.10、3.11节仅作历史记录。M6正式集合为53条，撤销两条不记作业务落地。
 
 > Q9 当期覆盖（2026-10-29）：第一期样片仅在小程序内查看；portal 两条样片接口当前未落地，本次不实现，不作为关闭内播后的兜底。本文保留的 PortalSampleView、PendingSampleBrief、sample_pending 和旧样片修订记录为历史设计/契约资料，不表示当前可用。广告预览、成片下载及 portal 会话按其原包推进。见 [Q9 工作包](../plan/changes/plan-q9-sample-player.md)。
 
@@ -25,8 +27,6 @@
 | `portal.orderItem.release.get` | `GET /portal/order-items/{orderItemId}/release` | 成片下载页数据 | portal；`delivery.download` | none（查询） |
 | `portal.orderItem.downloadUrls` | `POST /portal/order-items/{orderItemId}/download-urls` | 签发单集、ZIP、发布清单文件的直链并留痕 | portal；`delivery.download` | none（签发短时地址） |
 | `portal.orderItem.publishList.get` | `GET /portal/order-items/{orderItemId}/publish-list` | 发布清单（复制） | portal；`delivery.download` | none（查询） |
-| `portal.orderItem.sample.get` | `GET /portal/order-items/{orderItemId}/sample` | 历史样片元数据设计；当前未落地，Q9 不实现 | portal；`sample.view` | none（查询） |
-| `portal.sample.playbackUrls` | `POST /portal/samples/{sampleId}/playback-urls` | 历史样片签发设计；当前未落地，Q9 不实现 | portal；`sample.view` | none（签发短时地址） |
 | `portal.ad.list` | `GET /portal/ads` | 本门店待确认的广告 | portal；`ad.view` | none（查询） |
 | `portal.ad.get` | `GET /portal/ads/{adId}` | 广告预览页元数据 | portal；`ad.view` | none（查询） |
 | `portal.ad.playbackUrls` | `POST /portal/ads/{adId}/playback-urls` | 签发广告播放地址（源文件，不加水印，A97）并留痕 | portal；`ad.view` | none（签发短时地址） |
@@ -247,7 +247,7 @@ DownloadBlocker =
 
 ### 2.4 样片与广告预览
 
-#### `PortalSampleView`（`portal.orderItem.sample.get`）
+#### `PortalSampleView`（Q9 撤销接口的历史结构）
 
 | 字段 | 类型 | 必有 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
@@ -317,7 +317,7 @@ DownloadBlocker =
 | `decision` | enum(`confirmed`,`revision_requested`,`superseded`) \| null | 是 | 商家对这一版的决定；为空即“请回到小程序确认或提出修改意见” | `ad_version.decision` |
 | `decidedAt` | string(date-time) \| null | 是 | 决定时间 | `ad_version.decided_at` |
 
-`Playable`（`portal.sample.playbackUrls`、`portal.ad.playbackUrls` 的响应）：引用 m06-ad 2.8 的 `Playable` / `PlayableSource`（全仓唯一定义，m05-delivery-publish 的样片页也引用它，`{ playableId, kind, durationMs, width, height, posterUrl, sources: [{ quality, url, width, height, bitrateKbps }], expiresAt, autoplay, muted }`，来源 `playable_asset`），不复述。下载页上 `sources` 恒非空、`autoplay` 与 `muted` 恒为 `false`（design-spec.md:862：点击后才播放）。
+`Playable`（`portal.ad.playbackUrls` 的响应）：引用 m06-ad 2.8 的 `Playable` / `PlayableSource`（全仓唯一定义，m05-delivery-publish 的样片页也引用它，`{ playableId, kind, durationMs, width, height, posterUrl, sources: [{ quality, url, width, height, bitrateKbps }], expiresAt, autoplay, muted }`，来源 `playable_asset`），不复述。下载页上 `sources` 恒非空、`autoplay` 与 `muted` 恒为 `false`（design-spec.md:862：点击后才播放）。
 
 ### 2.5 授权书验真
 
@@ -721,13 +721,13 @@ DownloadBlocker =
 
 **说明**：复制读生效成片包的 `delivery_release.publish_list_text`，不读打包时生成的清单文件（06-media.md:979）；推送后修订清单会同步更新这段文本（10-delivery.md:1159）。“下载清单文件”按钮（`hasPublishList` 为真时显示）点击后先调 3.8 的 `kind = publish_list`（只查不建，不触发打包）：`ready` 用返回的 15 分钟直链下载服务端文件（写下载记录）；其余状态由浏览器用本接口的 `text` 生成文本文件（不留痕，10-delivery.md:1071）。页面因此不需要事先知道 ZIP 是否就绪。
 
-### 3.10 portal.orderItem.sample.get　历史样片元数据设计（当前未落地）
+### 3.10 portal.orderItem.sample.get　历史样片元数据设计（Q9 已撤销登记）
 
 `GET /portal/order-items/{orderItemId}/sample`
 
-该 operationId 与 PortalSampleView 等历史结构保留；当前没有真实处理器，Q9 第一期不实现此接口，也不提供样片电脑端入口。不得将元数据路由登记、历史草案响应或 enum 保留描述为功能已可用。
+本节与 PortalSampleView 仅保留历史设计资料；该 operationId 已从当前契约、路线图与 M6 集合撤销，未转入 V1.1。当前没有真实处理器，Q9 第一期不实现此接口，也不提供样片电脑端入口。不得将元数据路由登记、历史草案响应或 enum 保留描述为功能已可用。
 
-### 3.11 portal.sample.playbackUrls　历史样片播放签发设计（当前未落地）
+### 3.11 portal.sample.playbackUrls　历史样片播放签发设计（Q9 已撤销登记）
 
 `POST /portal/samples/{sampleId}/playback-urls`
 

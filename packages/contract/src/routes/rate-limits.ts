@@ -32,7 +32,6 @@ export const RATE_LIMIT_TIERS = {
       "m.ad.downloadUrls",
       "m.invoiceRequest.downloadUrls",
       "portal.orderItem.downloadUrls",
-      "portal.sample.playbackUrls",
       "portal.ad.playbackUrls",
     ],
   },

@@ -8,7 +8,6 @@ import * as files from "./files.js";
 import * as licenseVerifications from "./license-verifications.js";
 import * as orderItems from "./order-items.js";
 import * as portalTickets from "./portal-tickets.js";
-import * as samples from "./samples.js";
 import * as sessions from "./sessions.js";
 
 export const P01_PORTAL = defineRouteDoc("p01-portal", [
@@ -18,7 +17,6 @@ export const P01_PORTAL = defineRouteDoc("p01-portal", [
   licenseVerifications,
   orderItems,
   portalTickets,
-  samples,
   sessions,
 ]);
 
