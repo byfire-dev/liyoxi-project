@@ -122,7 +122,7 @@ export const billingAgreements: Data<"m.agreement.list"> = {
     name: index ? "积分使用规则" : "套餐服务协议",
     subjectKind: "entity",
     consentMode: "by_action",
-    scenes: ["plan_purchase"],
+    scenes: agreementKey === "points" ? ["plan_purchase", "topup"] : ["plan_purchase"],
     currentVersion: {
       agreementVersionId: index ? "00000000-0000-4000-8000-000000000002" : BILLING_ID,
       versionLabel: "v1.0",
@@ -135,6 +135,24 @@ export const billingAgreements: Data<"m.agreement.list"> = {
   nextCursor: null,
   hasMore: false,
 };
+
+function agreementsForPath(path: string): Data<"m.agreement.list"> {
+  const scene = new URL(path, "https://fixture.invalid").searchParams.get("scene");
+  return {
+    ...billingAgreements,
+    items: billingAgreements.items.filter((item) => !scene || item.scenes.some((s) => s === scene)),
+  };
+}
+
+function policyForPath(policy: Data<"m.purchasePolicy.get">, path: string) {
+  const type = new URL(path, "https://fixture.invalid").searchParams.get("type") ?? "plan_new";
+  if (!["plan_new", "plan_renew", "plan_upgrade", "topup"].includes(type))
+    throw new Error("购买策略 type 必须是有效付款单类型");
+  return {
+    ...policy,
+    copy: { ...policy.copy, agreementKeys: type === "topup" ? ["points"] : ["member", "points"] },
+  } satisfies Data<"m.purchasePolicy.get">;
+}
 /** 本地内嵌回单样张，不触发离线场景外发请求。 */
 export const billingReceipt = {
   path:
@@ -262,21 +280,23 @@ export function billingPayment(scene: string): Data<"m.paymentOrder.get"> {
 /** 固定 DTO 的单一注入口，只在 H5 明确标记时启用。 */
 export function offlineBillingRequest(scene: string): RequestLayer["request"] {
   if (
-    scene.startsWith("topup-") ||
     scene === "plan-renew" ||
-    scene === "plan-upgrade" ||
-    scene === "wechat-pending"
+    scene.startsWith("plan-upgrade") ||
+    scene === "wallet-upgrade-highest"
   )
+    return offlinePlanPickRequest(scene);
+  if (scene.startsWith("topup-") || scene === "wechat-pending")
     return offlinePurchaseRequest(scene);
   let receiptRegistered = false,
     receiptConfirmed = false;
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     let value: unknown;
     if (path === "/m/wallet") value = billingWallet(scene);
-    else if (path === "/m/purchase-policy") value = billingPolicy;
+    else if (new URL(path, "https://fixture.invalid").pathname === "/m/purchase-policy")
+      value = policyForPath(billingPolicy, path);
     else if (path === "/m/plans") value = billingPlans;
     else if (path === "/m/plans/quote") value = billingQuote;
-    else if (path.startsWith("/m/agreements?")) value = billingAgreements;
+    else if (path.startsWith("/m/agreements?")) value = agreementsForPath(path);
     else if (path === "/m/payment-orders" && options?.method === "POST")
       value = { ...billingPayment(scene), replayed: false } satisfies Data<"m.paymentOrder.create">;
     else if (path.endsWith("/transfer-proofs")) value = billingPayment("payment-waiting");
@@ -341,9 +361,126 @@ export function offlineBillingRequest(scene: string): RequestLayer["request"] {
   };
 }
 
+/** 三档目录按真实请求判定升级/续费，避免样张无条件返回 upgrade 掩盖选错档位。 */
+function offlinePlanPickRequest(scene: string): RequestLayer["request"] {
+  const fallback = offlineBillingRequest("wallet-active");
+  const currentRank = scene.endsWith("-highest") ? 3 : scene === "plan-upgrade" ? 1 : 2;
+  const pro = billingPlans.items[0]!;
+  const plans: Data<"m.plan.list"> = {
+    items: [
+      {
+        ...pro,
+        planId: "00000000-0000-4000-8000-000000000101",
+        planRevisionId: "00000000-0000-4000-8000-000000000101",
+        code: "STANDARD",
+        name: "标准版",
+        rank: 1,
+        monthlyFeeFen: 300000,
+        monthlyPoints: 3000,
+        cyclePrices: [{ months: 1, priceFen: 300000 }],
+      },
+      pro,
+      {
+        ...pro,
+        planId: "00000000-0000-4000-8000-000000000103",
+        planRevisionId: "00000000-0000-4000-8000-000000000103",
+        code: "FLAGSHIP",
+        name: "旗舰版",
+        rank: 3,
+        monthlyFeeFen: 1000000,
+        monthlyPoints: 12000,
+        productionModel: "top",
+        schedulePriority: "rush",
+        cyclePrices: [{ months: 1, priceFen: 1000000 }],
+      },
+    ].map((plan) => ({ ...plan, isCurrent: plan.rank === currentRank })),
+  };
+  const current = plans.items.find((plan) => plan.isCurrent)!;
+  const calls: { path: string; method: string; data?: unknown }[] = [];
+  (globalThis as { __LYX_PLAN_CALLS__?: typeof calls }).__LYX_PLAN_CALLS__ = calls;
+  let quoteAttempts = 0;
+  return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
+    calls.push({ path, method: options?.method ?? "GET", data: options?.data });
+    if (path === "/m/plans") return plans as T;
+    if (path === "/m/wallet") {
+      const wallet = billingWallet("wallet-active");
+      return {
+        ...wallet,
+        subscription: {
+          ...wallet.subscription,
+          plan: { planId: current.planId, code: current.code, name: current.name },
+          benefits: current,
+        },
+      } satisfies Data<"m.wallet.get"> as T;
+    }
+    if (path !== "/m/plans/quote") return fallback(path, options);
+    const body = options?.data as Body<"m.plan.quote"> | undefined;
+    const target = plans.items.find((plan) => plan.planId === body?.planId);
+    if (options?.method !== "POST" || !body || !target)
+      throw new Error("套餐报价必须 POST 并选择目录中的套餐");
+    const upgrade = body.intent === "upgrade_now";
+    const cycle = target.cyclePrices.find((item) => item.months === body.months);
+    if (
+      upgrade
+        ? target.rank <= current.rank || body.months !== undefined
+        : body.intent !== "renew_next_term" || !cycle
+    )
+      throw new Error(upgrade ? "立即升级必须选择更高档且不携带周期" : "续费必须选择有效购买周期");
+    quoteAttempts++;
+    if (scene === "plan-upgrade-retry" && quoteAttempts === 1)
+      throw new Error("报价服务暂时不可用，请重试");
+    const feeDelta = target.monthlyFeeFen! - current.monthlyFeeFen!;
+    const payFen = upgrade ? feeDelta / 5 : cycle!.priceFen;
+    const quote: Data<"m.plan.quote"> = {
+      ...billingQuote,
+      planId: target.planId,
+      planRevisionId: target.planRevisionId,
+      planName: target.name,
+      fromPlanName: current.name,
+      action: upgrade
+        ? "upgrade"
+        : target.rank === current.rank
+          ? "renew"
+          : target.rank > current.rank
+            ? "renew_upgrade"
+            : "downgrade",
+      orderType: upgrade ? "plan_upgrade" : "plan_renew",
+      months: upgrade ? null : cycle!.months,
+      newTerm: upgrade ? null : billingQuote.newTerm,
+      firstGrantDate: upgrade ? null : billingQuote.firstGrantDate,
+      effectiveMode: upgrade ? "immediate" : "next_term",
+      benefits: target,
+      payFen,
+      formula: {
+        code: upgrade ? "plan_upgrade" : "plan_monthly",
+        args: { payFen },
+        text: upgrade
+          ? `${current.name}升级至${target.name}，按剩余周期补差`
+          : `${target.name}续费，下期生效`,
+      },
+      upgrade: upgrade
+        ? {
+            currentTermEndDate: "2026-11-12",
+            remainingDays: 6,
+            baseDays: 30,
+            remainingFullMonths: 0,
+            feeDeltaPerMonthFen: feeDelta,
+            monthlyDeltaPoints: target.monthlyPoints - current.monthlyPoints,
+            proratedFen: payFen,
+            topupPoints: (target.monthlyPoints - current.monthlyPoints) / 5,
+          }
+        : null,
+    };
+    return quote as T;
+  };
+}
+
 /** W414固定虚构策略与支付状态，仅经显式H5样张标记进入；不模拟原生支付成功。 */
 function offlinePurchaseRequest(scene: string): RequestLayer["request"] {
   const fallback = offlineBillingRequest("wallet-active");
+  const calls: { path: string; method: string; data?: unknown }[] = [];
+  (globalThis as { __LYX_TOPUP_CALLS__?: typeof calls }).__LYX_TOPUP_CALLS__ = calls;
+  let agreementAttempts = 0;
   const policy: Data<"m.purchasePolicy.get"> = {
     ...billingPolicy,
     mode:
@@ -355,14 +492,23 @@ function offlinePurchaseRequest(scene: string): RequestLayer["request"] {
     channels: billingPolicy.channels.map((c) => ({ ...c, isEnabled: scene !== "topup-disabled" })),
   };
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
+    calls.push({ path, method: options?.method ?? "GET", data: options?.data });
     let value: unknown;
     if (path === "/m/wallet")
       value = {
         ...billingWallet("wallet-active"),
         topUp: { canTopUp: true, blockReason: null },
       } satisfies Data<"m.wallet.get">;
-    else if (path === "/m/purchase-policy") value = policy;
-    else if (path === "/m/point-packs") {
+    else if (new URL(path, "https://fixture.invalid").pathname === "/m/purchase-policy")
+      value = policyForPath(policy, path);
+    else if (path.startsWith("/m/agreements?")) {
+      agreementAttempts++;
+      value =
+        scene === "topup-agreements-missing" ||
+        (scene === "topup-agreements-retry" && agreementAttempts === 1)
+          ? { ...billingAgreements, items: [] }
+          : agreementsForPath(path);
+    } else if (path === "/m/point-packs") {
       if (scene === "topup-error") throw new Error("固定积分包加载失败");
       value = {
         items: [

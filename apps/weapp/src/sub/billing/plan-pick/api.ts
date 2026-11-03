@@ -1,9 +1,23 @@
 import type { Body, Data, Agreement } from "@/lib/account-api";
 import type { RequestLayer } from "@/lib/request";
+import type { operations } from "@liyoxi/contract/types/merchant";
+
+export type PurchaseType = NonNullable<
+  NonNullable<operations["m.purchasePolicy.get"]["parameters"]["query"]>["type"]
+>;
+
+/** 付款单的 type 是开放枚举；未知类型仍可查看结果，但不猜其购买策略。 */
+export function purchasePolicyType(value: string): PurchaseType | undefined {
+  return (["plan_new", "plan_renew", "plan_upgrade", "topup"] as const).find(
+    (type) => type === value,
+  );
+}
+
 export function createPurchaseApi(call: RequestLayer["request"]) {
   return {
     plans: () => call<Data<"m.plan.list">>("/m/plans"),
-    policy: () => call<Data<"m.purchasePolicy.get">>("/m/purchase-policy"),
+    policy: (type?: PurchaseType) =>
+      call<Data<"m.purchasePolicy.get">>(`/m/purchase-policy${type ? `?type=${type}` : ""}`),
     quote: (data: Body<"m.plan.quote">) =>
       call<Data<"m.plan.quote">>("/m/plans/quote", { method: "POST", data }),
     async agreements() {

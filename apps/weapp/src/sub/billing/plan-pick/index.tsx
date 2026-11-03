@@ -44,6 +44,7 @@ import {
   type Quote,
 } from "./model";
 import { ReceiptPicker } from "./receipt";
+import { initialPlanSelection, planQuoteError, selectablePlans, upgradeChoices } from "./selection";
 import "./index.scss";
 const api = createPurchaseApi(billingRequest);
 export const paymentResult = (id: string) =>
@@ -77,6 +78,9 @@ function PlanContent() {
   const [quote, setQuote] = useState<Quote | null>(null),
     [error, setError] = useState<string | null>(null),
     [refresh, setRefresh] = useState(0);
+  const [quoteError, setQuoteError] = useState<string | null>(null),
+    [quoteLoading, setQuoteLoading] = useState(false),
+    [quoteRetry, setQuoteRetry] = useState(0);
   const [confirming, setConfirming] = useState(false),
     [busy, setBusy] = useState(false),
     [payment, setPayment] = useState<Payment | null>(null);
@@ -125,30 +129,27 @@ function PlanContent() {
   useEffect(() => {
     const own = ++generation.current;
     stopped.current = false;
+    quoteGeneration.current++;
+    intent.current = null;
     void account
       .start()
       .then(async () => {
-        if (!current()) return;
+        if (!current() || own !== generation.current) return;
+        setCatalog(null);
+        setSelection(null);
+        setQuote(null);
+        setQuoteError(null);
+        setQuoteLoading(false);
+        setError(null);
         const [p, plans, docs] = await Promise.all([api.policy(), api.plans(), api.agreements()]);
         if (!current() || own !== generation.current) return;
         setPolicy(p);
         setCatalog(plans);
         setAgreements(docs);
         setError(null);
-        const first =
-          plans.items.find((v) =>
-            mode === "upgrade_now"
-              ? !v.isCurrent
-              : mode === "renew_next_term"
-                ? v.isCurrent
-                : v.cyclePrices.length > 0,
-          ) ?? plans.items[0];
-        if (first)
-          setSelection({
-            planId: first.planId,
-            ...(mode === "upgrade_now" ? {} : { months: first.cyclePrices[0]?.months }),
-            ...(mode ? { intent: mode } : {}),
-          });
+        const nextSelection = initialPlanSelection(plans.items, mode);
+        setSelection(nextSelection);
+        setQuoteLoading(nextSelection !== null && purchaseVisible(p));
       })
       .catch((e) => {
         if (current() && own === generation.current)
@@ -169,19 +170,23 @@ function PlanContent() {
       .then((v) => {
         if (current() && own === quoteGeneration.current) {
           setQuote(v);
+          setQuoteLoading(false);
           setConfirming(false);
           setAcknowledged(false);
           setError(null);
         }
       })
       .catch((e) => {
-        if (current() && own === quoteGeneration.current)
-          setError(e instanceof Error ? e.message : "暂未取得报价，请重试");
+        if (current() && own === quoteGeneration.current) {
+          setQuote(null);
+          setQuoteLoading(false);
+          setQuoteError(planQuoteError(e));
+        }
       });
     return () => {
       quoteGeneration.current = own + 1;
     };
-  }, [selection, policy, current]);
+  }, [selection, policy, current, quoteRetry]);
   const activePolicy = quote?.policy ?? policy;
   const noun = activePolicy ? billingCopy(activePolicy.copy.planNounKey, copy) : "";
   const docs = activePolicy ? purchaseAgreements(activePolicy, agreements) : [];
@@ -288,6 +293,8 @@ function PlanContent() {
         setAcknowledged(false);
         setAgreements([]);
         setQuote(null);
+        setQuoteError(null);
+        setQuoteLoading(true);
         const own = ++quoteGeneration.current;
         setError("购买协议已更新，正在重新加载，请重新核对后确认");
         try {
@@ -295,11 +302,15 @@ function PlanContent() {
           if (current() && own === quoteGeneration.current) {
             setAgreements(next.agreements);
             setQuote(next.quote);
+            setQuoteLoading(false);
             setError("购买协议已更新，请查看新版本并重新确认");
           }
         } catch (failure) {
-          if (current() && own === quoteGeneration.current)
-            setError(failure instanceof Error ? failure.message : "购买协议暂未加载，请重试");
+          if (current() && own === quoteGeneration.current) {
+            setQuoteLoading(false);
+            setQuoteError(planQuoteError(failure));
+            setError("购买协议暂未加载完整，请重新加载购买协议");
+          }
         }
       } else setError(e instanceof Error ? e.message : "暂未建单，请重试");
     } finally {
@@ -311,18 +322,29 @@ function PlanContent() {
   }
   const select = (value: Body<"m.plan.quote">) => {
     if (writeLock.current || !current()) return;
+    if (
+      !catalog ||
+      !selectablePlans(catalog.items, mode).some((plan) => plan.planId === value.planId)
+    )
+      return;
     value = {
       ...value,
       ...(mode ? { intent: mode } : {}),
       ...(mode === "upgrade_now" ? { months: undefined } : {}),
     };
     setAcknowledged(false);
+    quoteGeneration.current++;
     setQuote(null);
+    setQuoteError(null);
+    setQuoteLoading(true);
+    setError(null);
     setConfirming(false);
     intent.current = null;
     setSelection(value);
   };
   const selected = catalog?.items.find((v) => v.planId === selection?.planId);
+  const choices = selectablePlans(catalog?.items ?? [], mode);
+  const upgradeStatus = upgradeChoices(catalog?.items ?? []).status;
   return (
     <View className="billing-plan">
       <PageBody>
@@ -357,6 +379,8 @@ function PlanContent() {
                         quoteGeneration.current++;
                         intent.current = null;
                         setQuote(null);
+                        setQuoteError(null);
+                        setQuoteLoading(false);
                         setSelection(null);
                         setConfirming(false);
                         setAcknowledged(false);
@@ -368,136 +392,179 @@ function PlanContent() {
                     </Button>
                   ))}
                 </View>
-                <View className="billing-plan__stack" ariaRole="radiogroup">
-                  {catalog.items.map((plan) => (
-                    <OptionCard
-                      key={plan.planId}
-                      selected={plan.planId === selection?.planId}
-                      title={plan.name}
-                      extra={
-                        plan.monthlyFeeFen === null
-                          ? undefined
-                          : `${formatMoney(plan.monthlyFeeFen)} / 月`
-                      }
-                      description={`每月 ${formatInteger(plan.monthlyPoints)} ${billingCopy(activePolicy.copy.pointsNounKey, copy)} · 按原价 ${formatSignedPercent(plan.discountBp).replace("+", "")}`}
-                      onClick={() => {
-                        const cycle = plan.cyclePrices[0];
-                        if (mode === "upgrade_now" || cycle)
-                          select({
-                            planId: plan.planId,
-                            ...(cycle ? { months: cycle.months } : {}),
-                          });
-                      }}
-                    >
-                      <View className="billing-plan__muted">
-                        {planBenefitLabels(plan)} · {plan.maxStores} 家门店 ·{" "}
-                        {plan.maxMembers === null ? "不限成员数" : `${plan.maxMembers} 位成员`} ·{" "}
-                        {plan.hasMonthlyReport ? "含月度报告" : "不含月度报告"}
-                      </View>
-                    </OptionCard>
-                  ))}
-                </View>
-                {mode !== "upgrade_now" ? (
-                  <Card title="选择周期">
-                    <View className="billing-plan__cycles">
-                      {selected?.cyclePrices.map((cycle) => (
+                {choices.length === 0 ? (
+                  <Empty
+                    title={
+                      mode === "upgrade_now"
+                        ? upgradeStatus === "highest"
+                          ? "当前已是最高档"
+                          : "暂时无法确认当前套餐档位"
+                        : "暂无可购买套餐"
+                    }
+                    description={
+                      mode === "upgrade_now"
+                        ? upgradeStatus === "highest"
+                          ? "可选择续费 / 下期变更，继续使用套餐权益"
+                          : "请重新加载，或联系服务经理确认可升级套餐"
+                        : "请稍后重试或联系服务经理"
+                    }
+                  />
+                ) : (
+                  <>
+                    <View className="billing-plan__stack" ariaRole="radiogroup">
+                      {choices.map((plan) => (
                         <OptionCard
-                          key={cycle.months}
-                          selected={selection?.months === cycle.months}
-                          title={`${cycle.months} 个月`}
-                          extra={formatMoney(cycle.priceFen)}
-                          onClick={() => select({ planId: selected.planId, months: cycle.months })}
-                        />
+                          key={plan.planId}
+                          selected={plan.planId === selection?.planId}
+                          title={plan.name}
+                          extra={
+                            plan.monthlyFeeFen === null
+                              ? undefined
+                              : `${formatMoney(plan.monthlyFeeFen)} / 月`
+                          }
+                          description={`每月 ${formatInteger(plan.monthlyPoints)} ${billingCopy(activePolicy.copy.pointsNounKey, copy)} · 按原价 ${formatSignedPercent(plan.discountBp).replace("+", "")}`}
+                          onClick={() => {
+                            const cycle = plan.cyclePrices[0];
+                            if (mode === "upgrade_now" || cycle)
+                              select({
+                                planId: plan.planId,
+                                ...(cycle ? { months: cycle.months } : {}),
+                              });
+                          }}
+                        >
+                          <View className="billing-plan__muted">
+                            {planBenefitLabels(plan)} · {plan.maxStores} 家门店 ·{" "}
+                            {plan.maxMembers === null ? "不限成员数" : `${plan.maxMembers} 位成员`}{" "}
+                            · {plan.hasMonthlyReport ? "含月度报告" : "不含月度报告"}
+                          </View>
+                        </OptionCard>
                       ))}
                     </View>
-                  </Card>
-                ) : null}
-                {quote ? (
-                  <Card title="本次变更">
-                    <DescList
-                      items={[
-                        { label: "变更", value: planActionLabel(quote.action) },
-                        { label: "目标版本", value: quote.planName },
-                        {
-                          label: "生效方式",
-                          value: quote.effectiveMode === "next_term" ? "下期生效" : "立即生效",
-                        },
-                        {
-                          label: "周期",
-                          value: quote.months === null ? "—" : `${quote.months} 个月`,
-                        },
-                        {
-                          label: "有效期",
-                          value: quoteTermLabel(quote),
-                        },
-                        { label: "每月积分", value: formatInteger(quote.benefits.monthlyPoints) },
-                        { label: "应付金额", value: formatMoney(quote.payFen) },
-                      ]}
-                    />
-                    <Note>{quote.formula.text}</Note>
-                    {quote.upgrade ? (
-                      <Note>
-                        剩余 {quote.upgrade.remainingDays} 天，本次补发{" "}
-                        {formatInteger(quote.upgrade.topupPoints)} 积分，有效期至{" "}
-                        {quote.upgrade.currentTermEndDate}
-                      </Note>
+                    {mode !== "upgrade_now" ? (
+                      <Card title="选择周期">
+                        <View className="billing-plan__cycles">
+                          {selected?.cyclePrices.map((cycle) => (
+                            <OptionCard
+                              key={cycle.months}
+                              selected={selection?.months === cycle.months}
+                              title={`${cycle.months} 个月`}
+                              extra={formatMoney(cycle.priceFen)}
+                              onClick={() =>
+                                select({ planId: selected.planId, months: cycle.months })
+                              }
+                            />
+                          ))}
+                        </View>
+                      </Card>
                     ) : null}
-                    {quote.downgradeImpact ? (
-                      <Checkbox checked={acknowledged} disabled={busy} onChange={setAcknowledged}>
-                        已知悉需减少 {quote.downgradeImpact.storesToRemove} 家门店、
-                        {quote.downgradeImpact.membersToRemove} 位成员
-                      </Checkbox>
-                    ) : null}
-                  </Card>
-                ) : (
-                  <Skeleton />
-                )}
-                <View className="billing-plan__agreements">
-                  确认付款即同意{" "}
-                  {docs.map((doc, i) => (
-                    <View key={doc.agreementKey} className="billing-plan__agreement">
-                      <TextButton
-                        onClick={() =>
-                          void Taro.navigateTo({
-                            url: `/pages/agreement/index?agreementVersionId=${encodeURIComponent(doc.currentVersion.agreementVersionId)}`,
-                          })
-                        }
-                      >{`${i ? "、" : ""}《${doc.name}》`}</TextButton>
+                    {quote ? (
+                      <Card title="本次变更">
+                        <DescList
+                          items={[
+                            { label: "变更", value: planActionLabel(quote.action) },
+                            { label: "目标版本", value: quote.planName },
+                            {
+                              label: "生效方式",
+                              value: quote.effectiveMode === "next_term" ? "下期生效" : "立即生效",
+                            },
+                            {
+                              label: "周期",
+                              value: quote.months === null ? "—" : `${quote.months} 个月`,
+                            },
+                            {
+                              label: "有效期",
+                              value: quoteTermLabel(quote),
+                            },
+                            {
+                              label: "每月积分",
+                              value: formatInteger(quote.benefits.monthlyPoints),
+                            },
+                            { label: "应付金额", value: formatMoney(quote.payFen) },
+                          ]}
+                        />
+                        <Note>{quote.formula.text}</Note>
+                        {quote.upgrade ? (
+                          <Note>
+                            剩余 {quote.upgrade.remainingDays} 天，本次补发{" "}
+                            {formatInteger(quote.upgrade.topupPoints)} 积分，有效期至{" "}
+                            {quote.upgrade.currentTermEndDate}
+                          </Note>
+                        ) : null}
+                        {quote.downgradeImpact ? (
+                          <Checkbox
+                            checked={acknowledged}
+                            disabled={busy}
+                            onChange={setAcknowledged}
+                          >
+                            已知悉需减少 {quote.downgradeImpact.storesToRemove} 家门店、
+                            {quote.downgradeImpact.membersToRemove} 位成员
+                          </Checkbox>
+                        ) : null}
+                      </Card>
+                    ) : quoteError ? (
+                      <LoadError
+                        message={quoteError}
+                        retryText="重新获取报价"
+                        onRetry={() => {
+                          if (!current() || writeLock.current) return;
+                          setQuoteError(null);
+                          setQuoteLoading(true);
+                          setQuoteRetry((v) => v + 1);
+                        }}
+                      />
+                    ) : quoteLoading ? (
+                      <Skeleton />
+                    ) : (
+                      <Note>请选择套餐与购买周期以获取报价</Note>
+                    )}
+                    <View className="billing-plan__agreements">
+                      确认付款即同意{" "}
+                      {docs.map((doc, i) => (
+                        <View key={doc.agreementKey} className="billing-plan__agreement">
+                          <TextButton
+                            onClick={() =>
+                              void Taro.navigateTo({
+                                url: `/pages/agreement/index?agreementVersionId=${encodeURIComponent(doc.currentVersion.agreementVersionId)}`,
+                              })
+                            }
+                          >{`${i ? "、" : ""}《${doc.name}》`}</TextButton>
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </View>
-                {docs.length !== activePolicy.copy.agreementKeys.length || docs.length === 0 ? (
-                  <View>
-                    <Note>购买协议暂未加载完整，请重新加载后确认</Note>
-                    <TextButton disabled={busy} onClick={() => setRefresh((v) => v + 1)}>
-                      重新加载购买协议
-                    </TextButton>
-                  </View>
-                ) : null}
-                {enabledChannels(activePolicy).map((channel) => {
-                  const hint = channel.hintKey ? billingCopy(channel.hintKey, copy) : "";
-                  return hint ? <Note key={channel.code}>{hint}</Note> : null;
-                })}
-                {eligible ? (
-                  <FooterBar>
-                    {enabledChannels(activePolicy).map((channel) => (
-                      <Button
-                        key={channel.code}
-                        disabled={
-                          busy ||
-                          (quote?.downgradeImpact !== null && !acknowledged) ||
-                          docs.length === 0 ||
-                          docs.length !== activePolicy.copy.agreementKeys.length
-                        }
-                        onClick={() => open(channel.code)}
-                      >
-                        {channel.code === "bank_transfer" ? "对公转账" : "微信支付"}{" "}
-                        {billingCopy(activePolicy.copy.payButtonKey, copy)}{" "}
-                        {quote ? formatMoney(quote.payFen) : ""}
-                      </Button>
-                    ))}
-                  </FooterBar>
-                ) : null}
+                    {docs.length !== activePolicy.copy.agreementKeys.length || docs.length === 0 ? (
+                      <View>
+                        <Note>购买协议暂未加载完整，请重新加载后确认</Note>
+                        <TextButton disabled={busy} onClick={() => setRefresh((v) => v + 1)}>
+                          重新加载购买协议
+                        </TextButton>
+                      </View>
+                    ) : null}
+                    {enabledChannels(activePolicy).map((channel) => {
+                      const hint = channel.hintKey ? billingCopy(channel.hintKey, copy) : "";
+                      return hint ? <Note key={channel.code}>{hint}</Note> : null;
+                    })}
+                    {eligible ? (
+                      <FooterBar>
+                        {enabledChannels(activePolicy).map((channel) => (
+                          <Button
+                            key={channel.code}
+                            disabled={
+                              busy ||
+                              (quote?.downgradeImpact !== null && !acknowledged) ||
+                              docs.length === 0 ||
+                              docs.length !== activePolicy.copy.agreementKeys.length
+                            }
+                            onClick={() => open(channel.code)}
+                          >
+                            {channel.code === "bank_transfer" ? "对公转账" : "微信支付"}{" "}
+                            {billingCopy(activePolicy.copy.payButtonKey, copy)}{" "}
+                            {quote ? formatMoney(quote.payFen) : ""}
+                          </Button>
+                        ))}
+                      </FooterBar>
+                    ) : null}
+                  </>
+                )}
               </>
             )}
           </View>
