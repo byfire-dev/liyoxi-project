@@ -9,6 +9,7 @@ import { parseInvoiceLiveUploadScope } from "./invoice-upload.js";
 import { MerchantAssetLiveScopeSchema } from "./merchant-assets-upload.js";
 import { OutputBatchLiveInputSchema } from "./w302.fixture.js";
 import { parseAdTaskLiveScope } from "./w514.fixture.js";
+import { parseW609EvidenceUploadScope } from "./w609-evidence.js";
 
 /** Scope only. No ready files, masters, checks, listed state or terminal jobs are seeded. */
 export const ContentAdminLiveScopeSchema = z.strictObject({
@@ -33,6 +34,13 @@ const contentManifestSchema = z.strictObject({
 });
 /** Independent optional fixture: the original W302 schema remains strict. */
 export function parseOutputBatchLiveManifest(raw: unknown) {
+  let evidenceScope: ReturnType<typeof parseW609EvidenceUploadScope> | undefined;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w609" in raw) {
+    const { w609, ...original } = raw;
+    // Both legacy delivery CLIs read the complete manifest. Only this validated extension is stripped.
+    evidenceScope = parseW609EvidenceUploadScope(w609);
+    raw = original;
+  }
   let adScope: ReturnType<typeof parseAdTaskLiveScope> | undefined;
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w514" in raw) {
     const { w514, ...original } = raw;
@@ -43,6 +51,13 @@ export function parseOutputBatchLiveManifest(raw: unknown) {
     const parsed = OutputBatchLiveInputSchema.parse(value);
     if (adScope && adScope.runId !== parsed.current.runId)
       throw new Error("W514不属于本轮运输信封");
+    if (
+      evidenceScope &&
+      (evidenceScope.runId !== parsed.current.runId ||
+        evidenceScope.name !== parsed.current.name ||
+        evidenceScope.prefix !== parsed.current.prefix)
+    )
+      throw new Error("W609不属于本轮运输信封");
     return parsed;
   };
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w418Invoice" in raw) {

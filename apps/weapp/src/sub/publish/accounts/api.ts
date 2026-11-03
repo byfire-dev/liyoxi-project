@@ -14,6 +14,11 @@ const call: RequestLayer["request"] = async (path, options) => {
 };
 export function createPublishApi(send: RequestLayer["request"]) {
   return {
+    unbind: (id: string, idempotencyKey: string) =>
+      send<Data<"m.channelAccount.unbind">>(
+        `/m/channel-accounts/${encodeURIComponent(id)}/unbind`,
+        { method: "POST", data: {}, idempotencyKey },
+      ),
     list: (cursor?: string) =>
       send<Data<"m.channelAccount.list">>(
         `/m/channel-accounts?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
