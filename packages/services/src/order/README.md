@@ -6,7 +6,7 @@
 
 `order.onCalendarImported`持日历共享锁，按当前批次与计算窗口重算未完成广告首版/修改轮次、待执行取消时限并重排原sla.breach。`order.onLicenseShortened`只读当前版权修订及未结束订单，沿staff owned creator给当前可访问的内容运营与交付经理建立order_item系统待办，告警保留不可分派目标；订单止日与资金不变。同事务audit事实按当前revision/订单项/owner持久去重，用户内容不带技术键。
 
-当前content写口仍拒绝shorten/改早correction。测试历史版权数据仅为初始条件，随后验证真实emit/expand/consume及待办list/complete，不表示缩短API已开放，不实现M6使用期writer。新机制定点为 `src/order/m5-facts.db.test.ts`；实际结果以W5-05状态页为准。
+当前content写口仍拒绝shorten/改早correction。测试历史版权数据仅为初始条件，随后验证真实emit/expand/consume及待办list/complete，不表示缩短API已开放；该M5事实包不实现M6使用期writer，W6-01实现见本文件末节。新机制定点为 `src/order/m5-facts.db.test.ts`；实际结果以W5-05状态页为准。
 
 ## 参考文件与终态留存补漏
 
@@ -154,8 +154,20 @@ ad 清指针、order 重新推导与 order.start 复活。真实执行还需要 
 
 止日每小时核对；剧目140、父单160、订单项170及存在的工单180锁内重读当前版权与生命周期。license 来源止日较早只为该项即时登记 `usage.resync:order_item:{itemId}:{currentRevisionId}`，较晚仅发原 `order.license_shortened` 告警。已有同键未取消 timer 保留原 fireAt、attempts、retryAt，不以周期重登记清除失败退避。订单项止日、下架任务和成片包均不由本循环改写。
 
-`usage.resync` 的真实消费仍归 order/M6，当前没有处理器；到期扫描会按既有 critical 策略退避，第六次起 P1 并继续重试。这是本阶段实际运行限制，本包只交真实生产者，不宣称已经顺延，也不延后触发、改扫描器或登记替代处理器。
+`usage.resync` 与 `usage.end` 的真实消费由 W6-01 接入；对账仍只生产同步定时器，实际日期、发布任务与成片包变更在定时器自身事务内完成。关键失败沿原 critical 重试/P1 策略处理，不清除失败退避。
 
 候选有界分页，业务目标各自事务；一个目标失败回滚后继续其他目标，整轮以有界目标标识报错。beat 在逐对象收尾调用。实例内禁止重叠，关闭拒绝新调用并等待在途，业务事务返回前复核关闭标记；API先排空对账再关闭文书依赖，worker原租约/循环stop同样先排空再解绑。小时标记只在该类完整成功后推进，重启首轮可重扫，幂等由真实事实和语义键保证。
 
 定点目标为 `src/order/reconcile.db.test.ts`、`apps/worker/test/order-reconcile.test.ts`；保留原 delivery 循环与资质终局回归。正式 M1 的 afterChain 在本scope把注入时钟推进十分钟，实际执行两轮新服务后再跑原 full，原二十集/live、零违规/错误和90秒墙钟断言不变。机制夹具保留的历史资料不冒充全链健康输入。
+
+## M6 使用期一致性（W6-01）
+
+`createUsageLifecycle(deliveryCore, timers)` 提供两种 usage 定时器和 `publish.onLicenseExtended` 的实例处理器，复用运行时已校验的真实timers，不在构造时重建另一份默认registry。版权订阅只按当前版次扇出；已取消、终止、结束、到期下架或归档事实不登记。旧通知不能把旧版次套给新事实。每小时原对账补漏，仍不另建扫描器。
+
+消费先读目标，再由 `delivery.prepareReevaluation` 预锁审批30及完整图，随后读当前版权/工单/订单事实。只顺延 license 来源止日；旧代、缩短、相同止日、终态跳过。在途取消是可恢复条件，已登记的 resync 报失败等待原重试，不能永久 skipped 后被同键补偿挡住。变更同事务写日期、审计、`order.item.usage_end_changed`，再同步发布/成片与定时器，任何失败全回滚。
+
+`usage.end` 按止日次日上海零点及当前键验证后调用真实 delivery 求值；暂停仍沿原守卫，恢复/原补偿求值负责继续。API和独立worker的三处理器使用本实例闭包；关闭拒绝新调用并排空在途，不退回另一实例。原 `09:358` 已接真实归档终态推导，不改迁移表；实际商家核查入口仍归 W6-04。
+
+定点验证：任务书列出的 `usage-lifecycle.property.test.ts`、`delivery/usage-lifecycle.db.test.ts`、`ops/usage-lifecycle-runtime.db.test.ts` 及原对账/生命周期回归；真实预发演示留 W6-13，不能用拨钟代替。
+
+测试组合只通过 `testing/usage-lifecycle.fixture.ts` 调用公开域入口。原 `deriveOrder` 从 order/index 导出，供受信任组合根在已持有父单锁时复用唯一推导 writer；不新增业务入口，delivery 仍经 orderSide 端口调用。完整已交付的 relay→resync→expiry 链留在 delivery 本域测试，以便消费私有 M5 夹具；ops 目标用公开版权夹具核对真实扇出、未交付守卫及 API/worker 关闭隔离。

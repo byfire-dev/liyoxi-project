@@ -237,7 +237,7 @@ describe("W5-03 三类订单对账", { timeout: 120_000 }, () => {
     assertSnapshotsEqual(evidence, await snapshotTables(h.prisma, REQUEST_TABLES));
   });
 
-  it("真实版权续期只即时arm；缺M6handler真实retry，小时重放保留退避，较晚止日只告警", async () => {
+  it("真实版权续期只即时arm；处理失败真实retry且对账保留退避，消费顺延，较晚止日只告警", async () => {
     const f = await fixture(),
       p = await db.prisma(),
       revisionId = await extend(f),
@@ -254,7 +254,21 @@ describe("W5-03 三类订单对账", { timeout: 120_000 }, () => {
       dedupeKey: `usage.resync:order_item:${f.order.itemId}:${revisionId}`,
     });
     expect(await p.orderItem.findUniqueOrThrow({ where: { id: before.id } })).toEqual(before);
-    expect(f.runtime.assembly.timerHandler("usage.resync")).toBeUndefined();
+    expect(f.runtime.assembly.timerHandler("usage.resync")).toBeDefined();
+    const failingAssembly = {
+      ...f.runtime.assembly,
+      timerHandler: (kind: string) => {
+        const registered = f.runtime.assembly.timerHandler(kind);
+        return kind === "usage.resync" && registered
+          ? {
+              ...registered,
+              handle: async (): Promise<"fired"> => {
+                throw new Error("lyxtest.usage_resync.transient");
+              },
+            }
+          : registered;
+      },
+    };
     const claimed = await f.runtime.tx.run((tx) =>
       claimTimers(tx, f.runtime.timers.registry, f.clock.now()),
     );
@@ -265,7 +279,7 @@ describe("W5-03 三类订单对账", { timeout: 120_000 }, () => {
         {
           tx: f.runtime.tx,
           clock: f.clock,
-          assembly: f.runtime.assembly,
+          assembly: failingAssembly,
           registry: f.runtime.timers.registry,
           alerts: alertsOf(f.runtime.assembly),
         },
@@ -277,6 +291,32 @@ describe("W5-03 三类订单对账", { timeout: 120_000 }, () => {
     f.clock.advance(3_600_000);
     expect((await s.run()).resyncArmed).toBe(0);
     expect(await p.timer.findUniqueOrThrow({ where: { id: timer.id } })).toEqual(retried);
+    // Advancing the business clock does not advance PostgreSQL's retry clock.
+    // As in timers/reschedule.test.ts, inject only the already-due technical scheduling fact,
+    // after proving the real retry result and reconciliation's unchanged attempts/retryAt.
+    await p.$executeRawUnsafe(
+      "UPDATE timer SET retry_at = now() - interval '1 second' WHERE id = $1::uuid",
+      timer.id,
+    );
+    const retry = (
+      await f.runtime.tx.run((tx) => claimTimers(tx, f.runtime.timers.registry, f.clock.now()))
+    ).claimed.find((r) => r.timerId === timer.id)!;
+    expect(retry).toBeDefined();
+    expect(
+      await runTimer(
+        {
+          tx: f.runtime.tx,
+          clock: f.clock,
+          assembly: f.runtime.assembly,
+          registry: f.runtime.timers.registry,
+          alerts: alertsOf(f.runtime.assembly),
+        },
+        retry,
+      ),
+    ).toBe("fired");
+    expect(
+      (await p.orderItem.findUniqueOrThrow({ where: { id: before.id } })).usageEndDate,
+    ).toEqual(new Date("2036-12-31"));
     // Explicit corrupt historical date, not a shortened-license writer or a successful M6 result.
     await p.orderItem.update({
       where: { id: before.id },

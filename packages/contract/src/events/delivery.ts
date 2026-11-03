@@ -28,6 +28,14 @@ const sample = {
   ...transition,
 };
 export const payloads = {
+  "ticket.archived": z.strictObject({
+    ...ticket,
+    orderItemId: IdSchema,
+    itemPhase: z.enum(["ended", "refunded"]),
+    fromState: z.literal("takedown"),
+    toState: z.literal("archived"),
+    transition: z.literal("takedown.all_checked"),
+  }),
   "order.item.launch_rescheduled": z.strictObject({
     v: z.literal(1),
     orderItemId: IdSchema,

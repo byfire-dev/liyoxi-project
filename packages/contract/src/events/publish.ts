@@ -20,6 +20,14 @@ const account = {
 };
 const launch = { v: z.literal(1), launchTaskId: IdSchema, orderItemId: IdSchema, ...transition };
 export const payloads = {
+  "takedown.voided": z.strictObject({
+    v: z.literal(1),
+    takedownTaskId: IdSchema,
+    orderItemId: IdSchema,
+    fromState: z.literal("pending_merchant"),
+    toState: z.literal("void"),
+    transition: z.literal("takedown.void"),
+  }),
   "account.submitted": z.strictObject({
     ...account,
     platform: z.enum(CHANNEL_PLATFORM.values),

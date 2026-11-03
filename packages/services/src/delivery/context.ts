@@ -24,7 +24,7 @@ export interface DeliveryCoreDeps {
   readonly flow: Flow;
   readonly events: Pick<Events, "emit">;
   readonly sla: Sla;
-  readonly media?: Pick<Media, "link">;
+  readonly media?: Pick<Media, "link" | "release">;
   readonly approval?: Pick<Approval, "withdraw">;
   readonly ensureLicenseReadiness?: (
     tx: Tx,

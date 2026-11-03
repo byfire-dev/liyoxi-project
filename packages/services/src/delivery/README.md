@@ -93,3 +93,15 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 `createDownloadRecords({ tx, clock }).list(staff, orderItemId, query)` 合并成片包、下载授权与下载日志事实；授权过期只保留历史含义，不产生当前下载能力，响应没有地址/IP/UA。三条GET均不写库。
 
 验证：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/delivery/materials.db.test.ts`。广告pin/floating选择的纯投影测试不代表完整上传/确认生命周期，完整提交→确认→取料串测由W5-08/09在实际producer交付后补齐。
+
+## M6 使用期事务收尾（W6-01）
+
+`prepareReevaluation(tx,ticketIds)` 对外提供完整预锁，必须在首次领域锁前调用，不能先拿drama/item再补审批30。`scheduleDeliveryUsage(tx,deps,ctx,ticketId)` 由真实推包与顺延共同调用，按前缀撤旧 `usage.end`/`takedown.create` 并登记当前日期；不足30天通过 publish 公口立即生成下架任务。未来 `takedown.create` 处理器由 W6-04 登记，本包不冒称其已消费。
+
+`extendDeliveryUsage` 同步未核查任务、作废尚未到T-30的待商家任务，并只重开最后一个因 usage_ended 关闭且清单文件可用的成片包。恢复真实文件引用，不新建下载授权、不改下载历史；取消关闭的包不复活。到期未上线先撤授权，服务中到期仍按原10:883保留包，归档时才关闭为 usage_ended、撤剩余授权、作废ZIP并留存引用。
+
+归档与ZIP失效时间使用实际业务时钟；即使商家提前完成下架核查，成片清单引用仍通过真实 `media.release` 保留至使用止日次日加90天，已有更长保留期不缩短。缺少媒体释放writer明确失败，不借未来时间伪造归档或ZIP更新时间。
+
+原M5归档分支缺失的关包与订单 ended/refunded 推导已补齐；真实到期producer验到takedown。归档消费者测试使用明确标注的历史核查输入并保留状态历史，验证实际order端口与同事务产物，不代表W6-04商家确认/核查handler完成。对应完整核查→归档端到端仍由W6-04补验。
+
+历史兼容边界：当前新链在归档才关闭 usage_ended 包，而自动续期禁止复活归档工单，因此重开能力按10:884保留给仍处到期下架前的历史关闭包。专属测试明确标注该历史输入，验证最后一版、文件缺失/取消/归档负例、引用恢复且不新授grant；不虚构自然可达的新producer，不在本包改原双守卫。

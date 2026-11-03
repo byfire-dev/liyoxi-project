@@ -41,6 +41,15 @@ import { deliveryFileRefs } from "./file-refs.js";
 import { onDeliveryCalendarImported } from "./stage-sla.js";
 import { prepareReevaluation } from "./reevaluate-locks.js";
 export const registration = defineRegistration("delivery", {
+  timerHandlers: [
+    {
+      kind: "usage.end",
+      critical: true,
+      handle: async (): Promise<"fired" | "skipped"> => {
+        throw new TypeError("使用期运行时尚未绑定");
+      },
+    },
+  ],
   ports: [orderSidePort],
   portImplementations: [
     notifyReaderImplementation(

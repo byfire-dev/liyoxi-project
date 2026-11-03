@@ -345,7 +345,11 @@ export async function productionFile(
   return file.fileId;
 }
 
-export async function released(h: ProductionHarness, twoAccounts = false) {
+export async function released(
+  h: ProductionHarness,
+  twoAccounts = false,
+  beforePush?: (f: Awaited<ReturnType<typeof prepared>>) => Promise<void>,
+) {
   const f = await prepared(h, twoAccounts),
     fileId = await productionFile(h, f.o, f.editor, "sample_video");
   const sample = await h.delivery.sampleCreate(f.editor.ctx, f.editor.staff, f.id, {
@@ -377,6 +381,7 @@ export async function released(h: ProductionHarness, twoAccounts = false) {
   await h.delivery.packageInspect(f.qc.ctx, f.qc.staff, f.id, await checks(h, "qc.package"));
   await h.prepareLicenseInputs(f.o.items.map((item) => item.id));
   await h.prepareLicenseReady(f.o.items.map((item) => item.id));
+  await beforePush?.(f);
   const pushed = await h.delivery.packagePush(f.qc.ctx, f.qc.staff, f.id, {
     precheck: await checks(h, "delivery.precheck"),
   });

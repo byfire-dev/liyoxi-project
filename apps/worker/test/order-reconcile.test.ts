@@ -4,6 +4,7 @@ import {
   createFactories,
   createLicenseConvergenceFixture,
   sampleStaffContext,
+  snapshotTables,
   useSeededDatabase,
   useTestRedis,
 } from "@liyoxi/services/testing";
@@ -14,7 +15,7 @@ const db = useSeededDatabase("worker"),
   redis = useTestRedis();
 describe("order 正式 worker 对账循环", () => {
   it(
-    "唯一五分钟循环真实arm续期信号、重复不新增，关闭后旧入口拒绝",
+    "唯一五分钟循环真实arm续期信号、重复不新增，真实消费顺延且关闭后旧入口拒绝",
     async () => {
       const h = await createHarness(db, redis),
         f = await createLicenseConvergenceFixture(h.prisma, {
@@ -85,7 +86,36 @@ describe("order 正式 worker 对账循环", () => {
         expect(await h.prisma.orderItem.findUniqueOrThrow({ where: { id: before.id } })).toEqual(
           before,
         );
-        expect(worker.services.assembly.timerHandler("usage.resync")).toBeUndefined();
+        expect(worker.services.assembly.timerHandler("usage.resync")).toMatchObject({
+          kind: "usage.resync",
+          critical: true,
+        });
+        // 对账仍只生产信号；真实worker扫描认领后，消费器在独立事务中顺延当前版权。
+        await worker.services.scan();
+        const claimed = await h.prisma.timer.findUniqueOrThrow({ where: { id: timers[0]!.id } });
+        expect(claimed).toMatchObject({ status: "dispatched", dispatchNo: 1 });
+        const ref = {
+          timerId: claimed.id,
+          kind: claimed.kind,
+          dispatchNo: claimed.dispatchNo,
+        };
+        expect(await worker.services.runTimer(ref)).toBe("fired");
+        expect(await h.prisma.orderItem.findUniqueOrThrow({ where: { id: before.id } })).toEqual({
+          ...before,
+          usageEndDate: new Date("2036-12-31"),
+          updatedAt: f.clock.now(),
+        });
+        expect(
+          await h.prisma.outboxEvent.count({
+            where: { eventType: "order.item.usage_end_changed", aggregateId: before.id },
+          }),
+        ).toBe(1);
+        expect(await h.prisma.deliveryTicket.count({ where: { orderItemId: before.id } })).toBe(0);
+        const tables = ["order_item", "timer", "outbox_event", "audit_log"] as const;
+        const after = await snapshotTables(h.prisma, tables);
+        expect(await worker.services.runTimer(ref)).toBe("stale");
+        await loop.tick();
+        expect(await snapshotTables(h.prisma, tables)).toEqual(after);
         await worker.close();
         expect(() => worker.services.reconcileOrders()).toThrow("已经关闭");
       } finally {
