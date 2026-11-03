@@ -503,9 +503,18 @@ async function main(args) {
     }
     writeFileSync(
       inputFile,
-      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, ...(ticketActionsScope ? { w513: ticketActionsScope } : {}), w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(adTasks?.video ? { w514: adTasks.scope } : {}), ...(fixtures.fixtures.w609?.scope ? { w609: fixtures.fixtures.w609.scope } : {}), video, resumeVideo })}\n`,
+      `${JSON.stringify({ current: fixtures.fixtures.w302.scope, legacy: fixtures.fixtures["zz-delivery-flow"].scope, ...(ticketActionsScope ? { w513: ticketActionsScope } : {}), w120: fixtures.fixtures.w120.stage === "awaiting_actual_media" ? fixtures.fixtures.w120 : undefined, w312: fixtures.fixtures.w312, w318: fixtures.fixtures["merchant-assets-write"].scope, w418Invoice: fixtures.fixtures.w418?.invoices?.scope, ...(adTasks?.video ? { w514: adTasks.scope } : {}), video, resumeVideo })}\n`,
       { mode: 0o600 },
     );
+    // Enrich the completed legacy manifest with this fixture's optional evidence scope before startup.
+    if (fixtures.fixtures.w609?.scope) {
+      const manifest = JSON.parse(readFileSync(inputFile, "utf8"));
+      writeFileSync(
+        inputFile,
+        `${JSON.stringify({ ...manifest, w609: fixtures.fixtures.w609.scope })}\n`,
+        { mode: 0o600 },
+      );
+    }
     await run(
       "pnpm",
       [
