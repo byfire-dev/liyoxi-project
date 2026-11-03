@@ -19,6 +19,8 @@ import {
   episodeUrlsOf,
 } from "./repo.js";
 import type { AccountRow, TaskRow } from "./repo.js";
+import { deriveLaunchOverdue } from "./launch-overdue.js";
+import { launchRevokeAvailability } from "./launch-revoke-availability.js";
 export const brief = (a: AccountRow | TaskRow["channelAccount"]) => ({
   channelAccountId: a.id,
   platform: a.platform,
@@ -363,13 +365,18 @@ export function taskBrief(task: TaskRow, now: Date) {
     verifiedEpisodeCount: task.verifiedEpisodeCount,
     firstLaunchDate: dateOf(task.firstLaunchDate),
     isOverdue:
-      !task.isLive &&
-      ["pending", "need_fix"].includes(task.reviewStatus) &&
-      !!task.orderItem.agreedLaunchDate &&
-      dateOf(task.orderItem.agreedLaunchDate)! < calendarDate(now) &&
-      calendarDate(now) <= dateOf(task.orderItem.usageEndDate)! &&
-      task.deliveryTicket.pauseCount === 0 &&
-      ["to_launch", "live"].includes(task.orderItem.phase),
+      deriveLaunchOverdue(
+        {
+          orderItemId: task.orderItemId,
+          agreedLaunchDate: task.orderItem.agreedLaunchDate,
+          usageEndDate: task.orderItem.usageEndDate,
+          phase: task.orderItem.phase,
+          deliveredAt: task.deliveryTicket.deliveredAt,
+          pauseCount: task.deliveryTicket.pauseCount,
+          tasks: [task],
+        },
+        now,
+      ) !== null,
     currentSubmissionId: task.launchSubmissions[0]?.id ?? null,
     latestPassedSubmissionId:
       task.launchSubmissions.find((r) => ["passed", "passed_partial"].includes(r.result))?.id ??
@@ -461,6 +468,7 @@ export async function launchDetail(tx: Tx, deps: PublishDeps, id: string, staff:
       decisionNote: s.approvalRequest.decisionNote,
     })),
   );
+  const revoke = await launchRevokeAvailability(tx, task, r.id, staff, deps.clock.now());
   return {
     launchSubmissionId: r.id,
     launchTaskId: task.id,
@@ -529,12 +537,14 @@ export async function launchDetail(tx: Tx, deps: PublishDeps, id: string, staff:
     otherTasks: await Promise.all(
       siblings.map(async (s) => taskBrief(await taskOf(tx, s.id), deps.clock.now())),
     ),
-    revoke: null,
+    revoke,
     actions:
       r.approvalRequest.status === "pending" &&
       hasPermission(staff, "publish.link.verify") &&
       (staff.moduleLevels.publish !== "o" || ticket.publisherId === staff.staff.id)
         ? ["approve", "reject"]
-        : [],
+        : revoke?.canRevoke
+          ? ["revoke"]
+          : [],
   };
 }

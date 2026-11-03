@@ -104,6 +104,7 @@ export function mixedReadPlan(
     token: string;
     portalTicketCode: string;
     year: number;
+    month: number;
   },
 ) {
   const all: MixedRead[] = [],
@@ -121,6 +122,9 @@ export function mixedReadPlan(
     "admin.storeAsset.list": { storeId: input.access.ids.storeId },
     "admin.subscriptionTerm.list": { tab: "expiring" },
     "admin.reconciliation.list": { month: `${input.year}-01` },
+    "admin.launchCalendar.get": {
+      month: `${input.year}-${String(input.month).padStart(2, "0")}`,
+    },
   };
   for (const row of operations) {
     if (row.path.includes("{")) continue;
@@ -254,12 +258,14 @@ export async function readMixedOpenApi(
       origin: api.support.runtime.env.PORTAL_PUBLIC_ORIGIN,
       signal: input.signal,
     });
+    const businessTime = new Date(api.support.runtime.clock.now().getTime() + 8 * 3600_000);
     const plan = mixedReadPlan(operations, {
       access: input.previousAccess,
       observedReads: input.observedReads,
       token: invitation?.token ?? "",
       portalTicketCode: portal.lookupCode,
-      year: new Date(Date.now() + 8 * 3600_000).getUTCFullYear(),
+      year: businessTime.getUTCFullYear(),
+      month: businessTime.getUTCMonth() + 1,
     });
     return {
       operations: await readMixedGets(

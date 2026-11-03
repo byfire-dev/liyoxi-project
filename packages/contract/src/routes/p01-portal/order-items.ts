@@ -1,6 +1,12 @@
 // 电脑端下载页 · order-items（docs/api/p01-portal.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
 import { portalMeta } from "../meta-only.js";
+import { portalRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  PublishListViewSchema,
+  PublishListItemParamsSchema,
+} from "../a06-publish/publish-list.schemas.js";
 
 export const portalOrderItemList = portalMeta({
   method: "get",
@@ -26,7 +32,7 @@ export const portalOrderItemDownloadUrls = portalMeta({
     "签发短时地址（A18；C47、C60）：每次签发都是一次真实访问、都要留痕；结果不进幂等记录，避免回放已过期的地址；ZIP 打包自身按 zip_gen 与 media_job.dedupe_key 去重（06-media.md:962-964）",
 });
 
-export const portalOrderItemPublishListGet = portalMeta({
+export const portalOrderItemPublishListGet = portalRoute({
   method: "get",
   path: "/portal/order-items/{orderItemId}/publish-list",
   operationId: "portal.orderItem.publishList.get",
@@ -35,6 +41,8 @@ export const portalOrderItemPublishListGet = portalMeta({
   "x-auth": "portal",
   "x-capability": "delivery.download",
   "x-idempotent-reason": "GET，纯查询（A18）：不写库、不要求幂等键",
+  request: { params: PublishListItemParamsSchema },
+  responses: { ...okResponse(PublishListViewSchema), ...errorResponses(400, 401, 403, 404, 500) },
 });
 
 export const portalOrderItemReleaseGet = portalMeta({

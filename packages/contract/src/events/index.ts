@@ -17,6 +17,7 @@ import { payloads as staff } from "./staff.js";
 import { payloads as tenant } from "./tenant.js";
 import { payloads as approval } from "./approval.js";
 import { payloads as publish } from "./publish.js";
+import { payloads as publishWorkbenchM6 } from "./publish-workbench-m6.js";
 import { payloads as patrolM6 } from "./patrol-m6.js";
 import { payloads as profile } from "./profile.js";
 import { payloads as notify } from "./notify.js";
@@ -39,6 +40,7 @@ export const EVENT_PAYLOAD_SCHEMAS = {
   ...identity,
   ...profile,
   ...publish,
+  ...publishWorkbenchM6,
   ...patrolM6,
   ...security,
   ...notify,

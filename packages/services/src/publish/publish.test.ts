@@ -207,7 +207,9 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
         data: { dataScope: role.dataScope },
       });
     }
-    // 未来撤销后重开由员工送审；用真实 submit 建不可变的发起人事实，自审失败后整个事务回滚。
+    // 独立真实任务没有在途审批，避免先命中按任务去重；用 submit 建不可变发起人事实，自审失败后整个事务回滚。
+    const selfFixture = await h.tasks(viewer, [accountId]),
+      selfTaskId = selfFixture.ids[0]!;
     await expect(
       h.tx.run(async (tx) => {
         const submissionId = uuidv7(),
@@ -217,10 +219,17 @@ describe("publish 账号与上线真实事务", { timeout: 60000 }, () => {
             subjectId: submissionId,
             entityId: viewer.membership.entityId,
             storeId: viewer.membership.storeId,
-            deliveryTicketId: fixture.ticket.id,
-            input: { submissionId, roundNo: 1, title: "自审守卫夹具" },
+            deliveryTicketId: selfFixture.ticket.id,
+            input: { submissionId, taskId: selfTaskId, roundNo: 1, title: "自审守卫夹具" },
           });
-        await decisionGuard(tx, aStaff, self.approvalId, { ...body, lockVersion: -1 }, true, id);
+        await decisionGuard(
+          tx,
+          aStaff,
+          self.approvalId,
+          { ...body, lockVersion: -1 },
+          true,
+          selfTaskId,
+        );
       }),
     ).rejects.toMatchObject({ error: "APPROVAL_SELF_FORBIDDEN" });
     await expect(

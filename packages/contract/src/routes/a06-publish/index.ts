@@ -29,6 +29,12 @@ export const A06_PUBLISH = defineRouteDoc("a06-publish", [
 ]);
 
 export * from "./publish.schemas.js";
+export * from "./publish-list.schemas.js";
+export * from "./launch-revoke.schemas.js";
+export * from "./launch-workbench.schemas.js";
+export * from "./delivery-tickets.js";
+export * from "./launch-calendar.js";
+export * from "./launch-tasks.js";
 export * from "./patrol-m6.schemas.js";
 export * from "./patrol-tasks.js";
 export * from "./channel-account-submissions.js";

@@ -244,3 +244,26 @@ export {
   createUsageLifecycleForTest,
   openUsageCancellationForTest,
 } from "./usage-lifecycle.fixture.js";
+export { createPublishWorkbenchFixture } from "./publish-workbench.fixture.js";
+
+// Shared real delivery prerequisites; leaf fixtures never import this barrel back.
+export {
+  harness as createDeliveryFixture,
+  draft as deliveryDraftForTest,
+} from "./delivery-harness.fixture.js";
+export type { Harness as DeliveryFixtureHarness } from "./delivery-harness.fixture.js";
+export { productionHarness as createDeliveryProductionFixture } from "./delivery-production.fixture.js";
+export type { ProductionHarness as DeliveryProductionFixture } from "./delivery-production.fixture.js";
+export {
+  m5Harness as createM5DeliveryFixture,
+  m5Service as createM5DeliveryService,
+  checks as deliveryChecklistForTest,
+  prepared as prepareM5DeliveryForTest,
+  productionFile as createM5ProductionFile,
+  released as releaseM5DeliveryForTest,
+} from "./delivery-release.fixture.js";
+export type {
+  M5Harness as M5DeliveryFixture,
+  M5Order as M5DeliveryOrder,
+  M5Staff as M5DeliveryStaff,
+} from "./delivery-release.fixture.js";

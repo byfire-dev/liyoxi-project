@@ -63,6 +63,13 @@ export interface NotifyFact {
   summary?: string;
   summaryNoPrice?: string | null;
   link?: MessageItem["link"];
+  items?: Array<{
+    orderItemId: string;
+    dramaName: string;
+    overdueDays?: number;
+    reason?: "merchant" | "late_delivery";
+    pendingAccounts?: Array<{ platform: string; name: string }>;
+  }>;
 }
 
 export interface NotificationSpec {

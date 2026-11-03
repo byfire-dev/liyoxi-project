@@ -63,7 +63,7 @@ API 的 awaited startupChecks 和 worker.selfCheck 检查真实场景行及已�
 
 ## 提醒与不变量
 
-R4 样片等待及实际员工待审批/跟进事实已接；R1→W4-05、R7→W3-10，R2/R3/R5/R6 等仍等原所属业务包。R4 使用上海自然日、真实 pushed 时间范围与当前版本守卫，节点/版本/接收人去重；当前工单已暂停或不再待确认即取消。跟进到期使用正式 follow_up.next_follow_at 的日期，从该日 09:00 起，仅当前在职 owner 且仍待跟进；改派、改期后重新读取当前事实。必要补登单一 `s.followup_due`，source_rule=followup_due、biz_type=follow_up、merchant.detail {entityId}，不复用转移超时场景。
+R4 样片等待及实际员工待审批/跟进事实已接；R1→W4-05、R7→W3-10，R2/R6 已由 W6-02 接真实扫描（见下节）；其他规则以各所属业务包当前交付为准。R4 使用上海自然日、真实 pushed 时间范围与当前版本守卫，节点/版本/接收人去重；当前工单已暂停或不再待确认即取消。跟进到期使用正式 follow_up.next_follow_at 的日期，从该日 09:00 起，仅当前在职 owner 且仍待跟进；改派、改期后重新读取当前事实。必要补登单一 `s.followup_due`，source_rule=followup_due、biz_type=follow_up、merchant.detail {entityId}，不复用转移超时场景。
 
 N1（消息对应 inbox sent）、N2（lease）、N3（停用槽位后的实际发送）和 N15（manual_reminder_log 的真实多态对象存在）按原模式登记。N15 经 ad/order/delivery/publish/billing 的六个 keyed exists 事实，不在 notify 直接查询上层表。docs.N5 通过 billing/order/ad 的三个交易/同意事实端口验证实际协议、同意人和同意时刻，不缺注册恒真。默认组合根按本 scope 的 Assembly 闭包接入，两个运行时不互串，关一个不解绑另一个。
 
@@ -169,3 +169,14 @@ SmsPackagesStatistics 确实存在，但 BeginTime/EndTime 是套餐**创建**�
 
 
 W4-13 mail 沿原 delivery claim/T2/外呼/T3、收回租约与人工 resendNo；不开第二发送循环。电子发票由 billing 所属读取闭包解密地址、读真实附件，notification.vars/投递日志无邮箱明文、附件或 URL；原始附件最多 4MiB。mail 外呼预算 60s、已发起租约 90s，既有其它通道保持 10s/30s。服务商未知受理不自动重发，手工重发仍过原场景/守卫。兼容 mail_delivered/sent 只代表 Provider 受理；真实邮箱到达未验。
+
+
+## W6-02 上线提醒 R2 / 员工逾期 R6
+
+既有 `remindScan` 在北京时间 09:00 原扫描窗口执行 R2/R6，分别消费 publish 的真实 targets/revalidate。R2 按参数 `remind.launch.days` 的 T-n 节点生成门店聚合，去重键 `launch:{storeId}:{launchDate}:{node}:{merchantUserId}`。R6 工作日发送，非工作日仅约定上线日次日发送，按负责人/日期去重 `launch_overdue:{staffId}:{date}`，通知行 bizType/bizId 留空，vars.items 保留真实逐项摘要。
+
+场景只接受 typed items 投影。外呼前重新读取当前提醒事实，换负责人、已上线、核验中、暂停或日期失效均不继续发送；第二次重验失效也取消，不使用旧 vars 兜底。通道沿既有投递循环、Provider 与收件人守卫，本包不新增外部账号、配置或发送承诺。
+
+清单推送后修订按 `publish_list.updated` 通知当前老板；推送前不派发。`launch.verify_revoked` 同时通知当前老板与工单当前发布专员，条件触发的 `order.item.live_revoked` 沿订单进度场景通知老板。消费按实际 outbox 事件和收件人去重，领域 reader 校验当前轮次/版本与最新事件，过时事件不创建消息；已经排队的外部投递在清单再次保存、核验通过或发布专员改派后取消。场景沿 a09 的 `m.order_progress` / `s.publish_progress`，无新扫描器或发送循环。
+
+`publish-workbench-events.db.test.ts` 的真实清单/撤销writer通过公开testing组合根提供，notify测试不直接向上导入delivery/publish。新3例消费/去重/发前失效及旧reminders3例、dispatch受影响2例已通过；不把本地Provider调用断言写成外部送达。

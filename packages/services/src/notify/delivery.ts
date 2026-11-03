@@ -5,7 +5,13 @@ import type { Tx } from "../kernel/index.js";
 import type { Notification, NotificationDelivery, NotifyScene } from "@liyoxi/db";
 import type { NotificationProviderResult } from "../providers/types.js";
 import type { NotifyDispatchDeps } from "./context.js";
-import { addDelivery, smsNodeAllowed, currentNotificationFact, dispatchFact } from "./dispatch.js";
+import {
+  addDelivery,
+  smsNodeAllowed,
+  currentNotificationFact,
+  currentReminderFact,
+  dispatchFact,
+} from "./dispatch.js";
 import { FALLBACK_REASONS, notificationDueAt, sendVerdict, externalAllowed } from "./policy.js";
 import { NotifyFactSchema, specFor, UNREACHED_SPEC } from "./registry.js";
 import { renderWechat, renderSms } from "./render.js";
@@ -230,9 +236,15 @@ async function currentGuard(
   const cfg = await tx.notifyScene.findUnique({ where: { sceneKey: n.notifySceneKey } });
   const archive = await currentStoreArchiveNotification(tx, deps, n);
   const spec = archive === undefined ? specFor(n.notifySceneKey, n.bizType) : archive?.spec;
-  if (!cfg?.sceneEnabled || !cfg.extEnabled || !spec || !n.bizId) return null;
+  if (!cfg?.sceneEnabled || !cfg.extEnabled || !spec || (!n.bizId && n.sourceRule !== "R6"))
+    return null;
+  const reminder = await currentReminderFact(tx, deps, n);
   const fact =
-    archive === undefined ? await currentNotificationFact(tx, deps, spec, n.bizId) : archive?.fact;
+    reminder !== undefined
+      ? reminder
+      : archive === undefined
+        ? await currentNotificationFact(tx, deps, spec, n.bizId!)
+        : archive?.fact;
   if (!fact || (n.staffId && !fact.staffIds?.includes(n.staffId))) return null;
   if (spec.pendingStatus && !spec.pendingStatus.includes(fact.status)) return null;
   const stored = NotifyFactSchema.safeParse(n.vars);
@@ -280,6 +292,12 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     return null;
   }
   const now = deps.clock.now();
+  const reminder = await currentReminderFact(tx, deps, n);
+  if (reminder === null) {
+    await terminal(tx, deps, d, "cancelled", "guard_invalid");
+    return null;
+  }
+  if (reminder) n.vars = JSON.parse(JSON.stringify(reminder));
   const mode = n.entityId ? await deps.purchaseMode(tx, n.entityId, now) : null;
   if (!externalAllowed(n.notifySceneKey, d.channel, mode)) {
     await terminal(tx, deps, d, "skipped", "policy_suppressed");
@@ -370,9 +388,11 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
     const stored = NotifyFactSchema.parse(n.vars);
     const archive = await currentStoreArchiveNotification(tx, deps, n);
     const current =
-      archive === undefined
-        ? await currentNotificationFact(tx, deps, specFor(n.notifySceneKey, n.bizType)!, n.bizId!)
-        : archive?.fact;
+      reminder !== undefined
+        ? reminder
+        : archive === undefined
+          ? await currentNotificationFact(tx, deps, specFor(n.notifySceneKey, n.bizType)!, n.bizId!)
+          : archive?.fact;
     const fields = current
       ? renderWechat(slot!, template.fields, {
           ...stored,
@@ -520,7 +540,7 @@ async function prepare(tx: Tx, deps: NotifyDispatchDeps, id: string): Promise<Pr
       deps.providers.wecom.sendAppMessage({
         toUser: target.wecomUserid!,
         title: cfg.name,
-        description: cfg.name,
+        description: reminder?.summary ?? cfg.name,
         signal,
       });
   } else {
