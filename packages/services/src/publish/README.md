@@ -38,10 +38,16 @@
 
 W0-17 实际通知契约是通知框架调用各域的只读事实端口；本域只登记真实读取，不同步发送通知。原 7 种领域事件及审批事件照常写 outbox。m05/x01 的 `publish_link_submit` 来源为 `launch.submitted` 的出站派生，M7 接统一消费者，不另直记一次。
 
-计划留桩分别见 `m1-publish-launch-reevaluate.md`、`m2-publish-notification-scenes.md`、`m7-publish-outbox-analytics.md`。M5 的解绑、人工异常、撤销核验、巡检、任务作废/收尾和 M6 到期处理未开放；对应 DTO 的未来事实暂为 null/空数组，现有 M1 历史照常返回。
+计划留桩分别见 `m1-publish-launch-reevaluate.md`、`m2-publish-notification-scenes.md`、`m7-publish-outbox-analytics.md`。上述接口与 DTO 以各自当前实现为准；W6-01 的使用期到期/顺延公开 writer 见下节，M6 巡检、下架确认/核查等入口仍由对应包交付，现有 M1 历史照常返回。
 
 ## 验证
 
 `pnpm --filter @liyoxi/services exec vitest run src/publish/` 验真闸门、两连接绑定竞争、两人决定竞争、角色队列/本人工单/自审次序、任务粒度与重复调用、暂停/窗口/链接/集数、累计核验、历史/事件/引用、通知事实与九项真违规。
 
 `pnpm exec vitest run --project api apps/api/test/publish.test.ts` 验 15 条真实 handler、店员七条拒绝、跨店隔离、决定版本/回显顺序、两种签名脱敏重放、只读 no-store、九种启用清单，以及 evidence 真实登记/确认/推广/签发的权限与范围。API 测试用 `APP_ENV=test`、公共本地连接和独立 `LYX_TEST_SESSION`；真实密钥由测试替身替代。
+
+## M6 使用期公开writer（W6-01）
+
+`ensureTakedownTasks(tx,deps,ctx,targets,{deliveryTicketId,now})` 与 `extendDeliveryPublishUsage(...)` 共用既有发布收尾内部writer。targets由 `readDeliveryPublishTargets` 读取，调用方先锁审批、订单/工单、账号、成片及发布/巡检/下架完整图，再在同一事务重读校验；不允许逆序补锁。首次创建须已交付且到T-30，依据取当前上线事实，同一账号仅一条未作废任务；它不结清上线任务或作废巡检。
+
+顺延仅用于到期下架前，更新未核查日期、按原SLA快照重算已确认任务、作废尚未到新T-30的pending任务并取消旧overdue。原 `resyncDeliveryPublishExpiry` 保留人工版权纠偏用途（已回到in_service），不混为自动顺延入口。W6-04继续唯一拥有下架定时器、确认/核查接口及其真实触发归档验收。

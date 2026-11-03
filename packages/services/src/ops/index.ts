@@ -135,3 +135,5 @@ export { createAdRuntime } from "./ad-runtime.js";
 export { createAdminAdRuntime } from "./ad-admin-runtime.js";
 
 export { createMerchantPlayables } from "./playable-runtime.js";
+
+export { createUsageLifecycleAssembly } from "./usage-lifecycle-runtime.js";

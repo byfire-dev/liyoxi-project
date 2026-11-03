@@ -1,3 +1,4 @@
+import { closeArchivedDeliveryUsage } from "./usage-lifecycle.js";
 import { calendarDate } from "@liyoxi/shared/time";
 import {
   getLaunchFacts,
@@ -44,13 +45,18 @@ export async function step(
       ...milestone,
     },
     emit: {
-      type: "ticket.step_changed",
+      type: to === "archived" ? "ticket.archived" : "ticket.step_changed",
       payload: {
         v: 1,
         deliveryTicketId: t.id,
         dramaOrderId: t.dramaOrderId,
         orderItemId: t.orderItemId,
-        isForced: false,
+        ...(to === "archived"
+          ? {
+              itemPhase:
+                t.orderItem.returnedPoints + t.orderItem.convertedPoints > 0 ? "refunded" : "ended",
+            }
+          : { isForced: false }),
       },
     },
   });
@@ -127,6 +133,7 @@ export async function reevaluate(
         await step(tx, deps, ctx, t, "takedown.all_checked", "archived", "10:188", {
           archived_at: deps.clock.now(),
         });
+        await closeArchivedDeliveryUsage(tx, deps, t.id);
         moved++;
         continue;
       }

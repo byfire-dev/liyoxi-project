@@ -59,3 +59,6 @@ export {
 export type { AdDeliveryImpact, AdOrderReferenceReader } from "./ad-delivery-impact.js";
 
 export { readSamplePlayableFacts } from "./playable-facts.js";
+
+export { prepareReevaluation } from "./reevaluate-locks.js";
+export { scheduleDeliveryUsage, extendDeliveryUsage } from "./usage-lifecycle.js";

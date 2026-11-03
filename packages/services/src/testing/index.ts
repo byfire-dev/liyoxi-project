@@ -237,3 +237,9 @@ export {
   createPortalTestOwner,
   createPortalTestSession,
 } from "./portal-auth.fixture.js";
+export {
+  createUsageLifecycleRuntimeForTest,
+  bindUsageLifecycleOrderForTest,
+  createUsageLifecycleForTest,
+  openUsageCancellationForTest,
+} from "./usage-lifecycle.fixture.js";

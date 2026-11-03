@@ -1,4 +1,5 @@
 import { z } from "../zod.js";
+import { USAGE_END_SOURCE } from "../enums/index.js";
 import { IdSchema, DateSchema, InstantSchema } from "../common/index.js";
 const transitionKeys = {
   fromState: z.string().nullable(),
@@ -12,6 +13,14 @@ const cancelled = {
   toState: z.literal("not_executed"),
 };
 export const payloads = {
+  "order.item.usage_end_changed": z.strictObject({
+    v: z.literal(1),
+    orderItemId: IdSchema,
+    dramaOrderId: IdSchema,
+    prevEndDate: DateSchema,
+    newEndDate: DateSchema,
+    usageEndSource: z.enum(USAGE_END_SOURCE.values),
+  }),
   "order.item.cancelled": z.strictObject({
     v: z.literal(1),
     orderItemId: IdSchema,

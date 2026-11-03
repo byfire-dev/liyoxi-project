@@ -28,6 +28,16 @@ import { launchInclude, accountInclude } from "./repo.js";
 import { accountCard, todo } from "./views.js";
 import { channelAccountForNotify, launchTaskForNotify } from "./notify-read.js";
 export const registration = defineRegistration("publish", {
+  subscribers: [
+    {
+      name: "publish.onLicenseExtended",
+      critical: true,
+      events: ["drama.license_extended"],
+      handle: async () => {
+        throw new TypeError("使用期运行时尚未绑定");
+      },
+    },
+  ],
   ports: [launchChangedPort, launchHandlerPort],
   portImplementations: [
     implementTenantCloseFacts(publishCloseFactsPort, { countPendingChannelAccountsByStore }),

@@ -1,3 +1,5 @@
+import { createUsageLifecycleAssembly } from "./ops/index.js";
+import { createUsageLifecycle } from "./order/index.js";
 import type { AdWriteDeps } from "./ad/index.js";
 import type { DeliveryCoreDeps } from "./delivery/index.js";
 import type { LicenseTemplateCatalog } from "./docs/index.js";
@@ -546,7 +548,8 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   const contentPricingScope = createContentPricingAssembly(profileConsistencyScope.assembly);
   const deliveryProductionScope = createDeliveryProductionAssembly(contentPricingScope.assembly);
   const deliverySlaScope = createDeliverySlaAssembly(deliveryProductionScope.assembly);
-  const docsScope = createDocsAssembly(deliverySlaScope.assembly);
+  const usageLifecycleScope = createUsageLifecycleAssembly(deliverySlaScope.assembly);
+  const docsScope = createDocsAssembly(usageLifecycleScope.assembly);
   const docsLicenseScope = createDocsLicenseAssembly(docsScope.assembly);
   const adScope = createAdAssembly(docsLicenseScope.assembly);
   const invitationScope = createInvitationAssembly(adScope.assembly);
@@ -894,7 +897,7 @@ export function createRuntime(options: RuntimeOptions): Runtime {
   });
   const unbindContent = bindContent(assembly);
   const unbindPublish = bindPublish(assembly);
-  const unbindDelivery = bindDelivery({
+  const deliveryCore = {
     ensureLicenseReadiness: docsLicenseScope.ensureLicenseReadiness,
     media,
     tx,
@@ -906,7 +909,9 @@ export function createRuntime(options: RuntimeOptions): Runtime {
     get approval() {
       return approval;
     },
-  });
+  };
+  const unbindDelivery = bindDelivery(deliveryCore);
+  usageLifecycleScope.attach(createUsageLifecycle(deliveryCore, timers));
   const contentLicense = createContentLicense({ clock, flow, timers });
   const content = createContent({ clock, flow, media, assembly, events, license: contentLicense });
   const dramaPricing = createDramaPricing({ clock, content, staffBriefs, events, timers });
@@ -1439,7 +1444,11 @@ export function createRuntime(options: RuntimeOptions): Runtime {
             invitationScope.close();
           },
         ]);
-        await settle([() => orderReconciler.close(), () => adScope.close()]);
+        await settle([
+          () => orderReconciler.close(),
+          () => usageLifecycleScope.close(),
+          () => adScope.close(),
+        ]);
         await settle([() => docsRender.close()]);
         await settle([() => docsScope.close()]);
         await settle([() => docsLicenseScope.close(), () => documentConverter?.close()]);

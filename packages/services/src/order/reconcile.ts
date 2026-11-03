@@ -206,7 +206,7 @@ export function createOrderReconciler(deps: OrderReconcileDeps) {
             if (!license.currentRevisionId) throw new TypeError("当前版权缺少真实修订行");
             const subject = { type: "order_item", id: item.id },
               key = timerKey("usage.resync", subject, license.currentRevisionId);
-            // Re-arming with a new now would clear a missing M6 handler's retry/backoff history.
+            // Re-arming with a new now would clear the consumer's retry/backoff history.
             if (
               await tx.timer.findFirst({
                 where: { dedupeKey: key, status: { not: "cancelled" } },

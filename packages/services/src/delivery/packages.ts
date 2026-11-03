@@ -12,6 +12,7 @@ import { lockTickets, ticketOf, dateOf, iso } from "./repo.js";
 import { quality, unpaused } from "./quality.js";
 import { publishListFacts } from "./publish-list.js";
 import { step } from "./reevaluate.js";
+import { scheduleDeliveryUsage } from "./usage-lifecycle.js";
 import { orderSidePort } from "./ports.js";
 export async function releaseAdminView(tx: Tx, r: DeliveryRelease) {
   const tpl = await tx.checklistTemplate.findUnique({
@@ -157,6 +158,7 @@ export async function pushPackage(
     deliveryTicketId: id,
     channelAccountIds: accounts.map((a) => a.id),
   });
+  await scheduleDeliveryUsage(tx, deps, ctx, t.id);
   // 全部文件先排序锁，media.link 只重入；历史 manifest 与旧包引用保持。
   await lockRows(
     tx,
