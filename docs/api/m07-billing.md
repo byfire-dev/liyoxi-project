@@ -521,7 +521,7 @@
 | --- | --- | --- | --- | --- |
 | `planId` | string(uuid) | 是 | 上架中的版本 | 目标版本 |
 | `months` | integer | 否 | 须在参数 `enabledCycles` 内 | 购买月数；判定为 `upgrade` 时忽略；其余动作缺省时返回 `VALIDATION_FAILED`（“请选择购买周期”） |
-| `intent` | enum | 否 | `upgrade_now`（缺省）/ `renew_next_term` | 目标版本更高时：立即升级，或续费更高版本、下期生效（d1:861） |
+| `intent` | enum | 否 | `upgrade_now` / `renew_next_term` | 省略时按当前套餐与目标档位自动判定开通、续费、降级或立即升级；显式 `upgrade_now` 仅允许有效套餐升级到更高档位；`renew_next_term` 将更高档位的变更按下期升级处理（d1:861） |
 
 **响应**：`data` 为 `PlanQuote`（2.3）。
 
@@ -529,7 +529,7 @@
 
 | 错误码 | HTTP | 何时 |
 | --- | --- | --- |
-| `VALIDATION_FAILED` | 400 | 非升级动作缺 `months` |
+| `VALIDATION_FAILED` | 400 | 显式 `upgrade_now` 但无有效套餐或目标为同档、低档，返回 `details.fieldErrors[].path = planId`；其余非升级动作缺 `months` |
 | `NOT_FOUND` | 404 | `planId` 不存在 |
 | `PLAN_NOT_AVAILABLE` | 409 | 版本未上架，或没有生效的价目修订 |
 | `CYCLE_NOT_AVAILABLE` | 400 | `months` 不在 `enabledCycles` 内 |
