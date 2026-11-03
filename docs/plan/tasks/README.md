@@ -262,6 +262,13 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | — | W6-09、W6-13 | 11条typed API及`createPublishTakedown`；两端按原字段、过滤和计数取服务端actions。商家确认仅method；后台核查每项2–9张证据，1–50项批量整批原子，失败details.items与成功items顺序沿请求。部分确认不提前推进、全确认进入takedown、全核查才archived；终止工单保持终止。09消费真实接口，13收当前CI与20集full结果，真实平台核查仍未验。 | W6-04；publish README；a06第3.28–3.35节、m05下架三接口 |
 | — | W6-07、W6-13 | 创建/不足30天推包/I16共用01唯一writer；两timer及日历订阅实例装配，I7追加下架贡献并保留巡检，I16–20真实检查。下架完成经原关闭链处理release/grant/ZIP及止日次日+90天保留，证据1095天且不可释放；07收本包下架部分回执，复合桩由07关闭，本包不代关。R3四节点真实去重及事件发前重验；预发闭环和机构签章保持原外验边界。 | W6-04；11第2.7节、x01两timer/日历订阅；publish README |
 
+### W6-07 ZIP缓存生命周期移交（随本包 PR 交付）
+
+| 编号 | 接收方 | 交付与边界 | 出处 |
+| --- | --- | --- | --- |
+| — | W6-06、W6-08、W6-11、W6-13 | 单条 `admin.deliveryRelease.pack` 与 `zip_package` 接既有媒体循环；推包同事务预排，完整不可变manifest及清单经真实对象验证后才ready。media公开 `ensureZip`、`readZipSourceFiles`，delivery公开 `readReleaseZipInput`、`createDeliveryZipPackages`；06只经公口消费当前代次，签发时仍须重验当前授权/文件。ensureZip的ready/peek会顺延缓存引用，禁止接入GET；08通过明确用户意图及新幂等键调用pack查看当前状态，不能自动循环重试failed。06下载状态沿冻结HTTP200，202仅clientError。 | W6-07；media/delivery README；a06第3.12节、p01第3.8节、06第2.12节 |
+| — | W6-06、W6-11、W6-13 | ZIP与独立清单缓存使用代次/任务/attempt唯一对象键、同一keepUntil；旧任务回查只登记可清理产物，不能安装或覆盖当前代。清单单独清理允许ready且publishListFileId为空，签发须核目标文件可用；清单修订/真实下架归档即失效两缓存，成片90天及无引用24小时规则保持。01使用期、04下架与07真实20集归档链共同回补复合桩；小ZIP实物/协议替身不替代V10真实5GB耗时、恢复及下载逐集hash外验，逐集退路仍由06/11承接。 | W6-07；本包复合桩与状态；V10原最晚点 |
+
 ### W6-06 Q9登记治理移交（独立前置）
 
 | 编号 | 接收方 | 实际移交 | 依据 |

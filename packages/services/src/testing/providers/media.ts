@@ -7,6 +7,7 @@ import type {
   MediaProbeReport,
   MediaProvider,
   MediaRemoteJob,
+  MediaZipPreview,
   ObjectRef,
   ProviderMethodName,
 } from "../../providers/types.js";
@@ -19,6 +20,8 @@ export interface FakeMediaJob extends MediaJob {
   kind: "transcode" | "pack";
   userData: string;
   canceled?: boolean;
+  /** 仅显式测试fixture提供；默认不构造压缩结果证明。 */
+  output?: MediaRemoteJob["output"];
 }
 
 export interface FakeMedia extends MediaProvider, FakeControl<Method> {
@@ -28,6 +31,8 @@ export interface FakeMedia extends MediaProvider, FakeControl<Method> {
   defaultReport: MediaProbeReport;
   /** 提交过的转码与打包任务，都是直接完成 */
   readonly jobs: FakeMediaJob[];
+  /** 独立准备的目录事实，键为“桶/对象键”；未准备不声称预览成功。 */
+  readonly zipPreviews: Map<string, MediaZipPreview>;
 }
 
 const slot = (ref: ObjectRef) => `${ref.bucket}/${ref.key}`;
@@ -36,6 +41,7 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
   const core = createFakeCore<Method>(options.clock ?? systemClock);
   const reports = new Map<string, MediaProbeReport>();
   const jobs: FakeMediaJob[] = [];
+  const zipPreviews = new Map<string, MediaZipPreview>();
   const audits = new Map<string, { dataId: string; src: ObjectRef }>();
 
   function submit(kind: FakeMediaJob["kind"], userData: string): MediaJob {
@@ -55,7 +61,7 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
     state: one.canceled ? "canceled" : one.state === "done" ? "succeeded" : "submitted",
     userData: one.userData,
     processed: true,
-    output: {},
+    output: structuredClone(one.output ?? {}),
   });
   const fake: FakeMedia = {
     status: "fake",
@@ -71,6 +77,7 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
       sizeBytes: 8_000_000,
     },
     jobs,
+    zipPreviews,
 
     probe: (input) =>
       core.run(
@@ -87,6 +94,18 @@ export function createFakeMedia(options: { clock?: FakeClock } = {}): FakeMedia 
       core.run("transcode", input, () => ok(submit("transcode", input.userData)), input.signal),
     pack: (input) =>
       core.run("pack", input, () => ok(submit("pack", input.userData)), input.signal),
+    previewZip: (input) =>
+      core.run(
+        "previewZip",
+        input,
+        () => {
+          const result = zipPreviews.get(slot(input.src));
+          return result
+            ? ok(structuredClone(result))
+            : failed("rejected", "没有该替身压缩包目录事实");
+        },
+        input.signal,
+      ),
     audit: (input) =>
       core.run("audit", input, () => ok({ verdict: "pass", processed: true }), input.signal),
     auditText: (input) =>

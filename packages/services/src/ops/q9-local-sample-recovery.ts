@@ -52,7 +52,13 @@ interface Q9LocalSampleRecoveryDeps {
   readonly events: Events;
   readonly media: Pick<
     Media,
-    "signRead" | "link" | "release" | "prepareDeliveryProduction" | "deliveryProductionFacts"
+    | "signRead"
+    | "link"
+    | "release"
+    | "prepareDeliveryProduction"
+    | "deliveryProductionFacts"
+    | "ensureZip"
+    | "readZipSourceFiles"
   >;
   readonly providers: Pick<Providers, "storage">;
   readonly config: Pick<Config, "cache" | "flags">;

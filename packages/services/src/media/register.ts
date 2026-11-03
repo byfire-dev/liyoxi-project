@@ -14,6 +14,7 @@ import type { MediaAssetsDeps } from "./assets/types.js";
 import { findI2Violations, findI14Violations } from "./invariants.js";
 import { mediaDeliveryRefTypes } from "./production-stub.js";
 import { findI13Violations } from "./retention/sweep-invariants.js";
+import { zipRefType } from "./zip-package.js";
 const unboundMediaJobs = (): never => {
   throw new Error("媒体执行器未绑定实际运行时");
 };
@@ -101,6 +102,7 @@ const storeAssetRef: StoreBoundFileRefType = {
 export const registration = defineRegistration("media", {
   ports: [fileRefTypePort, fileCategoryGuardPort],
   portImplementations: [
+    implementKeyed(fileRefTypePort, "zip_bundle", zipRefType),
     notifyReaderImplementation(currentNotifyReadPort, "assetForNotify", assetForNotify),
     notifyReaderImplementation(currentNotifyReadPort, "assetDemandForNotify", assetDemandForNotify),
     implementMerchantFacts("asset", assetMerchantFacts),

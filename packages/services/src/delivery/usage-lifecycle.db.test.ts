@@ -466,17 +466,24 @@ describe("W6-01 使用期真实交付事务", { timeout: 60_000 }, () => {
             });
         }
       });
-      const zip = await h.prisma.zipBundle.create({
-        data: {
-          id: uuidv7(),
-          ownerType: "delivery_release",
-          ownerId: f.release.deliveryReleaseId,
-          zipState: "building",
-          zipGen: 1,
-          createdAt: h.clock.now(),
-          updatedAt: h.clock.now(),
+      // W6-07's real push now prequeues this cache. Reuse that production fact;
+      // the historical input above covers only takedown checking, not ZIP completion.
+      const zip = await h.prisma.zipBundle.findUniqueOrThrow({
+        where: {
+          ownerType_ownerId: {
+            ownerType: "delivery_release",
+            ownerId: f.release.deliveryReleaseId,
+          },
         },
       });
+      expect(zip).toMatchObject({ zipState: "building", zipGen: 1, zipFileId: null });
+      const zipJobs = await h.prisma.mediaJob.findMany({
+        where: { kind: "zip_package", parentType: "zip_bundle", parentId: zip.id },
+        orderBy: { id: "asc" },
+      });
+      expect(zipJobs).toEqual([
+        expect.objectContaining({ state: "queued", attemptNo: 0, dedupeKey: `zip:${zip.id}:1` }),
+      ]);
       const before = await snapshotTables(h.prisma, [
         ...tables,
         "zip_bundle",
@@ -518,6 +525,13 @@ describe("W6-01 使用期真实交付事务", { timeout: 60_000 }, () => {
         zipGen: 2,
         updatedAt: archivedAt,
       });
+      // This consumer invalidates the generation; the worker owns later cancellation.
+      expect(
+        await h.prisma.mediaJob.findMany({
+          where: { kind: "zip_package", parentType: "zip_bundle", parentId: zip.id },
+          orderBy: { id: "asc" },
+        }),
+      ).toEqual(zipJobs);
       const retained = await h.prisma.fileRef.findMany({
         where: { refType: "delivery_release", refId: f.release.deliveryReleaseId, role: "ep" },
       });

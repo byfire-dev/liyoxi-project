@@ -46,7 +46,13 @@ export interface DeliveryDeps extends DeliveryCoreDeps {
   ) => Promise<{ revisionNo: number }>;
   readonly media: Pick<
     Media,
-    "signRead" | "link" | "release" | "prepareDeliveryProduction" | "deliveryProductionFacts"
+    | "signRead"
+    | "link"
+    | "release"
+    | "prepareDeliveryProduction"
+    | "deliveryProductionFacts"
+    | "ensureZip"
+    | "readZipSourceFiles"
   >;
   readonly profile: Pick<Profile, "assignDeliveryManager">;
   readonly samplePlayback?: (entityId: string) => Promise<boolean>;

@@ -1,3 +1,4 @@
+import { recoverZipArtifacts } from "../zip-cleanup.js";
 import { calendarDate } from "@liyoxi/shared/time";
 import type { RecurringRunContext } from "../../kernel/index.js";
 import { lockRows, SessionMutexError } from "../../kernel/index.js";
@@ -19,6 +20,7 @@ export function createMediaSweep(deps: RetentionDeps) {
   let proofAfter: string | undefined,
     demandAfter: string | undefined,
     assetAfter: string | undefined;
+  let zipAfter: string | undefined;
   let recoveryAfter: { runId: string; fileId: string } | undefined;
   return async (context: RecurringRunContext) => {
     const ctx = sweepContext(deps, context),
@@ -48,6 +50,12 @@ export function createMediaSweep(deps: RetentionDeps) {
     };
     await step("uploads", () => expireUploads(ctx));
     await step("incoming", () => cleanIncoming(ctx));
+    await step("zipArtifacts", async () => {
+      const recovery = await recoverZipArtifacts(ctx, zipAfter);
+      zipAfter = recovery.after;
+      if (recovery.failed) throw new Error("ZIP artifact recovery incomplete");
+      return recovery.recovered;
+    });
     // 注销/主体关闭法定3年证明仅复用拥有者canRelease及既有release；不泛化其他证照缓冲。
     await step("accountProofs", () =>
       ctx.transaction("account-proofs", async (tx) => {
