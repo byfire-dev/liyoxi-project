@@ -57,6 +57,8 @@ W0-17 实际通知契约是通知框架调用各域的只读事实端口；本�
 
 `createLaunchWorkbench` 的日历、任务列表和汇总复用工单范围及日期/负责人筛选，日历截断前计算全量统计。`listOverdueLaunchItems` / `countOverdueLaunchItems` 是唯一当前逾期口径，任务卡与 R6 共用；晚交付从交付次日起计天数。历史等待区间重放只增状态历史、当时部分上线参数与顺延审计中的旧日期，不依赖会清理的 outbox。草稿方案不进入日历，未确认时只取已推送方案日期与账号。
 
+W6-08 日历前置在既有 `admin.launchCalendar.get` 增加 `workCalendar`。`publish`（L3）经 `sla/index.ts`（L0）的 `readCalendarYear` 在原事务内按所涉年份顺序读取，复用共享导入锁与全表版本，仅投影日期范围内的 kind / isWorkday / 例外名称。日期逐项返回，缺行全部为 null；年度 `importedAt` 沿 SLA 原语义，未导入例外的铺底年仍是 null，不以周末推算冒充节假日。响应不暴露工作时段、系统权限或管理操作；既有 `publish:view` 与系统日历 `system:view` 守卫均保持，GET 不补行、不告警、不写审计或任务。公共年度读取只修正纯 UTC 年界构造以兼容原日历查询日期范围，不改变系统导入允许年份。定点服务测试 `launch-work-calendar.db.test.ts` 覆盖跨年、缺导入/缺行、真实假期与调休、闰月裁剪、极端年界和读取前后行/审计/事件/任务/告警快照；HTTP 权限验证随前置由 API 测试承担。
+
 `createLaunchRevoke` 在真实 delivery 预锁图下重验权限、最近通过轮、工单、工作日时限、下架确认与回显。旧审批保留 approved；旧回填改 revoked，新审批由撤销人提交，新回填保留原商家提交内容与身份，避免撤销人自审。剩余已通过轮重算上线事实，关联未完成巡检作废、取消 timer 并关闭系统跟进；delivery/order 按真实 owner 端口收尾。旧详情返回同一条件的可撤销投影，GET 只读工作日历，不调用缺历告警写口。
 
 两个请求同时撤销时，先完成者新建审批；后等待者若预读锁图因新审批变化，由既有完整图守卫返回 `PRECONDITION_CHANGED`，不能在高序锁之后补锁。重新读取已撤销轮再请求时按接口状态守卫返回 `STATE_NOT_ALLOWED`。两种拒绝均不产生第二份审批、迁移或事件。理由仅留审计/状态历史，冻结出站载荷不携带自由文本。
