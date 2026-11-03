@@ -10,8 +10,19 @@ import { readCancelZipTargets, invalidateZipBundles } from "./cancel-zip.js";
 
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof createZipPackageFixture>;
+let steps: ReturnType<typeof h.releaseSteps>;
+let delivered: Awaited<ReturnType<typeof steps.push>>;
+let used = false;
 beforeAll(async () => {
   h = createZipPackageFixture(await db.prisma());
+  steps = h.releaseSteps();
+});
+beforeAll(() => steps.prepare());
+beforeAll(() => steps.sampleFile());
+beforeAll(() => steps.confirmSample());
+beforeAll(() => steps.finalEpisode(2));
+beforeAll(async () => {
+  delivered = await steps.push();
 });
 afterAll(async () => {
   await h?.close();
@@ -22,14 +33,46 @@ const jobFor = (bundleId: string) =>
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 async function setup() {
-  const delivered = await h.release(),
-    input = await h.input(delivered.release.deliveryReleaseId);
+  const input = await h.input(delivered.release.deliveryReleaseId);
+  if (used) {
+    await h.tx.run(async (tx) =>
+      invalidateZipBundles(tx, await readCancelZipTargets(tx, [input.ownerId]), h.clock.now(), {
+        preserveReleaseFiles: true,
+      }),
+    );
+    const old = await h.prisma.zipBundle.findUniqueOrThrow({
+      where: { ownerType_ownerId: { ownerType: "delivery_release", ownerId: input.ownerId } },
+    });
+    for (const job of await h.prisma.mediaJob.findMany({
+      where: { parentId: old.id, state: { in: ["queued", "submitting", "submitted"] } },
+    })) {
+      if (job.nextRunAt > h.clock.now()) h.clock.set(job.nextRunAt);
+      await h.zipMedia.jobs.run({ jobId: job.id });
+    }
+    await h.tx.run((tx) => h.zipMedia.ensureZip(tx, input));
+  }
+  used = true;
   const bundle = await h.prisma.zipBundle.findUniqueOrThrow({
     where: {
       ownerType_ownerId: { ownerType: "delivery_release", ownerId: input.ownerId },
     },
   });
-  return { delivered, input, bundle, job: await jobFor(bundle.id) };
+  return {
+    delivered,
+    input,
+    bundle,
+    job: await jobFor(bundle.id),
+    jobCount: await h.prisma.mediaJob.count({ where: { parentId: bundle.id } }),
+    refIds: (
+      await h.prisma.fileRef.findMany({
+        where: { refType: "zip_bundle", refId: bundle.id },
+        select: { id: true },
+      })
+    ).map((ref) => ref.id),
+    eventCount: await h.prisma.outboxEvent.count({
+      where: { aggregateId: bundle.id, eventType: "media.release.zip_ready" },
+    }),
+  };
 }
 let f: Awaited<ReturnType<typeof setup>>;
 beforeEach(async () => {
@@ -47,12 +90,19 @@ async function finish(jobId: string) {
 }
 it("真实推包同事务预排一个任务，完整ZIP/清单与CRC实物经回查安装，peek延两个引用", async () => {
   expect(f.bundle).toMatchObject({ zipState: "building", zipGen: 1, zipFileId: null });
-  expect(f.job).toMatchObject({ state: "queued", attemptNo: 0, dedupeKey: `zip:${f.bundle.id}:1` });
+  expect(f.jobCount).toBe(1);
+  expect(f.refIds).toEqual([]);
+  expect(f.eventCount).toBe(0);
+  expect(f.job).toMatchObject({
+    state: "queued",
+    attemptNo: 0,
+    dedupeKey: `zip:${f.bundle.id}:${f.bundle.zipGen}`,
+  });
   for (let index = 0; index < 2; index++) await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input));
-  expect(await h.prisma.mediaJob.count({ where: { parentId: f.bundle.id } })).toBe(1);
+  expect(await h.prisma.mediaJob.count({ where: { parentId: f.bundle.id } })).toBe(f.jobCount);
   await finish(f.job.id);
   const ready = await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input, { peek: true }));
-  expect(ready).toMatchObject({ zipState: "ready", zipGen: 1 });
+  expect(ready).toMatchObject({ zipState: "ready", zipGen: f.bundle.zipGen });
   const file = await h.prisma.fileObject.findUniqueOrThrow({ where: { id: ready.zipFileId! } });
   const body = h.fake.storage.objects.get(`media/${file.objectKey}`)!.body;
   expect(file.crc64).toBe(zipFixtureCrc64(body));
@@ -71,7 +121,7 @@ it("真实推包同事务预排一个任务，完整ZIP/清单与CRC实物经回
     ),
   ).toEqual(ready);
   const refs = await h.prisma.fileRef.findMany({
-    where: { refType: "zip_bundle", refId: f.bundle.id },
+    where: { refType: "zip_bundle", refId: f.bundle.id, id: { notIn: f.refIds } },
   });
   expect(refs).toHaveLength(2);
   expect(
@@ -83,7 +133,7 @@ it("真实推包同事务预排一个任务，完整ZIP/清单与CRC实物经回
     await h.prisma.outboxEvent.count({
       where: { aggregateId: f.bundle.id, eventType: "media.release.zip_ready" },
     }),
-  ).toBe(1);
+  ).toBe(f.eventCount + 1);
 });
 it("peek无行不写，peek优先retry；失败轮询不重打，人工重试新代新键", async () => {
   const untouched = { ...f.input, ownerId: uuidv7() };
@@ -101,16 +151,16 @@ it("peek无行不写，peek优先retry；失败轮询不重打，人工重试新
   const failed = await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input));
   expect(failed).toMatchObject({
     zipState: "failed",
-    zipGen: 1,
+    zipGen: f.bundle.zipGen,
     zipFileId: null,
     publishListFileId: null,
   });
   expect(
     await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input, { retry: true, peek: true })),
   ).toEqual(failed);
-  expect(await h.prisma.mediaJob.count({ where: { parentId: f.bundle.id } })).toBe(1);
+  expect(await h.prisma.mediaJob.count({ where: { parentId: f.bundle.id } })).toBe(f.jobCount);
   const retried = await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input, { retry: true }));
-  expect(retried).toMatchObject({ zipState: "building", zipGen: 2 });
+  expect(retried).toMatchObject({ zipState: "building", zipGen: f.bundle.zipGen + 1 });
   await finish((await jobFor(f.bundle.id)).id);
 });
 it("自动可重试上传失败保持building，原退避到期后新attempt唯一目标", async () => {
@@ -124,7 +174,7 @@ it("自动可重试上传失败保持building，原退避到期后新attempt唯�
   });
   expect(await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input))).toMatchObject({
     zipState: "building",
-    zipGen: 1,
+    zipGen: f.bundle.zipGen,
   });
   h.clock.set(retry.nextRunAt);
   await finish(f.job.id);
@@ -187,7 +237,7 @@ it("缺失结果、错误目标/数量和截断/少集/错大小目录均拒绝r
     });
   }
   const refs = await h.prisma.fileRef.findMany({
-    where: { refType: "zip_bundle", refId: f.bundle.id },
+    where: { refType: "zip_bundle", refId: f.bundle.id, id: { notIn: f.refIds } },
   });
   expect(refs).toHaveLength(faults.length * 2);
   expect(refs.every((ref) => ref.state === "released" && ref.keepUntil! <= h.clock.now())).toBe(
@@ -220,7 +270,7 @@ it("清单已删除时ready不返回旧listId；ZIP已删除peek保留身份不�
   expect(await h.prisma.zipBundle.findUniqueOrThrow({ where: { id: row.id } })).toEqual(row);
   expect(await h.tx.run((tx) => h.zipMedia.ensureZip(tx, f.input))).toMatchObject({
     zipState: "building",
-    zipGen: 2,
+    zipGen: f.bundle.zipGen + 1,
   });
 });
 it("源对象不可读、缺预览能力和ZIP缺CRC均受控失败，不能安装ready", async () => {
@@ -298,12 +348,14 @@ it("正式清单修订使缓存即时过期但保留成片；旧代结果不得�
   });
   expect(await h.prisma.zipBundle.findUniqueOrThrow({ where: { id: f.bundle.id } })).toMatchObject({
     zipState: "none",
-    zipGen: 2,
+    zipGen: f.bundle.zipGen + 1,
     zipFileId: null,
   });
   expect(
     (
-      await h.prisma.fileRef.findMany({ where: { refType: "zip_bundle", refId: f.bundle.id } })
+      await h.prisma.fileRef.findMany({
+        where: { refType: "zip_bundle", refId: f.bundle.id, id: { notIn: f.refIds } },
+      })
     ).every((ref) => ref.keepUntil! <= h.clock.now()),
   ).toBe(true);
   expect(
@@ -328,7 +380,7 @@ it("正式清单修订使缓存即时过期但保留成片；旧代结果不得�
   );
   expect(await h.prisma.zipBundle.findUniqueOrThrow({ where: { id: f.bundle.id } })).toMatchObject({
     zipState: "none",
-    zipGen: 4,
+    zipGen: f.bundle.zipGen + 3,
     zipFileId: null,
   });
   await h.tx.run((tx) => h.zipMedia.ensureZip(tx, input));
@@ -341,13 +393,13 @@ it("正式清单修订使缓存即时过期但保留成片；旧代结果不得�
   });
   expect(await h.prisma.zipBundle.findUniqueOrThrow({ where: { id: f.bundle.id } })).toMatchObject({
     zipState: "building",
-    zipGen: 5,
+    zipGen: f.bundle.zipGen + 4,
     zipFileId: null,
   });
   await finish(winner.id);
   expect(await h.prisma.zipBundle.findUniqueOrThrow({ where: { id: f.bundle.id } })).toMatchObject({
     zipState: "ready",
-    zipGen: 5,
+    zipGen: f.bundle.zipGen + 4,
   });
   const staleFiles = await h.prisma.fileObject.findMany({
     where: { objectKey: { contains: `/${job.id}-1.` } },

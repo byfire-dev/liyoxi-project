@@ -295,3 +295,11 @@ worker配置接线另由独立伴随合入，不能把本源码装配当预发�
 已提交的旧代任务按原60分钟deadline继续观察实际目标；未知提交只查询已受理结果，作废后不再提交。晚到、错误或取消产物登记后立即释放清理，不能安装为ready。缓存作废使两引用即时到期，成片引用仍沿原保留规则。自动任务退避不提前把building改成failed，原三次attempt、首轮5秒回查和shutdown窗口保持。
 
 `zip-package.db.test.ts` 与 `ops/zip-runtime.db.test.ts` 使用真实交付producer和显式小ZIP字节夹具；默认Fake不提供成功证明。真实云5GB制作、解压逐集hash、耗时和恢复仍属V10外验，本地验证不替代它。
+
+### W6-07 未知产物的持久回收
+
+每个attempt在外呼前预登记系统server文件为pending，并在media_job.input中保留对应文件ID、提交状态和已知远端任务ID；声明事实不冒充stored。input内的技术意图按任务自身maxAttempts限制，成功output替换不丢旧attempt。清单每attempt只执行一次PUT；应答未知或后续HEAD/read失败后，旧目标仍可被观察，已stored的失败attempt产物即时释放而bundle保持building重试。
+
+原media.sweep的zipArtifacts阶段以原100行批量、互斥与中止信号恢复这些意图；一个候选失败不阻塞本批其它候选，失败沿原sweep_failed登记。HEAD未见对象、find空结果或远端仍运行均不清掉未知事实，业务任务仍按原60分钟deadline终止。只有从未发外呼的reserved标记能直接过期；ZIP须核相同userData的真实远端终态并观察到目标对象，才登记实际stored事实、立即到期的released引用，随后由原purge_run的模式、额度与删除守卫清除。清理阶段不重启业务任务、不先删除空键，也不增加队列或周期登记。
+
+输入沿正式1..999集集合，不再附加100集业务限制。成员数达到1000（含清单）或清单文本超200KiB，在任何外呼前受控ZIP失败；交付推送仍完成，逐集下载保持原能力。该退路不减少整包集数，也不放宽Provider对完整目录的限制。

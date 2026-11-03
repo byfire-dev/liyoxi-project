@@ -2,6 +2,19 @@ import { z } from "zod";
 import type { Tx } from "../kernel/index.js";
 import { AppError } from "../kernel/index.js";
 
+export const ZipArtifactIntentSchema = z.strictObject({
+  attemptNo: z.int().positive(),
+  zipFileId: z.uuid(),
+  publishListFileId: z.uuid().nullable(),
+  listWrite: z.enum(["reserved", "unknown", "verified", "rejected"]),
+  zipSubmit: z.enum(["reserved", "unknown", "submitted", "terminal", "rejected"]),
+  externalJobId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,256}$/)
+    .nullable(),
+});
+export type ZipArtifactIntent = z.infer<typeof ZipArtifactIntentSchema>;
+
 const id = z.uuid();
 const key = z
   .string()
@@ -17,7 +30,7 @@ const name = z
   .string()
   .min(1)
   .max(255)
-  .refine((value) => !/[\\/\p{Cc}]/u.test(value) && value !== "." && value !== "..");
+  .refine((value) => !/[\\/:*?"<>|\p{Cc}\p{Cs}]/u.test(value) && value !== "." && value !== "..");
 export const ZipItemSchema = z.strictObject({
   fileId: id,
   key,
@@ -33,22 +46,27 @@ export const ZipInputSchema = z
     entityId: id,
     storeId: id,
     orderItemId: id,
-    items: z.array(ZipItemSchema).min(1).max(100),
+    items: z.array(ZipItemSchema).min(1).max(999),
     publishListText: z.string().nullable(),
     zipFileName: name,
     keepUntil: z.iso.datetime(),
     zipBundleId: id,
     zipGen: z.int().positive(),
+    artifactIntents: z.array(ZipArtifactIntentSchema).optional(),
   })
   .refine(
     (value) =>
       new Set(value.items.map((item) => item.fileId)).size === value.items.length &&
       new Set(value.items.map((item) => item.name)).size === value.items.length &&
       !value.items.some((item) => item.name === "发布清单.txt") &&
-      Buffer.byteLength(value.publishListText ?? "", "utf8") <= 200 * 1024,
+      new Set(value.artifactIntents?.map((intent) => intent.attemptNo)).size ===
+        (value.artifactIntents?.length ?? 0),
   );
 export type ZipJobInput = z.infer<typeof ZipInputSchema>;
-export type EnsureZipInput = Omit<ZipJobInput, "zipBundleId" | "zipGen" | "keepUntil"> & {
+export type EnsureZipInput = Omit<
+  ZipJobInput,
+  "zipBundleId" | "zipGen" | "keepUntil" | "artifactIntents"
+> & {
   readonly keepUntil: Date;
 };
 export interface ZipResult {

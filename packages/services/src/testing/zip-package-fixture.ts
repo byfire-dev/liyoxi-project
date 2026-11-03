@@ -6,13 +6,17 @@ import type { MediaZipPreview, StorageProvider } from "../providers/types.js";
 import type { FakeProviders } from "./providers/index.js";
 import type { PrismaClient } from "@liyoxi/db";
 import { createMedia } from "../media/index.js";
+import type { RetentionOptions } from "../media/index.js";
+import { createRuntimeMediaAssets } from "../ops/index.js";
+import { createTimers } from "../timers/index.js";
 import {
   createDeliveryZipPackages,
   createPublishLists,
   readReleaseZipInput,
 } from "../delivery/index.js";
 import { productionHarness } from "./delivery-production.fixture.js";
-import { released } from "./delivery-release.fixture.js";
+import { released, releaseSteps } from "./delivery-release.fixture.js";
+import type { prepared } from "./delivery-release.fixture.js";
 
 const MAX_BYTES = 64 * 1024 * 1024;
 const crc32Table = Array.from({ length: 256 }, (_, index) => {
@@ -92,7 +96,7 @@ export function inspectZipFixture(bytes: Uint8Array): MediaZipPreview {
   const count = data.readUInt16LE(end + 10),
     directoryEnd = data.readUInt32LE(end + 16) + data.readUInt32LE(end + 12);
   let at = data.readUInt32LE(end + 16);
-  if (directoryEnd !== end || count < 1 || count > 101 || data.readUInt16LE(end + 8) !== count)
+  if (directoryEnd !== end || count < 1 || count > 999 || data.readUInt16LE(end + 8) !== count)
     throw new Error("fixture ZIP directory boundary invalid");
   const entries: Array<{ name: string; sizeBytes: string }> = [];
   for (let index = 0; index < count; index++) {
@@ -155,7 +159,7 @@ export function installZipPackageFixture(
     if (
       input.bucket !== "media" ||
       input.items.length < 1 ||
-      input.items.length > 101 ||
+      input.items.length > 999 ||
       !/^pkg\/[a-f0-9-]+\/[a-f0-9-]+-\d+\/[a-f0-9-]+-\d+\.zip$/.test(input.dstKey) ||
       input.items.some((item) => /[\\/\p{Cc}]/u.test(item.name)) ||
       new Set(input.items.map((item) => item.name)).size !== input.items.length
@@ -250,9 +254,20 @@ export function installZipPackageFixture(
 }
 
 /** Real delivery/QC/release producers shared by ZIP domain and worker integration tests. */
-export function createZipPackageFixture(prisma: PrismaClient) {
+export function createZipPackageFixture(
+  prisma: PrismaClient,
+  options: { retention?: RetentionOptions } = {},
+) {
   const h = productionHarness(prisma),
     protocol = installZipPackageFixture(h.fake);
+  const zipAssets = options.retention
+    ? createRuntimeMediaAssets({
+        assembly: h.assembly,
+        clock: h.clock,
+        timers: createTimers({ assembly: h.assembly }),
+        providers: h.fake,
+      })
+    : undefined;
   const zipMedia = createMedia({
     tx: h.tx,
     clock: h.clock,
@@ -260,15 +275,46 @@ export function createZipPackageFixture(prisma: PrismaClient) {
     events: h.events,
     storage: protocol.storage,
     zipProvider: h.fake.media,
+    ...(zipAssets ? { assets: zipAssets } : {}),
+    ...(options.retention ? { retention: options.retention } : {}),
   });
   h.media.ensureZip = zipMedia.ensureZip;
   return {
     ...h,
     zipMedia,
     zipStorage: protocol.storage,
+    zipAssets,
     zipPackages: createDeliveryZipPackages({ ...h.deps, media: zipMedia }),
     publishLists: createPublishLists(h.deps),
     release: (episodes = 2) => released(h, false, undefined, episodes),
+    releaseSteps: (
+      episodes = 2,
+      beforePush?: (f: Awaited<ReturnType<typeof prepared>>) => Promise<void>,
+    ) => releaseSteps(h, false, beforePush, episodes),
+    async retainPreparedAgreement(agreementConsentId: string) {
+      if (!options.retention) throw new Error("agreement retention requires the sweep fixture");
+      // The historical order factory owns an active PDF but does not materialize its media ref.
+      // Supply that real owner reference before advancing this fixture through daily sweeps.
+      await h.tx.run(async (tx) => {
+        const consent = await tx.agreementConsent.findUniqueOrThrow({
+          where: { id: agreementConsentId },
+        });
+        await tx.$queryRaw`SELECT id FROM agreement_version WHERE id=${consent.agreementVersionId}::uuid FOR UPDATE`;
+        const version = await tx.agreementVersion.findUniqueOrThrow({
+          where: { id: consent.agreementVersionId },
+        });
+        if (version.status !== "active" || !version.pdfFileId)
+          throw new Error("prepared agreement requires its actual active PDF");
+        await zipMedia.link(tx, {
+          fileId: version.pdfFileId,
+          refType: "agreement_version",
+          refId: version.id,
+          role: "pdf",
+          entityId: null,
+          storeId: null,
+        });
+      });
+    },
     input: (releaseId: string) =>
       h.tx.run((tx) => readReleaseZipInput(tx, zipMedia, releaseId, h.clock.now())),
     async close() {

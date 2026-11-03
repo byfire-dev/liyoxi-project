@@ -9,6 +9,7 @@ import { jobBudget } from "./jobs/policy.js";
 import { ZipInputSchema, zipKeys, zipSourcesCurrent } from "./zip-types.js";
 import { registerZipArtifact, uploadZipList } from "./zip-artifacts.js";
 import { link } from "./refs.js";
+import { changeZipIntent, readZipIntent, reserveZipArtifacts } from "./zip-intents.js";
 
 const OutputSchema = z.strictObject({
   zipFileId: z.uuid(),
@@ -18,6 +19,15 @@ const failure = (code: string, retryable = false): JobOutcome => ({
   state: "failed",
   failure: { code, retryable },
 });
+export function zipPreparationFailure(
+  input: ReturnType<typeof ZipInputSchema.parse>,
+): JobOutcome | null {
+  if (input.items.length + (input.publishListText ? 1 : 0) >= 1000)
+    return failure("ZIP_PREVIEW_UNSUPPORTED");
+  if (Buffer.byteLength(input.publishListText ?? "", "utf8") > 200 * 1024)
+    return failure("ZIP_INPUT_UNSUPPORTED");
+  return null;
+}
 export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
   const provider = deps.zipProvider;
   const artifacts = (tx: Tx, job: MediaJob) => {
@@ -43,7 +53,9 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
       job.subjectType !== "zip_bundle" ||
       job.subjectId !== input.zipBundleId ||
       job.parentType !== "zip_bundle" ||
-      job.parentId !== input.zipBundleId
+      job.parentId !== input.zipBundleId ||
+      (input.artifactIntents?.length ?? 0) > job.maxAttempts ||
+      input.artifactIntents?.some((intent) => intent.attemptNo > job.maxAttempts)
     )
       return false;
     const files = await artifacts(tx, job);
@@ -56,7 +68,7 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
     // Once its unique ZIP has been registered, the normal runner fence cancels installation.
     return (
       (job.state === "submitting" || job.state === "submitted") &&
-      !files.some((file) => file.category === "package_zip")
+      !files.some((file) => file.category === "package_zip" && file.status === "stored")
     );
   };
   const finish: NonNullable<MediaJobHandler["finish"]> = async (tx, job, outcome, ctx) => {
@@ -70,7 +82,7 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
       "file_object",
       files.map((file) => file.id),
     );
-    if (job.state === "queued" || job.state === "submitted" || job.state === "submitting") return;
+    if (job.state === "submitted" || job.state === "submitting") return;
     const ready = owned && outcome.state === "succeeded";
     for (const file of files)
       if (file.status === "stored")
@@ -84,7 +96,9 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
           released: true,
           keepUntil: ready ? new Date(input.keepUntil) : now,
         });
-    if (!owned) return;
+    // A failed attempt can already have stored files while the job is queued for its next attempt.
+    // Release those files now; the bundle stays building until the job really terminates.
+    if (job.state === "queued" || !owned) return;
     if (!ready) {
       await tx.zipBundle.update({
         where: { id: bundle.id },
@@ -169,6 +183,8 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
     if (!provider?.previewZip || !provider.describe || !provider.find)
       return failure("MEDIA_PROVIDER_UNSUPPORTED");
     const input = ZipInputSchema.parse(job.input);
+    const unsupported = zipPreparationFailure(input);
+    if (unsupported) return unsupported;
     if (!(await deps.tx.run((tx) => inputCurrent(tx, input))))
       return { state: "canceled" } as const;
     for (const item of input.items) {
@@ -183,18 +199,36 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
       )
         return failure("ZIP_SOURCE_CHANGED");
     }
+    if (!(await reserveZipArtifacts(deps, job))) return { state: "canceled" } as const;
     const list = await uploadZipList(deps, job, input, signal);
     return list.ok ? null : failure("ZIP_LIST_UPLOAD_FAILED", list.retryable);
+  }
+  async function submit(job: MediaJob, context: unknown, signal: AbortSignal): Promise<JobOutcome> {
+    if (
+      !(await changeZipIntent(deps, job, (intent) => ({ ...intent, zipSubmit: "unknown" }), "zip"))
+    )
+      return { state: "pending" };
+    const result = await base.execute(job, context, signal);
+    if (result.state === "submitted")
+      await changeZipIntent(deps, job, (intent) => ({
+        ...intent,
+        zipSubmit: "submitted",
+        externalJobId: result.externalJobId,
+      }));
+    return result;
   }
   return {
     ...base,
     execute: async (job, context, signal) =>
-      (await prepare(job, signal)) ?? base.execute(job, context, signal),
+      (await prepare(job, signal)) ?? submit(job, context, signal),
     recover: async (job, signal) => {
-      const input = ZipInputSchema.parse(job.input);
-      if (await deps.tx.run((tx) => inputCurrent(tx, input)))
-        return (await prepare(job, signal)) ?? base.recover!(job, signal);
-      // A stale unknown submission may be found, but must never be submitted again.
+      const input = ZipInputSchema.parse(job.input),
+        intent = await readZipIntent(deps, job);
+      if (!intent || intent.zipSubmit === "reserved") {
+        if (!(await deps.tx.run((tx) => inputCurrent(tx, input)))) return { state: "canceled" };
+        return (await prepare(job, signal)) ?? submit(job, undefined, signal);
+      }
+      if (intent.externalJobId) return { state: "submitted", externalJobId: intent.externalJobId };
       if (!provider.find) return { state: "pending" };
       const userData = `${job.id}:${job.attemptNo}`;
       const found = await provider.find({
@@ -210,15 +244,32 @@ export function createZipHandler(deps: BoundMediaDeps): MediaJobHandler {
         createdBefore: new Date(deps.clock.now().getTime() + 1000),
         signal,
       });
-      if (!found.ok || (!found.value.job && !found.value.complete)) return { state: "pending" };
-      if (!found.value.job) return { state: "canceled" };
+      // A complete empty search is not proof that an unknown submission can never finish.
+      if (!found.ok || !found.value.job) return { state: "pending" };
       if (!found.value.job.processed || found.value.job.userData !== userData)
         return failure("MEDIA_REMOTE_RESULT_INVALID");
-      return { state: "submitted", externalJobId: found.value.job.jobId };
+      const externalJobId = found.value.job.jobId;
+      await changeZipIntent(deps, job, (one) => ({
+        ...one,
+        zipSubmit: "submitted",
+        externalJobId,
+      }));
+      return { state: "submitted", externalJobId };
     },
     poll: async (job, signal) => {
       const result = await base.poll!(job, signal);
       if (result.state === "submitted" || result.state === "pending") return result;
+      if (result.state === "failed" && result.failure.code !== "CI_TASK_FAILED") return result;
+      if (
+        result.state === "succeeded" ||
+        result.state === "canceled" ||
+        (result.state === "failed" && result.failure.code === "CI_TASK_FAILED")
+      )
+        await changeZipIntent(deps, job, (one) => ({
+          ...one,
+          zipSubmit: "terminal",
+          externalJobId: job.externalJobId ?? one.externalJobId,
+        }));
       const input = ZipInputSchema.parse(job.input),
         keys = zipKeys(input, job),
         src = { bucket: "media" as const, key: keys.zip };

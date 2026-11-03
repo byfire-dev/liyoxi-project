@@ -56,15 +56,29 @@ export async function readReleaseZipInput(
     entityId: release.entityId,
     storeId: release.storeId,
   });
+  const names = new Set<string>();
   const items = manifest.map((entry) => {
     const file = files.find((file) => file.fileId === entry.fileId);
     if (!file || file.size !== entry.size || (entry.crc64 !== null && entry.crc64 !== file.crc64))
       throw new AppError("FILE_NOT_AVAILABLE");
-    return { ...file, name: entry.name, crc64: entry.crc64 };
+    // Content titles are not filesystem paths. Keep the immutable manifest intact,
+    // and map archive members to flat portable names with a deterministic collision suffix.
+    const cleaned = entry.name.replace(/[\\/\p{Cc}\p{Cs}:*?"<>|]/gu, "_");
+    const stem =
+      cleaned
+        .replace(/\.mp4$/iu, "")
+        .slice(0, 220)
+        .replace(/\p{Cs}/gu, "_") || "成片";
+    let name = `${stem}.mp4`;
+    let collision = 0;
+    while (names.has(name)) name = `${stem}_第${entry.episodeNo}集_${++collision}.mp4`;
+    names.add(name);
+    return { ...file, name, crc64: entry.crc64 };
   });
   const title = String((release.orderItem.dramaSnapshot as { title?: string }).title ?? "成片")
-    .replace(/[\\/\p{Cc}:*?"<>|]/gu, "_")
-    .slice(0, 100);
+    .replace(/[\\/\p{Cc}\p{Cs}:*?"<>|]/gu, "_")
+    .slice(0, 100)
+    .replace(/\p{Cs}/gu, "_");
   return {
     ownerType: "delivery_release",
     ownerId: release.id,
@@ -97,6 +111,11 @@ export function createDeliveryZipPackages(deps: DeliveryZipPackagesDeps) {
         if (!release) throw new AppError("NOT_FOUND");
         await lockTickets(tx, [release.deliveryTicketId]);
         await lockRows(tx, "delivery_release", [release.id]);
+        const current = await tx.deliveryRelease.findFirst({
+          where: { id: release.id, deliveryTicket: scopedTickets(staff.scope) },
+          select: { id: true },
+        });
+        if (!current) throw new AppError("NOT_FOUND");
         const input = await readReleaseZipInput(tx, deps.media, release.id, deps.clock.now());
         const result = await deps.media.ensureZip(tx, input, { retry: true });
         await record(
