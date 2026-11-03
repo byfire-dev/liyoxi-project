@@ -41,6 +41,24 @@ async function scopedTicket(tx: Tx, id: string, staff: StaffContext) {
   return ticket;
 }
 
+async function storeTicket(
+  tx: Tx,
+  scope: { entityId: string; storeId: string },
+  orderItemId: string,
+) {
+  const ticket = await tx.deliveryTicket.findFirst({
+    where: { orderItemId, entityId: scope.entityId, storeId: scope.storeId },
+    include: ticketInclude,
+  });
+  if (
+    !ticket ||
+    ticket.orderItem.entityId !== scope.entityId ||
+    ticket.orderItem.storeId !== scope.storeId
+  )
+    throw new AppError("NOT_FOUND");
+  return ticket;
+}
+
 export const publishListLockReason = (t: TicketRow) =>
   t.linksSubmittedAt
     ? ("links_submitted" as const)
@@ -253,12 +271,9 @@ export function createPublishLists(deps: PublishListsDeps) {
   async function readForStore(scope: { entityId: string; storeId: string }, orderItemId: string) {
     const { entityId, storeId } = scope;
     const result = await deps.tx.run(async (tx) => {
-      const t = await tx.deliveryTicket.findFirst({
-        where: { orderItemId, entityId, storeId },
-        include: ticketInclude,
-      });
-      if (!t || t.orderItem.entityId !== scope.entityId || t.orderItem.storeId !== scope.storeId)
-        throw new AppError("NOT_FOUND");
+      const candidate = await storeTicket(tx, scope, orderItemId);
+      await lockRows(tx, "delivery_ticket", [candidate.id], "share");
+      const t = await storeTicket(tx, scope, orderItemId);
       const release = await tx.deliveryRelease.findFirst({
         where: { orderItemId, entityId, storeId, state: "pushed" },
         orderBy: { releaseNo: "desc" },
@@ -298,7 +313,11 @@ export function createPublishLists(deps: PublishListsDeps) {
     get: async (staff: StaffContext, id: string) => {
       assertAccess(staff, { module: { module: "publish", need: "view" }, permission: null });
       return sign(
-        await deps.tx.run(async (tx) => adminView(tx, await scopedTicket(tx, id, staff))),
+        await deps.tx.run(async (tx) => {
+          await scopedTicket(tx, id, staff);
+          await lockRows(tx, "delivery_ticket", [id], "share");
+          return adminView(tx, await scopedTicket(tx, id, staff));
+        }),
       );
     },
     replace: async (

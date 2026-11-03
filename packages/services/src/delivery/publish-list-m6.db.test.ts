@@ -1,6 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createPrismaClient } from "@liyoxi/db";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { useSeededDatabase } from "../testing/index.js";
-import { createIdempotencyContext, uuidv7 } from "../kernel/index.js";
+import { createIdempotencyContext, createTxRunner, uuidv7 } from "../kernel/index.js";
+import type { TxRunner } from "../kernel/index.js";
 import { createPublishLists } from "./publish-list-service.js";
 import { prefillPublishList } from "./publish-list.js";
 import { ticketOf } from "./repo.js";
@@ -17,6 +19,25 @@ beforeAll(async () => {
 }, 120_000);
 afterAll(() => h?.close());
 const service = () => createPublishLists(h.deps);
+const gate = () => {
+  let open!: () => void;
+  const wait = new Promise<void>((resolve) => (open = resolve));
+  return { wait, open };
+};
+type ReadPort = "admin" | "merchant" | "portal";
+const readPushed = (lists: ReturnType<typeof service>, port: ReadPort) =>
+  port === "admin"
+    ? lists.get(pushed.qc.staff, pushed.id)
+    : port === "merchant"
+      ? lists.merchantGet(pushed.o.viewer, pushed.item.id)
+      : lists.portalGet(
+          { entityId: pushed.o.entity.id, storeId: pushed.o.store.id },
+          pushed.item.id,
+        );
+const contentOf = (view: Awaited<ReturnType<typeof readPushed>>) => ({
+  ...view,
+  cover: view.cover ? { fileId: view.cover.fileId } : null,
+});
 async function editing(episodeCount = 3) {
   const poster = await h.make.fileObject();
   const o = await h.order(true, 1, poster.id, episodeCount),
@@ -53,6 +74,155 @@ const snapshot = async (id: string) => ({
 });
 
 describe("M6发布清单真实内容事务", () => {
+  it.each(
+    (["admin", "merchant", "portal"] as const).flatMap((port) =>
+      (["replace", "import"] as const).map((write) => ({ port, write })),
+    ),
+  )("$port 读写并发 $write 保持清单头、逐集行和发布文本同版本", async ({ port, write }) => {
+    const current = await service().get(pushed.qc.staff, pushed.id);
+    const body = {
+      lockVersion: current.lockVersion,
+      collectionName: "并发读取合集",
+      coverFileId: current.cover?.fileId ?? null,
+      titleTemplate: current.titleTemplate,
+      topics: ["并发读取"],
+      intro: "旧版合集简介",
+      episodes: [
+        { episodeNo: 1, title: "旧版标题", highlight: null, topics: null, intro: "旧版逐集简介" },
+      ],
+    };
+    const baseline = await service().replace(pushed.qc.ctx, pushed.qc.staff, pushed.id, body);
+    const before = contentOf(await readPushed(service(), port));
+    const connectionString = await db.url(),
+      readerClient = createPrismaClient({ connectionString, max: 1 }),
+      writerClient = createPrismaClient({ connectionString, max: 1 }),
+      reader = createTxRunner({ prisma: readerClient, appEnv: "test" }),
+      writer = createTxRunner({ prisma: writerClient, appEnv: "test" }),
+      paused = gate(),
+      resume = gate(),
+      writerEntered = gate();
+    let readerPid = 0,
+      writerPid = 0;
+    const readerTx: TxRunner = {
+      run: (fn, options) =>
+        reader.run(async (tx) => {
+          readerPid = (
+            await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid()::int AS pid`
+          )[0]!.pid;
+          const pause = async <T>(result: T) => {
+            paused.open();
+            await resume.wait;
+            return result;
+          };
+          // Keep Prisma's relation methods and the original Tx identity; only delay consumption.
+          const pauseQuery = <T extends PromiseLike<unknown>>(query: T): T =>
+            new Proxy(query, {
+              get(target, key) {
+                if (key === "then")
+                  return (
+                    resolve?: (value: Awaited<T>) => unknown,
+                    reject?: (error: unknown) => unknown,
+                  ) => Promise.resolve(target).then(pause).then(resolve, reject);
+                return Reflect.get(target, key, target);
+              },
+            });
+          const header = tx.publishList.findUnique,
+            release = tx.deliveryRelease.findFirst;
+          // Pause at the former mixed-version boundary, after the real SQL has read its value.
+          const spy =
+            port === "admin"
+              ? vi
+                  .spyOn(tx.publishList, "findUnique")
+                  .mockImplementationOnce((args) => pauseQuery(header(args)))
+              : vi
+                  .spyOn(tx.deliveryRelease, "findFirst")
+                  .mockImplementationOnce((args) => pauseQuery(release(args)));
+          try {
+            return await fn(tx);
+          } finally {
+            spy.mockRestore();
+          }
+        }, options),
+    };
+    const writerTx: TxRunner = {
+      run: (fn, options) =>
+        writer.run(async (tx) => {
+          writerPid = (
+            await tx.$queryRaw<{ pid: number }[]>`SELECT pg_backend_pid()::int AS pid`
+          )[0]!.pid;
+          writerEntered.open();
+          return fn(tx);
+        }, options),
+    };
+    const reading = readPushed(createPublishLists({ ...h.deps, tx: readerTx }), port);
+    const readSettled = Promise.allSettled([reading]);
+    try {
+      await Promise.race([
+        paused.wait,
+        reading.then(() => {
+          throw new Error("清单读取未经过受控查询屏障");
+        }),
+      ]);
+      const lists = createPublishLists({ ...h.deps, tx: writerTx });
+      const writing =
+        write === "replace"
+          ? lists.replace(pushed.qc.ctx, pushed.qc.staff, pushed.id, {
+              ...body,
+              lockVersion: baseline.lockVersion,
+              intro: "新版合集简介",
+              episodes: [
+                {
+                  episodeNo: 1,
+                  title: "新版标题",
+                  highlight: null,
+                  topics: null,
+                  intro: "新版逐集简介",
+                },
+              ],
+            })
+          : lists.import(pushed.qc.ctx, pushed.qc.staff, pushed.id, {
+              lockVersion: baseline.lockVersion,
+              format: "csv",
+              content: "集号,标题,简介\n1,新版标题,新版逐集简介",
+            });
+      const writeSettled = Promise.allSettled([writing]);
+      try {
+        await writerEntered.wait;
+        expect(readerPid).not.toBe(writerPid);
+        // Observe the actual lock dependency, never infer a race from elapsed time.
+        await expect
+          .poll(async () => {
+            const [row] = await h.prisma.$queryRaw<
+              { waiting: boolean }[]
+            >`SELECT ${readerPid}::int=ANY(pg_blocking_pids(${writerPid}::int)) AS waiting`;
+            return row?.waiting;
+          })
+          .toBe(true);
+        resume.open();
+        expect(contentOf(await reading)).toEqual(before);
+        await writing;
+        const after = await snapshot(pushed.id);
+        const fresh = await readPushed(service(), port);
+        expect(fresh.episodes[0]).toMatchObject({ title: "新版标题", intro: "新版逐集简介" });
+        expect(fresh.intro).toBe(write === "replace" ? "新版合集简介" : "旧版合集简介");
+        if ("lockVersion" in fresh) expect(fresh.lockVersion).toBe(baseline.lockVersion + 1);
+        else {
+          expect(fresh.text).toContain("新版标题");
+          expect(fresh.text).toContain("新版逐集简介");
+          expect(fresh.text).not.toContain("旧版标题");
+        }
+        expect(await snapshot(pushed.id)).toEqual(after);
+      } finally {
+        resume.open();
+        await writeSettled;
+      }
+    } finally {
+      resume.open();
+      await readSettled;
+      await Promise.all([readerClient.$disconnect(), writerClient.$disconnect()]);
+    }
+  });
+
   it("预填N行且重进保留已保存内容；未进入交付的GET零写404", async () => {
     const f = await editing();
     expect((await snapshot(f.t.id)).rows).toHaveLength(3);

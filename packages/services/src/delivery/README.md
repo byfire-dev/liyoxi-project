@@ -113,6 +113,8 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 
 模板展开与逐集话题回退使用 `@liyoxi/shared/publish-list` 的同一纯函数。保存同步当前 pushed 包的 `publishListText`，通过 media 原公口的 `preserveReleaseFiles` 选项仅失效 ZIP/文本文件缓存，保留现行成片文件引用和下载授权。GET 不懒创建清单、ZIP 或下载记录；merchant/portal 均显式提取主体与门店，按当前 pushed 包读取。`delivery.I16` 报告逐集行缺总清单或超出整部集数，保持不自愈。
 
+三端清单 GET 先校验范围，再经既有 `lockRows(..., "delivery_ticket", ..., "share")` 与保存/导入的工单排他锁互斥；锁后重读同范围工单及完整清单、逐集行、当前包投影，防止 READ COMMITTED 下混合两个版本。封面签名仍在事务外；不改变隔离级别或 GET 零业务写约束。并发回归分别暂停后台清单头、商家/Portal 当前包的真实查询，观察 PostgreSQL 的实际阻塞关系，再验证旧版完整返回、写入完成后新版完整读回。
+
 核验撤销通过原 `launchChangedPort` 驱动 delivery：最后一个已上线账号撤销后，`in_service → launch_verify` 清除 `liveAt`，再调用真实 order owner 重推阶段与使用期。仍有账号已上线时保持服务中。验收入口是 `publish-list-m6.db.test.ts` 和 `publish/launch-workbench.db.test.ts`，不把历史 ZIP 缓存输入当作 W6-07 打包 producer 已完成。
 
 完整整装另由 API `publish-workbench-full.e2e.test.ts` 验证：保留原20集、上传并发4和含清理90秒，在真实回填前保存清单，核验后确认清单锁定，再撤销并核全域full不变量零违规、零错误。当前测试22.41秒、命令29.52秒；M5局部writer夹具不替代该整装证据。共用制作前置已移入testing叶模块，旧delivery夹具路径兼容转导出，默认1集与原广告/取消专用helper保持；不新增生产port。
