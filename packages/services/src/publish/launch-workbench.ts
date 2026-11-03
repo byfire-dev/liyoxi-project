@@ -19,6 +19,7 @@ import { dateOf, iso, snapshotOf, staffBrief, ticketScope } from "./repo.js";
 import { brief, storeBrief, taskBrief } from "./views.js";
 import { deriveLaunchOverdue } from "./launch-overdue.js";
 import { launchOverdueHistory } from "./launch-overdue-history.js";
+import { readLaunchWorkCalendar } from "./launch-work-calendar.js";
 
 const include = {
   store: true,
@@ -412,6 +413,7 @@ export function createLaunchWorkbench(deps: { tx: TxRunner; clock: Clock }) {
           today: calendarDate(now),
           stats,
           days,
+          workCalendar: await readLaunchWorkCalendar(tx, deps.clock, from, to),
           total: candidates.length,
           isTruncated: candidates.length > days.reduce((sum, day) => sum + day.items.length, 0),
         };

@@ -81,3 +81,14 @@ condition = "AND"
 paths = ['''^packages/services/src/testing/admin-live/w513\.fixture\.ts$''']
 regexTarget = "secret"
 regexes = ["^Liyoxi\\-W513\\-2026\\-ok$"]
+
+# W6-09：PR #273 的 gates job 126161840849 命中该 E2E 第 140 行的固定 Idempotency-Key。
+# w609-remind-limit 是限频 409 反例的一次请求标识，不是认证密钥；历史扫描仍须覆盖旧提交。
+# 仅 generic-api-key、此精确路径和这一完整 secret 同时满足才放行，不放行整行或任意幂等键。
+[[allowlists]]
+description = "W6-09 巡检限频 E2E：固定请求标识，不是认证凭据"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^apps/admin/test/e2e/live-m6-patrol-offline\.spec\.ts$''']
+regexTarget = "secret"
+regexes = ['''^w609-remind-limit$''']

@@ -249,6 +249,10 @@ W2-05 接齐系统配置13接口与 approval.onCalendarImported、sla.breach 的
 | --- | --- | --- | --- |
 | — | W6-08、W6-11 | 9条清单/日历/上线列表/汇总/撤销接口；三端当前 pushed 包文本同源。页面使用 lockVersion、isEditable/lockReason、revoke/actions 与服务端逾期统计，不自算权限或状态。portal沿W6-05真实会话固定门店，GET不留下载记录。 | W6-02；a06第2.3、2.4、3.8–3.15、3.19节；m05第3.16节；p01第3.9节 |
 | — | W6-04、W6-07、W6-13 | 07消费完整清单快照与ZIP失效语义，现行成片引用保留；04消费撤销后重新计算的上线事实、pending下架依据和原order/delivery回退。局部测试保留历史pending输入边界；合流已合03后，完整二十集链新增真实HTTP巡检创建→撤销核验→巡检void互通。R2/R6真实扫描与发前重验已接，外部通知、M5业主演示、分批上线与三端复制演示仍未验；不关闭E8/E11。 | W6-02；delivery/publish/notify README；10第2.14、2.15节；11第2.3、2.4节 |
+### W6-08 日历只读前置移交
+
+W6-08独立日历前置补充：`admin.launchCalendar.get.workCalendar`只读提供完整请求日期范围的真实工作日、例外名称、全表批次及逐年导入标记；缺日字段null，未导入年份不冒称已导入。08页面消费此前置及07实际合入版本，不调用需要system:view的管理日历接口；不新增operation或关闭页面/账号桩。依据[a06](../../api/a06-publish.md) LaunchCalendar及[前置记录](../changes/W6-08-calendar-read-prerequisite.md)。
+
 ### W6-03 巡检与账号健康移交（随本包 PR 交付）
 
 | 编号 | 接收方 | 交付与边界 | 出处 |

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { git, makeTempDir, makeTempRepo, repoRoot, writeFiles } from "./helpers.js";
 
-// 真 gitleaks、无网络、六个固定向量；只扫描现场构造的最小 git 历史。
+// 真 gitleaks、无网络、公开固定向量与请求标识；只扫描现场构造的最小 git 历史。
 // 合成反例在运行时生成，不把新的形似密钥的字面量写进仓库。
 const IMAGE = "ghcr.io/gitleaks/gitleaks:v8.30.1";
 const paths = {
@@ -187,5 +187,85 @@ describe("固定测试向量的精确密钥扫描放行", () => {
         result.findings.filter((one) => one.rule === "generic-api-key").map((one) => one.file),
       ).toContain(file);
     expect(result.findings).toContainEqual({ rule: "private-key", file: paths.env, line: 2 });
+  });
+});
+
+describe("W6-09 固定幂等请求标识的精确放行", () => {
+  const path = "apps/admin/test/e2e/live-m6-patrol-offline.spec.ts";
+  // 公开固定标识来自 PR #273 的 gates job 126161840849；不读取尚未合入的业务测试。
+  const marker = ["w609", "remind", "limit"].join("-");
+  const headers = (value: string) =>
+    `const headers = { "Idempotency-Key": ${JSON.stringify(value)} };\n`;
+
+  it("默认规则仍命中已从 HEAD 移除的标识，仅精确规则、路径与值放行", () => {
+    const repository = history({ [path]: headers(marker) }, true);
+    const defaults = join(tempDir(), "defaults.toml");
+    writeFileSync(defaults, "[extend]\nuseDefault = true\n");
+    expect(scan(repository, defaults)).toEqual({
+      status: 3,
+      findings: [{ rule: "generic-api-key", file: path, line: 1 }],
+    });
+    expect(scan(repository, join(repoRoot, ".gitleaks.toml"))).toEqual({ status: 0, findings: [] });
+  });
+
+  it("同路径不同值、标识前后缀、其他路径同值、同行其他密钥与私钥仍拒绝", () => {
+    const synthetic = Array.from({ length: 16 }, (_, digit) => (15 - digit).toString(16))
+      .join("")
+      .repeat(4);
+    const sameLine = `const headers = { "Idempotency-Key": ${JSON.stringify(marker)} }, apiKey = ${JSON.stringify(synthetic)};\n`;
+    const privateKey = [
+      ["-----", "BEGIN", " RSA PRIVATE ", "KEY-----"].join(""),
+      randomBytes(360)
+        .toString("base64")
+        .match(/.{1,64}/g)
+        ?.join("\n"),
+      ["-----", "END", " RSA PRIVATE ", "KEY-----"].join(""),
+    ].join("\n");
+    const otherPaths = [`${path}.extra`, `fixtures/${path}`];
+    const repository = history({
+      [path]:
+        sameLine +
+        headers(synthetic) +
+        // 前后缀也用运行时高熵向量，避免反例先被默认规则自身的过滤器略过。
+        headers(`${synthetic}-${marker}`) +
+        headers(`${marker}${synthetic}`) +
+        privateKey,
+      ...Object.fromEntries(otherPaths.map((file) => [file, headers(marker)])),
+    });
+    const expected: Finding[] = [
+      ...[1, 2, 3, 4].map((line) => ({ rule: "generic-api-key", file: path, line })),
+      ...otherPaths.map((file) => ({ rule: "generic-api-key", file, line: 1 })),
+      { rule: "private-key", file: path, line: 5 },
+    ];
+    const defaults = join(tempDir(), "defaults.toml");
+    writeFileSync(defaults, "[extend]\nuseDefault = true\n");
+    const original = scan(repository, defaults);
+    expect(original.status).toBe(3);
+    for (const finding of expected) expect(original.findings).toContainEqual(finding);
+    const sameLineFindings = (findings: Finding[]) =>
+      findings.filter(
+        (one) => one.rule === "generic-api-key" && one.file === path && one.line === 1,
+      );
+    // 默认规则必须在同行同时找到标识和另一密钥；窄放行后只少掉标识，不能吞掉整行。
+    expect(sameLineFindings(original.findings)).toHaveLength(2);
+    const result = scan(repository, join(repoRoot, ".gitleaks.toml"));
+    expect(result.status).toBe(3);
+    for (const finding of expected) expect(result.findings).toContainEqual(finding);
+    expect(sameLineFindings(result.findings)).toHaveLength(1);
+  });
+
+  it("即使同路径同完整值，其他规则也不会被该放行吞掉", () => {
+    const repository = history({ [path]: headers(marker) });
+    const config = join(tempDir(), "other-rule.toml");
+    // 仅在临时配置追加探针规则，隔离验证 targetRules 的限制；生产默认规则保持不变。
+    writeFileSync(
+      config,
+      readFileSync(join(repoRoot, ".gitleaks.toml"), "utf8") +
+        `\n[[rules]]\nid = "fixture-request-marker"\ndescription = "fixture scope probe"\nregex = '''(${marker})'''\nsecretGroup = 1\nkeywords = ["w609"]\n`,
+    );
+    expect(scan(repository, config)).toEqual({
+      status: 3,
+      findings: [{ rule: "fixture-request-marker", file: path, line: 1 }],
+    });
   });
 });

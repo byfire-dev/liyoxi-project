@@ -20922,6 +20922,109 @@
           "total": {
             "minimum": 0,
             "type": "integer"
+          },
+          "workCalendar": {
+            "additionalProperties": false,
+            "properties": {
+              "calendarVersion": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "days": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "date": {
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "isWorkday": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "weekday",
+                            "weekend",
+                            "holiday",
+                            "adjusted_workday"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "maxLength": 20,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "date",
+                    "kind",
+                    "isWorkday",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 42,
+                "minItems": 1,
+                "type": "array"
+              },
+              "years": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "importedAt": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "year": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "year",
+                    "importedAt"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 2,
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "required": [
+              "calendarVersion",
+              "years",
+              "days"
+            ],
+            "type": "object"
           }
         },
         "required": [
@@ -20930,6 +21033,7 @@
           "today",
           "stats",
           "days",
+          "workCalendar",
           "total",
           "isTruncated"
         ],
