@@ -127,4 +127,6 @@ LYX_FC_RUNS=5000 LYX_FC_SEED=42 pnpm --filter @liyoxi/services exec vitest run s
 
 `createPortalSessions({tx,clock,appid})` 提供 authenticate/list/revoke/logout；`createPortalSession(tx,now,grant,meta)` 只由 portal 在一次性消费票据的同一事务调用。Cookie 使用32字节随机数的base64url，库内只存SHA256；2小时从exchange创建会话起算，不滑动。鉴权以同一SELECT快照核会话、账号active、有效owner及store/entity复合归属，门店archived仍可用。无效返回原PORTAL_SESSION_INVALID原因，GET没有修复写入。
 
+`assertPortalPrincipal(tx, principal, now, {write?})` 用于 Portal 业务读写边界，返回重新组装的 canonical principal，不信任传入的 view。它与 token 认证复用同一 SQL facts，分别通过参数化 token hash / session id 定位；固定校验 session、授权人、主体、门店四字段及原撤销、过期、active/owner 条件，不增加 entity.lifecycle 守卫。默认只读且不锁业务行；写复核必须在业务锁之前调用，按 merchant_user→entity→entity_member→store 的原 share 顺序，再锁 technical portal_session FOR SHARE，锁保持至当前事务结束。外部签名在事务外进行，完成后以当前注入时钟在最终业务事务再次调用此口；不要伪造 weapp 身份或复用签名前的授权快照。原老板撤销按相同身份锁后更新会话，logout仅锁会话后写认证事件，不形成反向业务锁序。`portal-principal.db.test.ts` 覆盖固定范围、canonical view、撤销/老板资格/账号状态/到期与零写，以及独立连接下 logout 和老板资格变化等待写复核释放。
+
 老板撤销只改本人当前主体的指定且未过期/未撤销会话；已过期或已有撤销证据保留。logout只撤当前会话并记portal/ticket/logout。成员变化继续调用既有`revokePortalGrants`，不扩成全账号误吊销。I20只报告真实失配，不自愈；票据I31和7天清理归portal登记。详见[portal说明](../portal/README.md)，本包不代表真实微信扫码或下载业务已验收。

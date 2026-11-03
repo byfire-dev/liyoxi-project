@@ -25,4 +25,10 @@ export * from "./auth.schemas.js";
 export * from "./portal-tickets.js";
 
 export * from "./sessions.js";
-export { portalOrderItemPublishListGet } from "./order-items.js";
+export * from "./order-items.js";
+export * from "./download.schemas.js";
+export * from "./ads.schemas.js";
+export * from "./ads.js";
+export * from "./license-verification.schemas.js";
+export * from "./license-verifications.js";
+export * from "./client-errors.js";

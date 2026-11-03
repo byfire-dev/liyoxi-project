@@ -2,6 +2,10 @@ import {
   mSampleDownloadUrls,
   mOrderItemReleaseGet,
   mOrderItemDownloadUrls,
+  mOrderItemDownloadGrantCreate,
+  mDownloadReport,
+  DownloadGrantResultSchema,
+  DownloadReportResultSchema,
   adminDeliveryReleaseGet,
   adminDeliveryReleasePack,
   DeliveryReleasePackResultSchema,
@@ -60,6 +64,29 @@ const privateOk = <T>(c: Context<ApiEnv>, data: T) => {
   return ok(c, data);
 };
 export const deliveryDownloadHandlers = [
+  defineHandler(mOrderItemDownloadGrantCreate, async (c) =>
+    privateOk(
+      c,
+      DownloadGrantResultSchema.parse(
+        await downloadsOf(c.var.runtime).createGrant(viewer(c), c.req.valid("param").orderItemId, {
+          idem: idemOf(c),
+        }),
+      ),
+    ),
+  ),
+  defineHandler(mDownloadReport, async (c) =>
+    privateOk(
+      c,
+      DownloadReportResultSchema.parse(
+        await downloadsOf(c.var.runtime).report(
+          viewer(c),
+          c.req.valid("param").downloadId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
   defineAdminHandler(
     adminDeliveryReleasePack,
     { module: "publish", need: "edit" },

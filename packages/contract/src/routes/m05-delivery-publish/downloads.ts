@@ -1,8 +1,14 @@
 // 商家端：交付与发布 · downloads（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
+import {
+  DownloadReportParamsSchema,
+  DownloadReportBodySchema,
+  DownloadReportResultSchema,
+} from "./download.schemas.js";
 
-export const mDownloadReport = merchantMeta({
+export const mDownloadReport = merchantRoute({
   method: "post",
   path: "/m/downloads/{downloadId}/report",
   operationId: "m.download.report",
@@ -10,4 +16,12 @@ export const mDownloadReport = merchantMeta({
   "x-capability": "delivery.download",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  request: {
+    params: DownloadReportParamsSchema,
+    body: { required: true, content: { "application/json": { schema: DownloadReportBodySchema } } },
+  },
+  responses: {
+    ...okResponse(DownloadReportResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 429, 500),
+  },
 });

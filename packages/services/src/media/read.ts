@@ -31,6 +31,7 @@ export async function getAdmin(deps: BoundMediaDeps, actor: MediaActor, fileId: 
 type DeliveryDownloadIntent = {
   readonly kind: "delivery-download" | "staff-material" | "license-download";
   readonly fileName: string;
+  readonly downloadKind?: "episode" | "zip" | "publish_list";
 };
 export function createSigner(deps: BoundMediaDeps) {
   const windows = new Map<string, Promise<{ url: string; expiresAt: string }>>();
@@ -41,6 +42,12 @@ export function createSigner(deps: BoundMediaDeps) {
       if (found.category === "portrait_auth" && input.audience === "merchant")
         throw new AppError("FILE_NOT_USABLE");
       requireStored(found);
+      if (
+        intent?.kind === "delivery-download" &&
+        ((intent.downloadKind === "zip" && found.category !== "package_zip") ||
+          (intent.downloadKind === "publish_list" && found.category !== "publish_list"))
+      )
+        throw new AppError("FILE_NOT_AVAILABLE");
       if (
         intent?.kind === "license-download" &&
         (found.category !== "legal_doc" || found.bucket !== "secure" || found.ext !== "pdf")
@@ -56,7 +63,9 @@ export function createSigner(deps: BoundMediaDeps) {
               ? 300_000
               : intent.kind === "staff-material"
                 ? 1_800_000
-                : 900_000),
+                : intent.downloadKind === "zip"
+                  ? 10_800_000
+                  : 900_000),
         )
       : readUrlExpiry(categoryOf(file), file.ext, now, input.audience);
     const urlTtlSec = Math.ceil((expiresAt.getTime() - now.getTime()) / 1000);
