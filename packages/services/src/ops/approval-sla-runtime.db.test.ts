@@ -175,6 +175,7 @@ async function imported(one = worker, day?: string) {
     "delivery.onCalendarImported",
     "media.onCalendarImported",
     "order.onCalendarImported",
+    "publish.onCalendarImported",
     "staff.onCalendarImported",
   ]);
   return { event, refs, result };
@@ -182,7 +183,7 @@ async function imported(one = worker, day?: string) {
 async function consumeBoth(one: ReturnType<typeof buildWorkerServices>, refs: DeliveryRef[]) {
   for (const ref of refs) expect(await one.consume(ref)).toBe("done");
   const rows = await prisma.outboxDelivery.findMany({ where: { outboxEventId: refs[0]!.eventId } });
-  expect(rows).toHaveLength(6);
+  expect(rows).toHaveLength(7);
   expect(rows.every((row) => row.status === "done" && row.consumedAt !== null)).toBe(true);
 }
 async function realQualification(afterApprovalSubmit?: (tx: Tx, id: string) => Promise<void>) {
@@ -359,7 +360,7 @@ async function realAssignment() {
   }
 }
 describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
-  it("只建buildWorkerServices，真实导入的同一event六订阅者done，重复投递/导入零副作用", async () => {
+  it("只建buildWorkerServices，真实导入的同一event七订阅者done，重复投递/导入零副作用", async () => {
     // This runs before any createApproval; there is no API runtime/SLA binding in this file.
     const { refs } = await imported();
     await consumeBoth(worker, refs);
@@ -478,7 +479,7 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
       }),
     ).toMatchObject({ status: "retry", attempts: 1, consumedAt: null });
   });
-  it("两个真实worker不同clock，关闭一个不借另实例；存活实例仍六subscriber done", async () => {
+  it("两个真实worker不同clock，关闭一个不借另实例；存活实例仍七subscriber done", async () => {
     const other = build(createClock(new Date("2026-01-05T05:00:00Z")));
     const event: DeliveredEvent = {
       id: actor.staff.staff.id,
@@ -501,6 +502,26 @@ describe("独立 worker 审批 SLA 装配", { timeout: 120_000 }, () => {
         }),
       ),
     ).rejects.toThrow("已经关闭");
+    await other.closeOrder?.();
+    await expect(
+      tx.run((t) => other.assembly.subscriber("publish.onCalendarImported")!.handle(t, event)),
+    ).rejects.toThrow("下架运行时未绑定或已关闭");
+    for (const kind of ["takedown.create", "takedown.overdue"])
+      await expect(
+        tx.run((t) =>
+          other.assembly.timerHandler(kind)!.handle(t, {
+            id: actor.staff.staff.id,
+            kind,
+            subjectType: kind === "takedown.create" ? "order_item" : "takedown_task",
+            subjectId: actor.staff.staff.id,
+            payload: {},
+          }),
+        ),
+      ).rejects.toThrow("下架运行时未绑定或已关闭");
+    for (const code of ["publish.I16", "timers.I7"])
+      await expect(
+        tx.run((t) => other.assembly.invariant(code)!.run!(t, {}, { now: clock.now() })),
+      ).rejects.toThrow("下架运行时未绑定或已关闭");
     await calendar.import(actor, { year: 2026 });
     const { refs } = await imported();
     await consumeBoth(worker, refs);

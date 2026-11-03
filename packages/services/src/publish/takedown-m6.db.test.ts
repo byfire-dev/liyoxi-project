@@ -62,173 +62,202 @@ async function fixture() {
   }
   return { ...h, wrapper, timers, fire };
 }
-it.each([29, 30, 31])("推包距止日%d天走唯一生成writer，真实timer只建每账号一行", async (days) => {
-  const h = await fixture(),
-    f = await h.ready({ twoAccounts: true, daysBeforeEnd: days });
-  expect(f.takedowns).toHaveLength(days <= 30 ? 2 : 0);
-  const end = f.item.usageEndDate.toISOString().slice(0, 10);
-  if (days > 30) {
-    const timer = await h.prisma.timer.findFirstOrThrow({
-      where: { kind: "takedown.create", subjectId: f.item.id, status: "scheduled" },
-    });
-    h.clock.set(dayRange(addDays(end, -30)).start);
-    const fired = await h.fire(timer.id);
-    expect(fired.result).toBe("fired");
-    expect(await fired.repeat()).toBe("stale");
-  }
-  const ensure = () =>
-    h.tx.run(async (tx) => {
-      await h.assembly.port(launchChangedPort)(tx, {
-        orderItemId: f.item.id,
-        deliveryTicketId: f.id,
-        phase: "prelock",
+// Full order, production and push prerequisites use the default hook budget;
+// the test body measures timer, repair and invariant behavior only.
+async function readyFixture(
+  options: Parameters<ReturnType<typeof createTakedownFixture>["ready"]>[0] = {},
+) {
+  const h = await fixture();
+  return { h, f: await h.ready(options) };
+}
+
+describe.each([29, 30, 31])("推包距止日%d天", (days) => {
+  let prepared: Awaited<ReturnType<typeof readyFixture>>;
+  beforeAll(async () => {
+    prepared = await readyFixture({ twoAccounts: true, daysBeforeEnd: days });
+  });
+  it("走唯一生成writer，真实timer只建每账号一行", async () => {
+    const { h, f } = prepared;
+    expect(f.takedowns).toHaveLength(days <= 30 ? 2 : 0);
+    const end = f.item.usageEndDate.toISOString().slice(0, 10);
+    if (days > 30) {
+      const timer = await h.prisma.timer.findFirstOrThrow({
+        where: { kind: "takedown.create", subjectId: f.item.id, status: "scheduled" },
       });
-      await ensureTakedownTasks(
-        tx,
-        h.takedownDeps,
-        createIdentityContext({ actor: { type: "system", job: "takedown.test" } }),
-        await readDeliveryPublishTargets(tx, [f.item.id]),
-        { deliveryTicketId: f.id, now: h.clock.now() },
-      );
+      h.clock.set(dayRange(addDays(end, -30)).start);
+      const fired = await h.fire(timer.id);
+      expect(fired.result).toBe("fired");
+      expect(await fired.repeat()).toBe("stale");
+    }
+    const ensure = () =>
+      h.tx.run(async (tx) => {
+        await h.assembly.port(launchChangedPort)(tx, {
+          orderItemId: f.item.id,
+          deliveryTicketId: f.id,
+          phase: "prelock",
+        });
+        await ensureTakedownTasks(
+          tx,
+          h.takedownDeps,
+          createIdentityContext({ actor: { type: "system", job: "takedown.test" } }),
+          await readDeliveryPublishTargets(tx, [f.item.id]),
+          { deliveryTicketId: f.id, now: h.clock.now() },
+        );
+      });
+    await Promise.all([ensure(), ensure()]);
+    const tasks = await h.prisma.takedownTask.findMany({
+      where: { deliveryTicketId: f.id, status: { not: "void" } },
     });
-  await Promise.all([ensure(), ensure()]);
-  const tasks = await h.prisma.takedownTask.findMany({
-    where: { deliveryTicketId: f.id, status: { not: "void" } },
-  });
-  expect(tasks).toHaveLength(2);
-  expect(
-    await h.prisma.statusTransition.count({
-      where: { subjectId: { in: tasks.map((t) => t.id) }, event: "takedown.create" },
-    }),
-  ).toBe(2);
-  expect(
-    await h.prisma.timer.count({
-      where: {
-        kind: "takedown.overdue",
-        subjectId: { in: tasks.map((t) => t.id) },
-        status: "scheduled",
-      },
-    }),
-  ).toBe(2);
-});
-it("I16检测真实缺项并经唯一writer自愈，I17–I20逐项查询反例且恢复后零违规", async () => {
-  const h = await fixture(),
-    f = await h.ready({ twoAccounts: true, daysBeforeEnd: 31 });
-  h.clock.set(dayRange(addDays(f.item.usageEndDate.toISOString().slice(0, 10), -30)).start);
-  expect(
-    (await h.tx.run((tx) => findTakedownViolations(tx, "I16", h.clock.now()))).some(
-      (v) => v.subject && "id" in v.subject && v.subject.id === f.item.id,
-    ),
-  ).toBe(true);
-  expect(
-    (await h.tx.run((tx) => repairMissingTakedowns(tx, h.takedownDeps, h.clock.now()))).some(
-      (v) => v.subject && "id" in v.subject && v.subject.id === f.item.id && v.healed,
-    ),
-  ).toBe(true);
-  const row = await h.prisma.takedownTask.findFirstOrThrow({ where: { deliveryTicketId: f.id } });
-  // Fault injection is confined to invariants; no injected success states are accepted.
-  await h.prisma.takedownTask.update({
-    where: { id: row.id },
-    data: { basis: "live", dueDate: new Date(addDays(row.dueDate.toISOString().slice(0, 10), 1)) },
-  });
-  for (const code of ["I17", "I19"])
+    expect(tasks).toHaveLength(2);
     expect(
-      (await h.tx.run((tx) => findTakedownViolations(tx, code, h.clock.now()))).some(
+      await h.prisma.statusTransition.count({
+        where: { subjectId: { in: tasks.map((t) => t.id) }, event: "takedown.create" },
+      }),
+    ).toBe(2);
+    expect(
+      await h.prisma.timer.count({
+        where: {
+          kind: "takedown.overdue",
+          subjectId: { in: tasks.map((t) => t.id) },
+          status: "scheduled",
+        },
+      }),
+    ).toBe(2);
+  });
+});
+
+describe("下架任务不变量", () => {
+  let prepared: Awaited<ReturnType<typeof readyFixture>>;
+  beforeAll(async () => {
+    prepared = await readyFixture({ twoAccounts: true, daysBeforeEnd: 31 });
+  });
+  it("I16检测真实缺项并经唯一writer自愈，I17–I20逐项查询反例且恢复后零违规", async () => {
+    const { h, f } = prepared;
+    h.clock.set(dayRange(addDays(f.item.usageEndDate.toISOString().slice(0, 10), -30)).start);
+    expect(
+      (await h.tx.run((tx) => findTakedownViolations(tx, "I16", h.clock.now()))).some(
+        (v) => v.subject && "id" in v.subject && v.subject.id === f.item.id,
+      ),
+    ).toBe(true);
+    expect(
+      (await h.tx.run((tx) => repairMissingTakedowns(tx, h.takedownDeps, h.clock.now()))).some(
+        (v) => v.subject && "id" in v.subject && v.subject.id === f.item.id && v.healed,
+      ),
+    ).toBe(true);
+    const row = await h.prisma.takedownTask.findFirstOrThrow({ where: { deliveryTicketId: f.id } });
+    // Fault injection is confined to invariants; no injected success states are accepted.
+    await h.prisma.takedownTask.update({
+      where: { id: row.id },
+      data: {
+        basis: "live",
+        dueDate: new Date(addDays(row.dueDate.toISOString().slice(0, 10), 1)),
+      },
+    });
+    for (const code of ["I17", "I19"])
+      expect(
+        (await h.tx.run((tx) => findTakedownViolations(tx, code, h.clock.now()))).some(
+          (v) => v.subject && "id" in v.subject && v.subject.id === row.id,
+        ),
+      ).toBe(true);
+    await h.prisma.takedownTask.update({
+      where: { id: row.id },
+      data: { basis: row.basis, dueDate: row.dueDate },
+    });
+    const other = f.tasks.find((task) => task.id !== row.launchTaskId)!;
+    await h.prisma.takedownTask.update({ where: { id: row.id }, data: { launchTaskId: other.id } });
+    expect(
+      (await h.tx.run((tx) => findTakedownViolations(tx, "I18", h.clock.now()))).some(
         (v) => v.subject && "id" in v.subject && v.subject.id === row.id,
       ),
     ).toBe(true);
-  await h.prisma.takedownTask.update({
-    where: { id: row.id },
-    data: { basis: row.basis, dueDate: row.dueDate },
+    await h.prisma.takedownTask.update({
+      where: { id: row.id },
+      data: { launchTaskId: row.launchTaskId },
+    });
+    const body = await h.checkBody(f, row.id);
+    await h.takedown.check(f.qc.ctx, f.qc.staff, row.id, body);
+    const ref = await h.prisma.fileRef.findFirstOrThrow({
+      where: { refType: "takedown_task", refId: row.id },
+    });
+    await h.prisma.fileRef.delete({ where: { id: ref.id } });
+    expect(
+      (await h.tx.run((tx) => findTakedownViolations(tx, "I20", h.clock.now()))).some(
+        (v) => v.subject && "id" in v.subject && v.subject.id === row.id,
+      ),
+    ).toBe(true);
+    await h.prisma.fileRef.create({ data: ref });
+    for (const code of TAKEDOWN_INVARIANT_CODES)
+      expect(await h.tx.run((tx) => findTakedownViolations(tx, code, h.clock.now())), code).toEqual(
+        [],
+      );
   });
-  const other = f.tasks.find((task) => task.id !== row.launchTaskId)!;
-  await h.prisma.takedownTask.update({ where: { id: row.id }, data: { launchTaskId: other.id } });
-  expect(
-    (await h.tx.run((tx) => findTakedownViolations(tx, "I18", h.clock.now()))).some(
-      (v) => v.subject && "id" in v.subject && v.subject.id === row.id,
-    ),
-  ).toBe(true);
-  await h.prisma.takedownTask.update({
-    where: { id: row.id },
-    data: { launchTaskId: row.launchTaskId },
+});
+
+describe("下架逾期timer", () => {
+  let prepared: Awaited<ReturnType<typeof readyFixture>>;
+  beforeAll(async () => {
+    prepared = await readyFixture();
   });
-  const body = await h.checkBody(f, row.id);
-  await h.takedown.check(f.qc.ctx, f.qc.staff, row.id, body);
-  const ref = await h.prisma.fileRef.findFirstOrThrow({
-    where: { refType: "takedown_task", refId: row.id },
-  });
-  await h.prisma.fileRef.delete({ where: { id: ref.id } });
-  expect(
-    (await h.tx.run((tx) => findTakedownViolations(tx, "I20", h.clock.now()))).some(
-      (v) => v.subject && "id" in v.subject && v.subject.id === row.id,
-    ),
-  ).toBe(true);
-  await h.prisma.fileRef.create({ data: ref });
-  for (const code of TAKEDOWN_INVARIANT_CODES)
-    expect(await h.tx.run((tx) => findTakedownViolations(tx, code, h.clock.now())), code).toEqual(
+  it("I7补缺并取消孤儿，逾期timer真升级且不制造系统跟进", async () => {
+    const { h, f } = prepared;
+    const row = f.takedowns[0]!;
+    await h.tx.run((tx) =>
+      h.timers.cancel(tx, {
+        subject: { type: "takedown_task", id: row.id },
+        kinds: ["takedown.overdue"],
+      }),
+    );
+    expect(
+      (await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).some(
+        (v) => v.subject && "id" in v.subject && v.subject.id === row.id && v.healed,
+      ),
+    ).toBe(true);
+    expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
       [],
     );
-});
-it("I7补缺并取消孤儿，逾期timer真升级且不制造系统跟进", async () => {
-  const h = await fixture(),
-    f = await h.ready(),
-    row = f.takedowns[0]!;
-  await h.tx.run((tx) =>
-    h.timers.cancel(tx, {
-      subject: { type: "takedown_task", id: row.id },
-      kinds: ["takedown.overdue"],
-    }),
-  );
-  expect(
-    (await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).some(
-      (v) => v.subject && "id" in v.subject && v.subject.id === row.id && v.healed,
-    ),
-  ).toBe(true);
-  expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
-    [],
-  );
-  const timer = await h.prisma.timer.findFirstOrThrow({
-    where: { kind: "takedown.overdue", subjectId: row.id, status: "scheduled" },
-  });
-  h.clock.set(atMinuteOfDay(addDays(row.dueDate.toISOString().slice(0, 10), 1), 540));
-  const fired = await h.fire(timer.id);
-  expect(fired.result).toBe("fired");
-  expect(await fired.repeat()).toBe("stale");
-  expect(await h.prisma.takedownTask.findUnique({ where: { id: row.id } })).toMatchObject({
-    status: "pending_merchant",
-    escalatedAt: h.clock.now(),
-  });
-  expect(
-    await h.prisma.followUp.count({
-      where: { subjectType: "takedown_task", subjectId: row.id, actorType: "system" },
-    }),
-  ).toBe(0);
-  await h.takedown.confirm(f.o.viewer, row.id, { method: "not_published" });
-  const orphan = await h.tx.run((tx) =>
-    h.timers.arm(tx, {
-      kind: "takedown.overdue",
-      subject: { type: "takedown_task", id: row.id },
-      key: `takedown.overdue:takedown_task:${row.id}:2099-01-01`,
-      fireAt: new Date("2099-01-02T01:00:00Z"),
-      entityId: row.entityId,
-      storeId: row.storeId,
-      payload: { dueDate: "2099-01-01" },
-    }),
-  );
-  expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        subject: { type: "timer", id: orphan.id },
-        detail: { orphan: true },
+    const timer = await h.prisma.timer.findFirstOrThrow({
+      where: { kind: "takedown.overdue", subjectId: row.id, status: "scheduled" },
+    });
+    h.clock.set(atMinuteOfDay(addDays(row.dueDate.toISOString().slice(0, 10), 1), 540));
+    const fired = await h.fire(timer.id);
+    expect(fired.result).toBe("fired");
+    expect(await fired.repeat()).toBe("stale");
+    expect(await h.prisma.takedownTask.findUnique({ where: { id: row.id } })).toMatchObject({
+      status: "pending_merchant",
+      escalatedAt: h.clock.now(),
+    });
+    expect(
+      await h.prisma.followUp.count({
+        where: { subjectType: "takedown_task", subjectId: row.id, actorType: "system" },
       }),
-    ]),
-  );
-  expect(await h.prisma.timer.findUnique({ where: { id: orphan.id } })).toMatchObject({
-    status: "cancelled",
+    ).toBe(0);
+    await h.takedown.confirm(f.o.viewer, row.id, { method: "not_published" });
+    const orphan = await h.tx.run((tx) =>
+      h.timers.arm(tx, {
+        kind: "takedown.overdue",
+        subject: { type: "takedown_task", id: row.id },
+        key: `takedown.overdue:takedown_task:${row.id}:2099-01-01`,
+        fireAt: new Date("2099-01-02T01:00:00Z"),
+        entityId: row.entityId,
+        storeId: row.storeId,
+        payload: { dueDate: "2099-01-01" },
+      }),
+    );
+    expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          subject: { type: "timer", id: orphan.id },
+          detail: { orphan: true },
+        }),
+      ]),
+    );
+    expect(await h.prisma.timer.findUnique({ where: { id: orphan.id } })).toMatchObject({
+      status: "cancelled",
+    });
+    expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
+      [],
+    );
   });
-  expect(await h.tx.run((tx) => repairTakedownTimers(tx, h.takedownDeps, h.clock.now()))).toEqual(
-    [],
-  );
 });
 async function rescheduledFixture() {
   const h = await fixture(),
