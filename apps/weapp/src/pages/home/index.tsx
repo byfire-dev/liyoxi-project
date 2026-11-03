@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Swiper, SwiperItem, Text, View } from "@tarojs/components";
+import { Button as NativeButton, Image, Swiper, SwiperItem, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { formatInteger } from "@liyoxi/shared/format/money";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
@@ -205,11 +205,10 @@ function bannerClick(banner: Home["banners"][number], role: Home["viewerRole"]) 
   if (route === "pages/cart/index") void Taro.switchTab({ url: `/${route}` });
   else void Taro.navigateTo({ url: `/${route}` });
 }
-const homeShortcuts: { title: string; icon: IconName; route: string | null }[] = [
+const homeShortcuts: { title: string; icon: IconName; route: string }[] = [
   { title: "商家建档", icon: "store", route: "sub/profile/profile/index" },
   { title: "我的广告", icon: "megaphone", route: "sub/ad/ads/index" },
   { title: "发布任务", icon: "upload", route: "sub/publish/tasks/index" },
-  { title: "联系客服", icon: "headset", route: null },
 ];
 const homePageImplemented = (route: string) =>
   WEAPP_PAGES.some((page) => page.route === route && page.implemented);
@@ -220,7 +219,7 @@ function HomeShortcuts({ role }: { role: Home["viewerRole"] }) {
     <View className="home-page__shortcuts">
       {homeShortcuts.map((item) => {
         const route = item.route;
-        const enabled = role === "owner" && route !== null && homePageImplemented(route);
+        const enabled = role === "owner" && homePageImplemented(route);
         return (
           <View
             key={item.title}
@@ -241,12 +240,30 @@ function HomeShortcuts({ role }: { role: Home["viewerRole"] }) {
             <View className="home-page__shortcut-title">{item.title}</View>
             {!enabled ? (
               <View className="home-page__shortcut-note">
-                {route === null || !homePageImplemented(route) ? "暂未开放" : "仅老板可用"}
+                {!homePageImplemented(route) ? "暂未开放" : "仅老板可用"}
               </View>
             ) : null}
           </View>
         );
       })}
+      <NativeButton
+        className="home-page__shortcut home-page__shortcut--contact"
+        hoverClass="home-page__shortcut--pressed"
+        openType={process.env.TARO_ENV === "weapp" ? "contact" : undefined}
+        sessionFrom="home"
+        onClick={
+          process.env.TARO_ENV === "weapp"
+            ? undefined
+            : () => {
+                void Taro.showToast({ title: "请在微信小程序内联系客服", icon: "none" });
+              }
+        }
+      >
+        <View className="home-page__shortcut-icon">
+          <Icon name="headset" size={24} />
+        </View>
+        <View className="home-page__shortcut-title">联系客服</View>
+      </NativeButton>
     </View>
   );
 }
