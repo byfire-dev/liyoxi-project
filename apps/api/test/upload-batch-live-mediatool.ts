@@ -698,7 +698,8 @@ export async function createOutputBatchMediaToolRelay(options: { runId: string; 
           "1",
           "-i",
           `/work/${source.path}`,
-          ...(trailer ? [] : ["-loop", "1", "-i", `/work/${pngPath}`]),
+          // 静态 PNG 与正式 watermarkSample 一样只读 1fps；输出仍跟随主视频帧率。
+          ...(trailer ? [] : ["-loop", "1", "-framerate", "1", "-i", `/work/${pngPath}`]),
           "-filter_complex",
           trailer?.filter ??
             "[0:v]scale=720:1280[base];[1:v]format=rgba,colorchannelmixer=aa=0.7[mark];[base][mark]overlay=(W-w)/2:(H-h)/2:shortest=1[out]",
