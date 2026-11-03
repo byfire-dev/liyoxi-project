@@ -110,6 +110,13 @@ export async function quotePlan(
       : plan.rank < from!.rank
         ? "downgrade"
         : "renew";
+  if (input.intent === "upgrade_now" && action !== "upgrade") {
+    const message = current ? "立即升级请选择高于当前档位的套餐" : "当前没有有效套餐，请先开通套餐";
+    throw new AppError("VALIDATION_FAILED", {
+      message,
+      details: { fieldErrors: [{ path: "planId", message }] },
+    });
+  }
   if (action === "upgrade") {
     const position = upgradePosition(
       {

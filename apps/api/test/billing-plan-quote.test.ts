@@ -265,3 +265,61 @@ it("主体试算复用商家真实升级/续费报价；renewal缺省下期、�
     suspended,
   );
 }, 60000);
+
+it("立即升级拒绝同档、低档和无有效套餐，补周期不改变意图；正常升级与下期变更保持只读", async () => {
+  const who = await buyer(),
+    basic = await db.plan.findUniqueOrThrow({ where: { code: "basic" } }),
+    pro = await db.plan.findUniqueOrThrow({ where: { code: "pro" } }),
+    flagship = await db.plan.findUniqueOrThrow({ where: { code: "flagship" } }),
+    freshOwner = await signInAsMerchant(api, { headers: { "X-Client-Platform": "android" } }),
+    fresh = await merchantServicesOf(api.runtime).tenant.createEntity(
+      createIdentityContext({
+        actor: { type: "merchant", id: freshOwner.merchantUserId, client: "weapp" },
+      }),
+    ),
+    before = await snapshotTables(db, tables);
+  const merchantQuote = (body: unknown, headers = who.owner.withStore(who.storeId)) =>
+    api.request("/api/v1/m/plans/quote", {
+      method: "POST",
+      json: body,
+      headers,
+      peer: `198.19.74.${++peer % 250}`,
+    });
+  for (const plan of [basic, pro]) {
+    for (const cycle of [{}, { months: 1 }]) {
+      const response = await merchantQuote({ planId: plan.id, intent: "upgrade_now", ...cycle });
+      expect(response.status, await response.clone().text()).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: "VALIDATION_FAILED",
+        details: {
+          fieldErrors: [{ path: "planId", message: "立即升级请选择高于当前档位的套餐" }],
+        },
+      });
+    }
+  }
+  for (const cycle of [{}, { months: 1 }]) {
+    const response = await merchantQuote(
+      { planId: flagship.id, intent: "upgrade_now", ...cycle },
+      freshOwner.withStore(fresh.storeId),
+    );
+    expect(response.status, await response.clone().text()).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "VALIDATION_FAILED",
+      details: {
+        fieldErrors: [{ path: "planId", message: "当前没有有效套餐，请先开通套餐" }],
+      },
+    });
+  }
+  for (const [body, action, effectiveMode] of [
+    [{ planId: flagship.id, intent: "upgrade_now" }, "upgrade", "immediate"],
+    [{ planId: pro.id, months: 1, intent: "renew_next_term" }, "renew", "next_term"],
+    [{ planId: basic.id, months: 1, intent: "renew_next_term" }, "downgrade", "next_term"],
+    [{ planId: flagship.id, months: 1, intent: "renew_next_term" }, "renew_upgrade", "next_term"],
+  ] as const) {
+    const response = await merchantQuote(body);
+    expect(response.status, await response.clone().text()).toBe(200);
+    const result = PlanQuoteSchema.parse(((await response.json()) as { data: unknown }).data);
+    expect(result).toMatchObject({ action, effectiveMode });
+  }
+  expect(await snapshotTables(db, tables)).toEqual(before);
+}, 60000);

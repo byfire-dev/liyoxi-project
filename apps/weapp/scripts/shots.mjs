@@ -42,6 +42,8 @@ import { orderReferenceRegression } from "../shots/order-reference-regressions.m
 import { runInvoiceRegression } from "../shots/invoice-regressions.mjs";
 import { runContractsRegression } from "../shots/contracts-regressions.mjs";
 import { runLedgerRegression } from "../shots/ledger-regressions.mjs";
+import { runPlanPickRegression } from "../shots/plan-pick-regressions.mjs";
+import { runTopupRegression } from "../shots/topup-regressions.mjs";
 import { tenantRegression } from "../shots/tenant-regressions.mjs";
 import { settingsRegression } from "../shots/settings-regressions.mjs";
 import {
@@ -1338,6 +1340,15 @@ async function shoot(target) {
       }
       if (target.kind === "billing" && target.scene.startsWith("ledger-"))
         await runLedgerRegression(page, target.scene);
+      if (
+        target.kind === "billing" &&
+        (target.scene === "plan-renew" ||
+          target.scene.startsWith("plan-upgrade") ||
+          target.scene === "wallet-upgrade-highest")
+      )
+        await runPlanPickRegression(page, target.scene);
+      if (target.kind === "billing" && target.scene.startsWith("topup-"))
+        await runTopupRegression(page, target.scene);
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "trailer") await trailerRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);

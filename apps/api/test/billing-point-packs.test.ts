@@ -10,6 +10,7 @@ import {
 } from "@liyoxi/services";
 import {
   createFactories,
+  installSitePurchasePolicy,
   sampleStaffContext,
   signInAsStaff,
   snapshotTables,
@@ -21,6 +22,8 @@ import {
   PointPackAdminListSchema,
   PointPackSummarySchema,
   PaymentOrderDetailSchema,
+  PurchasePolicySchema,
+  AgreementListSchema,
 } from "@liyoxi/contract";
 import type { PaymentOrderDetail, PlanQuote } from "@liyoxi/contract";
 import { useTestApi } from "../src/testing/index.js";
@@ -411,6 +414,56 @@ it("七资源真实HTTP与冻结价格加购：版本/上下架/报价/协议/C5
   expect(
     await db.billingOrder.findUniqueOrThrow({ where: { id: plan.paymentOrderId } }),
   ).toMatchObject({ status: "paid", fulfillmentStatus: "done" });
+}, 30_000);
+
+it("购买策略按显式交易类型返回协议与规则，省略类型兼容原入口，非法类型拒绝", async () => {
+  const b = await buyer(),
+    headers = b.owner.withStore(b.storeId),
+    policy = async (type?: string) =>
+      PurchasePolicySchema.parse(
+        await data(
+          await api.request(`/api/v1/m/purchase-policy${type ? `?type=${type}` : ""}`, {
+            headers,
+          }),
+        ),
+      ),
+    tables = ["billing_order", "agreement_consent", "ledger_operation", "audit_log"],
+    before = await snapshotTables(db, tables);
+  expect((await policy()).copy.agreementKeys).toEqual(["member", "points"]);
+  for (const type of ["plan_new", "plan_renew", "plan_upgrade"])
+    expect((await policy(type)).copy.agreementKeys).toEqual(["member", "points"]);
+  const topupPolicy = await policy("topup"),
+    agreements = AgreementListSchema.parse(
+      await data(await api.request("/api/v1/m/agreements?scene=topup&limit=50", { headers })),
+    );
+  expect(topupPolicy.copy.agreementKeys).toEqual(["points"]);
+  expect(agreements.items.map((doc) => doc.agreementKey)).toEqual(["points"]);
+  for (const key of topupPolicy.copy.agreementKeys)
+    expect(agreements.items.find((doc) => doc.agreementKey === key)).toMatchObject({
+      consentMode: "by_action",
+      currentVersion: { agreementVersionId: pointsVersion },
+    });
+  await denied(
+    await api.request("/api/v1/m/purchase-policy?type=unsupported", { headers }),
+    400,
+    "VALIDATION_FAILED",
+  );
+  expect(await snapshotTables(db, tables)).toEqual(before);
+
+  await installSitePurchasePolicy(db, api.runtime, [
+    { when: { platforms: ["ios"] }, then: { mode: "hidden" } },
+    { when: { entityIds: [b.entityId], types: ["topup"] }, then: { mode: "hidden" } },
+  ]);
+  const configured = await snapshotTables(db, tables);
+  expect(await policy("topup")).toMatchObject({
+    mode: "hidden",
+    channels: [],
+    copy: { agreementKeys: ["points"] },
+  });
+  expect((await policy()).mode).toBe("in_app");
+  for (const type of ["plan_new", "plan_renew", "plan_upgrade"])
+    expect((await policy(type)).mode).toBe("in_app");
+  expect(await snapshotTables(db, tables)).toEqual(configured);
 }, 30_000);
 it("越界输入/店员/跨主体/失资格/退款与策略关闭拒绝，实际付款与账本零写", async () => {
   const make = createFactories({ db, clock: api.clock }),

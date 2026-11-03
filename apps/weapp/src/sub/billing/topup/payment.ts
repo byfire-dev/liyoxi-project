@@ -1,5 +1,5 @@
 import type { PaymentOutcome, PaymentParams } from "@/lib/platform";
-import type { PurchaseApi } from "../plan-pick/api";
+import { purchasePolicyType, type PurchaseApi } from "../plan-pick/api";
 import type { Payment } from "../plan-pick/model";
 import { purchaseVisible } from "../wallet/model";
 
@@ -54,7 +54,9 @@ export function createPaymentIntent(deps: {
         order = await deps.api.sync(id);
         return current() ? { order, notice: null } : undefined;
       }
-      const policy = await deps.api.policy();
+      const type = purchasePolicyType(order.type);
+      if (!type) return { order, notice: "当前付款单类型暂不支持在线支付，请联系服务经理" };
+      const policy = await deps.api.policy(type);
       if (!current()) return;
       if (
         order.channel !== "wechat_jsapi" ||

@@ -3,7 +3,12 @@ export const BILLING_SCENES = [
   { name: "wallet-active", route: "sub/billing/wallet/index" },
   { name: "wallet-expired", route: "sub/billing/wallet/index" },
   { name: "wallet-none", route: "sub/billing/wallet/index" },
+  { name: "wallet-upgrade-highest", route: "sub/billing/wallet/index" },
   { name: "plan-pick", route: "sub/billing/plan-pick/index" },
+  ...["middle", "highest", "retry"].map((state) => ({
+    name: `plan-upgrade-${state}`,
+    route: "sub/billing/plan-pick/index?intent=upgrade_now",
+  })),
   { name: "bank-waiting", route: "sub/billing/plan-pick/index" },
   { name: "bank-selected", route: "sub/billing/plan-pick/index" },
   ...["waiting", "rejected", "active", "processing", "cancelled"].map((state) => ({

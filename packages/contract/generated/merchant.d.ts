@@ -1532,7 +1532,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导） */
+        /** 购买策略（mode、isPriceShown、isPurchasePromptAllowed、channels[]、copy），可按交易类型求值，给没有金额上下文的入口用（如钱包页的续费与加购入口、积分不足引导） */
         get: operations["m.purchasePolicy.get"];
         put?: never;
         post?: never;
@@ -14089,7 +14089,9 @@ export interface operations {
     };
     "m.purchasePolicy.get": {
         parameters: {
-            query?: never;
+            query?: {
+                type?: "plan_new" | "plan_renew" | "plan_upgrade" | "topup";
+            };
             header?: never;
             path?: never;
             cookie?: never;
