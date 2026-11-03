@@ -107,6 +107,8 @@ export interface M1Support {
     readonly businessNow: Date;
   }>;
   drainEvents(): Promise<{ readonly expanded: number; readonly consumed: number }>;
+  /** Explicitly settles owned ZIP jobs through real submit/query/finalize before time jumps. */
+  drainZipPackages(): Promise<void>;
   promote(fileId: string): Promise<void>;
   /** 仅 bridge-owned attach：complete 的短轮询期间消费真实已入队 promote，不改变生产轮询。 */
   completeWithPromote?<T>(fileId: string, complete: () => Promise<T>): Promise<T>;

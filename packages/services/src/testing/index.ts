@@ -251,6 +251,13 @@ export {
   openUsageCancellationForTest,
 } from "./usage-lifecycle.fixture.js";
 export { createPublishWorkbenchFixture } from "./publish-workbench.fixture.js";
+export {
+  createZipPackageFixture,
+  installZipPackageFixture,
+  inspectZipFixture,
+  zipFixtureCrc64,
+} from "./zip-package-fixture.js";
+export { readM6ZipFacts } from "./m6-zip-facts.js";
 
 // Shared real delivery prerequisites; leaf fixtures never import this barrel back.
 export {

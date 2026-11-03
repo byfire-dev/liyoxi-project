@@ -50,6 +50,7 @@ export interface MediaDeps {
   readonly videoMaxMb?: () => Promise<number>;
   readonly pollMs?: number;
   readonly moderation?: MediaProvider;
+  readonly zipProvider?: MediaProvider;
   readonly wechatImage?: {
     readonly appid?: string;
     readonly provider: Pick<WechatProvider, "checkImage" | "configured">;

@@ -8,6 +8,7 @@ import { createCiHttp } from "./http.js";
 import type { CiConfig } from "./http.js";
 import { parseCiXml, ciChild, ciText } from "./xml.js";
 import type { CiXml } from "./xml.js";
+import { createCiZipPreview, parseCiFileCompressResult, validZipEntryName } from "./zip.js";
 export type { CiConfig } from "./http.js";
 const bad = () => failed("rejected", "CI入参或应答形状不合法");
 const key = (value: unknown): value is string =>
@@ -33,7 +34,7 @@ const states: Record<string, MediaRemoteJob["state"]> = {
   Failed: "failed",
   Cancel: "canceled",
 };
-function parsedJob(node: CiXml): MediaRemoteJob {
+function parsedJob(node: CiXml, config: CiConfig): MediaRemoteJob {
   const jobId = ciText(node, "JobId"),
     state = ciText(node, "State");
   const operation = ciChild(node, "Operation");
@@ -66,18 +67,24 @@ function parsedJob(node: CiXml): MediaRemoteJob {
     if (!/^\d{1,20}$/.test(size)) throw new TypeError("CI技术结果非法");
     output.sizeBytes = BigInt(size).toString();
   }
+  const zip = parseCiFileCompressResult(node, config);
   return {
     jobId,
     state: states[state]!,
     processed: true,
     ...(userData ? { userData } : {}),
-    output,
+    output: { ...output, ...(zip ? { zip } : {}) },
   };
 }
-function jobs(body: string) {
+function jobs(body: string, config: CiConfig) {
   const root = parseCiXml(body);
   if (root.name !== "Response") throw new TypeError("CI应答非法");
-  return { root, jobs: root.children.filter((one) => one.name === "JobsDetail").map(parsedJob) };
+  return {
+    root,
+    jobs: root.children
+      .filter((one) => one.name === "JobsDetail")
+      .map((one) => parsedJob(one, config)),
+  };
 }
 
 export function createCiMedia(
@@ -126,7 +133,7 @@ export function createCiMedia(
     });
     if (!response.ok) return response;
     try {
-      const result = jobs(response.value).jobs;
+      const result = jobs(response.value, config).jobs;
       if (result.length !== 1) return failed("unavailable", "CI已响应但提交结果无法确认");
       return ok({
         jobId: result[0]!.jobId,
@@ -141,6 +148,7 @@ export function createCiMedia(
     status: "ci",
     configured: true,
     ...createCiModeration(http),
+    ...createCiZipPreview(http, config),
     async probe() {
       return failed("unsupported", "体检处理器由对应媒体包接入，不以未处理结果冒充体检");
     },
@@ -268,9 +276,10 @@ export function createCiMedia(
         input.bucket !== "media" ||
         !data(input.userData) ||
         !key(input.dstKey) ||
+        !Array.isArray(input.items) ||
         input.items.length < 1 ||
         input.items.length > 1000 ||
-        !input.items.every((one) => key(one.key) && key(one.name)) ||
+        !input.items.every((one) => one && key(one.key) && validZipEntryName(one.name)) ||
         new Set(input.items.map((one) => one.name)).size !== input.items.length
       )
         return bad();
@@ -334,7 +343,12 @@ export function createCiMedia(
       });
       if (!response.ok) return response;
       try {
-        const result = jobs(response.value).jobs;
+        const result = jobs(response.value, config).jobs;
+        if (
+          input.family === "file" &&
+          result.some((one) => one.state === "succeeded" && !one.output.zip)
+        )
+          return bad();
         return result.length === 1 && result[0]!.jobId === input.jobId ? ok(result[0]!) : bad();
       } catch {
         return bad();
@@ -375,7 +389,7 @@ export function createCiMedia(
         });
         if (!response.ok) return response;
         try {
-          const result = jobs(response.value);
+          const result = jobs(response.value, config);
           if (result.jobs.length > 100) return bad();
           for (const one of result.jobs)
             if (one.userData === input.userData) found.set(one.jobId, one);

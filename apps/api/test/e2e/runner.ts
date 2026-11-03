@@ -811,6 +811,7 @@ export async function runM1Chain({
       params: ticketParams,
       body: { precheck: await checks("delivery.precheck") },
     });
+    await support.drainZipPackages();
     await support.drainEvents();
     const state = await support.readState(scope);
     assert.equal(state.ticket?.step, "awaiting_launch");

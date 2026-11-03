@@ -1,5 +1,7 @@
 export { registration } from "./register.js";
 export { createDelivery } from "./service.js";
+export { createDeliveryZipPackages, readReleaseZipInput } from "./zip-package.js";
+export type { DeliveryZipPackagesDeps } from "./zip-package.js";
 export { createPublishLists } from "./publish-list-service.js";
 export type { PublishLists, PublishListsDeps } from "./publish-list-service.js";
 export { createDeliveryM5 } from "./lifecycle-m5.js";

@@ -1032,7 +1032,7 @@
 | `DOWNLOAD_GRANT_INVALID` | 409 | 本包对主体没有有效的下载授权（`details.reason`；m05 定义），打包无意义 |
 
 **副作用**（同一事务；`zip_bundle` 行由 media 在 `ensureZip` 内锁，`lock_rank = 390`）：
-- delivery 调 `media.ensureZip`，**带重建选项 `retry: true`**（A99；与 p01 下载请求的 `retry` 同名同义）——后台“预打包”是明确的人工意图，失败的包总是重打。另传打包任务需要的全部字段（清单 `items`、归属、`ownerType = delivery_release`、`ownerId`、`publishListText`、`publishListKey`、`keepUntil` = 有效授权最晚的 `download_grant.expires_at` + 1 天、`zipFileName`，10-delivery.md:888）。
+- delivery 调 `media.ensureZip`，**带重建选项 `retry: true`**（A99；与 p01 下载请求的 `retry` 同名同义）——后台“预打包”是明确的人工意图，失败的包总是重打。另传打包任务需要的全部字段（清单 `items`、归属、`ownerType = delivery_release`、`ownerId`、`publishListText`（对象键由media按代次/任务/attempt生成）、`keepUntil` = 有效授权最晚的 `download_grant.expires_at` + 1 天、`zipFileName`，10-delivery.md:888）。
 - `zip_bundle.zip_state`：无行 → `building`（`zip_gen = 1`）；`none` → `building`、`failed` → `building`（带重建选项，`zip_gen + 1`），建 `media_job`（`kind = zip_package`，`dedupe_key = zip:{zipBundleId}:{zipGen}`）；`building` 不变（返回“打包中”）；`ready` 且文件仍在 → 不变，顺延两条引用的 `keep_until`；`ready` 但文件已不在 → `building`（06-media.md:962-970）。
 - 审计。打包成功后由 worker 发 `media.release.zip_ready`（不在本事务）。
 
