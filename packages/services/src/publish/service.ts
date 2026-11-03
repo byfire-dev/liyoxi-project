@@ -139,7 +139,10 @@ export function createPublish(deps: PublishDeps) {
           (r) => `${iso(r.submittedAt)}:${r.id}`,
           true,
         );
-        return { ...result, items: await Promise.all(result.items.map((r) => accountCard(tx, r))) };
+        return {
+          ...result,
+          items: await Promise.all(result.items.map((r) => accountCard(tx, r, viewer))),
+        };
       }),
     bind: (
       viewer: PublishViewer,
@@ -148,7 +151,7 @@ export function createPublish(deps: PublishDeps) {
     ) =>
       deps.tx.run(
         async (tx) =>
-          accountCard(tx, await accountOf(tx, await bindAccount(tx, deps, viewer, body))),
+          accountCard(tx, await accountOf(tx, await bindAccount(tx, deps, viewer, body)), viewer),
         options,
       ),
     resubmit: (
@@ -159,7 +162,7 @@ export function createPublish(deps: PublishDeps) {
     ) =>
       deps.tx.run(async (tx) => {
         await resubmitAccount(tx, deps, viewer, id, body);
-        return accountCard(tx, await accountOf(tx, id));
+        return accountCard(tx, await accountOf(tx, id), viewer);
       }, options),
     launchSummary: (viewer: PublishViewer, query: LaunchFilter = {}) =>
       deps.tx.run(async (tx) => {

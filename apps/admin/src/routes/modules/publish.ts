@@ -2,5 +2,13 @@
 // 一个模块一个清单，别的模块不用动（计划 第 9.3 节）。写法见 apps/admin/README.md“加一个页面”。
 import { accountsRoute } from "../publish/accounts";
 import { deliveriesRoute } from "../publish/deliveries";
+import { offlineRoute } from "../publish/offline";
+import { patrolRoute } from "../publish/patrol";
 import { verifyRoute } from "../publish/verify";
-export const publishRoutes = [accountsRoute, deliveriesRoute, verifyRoute] as const;
+export const publishRoutes = [
+  accountsRoute,
+  deliveriesRoute,
+  offlineRoute,
+  patrolRoute,
+  verifyRoute,
+] as const;

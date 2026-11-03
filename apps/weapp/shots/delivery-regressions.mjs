@@ -121,6 +121,55 @@ export async function deliveryNavigationRegression(page, shotPath) {
   await page.screenshot({ path: shotPath });
 }
 export async function deliveryRegression(page, scene) {
+  if (scene === "tasks-takedown-confirm") {
+    await button(page, "确认已下架").click();
+    await page.locator(".lyx-sheet .lyx-chip").filter({ hasText: "已设为仅自己可见" }).click();
+    await page.locator(".lyx-sheet .lyx-checkbox").click();
+    await page.screenshot({
+      path: fileURLToPath(
+        new URL("./dist/png/delivery__tasks-takedown-confirm-sheet.png", import.meta.url),
+      ),
+    });
+    await button(page, "提交下架确认").evaluate((node) => {
+      node.click();
+      node.click();
+    });
+    await expect(page.locator(".lyx-sheet")).toBeHidden();
+    const writes = (await calls(page)).filter(
+      (call) => call.path.includes("takedown-tasks") && call.method === "POST",
+    );
+    expect(writes).toHaveLength(1);
+    expect(writes[0].data).toEqual({ method: "private" });
+    expect(writes[0].key).toBeTruthy();
+    await page.locator(".lyx-tabs__item").filter({ hasText: "已完成" }).click();
+    await expect(page.getByText("已收到你的确认，等待后台核查。", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: fileURLToPath(
+        new URL("./dist/png/delivery__tasks-takedown-confirmed.png", import.meta.url),
+      ),
+    });
+  }
+  if (scene === "tasks-copy" || scene === "tasks-copy-unavailable") {
+    await button(page, "复制发布清单").click();
+    if (scene === "tasks-copy-unavailable")
+      await expect(
+        page.getByText("发布清单暂无可复制文本，请联系服务经理", { exact: true }),
+      ).toBeVisible();
+    else await expect(page.getByText("发布清单已复制", { exact: true })).toBeVisible();
+    expect((await calls(page)).filter((call) => call.path.endsWith("/publish-list"))).toHaveLength(
+      1,
+    );
+    expect((await calls(page)).some((call) => call.method === "POST")).toBe(false);
+    await page.screenshot({
+      path: fileURLToPath(new URL(`./dist/png/delivery__${scene}-result.png`, import.meta.url)),
+    });
+  }
+  if (scene === "record-patrol-recovered")
+    await expect(page.getByText("复查作品已公开", { exact: true })).toBeVisible();
+  if (scene === "record-patrol-error") {
+    await expect(page.getByText("巡检与上线记录读取失败，请重试", { exact: true })).toBeVisible();
+    await expect(page.getByText("巡检正常", { exact: true })).toHaveCount(0);
+  }
   if (scene === "plan-pending") {
     await button(page, "确认方案").click();
     const confirm = page.locator(".lyx-sheet .lyx-button").filter({ hasText: "确认方案" });
@@ -217,7 +266,7 @@ export async function deliveryRegression(page, scene) {
     });
     expect(write.key).toBeTruthy();
     expect(list.filter((c) => c.path.startsWith("/m/launch-tasks?")).length).toBeGreaterThan(1);
-    expect(list.filter((c) => c.path.endsWith("/summary")).length).toBeGreaterThan(1);
+    expect(list.filter((c) => c.path.split("?")[0].endsWith("/summary")).length).toBeGreaterThan(1);
     await button(page, "回填上线链接").first().click();
     await page.locator(".lyx-sheet .lyx-chip").filter({ hasText: "逐集链接" }).click();
     await page

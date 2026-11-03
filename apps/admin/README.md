@@ -376,3 +376,13 @@ PR #236最终head `3d26ab01` 的完整CI已通过，并实际合入main `53ae124
 从P1已合的实际main接入原订单详情“售后与取消”“授权与下载”“订单活动”，以及原审批页的取消队列和同页处理。试算与申请、批准与实际执行分别展示；授权更正/作废/失败重生成使用真实版次与actions，只有当前ready文件可现签下载。写前GET复核，未知结果保原意图键，已受理后只重读；切订单或权限范围废弃旧请求和确认。
 
 本片最终真实浏览器验收3/3通过：独立finance批准、申请人执行后实际97积分账及拒绝边界，真实PDF更正/缺字体失败/原版次重生/作废重出及现签字节hash均已核。当前可用PDF与最新生成版分开；新版本排队或失败时保留合法旧current下载，失败重生成选择实际失败revision。8组1440×900精确双帧截图已核hash并目检，原单worker/180秒预算保持；外部签章、真实云和业主看样另验。正式命令为 `pnpm admin:e2e:live --test-file test/e2e/live-m5-cancel-approval.spec.ts`；最终CI与实际发布见W5-13台账，0新页/API。
+
+## W6-09 发布生命周期
+
+`/publish/patrol` 使用当前巡检清单、证据与真实 actions，区分未巡检、异常、正常及恢复；周批次全平台总数和当前范围计数分开显示。`/publish/offline` 展示商家自声明、后台核查、仍在线、升级和提醒历史。批量核查遵循已合契约的整批原子语义：任一项拒绝时显示“本批未处理”和逐项原因，不显示部分成功；每项独立上传证据和核对当前清单。提醒受理不代表通知送达或平台实际下架。
+
+`/publish/accounts` 保留原账号核验队列，新增独立 URL / 查询缓存的账号健康视图。巡检异常不自动标记账号异常。三页都用正式 typed 接口，同筛选 summary、当前详情身份、服务端权限/actions、同意图键和同步防重；操作受理后只读回事实，变更输入撤销确认。证据沿现有 multipart 与 stored 确认，不保存私签 URL。
+
+定点检查：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/patrol src/features/publish/offline src/features/publish/accounts --maxWorkers=1 --no-file-parallelism`；真实浏览器入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-patrol-offline.spec.ts`。后者使用本轮隔离的历史已交付输入：每项 1 集，含本地 MinIO 中经大小和 SHA-256 回读核对的已知 MP4、历史 QC / 成片、完整 release manifest 及两类文件引用，不宣称本轮重演付款、制作或推包；共享工厂序号与时钟不变。账号历史截图也有本轮真实 PNG 字节。账号审核、上线、巡检和下架生成/处理均走公开服务或 HTTP；本轮证据上传用明确的测试 PNG，不代表外部平台巡检证据。原控制台、横溢出、双帧 10 秒窗口和单 worker 时限保持，真实云、微信及平台能力另验。最终运行结果与真实未验以 W6-09 状态为准。
+
+真实证据上传由 `w609-evidence.ts` 私有验收桥接续本轮精确登记的 local promote job。它只接受同一隔离库 / Redis 前缀、员工、主体、门店和开始时间之后的 8 个 `evidence` 意图，核对原 HTTP 登记和 complete 成功及文件归属，保持原响应不变；不扫描其他文件或扩大既有泵范围。停机先拒绝新意图、等待在途请求，再仅清理这些意图的 incoming / formal 对象，登记应答丢失也按原 token 恢复清理。独立生命周期用例覆盖越界请求、停机等待与丢失应答。
