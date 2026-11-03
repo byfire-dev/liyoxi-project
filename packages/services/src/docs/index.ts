@@ -81,6 +81,7 @@ export { correctLicenseLetter, voidLicenseLetter } from "./license-convergence.j
 export { claimLicenseRevision, completeLicenseRevision, failLicenseRevision, rerenderLicenseRevision, readQueuedLicenseRevision, onLicenseRevisionQueued, sweepLicenseRevisions } from "./license-queue.js";
 export type { LicenseRenderClaim, LicenseRenderCompletion, LicenseRenderQueueDeps, LicenseRevisionWriteDeps, LicenseRenderFilePort } from "./license-queue.js";
 export { createLicensePdfRenderer } from "./license-render.js";
+export { prepareLicensePdfFonts } from "./license-render-fonts.js";
 export type { LicensePdfRenderer, LicensePdfRenderResult } from "./license-render-types.js";
 export { LICENSE_TEMPLATE_CATALOG, readLicenseTemplateClauses } from "./license-render-catalog.js";
 export type { LicenseTemplateCatalog } from "./license-render-catalog.js";
