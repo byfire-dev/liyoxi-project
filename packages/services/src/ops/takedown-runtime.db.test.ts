@@ -160,69 +160,78 @@ describe("timer运行时实例", () => {
     expect(closed).toBe(true);
   });
 });
-it("真实日历导入消费重算核查截止与同态历史，重复/乱序不回退且不改止日", async () => {
-  const { h, build } = await fixture(),
-    f = await h.ready({ twoAccounts: true }),
-    runtime = build();
-  const id = f.takedowns[0]!.id;
-  await h.takedown.confirm(f.o.viewer, id, { method: "not_published" });
-  const before = await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } });
-  const year = Number(calendarDate(before.checkDueAt!).slice(0, 4)),
-    changed = calendarDate(before.checkDueAt!);
-  const events = createEvents({ assembly: runtime.assembly, tx: h.tx, clock: h.clock });
-  const admin = createCalendarAdmin({ tx: h.tx, clock: h.clock, events });
-  async function imported(days: Array<{ date: string; kind: "holiday"; note: string }>) {
-    await admin.import(
-      { identity: f.qc.ctx, staff: f.qc.staff },
-      { year, source: "隔离测试工作日历更正", days },
-    );
-    return h.prisma.outboxEvent.findFirstOrThrow({
-      where: { eventType: "calendar.imported" },
-      orderBy: { seq: "desc" },
-    });
-  }
-  const old = await imported([{ date: changed, kind: "holiday", note: "核查日放假" }]);
-  const newer = await imported([
-    { date: changed, kind: "holiday", note: "核查日放假" },
-    { date: addDays(changed, 2), kind: "holiday", note: "后续假日" },
-  ]);
-  await events.expand();
-  const claimed = await Promise.all(
-    [old.id, newer.id].map((id) => claimTakedownCalendar(h.tx, id)),
-  );
-  const consume = async (id: string) => {
-    const ref = claimed.find(
-      (r) => r.eventId === id && r.subscriber === "publish.onCalendarImported",
-    );
-    expect(ref).toBeDefined();
-    return consumeDelivery(
-      { tx: h.tx, subscribers: events.subscribers, alerts: alertsOf(runtime.assembly) },
-      ref!,
-    );
-  };
-  expect(await consume(old.id)).toBe("done");
-  expect((await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } })).checkDueAt).toEqual(
-    before.checkDueAt,
-  );
-  expect(await consume(newer.id)).toBe("done");
-  expect(await consume(newer.id)).toBe("stale");
-  const after = await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } });
-  expect(after.checkDueAt!.getTime()).toBeGreaterThan(before.checkDueAt!.getTime());
-  expect(after.usageEndDate).toEqual(before.usageEndDate);
-  expect(after.dueDate).toEqual(before.dueDate);
-  expect(
-    (await h.prisma.orderItem.findUniqueOrThrow({ where: { id: f.item.id } })).usageEndDate,
-  ).toEqual(f.item.usageEndDate);
-  const history = await h.prisma.statusTransition.findMany({
-    where: { subjectId: id, event: "sla.recalculated" },
+async function preparedCalendarFixture() {
+  const scope = await fixture();
+  const f = await scope.h.ready({ twoAccounts: true });
+  return { ...scope, f, runtime: scope.build() };
+}
+describe("日历运行时消费", () => {
+  let prepared!: Awaited<ReturnType<typeof preparedCalendarFixture>>;
+  beforeAll(async () => {
+    prepared = await preparedCalendarFixture();
   });
-  expect(history).toHaveLength(1);
-  expect(history[0]).toMatchObject({
-    fromState: "merchant_confirmed",
-    toState: "merchant_confirmed",
-    payload: {
-      dueAtBefore: before.checkDueAt!.toISOString(),
-      dueAtAfter: after.checkDueAt!.toISOString(),
-    },
+  it("真实日历导入消费重算核查截止与同态历史，重复/乱序不回退且不改止日", async () => {
+    const { h, f, runtime } = prepared;
+    const id = f.takedowns[0]!.id;
+    await h.takedown.confirm(f.o.viewer, id, { method: "not_published" });
+    const before = await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } });
+    const year = Number(calendarDate(before.checkDueAt!).slice(0, 4)),
+      changed = calendarDate(before.checkDueAt!);
+    const events = createEvents({ assembly: runtime.assembly, tx: h.tx, clock: h.clock });
+    const admin = createCalendarAdmin({ tx: h.tx, clock: h.clock, events });
+    async function imported(days: Array<{ date: string; kind: "holiday"; note: string }>) {
+      await admin.import(
+        { identity: f.qc.ctx, staff: f.qc.staff },
+        { year, source: "隔离测试工作日历更正", days },
+      );
+      return h.prisma.outboxEvent.findFirstOrThrow({
+        where: { eventType: "calendar.imported" },
+        orderBy: { seq: "desc" },
+      });
+    }
+    const old = await imported([{ date: changed, kind: "holiday", note: "核查日放假" }]);
+    const newer = await imported([
+      { date: changed, kind: "holiday", note: "核查日放假" },
+      { date: addDays(changed, 2), kind: "holiday", note: "后续假日" },
+    ]);
+    await events.expand();
+    const claimed = await Promise.all(
+      [old.id, newer.id].map((id) => claimTakedownCalendar(h.tx, id)),
+    );
+    const consume = async (id: string) => {
+      const ref = claimed.find(
+        (r) => r.eventId === id && r.subscriber === "publish.onCalendarImported",
+      );
+      expect(ref).toBeDefined();
+      return consumeDelivery(
+        { tx: h.tx, subscribers: events.subscribers, alerts: alertsOf(runtime.assembly) },
+        ref!,
+      );
+    };
+    expect(await consume(old.id)).toBe("done");
+    expect((await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } })).checkDueAt).toEqual(
+      before.checkDueAt,
+    );
+    expect(await consume(newer.id)).toBe("done");
+    expect(await consume(newer.id)).toBe("stale");
+    const after = await h.prisma.takedownTask.findUniqueOrThrow({ where: { id } });
+    expect(after.checkDueAt!.getTime()).toBeGreaterThan(before.checkDueAt!.getTime());
+    expect(after.usageEndDate).toEqual(before.usageEndDate);
+    expect(after.dueDate).toEqual(before.dueDate);
+    expect(
+      (await h.prisma.orderItem.findUniqueOrThrow({ where: { id: f.item.id } })).usageEndDate,
+    ).toEqual(f.item.usageEndDate);
+    const history = await h.prisma.statusTransition.findMany({
+      where: { subjectId: id, event: "sla.recalculated" },
+    });
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      fromState: "merchant_confirmed",
+      toState: "merchant_confirmed",
+      payload: {
+        dueAtBefore: before.checkDueAt!.toISOString(),
+        dueAtAfter: after.checkDueAt!.toISOString(),
+      },
+    });
   });
 });
