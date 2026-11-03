@@ -1,0 +1,16 @@
+{
+  "extends": "../../../packages/services/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../../packages/services",
+    "paths": {
+      "react": ["../../../packages/services/node_modules/@types/react/index.d.ts"],
+      "react/*": ["../../../packages/services/node_modules/@types/react/*.d.ts"]
+    }
+  },
+  "include": [
+    "../../../packages/services/src",
+    "../../../packages/services/test",
+    "../../../packages/services/scripts",
+    "../../../packages/services/*.ts"
+  ]
+}
