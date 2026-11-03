@@ -1,0 +1,16 @@
+{
+  "extends": "../../../apps/worker/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../../apps/worker",
+    "paths": {
+      "react": ["../../../packages/services/node_modules/@types/react/index.d.ts"],
+      "react/*": ["../../../packages/services/node_modules/@types/react/*.d.ts"]
+    }
+  },
+  "include": [
+    "../../../apps/worker/src",
+    "../../../apps/worker/test",
+    "../../../apps/worker/scripts",
+    "../../../apps/worker/*.ts"
+  ]
+}

@@ -119,8 +119,6 @@ PR2当前提交CI与实际合入以其发布记录为准。
 
 ### 纯渲染与固定正文
 
-PDF 代码使用 React 19；services、API、worker 三个 tsconfig 都将 `react` 与 `react/*` 类型固定到 services 已声明的 `@types/react` 的 `index.d.ts` 与 `*.d.ts`。NodeNext ESM 下要保留声明扩展名；renderer 的类型声明没有自己的 React 类型依赖，不能让它落到 pnpm 私有提升中的小程序 React 18。API/worker 直接检查 services 源码，也必须保留各自的映射。复现与临时树回归见 [类型解析说明](../../../../infra/ci/README.md#7-类型解析不靠提升两个-react-大版本)；不改 renderer 运行时、PDF 字节或签署流程。
-
 renderer 深拷贝组合根给定 catalog，并验证传入 snapshot 的内容指纹。业务 API 不能提交正文或挑选测试 catalog。当前正式 v1 没有法务定稿，因此默认 `configured=false`；不得拿 X-03 历史条款或测试文字补正式 v1。`testing/license-render.ts` 的显式 TEST ONLY catalog 用于受保护 local/test 组合，每页印“技术联调样张，非法务定稿”。后续 E8 应按独立版本/迁移裁定入库，不能悄换已存在版次所指向的同版文字。
 
 字体仅来自 `LYX_PDF_FONT_DIR` 的三份固定 Noto 静态 TTF，先核实际字节哈希，再经 renderer 公共 `Font.load/getFont` 的 `data.hasGlyphForCodePoint` 检查三字体交集。字体注册绑定内容版本，不在并发任务中 clear/reset。替换字体应遵循已批准的字体版本与部署/重启流程；字体修好后可对原 failed 版次重试，资料修正则走更正创建新版，旧 snapshot 不变。

@@ -1,5 +1,7 @@
+import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, realpathSync, symlinkSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, join, relative, resolve } from "node:path";
 
 import ts from "typescript";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,10 +9,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import { makeTempDir, repoRoot, writeFiles } from "./helpers.js";
 
 const entries = ["packages/services", "apps/api", "apps/worker"] as const;
+const tsxLoader = createRequire(join(repoRoot, "packages/services/package.json")).resolve("tsx");
 const cleanups: Array<() => void> = [];
 afterEach(() => {
   while (cleanups.length > 0) cleanups.pop()?.();
 });
+
+function typecheckConfig(entry: string) {
+  return `infra/ci/server-react-types/${basename(entry)}.json`;
+}
 
 function link(target: string, path: string) {
   mkdirSync(dirname(path), { recursive: true });
@@ -44,9 +51,14 @@ function fixture() {
     writeFiles(dir, { [path]: readFileSync(join(repoRoot, path), "utf8") });
   }
   for (const entry of entries) {
+    const config = typecheckConfig(entry);
+    writeFiles(dir, { [config]: readFileSync(join(repoRoot, config), "utf8") });
     for (const file of ["tsconfig.json", "package.json"]) {
       const path = `${entry}/${file}`;
       writeFiles(dir, { [path]: readFileSync(join(repoRoot, path), "utf8") });
+    }
+    for (const path of ["test/scope.ts", "scripts/scope.ts", "scope.ts"]) {
+      writeFiles(dir, { [`${entry}/${path}`]: "export {};\n" });
     }
   }
 
@@ -97,9 +109,9 @@ function fixture() {
   return { dir, react18, react19, rendererDeclaration: join(renderer, "index.d.ts") };
 }
 
-function parseEntry(root: string, entry: string) {
+function parseEntry(root: string, entry: string, file = typecheckConfig(entry)) {
   const parsed = ts.getParsedCommandLineOfConfigFile(
-    join(root, entry, "tsconfig.json"),
+    join(root, file),
     {},
     {
       ...ts.sys,
@@ -117,10 +129,26 @@ function diagnostics(config: ts.ParsedCommandLine, options: ts.CompilerOptions) 
   return ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: config.fileNames, options }));
 }
 
+function nonPathOptions(options: ts.CompilerOptions) {
+  // 后两项仅记录配置文件及 paths 的解析位置，不是类型检查开关。
+  return Object.fromEntries(
+    Object.entries(options).filter(
+      ([name]) => !["paths", "pathsBasePath", "configFilePath"].includes(name),
+    ),
+  );
+}
+
 describe("服务端 PDF 的 React 类型不依赖私有提升", () => {
-  it.each(entries)("%s：真实声明提升为 18 时，入口 paths 仍统一使用 19", (entry) => {
+  it.each(entries)("%s：真实声明提升为 18 时，类型检查 paths 仍统一使用 19", (entry) => {
     const input = fixture();
     const config = parseEntry(input.dir, entry);
+    const runtimeConfig = parseEntry(input.dir, entry, `${entry}/tsconfig.json`);
+    const manifest = JSON.parse(readFileSync(join(input.dir, entry, "package.json"), "utf8")) as {
+      scripts: { typecheck: string };
+    };
+    expect(manifest.scripts.typecheck).toBe(`tsc --noEmit -p ../../${typecheckConfig(entry)}`);
+    expect([...config.fileNames].sort()).toEqual([...runtimeConfig.fileNames].sort());
+    expect(nonPathOptions(config.options)).toEqual(nonPathOptions(runtimeConfig.options));
     const withoutPaths = { ...config.options, paths: undefined };
     // renderer 的 package.json 是 type:module，实际 Program 用 NodeNext ESM。
     // 省略 resolutionMode 会按 CJS 解析，错误地允许目录/隐式扩展名映射通过此断言。
@@ -155,5 +183,33 @@ describe("服务端 PDF 的 React 类型不依赖私有提升", () => {
         message: ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
       })),
     ).toEqual([]);
+  });
+
+  it.each(entries)("%s：默认配置让真实 tsx 加载 React 与 JSX 运行时", (entry) => {
+    const input = fixture();
+    const probe = join(input.dir, entry, "src/runtime-probe.ts");
+    writeFiles(input.dir, {
+      [`${entry}/src/runtime-probe.ts`]: [
+        'import assert from "node:assert/strict";',
+        'import { createElement, isValidElement, version } from "react";',
+        'import { jsx } from "react/jsx-runtime";',
+        'assert.equal(version.startsWith("19."), true);',
+        'assert.equal(isValidElement(createElement("p", null, "tsx runtime")), true);',
+        'assert.equal(isValidElement(jsx("p", { children: "jsx runtime" })), true);',
+        'console.log("react-runtime-ok");',
+        "",
+      ].join("\n"),
+    });
+    // 不传 --tsconfig：与 seeded-db / demo-seed CLI 一样，从 cwd 找默认配置。
+    // 子进程实加载已安装的 React JS，不能用 tsc 解析成功代替运行期验证。
+    const child = spawnSync(process.execPath, ["--import", tsxLoader, probe], {
+      cwd: join(input.dir, entry),
+      env: { PATH: process.env.PATH, TSX_DISABLE_CACHE: "1" },
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    expect(child.error).toBeUndefined();
+    expect(child.status, child.stderr).toBe(0);
+    expect(child.stdout.trim()).toBe("react-runtime-ok");
   });
 });

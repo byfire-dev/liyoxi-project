@@ -311,9 +311,11 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 
 服务端 PDF 也要固定类型来源。PR #275 的 `verify` 在未改依赖的情况下，`services` 的 `license-render.ts` 与 `providers/esign` 类型检查再次遇到同一问题：`@react-pdf/renderer` 4.9.0 的声明引用 `react`，但只声明运行时 peer；`Text` / `Document` 的 `contextType` 来自 React 18，源码 `createElement` 来自 React 19。CI 的 pnpm 缓存命中不能单独证明缓存是原因。
 
-`packages/services/tsconfig.json` 将 `react`、`react/*` 固定到自己已声明的 `@types/react` 19 的 `index.d.ts`、`*.d.ts`；`apps/api` 与 `apps/worker` 的 tsconfig 同样固定到该 workspace 依赖里的类型。这里是 NodeNext ESM，必须指向带扩展名的声明文件，不能照搬前端 Bundler 模式的目录映射。两个应用直接检查 services 的源码导出，不继承 services 的 tsconfig，所以三个入口缺一不可。通用 Node 预设和 React 18 小程序不受影响。这里只改类型解析；API 构建将非 workspace 包 external，worker 的 external 清单已有 `react` 与 renderer，保留原运行时依赖。
+`infra/ci/server-react-types/{services,api,worker}.json` 将 `react`、`react/*` 固定到 services 已声明的 `@types/react` 19 的 `index.d.ts`、`*.d.ts`。这里是 NodeNext ESM，必须指向带扩展名的声明文件，不能照搬前端 Bundler 模式的目录映射。两个应用直接检查 services 的源码导出，不继承 services 的 tsconfig，所以三个入口缺一不可。三个包的 `typecheck` 脚本显式使用对应配置，根 `pnpm typecheck` 及 CI 递归调用这些脚本。专用配置继承各自的默认 `tsconfig.json`；因 Node 预设的 `${configDir}` 随入口配置位置变化，专用配置显式还原原项目的 `rootDir` 与完整 `src`、`test`、`scripts`、根目录 `*.ts` 范围，其余检查选项继承原值。通用 Node 预设和 React 18 小程序不受影响。
 
-`test/server-react-types.test.ts` 将真实 renderer 声明与已安装的 React 18/19 声明复制到临时树，固定其私有提升为 18，并读取三个入口的真实 tsconfig：移除 paths 必须先重现 `contextType` 冲突，保留 paths 后同一 `renderToBuffer(createElement(...))` 必须零诊断，连 `react/jsx-runtime` 也解析到 19。单项解析明确使用 renderer 实际的 ESM mode，同时完整检查 TypeScript Program，不能用缺省 CJS 解析通过代替。测试不改真实 `node_modules`，不依赖本次安装恰好提升哪一份。
+声明映射只放在 `infra/ci/server-react-types/` 的专用配置，默认 `tsconfig.json` 不含这些 paths。`tsx` 会读取默认配置并把显式 `.d.ts` 映射当作运行时模块，曾导致 `seeded-db` 在导入 `react.createElement` 时直接退出；构建及 CLI 因此继续使用默认配置。API 构建将非 workspace 包 external，worker 的 external 清单已有 `react` 与 renderer，保留原运行时依赖。手动检查这三个包时也应执行包的 `typecheck` 脚本，或在仓库根目录用 `tsc --noEmit -p infra/ci/server-react-types/<包名>.json`。
+
+`test/server-react-types.test.ts` 将真实 renderer 声明与已安装的 React 18/19 声明复制到临时树，固定其私有提升为 18，并读取三个入口的真实类型检查配置：先核脚本入口、与默认配置相同的完整文件集合和所有非 paths 编译选项，再移除 paths 重现 `contextType` 冲突，保留 paths 后同一 `renderToBuffer(createElement(...))` 必须零诊断，连 `react/jsx-runtime` 也解析到 19。文件集合夹具同时覆盖 `src`、`test`、`scripts` 与根目录；选项对比只排除 paths 及配置文件/paths 解析位置元数据。三个用例都完整检查 TypeScript Program；单项解析明确使用 renderer 实际的 ESM mode，不能用缺省 CJS 解析通过代替。另有三个独立子进程用例，从各入口 cwd 执行真实 `node --import tsx`，核默认配置下 `createElement` 与 `jsx` 都产生有效 React 19 元素。测试不改真实 `node_modules`，不依赖本次安装恰好提升哪一份。
 
 ### 7.3 检查
 
