@@ -157,6 +157,8 @@ React 19 + Vite 8 + Ant Design 6 的纯单页应用，与接口同源（[D7](../
 
 W3-02 后完整入口还需要 Docker 和本机 MinIO。缺省先从固定 mediatool Dockerfile 构建镜像（可复用缓存），在 CPU1、1GiB、无网络且根只读的本轮容器内生成两份合法20秒视频及真实 probe 报告，再运行完整 live 集合。标准片用于20集批次，真实大于20MiB的另一片用于跨刷新续传；认证、样片、两集原质检和新批次用例全部保留，不减少集数、内部并发、原断言或超时。自动准备的容器和卷在确认终止后回收；成功后删除临时输入，失败保留首次观察，不自动补片或重造。
 
+真实样片的静态水印 PNG 输入与正式 mediatool 使用相同的 `-loop 1 -framerate 1`；输出帧率仍由主视频决定，原编码质量、CPU1、单线程和真实制作流程保留。服务启动前的 W120 准备包含实际样片与成片质检，原 60 秒就绪期限不变；出现超时时先查 `dist/e2e-live-results/w302-startup-*.jsonl` 的固定阶段记录，不把失败或未进入浏览器的短运行记为完整验收提速。
+
 已有合法输入时可复用：`pnpm admin:e2e:live --video <标准片.mp4> --resume-video <大于20MiB的片.mp4> --probe-facts </tmp/lyx-w302-本轮目录/manifest.json> --mediatool-image <sha256:完整镜像ID>`。三个输入参数须一起提供；格式、字节核对和 Provider 边界见[批次验收说明](src/features/delivery/ticket-detail/batch-upload.README.md)。默认完整收集；受影响定点可用`--test-file 'test/e2e/live-media-ops.spec.ts,test/e2e/live-flow-ops.spec.ts'`，仅接受至多8个真实已有live文件的精确路径，不能用于声称完整验收。
 
 后续页面包只在 `packages/services/src/testing/admin-live/` 新增 `<短名>.fixture.ts`，共享一个服务端进程的 `make`/`runtime`；前端调用已合并的 `admin:live:data` CLI，不导入数据库或 services。新增 `test/e2e/live-*.spec.ts`，用 `liveContext()` 读取返回的 fixtures；live 项目依赖一次登录准备并自动复用 storageState，无需改起栈脚本或 Playwright 配置。数据与登录态文件不入库。
