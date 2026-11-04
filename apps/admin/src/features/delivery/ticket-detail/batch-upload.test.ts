@@ -424,41 +424,66 @@ it("服务器替换新fileId/key后才允许新Init，旧拒收记录不被重�
   uploader.close();
 });
 
-it("已确认promoting释放直传名额，入库等待仍保持真实状态且不伪造ready", async () => {
-  const { batch, api, files } = setup(4);
-  const stored = deferred<{ fileId: string; status: string }>();
-  vi.mocked(api.complete).mockImplementation(async (id) => {
-    const item = batch.items.find((row) => row.uploadBatchItemId === id)!;
-    return { ...item, fileStatus: "promoting" };
-  });
-  const fake = cloud(),
-    progress = vi.fn();
-  const uploader = createBatchUploader({
-    api,
-    current: () => batch,
-    now: () => batchNow,
-    fetchImpl: fake.fetchImpl,
-    fileStatus: async (fileId) => ({ ...(await stored.promise), fileId }),
-    onProgress: progress,
-    onSettled: vi.fn(),
-  });
-  uploader.attach(batch, files, true);
-  let settled = false;
-  const running = uploader.run().then(() => {
-    settled = true;
-  });
-  try {
-    await vi.waitFor(() => expect(api.complete).toHaveBeenCalledTimes(4));
-    expect(fake.calls.filter((call) => call.method === "PUT")).toHaveLength(4);
-    expect(settled).toBe(false);
-    expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(0);
-    expect(batch.state).toBe("uploading");
-    expect(api.commit).not.toHaveBeenCalled();
-  } finally {
-    stored.resolve({ fileId: "unused", status: "stored" });
-    await running;
-    uploader.close();
-  }
-  expect(settled).toBe(true);
-  expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(4);
-});
+it.each(["final_release", "drama_master"] as const)(
+  "%s 的 60 文件批次只允许 3 个入库轮询，真实入库后才继续下一组",
+  async (purpose) => {
+    vi.useFakeTimers();
+    const { batch, api, files } = setup(60);
+    batch.purpose = purpose;
+    batch.bucket = "lyx-local-media";
+    batch.region = "us-east-1";
+    vi.mocked(api.refresh).mockImplementation(async () => postCredentials(batch));
+    vi.mocked(api.complete).mockImplementation(async (id) => {
+      const item = batch.items.find((row) => row.uploadBatchItemId === id)!;
+      return { ...item, fileStatus: "promoting" };
+    });
+    let stored = false;
+    const fileStatus = vi.fn(async (fileId: string) => ({
+      fileId,
+      status: stored ? "stored" : "promoting",
+    }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
+    const progress = vi.fn();
+    const uploader = createBatchUploader({
+      api,
+      purpose,
+      current: () => batch,
+      now: () => batchNow,
+      fetchImpl,
+      fileStatus,
+      onProgress: progress,
+      onSettled: vi.fn(),
+    });
+    uploader.attach(batch, files, true);
+    let settled = false;
+    const running = uploader.run().then(() => {
+      settled = true;
+    });
+    try {
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(api.complete).toHaveBeenCalledTimes(3);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      // Three 1 Hz pollers stay well below the 600/min admin global limit.
+      expect(fileStatus).toHaveBeenCalledTimes(90);
+      expect(settled).toBe(false);
+      expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(0);
+      expect(api.commit).not.toHaveBeenCalled();
+
+      stored = true;
+      await vi.advanceTimersByTimeAsync(20_000);
+      await running;
+      expect(settled).toBe(true);
+      expect(api.complete).toHaveBeenCalledTimes(60);
+      expect(fetchImpl).toHaveBeenCalledTimes(60);
+      expect(progress.mock.calls.filter((call) => call[1].busy === false)).toHaveLength(60);
+      expect(batch.state).toBe("uploading");
+      expect(api.commit).not.toHaveBeenCalled();
+    } finally {
+      stored = true;
+      await vi.advanceTimersByTimeAsync(60_000);
+      await running;
+      uploader.close();
+      vi.useRealTimers();
+    }
+  },
+);
