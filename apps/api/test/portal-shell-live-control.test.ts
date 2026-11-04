@@ -97,6 +97,9 @@ function setup() {
     actorForUser: vi
       .fn<PortalLiveMerchant["actorForUser"]>()
       .mockImplementation((id) => (id === owner ? "owner" : undefined)),
+    list: vi
+      .fn<PortalLiveMerchant["list"]>()
+      .mockResolvedValue({ httpStatus: 200, error: null, data: { items: [] } }),
     previewScopes: vi.fn<PortalLiveMerchant["previewScopes"]>().mockReturnValue({
       owner: { merchantUserId: owner, entityId: entity, storeId: store },
       clerk: { merchantUserId: uuidv7(), entityId: entity, storeId: store },
@@ -119,6 +122,69 @@ function setup() {
 }
 
 describe("portal private control: authority and safe output", () => {
+  it("projects only case-owned sessions and preserves real permission failures", async () => {
+    const h = setup();
+    await h.register();
+    const reply = await h.merchant.revoke("owner", session, randomUUID());
+    if (reply.error !== null) throw new Error("FIXTURE_INVALID");
+    h.merchant.list.mockResolvedValue({
+      httpStatus: 200,
+      error: null,
+      data: { items: [reply.data] },
+    });
+    expect(await h.send("session.list", { actor: "owner" })).toMatchObject({
+      ok: true,
+      result: {
+        httpStatus: 200,
+        data: {
+          items: [{ portalSessionId: session, storeId: store, revokedAt: reply.data.revokedAt }],
+        },
+      },
+    });
+    const anotherStore = uuidv7();
+    const ownedFacts = await h.fixture.ticketFacts([ticket]);
+    h.fixture.ticketFacts.mockResolvedValue(
+      ownedFacts.map((fact) => ({
+        ...fact,
+        sessions: fact.sessions.map((item) => ({ ...item, storeId: anotherStore })),
+      })),
+    );
+    h.merchant.list.mockResolvedValue({
+      httpStatus: 200,
+      error: null,
+      data: { items: [{ ...reply.data, storeId: anotherStore }] },
+    });
+    expect(await h.send("session.list", { actor: "owner" })).toMatchObject({
+      ok: true,
+      result: { data: { items: [{ portalSessionId: session, storeId: anotherStore }] } },
+    });
+    h.merchant.list.mockResolvedValue({
+      httpStatus: 200,
+      error: null,
+      data: { items: [{ ...reply.data, portalSessionId: uuidv7() }] },
+    });
+    expect(await h.send("session.list", { actor: "owner" })).toMatchObject({
+      ok: false,
+      failure: { code: "NOT_OWNED" },
+    });
+    h.merchant.list.mockResolvedValue({ httpStatus: 200, error: null, data: { items: [] } });
+    expect(await h.send("session.list", { actor: "otherOwner" })).toMatchObject({
+      ok: true,
+      result: { httpStatus: 200, error: null, data: { items: [] } },
+    });
+    h.merchant.list.mockResolvedValue({ httpStatus: 403, error: "ROLE_FORBIDDEN", data: null });
+    expect(await h.send("session.list", { actor: "clerk" })).toMatchObject({
+      ok: true,
+      result: { httpStatus: 403, error: "ROLE_FORBIDDEN", data: null },
+    });
+    expect(h.merchant.list.mock.calls.map(([actor]) => actor)).toEqual([
+      "owner",
+      "owner",
+      "owner",
+      "otherOwner",
+      "clerk",
+    ]);
+  });
   it("prepares preview only explicitly in an active case using internal HTTP identities and safe facts", async () => {
     const h = setup();
     expect(await h.send("preview.prepare")).toMatchObject({

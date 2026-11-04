@@ -5,11 +5,12 @@ import { StrictMode, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { PortalTicketStatus } from "../../src/features/auth/api";
+import { App } from "../../src/App";
+import { createAuthRoutes } from "../../src/features/auth/routes";
 import { SessionBoundary } from "../../src/features/session/SessionBoundary";
 import type { PortalSessionSnapshot } from "../../src/features/session/model";
 import { PortalApiError } from "../../src/lib/api-errors";
 import { createPortalRuntime } from "../../src/lib/runtime";
-import { App } from "../../src/App";
 import { createPreviewRoutes } from "../../src/features/preview/routes";
 import { createVerificationRoutes } from "../../src/features/verify/routes";
 import { createPortalClientReporting } from "../../src/lib/client-reporting";
@@ -297,15 +298,21 @@ function BrowserSession() {
 const container = document.getElementById("root");
 if (!container) throw new Error("PORTAL_LIVE_ROOT_MISSING");
 const root = createRoot(container);
-// The private technical document uses the existing '/' ownership slot only in this build.
-if (location.pathname === "/__portal-live/session") history.replaceState(null, "", "/");
+// Choose this document's entry once. The technical '/' must not shadow the actual login '/'.
+// Anonymous technical documents can navigate to /v without mounting an auth flow first.
+const technicalDocument = location.pathname === "/__portal-live/session";
+if (technicalDocument) history.replaceState(null, "", "/");
 const routes = [
-  {
-    path: "/" as const,
-    owner: "W6-10" as const,
-    access: "public" as const,
-    render: () => <BrowserSession />,
-  },
+  ...(technicalDocument
+    ? [
+        {
+          path: "/" as const,
+          owner: "W6-10" as const,
+          access: "public" as const,
+          render: () => <BrowserSession />,
+        },
+      ]
+    : createAuthRoutes(runtime)),
   ...createPreviewRoutes(runtime),
   ...createVerificationRoutes(runtime),
 ];
