@@ -24,6 +24,13 @@ export const CASE_IDS = Object.freeze([
   "portal-rejected-csrf",
   "portal-login-page-revoke",
   "portal-login-page-reject-refresh",
+  "preview-ad-playback",
+  "preview-ad-stale-channel",
+  "preview-cross-store-q9",
+  "preview-revoke-media",
+  "verify-revisions",
+  "verify-lifecycle-reporting",
+  "preview-expired-media",
 ]);
 export const SHOT_IDS = Object.freeze([
   "session-ready",
@@ -37,6 +44,22 @@ export const SHOT_IDS = Object.freeze([
   "login-rejected",
   "login-refreshed",
   "login-landing",
+  "ad-initial",
+  "ad-playing",
+  "ad-version-changed",
+  "ad-channel-unavailable",
+  "sample-q9",
+  "ad-cross-store",
+  "ad-revoked",
+  "verify-current",
+  "verify-pending",
+  "verify-outdated",
+  "verify-revision-missing",
+  "verify-expired",
+  "verify-voided",
+  "verify-invalid",
+  "ad-expired",
+  "ad-renewed",
 ]);
 const PORTAL = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SAFE_OUTPUT_ROOT = join(PORTAL, "dist/e2e-live-safe");

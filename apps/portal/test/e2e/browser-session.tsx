@@ -1,8 +1,6 @@
 /** Private edge entry only. Production index/App never import this module. */
 import { isErrorSymbol } from "@liyoxi/contract/errors";
-import { antdTheme } from "@liyoxi/shared/design/antd-theme";
-import { ConfigProvider, theme } from "antd";
-import zhCN from "antd/locale/zh_CN";
+import { theme } from "antd";
 import { StrictMode, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -13,6 +11,9 @@ import { SessionBoundary } from "../../src/features/session/SessionBoundary";
 import type { PortalSessionSnapshot } from "../../src/features/session/model";
 import { PortalApiError } from "../../src/lib/api-errors";
 import { createPortalRuntime } from "../../src/lib/runtime";
+import { createPreviewRoutes } from "../../src/features/preview/routes";
+import { createVerificationRoutes } from "../../src/features/verify/routes";
+import { createPortalClientReporting } from "../../src/lib/client-reporting";
 
 export interface LiveSessionState {
   readonly status: PortalSessionSnapshot["status"];
@@ -41,6 +42,17 @@ export interface LivePrivacy {
 export type LiveReply<T> =
   | { readonly ok: true; readonly data: T }
   | { readonly ok: false; readonly error: string; readonly httpStatus: number };
+type TrafficKind =
+  "ticket" | "session" | "ad-detail" | "ad-playback" | "verification" | "report" | "other";
+export interface LiveTraffic {
+  readonly pending: number;
+  readonly items: readonly {
+    kind: TrafficKind;
+    method: string;
+    status: number;
+    revision: string | null;
+  }[];
+}
 export interface PortalLiveBridge {
   readonly version: 1;
   beginTicket(): Promise<
@@ -54,6 +66,10 @@ export interface PortalLiveBridge {
   logout(): Promise<LiveReply<LiveSessionState>>;
   snapshot(): LiveSessionState;
   privacy(): LivePrivacy;
+  publicPrivacy(): LivePrivacy & { readonly publicOnly: boolean };
+  traffic(): LiveTraffic;
+  navigate(target: string): { readonly navigated: true };
+  reportProbe(): { readonly requested: true };
   dispose(): { readonly disposed: true };
 }
 declare global {
@@ -89,9 +105,46 @@ const safeId = (value: unknown) => (typeof value === "string" && uuid.test(value
 // in this module's closure and are used only for boolean leakage checks, never in bridge DTOs.
 const secrets = new Set<string>();
 let auditComplete = true;
+let pendingFetches = 0,
+  authTraffic = 0;
+const traffic: { kind: TrafficKind; method: string; status: number; revision: string | null }[] =
+  [];
 const actualFetch = globalThis.fetch.bind(globalThis);
 const auditedFetch: typeof fetch = async (input, init) => {
-  const response = await actualFetch(input, init);
+  const url = new URL(
+    typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+    location.origin,
+  );
+  const kind: TrafficKind = url.pathname.includes("/portal-tickets")
+    ? "ticket"
+    : url.pathname.includes("/session")
+      ? "session"
+      : url.pathname === "/api/v1/portal/license-verifications"
+        ? "verification"
+        : url.pathname === "/api/v1/portal/client-errors"
+          ? "report"
+          : /\/ads\/[^/]+\/playback-urls$/.test(url.pathname)
+            ? "ad-playback"
+            : /\/ads\/[^/]+$/.test(url.pathname)
+              ? "ad-detail"
+              : "other";
+  if (kind === "ticket" || kind === "session") authTraffic++;
+  pendingFetches++;
+  let response: Response;
+  try {
+    response = await actualFetch(input, init);
+  } finally {
+    pendingFetches--;
+  }
+  if (traffic.length < 256)
+    traffic.push({
+      kind,
+      method: init?.method ?? "GET",
+      status: response.status,
+      revision:
+        kind === "verification" ? (url.searchParams.get("revNo")?.slice(0, 32) ?? null) : null,
+    });
+  else auditComplete = false;
   if (input === "/api/v1/portal/portal-tickets" && init?.method === "POST" && response.ok) {
     try {
       const value: unknown = await response.clone().json();
@@ -109,6 +162,8 @@ const auditedFetch: typeof fetch = async (input, init) => {
   return response;
 };
 const runtime = createPortalRuntime({ fetch: auditedFetch });
+// Fake public DSN enables the production same-origin sender. No external Sentry request is made.
+let reporting: ReturnType<typeof createPortalClientReporting> | undefined;
 let disposed = false;
 let boundaryMounted = false;
 const viewListeners = new Set<() => void>();
@@ -136,7 +191,7 @@ function snapshot(): LiveSessionState {
   });
 }
 
-function privacy(): LivePrivacy {
+function privacy(publicOnly = false): LivePrivacy {
   const withoutSecret = (text: string) => [...secrets].every((secret) => !text.includes(secret));
   let storageEmpty = false,
     storageSafe = false;
@@ -168,7 +223,9 @@ function privacy(): LivePrivacy {
     documentCookieHidden,
     stateSafe,
     safe:
-      secrets.size > 0 &&
+      (publicOnly
+        ? secrets.size === 0 && authTraffic === 0 && snapshot().status === "unknown"
+        : secrets.size > 0) &&
       auditComplete &&
       domSafe &&
       urlSafe &&
@@ -241,15 +298,27 @@ function BrowserSession() {
 const container = document.getElementById("root");
 if (!container) throw new Error("PORTAL_LIVE_ROOT_MISSING");
 const root = createRoot(container);
+// Choose this document's entry once. The technical '/' must not shadow the actual login '/'.
+// Anonymous technical documents can navigate to /v without mounting an auth flow first.
+const technicalDocument = location.pathname === "/__portal-live/session";
+if (technicalDocument) history.replaceState(null, "", "/");
+const routes = [
+  ...(technicalDocument
+    ? [
+        {
+          path: "/" as const,
+          owner: "W6-10" as const,
+          access: "public" as const,
+          render: () => <BrowserSession />,
+        },
+      ]
+    : createAuthRoutes(runtime)),
+  ...createPreviewRoutes(runtime),
+  ...createVerificationRoutes(runtime),
+];
 root.render(
   <StrictMode>
-    <ConfigProvider theme={{ token: { ...antdTheme.token } }} locale={zhCN}>
-      {window.location.pathname === "/__portal-live/session" ? (
-        <BrowserSession />
-      ) : (
-        <App runtime={runtime} routes={createAuthRoutes(runtime)} />
-      )}
-    </ConfigProvider>
+    <App runtime={runtime} routes={routes} />
   </StrictMode>,
 );
 
@@ -285,11 +354,38 @@ const bridge: PortalLiveBridge = Object.freeze({
       return snapshot();
     }),
   snapshot,
-  privacy,
+  privacy: () => privacy(),
+  publicPrivacy: () =>
+    Object.freeze({ ...privacy(true), publicOnly: secrets.size === 0 && authTraffic === 0 }),
+  traffic: () => ({ pending: pendingFetches, items: traffic.map((item) => ({ ...item })) }),
+  navigate(target: string) {
+    const url = new URL(target, location.origin);
+    if (
+      url.origin !== location.origin ||
+      !target.startsWith("/") ||
+      target.startsWith("//") ||
+      url.hash ||
+      !(url.pathname === "/v" || /^\/preview\/(ad|sample)\/[0-9a-f-]{36}$/i.test(url.pathname))
+    )
+      throw new Error("BROWSER_TARGET_INVALID");
+    history.pushState(null, "", target);
+    dispatchEvent(new PopStateEvent("popstate"));
+    return { navigated: true as const };
+  },
+  reportProbe() {
+    reporting ??= createPortalClientReporting({
+      client: runtime.client,
+      dsn: "https://public-live-probe@sentry.invalid/1",
+      build: "portal-live-preview",
+    });
+    reporting.capture(new Error("PUBLIC-PORTAL-ERROR-SENTINEL"));
+    return { requested: true as const };
+  },
   dispose() {
     if (!disposed) {
       disposed = true;
       root.unmount();
+      reporting?.dispose();
       runtime.dispose();
       viewListeners.clear();
       secrets.clear();

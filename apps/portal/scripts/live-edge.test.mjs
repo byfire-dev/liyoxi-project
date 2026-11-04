@@ -9,6 +9,7 @@ import {
   createLiveEdge,
   createOwnedDirectory,
   createTestTls,
+  isPreviewMediaPath,
   proxyHeaders,
   proxyResponseHeaders,
   requestPath,
@@ -27,7 +28,17 @@ test("static routing admits the owned auth entries and built assets, never sourc
   for (const path of ["/", "/a"])
     assert.equal(staticRelative(path), "test/e2e/browser-session.html");
   for (const path of [
+    "/v?code=public-code&rev=001",
+    "/preview/ad/019a02b0-1234-7000-8000-000000000001",
+    "/preview/sample/019a02b0-1234-7000-8000-000000000001",
+  ])
+    assert.equal(staticRelative(requestPath(path)), "test/e2e/browser-session.html");
+  for (const path of [
     "/items",
+    "/v/extra",
+    "/preview/ad/not-an-id",
+    "/preview/download/019a02b0-1234-7000-8000-000000000001",
+    "/preview/ad/019a02b0-1234-7000-8000-000000000001/extra",
     "/src/main.tsx",
     "/control.sock",
     "/private-key.pem",
@@ -37,6 +48,24 @@ test("static routing admits the owned auth entries and built assets, never sourc
     "/assets/../private-key.pem",
   ])
     assert.equal(staticRelative(path), null);
+});
+
+test("media proxy paths accept only this run's exact opaque grant without normalization or query", () => {
+  const runId = "012345abcdef",
+    path = `/__portal-live/${runId}/media/${"a".repeat(32)}`;
+  assert.equal(isPreviewMediaPath(path, runId), true);
+  for (const raw of [
+    undefined,
+    path.replace(runId, "ffffffffffff"),
+    `${path}?x=1`,
+    `${path}#x`,
+    `${path}/extra`,
+    path.replace(/a$/, "%61"),
+    path.replace(/a$/, "A"),
+    "/__portal-live/session",
+  ])
+    assert.equal(isPreviewMediaPath(raw, runId), false);
+  assert.throws(() => isPreviewMediaPath(path, "../run"), /^Error: PORTAL_LIVE_BOUNDARY_REJECTED$/);
 });
 
 test("request target traversal is rejected before URL normalization and cannot escape the static root", () => {
@@ -287,6 +316,39 @@ test(
     assert.equal(observed[0].headers["x-forwarded-for"], "127.0.0.1");
     assert.equal(observed[0].headers["x-forwarded-proto"], "https");
     assert.deepEqual(observed[0].bytes, sent);
+    const mediaPath = `/__portal-live/${owned.directory.slice(-12)}/media/${"a".repeat(32)}`;
+    for (const rejectedPath of [
+      mediaPath.replace(owned.directory.slice(-12), "ffffffffffff"),
+      `${mediaPath}?extra=1`,
+      `${mediaPath}/extra`,
+      mediaPath.replace(/a$/, "%61"),
+    ])
+      assert.equal((await edgeRequest(edge, tls, t.signal, { path: rejectedPath })).status, 404);
+    assert.equal(
+      (await edgeRequest(edge, tls, t.signal, { path: mediaPath, method: "POST" })).status,
+      405,
+    );
+    assert.equal(observed.length, 1);
+    const media = await edgeRequest(edge, tls, t.signal, {
+      path: mediaPath,
+      headers: {
+        range: "bytes=0-3",
+        origin: edge.origin,
+        cookie: "edge-probe=public-technical-bytes",
+      },
+    });
+    assert.equal(media.status, 207); // The transport peer's result is relayed, never fabricated as media success.
+    assert.deepEqual(media.bytes, responseBytes);
+    assert.equal(observed[1].path, mediaPath);
+    assert.equal(observed[1].headers.range, "bytes=0-3");
+    assert.equal(observed[1].headers.host, new URL(edge.origin).host);
+    assert.equal(observed[1].headers.origin, edge.origin);
+    assert.equal(observed[1].headers.cookie, "edge-probe=public-technical-bytes");
+    const mediaHead = await edgeRequest(edge, tls, t.signal, { path: mediaPath, method: "HEAD" });
+    assert.equal(mediaHead.status, 207);
+    assert.equal(mediaHead.bytes.length, 0);
+    assert.equal(observed[2].method, "HEAD");
+    assert.equal(observed.length, 3);
     const closing = edge.close();
     assert.equal(edge.close(), closing);
     await closing;

@@ -8,7 +8,29 @@ vi.mock("../data/snapshot.js", async (original) => ({
   ...(await original<typeof SnapshotModule>()),
   snapshotTables: read,
 }));
-import { createPortalLiveObservations, PORTAL_LIVE_READ_TABLES } from "./observations.js";
+import {
+  createPortalLiveObservations,
+  PORTAL_LIVE_READ_TABLES,
+  PORTAL_PREVIEW_READ_TABLES,
+} from "./observations.js";
+
+it("enables the preview business tables only between windows, retaining every original table", async () => {
+  read.mockReset().mockResolvedValue({});
+  const observations = createPortalLiveObservations({} as PrismaClient);
+  const original = await observations.beginReadWindow();
+  expect(() => observations.enablePreviewReadTables()).toThrow("READ_WINDOW_ACTIVE");
+  await observations.endReadWindow(original);
+  observations.enablePreviewReadTables();
+  const next = await observations.beginReadWindow();
+  await observations.endReadWindow(next);
+  expect(PORTAL_PREVIEW_READ_TABLES).toEqual(expect.arrayContaining([...PORTAL_LIVE_READ_TABLES]));
+  expect(read.mock.calls.map((call) => call[1])).toEqual([
+    PORTAL_LIVE_READ_TABLES,
+    PORTAL_LIVE_READ_TABLES,
+    PORTAL_PREVIEW_READ_TABLES,
+    PORTAL_PREVIEW_READ_TABLES,
+  ]);
+});
 
 it("compares all seven full tables without emitting secret row values or ignoring columns", async () => {
   const before = Object.fromEntries(

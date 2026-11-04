@@ -41,6 +41,23 @@ export const PortalControlCommandSchema = z.discriminatedUnion("op", [
   }),
   z.strictObject({ ...base, op: z.literal("session.list"), input: z.strictObject({ actor }) }),
   z.strictObject({ ...base, op: z.literal("facts.tickets"), input: empty }),
+  z.strictObject({ ...base, op: z.literal("preview.prepare"), input: empty }),
+  z.strictObject({ ...base, op: z.literal("preview.facts"), input: empty }),
+  z.strictObject({
+    ...base,
+    op: z.literal("preview.action"),
+    input: z.strictObject({
+      action: z.enum([
+        "push-ad-version",
+        "queue-license-correction",
+        "complete-license-correction",
+        "void-license",
+        "expire-media-grants",
+        "ad-channel-unavailable",
+        "ad-channel-available",
+      ]),
+    }),
+  }),
   z.strictObject({ ...base, op: z.literal("facts.beginRead"), input: empty }),
   z.strictObject({
     ...base,
@@ -61,13 +78,37 @@ const failure = (id: string | null, code: Failure): PortalControlReply => ({
   failure: { code },
 });
 
+// Project the producer's public facts explicitly; IDs, URLs and credentials outside this
+// allowlist can never enter the control reply, even if the fixture gains new fields.
+const previewFacts = z.object({
+  playbackAuditCount: z.number().int().nonnegative(),
+  ad: z.object({ adId: IdSchema, versionNo: z.number().int().positive() }),
+  license: z.object({
+    verifyCode: z.string().min(1).max(64),
+    revNo: z.number().int().positive(),
+    pendingRevNo: z.number().int().positive().nullable(),
+    displayStatus: z.enum(["pending_effective", "effective", "voided", "expired"]),
+    expiredVerifyCode: z.string().min(1).max(64),
+    unissuedVerifyCode: z.string().min(1).max(64),
+  }),
+});
+
 /** Serial commands retain only public ticket IDs and stable intent keys. */
 export function createPortalLiveControl(
   fixture: Pick<
     PortalLiveFixture,
-    "ticketFacts" | "beginReadWindow" | "endReadWindow" | "discardReadWindow"
+    | "ticketFacts"
+    | "beginReadWindow"
+    | "endReadWindow"
+    | "discardReadWindow"
+    | "preparePreview"
+    | "previewAction"
+    | "previewFacts"
   >,
-  merchant: Pick<PortalLiveMerchant, "lookup" | "decide" | "revoke" | "list" | "actorForUser">,
+  merchant: Pick<
+    PortalLiveMerchant,
+    "lookup" | "decide" | "revoke" | "list" | "actorForUser" | "previewScopes"
+  >,
 ) {
   let caseId: string | undefined,
     readWindow: string | undefined,
@@ -95,7 +136,13 @@ export function createPortalLiveControl(
       return { v: 1, id, ok: true, result: { ready: true } };
     }
     if (caseId !== command.caseId) return failure(id, "WRONG_CASE");
-    if (readWindow && (op === "ticket.decide" || op === "session.revoke"))
+    if (
+      readWindow &&
+      (op === "ticket.decide" ||
+        op === "session.revoke" ||
+        op === "preview.prepare" ||
+        op === "preview.action")
+    )
       return failure(id, "BAD_COMMAND");
     try {
       let result: unknown;
@@ -191,6 +238,12 @@ export function createPortalLiveControl(
             },
           };
         }
+      } else if (op === "preview.prepare") {
+        result = previewFacts.parse(await fixture.preparePreview(merchant.previewScopes()));
+      } else if (op === "preview.action") {
+        result = previewFacts.parse(await fixture.previewAction(command.input.action));
+      } else if (op === "preview.facts") {
+        result = previewFacts.parse(await fixture.previewFacts());
       } else if (op === "facts.tickets") {
         result = {
           items: (await fixture.ticketFacts([...tickets])).map((ticket) => ({

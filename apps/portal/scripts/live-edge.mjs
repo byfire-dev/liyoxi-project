@@ -166,6 +166,13 @@ export function staticRelative(path) {
   // Exercise the actual auth leaves with the same audited runtime, only inside this owned edge.
   if (path === "/" || path === "/a") return "test/e2e/browser-session.html";
   if (
+    path === "/v" ||
+    /^\/preview\/(ad|sample)\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      path,
+    )
+  )
+    return "test/e2e/browser-session.html";
+  if (
     /^\/assets\/[A-Za-z0-9_./-]+$/.test(path) &&
     !path.split("/").some((part) => part === "." || part === "..")
   ) {
@@ -173,6 +180,17 @@ export function staticRelative(path) {
     if (Object.hasOwn(MIME, extname(relative))) return relative;
   }
   return null;
+}
+
+/** Only the current owner's opaque media grant may use the private API transport. */
+export function isPreviewMediaPath(raw, runId) {
+  assertRunId(runId);
+  const prefix = `/__portal-live/${runId}/media/`;
+  return (
+    typeof raw === "string" &&
+    raw.startsWith(prefix) &&
+    /^[a-f0-9]{32}$/.test(raw.slice(prefix.length))
+  );
 }
 
 export function proxyHeaders(headers, peer) {
@@ -230,6 +248,7 @@ export async function createLiveEdge({ directory, tls }) {
   const owned = await realpath(directory);
   if (owned !== directory || !/^\/(?:private\/)?tmp\/lyx-portal-[a-f0-9]{12}$/.test(owned))
     throw boundaryFailure();
+  const runId = owned.slice(-12);
   let origin,
     upstreamPort,
     staticRoot,
@@ -249,7 +268,12 @@ export async function createLiveEdge({ directory, tls }) {
           return;
         }
         const path = requestPath(request.url);
-        if (path.startsWith("/api/v1/")) {
+        const previewMedia = isPreviewMediaPath(request.url, runId);
+        if (previewMedia && request.method !== "GET" && request.method !== "HEAD") {
+          reply(response, 405);
+          return;
+        }
+        if (path.startsWith("/api/v1/") || previewMedia) {
           const upstream = httpRequest(
             {
               hostname: "127.0.0.1",

@@ -9,6 +9,11 @@ export type {
   PortalLiveOptions,
   PortalLiveStage,
   PortalLiveTicketFact,
+  PortalLiveMediaResult,
+  PortalLivePreviewAction,
+  PortalLivePreviewFacts,
+  PortalLivePreviewScope,
+  PortalLivePreviewScopes,
 } from "./portal-live/index.js";
 
 export * from "./providers/index.js";
