@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { buildRoutes, isBuilt, WEAPP_PAGES, WEAPP_PRELOAD, type WeappPage } from "./pages";
 
-// 页面清单的用例：清单本身的形状，以及由它拼出全局配置的规则。数量对的是 D7 第 4.1 节与计划 第 8.3 节。
+// 页面清单的用例：清单本身的形状，以及由它拼出全局配置的规则。
+// 本迁移候选构建 47 页（含 portal-approve）；这不是 actual main 的交付计数或 V8 验收结论。
 
 describe("页面清单", () => {
   it("49 个路由：主包 6 页、9 个分包；路由不重复，各自落在自己的包下", () => {
@@ -29,8 +30,9 @@ describe("页面清单", () => {
     ).toEqual(["sub/catalog/trailer/index"]);
   });
 
-  it("已交付四十六页包含 M1 全部二十五页和授权提前实现的预告片", () => {
+  it("候选四十七个构建页包含 M1 全部二十五页、提前实现的预告片和电脑授权页", () => {
     const built = WEAPP_PAGES.filter(isBuilt);
+    expect(built).toHaveLength(47);
     expect(built.filter((page) => page.placeholder)).toHaveLength(0);
     expect(WEAPP_PAGES.filter((page) => page.milestone === "M1" && !page.implemented)).toHaveLength(
       0,
@@ -56,6 +58,7 @@ describe("页面清单", () => {
       "sub/publish/tasks/index",
       "sub/publish/downloads/index",
       "sub/publish/accounts/index",
+      "sub/publish/portal-approve/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/billing/topup/index",
@@ -104,6 +107,7 @@ describe("页面清单", () => {
       "sub/publish/tasks/index",
       "sub/publish/downloads/index",
       "sub/publish/accounts/index",
+      "sub/publish/portal-approve/index",
       "sub/billing/wallet/index",
       "sub/billing/plan-pick/index",
       "sub/billing/topup/index",
@@ -145,7 +149,7 @@ describe("页面清单", () => {
 });
 
 describe("由清单拼出全局配置", () => {
-  it("现在：主包六页、八个已交付分包，预下载只指向已交付分包", () => {
+  it("候选构建：主包六页、九个分包，预下载只指向实际构建分包", () => {
     expect(buildRoutes()).toEqual({
       pages: [
         "pages/home/index",
@@ -170,7 +174,10 @@ describe("由清单拼出全局配置", () => {
             "my-dramas/index",
           ],
         },
-        { root: "sub/publish", pages: ["tasks/index", "downloads/index", "accounts/index"] },
+        {
+          root: "sub/publish",
+          pages: ["tasks/index", "downloads/index", "accounts/index", "portal-approve/index"],
+        },
         {
           root: "sub/billing",
           pages: [
@@ -240,7 +247,7 @@ describe("由清单拼出全局配置", () => {
           "my-dramas/index",
         ],
       },
-      { root: "sub/publish", pages: ["tasks/index", "downloads/index"] },
+      { root: "sub/publish", pages: ["tasks/index", "downloads/index", "portal-approve/index"] },
       {
         root: "sub/billing",
         pages: [
