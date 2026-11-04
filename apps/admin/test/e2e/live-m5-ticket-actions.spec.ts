@@ -951,9 +951,13 @@ test("W513工单余下操作真实写读：强迁/求值、现签取料、发送
     const actualProductionRecord = productionFacts.locator(".lyx-m5-record").first();
     await actualProductionRecord.scrollIntoViewIfNeeded();
     await m5Shot(page, "w513-06b-production-facts", actualProductionRecord);
+    const reissuePrecheck = await checklist(page, "delivery.precheck");
+    expect(reissuePrecheck.results.length).toBeGreaterThan(0);
     await confirm(page, "发布补发", async (modal) => {
-      for (const check of await modal.locator("fieldset").getByRole("checkbox").all())
-        await check.check();
+      const precheckBoxes = modal.locator("fieldset").getByRole("checkbox");
+      await expect(precheckBoxes.first()).toBeVisible();
+      await expect(precheckBoxes).toHaveCount(reissuePrecheck.results.length);
+      for (const check of await precheckBoxes.all()) await check.check();
     });
     current = await ticket(page, f.scope.ticketId);
     expect(current.openReissue).toBeNull();
