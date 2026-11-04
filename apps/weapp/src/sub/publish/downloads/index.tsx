@@ -62,6 +62,16 @@ function DownloadsContent({ id }: { id: string }) {
               </Note>
             )}
             <Note>一次保存一集，不排队；保存后请到相册查看。</Note>
+            <Button
+              block
+              variant="outline"
+              disabled={!p.isDownloadable || r.busy}
+              onClick={() => {
+                void Taro.navigateTo({ url: "/sub/publish/portal-approve/index" });
+              }}
+            >
+              电脑下载
+            </Button>
             {p.episodes.map((item) => (
               <Card
                 key={item.episodeNo}

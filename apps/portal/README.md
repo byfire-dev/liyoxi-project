@@ -44,3 +44,24 @@ pnpm --filter @liyoxi/portal e2e:live
 小程序审批页以迁移候选纳入构建；该草稿分支的源码登记不代表actual main已交付。
 设置页电脑会话管理、X-01/V8和原整包条件尚未完成；本分支不得作为已经交付的安全壳或扫码整包。
 迁移背景和依赖快照见 `docs/plan/changes/W6-10-local-page-migration.md`。
+
+## W6-11 下载页面迁移候选
+
+本后继分支组合 `createAuthRoutes(runtime)` 与 `createDownloadRoutes(runtime)`，提供
+`/items` 和 `/items/$id`。列表使用正式 `limit`/cursor，下载复用正式W6-06/W6-07接口，
+支持单集、ZIP状态与显式失败重试、发布清单复制和文本文件退路。
+广告预览只链接到W6-12约定地址，该叶页尚未在本迁移中实现。
+
+本分支没有旧演示的自建后端、生产假数据或本机媒体桥。以下浏览器检查仅验证真实UI
+与正式契约的兼容性：假响应只由Playwright在测试进程拦截，所有fixture经正式schema校验，
+未知API请求直接失败。实际下载字节由测试进程的临时回环媒体服务提供；不启动数据库，
+不加载根配置，不使用用户浏览器。
+
+```sh
+pnpm --filter @liyoxi/portal build
+pnpm --filter @liyoxi/portal exec playwright test --config playwright.migration.config.ts
+```
+
+检查独占回环端口5194，不复用已有服务器；产物位于 `dist/e2e-migration/`。
+该检查不替代安全壳真实HTTPS/Cookie/API链、W6-12集成、V7/V8或真实ZIP文件验收。
+正式页面登记与工作包状态仍按实际交付更新；本分支为隔离迁移候选。
