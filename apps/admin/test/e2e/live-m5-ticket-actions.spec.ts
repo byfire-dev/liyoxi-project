@@ -74,6 +74,8 @@ async function confirm(page: Page, name: string, fill?: (modal: Locator) => Prom
   await page.getByRole("button", { name, exact: true }).click();
   const modal = page.getByRole("dialog", { name, exact: true });
   await expect(modal).toBeVisible();
+  // 入场缩放的起始帧可能短暂静止；先等 motion 类移除，再操作弹窗内控件。
+  await expect(modal).not.toHaveClass(/ant-zoom-(appear|enter)/);
   if (fill) await fill(modal);
   await modal.getByRole("checkbox", { name: "我已核对当前对象、内容与影响", exact: true }).check();
   await modal.getByRole("button", { name: "确认操作", exact: true }).click();
@@ -951,9 +953,13 @@ test("W513工单余下操作真实写读：强迁/求值、现签取料、发送
     const actualProductionRecord = productionFacts.locator(".lyx-m5-record").first();
     await actualProductionRecord.scrollIntoViewIfNeeded();
     await m5Shot(page, "w513-06b-production-facts", actualProductionRecord);
+    const reissuePrecheck = await checklist(page, "delivery.precheck");
+    expect(reissuePrecheck.results.length).toBeGreaterThan(0);
     await confirm(page, "发布补发", async (modal) => {
-      for (const check of await modal.locator("fieldset").getByRole("checkbox").all())
-        await check.check();
+      const precheckBoxes = modal.locator("fieldset").getByRole("checkbox");
+      await expect(precheckBoxes.first()).toBeVisible();
+      await expect(precheckBoxes).toHaveCount(reissuePrecheck.results.length);
+      for (const check of await precheckBoxes.all()) await check.check();
     });
     current = await ticket(page, f.scope.ticketId);
     expect(current.openReissue).toBeNull();
