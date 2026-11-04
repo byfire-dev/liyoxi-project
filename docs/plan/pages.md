@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 80 | 67 | 55 | 12 | 13 | 2 |
 | 电脑端下载页 | 8 | 7 | 0 | 7 | 1 | 0 |
-| 商家端小程序 | 49 | 48 | 45 | 3 | 1 | 0 |
+| 商家端小程序 | 49 | 48 | 46 | 2 | 1 | 0 |
 
 应实现未实现页面数，按里程碑：
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 运营管理后台 | 0 | 0 | 0 | 0 | 0 | 0 | 12 |
 | 电脑端下载页 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| 商家端小程序 | 0 | 0 | 0 | 0 | 0 | 1 | 2 |
+| 商家端小程序 | 0 | 0 | 0 | 0 | 0 | 0 | 2 |
 
 “入口隐藏”的页面照做、外壳不给入口（规范 第 14 节第 12 项），计入应实现，不算留桩。
 
@@ -177,7 +177,7 @@
 | `sub/publish` | 发布任务 | `sub/publish/tasks/index` | Publish | M28 | W1-20 | M1 | 是 |  |
 | `sub/publish` | 逐集下载 | `sub/publish/downloads/index` | — | — | W1-20 | M1 | 是 | M1 单集存相册替身；队列、扫码与回报 M6 回补 |
 | `sub/publish` | 发布账号 | `sub/publish/accounts/index` | Accounts | M26 | W1-18 | M1 | 是 | 含 M27 弹层 |
-| `sub/publish` | 扫码确认 | `sub/publish/portal-approve/index` | — | — | G6-B | M6 | 否 | 新增页：下载页扫码后的确认页 |
+| `sub/publish` | 扫码确认 | `sub/publish/portal-approve/index` | — | — | W6-10 | M6 | 是 | 隔离迁移候选：扫码或手输代码并核对门店；真实V8与整包验收仍待完成 |
 | `sub/billing` | 钱包 | `sub/billing/wallet/index` | Wallet、WalletExpired | M43 | W1-12 | M1 | 是 | 一页两态 |
 | `sub/billing` | 套餐选择 | `sub/billing/plan-pick/index` | PlanPick | M44 | W1-12 | M1 | 是 | 含 M10 对公转账弹层与付款结果 |
 | `sub/billing` | 积分充值 | `sub/billing/topup/index` | TopUp | M45 | W4-14 | M4 | 是 |  |
