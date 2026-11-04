@@ -1,3 +1,22 @@
+import type { Me } from "@/lib/account-api";
+
+/** 同令牌下成员/主体/可用门店变化也清除确认；仅用于本页内存所有权比较。 */
+export function approvalIdentity(
+  scope: { token: string | null; store: string | null; rev: number; role?: string },
+  me: Me | null,
+): string {
+  const member = me?.memberships.find((item) =>
+    item.stores.some((store) => store.storeId === scope.store),
+  );
+  return JSON.stringify([
+    scope,
+    me?.user.merchantUserId,
+    member?.memberId,
+    member?.entity.entityId,
+    member?.stores.map((store) => [store.storeId, store.lifecycle]).sort(),
+  ]);
+}
+
 /** QR payloads only supply a ticket code; they never select an API host or authorize a device. */
 export function portalCode(input: string): string | null {
   const value = input.trim();

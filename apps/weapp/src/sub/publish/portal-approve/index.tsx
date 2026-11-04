@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "@tarojs/components";
-import Taro, { useRouter } from "@tarojs/taro";
+import Taro, { useDidHide, useDidShow, useRouter } from "@tarojs/taro";
 import { appDateTimeFormat } from "@liyoxi/shared/format/datetime";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
@@ -9,20 +9,18 @@ import { Input } from "@/components/Input";
 import { Note } from "@/components/Note";
 import { PageBody } from "@/components/PageBody";
 import { gotoAccountLogin } from "@/lib/account-routing";
-import { request, withPrivacy } from "@/lib/runtime";
+import { withPrivacy } from "@/lib/runtime";
 import { deliveryScope } from "@/stores/delivery";
 import { useDeliveryResource } from "../../order/components/resource";
 import { DeliveryState, useDeliveryIdentity } from "../../order/components/ui";
-import { createPortalApprovalApi, type PortalDecision, type PortalPreview } from "./api";
-import { assertPortalDecision, portalCode, ticketExpired } from "./model";
+import { createPortalApprovalFlow, type ApprovalState } from "./flow";
+import { portalCode, ticketExpired } from "./model";
+import { portalApprovalApi, portalApprovalIdentity } from "./runtime";
 import "./index.scss";
 
-const api = createPortalApprovalApi(request);
-type State = { preview: PortalPreview | null; decision: PortalDecision | null };
-const empty = (): State => ({ preview: null, decision: null });
-
 export default function PortalApprovePage() {
-  const identity = useDeliveryIdentity();
+  useDeliveryIdentity();
+  const identity = portalApprovalIdentity();
   const params = useRouter().params;
   const initial = params.code ?? params.t ?? params.publicId ?? "";
   return <PortalApproveContent key={`${identity}:${initial}`} initial={initial} />;
@@ -32,17 +30,39 @@ function PortalApproveContent({ initial }: { initial: string }) {
   const [code, setCode] = useState(initial);
   const [pair, setPair] = useState("");
   const [now, setNow] = useState(() => Date.now());
-  const lookup = async (input: string) => {
-    const normalized = portalCode(input);
-    if (!normalized) throw new Error("请输入电脑显示的8位登录代码，或扫描电脑上的登录二维码");
-    const preview = await api.lookup(normalized);
-    if (preview.storeId !== deliveryScope().store)
-      throw new Error("当前门店已变化，请重新打开电脑下载授权");
-    return preview;
-  };
-  const resource = useDeliveryResource<State>(async () =>
-    initial ? { preview: await lookup(initial), decision: null } : empty(),
+  const [flow] = useState(() =>
+    createPortalApprovalFlow(
+      {
+        api: portalApprovalApi,
+        scope: deliveryScope,
+        identity: portalApprovalIdentity,
+        now: Date.now,
+        withPrivacy,
+        scan: () => Taro.scanCode({ scanType: ["qrCode"] }),
+      },
+      initial,
+    ),
   );
+  const resource = useDeliveryResource<ApprovalState>(async (current) => {
+    const next = await flow.load(current);
+    if (current()) setPair("");
+    return next ?? flow.snapshot();
+  });
+  const hidden = useRef(false);
+  useDidHide(() => {
+    // 原生扫码可能临时遮住页面，保留其显式调用；作用域改变/卸载仍由 current 拒绝。
+    if (flow.nativePending()) return;
+    hidden.current = true;
+    resource.replace(flow.reset(), () => true);
+    setPair("");
+    setCode("");
+  });
+  useDidShow(() => {
+    if (hidden.current) {
+      hidden.current = false;
+      resource.refresh();
+    }
+  });
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -51,45 +71,32 @@ function PortalApproveContent({ initial }: { initial: string }) {
   const decision = resource.data?.decision;
   const expired = preview ? ticketExpired(preview.expiresAt, now) : false;
   const disabled = resource.loading || resource.busy;
+  const owner = deliveryScope().role === "owner" && Boolean(deliveryScope().token);
+  const apply = (next: ApprovalState | null, current: () => boolean) => {
+    if (!next || !current()) return;
+    setPair("");
+    if (next.preview) setCode(next.code);
+    else if (next.decision) setCode("");
+    resource.replace(next, current);
+  };
   const find = () =>
     resource.run(null, async (current) => {
-      const result = await lookup(code);
-      if (current()) setPair("");
-      resource.replace({ preview: result, decision: null }, current);
+      apply(await flow.find(code, current), current);
     });
   const reset = () =>
     resource.run(null, async (current) => {
       if (!current()) return;
       setCode("");
       setPair("");
-      resource.replace(empty(), current);
+      resource.replace(flow.reset(), current);
     });
   const scan = () =>
     resource.run(null, async (current) => {
-      const result = await withPrivacy(() => Taro.scanCode({ scanType: ["qrCode"] }));
-      if (!current()) return;
-      if (!result.ok) throw new Error("请同意隐私指引后再扫码，也可手输登录代码");
-      const resultCode = portalCode(result.value.result);
-      if (!resultCode) throw new Error("这不是电脑下载登录码，请扫描电脑下载页的二维码");
-      const next = await lookup(resultCode);
-      if (current()) {
-        setCode(resultCode);
-        setPair("");
-      }
-      resource.replace({ preview: next, decision: null }, current);
+      apply(await flow.scan(current), current);
     });
   const decide = (approve: boolean) =>
     resource.run(null, async (current) => {
-      if (!preview) throw new Error("请先核对这台电脑");
-      assertPortalDecision(preview, deliveryScope(), Date.now(), approve ? pair : undefined);
-      const key = resource.intent(approve ? "portal-approve" : "portal-reject", {
-        id: preview.portalTicketId,
-        ...(approve ? { pair } : {}),
-      });
-      const result = approve
-        ? await api.approve(preview.portalTicketId, pair, key)
-        : await api.reject(preview.portalTicketId, key);
-      resource.replace({ preview: null, decision: result }, current);
+      apply(await flow.decide(approve, pair, current, resource.intent), current);
     });
 
   return (
@@ -101,9 +108,10 @@ function PortalApproveContent({ initial }: { initial: string }) {
             登录后授权电脑
           </Button>
         ) : null}
-        {resource.data && !preview && !decision ? (
+        {!resource.loading && owner && !preview && !decision ? (
           <Card title="在电脑上下载成片">
             <View className="delivery-stack">
+              {resource.data?.notice ? <Note tone="warning">{resource.data.notice}</Note> : null}
               <View>在电脑打开下载页，将电脑显示的8位登录代码填在下方。</View>
               <Field label="电脑登录代码" hint="由数字和字母组成，不是短信验证码">
                 <Input
@@ -181,17 +189,17 @@ function PortalApproveContent({ initial }: { initial: string }) {
                 </>
               )}
               <Button block variant="outline" disabled={disabled} onClick={reset}>
-                重新输入登录代码
+                {expired ? "输入新的登录代码" : "取消本次核对"}
               </Button>
             </View>
           </Card>
         ) : null}
         {decision ? (
-          <Card title={decision.status === "approved" ? "电脑已获授权" : "未授权这台电脑"}>
+          <Card title={decision.status === "approved" ? "本次授权已确认" : "未授权这台电脑"}>
             <View className="delivery-stack">
               <Note tone={decision.status === "approved" ? "success" : "warning"}>
                 {decision.status === "approved"
-                  ? "请回到电脑下载页继续下载。"
+                  ? "请回到电脑继续。"
                   : decision.rejectReason === "pair_mismatch"
                     ? "配对数字不一致，此登录码已作废。请在电脑重新获取登录码。"
                     : "你已拒绝本次电脑登录。"}

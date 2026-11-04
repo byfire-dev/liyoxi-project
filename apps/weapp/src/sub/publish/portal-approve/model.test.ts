@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
-import { assertPortalDecision, portalCode, ticketExpired } from "./model";
+import { assertPortalDecision, approvalIdentity, portalCode, ticketExpired } from "./model";
+import { returnTarget } from "@/lib/account-navigation";
+import { makeMe } from "../../../../shots/account-fixtures";
 
 it("accepts normalized short codes and preserves case-sensitive public ticket IDs", () => {
   expect(portalCode(" ab12-cd34 ")).toBe("AB12CD34");
@@ -49,4 +51,32 @@ it("决策前拒绝店员、换店、过期与不在候选内的配对数字", (
   expect(() =>
     assertPortalDecision(preview, { store: "store-a", role: "owner" }, now),
   ).not.toThrow();
+});
+
+it("同令牌下换用户、成员、主体或门店范围使审批身份不同，店列表重排不改变身份", () => {
+  const me = makeMe(),
+    member = me.memberships[0]!;
+  const scope = { token: "same-token", store: member.stores[0]!.storeId, rev: 1, role: "owner" };
+  const original = approvalIdentity(scope, me);
+  for (const changed of [
+    { ...me, user: { ...me.user, merchantUserId: "other-user" } },
+    { ...me, memberships: [{ ...member, memberId: "other-member" }] },
+    { ...me, memberships: [{ ...member, entity: { ...member.entity, entityId: "other-entity" } }] },
+    { ...me, memberships: [{ ...member, stores: member.stores.slice(0, 1) }] },
+  ])
+    expect(approvalIdentity(scope, changed)).not.toBe(original);
+  expect(
+    approvalIdentity(scope, {
+      ...me,
+      memberships: [{ ...member, stores: [...member.stores].reverse() }],
+    }),
+  ).toBe(original);
+});
+
+it("登录恢复沿已登记审批路由，仅需公开 ticket code，不带会话凭据", () => {
+  const code = "AbCdEfGhIjKlMnOpQrSt12";
+  expect(returnTarget({ route: "sub/publish/portal-approve/index", query: { code } })).toEqual({
+    url: `/sub/publish/portal-approve/index?code=${code}`,
+    tab: false,
+  });
 });

@@ -22,12 +22,21 @@ export const CASE_IDS = Object.freeze([
   "portal-authorize-revoke",
   "portal-logout",
   "portal-rejected-csrf",
+  "portal-login-page-revoke",
+  "portal-login-page-reject-refresh",
 ]);
 export const SHOT_IDS = Object.freeze([
   "session-ready",
   "session-revoked",
   "session-logout",
   "ticket-rejected",
+  "login-pending",
+  "login-authorized",
+  "login-revoked",
+  "login-logout",
+  "login-rejected",
+  "login-refreshed",
+  "login-landing",
 ]);
 const PORTAL = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SAFE_OUTPUT_ROOT = join(PORTAL, "dist/e2e-live-safe");
@@ -65,7 +74,7 @@ export function safeCases(raw) {
     !["passed", "failed", "timedout", "interrupted"].includes(raw.status) ||
     raw.rejectedOutput !== false ||
     !Array.isArray(raw.cases) ||
-    raw.cases.length > 3
+    raw.cases.length > CASE_IDS.length
   )
     throw fail();
   const seen = new Set();
@@ -83,7 +92,7 @@ export function safeCases(raw) {
   });
   if (
     raw.status === "passed" &&
-    (cases.length !== 3 || cases.some((item) => item.status !== "passed"))
+    (cases.length !== CASE_IDS.length || cases.some((item) => item.status !== "passed"))
   )
     throw fail();
   return { status: raw.status, rejectedOutput: false, cases };

@@ -37,17 +37,19 @@ describe("迁移登录叶使用安全壳", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("已授权会话直接进入成片页，不另建票据", async () => {
+  it("已授权会话交回真实会话边界，不另建票据", async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValueOnce(ok(SESSION));
     const test = setup(send);
     await test.model.start();
     expect(test.authenticated).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledTimes(1);
     expect(String(send.mock.calls[0]?.[0])).toContain("sessions/current");
+    expect(test.model.getSnapshot()).toMatchObject({ status: "authenticated", ticket: null });
+    expect(test.runtime.session.getSnapshot().session).toEqual(SESSION);
     test.close();
   });
 
-  it("2秒串行轮询，交换后读回真实会话才导航，公开状态无secret", async () => {
+  it("2秒串行轮询，交换后读回真实会话才呈现授权，公开状态无secret", async () => {
     const session = deferred<Response>();
     const send = vi
       .fn<typeof fetch>()
@@ -174,5 +176,83 @@ describe("迁移登录叶使用安全壳", () => {
     expect(test.model.getSnapshot().status).toBe("error");
     expect(test.authenticated).not.toHaveBeenCalled();
     test.close();
+  });
+
+  it("一次交换结果未知后不自动重放或继续轮询，也不报告授权成功", async () => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok(null))
+      .mockResolvedValueOnce(ok(TICKET))
+      .mockResolvedValueOnce(status("approved"))
+      .mockRejectedValueOnce(new TypeError("exchange response unavailable"));
+    const test = setup(send);
+    try {
+      await test.model.start();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(test.model.getSnapshot()).toMatchObject({
+        status: "error",
+        error: { error: "NETWORK_ERROR" },
+      });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(send).toHaveBeenCalledTimes(4);
+      expect(send.mock.calls.filter(([path]) => String(path).endsWith("/exchange"))).toHaveLength(
+        1,
+      );
+      expect(test.authenticated).not.toHaveBeenCalled();
+      expect(test.runtime.session.getSnapshot().session).toBeNull();
+    } finally {
+      test.close();
+    }
+  });
+
+  it("交换HTTP成功但票据被拒绝时不读会话、不显示授权成功", async () => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok(null))
+      .mockResolvedValueOnce(ok(TICKET))
+      .mockResolvedValueOnce(status("approved"))
+      .mockResolvedValueOnce(
+        ok({ status: "rejected", session: null, rejectReason: "window_passed" }),
+      );
+    const test = setup(send);
+    try {
+      await test.model.start();
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(test.model.getSnapshot().status).toBe("rejected");
+      expect(send).toHaveBeenCalledTimes(4);
+      expect(test.authenticated).not.toHaveBeenCalled();
+      expect(test.runtime.session.getSnapshot().session).toBeNull();
+    } finally {
+      test.close();
+    }
+  });
+
+  it("离开登录页中断在途交换，迟到成功不读回会话或更新已卸载页面", async () => {
+    const exchange = deferred<Response>();
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(ok(null))
+      .mockResolvedValueOnce(ok(TICKET))
+      .mockResolvedValueOnce(status("approved"))
+      .mockReturnValueOnce(exchange.promise);
+    const test = setup(send);
+    try {
+      await test.model.start();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(test.model.getSnapshot().status).toBe("exchanging");
+      const signal = send.mock.calls[3]?.[1]?.signal;
+      const listener = vi.fn();
+      test.model.subscribe(listener);
+      test.model.dispose();
+      expect(signal?.aborted).toBe(true);
+      exchange.resolve(ok({ status: "consumed", session: SESSION, rejectReason: null }));
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(send).toHaveBeenCalledTimes(4);
+      expect(listener).not.toHaveBeenCalled();
+      expect(test.authenticated).not.toHaveBeenCalled();
+      expect(test.runtime.session.getSnapshot().session).toBeNull();
+    } finally {
+      test.close();
+    }
   });
 });

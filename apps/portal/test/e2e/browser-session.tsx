@@ -7,6 +7,8 @@ import { StrictMode, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { PortalTicketStatus } from "../../src/features/auth/api";
+import { App } from "../../src/App";
+import { createAuthRoutes } from "../../src/features/auth/routes";
 import { SessionBoundary } from "../../src/features/session/SessionBoundary";
 import type { PortalSessionSnapshot } from "../../src/features/session/model";
 import { PortalApiError } from "../../src/lib/api-errors";
@@ -242,7 +244,11 @@ const root = createRoot(container);
 root.render(
   <StrictMode>
     <ConfigProvider theme={{ token: { ...antdTheme.token } }} locale={zhCN}>
-      <BrowserSession />
+      {window.location.pathname === "/__portal-live/session" ? (
+        <BrowserSession />
+      ) : (
+        <App runtime={runtime} routes={createAuthRoutes(runtime)} />
+      )}
     </ConfigProvider>
   </StrictMode>,
 );

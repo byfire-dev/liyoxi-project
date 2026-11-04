@@ -8,14 +8,14 @@ export function LandingPage() {
       <Card style={{ maxWidth: 680, margin: "0 auto" }}>
         <Typography.Title level={2}>请在狸有戏小程序中授权</Typography.Title>
         <Typography.Paragraph>
-          微信首页「扫一扫」不能直接完成电脑登录。请打开狸有戏小程序，进入成片下载页，
-          选择「电脑下载」，再点「扫描电脑登录码」。
+          请门店老板打开狸有戏小程序，进入「设置」→「已授权的电脑」，选择「授权电脑」或「输入授权码」。
+          本页仅提供操作说明，电脑授权需在小程序内核对并确认。
         </Typography.Paragraph>
         <Typography.Paragraph>
-          也可以回到电脑下载页查看 8 位登录码，手动填入小程序的「电脑登录代码」。
+          请保留电脑端登录页面，在小程序授权页扫描电脑上的登录码，或输入电脑显示的 8 位登录码。
         </Typography.Paragraph>
         <Typography.Text type="secondary">
-          请保留电脑端登录页面，并核对两位确认数字。
+          授权前请核对当前门店与电脑显示的两位确认数字；信息不符时请拒绝授权。
         </Typography.Text>
       </Card>
     </main>

@@ -41,7 +41,13 @@ export function liveContext() {
   return value;
 }
 
-export const Cases = ["portal-authorize-revoke", "portal-logout", "portal-rejected-csrf"] as const;
+export const Cases = [
+  "portal-authorize-revoke",
+  "portal-logout",
+  "portal-rejected-csrf",
+  "portal-login-page-revoke",
+  "portal-login-page-reject-refresh",
+] as const;
 export type CaseId = (typeof Cases)[number];
 type Actor = "owner" | "clerk" | "otherOwner";
 type Input =
@@ -50,9 +56,12 @@ type Input =
       input: Record<string, never>;
     }
   | { op: "ticket.lookup"; input: { actor: Actor; code: string } }
+  | { op: "session.list"; input: { actor: Actor } }
   | {
       op: "ticket.decide";
-      input: { actor: Actor; portalTicketId: string; decision: "approve"; pairDigits: string };
+      input:
+        | { actor: Actor; portalTicketId: string; decision: "approve"; pairDigits: string }
+        | { actor: Actor; portalTicketId: string; decision: "reject" };
     }
   | { op: "session.revoke"; input: { actor: Actor; portalSessionId: string } }
   | { op: "facts.endRead"; input: { windowId: string } };
@@ -83,6 +92,17 @@ export const HttpResult = z.strictObject({
       rejectReason: z.enum(["by_owner", "pair_mismatch"]).nullable(),
     }),
     z.strictObject({ portalSessionId: z.uuid(), revokedAt: z.iso.datetime().nullable() }),
+    z.strictObject({
+      items: z
+        .array(
+          z.strictObject({
+            portalSessionId: z.uuid(),
+            storeId: z.uuid(),
+            revokedAt: z.iso.datetime().nullable(),
+          }),
+        )
+        .max(8),
+    }),
     z.null(),
   ]),
 });

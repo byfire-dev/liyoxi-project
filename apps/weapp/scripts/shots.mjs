@@ -46,6 +46,7 @@ import { runPlanPickRegression } from "../shots/plan-pick-regressions.mjs";
 import { runTopupRegression } from "../shots/topup-regressions.mjs";
 import { tenantRegression } from "../shots/tenant-regressions.mjs";
 import { settingsRegression } from "../shots/settings-regressions.mjs";
+import { portalApprovalRegression } from "../shots/portal-approval-regressions.mjs";
 import {
   profileContactRegression,
   profileAuthorizationRegression,
@@ -718,6 +719,9 @@ const { MESSAGE_SCENES } = await import(
 const { SETTINGS_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/settings-scenes.ts")).href
 );
+const { PORTAL_APPROVAL_SCENES } = await import(
+  pathToFileURL(path.join(appRoot, "shots/portal-approval-scenes.ts")).href
+);
 const { SEARCH_SCENES } = await import(
   pathToFileURL(path.join(appRoot, "shots/search-scenes.ts")).href
 );
@@ -771,6 +775,7 @@ for (let index = 0; index < args.length; index += 1) {
         ...DELIVERY_SCENES,
         ...MESSAGE_SCENES,
         ...SETTINGS_SCENES,
+        ...PORTAL_APPROVAL_SCENES,
         ...SEARCH_SCENES,
         ...ASSET_SCENES,
         ...ASSET_HOME_SCENES,
@@ -987,6 +992,17 @@ const targets = [
     fullPage: false,
   })),
   ...(all
+    ? PORTAL_APPROVAL_SCENES
+    : PORTAL_APPROVAL_SCENES.filter((item) => wantedScenes.includes(item.name))
+  ).map((item) => ({
+    label: item.name,
+    url: `${item.route}?lyxShot=${item.name}`,
+    file: `portal-approval__${item.name}`,
+    scene: item.name,
+    kind: "portal-approval",
+    fullPage: false,
+  })),
+  ...(all
     ? SEARCH_SCENES
     : SEARCH_SCENES.filter(
         (item) => wantedScenes.includes(item.name) || wanted.includes(item.route),
@@ -1039,6 +1055,7 @@ const targets = [
           !DELIVERY_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !MESSAGE_SCENES.some((item) => item.route === route) &&
           !SETTINGS_SCENES.some((item) => item.route === route) &&
+          !PORTAL_APPROVAL_SCENES.some((item) => item.route === route) &&
           !SEARCH_SCENES.some((item) => item.route === route) &&
           !ASSET_SCENES.some((item) => item.route.split("?")[0] === route) &&
           !ASSET_UPLOAD_SCENES.some((item) => item.route === route) &&
@@ -1066,7 +1083,9 @@ const targets = [
         ? { scene: "messages-owner", kind: "message" }
         : route === "sub/service/settings/index"
           ? { scene: "settings-owner", kind: "settings" }
-          : {}),
+          : route === "sub/publish/portal-approve/index"
+            ? { scene: "portal-approve-pair", kind: "portal-approval" }
+            : {}),
   })),
   ...(all ? componentNames : wantedComponents).map((name) => ({
     label: `组件 ${name}`,
@@ -1197,6 +1216,10 @@ async function shoot(target) {
                 : "mine-owner";
             globalThis.__LYX_SETTINGS_SHOT__ = scene;
           }
+          if (kind === "portal-approval") {
+            globalThis.__LYX_ACCOUNT_SHOT__ = "mine-owner";
+            globalThis.__LYX_PORTAL_APPROVAL_SHOT__ = scene;
+          }
           if (kind === "search") {
             globalThis.__LYX_ACCOUNT_SHOT__ = scene.endsWith("clerk")
               ? "mine-clerk"
@@ -1279,56 +1302,58 @@ async function shoot(target) {
                 : "#ad-ready"
             : target.kind === "settings"
               ? "#settings-ready"
-              : target.kind === "profile" || target.kind === "tenant"
-                ? "#profile-ready"
-                : target.kind === "billing"
-                  ? target.scene.startsWith("invoice-")
-                    ? "#invoices-ready"
-                    : target.scene.startsWith("contracts-")
-                      ? "#contracts-ready"
-                      : target.scene.startsWith("topup-")
-                        ? "#topup-ready"
-                        : target.scene === "ledger-loading"
-                          ? ".billing-ledger .lyx-skeleton"
-                          : target.scene.startsWith("ledger-") && target.scene !== "ledger-entry"
-                            ? "#ledger-ready"
-                            : "#billing-ready"
-                  : target.kind === "publish"
-                    ? "#publish-ready"
-                    : target.kind === "order" || target.kind === "order-reference"
-                      ? target.scene.startsWith("my-dramas-")
-                        ? "#my-dramas-ready"
-                        : "#order-ready"
-                      : target.kind === "asset-home"
-                        ? "#asset-home-ready"
-                        : target.kind === "trailer"
-                          ? target.scene === "trailer-inline-landscape"
-                            ? "#catalog-ready"
-                            : "#trailer-ready"
-                          : target.kind === "catalog"
-                            ? "#catalog-ready"
-                            : target.kind === "search"
-                              ? "#search-ready"
-                              : target.kind === "asset-upload"
-                                ? target.scene.startsWith("asset-uploader-")
-                                  ? ".asset-uploader#asset-uploader-ready"
-                                  : target.scene.endsWith("loading")
-                                    ? ".asset-upload .lyx-skeleton"
-                                    : ".asset-upload#asset-upload-ready"
-                                : target.kind === "asset" || target.kind === "asset-action"
-                                  ? target.scene === "asset-lib-loading"
-                                    ? ".asset-lib .lyx-skeleton"
-                                    : "#asset-ready"
-                                  : target.kind === "message"
-                                    ? target.scene === "messages-loading"
-                                      ? ".messages-page .lyx-skeleton"
-                                      : "#messages-ready"
-                                    : target.kind === "delivery"
-                                      ? "#delivery-ready"
-                                      : target.scene === "login-empty" ||
-                                          target.scene === "login-unavailable"
-                                        ? ".account-login .lyx-empty"
-                                        : "#account-ready",
+              : target.kind === "portal-approval"
+                ? "#portal-approve-ready"
+                : target.kind === "profile" || target.kind === "tenant"
+                  ? "#profile-ready"
+                  : target.kind === "billing"
+                    ? target.scene.startsWith("invoice-")
+                      ? "#invoices-ready"
+                      : target.scene.startsWith("contracts-")
+                        ? "#contracts-ready"
+                        : target.scene.startsWith("topup-")
+                          ? "#topup-ready"
+                          : target.scene === "ledger-loading"
+                            ? ".billing-ledger .lyx-skeleton"
+                            : target.scene.startsWith("ledger-") && target.scene !== "ledger-entry"
+                              ? "#ledger-ready"
+                              : "#billing-ready"
+                    : target.kind === "publish"
+                      ? "#publish-ready"
+                      : target.kind === "order" || target.kind === "order-reference"
+                        ? target.scene.startsWith("my-dramas-")
+                          ? "#my-dramas-ready"
+                          : "#order-ready"
+                        : target.kind === "asset-home"
+                          ? "#asset-home-ready"
+                          : target.kind === "trailer"
+                            ? target.scene === "trailer-inline-landscape"
+                              ? "#catalog-ready"
+                              : "#trailer-ready"
+                            : target.kind === "catalog"
+                              ? "#catalog-ready"
+                              : target.kind === "search"
+                                ? "#search-ready"
+                                : target.kind === "asset-upload"
+                                  ? target.scene.startsWith("asset-uploader-")
+                                    ? ".asset-uploader#asset-uploader-ready"
+                                    : target.scene.endsWith("loading")
+                                      ? ".asset-upload .lyx-skeleton"
+                                      : ".asset-upload#asset-upload-ready"
+                                  : target.kind === "asset" || target.kind === "asset-action"
+                                    ? target.scene === "asset-lib-loading"
+                                      ? ".asset-lib .lyx-skeleton"
+                                      : "#asset-ready"
+                                    : target.kind === "message"
+                                      ? target.scene === "messages-loading"
+                                        ? ".messages-page .lyx-skeleton"
+                                        : "#messages-ready"
+                                      : target.kind === "delivery"
+                                        ? "#delivery-ready"
+                                        : target.scene === "login-empty" ||
+                                            target.scene === "login-unavailable"
+                                          ? ".account-login .lyx-empty"
+                                          : "#account-ready",
         )
         .waitFor({ state: "visible", timeout: 15_000 });
       if (target.kind === "billing" && target.scene.startsWith("invoice-"))
@@ -1352,6 +1377,7 @@ async function shoot(target) {
       if (target.kind === "search") await searchRegression(page, target.scene);
       if (target.kind === "trailer") await trailerRegression(page, target.scene);
       if (target.kind === "settings") await settingsRegression(page, target.scene);
+      if (target.kind === "portal-approval") await portalApprovalRegression(page, target.scene);
       if (target.kind === "tenant") await tenantRegression(page, target.scene);
       if (target.kind === "asset") await assetRegression(page, target.scene, origin);
       if (target.kind === "asset-home") await homeAssetsRegression(page, target.scene);

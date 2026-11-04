@@ -171,7 +171,7 @@ test("approved in-memory bytes publish after private source cleanup; no private 
   const target = join(SAFE_OUTPUT_ROOT, runId);
   t.after(() => rm(target, { recursive: true }));
   assert.equal(result.success, true);
-  assert.equal(result.passed, 3);
+  assert.equal(result.passed, CASE_IDS.length);
   assert.equal(result.failed, 0);
   assert.deepEqual(
     (await readdir(target)).sort(),

@@ -163,6 +163,8 @@ export function requestPath(raw) {
 
 export function staticRelative(path) {
   if (path === "/__portal-live/session") return "test/e2e/browser-session.html";
+  // Exercise the actual auth leaves with the same audited runtime, only inside this owned edge.
+  if (path === "/" || path === "/a") return "test/e2e/browser-session.html";
   if (
     /^\/assets\/[A-Za-z0-9_./-]+$/.test(path) &&
     !path.split("/").some((part) => part === "." || part === "..")

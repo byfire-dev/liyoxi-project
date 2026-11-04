@@ -2,10 +2,12 @@ import type { Data, Me } from "../src/sub/service/settings/api";
 import type { RequestLayer } from "../src/lib/request";
 import { ApiError } from "../src/lib/request";
 import { makeMe, agreements } from "./account-fixtures";
+import { offlinePortalSessionRequest } from "./portal-session-fixtures";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const now = "2026-10-13T04:00:00Z";
 export function offlineSettingsRequest(scene: string): RequestLayer["request"] {
+  const portal = offlinePortalSessionRequest(scene);
   let me: Me = makeMe(scene === "settings-clerk");
   if (scene === "settings-notice-retry")
     me.notices = [
@@ -35,6 +37,7 @@ export function offlineSettingsRequest(scene: string): RequestLayer["request"] {
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     const method = options?.method ?? "GET";
     calls.push({ path, method, key: options?.idempotencyKey });
+    if (path.startsWith("/m/portal-sessions")) return portal<T>(path, options);
     let value: unknown;
     if (path === "/m/me" && method === "GET") value = me;
     else if (path.startsWith("/m/agreements?")) value = agreements;

@@ -82,6 +82,9 @@ function setup() {
     actorForUser: vi
       .fn<PortalLiveMerchant["actorForUser"]>()
       .mockImplementation((id) => (id === owner ? "owner" : undefined)),
+    list: vi
+      .fn<PortalLiveMerchant["list"]>()
+      .mockResolvedValue({ httpStatus: 200, error: null, data: { items: [] } }),
   };
   const control = createPortalLiveControl(fixture, merchant);
   const send = (op: string, input = {}, extra = {}) =>
@@ -99,6 +102,41 @@ function setup() {
 }
 
 describe("portal private control: authority and safe output", () => {
+  it("projects only case-owned sessions and preserves real permission failures", async () => {
+    const h = setup();
+    await h.register();
+    const reply = await h.merchant.revoke("owner", session, randomUUID());
+    if (reply.error !== null) throw new Error("FIXTURE_INVALID");
+    h.merchant.list.mockResolvedValue({
+      httpStatus: 200,
+      error: null,
+      data: { items: [reply.data] },
+    });
+    expect(await h.send("session.list", { actor: "owner" })).toMatchObject({
+      ok: true,
+      result: {
+        httpStatus: 200,
+        data: {
+          items: [{ portalSessionId: session, storeId: store, revokedAt: reply.data.revokedAt }],
+        },
+      },
+    });
+    h.merchant.list.mockResolvedValue({
+      httpStatus: 200,
+      error: null,
+      data: { items: [{ ...reply.data, portalSessionId: uuidv7() }] },
+    });
+    expect(await h.send("session.list", { actor: "owner" })).toMatchObject({
+      ok: false,
+      failure: { code: "NOT_OWNED" },
+    });
+    h.merchant.list.mockResolvedValue({ httpStatus: 403, error: "ROLE_FORBIDDEN", data: null });
+    expect(await h.send("session.list", { actor: "clerk" })).toMatchObject({
+      ok: true,
+      result: { httpStatus: 403, error: "ROLE_FORBIDDEN", data: null },
+    });
+    expect(h.merchant.list.mock.calls.map(([actor]) => actor)).toEqual(["owner", "owner", "clerk"]);
+  });
   it("rejects unknown fields and fake auth commands without echoing their input", async () => {
     const h = setup(),
       secret = "pollSecret-sentinel-should-never-be-in-output";

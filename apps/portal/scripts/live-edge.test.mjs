@@ -15,7 +15,7 @@ import {
   staticRelative,
 } from "./live-edge.mjs";
 
-test("static routing admits only the technical entry and built assets, never source or private artifacts", () => {
+test("static routing admits the owned auth entries and built assets, never source or private artifacts", () => {
   assert.equal(
     staticRelative(requestPath("/__portal-live/session?case=auth")),
     "test/e2e/browser-session.html",
@@ -24,8 +24,9 @@ test("static routing admits only the technical entry and built assets, never sou
     staticRelative(requestPath("/assets/session-12345678.js")),
     "assets/session-12345678.js",
   );
+  for (const path of ["/", "/a"])
+    assert.equal(staticRelative(path), "test/e2e/browser-session.html");
   for (const path of [
-    "/",
     "/items",
     "/src/main.tsx",
     "/control.sock",
