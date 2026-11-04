@@ -34,7 +34,6 @@ export function createBatchUploader(options: {
   const fresh = new Set<string>();
   const files = new Map<string, File>();
   const adapters = new Map<string, ReturnType<typeof createMultipartUploadAdapter>>();
-  const confirmed = new Map<string, () => void>();
   const recoveryKeys = new Map<string, string>();
   let credentials: BatchUploadCredentials | undefined;
   let refresh: Promise<BatchUploadCredentials> | undefined;
@@ -152,7 +151,6 @@ export function createBatchUploader(options: {
     if (receipt.fileId !== item.fileId) throw new Error("文件归属不一致");
     if (!["promoting", "stored"].includes(receipt.fileStatus))
       throw new Error("文件尚未获服务器确认");
-    confirmed.get(item.uploadBatchItemId)?.();
     return { fileId: item.fileId, status: receipt.fileStatus };
   }
   async function recoverPost(item: UploadBatchItemView) {
@@ -278,7 +276,6 @@ export function createBatchUploader(options: {
       );
       running = true;
       let next = 0;
-      const completions: Promise<void>[] = [];
       try {
         await Promise.all(
           Array.from({ length: Math.min(3, queue.length) }, async () => {
@@ -298,23 +295,12 @@ export function createBatchUploader(options: {
                 live.fileStatus !== "pending"
               )
                 continue;
-              // Only cloud transfer and real server confirmation occupy a transfer slot.
-              // Continue the adapter's actual stored check; batch ready still comes from GET.
-              let release!: () => void;
-              const accepted = new Promise<void>((resolve) => {
-                release = resolve;
-              });
-              confirmed.set(live.uploadBatchItemId, release);
-              const completion = upload(live, files.get(live.uploadBatchItemId)!).finally(() => {
-                confirmed.delete(live.uploadBatchItemId);
-                release();
-              });
-              completions.push(completion);
-              await Promise.race([accepted, completion]);
+              // Keep the slot until storage confirms completion, bounding status polls
+              // to three files even when a large batch is still being promoted.
+              await upload(live, files.get(live.uploadBatchItemId)!);
             }
           }),
         );
-        await Promise.all(completions);
       } finally {
         running = false;
       }
