@@ -7,7 +7,7 @@ export const ticketDetailRoute = createRoute({
   path: "/delivery/tickets/$ticketNo",
   beforeLoad: ({ context }) => requireModule(context.access, "delivery"),
   validateSearch: (raw: Record<string, unknown>) => ({
-    tab: ["plan", "sample", "episodes", "ads", "actions"].includes(String(raw.tab))
+    tab: ["plan", "sample", "episodes", "ads", "actions", "publish"].includes(String(raw.tab))
       ? String(raw.tab)
       : "sample",
   }),

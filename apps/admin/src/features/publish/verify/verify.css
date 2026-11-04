@@ -17,3 +17,8 @@
 .lyx-verify-rounds p {
   overflow-wrap: anywhere;
 }
+.lyx-revoke-form {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}

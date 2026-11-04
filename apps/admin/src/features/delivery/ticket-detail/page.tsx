@@ -19,6 +19,7 @@ import { ORDERS_KEY } from "../../order/orders/model";
 import { createTicketDetailApi } from "./api";
 import { DETAIL_KEY, historyTicketId } from "./model";
 import { PlanDrawer } from "./plan";
+import { PublishListPanel } from "./publish-list-panel";
 import { SamplePanel, EpisodePanel } from "./panels";
 import { useDeliveryWrite } from "./write";
 import "./production.css";
@@ -216,6 +217,13 @@ function TicketDetailWorkspace() {
                 )}
               </div>
             ),
+          },
+          {
+            key: "publish",
+            label: "发布清单与打包",
+            content: data ? (
+              <PublishListPanel ticket={data} services={services} detailApi={api} />
+            ) : null,
           },
           { key: "ads", label: "广告视频", content: data ? <M5AdFacts ticket={data} /> : null },
           {

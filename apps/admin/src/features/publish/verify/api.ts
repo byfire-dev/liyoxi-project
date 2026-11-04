@@ -5,10 +5,13 @@ export type ApproveBody =
   operations["admin.launchSubmission.approve"]["requestBody"]["content"]["application/json"];
 export type RejectBody =
   operations["admin.launchSubmission.reject"]["requestBody"]["content"]["application/json"];
+export type RevokeBody =
+  operations["admin.launchSubmission.revoke"]["requestBody"]["content"]["application/json"];
 export class VerifyFailure extends Error {
   constructor(
     message: string,
     readonly code?: string,
+    readonly status = 0,
   ) {
     super(message);
   }
@@ -27,9 +30,9 @@ async function unwrap<T>(result: {
     typeof result.error.error === "string" &&
     typeof result.error.message === "string"
   )
-    throw new VerifyFailure(result.error.message, result.error.error);
+    throw new VerifyFailure(result.error.message, result.error.error, result.response.status);
   const failure = await readFailure(result.response);
-  throw new VerifyFailure(failure.message, failure.symbol);
+  throw new VerifyFailure(failure.message, failure.symbol, failure.status);
 }
 export function createVerifyApi(services: Pick<AppServices, "api">) {
   const client = services.api.client;
@@ -45,10 +48,11 @@ export function createVerifyApi(services: Pick<AppServices, "api">) {
         .GET("/api/v1/admin/approvals/summary", { params: { query: { kind: "launch_link", q } } })
         .then(unwrap)
         .then((data) => data.items.find((item) => item.kind === "launch_link")),
-    detail: (id: string) =>
+    detail: (id: string, signal?: AbortSignal) =>
       client
         .GET("/api/v1/admin/launch-submissions/{launchSubmissionId}", {
           params: { path: { launchSubmissionId: id } },
+          signal,
         })
         .then(unwrap),
     template: () =>
@@ -65,6 +69,27 @@ export function createVerifyApi(services: Pick<AppServices, "api">) {
         })
         .then(unwrap)
         .then((data) => data.items.filter((item) => item.isEnabled)),
+    revoke: (id: string, body: RevokeBody, key: string, signal: AbortSignal) =>
+      client
+        .POST("/api/v1/admin/launch-submissions/{launchSubmissionId}/revoke", {
+          params: { path: { launchSubmissionId: id } },
+          body,
+          signal,
+          headers: { "Idempotency-Key": key },
+        })
+        .then(unwrap)
+        .then((value) => {
+          if (
+            !value ||
+            typeof value.launchSubmissionId !== "string" ||
+            value.launchSubmissionId === id
+          )
+            throw new VerifyFailure(
+              "撤销返回的新轮次尚未确认，请保留原意图重试",
+              "RESPONSE_MISMATCH",
+            );
+          return value;
+        }),
     approve: (id: string, body: ApproveBody, key: string) =>
       client
         .POST("/api/v1/admin/launch-submissions/{launchSubmissionId}/approve", {
