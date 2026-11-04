@@ -63,6 +63,8 @@ test("交付真实主路径：分配/方案确认/两人样片质检/小程序�
     await plan.getByLabel("约定上线日", { exact: true }).fill(f.launchDate);
     await plan.getByLabel("预计交付日", { exact: true }).fill(f.deliveryDate);
     await expect(plan).toContainText(f.accountName);
+    await plan.getByRole("checkbox", { name: "我已核对全部发布账号与方案", exact: true }).check();
+    await expect(plan.getByRole("button", { name: "保存方案", exact: true })).toBeEnabled();
     await orderShot(page, "delivery-02-plan-drawer");
     let saves = 0;
     page.on("request", (request) => {
