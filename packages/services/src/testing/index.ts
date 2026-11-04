@@ -319,6 +319,20 @@ export {
 } from "./order-cancel-requests.fixture.js";
 export type { RequestsHarness as CancelRequestsFixtureHarness } from "./order-cancel-requests.fixture.js";
 
+// W6-08: only the exact owned live publish-workbench scope and controller.
+export {
+  W608LiveScopeSchema,
+  W608LiveCommandSchema,
+  parseW608LiveScope,
+  assertW608LiveScope,
+} from "./admin-live/w608-scope.js";
+export type { W608LiveScope } from "./admin-live/w608-scope.js";
+export {
+  createW608LiveController,
+  createW608ZipIo,
+  cleanupW608LivePoster,
+} from "./admin-live/w608-live.js";
+
 // W6-06 HTTP reuses the real ad lifecycle fixture through the testing boundary.
 export { createPortalAdFixture } from "./ad-lifecycle.fixture.js";
 export {
