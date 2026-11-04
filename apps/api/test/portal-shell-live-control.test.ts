@@ -17,6 +17,18 @@ const ticket = uuidv7(),
   owner = uuidv7(),
   store = uuidv7(),
   entity = uuidv7();
+const preview = {
+  playbackAuditCount: 0,
+  ad: { adId: uuidv7(), versionNo: 1 },
+  license: {
+    verifyCode: "public-verify-code",
+    revNo: 1,
+    pendingRevNo: null,
+    displayStatus: "effective" as const,
+    expiredVerifyCode: "public-expired-code",
+    unissuedVerifyCode: "public-unissued-code",
+  },
+};
 function setup() {
   const fixture = {
     ticketFacts: vi.fn<PortalLiveFixture["ticketFacts"]>().mockResolvedValue([
@@ -37,6 +49,9 @@ function setup() {
     beginReadWindow: vi.fn().mockResolvedValue(randomUUID()),
     endReadWindow: vi.fn().mockResolvedValue({ unchanged: true, changedTables: [] }),
     discardReadWindow: vi.fn().mockReturnValue(false),
+    preparePreview: vi.fn<PortalLiveFixture["preparePreview"]>().mockResolvedValue(preview),
+    previewAction: vi.fn<PortalLiveFixture["previewAction"]>().mockResolvedValue(preview),
+    previewFacts: vi.fn<PortalLiveFixture["previewFacts"]>().mockResolvedValue(preview),
   };
   const merchant = {
     lookup: vi.fn<PortalLiveMerchant["lookup"]>().mockResolvedValue({
@@ -82,6 +97,11 @@ function setup() {
     actorForUser: vi
       .fn<PortalLiveMerchant["actorForUser"]>()
       .mockImplementation((id) => (id === owner ? "owner" : undefined)),
+    previewScopes: vi.fn<PortalLiveMerchant["previewScopes"]>().mockReturnValue({
+      owner: { merchantUserId: owner, entityId: entity, storeId: store },
+      clerk: { merchantUserId: uuidv7(), entityId: entity, storeId: store },
+      otherOwner: { merchantUserId: uuidv7(), entityId: uuidv7(), storeId: uuidv7() },
+    }),
   };
   const control = createPortalLiveControl(fixture, merchant);
   const send = (op: string, input = {}, extra = {}) =>
@@ -99,6 +119,87 @@ function setup() {
 }
 
 describe("portal private control: authority and safe output", () => {
+  it("prepares preview only explicitly in an active case using internal HTTP identities and safe facts", async () => {
+    const h = setup();
+    expect(await h.send("preview.prepare")).toMatchObject({
+      ok: false,
+      failure: { code: "WRONG_CASE" },
+    });
+    await h.send("case.begin");
+    expect(h.fixture.preparePreview).not.toHaveBeenCalled();
+    h.fixture.preparePreview.mockResolvedValue({
+      ...preview,
+      license: { ...preview.license, pdfUrl: "private-object-sentinel" },
+      merchantUserId: owner,
+      token: "credential-sentinel",
+    } as typeof preview);
+    expect(await h.send("preview.prepare")).toMatchObject({ ok: true, result: preview });
+    expect(h.fixture.preparePreview).toHaveBeenCalledExactlyOnceWith(
+      h.merchant.previewScopes.mock.results[0]!.value,
+    );
+    const reply = await h.send("preview.action", { action: "push-ad-version" });
+    expect(reply).toMatchObject({ ok: true, result: preview });
+    expect(h.fixture.previewAction).toHaveBeenCalledExactlyOnceWith("push-ad-version");
+    const prepared = await h.send("preview.prepare");
+    expect(prepared).toEqual({ v: 1, id: expect.any(String), ok: true, result: preview });
+    for (const value of ["private-object-sentinel", "credential-sentinel", owner])
+      expect(JSON.stringify(prepared)).not.toContain(value);
+  });
+  it("rejects arbitrary preview actors, scope, paths, time and flag commands before any producer", async () => {
+    const h = setup();
+    await h.send("case.begin");
+    for (const input of [{ actor: "owner" }, { merchantUserId: owner }, { storeId: store }])
+      expect(await h.send("preview.prepare", input)).toMatchObject({
+        ok: false,
+        failure: { code: "BAD_COMMAND" },
+      });
+    for (const input of [
+      { action: "set-clock", now: "2026-01-01" },
+      { action: "expire-media-grants", seconds: 1 },
+      { action: "ad-channel-unavailable", flag: "arbitrary" },
+      { action: "push-ad-version", path: "/private" },
+    ])
+      expect(await h.send("preview.action", input)).toMatchObject({
+        ok: false,
+        failure: { code: "BAD_COMMAND" },
+      });
+    expect(h.merchant.previewScopes).not.toHaveBeenCalled();
+    expect(h.fixture.preparePreview).not.toHaveBeenCalled();
+    expect(h.fixture.previewAction).not.toHaveBeenCalled();
+  });
+  it("blocks every preview write during read evidence and does not leak or retry producer failures", async () => {
+    const h = setup();
+    await h.send("case.begin");
+    await h.send("facts.beginRead");
+    expect(await h.send("preview.prepare")).toMatchObject({
+      ok: false,
+      failure: { code: "BAD_COMMAND" },
+    });
+    for (const action of [
+      "push-ad-version",
+      "queue-license-correction",
+      "complete-license-correction",
+      "void-license",
+      "expire-media-grants",
+      "ad-channel-unavailable",
+      "ad-channel-available",
+    ])
+      expect(await h.send("preview.action", { action })).toMatchObject({
+        ok: false,
+        failure: { code: "BAD_COMMAND" },
+      });
+    expect(h.fixture.preparePreview).not.toHaveBeenCalled();
+    expect(h.fixture.previewAction).not.toHaveBeenCalled();
+    expect(await h.send("preview.facts")).toMatchObject({ ok: true, result: preview });
+    expect(h.fixture.previewFacts).toHaveBeenCalledTimes(1);
+    const windowId = await h.fixture.beginReadWindow.mock.results[0]!.value;
+    await h.send("facts.endRead", { windowId });
+    h.fixture.previewAction.mockRejectedValue(new Error("private-provider-sentinel"));
+    const reply = await h.send("preview.action", { action: "ad-channel-unavailable" });
+    expect(reply).toMatchObject({ ok: false, failure: { code: "CONTROL_FAILED" } });
+    expect(JSON.stringify(reply)).not.toContain("private-provider-sentinel");
+    expect(h.fixture.previewAction).toHaveBeenCalledTimes(1);
+  });
   it("rejects unknown fields and fake auth commands without echoing their input", async () => {
     const h = setup(),
       secret = "pollSecret-sentinel-should-never-be-in-output";

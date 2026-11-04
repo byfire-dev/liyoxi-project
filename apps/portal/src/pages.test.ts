@@ -42,10 +42,15 @@ describe("下载页页面清单", () => {
     ).toEqual(["电脑端上传"]);
   });
 
-  it("键与地址不重复；本包合并时没有一页标为已实现", () => {
+  it("键与地址不重复；W6-12只交广告预览与公开验真两页", () => {
     expect(new Set(PORTAL_PAGES.map((page) => page.key)).size).toBe(PORTAL_PAGES.length);
     const paths = PORTAL_PAGES.map((page) => page.path).filter((path) => path !== null);
     expect(new Set(paths).size).toBe(paths.length);
-    expect(PORTAL_PAGES.filter((page) => page.implemented)).toEqual([]);
+    expect(PORTAL_PAGES.filter((page) => page.implemented).map((page) => page.key)).toEqual([
+      "portal.preview",
+      "portal.verify",
+    ]);
+    expect(PORTAL_PAGES.find((page) => page.key === "portal.preview")?.needsSession).toBe(true);
+    expect(PORTAL_PAGES.find((page) => page.key === "portal.verify")?.needsSession).toBe(false);
   });
 });

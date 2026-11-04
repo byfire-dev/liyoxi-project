@@ -8,7 +8,7 @@ if (channel && channel !== "chrome") throw new Error("LIVE_BROWSER_CHANNEL_INVAL
 
 export default defineConfig({
   testDir: "./test/e2e",
-  testMatch: "live-session.spec.ts",
+  testMatch: ["live-session.spec.ts", "preview-verify.spec.ts"],
   outputDir: join(dirname(context.stageDirectory), "playwright-private"),
   fullyParallel: false,
   workers: 1,

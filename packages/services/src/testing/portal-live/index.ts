@@ -7,3 +7,10 @@ export type {
   PortalLiveStage,
 } from "./fixture.js";
 export type { PortalLiveTicketFact } from "./observations.js";
+export type { PortalLiveMediaResult } from "./preview-media.js";
+export type {
+  PortalLivePreviewAction,
+  PortalLivePreviewFacts,
+  PortalLivePreviewScope,
+  PortalLivePreviewScopes,
+} from "./preview-types.js";

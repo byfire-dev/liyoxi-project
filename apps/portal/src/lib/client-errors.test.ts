@@ -68,4 +68,20 @@ describe("portal安全上报接线槽", () => {
     expect(() => report({ category: "network" })).not.toThrow();
     expect(sink).toHaveBeenCalledTimes(1);
   });
+  it("输入getter与Proxy不进入白名单读取，未知字段和不可用安全字段全部丢弃", () => {
+    const sink = vi.fn();
+    const report = createPortalErrorReporter(sink);
+    const getter = vi.fn(() => {
+      throw new Error("private");
+    });
+    const input = { category: "api", status: 200, requestId: "code=12ABCDEF" };
+    Object.defineProperty(input, "stacktrace", { get: getter });
+    Object.defineProperty(input, "message", { get: getter });
+    expect(() => report(input)).not.toThrow();
+    expect(getter).not.toHaveBeenCalled();
+    expect(sink).toHaveBeenCalledExactlyOnceWith({ category: "api" });
+    const hostile = new Proxy({}, { getOwnPropertyDescriptor: getter });
+    expect(() => report(hostile)).not.toThrow();
+    expect(sink).toHaveBeenCalledTimes(1);
+  });
 });

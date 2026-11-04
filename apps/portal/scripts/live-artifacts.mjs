@@ -22,12 +22,35 @@ export const CASE_IDS = Object.freeze([
   "portal-authorize-revoke",
   "portal-logout",
   "portal-rejected-csrf",
+  "preview-ad-playback",
+  "preview-ad-stale-channel",
+  "preview-cross-store-q9",
+  "preview-revoke-media",
+  "verify-revisions",
+  "verify-lifecycle-reporting",
+  "preview-expired-media",
 ]);
 export const SHOT_IDS = Object.freeze([
   "session-ready",
   "session-revoked",
   "session-logout",
   "ticket-rejected",
+  "ad-initial",
+  "ad-playing",
+  "ad-version-changed",
+  "ad-channel-unavailable",
+  "sample-q9",
+  "ad-cross-store",
+  "ad-revoked",
+  "verify-current",
+  "verify-pending",
+  "verify-outdated",
+  "verify-revision-missing",
+  "verify-expired",
+  "verify-voided",
+  "verify-invalid",
+  "ad-expired",
+  "ad-renewed",
 ]);
 const PORTAL = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SAFE_OUTPUT_ROOT = join(PORTAL, "dist/e2e-live-safe");
@@ -65,7 +88,7 @@ export function safeCases(raw) {
     !["passed", "failed", "timedout", "interrupted"].includes(raw.status) ||
     raw.rejectedOutput !== false ||
     !Array.isArray(raw.cases) ||
-    raw.cases.length > 3
+    raw.cases.length > CASE_IDS.length
   )
     throw fail();
   const seen = new Set();
@@ -83,7 +106,7 @@ export function safeCases(raw) {
   });
   if (
     raw.status === "passed" &&
-    (cases.length !== 3 || cases.some((item) => item.status !== "passed"))
+    (cases.length !== CASE_IDS.length || cases.some((item) => item.status !== "passed"))
   )
     throw fail();
   return { status: raw.status, rejectedOutput: false, cases };

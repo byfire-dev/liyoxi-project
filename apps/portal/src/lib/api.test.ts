@@ -170,4 +170,87 @@ describe("portal 同源 typed transport", () => {
       client.request("/api/v1/portal/sessions/current", "get", {}),
     ).rejects.toMatchObject({ error: "INVALID_RESPONSE" });
   });
+
+  it.each([
+    ["RATE_LIMITED", 429],
+    ["MAINTENANCE", 503],
+    ["AUTH_REQUIRED", 401],
+  ] as const)("上报自身%s失败不通知或污染后续业务状态", async (symbol, status) => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(failure(symbol, status, {}, { "Retry-After": "60" }))
+      .mockResolvedValueOnce(ok(null));
+    const client = createPortalClient({ fetch: send });
+    const observer = vi.fn();
+    client.subscribeErrors(observer);
+    await expect(
+      client.request("/api/v1/portal/client-errors", "post", { body: "raw" }),
+    ).rejects.toMatchObject({ error: symbol, status });
+    expect(observer).not.toHaveBeenCalled();
+    await expect(client.request("/api/v1/portal/sessions/current", "get", {})).resolves.toBeNull();
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it("业务冷却期间允许独立上报，但上报不清除原业务冷却", async () => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(failure("RATE_LIMITED", 429, {}, { "Retry-After": "60" }))
+      .mockResolvedValueOnce(ok(null, 202));
+    const client = createPortalClient({ fetch: send, now: () => 0 });
+    const observer = vi.fn();
+    client.subscribeErrors(observer);
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ error: "RATE_LIMITED" });
+    await expect(
+      client.request("/api/v1/portal/client-errors", "post", { body: "raw" }),
+    ).resolves.toBeNull();
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ error: "RATE_LIMITED" });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(observer).toHaveBeenCalledTimes(1);
+  });
+
+  it("网络与非法成功响应各通知一次，HTTP不重发；abort/dispose与自身失败不通知", async () => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error("private-query"))
+      .mockResolvedValueOnce(ok("not-null", 202))
+      .mockResolvedValueOnce(new Response("not-json", { status: 200 }))
+      .mockResolvedValueOnce(failure("NOT_FOUND", 404));
+    const client = createPortalClient({ fetch: send });
+    const observer = vi.fn();
+    client.subscribeErrors(observer);
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ error: "NETWORK_ERROR" });
+    await expect(
+      client.request("/api/v1/portal/client-errors", "post", { body: "raw" }),
+    ).rejects.toMatchObject({ error: "INVALID_RESPONSE" });
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ error: "INVALID_RESPONSE" });
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(observer.mock.calls.map(([one]) => one.error.error)).toEqual([
+      "NETWORK_ERROR",
+      "INVALID_RESPONSE",
+      "NOT_FOUND",
+    ]);
+    expect(JSON.stringify(observer.mock.calls)).not.toContain("private-query");
+    const late = deferred<Response>();
+    send.mockReturnValue(late.promise);
+    const work = client.request("/api/v1/portal/sessions/current", "get", {});
+    client.advanceScope();
+    late.resolve(ok(null));
+    await expect(work).rejects.toMatchObject({ error: "REQUEST_ABORTED" });
+    client.dispose();
+    await expect(
+      client.request("/api/v1/portal/sessions/current", "get", {}),
+    ).rejects.toMatchObject({ error: "CLIENT_DISPOSED" });
+    expect(observer).toHaveBeenCalledTimes(3);
+    expect(send).toHaveBeenCalledTimes(5);
+  });
 });

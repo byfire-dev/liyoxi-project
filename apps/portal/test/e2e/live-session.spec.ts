@@ -1,13 +1,13 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
 import { dirname, join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { isErrorSymbol } from "@liyoxi/contract/errors";
-import type { LiveReply, LiveSessionState } from "./browser-session";
+import type { LiveSessionState } from "./browser-session";
+import { data, caseId, shot, ticket, approve } from "./live-helpers";
 import {
   CaseClosed,
   CaseReady,
-  Cases,
   Facts,
   HttpResult,
   ReadResult,
@@ -17,83 +17,6 @@ import {
   type CaseId,
 } from "./control-client";
 
-function data<T>(reply: LiveReply<T>): T {
-  if (!reply.ok) throw new Error(`BROWSER_ACTION_FAILED_${reply.httpStatus}`);
-  return reply.data;
-}
-function caseId(title: string): CaseId {
-  if (!(Cases as readonly string[]).includes(title)) throw new Error("LIVE_CASE_INVALID");
-  return title as CaseId;
-}
-async function shot(
-  page: Page,
-  name: "session-ready" | "session-revoked" | "session-logout" | "ticket-rejected",
-) {
-  const privacy = await page.evaluate(() => window.__LYX_PORTAL_LIVE__.privacy());
-  expect(Object.values(privacy).every((value) => value === true)).toBe(true);
-  const { stageDirectory } = liveContext();
-  await page.screenshot({ path: join(stageDirectory, `${name}.png`), animations: "disabled" });
-  await writeFile(
-    join(stageDirectory, `${name}.privacy.json`),
-    `${JSON.stringify({ safe: true })}\n`,
-    { flag: "wx", mode: 0o600 },
-  );
-}
-async function ticket(page: Page) {
-  return data(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.beginTicket()));
-}
-async function approve(page: Page, id: CaseId, created: Awaited<ReturnType<typeof ticket>>) {
-  const lookup = await control(
-    id,
-    { op: "ticket.lookup", input: { actor: "owner", code: created.shortCode } },
-    HttpResult,
-  );
-  expect(lookup.httpStatus).toBe(200);
-  expect(lookup.error).toBeNull();
-  expect(lookup.data).toMatchObject({
-    portalTicketId: created.portalTicketId,
-    storeId: liveContext().actors.owner.storeId,
-  });
-  const decision = await control(
-    id,
-    {
-      op: "ticket.decide",
-      input: {
-        actor: "owner",
-        portalTicketId: created.portalTicketId,
-        decision: "approve",
-        pairDigits: created.pairDigits,
-      },
-    },
-    HttpResult,
-  );
-  expect(decision).toMatchObject({
-    httpStatus: 200,
-    error: null,
-    data: { status: "approved", rejectReason: null },
-  });
-  await expect
-    .poll(
-      async () => data(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.pollTicket())).status,
-      { timeout: 10_000, intervals: [2000] },
-    )
-    .toBe("approved");
-  const result = data(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.finishExchange()));
-  expect(result.outcome).toBe("consumed");
-  await expect(page.getByTestId("portal-live-private")).toBeVisible();
-  await expect(page.getByTestId("portal-live-state")).toHaveAttribute(
-    "data-status",
-    "authenticated",
-  );
-  const state = await page.evaluate(() => window.__LYX_PORTAL_LIVE__.snapshot());
-  expect(state).toMatchObject({
-    authenticated: true,
-    entityId: liveContext().actors.owner.entityId,
-    storeId: liveContext().actors.owner.storeId,
-  });
-  expect(state.portalSessionId).not.toBeNull();
-  return state;
-}
 async function assertCookie(page: Page) {
   // Project immediately; Cookie values never enter assertions, messages, files or attachments.
   const attributes = (await page.context().cookies()).map(

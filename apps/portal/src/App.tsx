@@ -1,4 +1,4 @@
-// 下载页的空壳：一个占位页。页面与扫码登录在 M6（G6-B）；不放价格、套餐、购买入口与任何付款引导（D7 第 6 节）。
+// 电脑端共享主题与会话路由；各工作包显式登记叶页，不放购买或付款引导（D7 第 6 节）。
 import { antdTheme, fontFamilySerif } from "@liyoxi/shared/design/antd-theme";
 import { ConfigProvider, theme, type ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
