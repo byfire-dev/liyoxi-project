@@ -21,6 +21,8 @@
 //   有处理器 名字以字符串字面量出现在 packages/services/src、apps/worker/src、apps/api/src 的非测试源码里
 //           （*.test.ts、testing/、__fixtures__/ 不算）。循环与队列只看 apps/worker/src：它们在任务进程里装配，
 //           代码名又多是 notify、docs 这样的常见词，放宽到服务层会误判
+//           唯一例外是 M6 / media / 队列 / zip_package：逐段核对 media_job 到 ZIP handler 的固定生产连接，
+//           见 four-counts-zip.mjs；缺连接仍算缺处理器，不能用名字出现兜底。测试要求不变。
 //   有测试   名字按整词出现在 packages/services/src、apps/worker、apps/api 的 *.test.ts 里
 //   限度     常见词做代码名的条目“有测试”一项判得松；里程碑退出时循环与队列另对一遍 x01 第 4.3、4.4 节
 // 退出码：0 正常（没带 --require，或要求的里程碑都清零）；1 有里程碑没清零；2 用法或环境错误（含读不了输入）。
@@ -32,6 +34,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { cells, LEDGERS, milestoneOf, readLedger } from "./plan-ledger-lib.mjs";
+import { zipPackageHandlerPresent } from "./four-counts-zip.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url)).replace(/\/$/, "");
 const DEFAULTS = {
@@ -227,12 +230,13 @@ function x01Items(options) {
     .join("\n");
   for (const item of items) {
     const word = escape(item.name);
-    item.missing = [
-      ...(new RegExp(`["'\`]${word}["'\`]`).test(
+    const hasHandler =
+      zipPackageHandlerPresent(item, repoRoot) ??
+      new RegExp(`["'\`]${word}["'\`]`).test(
         WORKER_ONLY.includes(item.category) ? workerText : handlerText,
-      )
-        ? []
-        : ["处理器"]),
+      );
+    item.missing = [
+      ...(hasHandler ? [] : ["处理器"]),
       ...(new RegExp(`(?<![\\w.])${word}(?![\\w.])`).test(testText) ? [] : ["测试"]),
     ];
   }
