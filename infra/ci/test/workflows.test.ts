@@ -854,7 +854,8 @@ describe("ci.yml", () => {
       }
       expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
     }
-    // web原冒烟/截图条件保持；web-live仅允许下列精确后台与Portal条件步骤，其他任务不能带条件跳过。
+    // web原冒烟/截图条件保持；web-live仅允许下列精确原后台条件，其他任务不能带条件跳过。
+    // Portal新增条件步骤随本片加入同一精确清单，原后台条目与断言保持。
     const conditional = (id: string) =>
       `${jobBody(ci, id)}\n`
         .split(/^ {6}- name: /m)
