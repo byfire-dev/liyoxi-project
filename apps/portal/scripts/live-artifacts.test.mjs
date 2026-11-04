@@ -86,6 +86,8 @@ test("report rejects open text, duplicates, unbounded time and false success", (
     { ...report, error: SENTINEL },
     { ...report, rejectedOutput: true },
     { ...report, status: "passed" },
+    { ...passed(), cases: passed().cases.slice(0, 3) },
+    { ...passed(), cases: passed().cases.filter((item) => item.id !== "preview-expired-media") },
     { ...report, cases: [...report.cases, ...report.cases] },
     { ...report, cases: [{ ...report.cases[0], id: SENTINEL }] },
     ...[Infinity, -1, 600_001].map((durationMs) => ({
@@ -171,7 +173,7 @@ test("approved in-memory bytes publish after private source cleanup; no private 
   const target = join(SAFE_OUTPUT_ROOT, runId);
   t.after(() => rm(target, { recursive: true }));
   assert.equal(result.success, true);
-  assert.equal(result.passed, 3);
+  assert.equal(result.passed, CASE_IDS.length);
   assert.equal(result.failed, 0);
   assert.deepEqual(
     (await readdir(target)).sort(),

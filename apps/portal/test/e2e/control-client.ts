@@ -41,12 +41,29 @@ export function liveContext() {
   return value;
 }
 
-export const Cases = ["portal-authorize-revoke", "portal-logout", "portal-rejected-csrf"] as const;
+export const Cases = [
+  "portal-authorize-revoke",
+  "portal-logout",
+  "portal-rejected-csrf",
+  "preview-ad-playback",
+  "preview-ad-stale-channel",
+  "preview-cross-store-q9",
+  "preview-revoke-media",
+  "verify-revisions",
+  "verify-lifecycle-reporting",
+  "preview-expired-media",
+] as const;
 export type CaseId = (typeof Cases)[number];
 type Actor = "owner" | "clerk" | "otherOwner";
 type Input =
   | {
-      op: "case.begin" | "case.end" | "facts.beginRead" | "facts.tickets";
+      op:
+        | "case.begin"
+        | "case.end"
+        | "facts.beginRead"
+        | "facts.tickets"
+        | "preview.prepare"
+        | "preview.facts";
       input: Record<string, never>;
     }
   | { op: "ticket.lookup"; input: { actor: Actor; code: string } }
@@ -55,7 +72,32 @@ type Input =
       input: { actor: Actor; portalTicketId: string; decision: "approve"; pairDigits: string };
     }
   | { op: "session.revoke"; input: { actor: Actor; portalSessionId: string } }
-  | { op: "facts.endRead"; input: { windowId: string } };
+  | { op: "facts.endRead"; input: { windowId: string } }
+  | {
+      op: "preview.action";
+      input: {
+        action:
+          | "push-ad-version"
+          | "queue-license-correction"
+          | "complete-license-correction"
+          | "void-license"
+          | "expire-media-grants"
+          | "ad-channel-unavailable"
+          | "ad-channel-available";
+      };
+    };
+export const PreviewFacts = z.strictObject({
+  playbackAuditCount: z.number().int().nonnegative(),
+  ad: z.strictObject({ adId: z.uuid(), versionNo: z.number().int().positive() }),
+  license: z.strictObject({
+    verifyCode: z.string().min(1).max(64),
+    revNo: z.number().int().positive(),
+    pendingRevNo: z.number().int().positive().nullable(),
+    displayStatus: z.enum(["pending_effective", "effective", "voided", "expired"]),
+    expiredVerifyCode: z.string().min(1).max(64),
+    unissuedVerifyCode: z.string().min(1).max(64),
+  }),
+});
 const ReplySchema = z.discriminatedUnion("ok", [
   z.strictObject({ v: z.literal(1), id: z.uuid(), ok: z.literal(true), result: z.unknown() }),
   z.strictObject({
@@ -110,6 +152,15 @@ export const ReadResult = z.strictObject({
       "outbox_event",
       "status_transition",
       "idempotency_record",
+      "ad",
+      "ad_version",
+      "playable_asset",
+      "file_object",
+      "file_ref",
+      "license_letter",
+      "license_letter_revision",
+      "timer",
+      "delivery_download_log",
     ]),
   ),
 });

@@ -193,6 +193,16 @@ export function createPortalLiveMerchant(
       return scopes;
     },
     actors,
+    /** Private producer input from real HTTP identities; never part of ready IPC. */
+    previewScopes() {
+      const scopes = actors();
+      const scope = (actor: PortalLiveActor) => {
+        const credential = credentials.get(actor);
+        if (closed || !credential) throw new Error("MERCHANT_IDENTITY_MISSING");
+        return { ...scopes[actor], merchantUserId: credential.userId };
+      };
+      return { owner: scope("owner"), clerk: scope("clerk"), otherOwner: scope("otherOwner") };
+    },
     actorForUser(userId: string): PortalLiveActor | undefined {
       return [...credentials].find(([, credential]) => credential.userId === userId)?.[0];
     },

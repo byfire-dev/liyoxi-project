@@ -78,8 +78,10 @@ export function createPortalClient(
   return {
     async request(path, method, options) {
       if (disposed) throw new PortalApiError("CLIENT_DISPOSED");
-      if (maintenance) throw maintenance;
-      if (cooldown && now() < cooldown.until) throw cooldown.error;
+      const raw = path === "/api/v1/portal/client-errors";
+      // Telemetry has its own bounded writer; its failures cannot govern business requests.
+      if (!raw && maintenance) throw maintenance;
+      if (!raw && cooldown && now() < cooldown.until) throw cooldown.error;
       if (!/^\/api\/v1\/portal\/[A-Za-z0-9_/{}-]+$/.test(path) || path.includes("//")) {
         throw new PortalApiError("INVALID_REQUEST");
       }
@@ -120,7 +122,6 @@ export function createPortalClient(
           throw new PortalApiError("INVALID_REQUEST");
         headers.set("X-Poll-Secret", options.pollSecret);
       }
-      const raw = path === "/api/v1/portal/client-errors";
       let body: string | undefined;
       if (options.body !== undefined) {
         if (raw && typeof options.body !== "string") throw new PortalApiError("INVALID_REQUEST");
@@ -130,6 +131,18 @@ export function createPortalClient(
       const access = publicPaths.has(path) ? "public" : "session";
       const started = generation;
       const controller = new AbortController();
+      let published = false;
+      const publish = (error: PortalApiError) => {
+        if (raw || published) return;
+        published = true;
+        for (const listener of listeners) {
+          try {
+            listener({ error, generation: started, access });
+          } catch {
+            // An observer cannot change the request outcome or trigger recursive reporting.
+          }
+        }
+      };
       const abort = () => controller.abort();
       options.signal?.addEventListener("abort", abort, { once: true });
       if (options.signal?.aborted) abort();
@@ -160,25 +173,36 @@ export function createPortalClient(
         }
         if (!response.ok) {
           const error = readPortalError(payload, response.status, response.headers, now());
-          if (error.error === "MAINTENANCE") maintenance = error;
-          if (error.status === 429 && error.retryAfter !== null) {
+          if (!raw && error.error === "MAINTENANCE") maintenance = error;
+          if (!raw && error.status === 429 && error.retryAfter !== null) {
             cooldown = { until: now() + error.retryAfter * 1000, error };
           }
-          for (const listener of listeners) listener({ error, generation: started, access });
+          publish(error);
           throw error;
         }
         const envelope = object(payload);
         if (
           response.status !== (raw ? 202 : 200) ||
           envelope?.code !== 0 ||
-          !Object.hasOwn(envelope, "data")
+          !Object.hasOwn(envelope, "data") ||
+          (raw && envelope.data !== null)
         )
           throw new PortalApiError("INVALID_RESPONSE", response.status);
         return envelope.data as never;
       } catch (error) {
-        if (error instanceof PortalApiError) throw error;
         // fetch and JSON errors may contain URLs or bodies; never retain their original object.
-        throw new PortalApiError(controller.signal.aborted ? "REQUEST_ABORTED" : "NETWORK_ERROR");
+        const safe =
+          error instanceof PortalApiError
+            ? error
+            : new PortalApiError(
+                disposed ||
+                  controller.signal.aborted ||
+                  (access === "session" && started !== generation)
+                  ? "REQUEST_ABORTED"
+                  : "NETWORK_ERROR",
+              );
+        if (safe.error === "NETWORK_ERROR" || safe.error === "INVALID_RESPONSE") publish(safe);
+        throw safe;
       } finally {
         requests.delete(controller);
         options.signal?.removeEventListener("abort", abort);

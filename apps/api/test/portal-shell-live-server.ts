@@ -37,6 +37,97 @@ class PortalLiveStartFailure extends Error {
   }
 }
 
+/** Test-only media transport: validate the real owned grant on every request, including HEAD.
+ * Range parsing happens only after the fixture has fetched and verified the owned object.
+ */
+export function portalLiveMediaResponse(
+  request: Request,
+  input: Pick<Start, "runId" | "portalOrigin">,
+  fixture: Pick<PortalLiveFixture, "readPreviewMedia">,
+): Response | undefined {
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith("/__portal-live/")) return;
+  const headers = new Headers({
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+  });
+  const empty = (status: number) => new Response(null, { status, headers });
+  const prefix = `/__portal-live/${input.runId}/media/`;
+  if (
+    !/^[a-f0-9]{12}$/.test(input.runId) ||
+    !url.pathname.startsWith(prefix) ||
+    !/^[a-f0-9]{32}$/.test(url.pathname.slice(prefix.length)) ||
+    url.search ||
+    url.hash
+  )
+    return empty(404);
+  if (request.headers.get("host") !== new URL(input.portalOrigin).host) return empty(421);
+  const origin = request.headers.get("origin");
+  if (origin !== null && origin !== input.portalOrigin) return empty(403);
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    headers.set("allow", "GET, HEAD");
+    return empty(405);
+  }
+  try {
+    const media = fixture.readPreviewMedia(url.pathname);
+    if (media.status !== 200) return empty(media.status);
+    if (
+      media.bytes.byteLength < 1 ||
+      media.bytes.byteLength > 4 * 1024 * 1024 ||
+      (media.mime !== "video/mp4" && media.mime !== "image/jpeg") ||
+      !/^"[a-f0-9]{64}"$/.test(media.etag) ||
+      !Number.isFinite(Date.parse(media.expiresAt))
+    )
+      return empty(500);
+    const size = media.bytes.byteLength;
+    headers.set("content-type", media.mime);
+    headers.set("content-length", String(size));
+    headers.set("accept-ranges", "bytes");
+    headers.set("etag", media.etag);
+    headers.set("expires", new Date(media.expiresAt).toUTCString());
+    // RFC byte ranges apply to GET; HEAD retains the full representation metadata.
+    if (request.method === "HEAD") return empty(200);
+    const range = request.headers.get("range");
+    const ifRange = request.headers.get("if-range");
+    if (range === null || (ifRange !== null && ifRange !== media.etag))
+      return new Response(new Uint8Array(media.bytes), { status: 200, headers });
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const invalid = () => {
+      headers.delete("content-length");
+      headers.set("content-range", `bytes */${size}`);
+      return empty(416);
+    };
+    if (!match || (!match[1] && !match[2])) return invalid();
+    const first = match[1] ? Number(match[1]) : undefined;
+    const last = match[2] ? Number(match[2]) : undefined;
+    if (
+      (first !== undefined && !Number.isSafeInteger(first)) ||
+      (last !== undefined && !Number.isSafeInteger(last))
+    )
+      return invalid();
+    let start: number, end: number;
+    if (first === undefined) {
+      if (last === undefined || last === 0) return invalid();
+      start = Math.max(0, size - last);
+      end = size - 1;
+    } else {
+      start = first;
+      end = Math.min(last ?? size - 1, size - 1);
+      if (start >= size || end < start) return invalid();
+    }
+    headers.set("content-range", `bytes ${start}-${end}/${size}`);
+    headers.set("content-length", String(end - start + 1));
+    return new Response(new Uint8Array(media.bytes.subarray(start, end + 1)), {
+      status: 206,
+      headers,
+    });
+  } catch {
+    // Neither a provider exception nor the signed grant is sent to the browser or logger.
+    return empty(500);
+  }
+}
+
 /** Private process only; the production app and all production middleware are unchanged. */
 export async function startPortalShellLiveServer(
   input: Start,
@@ -96,10 +187,18 @@ export async function startPortalShellLiveServer(
     signal.throwIfAborted();
     report("http");
     const apiPort = await new Promise<number>((resolvePort, reject) => {
-      http = serve({ hostname: "127.0.0.1", port: 0, fetch: api!.app.fetch }, (address) => {
-        http?.off("error", reject);
-        resolvePort(address.port);
-      });
+      http = serve(
+        {
+          hostname: "127.0.0.1",
+          port: 0,
+          fetch: (request, bindings) =>
+            portalLiveMediaResponse(request, input, fixture!) ?? api!.app.fetch(request, bindings),
+        },
+        (address) => {
+          http?.off("error", reject);
+          resolvePort(address.port);
+        },
+      );
       http.once("error", reject);
     });
     http!.on("error", () => {});

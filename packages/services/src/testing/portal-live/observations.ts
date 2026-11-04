@@ -13,6 +13,18 @@ export const PORTAL_LIVE_READ_TABLES = [
   "status_transition",
   "idempotency_record",
 ] as const;
+export const PORTAL_PREVIEW_READ_TABLES = [
+  ...PORTAL_LIVE_READ_TABLES,
+  "ad",
+  "ad_version",
+  "playable_asset",
+  "file_object",
+  "file_ref",
+  "license_letter",
+  "license_letter_revision",
+  "timer",
+  "delivery_download_log",
+] as const;
 
 export interface PortalLiveTicketFact {
   portalTicketId: string;
@@ -30,12 +42,17 @@ export interface PortalLiveTicketFact {
 export function createPortalLiveObservations(db: PrismaClient) {
   let window: { id: string; before: TablesSnapshot } | undefined;
   let reading = false;
+  let tables: readonly string[] = PORTAL_LIVE_READ_TABLES;
   return {
+    enablePreviewReadTables() {
+      if (window || reading) throw new Error("READ_WINDOW_ACTIVE");
+      tables = PORTAL_PREVIEW_READ_TABLES;
+    },
     async beginReadWindow() {
       if (window || reading) throw new Error("READ_WINDOW_ACTIVE");
       reading = true;
       try {
-        const before = await snapshotTables(db, PORTAL_LIVE_READ_TABLES);
+        const before = await snapshotTables(db, tables);
         const id = randomUUID();
         window = { id, before };
         return id;
@@ -48,7 +65,7 @@ export function createPortalLiveObservations(db: PrismaClient) {
       const current = window;
       reading = true;
       try {
-        const after = await snapshotTables(db, PORTAL_LIVE_READ_TABLES);
+        const after = await snapshotTables(db, tables);
         const result = diffSnapshots(current.before, after);
         return { unchanged: result.equal, changedTables: result.tables.map((item) => item.table) };
       } finally {

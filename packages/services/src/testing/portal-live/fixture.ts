@@ -24,6 +24,14 @@ import { fakeKeyEnv } from "../m1-fake-keys.js";
 import { assertTestRedisPrefix, disconnectTestRedis, testRedisPrefix } from "../redis.js";
 import { createPortalLiveObservations } from "./observations.js";
 import type { PortalLiveTicketFact } from "./observations.js";
+import { createPortalPreview, createPortalPreviewTools } from "./preview.js";
+import { portalLivePhones } from "./preview-scope.js";
+import type { PortalLiveMediaResult } from "./preview-media.js";
+import type {
+  PortalLivePreviewAction,
+  PortalLivePreviewFacts,
+  PortalLivePreviewScopes,
+} from "./preview-types.js";
 
 export type PortalLiveActor = "owner" | "clerk" | "otherOwner";
 export type PortalLiveStage =
@@ -49,6 +57,10 @@ export interface PortalLiveFixture {
   ): Promise<{ unchanged: boolean; changedTables: readonly string[] }>;
   discardReadWindow(): boolean;
   ticketFacts(ids: readonly string[]): Promise<readonly PortalLiveTicketFact[]>;
+  preparePreview(scopes: PortalLivePreviewScopes): Promise<PortalLivePreviewFacts>;
+  previewAction(action: PortalLivePreviewAction): Promise<PortalLivePreviewFacts>;
+  previewFacts(): Promise<PortalLivePreviewFacts>;
+  readPreviewMedia(requestTarget: string): PortalLiveMediaResult;
   close(): Promise<void>;
 }
 
@@ -131,6 +143,8 @@ export async function createPortalLiveFixture(
     databaseStarted = false;
   let runtime: Runtime | undefined, db: PrismaClient | undefined;
   let observations: ReturnType<typeof createPortalLiveObservations> | undefined;
+  let preview: ReturnType<typeof createPortalPreview> | undefined;
+  let previewTools: ReturnType<typeof createPortalPreviewTools> | undefined;
   let closing: Promise<void> | undefined;
   let stage: PortalLiveStage = "scope";
   const diagnostic = (code: PortalLiveDiagnostic["code"]) => {
@@ -156,7 +170,10 @@ export async function createPortalLiveFixture(
       } catch {
         failed = true;
       }
+      await attempt(async () => preview?.close());
       await attempt(async () => runtime?.close());
+      await attempt(async () => previewTools?.codec.tools.close());
+      previewTools?.transport.close();
       await attempt(async () => db?.$disconnect());
       if (acquired) {
         try {
@@ -211,7 +228,8 @@ export async function createPortalLiveFixture(
       throw new Error("SCOPE_COLLISION");
     fresh = true;
     options.signal.throwIfAborted();
-    const clock: Clock = { now: () => new Date() };
+    let offset = 0;
+    const clock: Clock = { now: () => new Date(Date.now() + offset) };
     stage = "database";
     diagnostic("STARTED");
     databaseStarted = true;
@@ -229,6 +247,12 @@ export async function createPortalLiveFixture(
     };
     const keyring = loadKeyring(env),
       harness = createProviderHarness({ clock });
+    previewTools = createPortalPreviewTools({
+      providers: harness.providers,
+      clock,
+      runId: options.runId,
+      portalOrigin: options.portalOrigin,
+    });
     db = createPrismaClient({ connectionString: databaseUrl, max: 1 });
     stage = "agreements";
     diagnostic("STARTED");
@@ -242,10 +266,11 @@ export async function createPortalLiveFixture(
     diagnostic("STARTED");
     runtime = createRuntime({
       entry: "api",
-      env,
+      env: { ...env, MEDIA_PRODUCTION: previewTools.codec.env },
       version: options.version,
       clock,
-      providers: harness.providers,
+      providers: { ...harness.providers, storage: previewTools.transport.storage },
+      mediaProductionTools: previewTools.codec.tools,
       redisKeyPrefix: prefix,
       healthCacheMs: 0,
       logger: createLogger({
@@ -261,12 +286,29 @@ export async function createPortalLiveFixture(
       }),
     });
     observations = createPortalLiveObservations(db);
+    preview = createPortalPreview({
+      db,
+      runtime,
+      clock,
+      keyring,
+      tools: previewTools,
+      providers: harness.providers,
+      enableReadTables: () => observations!.enablePreviewReadTables(),
+      expireMedia() {
+        if (offset !== 0) throw new Error("PREVIEW_CLOCK_ALREADY_ADVANCED");
+        offset = 3_600_001;
+      },
+    });
     const used = new Set<PortalLiveActor>();
-    const phones = { owner: "13800110001", clerk: "13800110002", otherOwner: "13800110003" };
+    const phones = portalLivePhones;
     return {
       runtime,
       merchantDeps: { appid: "wxlyxtestportal01", keyring },
       ...observations,
+      preparePreview: preview.preparePreview,
+      previewAction: preview.previewAction,
+      previewFacts: preview.previewFacts,
+      readPreviewMedia: preview.readPreviewMedia,
       primePhoneLogin(actor) {
         if (closing || used.has(actor) || !Object.hasOwn(phones, actor))
           throw new Error("LOGIN_INPUT_ALREADY_USED");
