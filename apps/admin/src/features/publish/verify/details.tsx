@@ -15,6 +15,7 @@ import {
   type RejectBody,
 } from "./api";
 import { approveBody, rejectBody, submittedLinks } from "./model";
+import { RevokePanel } from "./revoke-panel";
 export interface Controller {
   approve(checked: readonly string[]): Promise<QueueActionResult>;
   reject(): Promise<QueueActionResult>;
@@ -243,6 +244,7 @@ export function VerifyDetails({
           </div>
         </section>
       ) : null}
+      <RevokePanel key={detail.launchSubmissionId} detail={detail} api={api} refresh={refresh} />
       {failure ? <Alert type="error" title={failure} /> : null}
       {rejection ? (
         <RejectDialog

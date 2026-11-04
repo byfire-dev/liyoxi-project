@@ -60,3 +60,11 @@ export function submittedLinks(detail: {
         safe: safe(item.url),
       }));
 }
+
+/** 深链指向审批事项：未加载的明确ID不能回退到另一事项。 */
+export function selectedVerify<T extends { approvalId: string }>(
+  rows: readonly T[],
+  requested?: string,
+): T | undefined {
+  return requested ? rows.find((row) => row.approvalId === requested) : rows[0];
+}

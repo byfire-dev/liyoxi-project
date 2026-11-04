@@ -3,6 +3,7 @@ import type { operations } from "@liyoxi/contract/types/admin";
 import type { AppServices } from "../../../app/services";
 import { readFailure } from "../../../lib/api-errors";
 import { createBatchApi } from "./batch-api";
+import { createPublishApi } from "./publish-api";
 type Body<K extends keyof operations> = operations[K] extends {
   requestBody: { content: { "application/json": infer T } };
 }
@@ -19,6 +20,7 @@ export class DeliveryFailure extends Error {
     message: string,
     readonly code?: string,
     readonly details?: unknown,
+    readonly status = 0,
   ) {
     super(message);
   }
@@ -26,12 +28,18 @@ export class DeliveryFailure extends Error {
 async function unwrap<T>(result: { data?: { data: T }; response: Response }): Promise<T> {
   if (result.data) return result.data.data;
   const failure = await readFailure(result.response);
-  throw new DeliveryFailure(failure.message, failure.body?.error, failure.body?.details);
+  throw new DeliveryFailure(
+    failure.message,
+    failure.body?.error,
+    failure.body?.details,
+    failure.status,
+  );
 }
 export function createTicketDetailApi(services: Pick<AppServices, "api">) {
   const c = services.api.client;
   return {
     batches: createBatchApi(services),
+    publish: createPublishApi(services),
     find: (ticketNo: string, signal?: AbortSignal) =>
       c
         .GET("/api/v1/admin/delivery-tickets", {
@@ -70,12 +78,13 @@ export function createTicketDetailApi(services: Pick<AppServices, "api">) {
         .GET("/api/v1/admin/checklist-templates", { params: { query: { code, status: "active" } } })
         .then(unwrap)
         .then((r) => r.items.find((t) => t.code === code)),
-    draft: (id: string, body: DraftBody, key: string) =>
+    draft: (id: string, body: DraftBody, key: string, signal?: AbortSignal) =>
       c
         .PUT("/api/v1/admin/delivery-plans/{deliveryPlanId}/draft", {
           params: { path: { deliveryPlanId: id } },
           body,
           headers: { "Idempotency-Key": key },
+          signal,
         })
         .then(unwrap),
     pushPlan: (id: string, draftLockVersion: number, key: string) =>

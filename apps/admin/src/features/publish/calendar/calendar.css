@@ -1,0 +1,119 @@
+.lyx-launch-toolbar,
+.lyx-launch-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.lyx-launch-manager {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-launch-manager .ant-select {
+  min-width: 180px;
+}
+.lyx-launch-month {
+  padding: 12px;
+  overflow: auto;
+}
+.lyx-launch-weekdays,
+.lyx-launch-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(70px, 1fr));
+}
+.lyx-launch-weekdays {
+  padding: 10px 0;
+  text-align: center;
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-launch-grid {
+  gap: 4px;
+}
+.lyx-launch-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 112px;
+  padding: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 6px;
+  background: var(--lyx-color-bg-card);
+  color: var(--lyx-color-text-primary);
+}
+.lyx-launch-day.is-selected {
+  border-color: var(--lyx-color-primary);
+  background: var(--lyx-color-primary-bg-subtle);
+}
+.lyx-launch-day:focus-visible {
+  outline: 2px solid var(--lyx-color-primary);
+  outline-offset: 2px;
+}
+.lyx-launch-day-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.lyx-launch-day-fact {
+  color: var(--lyx-color-text-secondary);
+  font-size: 12px;
+}
+.lyx-calendar-kind {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.lyx-calendar-kind--producing {
+  color: var(--lyx-color-info);
+  background: var(--lyx-color-info-bg);
+}
+.lyx-calendar-kind--to_launch {
+  color: var(--lyx-color-warning);
+  background: var(--lyx-color-warning-bg);
+}
+.lyx-calendar-kind--verifying {
+  color: var(--lyx-color-success);
+  background: var(--lyx-color-success-bg);
+}
+.lyx-calendar-kind--overdue {
+  color: var(--lyx-color-danger);
+  background: var(--lyx-color-danger-bg);
+}
+.lyx-launch-details {
+  display: grid;
+  gap: 16px;
+}
+.lyx-launch-item {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--lyx-color-divider);
+  padding-top: 14px;
+  overflow-wrap: anywhere;
+}
+.lyx-launch-item h3,
+.lyx-launch-item p {
+  margin: 0;
+}
+.lyx-launch-item ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.lyx-launch-warning {
+  color: var(--lyx-color-danger);
+}
+.lyx-calendar-overdue {
+  padding: 20px;
+  margin-top: 16px;
+}
+.lyx-calendar-overdue li {
+  margin-bottom: 10px;
+}
