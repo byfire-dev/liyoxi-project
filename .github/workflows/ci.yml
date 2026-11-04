@@ -1266,6 +1266,38 @@ jobs:
       - name: Portal 私有代理与进程边界
         if: steps.portal-e2e.outputs.run == 'true'
         run: node --test apps/portal/scripts/live-protocol.test.mjs apps/portal/scripts/live-edge.test.mjs
+      - name: 取 Portal Playwright 的版本
+        id: portal-playwright
+        if: steps.portal-e2e.outputs.run == 'true' && steps.admin-e2e.outputs.run != 'true'
+        run: node -p '"version=" + require("./apps/portal/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"
+      - name: Portal 浏览器缓存
+        if: steps.portal-e2e.outputs.run == 'true' && steps.admin-e2e.outputs.run != 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.portal-playwright.outputs.version }}
+      - name: Portal 浏览器使用官方 Ubuntu HTTPS 源
+        if: steps.portal-e2e.outputs.run == 'true' && steps.admin-e2e.outputs.run != 'true'
+        run: sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs
+      - name: 装 Portal 验收浏览器
+        if: steps.portal-e2e.outputs.run == 'true' && steps.admin-e2e.outputs.run != 'true'
+        run: pnpm --filter @liyoxi/portal exec playwright install --with-deps chromium
+      - name: Portal 真实接口验收的本地依赖
+        if: steps.portal-e2e.outputs.run == 'true'
+        run: docker compose -f infra/compose/local.yml up -d --wait postgres redis
+      - name: Portal HTTPS 与真实授权验收
+        if: steps.portal-e2e.outputs.run == 'true'
+        env:
+          LYX_BUILD: ${{ github.sha }}
+        run: pnpm --filter @liyoxi/portal e2e:live
+      - name: 上传 Portal 已脱敏验收结果
+        if: always() && steps.portal-e2e.outputs.run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: portal-e2e-live-safe
+          path: apps/portal/dist/e2e-live-safe/
+          if-no-files-found: error
+          retention-days: 30
 
   # 密钥扫描、依赖审计、发布时长、门禁自测。门禁自测里连库的几例自己建临时库；“枚举与库 CHECK 一致”的反例
   # 要读跑过迁移的 lyx_migrate_check，所以这里也建一份
