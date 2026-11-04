@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "vite";
 import { collectSafeArtifacts, publishSafeArtifacts } from "./live-artifacts.mjs";
 import { createLiveEdge, createOwnedDirectory, createTestTls } from "./live-edge.mjs";
+import { exitOf, finishChild, killed, waitForWork } from "./live-process.mjs";
 import {
   apiEnvironment,
   assertVersion,
@@ -18,37 +19,6 @@ import {
 const PORTAL = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = resolve(PORTAL, "../..");
 const fail = () => new Error("PORTAL_LIVE_PROCESS_FAILED");
-function killed(child, signal) {
-  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
-  try {
-    process.kill(-child.pid, signal);
-  } catch (error) {
-    if (error.code !== "ESRCH") throw fail();
-  }
-}
-function exitOf(child) {
-  return new Promise((accept) => {
-    child.once("error", () => accept({ code: null }));
-    child.once("close", (code) => accept({ code }));
-  });
-}
-async function finishChild(child, exited, stop) {
-  if (!child) return true;
-  if (child.exitCode !== null || child.signalCode !== null) return (await exited).code === 0;
-  let timer;
-  const overdue = new Promise((accept) => {
-    timer = setTimeout(() => {
-      killed(child, "SIGKILL");
-      void exited.then(() => accept(false));
-    }, 10_000);
-  });
-  try {
-    stop();
-    return await Promise.race([exited.then((result) => result.code === 0), overdue]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 function toolEnvironment() {
   const env = {};
   for (const key of [
@@ -89,6 +59,7 @@ async function run() {
     unsafe = false,
     interrupted = false;
   const diagnostics = [];
+  const interruption = new AbortController();
   const note = (stageName, code) => {
     const event = { stage: stageName, code };
     diagnostics.push(event);
@@ -96,9 +67,14 @@ async function run() {
   };
   const interrupt = () => {
     interrupted = true;
-    if (browser) killed(browser, "SIGTERM");
-    if (api?.stopLive) api.stopLive();
-    else if (api) killed(api, "SIGTERM");
+    interruption.abort();
+    try {
+      if (browser) killed(browser, "SIGTERM");
+      if (api?.stopLive) api.stopLive();
+      else if (api) killed(api, "SIGTERM");
+    } catch {
+      cleanup = false;
+    }
   };
   process.once("SIGINT", interrupt);
   process.once("SIGTERM", interrupt);
@@ -159,18 +135,11 @@ async function run() {
     // No raw API/loader output is retained or forwarded, including failed startup output.
     api.stdout.on("data", () => {});
     api.stderr.on("data", () => {});
-    const ready = await new Promise((accept, reject) => {
-      const timer = setTimeout(() => reject(fail()), 60_000);
-      const settle = (event) => {
-        clearTimeout(timer);
-        accept(event);
-      };
+    const startup = new Promise((accept, reject) => {
       api.once("error", () => {
-        clearTimeout(timer);
         reject(fail());
       });
       api.once("close", () => {
-        clearTimeout(timer);
         reject(fail());
       });
       api.on("message", (raw) => {
@@ -182,28 +151,26 @@ async function run() {
           const event = handshake.receive(raw);
           if (event.event === "ready") {
             note("runtime", "READY");
-            settle(event);
+            accept(event);
           } else if (event.event === "closed") {
             apiClosed = true;
             note("closing", "CLOSED");
           } else {
             note(event.stage, "FAILED");
-            clearTimeout(timer);
             reject(fail());
           }
         } catch {
           unsafe = true;
-          clearTimeout(timer);
           reject(fail());
         }
       });
       api.send(start, (error) => {
         if (error) {
-          clearTimeout(timer);
           reject(fail());
         }
       });
     });
+    const ready = await waitForWork(startup, interruption.signal, { timeoutMs: 60_000 });
     await edge.activate({ apiPort: ready.apiPort, root: staticRoot });
     await writeFile(
       join(owned.directory, "context.json"),
@@ -221,7 +188,8 @@ async function run() {
     browserExit = exitOf(browser);
     browser.stdout.on("data", () => {});
     browser.stderr.on("data", () => {});
-    processPassed = (await browserExit).code === 0 && !interrupted;
+    processPassed =
+      (await waitForWork(browserExit, interruption.signal)).code === 0 && !interrupted;
     note("control", processPassed ? "READY" : "FAILED");
   } catch {
     note("runtime", "FAILED");
