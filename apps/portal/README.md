@@ -27,7 +27,7 @@ REDIS_URL=redis://localhost:6389/0 LYX_BUILD=local-verification \
 pnpm --filter @liyoxi/portal e2e:live
 ```
 
-完整HTTPS首轮已通过：基于`0617b66dbca3a4a539236a9353e81ce6db8491ab`执行上述live命令，run `63efe2a275b9`的3场景全部成功，runner耗时8035ms，cleanup confirmed。6个白名单文件已核对，其中4张1440×900截图已目视；owned数据库/连接、Redis前缀与临时目录均已清理。91项定点及原工作流96项检查通过；最终services/API类型与5156模块分层检查通过；PR1交付及W6-12/W6-11电脑片开工仍以对应PR的required与actual main为准。
+完整HTTPS首轮已通过：基于`0617b66dbca3a4a539236a9353e81ce6db8491ab`执行上述live命令，run `63efe2a275b9`的3场景全部成功，runner耗时8035ms，cleanup confirmed。6个白名单文件已核对，其中4张1440×900截图已目视；owned数据库/连接、Redis前缀与临时目录均已清理。91项定点及原工作流96项检查通过；最终services/API类型与5156模块分层检查通过；PR1交付及W6-12/W6-11电脑片开工仍以[PR290](https://github.com/byfire-dev/liyoxi-project/pull/290)的required与actual main为准。
 
 入口为`scripts/live.mjs`，最终经白名单检查的结果目录为`dist/e2e-live-safe/<runId>`；原始测试输出不上传。
 
