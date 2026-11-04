@@ -2,7 +2,7 @@
 
 下载页使用独立的React应用和授权会话。页面实现状态以`src/pages.ts`登记为准；W6-10.PR1只交共享安全壳，原业务页面计数保持。
 
-开发工具`@playwright/test`固定为`1.63.0`，由本应用声明并经自己的pnpm入口使用。API私有入口使用API自身声明的tsx，不借其它应用loader。工具前置、代码检查与X-01/V8及M6退出分别核实。
+开发工具`@playwright/test`固定为`1.63.0`，由本应用声明并经自己的pnpm入口使用。Playwright工具PR282与API工具PR284均已实际合入；API私有入口使用API自身声明的tsx，不借其它应用loader。工具前置、代码检查与X-01/V8及M6退出分别核实。
 
 ## W6-10.PR1：安全客户端与会话边界
 
@@ -27,10 +27,12 @@ REDIS_URL=redis://localhost:6389/0 LYX_BUILD=local-verification \
 pnpm --filter @liyoxi/portal e2e:live
 ```
 
-本片当前在实现与验证中，完整HTTPS链尚未计通过。入口为`scripts/live.mjs`，最终经白名单检查的结果目录为`dist/e2e-live-safe/<runId>`；原始测试输出不上传。
+完整HTTPS首轮已通过：基于`0617b66dbca3a4a539236a9353e81ce6db8491ab`执行上述live命令，run `63efe2a275b9`的3场景全部成功，runner耗时8035ms，cleanup confirmed。6个白名单文件已核对，其中4张1440×900截图已目视；owned数据库/连接、Redis前缀与临时目录均已清理。91项定点及原工作流96项检查通过；最终services/API类型与5156模块分层检查通过；PR1交付及W6-12/W6-11电脑片开工仍以对应PR的required与actual main为准。
 
-每轮独占临时目录、数据库与Redis前缀；本机临时证书只用于本轮回环HTTPS，不改变系统信任。独立API进程经本应用tsx正常加载原源码，以真实商家HTTP创建身份/成员，再批准浏览器真实票据。Secure/HttpOnly/SameSite=Strict Cookie由实际交换响应自然写入；浏览器使用正式生产客户端和会话模型，不注入Cookie或伪会话。
+入口为`scripts/live.mjs`，最终经白名单检查的结果目录为`dist/e2e-live-safe/<runId>`；原始测试输出不上传。
+
+每轮独占临时目录、数据库与Redis前缀；本机临时证书只用于本轮回环HTTPS，不改变系统信任。独立API进程经API自身声明的tsx正常加载原源码，以真实商家HTTP创建身份/成员，再批准浏览器真实票据。Secure/HttpOnly/SameSite=Strict Cookie由实际交换响应自然写入；浏览器使用正式生产客户端和会话模型，不注入Cookie或伪会话。
 
 固定三例覆盖授权/吊销、退出、错误配对不认证与同源/Host拒绝，读取窗口比较七张相关表零写。每例60秒、断言10秒、单worker且不自动重试；不改限流或生产预算。授权context禁用trace、录像、自动截图、HAR与storageState。只保留固定安全JSON和已检查的主动会话截图；不上传TLS材料、原始响应、令牌或票据secret。关闭必须获得API清理确认；没有确认的清理不能计成功。
 
-本地HTTPS验证证明技术授权与Cookie链，不能替代微信扫码、真实设备、外部存储或正式签名验收。W6-10.PR2仍按原X-01 actual、V8和E2/E4/E7条件推进，整包保持进行中。
+本地HTTPS验证证明技术授权与Cookie链，不能替代微信扫码、真实设备、外部存储或正式签名验收。真机未测、V10未执行，4新页仍未完成；W6-10.PR2仍按原X-01 actual、V8和E2/E4/E7条件推进，整包保持进行中。
