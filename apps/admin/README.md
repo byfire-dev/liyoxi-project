@@ -377,6 +377,24 @@ PR #236最终head `3d26ab01` 的完整CI已通过，并实际合入main `53ae124
 
 本片最终真实浏览器验收3/3通过：独立finance批准、申请人执行后实际97积分账及拒绝边界，真实PDF更正/缺字体失败/原版次重生/作废重出及现签字节hash均已核。当前可用PDF与最新生成版分开；新版本排队或失败时保留合法旧current下载，失败重生成选择实际失败revision。8组1440×900精确双帧截图已核hash并目检，原单worker/180秒预算保持；外部签章、真实云和业主看样另验。正式命令为 `pnpm admin:e2e:live --test-file test/e2e/live-m5-cancel-approval.spec.ts`；最终CI与实际发布见W5-13台账，0新页/API。
 
+### W6-08 上线日历与发布工作台
+
+上线日历展示服务端月历、节假日、调休和缺历事实；逾期跟踪按同范围列表/汇总展示每个账号任务与跟进。工单“发布清单与打包”支持逐集/null 编辑、CSV/TSV 导入、完整替换及门店全部可用账号改选。字段错误保留路径并显示中文说明；400/409 保留输入，刷新后重新确认。核验撤销先读当前轮次，成功后 GET 新 pending 轮；旧轮标记 revoked，原审批与提交证据保留。
+
+定点单测：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/calendar src/features/publish/overdue src/features/delivery/ticket-detail src/features/publish/verify --maxWorkers=1 --no-file-parallelism`。
+
+真实隔离入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-publish-workbench.spec.ts`。沿原 runner 的合法媒体、字体、固定镜像及隔离范围核验，15 条业务用例与原 auth 依赖共 16 项；不增加并发或放宽 60 秒/10 秒窗口。最终固定候选与结果见 W6-08 状态页和当前 PR CI。
+
+16 组截图在 `apps/admin/dist/e2e-shots/w608-*.png`：真实门店账号候选、导入行错误、字段错误、保存结果、pack building/ready/传输错误、日历逾期与各账号任务、节假日/缺年/空结果、两页加载失败、撤销确认和重开的当前轮次。每组保留 initial 两帧、稳定两帧与 canonical；1440×900，稳定双帧与 canonical 应相同。失败 trace/测试报告在 `apps/admin/dist/e2e-live-results/`，私有 API 日志在 `apps/admin/dist/e2e-live-logs/`。trace 和临时 context 可能含会话资料，不复制到文档或公开日志。
+
+打包仅由“预打包 / 查看或重试打包”明确点击触发，页面保留上次响应状态，不自动轮询 POST。后台失败后的再次调用可能直接开始下一代 building；本轮验证真实失败回执、人工重试及最终 ZIP 字节，failed 展示分支由 DTO 模型测试覆盖，不伪造正式页 failed 截图。传输错误的同意图重试保留幂等键，新意图使用新键。
+
+私有 fixture 只创建本轮独立两集订单，使用既有真实媒体工具、样片/成片检查与对象存储；样片先经商家公口签发，再读取精确 owned rendition 核大小/SHA/与源不同，这不是 HTTP 下载验收。PDF 沿已有真实渲染器及技术测试证书链；小 ZIP 由受控协议替身生成实际对象并核目录和校验。控制仅存在于隔离测试服务，要求同源且本轮真实管理员会话；外店只作越权反例，不进入媒体执行和清理。海报按本轮 exact key/SHA 在 server.stop 回收，文书由本轮 CLI 回收。
+
+当前候选8a540775f已普通合并actual main 72ffab266，消费独立PR280的默认话题预填修复及W6-06主包内测试夹具的pollMs0；主动制造非法话题、中文错误/零写/合法替换反例仍保留。撤销后的新审批由原撤销人发起，其todo为空符合禁止自审；新轮截图使用本单既有发布专员的真实登录/MFA，并核实际me、权限、工单归属与新pending队列，未新增员工或改派。只有账号候选留桩由本包回补；本地结果不代表真实云5GB ZIP、外部证书、真实平台、真机或M6退出通过。
+
+最终候选8a540775ffe83134ecac51e1661191b53a9a3a23（actual main基线72ffab266）第八轮16/16通过；browser58.0秒、完整129.20秒、异人撤销2.3秒，run c73d517e320313fc，原runner已自动清理本轮scope。最终四目录106项、私有入口37项、services/API/admin类型与5081模块分层均通过。 16组稳定双帧与canonical SHA逐组一致，尺寸1440×900，关键状态已目检。 主包PR283的当前CI与实际合入另行核对。
+
 ## W6-09 发布生命周期
 
 `/publish/patrol` 使用当前巡检清单、证据与真实 actions，区分未巡检、异常、正常及恢复；周批次全平台总数和当前范围计数分开显示。`/publish/offline` 展示商家自声明、后台核查、仍在线、升级和提醒历史。批量核查遵循已合契约的整批原子语义：任一项拒绝时显示“本批未处理”和逐项原因，不显示部分成功；每项独立上传证据和核对当前清单。提醒受理不代表通知送达或平台实际下架。

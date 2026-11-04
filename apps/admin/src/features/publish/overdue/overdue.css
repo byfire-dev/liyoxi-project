@@ -1,0 +1,71 @@
+.lyx-overdue-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.lyx-overdue-stats > div {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--lyx-color-border-light);
+  border-radius: 12px;
+  background: var(--lyx-color-bg-card);
+}
+.lyx-overdue-stats strong {
+  font-size: 28px;
+  font-family: var(--lyx-font-family-serif);
+}
+.lyx-overdue-stats span,
+.lyx-overdue-history {
+  color: var(--lyx-color-text-secondary);
+}
+.lyx-overdue-list {
+  overflow: hidden;
+}
+.lyx-overdue-row {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  font: inherit;
+  color: var(--lyx-color-text-primary);
+  background: var(--lyx-color-bg-card);
+  border: 0;
+  border-bottom: 1px solid var(--lyx-color-divider);
+  border-left: 3px solid var(--lyx-color-bg-card);
+  cursor: pointer;
+}
+.lyx-overdue-row.is-selected {
+  border-left-color: var(--lyx-color-primary);
+  background: var(--lyx-color-primary-bg-subtle);
+}
+.lyx-overdue-row:focus-visible {
+  outline: 2px solid var(--lyx-color-primary);
+  outline-offset: -2px;
+}
+.lyx-overdue-details,
+.lyx-overdue-action {
+  display: grid;
+  gap: 14px;
+  overflow-wrap: anywhere;
+}
+.lyx-overdue-details h3,
+.lyx-overdue-details p {
+  margin: 0;
+}
+.lyx-overdue-task {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--lyx-color-divider);
+}
+.lyx-overdue-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lyx-launch-toolbar .ant-input-search {
+  width: 260px;
+}

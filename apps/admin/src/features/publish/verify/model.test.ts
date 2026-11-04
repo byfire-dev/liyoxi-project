@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approveBody, rejectBody, submittedLinks, verifySearch } from "./model";
+import { approveBody, rejectBody, submittedLinks, verifySearch, selectedVerify } from "./model";
 import type { Template } from "./api";
 const template = {
   versionNo: 8,
@@ -54,4 +54,14 @@ describe("链接核验的真实请求边界", () => {
       id: undefined,
     });
   });
+});
+
+it("显式审批深链未加载或失效时不选首条；后续页加载后定位准确审批", () => {
+  const first = { approvalId: "approval-a", domain: { id: "submission-a" } };
+  const target = { approvalId: "approval-b", domain: { id: "submission-b" } };
+  expect(selectedVerify([first], "approval-b")).toBeUndefined();
+  expect(selectedVerify([first, target], "approval-b")).toBe(target);
+  expect(selectedVerify([first, target], "submission-b")).toBeUndefined();
+  expect(selectedVerify([first], undefined)).toBe(first);
+  expect(selectedVerify([], "approval-b")).toBeUndefined();
 });
