@@ -6,6 +6,7 @@ import type { Data } from "@/lib/account-api";
 import { Button } from "@/components/Button";
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
+import { Checkbox } from "@/components/Checkbox";
 import { DescList } from "@/components/DescList";
 import { Empty } from "@/components/Empty";
 import { Field } from "@/components/Field";
@@ -34,17 +35,22 @@ const platformNames = { douyin: "抖音", wechat_channels: "视频号" };
 const typeNames = { enterprise: "企业认证", personal: "个人认证", none: "未认证" };
 export default function AccountsPage() {
   const rev = useContextStore((s) => s.contextRev),
-    token = useSessionStore((s) => s.accessToken);
-  return <Accounts key={`${rev}:${token}`} />;
+    token = useSessionStore((s) => s.accessToken),
+    me = useSessionStore((s) => s.me as Data<"m.me.get"> | null),
+    storeId = useContextStore((s) => s.currentStoreId),
+    role = viewerRole(me, catalogScope());
+  return <Accounts key={`${rev}:${token}:${storeId}:${role}`} />;
 }
 function Accounts() {
   const resource = usePublishResource(async () =>
     viewerRole(account.snapshot().me, catalogScope()) === "owner" ? publishApi.list() : null,
   );
   const [page, setPage] = useState<Data<"m.channelAccount.list"> | null>(null),
+    [pageSource, setPageSource] = useState<Data<"m.channelAccount.list"> | null>(null),
     [more, setMore] = useState(false),
     [moreError, setMoreError] = useState<string | null>(null),
-    [form, setForm] = useState<CardData | "new" | null>(null);
+    [form, setForm] = useState<CardData | "new" | null>(null),
+    [unbinding, setUnbinding] = useState<CardData | null>(null);
   const paging = useRef<object | null>(null);
   const loaded = resource.data,
     initialLoading = resource.loading,
@@ -56,7 +62,10 @@ function Accounts() {
       if (!current()) return;
       setMore(false);
       setMoreError(null);
-      if (!initialLoading) setPage(loaded);
+      if (!initialLoading) {
+        setPage(loaded);
+        setPageSource(loaded);
+      }
     });
   }, [loaded, initialLoading, guard]);
   const loadMore = async () => {
@@ -94,6 +103,10 @@ function Accounts() {
   useReachBottom(() => {
     void loadMore();
   });
+  const currentUnbinding =
+    !resource.loading && !resource.error && pageSource === loaded
+      ? (page?.items.find((item) => item.channelAccountId === unbinding?.channelAccountId) ?? null)
+      : null;
   return (
     <View className="accounts-page" id={resource.loading ? undefined : "publish-ready"}>
       <PageBody>
@@ -139,6 +152,7 @@ function Accounts() {
                           label: "使用情况",
                           value: `制作中 ${item.usage.inProgressCount} 部 · 待上线 ${item.usage.toLaunchCount} 部 · 上线中 ${item.usage.liveCount} 部`,
                         },
+                        { label: "待处理下架", value: `${item.openTakedownTaskCount} 项` },
                       ]}
                     />
                     {item.status === "pending_verify" ? (
@@ -146,9 +160,14 @@ function Accounts() {
                     ) : null}
                     {item.abnormalReason ? (
                       <Note tone="warning">
-                        核验未通过：{item.abnormalReason.name}
+                        账号异常：{item.abnormalReason.name}
                         {item.abnormalNote ? ` · ${item.abnormalNote}` : ""}
                       </Note>
+                    ) : null}
+                    {item.actions.includes("unbind") ? (
+                      <Button size="sm" variant="outline" onClick={() => setUnbinding(item)}>
+                        解绑账号
+                      </Button>
                     ) : null}
                     {item.actions.includes("submit") ? (
                       <Button size="sm" variant="outline" onClick={() => setForm(item)}>
@@ -190,6 +209,24 @@ function Accounts() {
           </>
         )}
       </PageBody>
+      {unbinding ? (
+        <UnbindAccount
+          key={unbinding.channelAccountId}
+          data={unbinding}
+          currentData={currentUnbinding}
+          refreshing={resource.loading}
+          guard={resource.guard}
+          onRefresh={resource.refresh}
+          onClose={() => setUnbinding(null)}
+          onSaved={() => {
+            setUnbinding(null);
+            usePublishStore.getState().changed();
+            useOrderStore.getState().changed();
+            useCatalogStore.getState().changed();
+            resource.refresh();
+          }}
+        />
+      ) : null}
       {form ? (
         <AccountForm
           key={form === "new" ? "new" : form.channelAccountId}
@@ -206,6 +243,114 @@ function Accounts() {
         />
       ) : null}
     </View>
+  );
+}
+function UnbindAccount({
+  data,
+  currentData,
+  refreshing,
+  guard,
+  onRefresh,
+  onClose,
+  onSaved,
+}: {
+  data: CardData;
+  currentData: CardData | null;
+  refreshing: boolean;
+  guard(includeRead?: boolean): () => boolean;
+  onRefresh(): void;
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const [checked, setChecked] = useState(false),
+    [busy, setBusy] = useState(false),
+    [rejectedRead, setRejectedRead] = useState<CardData | null>(null),
+    [error, setError] = useState<string | null>(null);
+  const canUnbind =
+    !refreshing &&
+    currentData !== null &&
+    currentData !== rejectedRead &&
+    currentData.actions.includes("unbind");
+  const active = useRef(false),
+    mounted = useRef(true),
+    key = useRef(newIdempotencyKey("account-unbind"));
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const submit = async () => {
+    if (!checked || active.current || !canUnbind) return;
+    const scope = guard(),
+      current = () =>
+        mounted.current && scope() && viewerRole(account.snapshot().me, catalogScope()) === "owner";
+    if (!current()) return;
+    active.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      await publishApi.unbind(data.channelAccountId, key.current);
+      if (!current()) return;
+      onSaved();
+      void Taro.showToast({ title: "账号已解绑", icon: "none" });
+    } catch (cause) {
+      if (current()) {
+        setChecked(false);
+        setRejectedRead(currentData);
+        setError(cause instanceof Error ? cause.message : "解绑结果未确认，请刷新后重试");
+        onRefresh();
+      }
+    } finally {
+      active.current = false;
+      if (current()) setBusy(false);
+    }
+  };
+  const close = () => {
+    if (!active.current) onClose();
+  };
+  return (
+    <Sheet
+      visible
+      title="解绑发布账号"
+      description={`${platformNames[data.platform]} · ${data.accountName}`}
+      onClose={close}
+      closeOnOverlayClick={!busy}
+      footer={
+        <View className="accounts-page__actions">
+          <Button block variant="outline" disabled={busy} onClick={close}>
+            取消
+          </Button>
+          <Button
+            block
+            variant="danger"
+            loading={busy}
+            disabled={!checked || !canUnbind}
+            onClick={() => void submit()}
+          >
+            确认解绑
+          </Button>
+        </View>
+      }
+    >
+      <View className="accounts-page__form">
+        <DescList items={[{ label: "账号 ID", value: data.accountUid }]} />
+        <Note>
+          解绑后该账号不再用于新的订购。系统会核对关联订单与下架任务；仍在使用中的账号不能解绑。
+        </Note>
+        <Checkbox checked={checked} disabled={busy || !canUnbind} onChange={setChecked}>
+          我已核对要解绑的账号
+        </Checkbox>
+        {error ? <Note tone="warning">{error}</Note> : null}
+        {!canUnbind ? (
+          <Note>
+            {refreshing
+              ? "正在刷新账号状态"
+              : "当前账号暂不可解绑，请先处理关联订单或下架任务，再刷新账号状态"}
+          </Note>
+        ) : null}
+      </View>
+    </Sheet>
   );
 }
 function AccountForm({

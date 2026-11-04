@@ -394,3 +394,13 @@ PR #236最终head `3d26ab01` 的完整CI已通过，并实际合入main `53ae124
 当前候选8a540775f已普通合并actual main 72ffab266，消费独立PR280的默认话题预填修复及W6-06主包内测试夹具的pollMs0；主动制造非法话题、中文错误/零写/合法替换反例仍保留。撤销后的新审批由原撤销人发起，其todo为空符合禁止自审；新轮截图使用本单既有发布专员的真实登录/MFA，并核实际me、权限、工单归属与新pending队列，未新增员工或改派。只有账号候选留桩由本包回补；本地结果不代表真实云5GB ZIP、外部证书、真实平台、真机或M6退出通过。
 
 最终候选8a540775ffe83134ecac51e1661191b53a9a3a23（actual main基线72ffab266）第八轮16/16通过；browser58.0秒、完整129.20秒、异人撤销2.3秒，run c73d517e320313fc，原runner已自动清理本轮scope。最终四目录106项、私有入口37项、services/API/admin类型与5081模块分层均通过。 16组稳定双帧与canonical SHA逐组一致，尺寸1440×900，关键状态已目检。 主包PR283的当前CI与实际合入另行核对。
+
+## W6-09 发布生命周期
+
+`/publish/patrol` 使用当前巡检清单、证据与真实 actions，区分未巡检、异常、正常及恢复；周批次全平台总数和当前范围计数分开显示。`/publish/offline` 展示商家自声明、后台核查、仍在线、升级和提醒历史。批量核查遵循已合契约的整批原子语义：任一项拒绝时显示“本批未处理”和逐项原因，不显示部分成功；每项独立上传证据和核对当前清单。提醒受理不代表通知送达或平台实际下架。
+
+`/publish/accounts` 保留原账号核验队列，新增独立 URL / 查询缓存的账号健康视图。巡检异常不自动标记账号异常。三页都用正式 typed 接口，同筛选 summary、当前详情身份、服务端权限/actions、同意图键和同步防重；操作受理后只读回事实，变更输入撤销确认。证据沿现有 multipart 与 stored 确认，不保存私签 URL。
+
+定点检查：`pnpm --filter @liyoxi/admin exec vitest run src/features/publish/patrol src/features/publish/offline src/features/publish/accounts --maxWorkers=1 --no-file-parallelism`；真实浏览器入口：`pnpm admin:e2e:live --test-file test/e2e/live-m6-patrol-offline.spec.ts`。后者使用本轮隔离的历史已交付输入：每项 1 集，含本地 MinIO 中经大小和 SHA-256 回读核对的已知 MP4、历史 QC / 成片、完整 release manifest 及两类文件引用，不宣称本轮重演付款、制作或推包；共享工厂序号与时钟不变。账号历史截图也有本轮真实 PNG 字节。账号审核、上线、巡检和下架生成/处理均走公开服务或 HTTP；本轮证据上传用明确的测试 PNG，不代表外部平台巡检证据。原控制台、横溢出、双帧 10 秒窗口和单 worker 时限保持，真实云、微信及平台能力另验。最终运行结果与真实未验以 W6-09 状态为准。
+
+真实证据上传由 `w609-evidence.ts` 私有验收桥接续本轮精确登记的 local promote job。它只接受同一隔离库 / Redis 前缀、员工、主体、门店和开始时间之后的 8 个 `evidence` 意图，核对原 HTTP 登记和 complete 成功及文件归属，保持原响应不变；不扫描其他文件或扩大既有泵范围。停机先拒绝新意图、等待在途请求，再仅清理这些意图的 incoming / formal 对象，登记应答丢失也按原 token 恢复清理。独立生命周期用例覆盖越界请求、停机等待与丢失应答。

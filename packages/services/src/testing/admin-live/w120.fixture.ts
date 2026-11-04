@@ -322,6 +322,10 @@ export async function finishW120LiveFixture(
   raw: unknown,
   video: { path: string; sha256: string; size: number },
   signal?: AbortSignal,
+  observe?: (progress: {
+    outcome: "pass" | "reject";
+    stage: "sample_start" | "sample_ready" | "final_start" | "final_ready" | "delivering";
+  }) => void,
 ) {
   const input = W120PendingSchema.parse(raw);
   const { tx, clock, assembly, flow } = runtime;
@@ -391,6 +395,8 @@ export async function finishW120LiveFixture(
           storeMode: "active" as const,
         },
       };
+      // Optional private startup diagnostics carry fixed phases only, never fixture identities.
+      observe?.({ outcome: pending.outcome, stage: "sample_start" });
       runtime.logger.info(
         { evt: "w120.actual_media", outcome: pending.outcome, stage: "upload_probe_watermark" },
         "本轮交付夹具开始真实制作",
@@ -428,6 +434,7 @@ export async function finishW120LiveFixture(
         throw new Error("W120 未知元数据 QC 失败产生业务写入");
       await media.finish(sampleFile, true);
       signal?.throwIfAborted();
+      observe?.({ outcome: pending.outcome, stage: "sample_ready" });
       runtime.logger.info(
         { evt: "w120.actual_media", outcome: pending.outcome, stage: "sample_qc" },
         "本轮真实样片已完成制作",
@@ -451,8 +458,10 @@ export async function finishW120LiveFixture(
         viewedVia: "weapp",
         hasViewed: true,
       });
+      observe?.({ outcome: pending.outcome, stage: "final_start" });
       const finalFile = await media.upload(actor, merchant.store.id, item.id, "final_episode", 2);
       await media.finish(finalFile);
+      observe?.({ outcome: pending.outcome, stage: "final_ready" });
       const episodes = await delivery.episodeRegister(ctx, staff, ticketId, {
         items: [
           { episodeNo: 1, sampleId: sample.sampleId },
@@ -470,6 +479,7 @@ export async function finishW120LiveFixture(
       await license.prepareReady([scope.itemId]);
       const ready = await delivery.get(staff, ticketId);
       if (ready.step !== "delivering") throw new Error("W120 公开流程未到待交付");
+      observe?.({ outcome: pending.outcome, stage: "delivering" });
       runtime.logger.info(
         { evt: "w120.actual_media", outcome: pending.outcome, stage: "delivering" },
         "本轮交付夹具已到待交付",

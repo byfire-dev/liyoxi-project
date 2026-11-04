@@ -4,6 +4,8 @@ import { calendarRoute } from "../publish/calendar";
 import { overdueRoute } from "../publish/overdue";
 import { accountsRoute } from "../publish/accounts";
 import { deliveriesRoute } from "../publish/deliveries";
+import { offlineRoute } from "../publish/offline";
+import { patrolRoute } from "../publish/patrol";
 import { verifyRoute } from "../publish/verify";
 export const publishRoutes = [
   accountsRoute,
@@ -11,4 +13,6 @@ export const publishRoutes = [
   verifyRoute,
   calendarRoute,
   overdueRoute,
+  offlineRoute,
+  patrolRoute,
 ] as const;
