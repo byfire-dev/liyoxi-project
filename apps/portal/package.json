@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "build": "vite build && node ../admin/scripts/check-build.mjs dist/app --app portal",
-    "dev": "vite"
+    "dev": "vite",
+    "e2e:live": "node scripts/live.mjs"
   },
   "dependencies": {
     "@liyoxi/contract": "workspace:*",
