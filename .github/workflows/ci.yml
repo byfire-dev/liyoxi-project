@@ -1265,7 +1265,7 @@ jobs:
         run: node apps/portal/scripts/e2e-affected.mjs --base "$BASE"
       - name: Portal 私有代理与进程边界
         if: steps.portal-e2e.outputs.run == 'true'
-        run: node --test apps/portal/scripts/live-protocol.test.mjs apps/portal/scripts/live-edge.test.mjs
+        run: node --test apps/portal/scripts/live-protocol.test.mjs apps/portal/scripts/live-edge.test.mjs apps/portal/scripts/live-artifacts.test.mjs
       - name: 取 Portal Playwright 的版本
         id: portal-playwright
         if: steps.portal-e2e.outputs.run == 'true' && steps.admin-e2e.outputs.run != 'true'

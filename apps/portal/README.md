@@ -17,11 +17,14 @@
 ```sh
 pnpm install --frozen-lockfile
 pnpm db:generate
+docker compose -f infra/compose/local.yml up -d --wait postgres redis
 pnpm --filter @liyoxi/portal exec playwright install chromium
 pnpm --filter @liyoxi/portal typecheck
 pnpm --filter @liyoxi/portal test
 pnpm portal:build
-LYX_BUILD=local-verification pnpm --filter @liyoxi/portal e2e:live
+APP_ENV=test DATABASE_URL=postgresql://liyoxi:lyx-local-dev@localhost:5442/liyoxi \
+REDIS_URL=redis://localhost:6389/0 LYX_BUILD=local-verification \
+pnpm --filter @liyoxi/portal e2e:live
 ```
 
 本片当前在实现与验证中，完整HTTPS链尚未计通过。入口为`scripts/live.mjs`，最终经白名单检查的结果目录为`dist/e2e-live-safe/<runId>`；原始测试输出不上传。
