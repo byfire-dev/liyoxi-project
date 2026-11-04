@@ -74,6 +74,8 @@ async function confirm(page: Page, name: string, fill?: (modal: Locator) => Prom
   await page.getByRole("button", { name, exact: true }).click();
   const modal = page.getByRole("dialog", { name, exact: true });
   await expect(modal).toBeVisible();
+  // 入场缩放的起始帧可能短暂静止；先等 motion 类移除，再操作弹窗内控件。
+  await expect(modal).not.toHaveClass(/ant-zoom-(appear|enter)/);
   if (fill) await fill(modal);
   await modal.getByRole("checkbox", { name: "我已核对当前对象、内容与影响", exact: true }).check();
   await modal.getByRole("button", { name: "确认操作", exact: true }).click();
