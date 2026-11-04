@@ -1,0 +1,131 @@
+.portal-download {
+  max-width: 1180px;
+  margin: auto;
+  padding: 24px;
+}
+.portal-download-brand {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+.portal-download-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.portal-download-heading h1 {
+  margin: 0 0 8px;
+}
+.portal-download-section {
+  margin-top: 24px;
+}
+.portal-download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
+  gap: 24px;
+  margin-top: 16px;
+}
+.portal-download-cover {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--download-radius);
+  padding: 24px;
+  margin-bottom: 20px;
+  background: var(--download-soft);
+  color: var(--download-accent);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.portal-download-cover strong {
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.portal-download-cover span,
+.portal-download-cover small {
+  font-size: 12px;
+}
+.portal-download-loading {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+}
+.portal-download-more {
+  text-align: center;
+  margin: 24px;
+}
+.portal-download-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.portal-download-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.portal-download-summary strong {
+  font-size: 18px;
+}
+.portal-download-episodes {
+  border: 1px solid var(--download-border);
+  background: var(--download-surface);
+  border-radius: var(--download-radius);
+  overflow: hidden;
+}
+.portal-download-episode {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--download-border);
+}
+.portal-download-episode:last-child {
+  border-bottom: 0;
+}
+.portal-download-number {
+  color: var(--download-accent);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+}
+.portal-download-episode-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+.portal-download-text {
+  margin: 20px 0 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.portal-download .ant-alert {
+  margin-bottom: 16px;
+}
+@media (max-width: 760px) {
+  .portal-download {
+    padding: 16px;
+  }
+  .portal-download-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .portal-download-summary {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .portal-download-episode {
+    flex-wrap: wrap;
+    padding: 16px;
+  }
+  .portal-download-episode-info {
+    min-width: 180px;
+  }
+}

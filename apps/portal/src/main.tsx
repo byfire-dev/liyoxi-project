@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
 import { createAuthRoutes } from "./features/auth/routes";
+import { createDownloadRoutes } from "./features/items/routes";
 import { createPortalRuntime } from "./lib/runtime";
 
 const container = document.getElementById("root");
@@ -21,6 +22,9 @@ const close = (event: PageTransitionEvent) => {
 window.addEventListener("pagehide", close);
 root.render(
   <StrictMode>
-    <App runtime={runtime} routes={createAuthRoutes(runtime)} />
+    <App
+      runtime={runtime}
+      routes={[...createAuthRoutes(runtime), ...createDownloadRoutes(runtime)]}
+    />
   </StrictMode>,
 );
