@@ -2,6 +2,11 @@
 import { antdTheme, fontFamilySerif } from "@liyoxi/shared/design/antd-theme";
 import { ConfigProvider, theme, type ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
+import { useEffect, useMemo, useState } from "react";
+
+import { SessionBoundary } from "./features/session/SessionBoundary";
+import { createPortalRoutes, type PortalRoute } from "./lib/routes";
+import type { PortalRuntime } from "./lib/runtime";
 
 /** 主题取 W0-26 的生成物，与后台同一份全局主题；不写色值 */
 const portalTheme: ThemeConfig = { token: { ...antdTheme.token } };
@@ -41,10 +46,56 @@ function Placeholder() {
   );
 }
 
-export function App() {
+function ApplicationRoutes({
+  runtime,
+  routes,
+}: {
+  runtime: PortalRuntime;
+  routes: readonly PortalRoute[];
+}) {
+  const registry = useMemo(() => createPortalRoutes(routes), [routes]);
+  const [target, setTarget] = useState(() =>
+    typeof window === "undefined" ? "/" : window.location.pathname + window.location.search,
+  );
+  const match = registry.match(target);
+  useEffect(() => {
+    const changed = () => setTarget(window.location.pathname + window.location.search);
+    const restored = (event: PageTransitionEvent) => {
+      if (event.persisted && registry.match(window.location.pathname)?.route.access === "session")
+        void runtime.session.load();
+    };
+    window.addEventListener("popstate", changed);
+    window.addEventListener("pageshow", restored);
+    return () => {
+      window.removeEventListener("popstate", changed);
+      window.removeEventListener("pageshow", restored);
+    };
+  }, [registry, runtime]);
+  if (!match)
+    return target === "/" ? (
+      <Placeholder />
+    ) : (
+      <main>
+        <h1>页面暂不可用</h1>
+        <a href="/">返回首页</a>
+      </main>
+    );
+  const leaf = <div key={target}>{match.route.render(match.params)}</div>;
+  return match.route.access === "public" ? (
+    leaf
+  ) : (
+    <SessionBoundary store={runtime.session}>{leaf}</SessionBoundary>
+  );
+}
+
+const noRoutes: readonly PortalRoute[] = [];
+export function App({
+  runtime,
+  routes = noRoutes,
+}: { runtime?: PortalRuntime; routes?: readonly PortalRoute[] } = {}) {
   return (
     <ConfigProvider theme={portalTheme} locale={zhCN}>
-      <Placeholder />
+      {runtime ? <ApplicationRoutes runtime={runtime} routes={routes} /> : <Placeholder />}
     </ConfigProvider>
   );
 }

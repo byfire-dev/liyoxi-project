@@ -1258,6 +1258,14 @@ jobs:
             apps/admin/dist/e2e-live-results/
           if-no-files-found: error
           retention-days: 30
+      - name: Portal 真实验收要不要跑
+        id: portal-e2e
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+        run: node apps/portal/scripts/e2e-affected.mjs --base "$BASE"
+      - name: Portal 私有代理与进程边界
+        if: steps.portal-e2e.outputs.run == 'true'
+        run: node --test apps/portal/scripts/live-protocol.test.mjs apps/portal/scripts/live-edge.test.mjs
 
   # 密钥扫描、依赖审计、发布时长、门禁自测。门禁自测里连库的几例自己建临时库；“枚举与库 CHECK 一致”的反例
   # 要读跑过迁移的 lyx_migrate_check，所以这里也建一份
