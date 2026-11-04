@@ -731,6 +731,13 @@ describe("ci.yml", () => {
       "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
       MINIO_UP,
       "pnpm admin:e2e:live",
+      'node apps/portal/scripts/e2e-affected.mjs --base "$BASE"',
+      "node --test apps/portal/scripts/live-protocol.test.mjs apps/portal/scripts/live-edge.test.mjs apps/portal/scripts/live-artifacts.test.mjs apps/portal/scripts/live-process.test.mjs",
+      `node -p '"version=" + require("./apps/portal/package.json").devDependencies["@playwright/test"]' >> "$GITHUB_OUTPUT"`,
+      'sudo env "PATH=$PATH" node infra/ci/normalize-browser-apt-source.mjs',
+      "pnpm --filter @liyoxi/portal exec playwright install --with-deps chromium",
+      "docker compose -f infra/compose/local.yml up -d --wait postgres redis",
+      "pnpm --filter @liyoxi/portal e2e:live",
     ],
     gates: [
       INSTALL,
@@ -847,7 +854,7 @@ describe("ci.yml", () => {
       }
       expect(jobBody(ci, id), id).toMatch(/^ {4}timeout-minutes: 20$/m);
     }
-    // web原冒烟/截图条件保持；web-live仅允许下列精确原后台条件，其他任务不能带条件跳过。
+    // web原冒烟/截图条件保持；web-live仅允许下列精确后台与Portal条件步骤，其他任务不能带条件跳过。
     const conditional = (id: string) =>
       `${jobBody(ci, id)}\n`
         .split(/^ {6}- name: /m)
@@ -867,6 +874,14 @@ describe("ci.yml", () => {
       "后台真实接口验收的工具镜像缓存",
       "后台登录真实接口验收",
       "上传后台真实接口截图",
+      "Portal 私有代理与进程边界",
+      "取 Portal Playwright 的版本",
+      "Portal 浏览器缓存",
+      "Portal 浏览器使用官方 Ubuntu HTTPS 源",
+      "装 Portal 验收浏览器",
+      "Portal 真实接口验收的本地依赖",
+      "Portal HTTPS 与真实授权验收",
+      "上传 Portal 已脱敏验收结果",
     ]);
   });
 
