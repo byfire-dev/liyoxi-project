@@ -1,7 +1,11 @@
 # 真机结果入口
 
-目前没有真机结果；工程构建、fake 测试不构成 V19/V8/V3/V7 结论。
+[2026-11-12 分项结论 ADR](../../../docs/adr/draft-X-01-两机扫码通过与手机号分项验证.md) 记录 X-01 的交付范围与下游依赖。
 
-业主执行 `pnpm --dir spikes/weapp-probe report` 后，在本目录生成 `summary.md`。只回传过目的汇总、填写后的 CHECKLIST 记录栏与已经裁掉手机号/账号/票据/URL/凭据的截图。不要回传 `server/.logs/`、密钥文件、完整调试控制台、HAR 或带签名的地址。
+| 项目 | 证据与下一步 |
+| --- | --- |
+| V8、V19 | [两机扫码逐次计时、取号与同号换微信结果](2026-11-12-v8-v19-evidence.md) |
+| V3 | [两次真实分块复用、正式矩阵与 M3 交接](2026-11-12-v3-upload-evidence-matrix.md) |
+| V7 | [正式队列回执、人工播放确认与受控低存储操作](2026-11-12-v7-device-evidence.md) · [旧 Android 串行诊断截图，裁取失败阶段](2026-11-07-v7-serial8-redacted.jpg) |
 
-fake 报告单独生成 `fake-summary.md`，不能混入真实数据。当前不提交空的 `summary.md` 或结论 ADR。
+[原始脱敏汇总](summary.md) 是北京时间 2026-11-07 00:50 生成的 541 条 real 记录，包含早期 V7 诊断失败。后续正式队列的回执与业主相册观察单列在 V7 证据中。后续运行 `report` 会重写本地 `summary.md`；该次快照可从此提交取回。`fake-summary.md` 单独生成。
