@@ -5,7 +5,7 @@ import { hasPermission } from "../authz/index.js";
 import type { StaffContext } from "../authz/index.js";
 import { paramsAt } from "../config/index.js";
 import type { Tx } from "../kernel/index.js";
-import type { PublishDeps } from "./context.js";
+import type { PublishDeps, PublishViewer } from "./context.js";
 import {
   accountOf,
   taskOf,
@@ -103,10 +103,18 @@ export async function storeBrief(tx: Tx, storeId: string) {
     qualificationStatus: store.qualificationStatus,
   };
 }
-export async function accountCard(tx: Tx, a: AccountRow) {
+export async function accountCard(tx: Tx, a: AccountRow, viewer?: PublishViewer) {
   const last = a.channelAccountSubmissions[0]!,
     u = await usage(tx, a.id),
     filled = last.filledSnapshot as { accountType: string };
+  const canUnbind =
+    viewer?.ctx.actor.type === "merchant" &&
+    viewer.membership.role === "owner" &&
+    viewer.membership.entityId === a.entityId &&
+    viewer.membership.storeId === a.storeId &&
+    a.status !== "unbound" &&
+    Object.values(u.counts).every((count) => count === 0) &&
+    u.openTakedownTaskCount === 0;
   return {
     ...brief(a),
     accountType: a.accountType,
@@ -125,7 +133,7 @@ export async function accountCard(tx: Tx, a: AccountRow) {
       liveCount: u.counts.liveCount,
     },
     openTakedownTaskCount: u.openTakedownTaskCount,
-    actions: a.status === "abnormal" ? ["submit"] : [],
+    actions: [...(a.status === "abnormal" ? ["submit"] : []), ...(canUnbind ? ["unbind"] : [])],
   };
 }
 export async function approvalView(
@@ -149,7 +157,7 @@ export async function approvalView(
     confirmChecks: a.confirmChecks,
   };
 }
-export async function accountRow(tx: Tx, a: AccountRow, _staff: StaffContext) {
+export async function accountRow(tx: Tx, a: AccountRow, staff: StaffContext) {
   const u = await usage(tx, a.id),
     last = a.channelAccountSubmissions[0]!,
     prev = a.channelAccountSubmissions[1]?.approvalRequest;
@@ -193,7 +201,10 @@ export async function accountRow(tx: Tx, a: AccountRow, _staff: StaffContext) {
     usage: u.counts,
     activeDramas: u.activeDramas,
     openTakedownTaskCount: u.openTakedownTaskCount,
-    actions: [],
+    actions:
+      a.status === "available" && hasPermission(staff, "publish.account.mark_abnormal")
+        ? ["mark-abnormal"]
+        : [],
   };
 }
 async function accountHistory(tx: Tx, a: AccountRow) {
@@ -274,7 +285,8 @@ export async function accountSubmissionDetail(
     isCurrentRound: a.channelAccountSubmissions[0]?.id === r.id,
     submittedAt: iso(r.submittedAt),
     submittedByName: (await actorName(tx, "merchant", r.submittedByUserId, r.entityId)) ?? "商家",
-    account: await accountRow(tx, a, staff),
+    // 核验角色队列可以跨门店读取；这里不提供需要普通账号范围的健康管理动作。
+    account: { ...(await accountRow(tx, a, staff)), actions: [] },
     filled: r.filledSnapshot,
     screenshots: r.screenshotFileIds.map((fileId) => ({
       fileId,

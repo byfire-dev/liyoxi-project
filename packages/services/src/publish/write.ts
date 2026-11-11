@@ -29,6 +29,7 @@ import {
 } from "./validate.js";
 import { checked } from "./machines.js";
 import { launchChangedPort, launchHandlerPort } from "./ports.js";
+import { syncTakedownBasis } from "./takedown-basis.js";
 import { boundAssembly } from "./binding.js";
 import { closeCancelReviewLaunchSubmission } from "./cancel-review-close.js";
 import { accountUnbindWithdrawal } from "./account-unbind.js";
@@ -638,6 +639,7 @@ async function launchDecision(
           },
         },
   });
+  if (approved) await syncTakedownBasis(tx, deps, ctx, task.id);
   await deps.assembly.port(launchChangedPort)(tx, {
     orderItemId: task.orderItemId,
     deliveryTicketId: task.deliveryTicketId,

@@ -4,6 +4,102 @@ import { expect, it } from "vitest";
 
 import { cleanClientStacktrace, clientErrorFrames } from "./index.js";
 
+it("M6 portal帧复用同源hash assets，只认本组件完整路径、正坐标与既有限额", () => {
+  const origin = "https://portal.example.invalid";
+  const asset = "assets/index-Ab12_cd3.js";
+  const canonical = {
+    filename: asset,
+    abs_path: `app:///portal/${asset}`,
+    lineno: 2,
+    colno: 9,
+    in_app: true,
+  };
+  expect(
+    clientErrorFrames(
+      `Error: fixture\n    at fail (${origin}/${asset}:2:9)\nboot@app:///portal/${asset}:1:3`,
+      "portal",
+      origin,
+    ),
+  ).toEqual([{ ...canonical, lineno: 1, colno: 3 }, canonical]);
+  expect(clientErrorFrames(`at app:///portal/${asset}:2:9`, "portal")).toEqual([canonical]);
+  expect(clientErrorFrames(`at ${origin}/${asset}:2:9`, "portal")).toEqual([]);
+  for (const path of [
+    `https://other.example.invalid/${asset}`,
+    `https://admin.example.invalid/${asset}`,
+    `${origin}:8443/${asset}`,
+    `https://user:pass@portal.example.invalid/${asset}`,
+    `${origin}/user/../${asset}`,
+    `${origin}/${asset}?token=secret`,
+    `${origin}/${asset}#fragment`,
+    `${origin}/assets/%69ndex-Ab12_cd3.js`,
+    `${origin}/assets\\index-Ab12_cd3.js`,
+    `${origin}/assets/index.js`,
+    `${origin}/app.js`,
+    `app:///admin/${asset}`,
+    `app:///weapp/${asset}`,
+    "app:///portal/../assets/index-Ab12_cd3.js",
+    "app:///portal/pages/mall/index.js",
+    "assets/index-Ab12_cd3.js",
+    "/srv/api/server.js",
+    "node:internal/a",
+  ])
+    expect(clientErrorFrames(`at fail (${path}:2:9)`, "portal", origin)).toEqual([]);
+  for (const suffix of ["0:1", "1:0", "-1:2", "1:2147483648", "1", "native"])
+    expect(clientErrorFrames(`at app:///portal/${asset}:${suffix}`, "portal")).toEqual([]);
+  expect(clientErrorFrames("x".repeat(32_769), "portal", origin)).toEqual([]);
+  expect(
+    clientErrorFrames(
+      Array.from({ length: 60 }, () => `at app:///portal/${asset}:2:9`).join("\n"),
+      "portal",
+    ),
+  ).toHaveLength(50);
+  expect(
+    cleanClientStacktrace(
+      {
+        frames: [
+          {
+            ...canonical,
+            function: "private function",
+            vars: { phone: "13800138000" },
+            pre_context: ["private source"],
+            context_line: "private source",
+            post_context: ["private source"],
+          },
+        ],
+      },
+      "portal",
+    ),
+  ).toEqual({ frames: [canonical] });
+  for (const changed of [
+    { abs_path: `app:///admin/${asset}` },
+    { abs_path: `app:///weapp/${asset}` },
+    { abs_path: `${origin}/${asset}` },
+    { abs_path: `https://other.example.invalid/${asset}` },
+    { filename: "../assets/index-Ab12_cd3.js" },
+    { filename: "assets/index.js", abs_path: "app:///portal/assets/index.js" },
+    { lineno: 0 },
+    { colno: 2_147_483_648 },
+    { colno: 1.5 },
+    { lineno: "2" },
+  ])
+    expect(
+      cleanClientStacktrace({ frames: [{ ...canonical, ...changed }] }, "portal"),
+    ).toBeUndefined();
+  for (const kind of ["admin", "weapp", "api", "worker", "unknown", undefined])
+    expect(cleanClientStacktrace({ frames: [canonical] }, kind)).toBeUndefined();
+  for (const kind of ["api", "worker", "unknown"])
+    expect(
+      cleanClientStacktrace(
+        { frames: [{ ...canonical, abs_path: `app:///${kind}/${asset}` }] },
+        kind,
+      ),
+    ).toBeUndefined();
+  expect(
+    cleanClientStacktrace({ frames: Array.from({ length: 60 }, () => canonical) }, "portal")
+      ?.frames,
+  ).toHaveLength(50);
+});
+
 it("W227帧：V8/JSC/Taro完整路径、安全边界与真实微型SourceMap位置一致", () => {
   const origin = "https://admin.example.invalid";
   const asset = "assets/index-Ab12_cd3.js";

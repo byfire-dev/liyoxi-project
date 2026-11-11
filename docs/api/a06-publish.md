@@ -362,8 +362,23 @@
 | `today` | string(date) | 是 | 今天（“今天”标记） | 服务端 |
 | `stats` | object | 是 | 统计行 `{ total, producing, toLaunch, verifying, overdue }`（“当前视图 N 项 · 待上线 N · 核验中 N · 逾期 N”） | 按 `calendarStatus` 计数（不受 `limit` 截断） |
 | `days` | array<object> | 是 | `[{ date, items: LaunchCalendarItem[] }]`，只含有事项的日期，按日期升序；同日按门店名 | 计算 |
+| `workCalendar` | object | 是 | 请求范围内的实际工作日与节假日只读投影，结构见下；不受业务事项 `managerId` / `limit` 过滤或截断影响 | SLA 公共年度读取 |
 | `total` | integer | 是 | 事项总数 | 计数 |
 | `isTruncated` | boolean | 是 | 被 `limit` 截断（工作台“另有 N 项，详见上线日历”） | `total` > 返回条数 |
+
+`workCalendar` 的字段：
+
+| 字段 | 类型 | 必有 | 说明 | 来源 |
+| --- | --- | --- | --- | --- |
+| `calendarVersion` | integer ≥ 0 | 是 | 同一读取事务内的全表日历批次；不因跨年取两个不同版本 | SLA `readCalendarYear` |
+| `years` | array<object> | 是 | 区间实际涉及的 1–2 个年份，升序；每项 `{ year: integer, importedAt: string(date-time) \| null }` | 同上 |
+| `days` | array<object> | 是 | 每日一项、日期升序，完整覆盖响应 `from` 至 `to`（含），最多 42 项 | 已存日历按范围裁剪；缺日保留空事实 |
+| `days[].date` | string(date) | 是 | 日期标签 | 请求范围 |
+| `days[].kind` | `work_calendar_day.kind` \| null | 是 | 原有 `weekday` / `weekend` / `holiday` / `adjusted_workday`；该日缺行时为 null | SLA 年度逐日事实 |
+| `days[].isWorkday` | boolean \| null | 是 | 原工作日标志；缺行时为 null，不按星期计算替代值 | 同上 |
+| `days[].name` | string \| null | 是 | 仅节假日、调休日取原例外名称（1–20 字）；普通日和缺日为 null | SLA 年度 `items[].note` |
+
+`years[].importedAt` 沿用 SLA 年度读取语义：存在该年例外日或日历导入审计时，返回该年记录的最大 `updatedAt`，否则为 null。它是现有年度导入标记，不是审计事件的精确发生时间，也不表示外部平台验收。仅铺底平日/周末而未导入假期安排的年份仍返回原逐日事实，但 `importedAt=null`；整年或单日缺行时不生成周末/节假日事实。跨年读取复用同一事务的共享导入锁；仅返回发布日历所需字段，不返回系统工作时段或管理能力。
 
 #### `LaunchTrackItem`
 
@@ -1017,7 +1032,7 @@
 | `DOWNLOAD_GRANT_INVALID` | 409 | 本包对主体没有有效的下载授权（`details.reason`；m05 定义），打包无意义 |
 
 **副作用**（同一事务；`zip_bundle` 行由 media 在 `ensureZip` 内锁，`lock_rank = 390`）：
-- delivery 调 `media.ensureZip`，**带重建选项 `retry: true`**（A99；与 p01 下载请求的 `retry` 同名同义）——后台“预打包”是明确的人工意图，失败的包总是重打。另传打包任务需要的全部字段（清单 `items`、归属、`ownerType = delivery_release`、`ownerId`、`publishListText`、`publishListKey`、`keepUntil` = 有效授权最晚的 `download_grant.expires_at` + 1 天、`zipFileName`，10-delivery.md:888）。
+- delivery 调 `media.ensureZip`，**带重建选项 `retry: true`**（A99；与 p01 下载请求的 `retry` 同名同义）——后台“预打包”是明确的人工意图，失败的包总是重打。另传打包任务需要的全部字段（清单 `items`、归属、`ownerType = delivery_release`、`ownerId`、`publishListText`（对象键由media按代次/任务/attempt生成）、`keepUntil` = 有效授权最晚的 `download_grant.expires_at` + 1 天、`zipFileName`，10-delivery.md:888）。
 - `zip_bundle.zip_state`：无行 → `building`（`zip_gen = 1`）；`none` → `building`、`failed` → `building`（带重建选项，`zip_gen + 1`），建 `media_job`（`kind = zip_package`，`dedupe_key = zip:{zipBundleId}:{zipGen}`）；`building` 不变（返回“打包中”）；`ready` 且文件仍在 → 不变，顺延两条引用的 `keep_until`；`ready` 但文件已不在 → `building`（06-media.md:962-970）。
 - 审计。打包成功后由 worker 发 `media.release.zip_ready`（不在本事务）。
 
@@ -1063,6 +1078,7 @@
 - 原型展示全部交付中的工单（四类），PRD 写“按日展示待上线订单”，本文按原型（proto-admin-a.md:327；第 6 节第 4 项）。
 - 日历页的“逾期未上线”面板用 `admin.launchTask.list?tab=overdue`；“提醒商家（上线）”按 `items[].actions` 的 `remind` 显示，调 a05 `admin.deliveryTicket.remind`（`scene = golive`）；“去核验”取 `items[].tasks[]` 中 `reviewStatus = verifying` 的 `currentSubmissionId` 跳 3.16。
 - a02 工作台“近 7 日上线安排”用 `from` = 今天、`to` = 今天 + 6、`limit = 5`，`isTruncated` 给“另有 N 项”。
+- `workCalendar` 在同一 `publish:view` 守卫后经 SLA 公口只读投影；不调用系统管理接口，不改变 `admin.calendarDay.list` 的 `system:view` 守卫。GET 不导入、补日、写缺历告警或调整 SLA。
 
 ### 3.14 admin.launchTask.list　上线任务查询（逾期跟踪）
 

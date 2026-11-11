@@ -3,6 +3,7 @@ import { AdminFilePageSchema, MediaJobPageSchema, PurgeRunPageSchema } from "@li
 import { expect, test, type Browser, type Page, type Response } from "@playwright/test";
 import { liveContext, noHorizontalScroll } from "./live-context";
 import { totp } from "./w206-helpers";
+import { ensureLiveStepUp } from "./live-step-up";
 
 interface Fixture {
   runs: {
@@ -252,6 +253,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   ).toContainText(rejected.originalName);
   await shot(page, "media-ops-01-held-candidates");
   const before = await files(page, [conflict.fileId]);
+  await ensureLiveStepUp(page);
   const mismatch = await post(page, `purge-runs/${conflict.purgeRunId}/approve`, {
     confirm: { candidateCount: 2, candidateBytes: "8" },
   });
@@ -266,6 +268,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   await page.getByLabel("备注（可选）").fill("隔离验收放行本次候选清单");
   const approveButton = await confirm(page, "放行"),
     approvedResponse = response(page, `purge-runs/${approved.purgeRunId}/approve`);
+  await ensureLiveStepUp(page);
   await approveButton.click();
   const approvedResult = await approvedResponse;
   expect(approvedResult.status()).toBe(200);
@@ -311,6 +314,7 @@ test("W308 清除运行真实候选联动、错回显409、放行仅approved与�
   });
   expect(changed.status()).toBe(200);
   const conflictResponse = response(page, `purge-runs/${conflict.purgeRunId}/approve`);
+  await ensureLiveStepUp(page);
   await staleButton.click();
   const stale = await conflictResponse;
   errors.allow(stale, 409);
@@ -366,6 +370,7 @@ test("W308 恢复未支持保持503、彻删按Provider事实与窗口守卫，f
   await page.getByLabel("原因（必填）").fill("隔离验收彻删本轮虚构对象");
   const eraseButton = await confirm(page, "彻底删除", available.fileId),
     erasePending = response(page, `files/${available.fileId}/erase`);
+  await ensureLiveStepUp(page);
   await eraseButton.click();
   const erased = await erasePending;
   expect(erased.status()).toBe(200);

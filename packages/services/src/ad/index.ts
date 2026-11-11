@@ -49,3 +49,6 @@ export type { AdAdminReadDeps, AdAdminRelations, AdAdminTarget } from "./admin-r
 export { requestAdminAdChangeTx } from "./revision.js";
 export { markAdVersionSentTx, remindAdminAdTx, prelockAdminAdTx } from "./admin-write.js";
 export { registerAdminAdVersionTx, pushAdminAdVersionTx } from "./versions.js";
+export { createPortalAds } from "./portal.js";
+export type { PortalAds } from "./portal.js";
+export type { PortalAdDeps } from "./portal-context.js";

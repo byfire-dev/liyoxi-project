@@ -50,6 +50,7 @@ export interface MediaDeps {
   readonly videoMaxMb?: () => Promise<number>;
   readonly pollMs?: number;
   readonly moderation?: MediaProvider;
+  readonly zipProvider?: MediaProvider;
   readonly wechatImage?: {
     readonly appid?: string;
     readonly provider: Pick<WechatProvider, "checkImage" | "configured">;
@@ -121,6 +122,7 @@ export interface ReadSignInput {
 export interface DeliveryDownloadSignInput {
   readonly fileId: string;
   readonly fileName: string;
+  readonly kind?: "episode" | "zip" | "publish_list";
 }
 export interface SystemFileInput extends FileOwnerScope {
   readonly category: UploadCategory;

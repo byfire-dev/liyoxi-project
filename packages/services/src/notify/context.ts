@@ -39,6 +39,7 @@ export interface NotifyFact {
   deliveryTicketId?: string;
   excludeWechatIdentityId?: string;
   targetDate?: string;
+  dueDate?: string;
   notifyScope?: "owner_only" | "owner_and_clerks";
   amountFen?: number;
   quantity?: number;
@@ -52,6 +53,8 @@ export interface NotifyFact {
     | "delivery_release"
     | "channel_account"
     | "launch_task"
+    | "takedown_task"
+    | "store"
     | "sample"
     | "billing_order"
     | "invoice_request"

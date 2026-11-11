@@ -1265,6 +1265,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/delivery-releases/{deliveryReleaseId}/pack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 预打包 ZIP（供电脑端下载页整包下载） */
+        post: operations["admin.deliveryRelease.pack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/delivery-tickets": {
         parameters: {
             query?: never;
@@ -5316,6 +5333,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/takedown-tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下架核查队列：待核查、已核查（逾期、今日截止标记） */
+        get: operations["admin.takedownTask.list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 批量核查下架（每个任务各带证据截图） */
+        post: operations["admin.takedownTask.batchCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下架核查页签计数：待核查、已核查（含逾期、今日截止） */
+        get: operations["admin.takedownTask.summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下架任务详情：使用期、结束依据、下架方式与商家确认、处理记录、证据截图 */
+        get: operations["admin.takedownTask.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 核查通过（清单全过，证据截图 ≥2 张，长期留存）；全部账号核查后工单归档 */
+        post: operations["admin.takedownTask.check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 逾期未下架手动升级（通知交付主管与交付经理） */
+        post: operations["admin.takedownTask.escalate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/mark-online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 抽查仍在线：记录结果、通知商家、升级交付主管 */
+        post: operations["admin.takedownTask.markOnline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/takedown-tasks/{takedownTaskId}/send-breach-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 发送违约提醒：要求 24 小时内删除作品或设为仅自己可见（限频） */
+        post: operations["admin.takedownTask.sendBreachNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/term-extension-requests": {
         parameters: {
             query?: never;
@@ -7037,6 +7190,20 @@ export interface components {
             /** Format: uuid */
             storeId: string;
         };
+        AdminTakedownTaskPage: {
+            items: components["schemas"]["TakedownTaskRow"][];
+            page: number;
+            pageSize: number;
+            total: number;
+        };
+        AdminTakedownTaskSummary: {
+            checkOverdue: number;
+            checked: number;
+            dueToday: number;
+            overdue: number;
+            pending: number;
+            waiting: number;
+        };
         AdminTransferProofCreateBody: {
             /** Format: uuid */
             fileId: string;
@@ -8276,6 +8443,17 @@ export interface components {
                 step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
                 ticketNo: string;
             };
+        };
+        DeliveryReleasePackResult: {
+            /** Format: uuid */
+            deliveryReleaseId: string;
+            publishListFileId: string | null;
+            /** Format: uuid */
+            zipBundleId: string;
+            zipFileId: string | null;
+            zipGen: number;
+            /** @enum {string} */
+            zipState: "none" | "building" | "ready" | "failed";
         };
         DeliveryTicketCard: {
             actions: string[];
@@ -9666,6 +9844,20 @@ export interface components {
             /** Format: date */
             today: string;
             total: number;
+            workCalendar: {
+                calendarVersion: number;
+                days: {
+                    /** Format: date */
+                    date: string;
+                    isWorkday: boolean | null;
+                    kind: ("weekday" | "weekend" | "holiday" | "adjusted_workday") | null;
+                    name: string | null;
+                }[];
+                years: {
+                    importedAt: string | null;
+                    year: number;
+                }[];
+            };
         };
         LaunchCalendarItem: {
             accounts: components["schemas"]["ChannelAccountBrief"][];
@@ -13155,6 +13347,123 @@ export interface components {
             status: "none" | "active" | "expired" | (string & {});
         };
         SystemConfigJsonValue: Record<string, never> | unknown[] | string | number | boolean | null;
+        TakedownEventView: {
+            actorName: string | null;
+            /** @enum {string} */
+            actorType: "merchant" | "staff" | "system" | (string & {});
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            kind: "created" | "auto_reminded" | "manual_reminded" | "merchant_confirmed" | "sample_released" | "found_online" | "basis_reopened" | "escalated" | "breach_notified" | "checked" | "voided" | "check_due_recalculated" | "follow_up" | (string & {});
+            node: string | null;
+            note: string | null;
+        };
+        TakedownTaskBatchCheckBody: {
+            items: (components["schemas"]["TakedownTaskCheckBody"] & {
+                /** Format: uuid */
+                takedownTaskId: string;
+            })[];
+        };
+        TakedownTaskBatchCheckResult: {
+            archivedTicketIds: string[];
+            items: components["schemas"]["TakedownTaskRow"][];
+        };
+        TakedownTaskCheckBody: {
+            /** @enum {string} */
+            checklistCode: "takedown.check" | "takedown.absence_check";
+            checklistVersionNo: number;
+            evidenceFileIds: string[];
+            results: {
+                key: string;
+                note?: string;
+                /** @enum {string} */
+                result: "pass" | "fail" | "na";
+            }[];
+        };
+        TakedownTaskDetail: components["schemas"]["TakedownTaskRow"] & {
+            checkedBy: components["schemas"]["StaffBrief"] | null;
+            checklistCode: string | null;
+            checklistVersionNo: number | null;
+            evidenceFileIds: string[];
+            /** @enum {string} */
+            expectedChecklistCode: "takedown.check" | "takedown.absence_check";
+            isBreachNoticedToday: boolean;
+            /** Format: uuid */
+            launchTaskId: string;
+            merchantConfirmedByName: string | null;
+            orderItem: {
+                agreedLaunchDate: string | null;
+                dramaTitle: string;
+                episodeCount: number;
+                liveEpisodeCount: number;
+                /** Format: uuid */
+                orderId: string;
+                /** Format: uuid */
+                orderItemId: string;
+                orderNo: string;
+                /** Format: date-time */
+                orderedAt: string;
+                /** @enum {string} */
+                phase: "pending_start" | "producing" | "to_launch" | "live" | "ended" | "cancelled" | "refunded" | "terminated";
+                /** @enum {string} */
+                productionModel: "standard" | "advanced" | "top";
+                /** Format: date */
+                usageEndDate: string;
+                /** @enum {string} */
+                usageEndSource: "license" | "early_end" | "expired";
+                usageStartDate: string | null;
+            };
+            results: components["schemas"]["AdminChecklistItemView"][];
+            ticket: {
+                deliveredAt: string | null;
+                deliveryManager: components["schemas"]["StaffBrief"] | null;
+                /** Format: date-time */
+                deliveryTargetAt: string;
+                /** Format: uuid */
+                deliveryTicketId: string;
+                isPaused: boolean;
+                pauseReasons: ("cancel_review" | "plan_amendment")[];
+                publisher: components["schemas"]["StaffBrief"] | null;
+                /** @enum {string} */
+                step: "assigning" | "plan_confirm" | "ad_prep" | "sample_making" | "sample_confirm" | "batch_compose" | "delivering" | "awaiting_launch" | "launch_verify" | "in_service" | "takedown" | "archived" | "terminated";
+                ticketNo: string;
+            };
+            timeline: components["schemas"]["TakedownEventView"][];
+        };
+        TakedownTaskRow: {
+            account: components["schemas"]["ChannelAccountBrief"];
+            actions: ("check" | "mark-online" | "escalate" | "send-breach-notice" | (string & {}))[];
+            /** @enum {string} */
+            basis: "live" | "delivered_unverified" | (string & {});
+            breachNoticeCount: number;
+            checkDueAt: string | null;
+            checkMethod: ("evidence" | "sampled_out" | (string & {})) | null;
+            checkedAt: string | null;
+            dramaTitle: string;
+            /** Format: date */
+            dueDate: string;
+            episodeCount: number;
+            escalatedAt: string | null;
+            isCheckOverdue: boolean;
+            isOverdue: boolean;
+            merchantConfirmedAt: string | null;
+            merchantMethod: ("delete" | "private" | "not_published" | (string & {})) | null;
+            /** Format: uuid */
+            orderItemId: string;
+            orderNo: string;
+            overdueDays: number | null;
+            publisher: components["schemas"]["StaffBrief"] | null;
+            /** @enum {string} */
+            status: "pending_merchant" | "merchant_confirmed" | "checked" | (string & {});
+            stillOnlineCount: number;
+            store: components["schemas"]["AdminStoreBrief"];
+            /** Format: uuid */
+            takedownTaskId: string;
+            /** @enum {string} */
+            triggerKind: "expiry" | "early_end" | "platform_termination" | "terminated_after_delivery" | (string & {});
+            /** Format: date */
+            usageEndDate: string;
+        };
         TicketActivityPage: {
             hasMore: boolean;
             items: components["schemas"]["ActivityItem"][];
@@ -20017,6 +20326,92 @@ export interface operations {
             };
             /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 内部错误 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.deliveryRelease.pack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deliveryReleaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["DeliveryReleasePackResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -43658,6 +44053,700 @@ export interface operations {
             };
             /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.list": {
+        parameters: {
+            query?: {
+                isOverdue?: "true" | "false";
+                basis?: "live" | "delivered_unverified";
+                orderItemId?: string;
+                storeId?: string;
+                dueFrom?: string;
+                dueTo?: string;
+                q?: string;
+                page?: number;
+                pageSize?: number;
+                tab?: "pending" | "waiting" | "checked";
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminTakedownTaskPage"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.batchCheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakedownTaskBatchCheckBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskBatchCheckResult"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.summary": {
+        parameters: {
+            query?: {
+                isOverdue?: "true" | "false";
+                basis?: "live" | "delivered_unverified";
+                orderItemId?: string;
+                storeId?: string;
+                dueFrom?: string;
+                dueTo?: string;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["AdminTakedownTaskSummary"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                takedownTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                takedownTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TakedownTaskCheckBody"];
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                takedownTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.markOnline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                takedownTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.takedownTask.sendBreachNotice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                takedownTaskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description 成功 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {number} */
+                        code: 0;
+                        data: components["schemas"]["TakedownTaskDetail"];
+                        /** @enum {string} */
+                        message: "ok";
+                    };
+                };
+            };
+            /** @description 入参不合约定，或业务规则拒绝了输入本身 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 未登录或会话失效 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 已登录但无权 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 资源不存在，或不在当前门店、主体、数据范围内 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 状态不允许、版本冲突、唯一性冲突或幂等键冲突 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 外部能力不可用、系统繁忙或停机维护 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

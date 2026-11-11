@@ -40,6 +40,7 @@ export {
   mOrderItemSampleGet,
   mOrderItemReleaseGet,
   mOrderItemDownloadUrls,
+  mOrderItemDownloadGrantCreate,
   mOrderItemPublishListGet,
 } from "./order-items.js";
 export * from "./download.schemas.js";
@@ -47,3 +48,7 @@ export * from "./download.schemas.js";
 export * from "./license.schemas.js";
 
 export * from "./license-letters.js";
+export * from "./takedown.schemas.js";
+export * from "./takedown-tasks.js";
+
+export { mDownloadReport } from "./downloads.js";

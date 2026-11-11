@@ -20,6 +20,8 @@ import { createReleaseApi } from "../components/release-api";
 import type { TaskPage } from "../../order/components/delivery-api";
 import { mergeTaskPages, submitBody, type LinkForm } from "./model";
 import { useDeliveryResource } from "../../order/components/resource";
+import { copyPublishList, readTakedowns } from "./lifecycle";
+import { TakedownTasks } from "./takedowns";
 import {
   DeliveryEmpty,
   DeliveryState,
@@ -40,19 +42,22 @@ const api = {
   ...createReleaseApi(deliveryRequest),
 };
 export default function TasksPage() {
+  const params = useRouter().params;
   const identity = useDeliveryIdentity(),
     [tab, setTab] = useState<"todo" | "done" | "all">(
-      useRouter().params.launchTaskId ? "all" : "todo",
+      params.launchTaskId || params.takedownTaskId ? "all" : "todo",
     );
-  const orderId = useRouter().params.orderId,
-    launchTaskId = useRouter().params.launchTaskId;
+  const orderId = params.orderId,
+    launchTaskId = params.launchTaskId,
+    takedownTaskId = params.takedownTaskId;
   return (
     <TasksContent
-      key={`${identity}:${orderId}:${launchTaskId}:${tab}`}
+      key={`${identity}:${orderId}:${launchTaskId}:${takedownTaskId}:${tab}`}
       tab={tab}
       setTab={setTab}
       orderId={orderId}
       launchTaskId={launchTaskId}
+      takedownTaskId={takedownTaskId}
     />
   );
 }
@@ -61,28 +66,45 @@ function TasksContent({
   setTab,
   orderId,
   launchTaskId,
+  takedownTaskId,
 }: {
   tab: "todo" | "done" | "all";
   setTab: (v: "todo" | "done" | "all") => void;
   orderId?: string;
   launchTaskId?: string;
+  takedownTaskId?: string;
 }) {
   const query = { tab, limit: 20, ...(orderId ? { orderId } : {}) };
   const r = useDeliveryResource(async (current) => {
     const orderItemId = launchTaskId ? (await api.task(launchTaskId)).task.orderItemId : undefined;
     if (!current()) throw new Error("门店上下文已变化");
     const resolved = { ...query, ...(orderItemId ? { orderItemId } : {}) };
-    const [page, summary] = await Promise.all([api.tasks(resolved), api.summary()]);
-    return { page, summary, query: resolved };
+    const [page, summary] = await Promise.all([
+      api.tasks(resolved),
+      api.summary({ orderId, orderItemId }),
+    ]);
+    return { page, summary, query: resolved, cursors: [] as string[] };
   });
+  const takedown = useDeliveryResource((current) =>
+    readTakedowns(api, tab, orderId, takedownTaskId, current),
+  );
   const [selected, setSelected] = useState<Selected | null>(null),
     [form, setForm] = useState<LinkForm>(emptyForm);
   const data = r.data;
   const more = () =>
     r.run(null, async (current) => {
-      if (!data?.page.hasMore || !data.page.nextCursor) return;
+      if (!data?.page.hasMore) return;
+      if (!data.page.nextCursor || data.cursors.includes(data.page.nextCursor))
+        throw new Error("发布分页已变化，请刷新任务");
       const next = await api.tasks({ ...data.query, cursor: data.page.nextCursor });
-      r.replace({ ...data, page: mergeTaskPages(data.page, next) }, current);
+      r.replace(
+        {
+          ...data,
+          page: mergeTaskPages(data.page, next),
+          cursors: [...data.cursors, data.page.nextCursor],
+        },
+        current,
+      );
     });
   useReachBottom(more);
   const open = (
@@ -109,25 +131,53 @@ function TasksContent({
       const body = submitBody(form);
       await api.submit(selected.id, body, r.intent("linkSubmit", { id: selected.id, body }));
       if (!current()) return;
-      const [page, summary] = await Promise.all([api.tasks(data?.query ?? query), api.summary()]);
-      r.replace({ page, summary, query: data?.query ?? query }, current);
+      const resolved = data?.query ?? query;
+      const [page, summary] = await Promise.all([
+        api.tasks(resolved),
+        api.summary({
+          orderId,
+          orderItemId:
+            "orderItemId" in resolved && typeof resolved.orderItemId === "string"
+              ? resolved.orderItemId
+              : undefined,
+        }),
+      ]);
+      r.replace({ page, summary, query: resolved, cursors: [] }, current);
       if (current()) {
         setSelected(null);
         void Taro.showToast({ title: "已提交核验", icon: "none" });
       }
     });
   return (
-    <View className="delivery-page" id={!r.loading ? "delivery-ready" : undefined}>
+    <View
+      className="delivery-page"
+      id={!r.loading && !takedown.loading ? "delivery-ready" : undefined}
+    >
       <Tabs
         value={tab}
         onChange={setTab}
         items={[
-          { key: "todo", label: "待处理", badge: data?.summary.todo },
-          { key: "done", label: "已完成", badge: data?.summary.done },
+          {
+            key: "todo",
+            label: "待处理",
+            badge:
+              data?.summary && takedown.data?.summary
+                ? data.summary.todo + takedown.data.summary.pending
+                : undefined,
+          },
+          {
+            key: "done",
+            label: "已完成",
+            badge:
+              data?.summary && takedown.data?.summary
+                ? data.summary.done + takedown.data.summary.done
+                : undefined,
+          },
           { key: "all", label: "全部" },
         ]}
       />
       <PageBody>
+        <View className="delivery-lead">发布任务</View>
         <DeliveryState loading={r.loading} error={r.error} retry={r.refresh} />
         {data?.summary.needFix ? (
           <Note>有 {data.summary.needFix} 个账号需要补充链接，请查看退回说明。</Note>
@@ -173,6 +223,27 @@ function TasksContent({
                   </Card>
                 ) : null}
                 {item.isPaused ? <Note>制作暂停，请联系服务经理。</Note> : null}
+                {item.release ? (
+                  <Button
+                    block
+                    variant="outline"
+                    size="sm"
+                    disabled={r.busy}
+                    onClick={() =>
+                      r.run(null, async (current) => {
+                        const copied = await copyPublishList(
+                          api,
+                          item.orderItemId,
+                          current,
+                          (text) => Taro.setClipboardData({ data: text }),
+                        );
+                        if (copied) void Taro.showToast({ title: "发布清单已复制", icon: "none" });
+                      })
+                    }
+                  >
+                    复制发布清单
+                  </Button>
+                ) : null}
                 {item.tasks.map((task) => (
                   <View key={task.launchTaskId} className="delivery-stack delivery-separator">
                     <View className="delivery-row">
@@ -235,6 +306,13 @@ function TasksContent({
             <ListFooter status="done" />
           )
         ) : null}
+        <TakedownTasks
+          api={api}
+          resource={takedown}
+          tab={tab}
+          orderId={orderId}
+          targetId={takedownTaskId}
+        />
       </PageBody>
       <Sheet
         visible={selected !== null}

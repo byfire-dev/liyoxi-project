@@ -371,6 +371,53 @@ describe("其余替身各自的预置与记录", () => {
     ]);
   });
 
+  it("ZIP默认无产物证明，显式任务/目录/CRC事实各自独立", async () => {
+    const { media, storage } = setup().fakes;
+    const src = { bucket: "media", key: "pkg/explicit.zip" } as const;
+    const packed = await media.pack({
+      bucket: "media",
+      items: [{ key: "files/1.mp4", name: "1.mp4" }],
+      dstKey: src.key,
+      userData: "zip:1",
+    });
+    if (!packed.ok) throw new Error(packed.message);
+    expect(await media.describe!({ jobId: packed.value.jobId, family: "file" })).toMatchObject({
+      ok: true,
+      value: { output: {} },
+    });
+    expect(await media.previewZip!({ src })).toMatchObject({ ok: false, reason: "rejected" });
+    expect(await storage.head(src)).toMatchObject({ ok: true, value: { exists: false } });
+    const output = { zip: { dst: src, fileCount: 1, errorCount: 0 } };
+    media.jobs[0]!.output = output;
+    const preview = {
+      fileCount: 1,
+      truncated: false,
+      entries: [{ name: "1.mp4", sizeBytes: "9" }],
+    };
+    media.zipPreviews.set(`media/${src.key}`, preview);
+    expect(await media.describe!({ jobId: packed.value.jobId, family: "file" })).toMatchObject({
+      ok: true,
+      value: { output },
+    });
+    const read = await media.previewZip!({ src });
+    expect(read).toEqual({ ok: true, value: preview });
+    if (!read.ok) throw new Error(read.message);
+    expect(read.value).not.toBe(preview);
+    storage.put(src, new TextEncoder().encode("123456789"), "application/octet-stream");
+    expect(await storage.head(src)).not.toHaveProperty("value.crc64");
+    storage.objects.get(`media/${src.key}`)!.crc64 = "11051210869376104954";
+    expect(await storage.head(src)).toMatchObject({
+      ok: true,
+      value: { crc64: "11051210869376104954" },
+    });
+    const controller = new AbortController();
+    controller.abort();
+    expect(await media.previewZip!({ src, signal: controller.signal })).toMatchObject({
+      ok: false,
+      reason: "unavailable",
+    });
+  });
+
   it("ocr：营业执照与许可证字段按预置给，没预置的给样例", async () => {
     const { fakes } = setup();
     expect(await fakes.ocr.recognizeBusinessLicense({ imageUrl: "u1" })).toEqual({

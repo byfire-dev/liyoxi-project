@@ -120,6 +120,7 @@ async function anchors(tx: Tx, deps: NotifyDispatchDeps, d: Delivery, identity?:
     if (type === "delivery_release") await lockRows(tx, "delivery_release", [bizId], "share");
     if (type === "launch_task") await lockRows(tx, "launch_task", [bizId], "share");
     if (type === "sample") await lockRows(tx, "sample", [bizId], "share");
+    if (type === "takedown_task") await lockRows(tx, "takedown_task", [bizId], "share");
     if (type === "invoice_doc" || type === "invoice_request") {
       const parent = await notifyReadOf(deps.assembly).read<{
         billingOrderId: string;
@@ -248,6 +249,18 @@ async function currentGuard(
   if (!fact || (n.staffId && !fact.staffIds?.includes(n.staffId))) return null;
   if (spec.pendingStatus && !spec.pendingStatus.includes(fact.status)) return null;
   const stored = NotifyFactSchema.safeParse(n.vars);
+  if (n.bizType === "takedown_task" && n.sourceOutboxEventId) {
+    const event = await tx.outboxEvent.findUnique({ where: { id: n.sourceOutboxEventId } });
+    if (
+      event?.eventType.startsWith("takedown.") &&
+      !(await notifyReadOf(deps.assembly).read<boolean>(tx, "takedownEventCurrentForNotify", {
+        eventId: event.id,
+        type: event.eventType,
+        payload: event.payload,
+      }))
+    )
+      return null;
+  }
   // Versioned pending actions never send the old request after a replacement version.
   if (spec.pendingStatus && (!stored.success || stored.data.version !== fact.version)) return null;
   if (

@@ -1,6 +1,6 @@
 // 后台：发布与巡检 · delivery-releases（docs/api/a06-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { adminMeta } from "../meta-only.js";
+import { z } from "../../zod.js";
 
 export const adminDeliveryReleaseGet = adminRoute({
   method: "get",
@@ -20,13 +20,22 @@ import { okResponse, errorResponses } from "../../common/index.js";
 import {
   DeliveryReleaseParamSchema,
   DeliveryReleaseDetailSchema,
+  DeliveryReleasePackResultSchema,
 } from "./delivery-release.schemas.js";
 
-export const adminDeliveryReleasePack = adminMeta({
+export const adminDeliveryReleasePack = adminRoute({
   method: "post",
   path: "/admin/delivery-releases/{deliveryReleaseId}/pack",
   operationId: "admin.deliveryRelease.pack",
   summary: "预打包 ZIP（供电脑端下载页整包下载）",
   "x-permission": "publish.package.push",
   "x-idempotent": "required",
+  request: {
+    params: DeliveryReleaseParamSchema,
+    body: { required: true, content: { "application/json": { schema: z.strictObject({}) } } },
+  },
+  responses: {
+    ...okResponse(DeliveryReleasePackResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 500),
+  },
 });

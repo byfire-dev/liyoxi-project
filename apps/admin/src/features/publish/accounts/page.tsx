@@ -9,6 +9,8 @@ import { PageHeader } from "../../../components/PageHeader";
 import { QueueWorkbench } from "../../../components/QueueWorkbench";
 import { ErrorState } from "../../../components/StateBlock";
 import { StatusTag } from "../../../components/StatusTag";
+import { Tabs } from "../../../components/Tabs";
+import { AccountHealth } from "./health";
 import { useCan } from "../../../lib/permissions";
 import { DETAIL_QUERY, DICT_QUERY, QUEUE_QUERY } from "../../../lib/query";
 import { currentKey, writeQueueSearch } from "../../../lib/queue";
@@ -18,6 +20,27 @@ import { accountSearch, ACCOUNTS_KEY } from "./model";
 import "./accounts.css";
 const route = getRouteApi("/publish/accounts");
 export function AccountsPage() {
+  const search = route.useSearch(),
+    navigate = route.useNavigate();
+  const health = "view" in search && search.view === "health";
+  return (
+    <>
+      <Tabs
+        label="发布账号工作区"
+        activeKey={health ? "health" : "review"}
+        items={[
+          { key: "review", label: "账号核验" },
+          { key: "health", label: "账号健康" },
+        ]}
+        onChange={(view) =>
+          void navigate({ search: { ...search, view: view === "health" ? "health" : undefined } })
+        }
+      />
+      {health ? <AccountHealth /> : <AccountReviewPage />}
+    </>
+  );
+}
+function AccountReviewPage() {
   const { services } = useRouteContext({ from: "__root__" }),
     navigate = route.useNavigate(),
     search = accountSearch(route.useSearch()),

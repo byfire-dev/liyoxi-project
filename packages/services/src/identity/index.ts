@@ -59,6 +59,7 @@ export {
   createPortalSessions,
   createPortalSession,
   authenticatePortalSession,
+  assertPortalPrincipal,
   portalSessionView,
   PORTAL_CAPABILITIES,
   PORTAL_SESSION_TTL_SECONDS,

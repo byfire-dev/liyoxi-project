@@ -28,7 +28,10 @@ export interface RemoteMediaHandlerOptions {
     "mode" | "provider" | "execute" | "recover" | "poll" | "cancel"
   >;
   /** Pure bounded input mapping; business/provenance checks remain in current/finish. */
-  readonly submission: (input: unknown) => RemoteMediaSubmission;
+  readonly submission: (
+    input: unknown,
+    job: Readonly<{ id: string; attemptNo: number }>,
+  ) => RemoteMediaSubmission;
 }
 const pending = (): JobOutcome => ({ state: "pending" });
 function outcome(job: MediaRemoteJob, userData: string): JobOutcome {
@@ -47,7 +50,7 @@ export function createRemoteMediaHandler(options: RemoteMediaHandlerOptions): Me
     job: Parameters<MediaJobHandler["execute"]>[0],
     signal: AbortSignal,
   ): Promise<JobOutcome> {
-    const submission = options.submission(job.input),
+    const submission = options.submission(job.input, job),
       family = submission.tag === "FileCompress" ? "file" : "media";
     if (!provider.describe || !job.externalJobId) return pending();
     const result = await provider.describe({ jobId: job.externalJobId, family, signal });
@@ -58,7 +61,7 @@ export function createRemoteMediaHandler(options: RemoteMediaHandlerOptions): Me
     mode: "remote",
     provider: provider.status,
     execute: async (job, _context, signal) => {
-      const submission = options.submission(job.input);
+      const submission = options.submission(job.input, job);
       const result =
         submission.tag === "Transcode"
           ? await provider.transcode({ ...submission, userData: userData(job), signal })
@@ -86,7 +89,7 @@ export function createRemoteMediaHandler(options: RemoteMediaHandlerOptions): Me
       return { state: "submitted", externalJobId: result.value.jobId };
     },
     recover: async (job, signal) => {
-      const submission = options.submission(job.input),
+      const submission = options.submission(job.input, job),
         family = submission.tag === "FileCompress" ? "file" : "media";
       if (!provider.find) return pending();
       const found = await provider.find({
@@ -119,7 +122,7 @@ export function createRemoteMediaHandler(options: RemoteMediaHandlerOptions): Me
     poll: query,
     cancel: async (job, signal) => {
       if (!job.externalJobId || !provider.cancel) return;
-      const family = options.submission(job.input).tag === "FileCompress" ? "file" : "media";
+      const family = options.submission(job.input, job).tag === "FileCompress" ? "file" : "media";
       await provider.cancel({ jobId: job.externalJobId, family, signal });
     },
   };

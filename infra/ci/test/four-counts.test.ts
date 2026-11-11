@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { zipPackageHandlerPresent } from "../four-counts-zip.mjs";
 import { makeTempDir, repoRoot, run, writeFiles } from "./helpers.js";
 
 // 四个计数的报表（W0-30）：已落地接口数、待落地数、留桩数、未实现页面数，另出 x01 归属的未落地清单；
@@ -131,6 +132,32 @@ describe("四个计数的报表", () => {
     );
   });
 
+  it("只识别 M6 media 的 zip_package 连接；其他模块、里程碑和普通队列仍只查 worker", () => {
+    const at = inputs({
+      "x01.md": [
+        "# x01 条目归属表",
+        "",
+        "## 2. 条目",
+        "| 类别 | 名称 | 所属模块 | 里程碑 |",
+        "| --- | --- | --- | --- |",
+        "| 队列 | `zip_package` | media | M6 |",
+        "| 队列 | `zip_package` | other | M6 |",
+        "| 队列 | `zip_package` | media | M5 |",
+        "| 队列 | `zip_package_extra` | media | M6 |",
+        // zip_bundle 在 services 中有字符串与测试，不能冒充同名 worker 通道。
+        "| 队列 | `zip_bundle` | media | M6 |",
+      ].join("\n"),
+    });
+    const result = counts([...mountedM0(), "--x01", at("x01.md"), "--detail"]);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/\| M6 \| \d+ \| \d+ \| \d+ \| 3（共 4 项） \|/);
+    expect(result.stdout).not.toContain("| M6 | 队列 | `zip_package` | media | 处理器 |");
+    expect(result.stdout).toContain("| M6 | 队列 | `zip_package` | other | 处理器 |");
+    expect(result.stdout).toContain("| M5 | 队列 | `zip_package` | media | 处理器 |");
+    expect(result.stdout).toContain("| M6 | 队列 | `zip_package_extra` | media | 处理器、测试 |");
+    expect(result.stdout).toContain("| M6 | 队列 | `zip_bundle` | media | 处理器 |");
+  });
+
   it("应在本里程碑实现的页面还有未实现的：不过", () => {
     const at = inputs({
       "pages.md": [
@@ -173,5 +200,167 @@ describe("四个计数的报表", () => {
       expect(result.status, args.join(" ")).toBe(2);
       expect(result.stderr).toContain("四个计数：");
     }
+  });
+});
+
+const zipItem = { category: "队列", module: "media", name: "zip_package", milestone: "M6" };
+const entry = "apps/worker/src/index.ts";
+const worker = "apps/worker/src/runtime.ts";
+const assembly = "packages/services/src/ops/worker.ts";
+const mediaIndex = "packages/services/src/media/index.ts";
+const media = "packages/services/src/media/runtime.ts";
+const runner = "packages/services/src/media/jobs/runner.ts";
+const zipHandler = "packages/services/src/media/zip-handler.ts";
+// 复制当前真实生产源码后破坏连接，避免只证明手写的短桩恰好满足扫描器。
+const zipSources: Record<string, string> = Object.fromEntries(
+  [entry, worker, assembly, mediaIndex, media, runner, zipHandler].map((path) => [
+    path,
+    readFileSync(join(repoRoot, path), "utf8"),
+  ]),
+);
+function zipFixture(files: Record<string, string>): string {
+  const temp = makeTempDir("lyx-zip-counts-");
+  cleanups.push(temp.cleanup);
+  writeFiles(temp.dir, files);
+  return temp.dir;
+}
+
+describe("zip_package 的固定生产连接", () => {
+  it("当前真实 media_job 消费、服务装配、任务派发与 ZIP handler 全部存在", () => {
+    expect(zipPackageHandlerPresent(zipItem, repoRoot)).toBe(true);
+    expect(zipPackageHandlerPresent(zipItem, zipFixture(zipSources))).toBe(true);
+  });
+
+  it.each([entry, worker, assembly, mediaIndex, media, runner, zipHandler])(
+    "缺失生产文件 %s，只有测试文件中的完整实现也不算处理器",
+    (path) => {
+      const files = { ...zipSources, [path.replace(/\.ts$/, ".test.ts")]: zipSources[path]! };
+      delete files[path];
+      expect(zipPackageHandlerPresent(zipItem, zipFixture(files))).toBe(false);
+    },
+  );
+
+  it.each([
+    [
+      entry,
+      "createWorkerRuntime({ services, channel, lease, logger })",
+      "createWorkerRuntime({ services: other, channel, lease, logger })",
+    ],
+    [entry, "runtime.start();", ""],
+    [worker, "channel.consume<{ jobId: string }>", "unused.consume<{ jobId: string }>"],
+    [worker, "services.promoteFile(ref)", "services.other(ref)"],
+    [worker, "await handle(data);", ""],
+    [assembly, "zipProvider: providers.media", "zipProvider: undefined"],
+    [assembly, "media.promote(ref)", "Promise.resolve()"],
+    [mediaIndex, 'from "./runtime.js"', 'from "./testing/runtime.js"'],
+    [media, 'from "./zip-handler.js"', 'from "./testing/zip-handler.js"'],
+    [media, "createZipHandler(deps),", ""],
+    [media, "baseHandlers.map((original)", "[].map((original)"],
+    [media, "    handlers,", "    handlers: [],"],
+    [media, "promote: jobs.run", "promote: async () => undefined"],
+    [runner, "options.handlers.map", "[].map"],
+    [runner, "handlers.get(job.kind as MediaJobKind)", "undefined"],
+    [runner, "        handler,", "        handler: other,"],
+    [runner, "ready = await claim(jobId);", "ready = null;"],
+    [runner, "if (ready) await execute(ready, controller);", ""],
+    [
+      runner,
+      "await claimed.handler.execute(claimed.job, claimed.context, controller.signal)",
+      "null",
+    ],
+    [runner, "const execution = await start(jobId);", "const execution = undefined;"],
+    [zipHandler, 'kind: "zip_package" as const', 'kind: "zip_other" as const'],
+    [zipHandler, "    definition,", "    definition: other,"],
+    [zipHandler, "    ...base,", ""],
+  ])("连接断开仍缺处理器：%s / %s", (path, before, after) => {
+    const original = zipSources[path]!;
+    expect(original).toContain(before);
+    const changed = original.replace(before, after);
+    expect(zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [path]: changed }))).toBe(
+      false,
+    );
+  });
+
+  it.each(["line", "block", "string", "template", "regexp"])(
+    "真实注册只剩 %s 中的代码文字，不能清零",
+    (kind) => {
+      const registration = "createZipHandler(deps),";
+      const text =
+        kind === "line"
+          ? `// ${registration}\n`
+          : kind === "block"
+            ? `/* ${registration} */`
+            : kind === "string"
+              ? `${JSON.stringify(registration)},`
+              : kind === "regexp"
+                ? "/createZipHandler\\(deps\\),/,"
+                : `\`${registration}\`,`;
+      const changed = zipSources[media]!.replace(registration, text);
+      expect(
+        zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [media]: changed })),
+      ).toBe(false);
+    },
+  );
+
+  it("注释和空白不改变真实连接，模板插值中的伪调用不算生产注册", () => {
+    const registration = "createZipHandler(deps),";
+    const withComment = zipSources[media]!.replace(
+      registration,
+      "createZipHandler /* 注册 */ (deps),",
+    );
+    expect(
+      zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [media]: withComment })),
+    ).toBe(true);
+    const inTemplate = zipSources[media]!.replace(
+      registration,
+      "`${(() => { createZipHandler(deps); })()}`,",
+    );
+    expect(
+      zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [media]: inTemplate })),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["void 属性值", "", "note: void /promote: jobs.run,/ ,"],
+    ["分号后", "; /promote: jobs.run,/;", ""],
+    ["if 条件后", 'if (true) /promote: jobs.run,/.test("");', ""],
+    ["逻辑运算后", "true && /promote: jobs.run,/;", ""],
+    ["另起一行的正则", "void\n/promote: jobs.run,/;", ""],
+    ["块注释正文行首", "/*\npromote: jobs.run,\n*/", ""],
+    ["模板正文行首", "void `\npromote: jobs.run,\n`;", ""],
+    ["模板插值内的属性", "void `${(() => ({\npromote: jobs.run,\n}))()}`;", ""],
+  ])("真实 promote 已断，%s 的同名片段不能补齐", (_name, statement, property) => {
+    const original = zipSources[media]!;
+    expect(original.match(/promote: jobs\.run,/g)).toHaveLength(1);
+    const changed =
+      original.replace(
+        "promote: jobs.run,",
+        `promote: async (_ref: { jobId: string }) => undefined,\n${property}`,
+      ) + `\n${statement}\n`;
+    expect(zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [media]: changed }))).toBe(
+      false,
+    );
+  });
+
+  it("claim 的 lookup 断开后，expire 保留的同名 lookup 不能补齐", () => {
+    const lookup = "const handler = handlers.get(job.kind as MediaJobKind);";
+    const original = zipSources[runner]!;
+    expect(original.split(lookup)).toHaveLength(3);
+    const changed = original.replace(lookup, "const handler = undefined;");
+    expect(changed).toContain(lookup);
+    expect(
+      zipPackageHandlerPresent(zipItem, zipFixture({ ...zipSources, [runner]: changed })),
+    ).toBe(false);
+  });
+
+  it.each([
+    { category: "循环" },
+    { module: "other" },
+    { name: "zip_package_extra" },
+    { name: "media_job" },
+    { name: "watermark" },
+    { milestone: "M5" },
+  ])("非精确条目交回原规则：%j", (change) => {
+    expect(zipPackageHandlerPresent({ ...zipItem, ...change }, repoRoot)).toBeNull();
   });
 });

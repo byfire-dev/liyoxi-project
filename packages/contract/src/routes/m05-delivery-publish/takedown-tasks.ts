@@ -1,8 +1,19 @@
 // 商家端：交付与发布 · takedown-tasks（docs/api/m05-delivery-publish.md）。由 routemap.json 接管（W0-10），之后以本文件为准：
 // 改接口同 PR 改 routemap.json 与分组文档，pnpm contract:docs-check 对账。归属的里程碑在 ../milestones.ts。
-import { merchantMeta } from "../meta-only.js";
+import { merchantRoute } from "../builders.js";
+import { okResponse, errorResponses } from "../../common/index.js";
 
-export const mTakedownTaskList = merchantMeta({
+import {
+  MerchantTakedownTaskListQuerySchema,
+  MerchantTakedownTaskPageSchema,
+  MerchantTakedownTaskSummaryQuerySchema,
+  MerchantTakedownTaskSummarySchema,
+  TakedownTaskConfirmBodySchema,
+  TakedownTaskWriteResultSchema,
+} from "./takedown.schemas.js";
+import { TakedownTaskParamSchema } from "../a06-publish/takedown-m6.schemas.js";
+
+export const mTakedownTaskList = merchantRoute({
   method: "get",
   path: "/m/takedown-tasks",
   operationId: "m.takedownTask.list",
@@ -11,9 +22,14 @@ export const mTakedownTaskList = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: MerchantTakedownTaskListQuerySchema },
+  responses: {
+    ...okResponse(MerchantTakedownTaskPageSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mTakedownTaskSummary = merchantMeta({
+export const mTakedownTaskSummary = merchantRoute({
   method: "get",
   path: "/m/takedown-tasks/summary",
   operationId: "m.takedownTask.summary",
@@ -21,9 +37,14 @@ export const mTakedownTaskSummary = merchantMeta({
   "x-capability": "publish.read",
   "x-clerk-view": "none",
   "x-idempotent-reason": "纯查询，GET 不写库（A18、A19）",
+  request: { query: MerchantTakedownTaskSummaryQuerySchema },
+  responses: {
+    ...okResponse(MerchantTakedownTaskSummarySchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });
 
-export const mTakedownTaskConfirm = merchantMeta({
+export const mTakedownTaskConfirm = merchantRoute({
   method: "post",
   path: "/m/takedown-tasks/{takedownTaskId}/confirm",
   operationId: "m.takedownTask.confirm",
@@ -31,4 +52,16 @@ export const mTakedownTaskConfirm = merchantMeta({
   "x-capability": "publish.takedown_confirm",
   "x-clerk-view": "none",
   "x-idempotent": "required",
+  "x-redact-on-replay": ["posterUrl"],
+  request: {
+    params: TakedownTaskParamSchema,
+    body: {
+      content: { "application/json": { schema: TakedownTaskConfirmBodySchema } },
+      required: true,
+    },
+  },
+  responses: {
+    ...okResponse(TakedownTaskWriteResultSchema),
+    ...errorResponses(400, 401, 403, 404, 409, 503),
+  },
 });

@@ -42,3 +42,8 @@ export { createPublishPatrol } from "./patrol-service.js";
 export type { PublishPatrol } from "./patrol-service.js";
 export type { PatrolDeps } from "./patrol-context.js";
 export { createChannelHealth } from "./channel-health.js";
+
+export { createPublishTakedown } from "./takedown-service.js";
+export type { PublishTakedown } from "./takedown-service.js";
+export type { TakedownDeps } from "./takedown-context.js";
+export { listTakedownReminderTargets } from "./takedown-notify.js";

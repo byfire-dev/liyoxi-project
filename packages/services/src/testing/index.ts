@@ -1,6 +1,21 @@
 // @liyoxi/services/testing：测试支撑设施的出口（D7 第 10.1 节）。只给测试用，不进生产装配。
 // 各包只往这里加自己的导出行：W0-19 的 Provider 替身在 ./providers；测试库支架、可拨时钟、故障注入属 W0-05b。
 
+export { createPortalLiveFixture } from "./portal-live/index.js";
+export type {
+  PortalLiveActor,
+  PortalLiveDiagnostic,
+  PortalLiveFixture,
+  PortalLiveOptions,
+  PortalLiveStage,
+  PortalLiveTicketFact,
+  PortalLiveMediaResult,
+  PortalLivePreviewAction,
+  PortalLivePreviewFacts,
+  PortalLivePreviewScope,
+  PortalLivePreviewScopes,
+} from "./portal-live/index.js";
+
 export * from "./providers/index.js";
 
 // W0-05b：测试库支架（守卫、按 worker 建库、重置）转导出自 @liyoxi/db/testing；
@@ -57,6 +72,12 @@ export { createW501Publish, prepareW501AdCancel } from "./w501.fixture.js";
 
 // W1-21：无 Vitest 的 M1 接口重放/演示；工厂内才读固定媒体并创建本轮隔离资源。
 export { createM1Support } from "./m1-support.js";
+export {
+  runM6TakedownCreate,
+  drainM6TakedownEvents,
+  settleM6TakedownBackground,
+} from "./m6-takedown.js";
+export { requestsHarness as createCancelRequestsFixture } from "./order-cancel-requests.fixture.js";
 export { M1OwnerNetworkSchema } from "./m1-owner-network.js";
 export { createM1WorkerResources, M1WorkerAttachmentSchema } from "./m1-worker.js";
 export type { M1LoopWorkerSnapshot } from "./m1-worker.js";
@@ -152,6 +173,10 @@ export {
   createInvoiceLiveUploadPump,
   parseInvoiceLiveUploadScope,
 } from "./admin-live/invoice-upload.js";
+export {
+  createW609EvidenceLiveUploadPump,
+  parseW609EvidenceUploadScope,
+} from "./admin-live/w609-evidence.js";
 export { seedBillingDeletionFacts } from "./billing-deletion.js";
 
 // W3-12: exact owned content scope for the existing private live server.
@@ -245,6 +270,13 @@ export {
   openUsageCancellationForTest,
 } from "./usage-lifecycle.fixture.js";
 export { createPublishWorkbenchFixture } from "./publish-workbench.fixture.js";
+export {
+  createZipPackageFixture,
+  installZipPackageFixture,
+  inspectZipFixture,
+  zipFixtureCrc64,
+} from "./zip-package-fixture.js";
+export { readM6ZipFacts } from "./m6-zip-facts.js";
 
 // Shared real delivery prerequisites; leaf fixtures never import this barrel back.
 export {
@@ -267,3 +299,59 @@ export type {
   M5Order as M5DeliveryOrder,
   M5Staff as M5DeliveryStaff,
 } from "./delivery-release.fixture.js";
+
+export { createTakedownFixture } from "./publish-takedown.fixture.js";
+export { claimTakedownTimer, claimTakedownCalendar } from "./takedown-transport.js";
+
+// Order fixture compatibility bridges use this public boundary; fixtures depend only on leaves.
+export {
+  harness as createOrderBaseFixture,
+  buyer as createOrderFixtureBuyer,
+  body as createOrderFixtureBody,
+  residual as readOrderFixtureResidual,
+} from "./order-base.fixture.js";
+export type { Harness as OrderBaseFixtureHarness } from "./order-base.fixture.js";
+export {
+  startHarness as createOrderStartFixture,
+  startSnapshot as readOrderStartFixtureSnapshot,
+  pendingCancel as createOrderPendingCancelFixture,
+} from "./order-start.fixture.js";
+export type { StartHarness as OrderStartFixtureHarness } from "./order-start.fixture.js";
+export {
+  cancelHarness as createOrderCancelFixture,
+  readCancelRequest as readOrderCancelRequestFixture,
+  CANCEL_TABLES as ORDER_CANCEL_FIXTURE_TABLES,
+  ORDER_STAGES as ORDER_CANCEL_FIXTURE_STAGES,
+} from "./order-cancel.fixture.js";
+export type {
+  OrderStage as OrderCancelFixtureStage,
+  CancelHarness as OrderCancelFixtureHarness,
+  CancelFixture as OrderCancelFixture,
+} from "./order-cancel.fixture.js";
+export {
+  REQUEST_TABLES as ORDER_CANCEL_REQUEST_FIXTURE_TABLES,
+  MONEY_TABLES as ORDER_CANCEL_REQUEST_FIXTURE_MONEY_TABLES,
+} from "./order-cancel-requests.fixture.js";
+export type { RequestsHarness as CancelRequestsFixtureHarness } from "./order-cancel-requests.fixture.js";
+
+// W6-08: only the exact owned live publish-workbench scope and controller.
+export {
+  W608LiveScopeSchema,
+  W608LiveCommandSchema,
+  parseW608LiveScope,
+  assertW608LiveScope,
+} from "./admin-live/w608-scope.js";
+export type { W608LiveScope } from "./admin-live/w608-scope.js";
+export {
+  createW608LiveController,
+  createW608ZipIo,
+  cleanupW608LivePoster,
+} from "./admin-live/w608-live.js";
+
+// W6-06 HTTP reuses the real ad lifecycle fixture through the testing boundary.
+export { createPortalAdFixture } from "./ad-lifecycle.fixture.js";
+export {
+  createPortalDownloadFixture,
+  PORTAL_DOWNLOAD_TEST_APPID,
+  PORTAL_DOWNLOAD_TEST_ORIGIN,
+} from "./portal-download.fixture.js";

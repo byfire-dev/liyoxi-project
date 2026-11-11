@@ -29,11 +29,16 @@ import {
   createMerchantAssetLiveUploadPump,
   createInvoiceLiveUploadPump,
   parseInvoiceLiveUploadScope,
+  createW609EvidenceLiveUploadPump,
+  parseW609EvidenceUploadScope,
   finishW120LiveFixture,
   assertAdTaskLiveScope,
   parseAdTaskLiveScope,
   findAdTaskLiveJobIds,
   M1_LICENSE_TEST_INPUTS,
+  createW608LiveController,
+  createW608ZipIo,
+  cleanupW608LivePoster,
 } from "@liyoxi/services/testing";
 import type {
   AdTaskLiveScope,
@@ -47,6 +52,7 @@ import { createOutputBatchCosStorage } from "./upload-batch-live-cos.js";
 import { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
 import { createContentTrailerCloud } from "./upload-batch-live-trailer.js";
 import { attachOutputBatchLiveCloud } from "./upload-batch-live-cloud.js";
+import { handleW608LiveControl } from "./w608-live-control.js";
 
 function assertScope(env: Env, prefix: string) {
   const database = new URL(env.DATABASE_URL),
@@ -64,8 +70,15 @@ function assertScope(env: Env, prefix: string) {
 }
 
 export { parseOutputBatchLiveManifest } from "@liyoxi/services/testing";
-/** Only the optional invoice scope is stripped; the original strict parser validates all older fields. */
+/** Strip independently validated optional scopes; the original strict parser retains older fields. */
 export function parseInvoiceLiveEnvelope(raw: unknown) {
+  let w609: ReturnType<typeof parseW609EvidenceUploadScope> | undefined;
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w609" in raw) {
+    parseOutputBatchLiveManifest(raw);
+    const { w609: evidenceScope, ...legacy } = raw;
+    w609 = parseW609EvidenceUploadScope(evidenceScope);
+    raw = legacy;
+  }
   let w514: AdTaskLiveScope | undefined;
   if (typeof raw === "object" && raw !== null && !Array.isArray(raw) && "w514" in raw) {
     parseOutputBatchLiveManifest(raw);
@@ -80,6 +93,7 @@ export function parseInvoiceLiveEnvelope(raw: unknown) {
       w318: "w318" in legacy ? legacy.w318 : undefined,
       w418Invoice: parseInvoiceLiveUploadScope(w418Invoice),
       ...(w514 ? { w514 } : {}),
+      ...(w609 ? { w609 } : {}),
     };
   }
   return {
@@ -87,6 +101,7 @@ export function parseInvoiceLiveEnvelope(raw: unknown) {
     w318: typeof raw === "object" && raw !== null && "w318" in raw ? raw.w318 : undefined,
     w418Invoice: undefined,
     ...(w514 ? { w514 } : {}),
+    ...(w609 ? { w609 } : {}),
   };
 }
 const STARTUP_STAGES = [
@@ -95,7 +110,19 @@ const STARTUP_STAGES = [
   "masters_start",
   "masters_ready",
   "w120_start",
+  "w120_pass_sample_start",
+  "w120_pass_sample_ready",
+  "w120_pass_final_start",
+  "w120_pass_final_ready",
+  "w120_pass_delivering",
+  "w120_reject_sample_start",
+  "w120_reject_sample_ready",
+  "w120_reject_final_start",
+  "w120_reject_final_ready",
+  "w120_reject_delivering",
   "w120_ready",
+  "app_create_start",
+  "app_create_ready",
   "checks_start",
   "checks_ready",
   "api_listen_start",
@@ -103,13 +130,27 @@ const STARTUP_STAGES = [
   "cos_listen_start",
   "cos_listening",
   "ready",
+  "startup_aborted",
+  "startup_failed",
 ] as const;
 type StartupStage = (typeof STARTUP_STAGES)[number];
 /** 诊断仅允许固定阶段和本地单调时钟耗时，不接受任意日志或附加字段。 */
-export function startupDiagnostic(stage: unknown, elapsedMs: number) {
+export function startupDiagnostic(stage: unknown, elapsedMs: number, processElapsedMs: number) {
   const approved = STARTUP_STAGES.find((value) => value === stage);
-  if (!approved || !Number.isFinite(elapsedMs) || elapsedMs < 0) return null;
-  return { evt: "w302.live.startup", stage: approved, elapsedMs: Math.round(elapsedMs) };
+  if (
+    !approved ||
+    !Number.isFinite(elapsedMs) ||
+    elapsedMs < 0 ||
+    !Number.isFinite(processElapsedMs) ||
+    processElapsedMs < 0
+  )
+    return null;
+  return {
+    evt: "w302.live.startup",
+    stage: approved,
+    elapsedMs: Math.round(elapsedMs),
+    processElapsedMs: Math.round(processElapsedMs),
+  };
 }
 export async function startOutputBatchLiveServer(options: {
   env: Env;
@@ -119,11 +160,12 @@ export async function startOutputBatchLiveServer(options: {
   w318?: unknown;
   w418Invoice?: unknown;
   w514?: AdTaskLiveScope;
+  w609?: unknown;
   image: string;
   version?: string;
   documentWorkerUrl?: URL;
   signal?: AbortSignal;
-  onStartupStage?: (stage: StartupStage, elapsedMs: number) => void;
+  onStartupStage?: (stage: StartupStage, elapsedMs: number, processElapsedMs: number) => void;
 }) {
   const startupStartedAt = performance.now();
   const w514 =
@@ -144,7 +186,9 @@ export async function startOutputBatchLiveServer(options: {
   // The isolated W513 render CLI and package writer share the same fictional test origin.
   const scopedEnv: Env = {
     ...legacyEnv,
-    ...(inputs.w513 ? { PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin } : {}),
+    ...(inputs.w513 || inputs.w608
+      ? { PORTAL_PUBLIC_ORIGIN: M1_LICENSE_TEST_INPUTS.portalPublicOrigin }
+      : {}),
   };
   const base: RuntimeOptions = {
     entry: "api",
@@ -167,6 +211,9 @@ export async function startOutputBatchLiveServer(options: {
   let apiServer: ReturnType<typeof serve> | undefined,
     cosServer: ReturnType<typeof serve> | undefined;
   let interval: ReturnType<typeof setInterval> | undefined, pending: Promise<void> | undefined;
+  const publishPending = new Set<Promise<Response>>();
+  let publishControl: Awaited<ReturnType<typeof createW608LiveController>> | undefined;
+  let publishZip: ReturnType<typeof createW608ZipIo> | undefined;
   let masters: Awaited<ReturnType<typeof prepareOutputBatchLiveMasters>> | undefined;
   let relay: Awaited<ReturnType<typeof createOutputBatchMediaToolRelay>> | undefined;
   let cloud: ReturnType<typeof attachOutputBatchLiveCloud> | undefined;
@@ -179,6 +226,7 @@ export async function startOutputBatchLiveServer(options: {
   let startupCancellation: Promise<PromiseSettledResult<void>[]> | undefined;
   let merchantUploads: ReturnType<typeof createMerchantAssetLiveUploadPump> | undefined;
   let invoiceUploads: ReturnType<typeof createInvoiceLiveUploadPump> | undefined;
+  let evidenceUploads: ReturnType<typeof createW609EvidenceLiveUploadPump> | undefined;
   const cancelStartup = () => {
     closing = true;
     startupCancellation ??= Promise.allSettled(
@@ -191,6 +239,7 @@ export async function startOutputBatchLiveServer(options: {
       closing = true;
       merchantUploads?.beginStop();
       invoiceUploads?.beginStop();
+      evidenceUploads?.beginStop();
       for (const api of apis) api.readiness.state = "draining";
       if (interval) clearInterval(interval);
       // Cancel executor IO before waiting for a pump which may itself be awaiting that IO.
@@ -201,6 +250,12 @@ export async function startOutputBatchLiveServer(options: {
       const agreementResults = await Promise.allSettled([...agreementPending]);
       const receiptResults = await Promise.allSettled([...receiptPending]);
       const invoiceResults = await Promise.allSettled([invoiceUploads?.close()]);
+      const publishResults = await Promise.allSettled([...publishPending]);
+      const publishCloseResults = await Promise.allSettled([publishControl?.close()]);
+      const publishPosterResults = await Promise.allSettled([
+        inputs.w608 ? cleanupW608LivePoster(realOwner, inputs.w608) : undefined,
+      ]);
+      const evidenceResults = await Promise.allSettled([evidenceUploads?.close()]);
       receiptFiles.clear();
       agreementFiles.clear();
       contentFiles.clear();
@@ -223,6 +278,7 @@ export async function startOutputBatchLiveServer(options: {
         }),
       );
       const transportResults = await Promise.allSettled([
+        Promise.resolve().then(() => publishZip?.close()),
         Promise.resolve().then(() => cloud?.close()),
         Promise.resolve().then(() => cos.close()),
       ]);
@@ -239,6 +295,10 @@ export async function startOutputBatchLiveServer(options: {
           ...agreementResults,
           ...receiptResults,
           ...invoiceResults,
+          ...publishResults,
+          ...publishCloseResults,
+          ...publishPosterResults,
+          ...evidenceResults,
           ...serverResults,
           ...merchantUploadResults,
           ...inputResults,
@@ -250,13 +310,18 @@ export async function startOutputBatchLiveServer(options: {
       )
         throw new Error("W302 live resources did not fully close");
     })());
+  const reportStartup = (stage: StartupStage) => {
+    const diagnostic = startupDiagnostic(
+      stage,
+      Math.max(0, performance.now() - startupStartedAt),
+      process.uptime() * 1_000,
+    );
+    if (!diagnostic) return;
+    process.stdout.write(`${JSON.stringify(diagnostic)}\n`);
+    options.onStartupStage?.(stage, diagnostic.elapsedMs, diagnostic.processElapsedMs);
+  };
   try {
     options.signal?.throwIfAborted();
-    const reportStartup = (stage: StartupStage) => {
-      const elapsedMs = Math.max(0, Math.round(performance.now() - startupStartedAt));
-      process.stdout.write(`${JSON.stringify(startupDiagnostic(stage, elapsedMs))}\n`);
-      options.onStartupStage?.(stage, elapsedMs);
-    };
     reportStartup("relay_start");
     relay = await createOutputBatchMediaToolRelay({ runId, image: options.image });
     reportStartup("relay_ready");
@@ -301,6 +366,7 @@ export async function startOutputBatchLiveServer(options: {
         inputs.current.storeId,
         inputs.legacy.storeId,
         ...(inputs.w513 ? [inputs.w513.storeId] : []),
+        ...(inputs.w608 ? [inputs.w608.storeId] : []),
         ...(inputs.w120?.items.map((p) => p.scope.storeId) ?? []),
       ],
       ...(w312
@@ -317,25 +383,63 @@ export async function startOutputBatchLiveServer(options: {
         : {}),
       pngProof: (ref) => renderedPng.get(`${ref.bucket}/${ref.key}`),
     });
-    const batch = createRuntime({ ...borrowed, env: batchEnv, mediaProductionTools: tools });
+    if (inputs.w608)
+      publishZip = createW608ZipIo({
+        runtime: () => batch,
+        scope: inputs.w608,
+        providers: harness.providers,
+        storage: cos.storage,
+      });
+    const batch = createRuntime({
+      ...borrowed,
+      env: batchEnv,
+      mediaProductionTools: tools,
+      ...(publishZip
+        ? {
+            providers: {
+              ...borrowed.providers,
+              media: publishZip.media,
+              storage: publishZip.storage,
+            },
+          }
+        : {}),
+    });
     runtimes.push(batch);
     if (options.w318 !== undefined)
       merchantUploads = createMerchantAssetLiveUploadPump(batch, options.w318, options.prefix);
     if (options.w418Invoice !== undefined)
       invoiceUploads = createInvoiceLiveUploadPump(batch, options.w418Invoice, options.prefix);
+    if (options.w609 !== undefined)
+      evidenceUploads = createW609EvidenceLiveUploadPump(batch, options.w609, options.prefix);
     if (w312) await assertContentAdminLiveTargets(batch, w312);
     reportStartup("masters_start");
     masters = await prepareOutputBatchLiveMasters(batch, inputs);
     reportStartup("masters_ready");
+    if (inputs.w608 && publishZip)
+      publishControl = await createW608LiveController({
+        runtime: batch,
+        scope: inputs.w608,
+        video: inputs.video,
+        zipIo: publishZip,
+        signal: options.signal,
+      });
     options.signal?.throwIfAborted();
     reportStartup("w120_start");
     const w120 = inputs.w120
-      ? await finishW120LiveFixture(batch, inputs.w120, inputs.video, options.signal)
+      ? await finishW120LiveFixture(
+          batch,
+          inputs.w120,
+          inputs.video,
+          options.signal,
+          ({ outcome, stage }) => reportStartup(`w120_${outcome}_${stage}`),
+        )
       : undefined;
     reportStartup("w120_ready");
     options.signal?.throwIfAborted();
+    reportStartup("app_create_start");
     const batchApi = createApp({ runtime: batch, handlers: HANDLERS });
     apis.push(batchApi);
+    reportStartup("app_create_ready");
     reportStartup("checks_start");
     await runStartupChecks(batch.startupChecks);
     reportStartup("checks_ready");
@@ -475,6 +579,21 @@ export async function startOutputBatchLiveServer(options: {
           port: 0,
           fetch: async (request, env) => {
             const path = new URL(request.url).pathname;
+            if (path === "/api/v1/__test/w608/control") {
+              const work = handleW608LiveControl({
+                request,
+                scope: inputs.w608,
+                controller: publishControl,
+                closing,
+                fetch: (req) => batchApi.app.fetch(req, env),
+              });
+              publishPending.add(work);
+              try {
+                return await work;
+              } finally {
+                publishPending.delete(work);
+              }
+            }
             let contentRegistration = false;
             if (w312 && request.method === "POST" && path === "/api/v1/admin/files") {
               const body = AdminFileCreateBodySchema.safeParse(
@@ -509,15 +628,25 @@ export async function startOutputBatchLiveServer(options: {
                     },
                   )
                 : agreementFetch(request, env);
-            const response = invoiceUploads
-              ? await invoiceUploads.fetch(
+            const invoiceFetch = () =>
+              invoiceUploads
+                ? invoiceUploads.fetch(
+                    request,
+                    originalFetch,
+                    async () =>
+                      StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"))
+                        .staff.staffId,
+                  )
+                : originalFetch();
+            const response = evidenceUploads
+              ? await evidenceUploads.fetch(
                   request,
-                  originalFetch,
+                  invoiceFetch,
                   async () =>
                     StaffMeSchema.parse(await readAgreementData(request, "/api/v1/admin/auth/me"))
                       .staff.staffId,
                 )
-              : await originalFetch();
+              : await invoiceFetch();
             if (contentRegistration && response.ok && !closing) {
               const value: unknown = await response.clone().json();
               const parsed = FileRegistrationSchema.safeParse(
@@ -585,6 +714,11 @@ export async function startOutputBatchLiveServer(options: {
       w120,
     };
   } catch (error) {
+    try {
+      reportStartup(options.signal?.aborted ? "startup_aborted" : "startup_failed");
+    } catch {
+      // A failed diagnostic sink must not replace the original failure or skip cleanup.
+    }
     // The current startup await settles before cleanup, including relay creation before assignment.
     try {
       await startupCancellation;
@@ -621,7 +755,7 @@ async function main() {
   if (!path.endsWith(`${sep}${ownedSuffix}`))
     throw new Error("Input manifest must be the exact owned temporary file");
   const raw: unknown = JSON.parse(await readFile(path, "utf8"));
-  const { manifest, w318, w418Invoice, w514 } = parseInvoiceLiveEnvelope(raw);
+  const { manifest, w318, w418Invoice, w514, w609 } = parseInvoiceLiveEnvelope(raw);
   const diagnosticDir = join(dirname(dirname(dirname(path))), "e2e-live-results");
   mkdirSync(diagnosticDir, { recursive: true });
   const diagnosticFile = join(diagnosticDir, `w302-startup-${runId}.jsonl`);
@@ -646,12 +780,13 @@ async function main() {
       w318,
       w418Invoice,
       w514,
+      w609,
       image: values["mediatool-image"],
       version: process.env.LYX_BUILD ?? "w302-private-live",
       documentWorkerUrl: new URL("./document-converter.js", import.meta.url),
       signal: controller.signal,
-      onStartupStage: (stage, elapsedMs) => {
-        const diagnostic = startupDiagnostic(stage, elapsedMs);
+      onStartupStage: (stage, elapsedMs, processElapsedMs) => {
+        const diagnostic = startupDiagnostic(stage, elapsedMs, processElapsedMs);
         if (diagnostic) appendFileSync(diagnosticFile, `${JSON.stringify(diagnostic)}\n`);
       },
     });

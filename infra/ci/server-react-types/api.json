@@ -1,0 +1,16 @@
+{
+  "extends": "../../../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../../apps/api",
+    "paths": {
+      "react": ["../../../packages/services/node_modules/@types/react/index.d.ts"],
+      "react/*": ["../../../packages/services/node_modules/@types/react/*.d.ts"]
+    }
+  },
+  "include": [
+    "../../../apps/api/src",
+    "../../../apps/api/test",
+    "../../../apps/api/scripts",
+    "../../../apps/api/*.ts"
+  ]
+}

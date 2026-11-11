@@ -57,6 +57,8 @@ W0-17 实际通知契约是通知框架调用各域的只读事实端口；本�
 
 `createLaunchWorkbench` 的日历、任务列表和汇总复用工单范围及日期/负责人筛选，日历截断前计算全量统计。`listOverdueLaunchItems` / `countOverdueLaunchItems` 是唯一当前逾期口径，任务卡与 R6 共用；晚交付从交付次日起计天数。历史等待区间重放只增状态历史、当时部分上线参数与顺延审计中的旧日期，不依赖会清理的 outbox。草稿方案不进入日历，未确认时只取已推送方案日期与账号。
 
+W6-08 日历前置在既有 `admin.launchCalendar.get` 增加 `workCalendar`。`publish`（L3）经 `sla/index.ts`（L0）的 `readCalendarYear` 在原事务内按所涉年份顺序读取，复用共享导入锁与全表版本，仅投影日期范围内的 kind / isWorkday / 例外名称。日期逐项返回，缺行全部为 null；年度 `importedAt` 沿 SLA 原语义，未导入例外的铺底年仍是 null，不以周末推算冒充节假日。响应不暴露工作时段、系统权限或管理操作；既有 `publish:view` 与系统日历 `system:view` 守卫均保持，GET 不补行、不告警、不写审计或任务。公共年度读取只修正纯 UTC 年界构造以兼容原日历查询日期范围，不改变系统导入允许年份。定点服务测试 `launch-work-calendar.db.test.ts` 覆盖跨年、缺导入/缺行、真实假期与调休、闰月裁剪、极端年界和读取前后行/审计/事件/任务/告警快照；HTTP 权限验证随前置由 API 测试承担。
+
 `createLaunchRevoke` 在真实 delivery 预锁图下重验权限、最近通过轮、工单、工作日时限、下架确认与回显。旧审批保留 approved；旧回填改 revoked，新审批由撤销人提交，新回填保留原商家提交内容与身份，避免撤销人自审。剩余已通过轮重算上线事实，关联未完成巡检作废、取消 timer 并关闭系统跟进；delivery/order 按真实 owner 端口收尾。旧详情返回同一条件的可撤销投影，GET 只读工作日历，不调用缺历告警写口。
 
 两个请求同时撤销时，先完成者新建审批；后等待者若预读锁图因新审批变化，由既有完整图守卫返回 `PRECONDITION_CHANGED`，不能在高序锁之后补锁。重新读取已撤销轮再请求时按接口状态守卫返回 `STATE_NOT_ALLOWED`。两种拒绝均不产生第二份审批、迁移或事件。理由仅留审计/状态历史，冻结出站载荷不携带自由文本。
@@ -92,6 +94,8 @@ R2 按门店与约定日聚合待回填账号，R6 按交付负责人聚合逾�
 账号列表与summary共用搜索条件：名称包含匹配，账号ID按原normalize后的accountUidNorm前缀匹配。巡检催办仅对abnormal状态开放；待检、正常或已恢复任务返回STATE_NOT_ALLOWED且不新增业务日志、事件或迁移。
 
 `createChannelHealth(deps)` 提供 `list/summary/markAbnormal/unbind`。后台门店筛选与员工原 scope 取交集；指定 storeId 不覆盖原范围。解绑沿审批→账号锁序，经既有 approval 公开撤回入口关闭在途核验，活跃订单引用或未核查下架任务仍拒绝解绑。
+
+W6-09页面验收补齐既有账号动作投影：后台普通范围账号只有可用且有原权限时返回mark-abnormal；商家同主体同店老板仅在四类活跃订单计数及未关闭下架计数均为0时返回unbind。写端仍重新校验；可跨店读取的核验角色队列嵌套账号不输出健康写动作，首页缺完整viewer时保留原submit。`account-actions-m6.db.test.ts`覆盖权限、范围、占用及GET零写。
 
 W6-08 消费完整门店账号候选，W6-09 消费巡检、账号健康与商家解绑；页面与对应留桩仍由页面 owner 唯一交付。W6-04 消费巡检终态及现有发布收尾公口，本包不代做下架确认、核查或 R3。
 
@@ -137,3 +141,17 @@ W6-08 消费完整门店账号候选，W6-09 消费巡检、账号健康与商�
 `patrol-full-m6.test.ts` 另从已合主干的 `createM1Support` / `runM1Chain` 完整链起步，在原 `afterChain` 入口通过真实 HTTP 创建巡检、登记并上传提升截图、提交正常结论；随后执行 runner 原有的不筛域 full 检查。它不使用上述历史待上线输入，不等待或消费未合并的 W6-02 代码；通过与否以实际运行日志为准。对象存储、媒体探测等外部供应商仍沿 M1 既有替身，截图与平台 URL 是虚构测试输入，不能计作真实云或人工平台外验。定点验收不替代 required 全量 CI、M6 合流或原真实外部验收。
 
 本次本地首轮完整链1/1通过：二十集制作上线、巡检正常、全仓full143项零违规；含初始化和清理23.752秒（Vitest命令31.80秒）。日志与精确代码基线见[W6-03状态](../../../../docs/plan/status/W6-03.md)，该结果不替代未运行的远端CI或外部验收。
+
+## W6-04 下架确认与核查
+
+`createPublishTakedown` 提供商家列表、计数和确认，后台队列、计数、详情、单条/批量核查、仍在线、升级及违约提醒。确认只有方式；逐条核查必须提供当前口径的完整清单和2–9张不同截图。批量1–50个不同任务先一次锁定完整图并校验全部项，任何业务拒绝以 `TAKEDOWN_BATCH_REJECTED.details.items` 返回，整批不写业务、历史、引用或通知；成功顺序与请求一致。
+
+商家确认时读取当时核查模式，按万分比抽签并将参数与结果留在历史中；幂等重放不再次抽签。部分账号确认不提前推进，全数确认进入下架阶段，全数核查（含抽查放行）才归档。已终止工单的残留任务可继续核查，工单保持终止。确认“未发布”后实际核验上线会重新要求确认；仍在线、升级、违约提醒分别走冻结事件和原限频，逾期不自动制造人工跟进。
+
+`takedown.create`、不足30天推包与 I16 修复共用 `ensureTakedownTasks` 唯一 writer；日期和状态晚到均重新核对。`takedown.overdue` 的代次键绑定应完成日，日期变化撤旧再登记。`publish.onCalendarImported` 只根据已冻结SLA策略重算核查截止和快照版本，以 `sla.recalculated` 同态历史记录前后值，使用期止日保持。
+
+运行时在巡检装配外再包一层下架装配，关闭先等待下架调用再关闭巡检。`timers.I7` 保留原巡检修复，再执行下架修复；I16–I20覆盖漏建、依据、归属、日期和证据引用。R3按门店×止日×节点×收件人去重，T-30新建事件与定时提醒共用键；通知前重核当前任务，旧事件不能复活作废提醒。
+
+下架证据引用保留1095天且禁止主动释放；工单归档通过既有公开流程关闭授权/下载并延续原使用期止日次日+90天留存。这里的截图只代表人员提交的核查依据，真实平台核查、法律判断与机构签章不由替身测试确认。
+
+验收入口：`publish/takedown-m6.db.test.ts`、`publish/takedown-close-m6.db.test.ts`、`ops/takedown-runtime.db.test.ts`、`notify/takedown-reminders.db.test.ts`（project services）；`apps/api/test/takedown-m6.test.ts` 和 `takedown-full-m6.test.ts`（project api）。统一使用 `pnpm exec vitest run --project <project> <file> --maxWorkers=1 --no-file-parallelism`。完整链保留20集、上传并发4、包含清理90秒及全仓full检查；单包实际结果见[W6-04状态](../../../../docs/plan/status/W6-04.md)。

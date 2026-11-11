@@ -32,6 +32,7 @@ export type { ClockBoundFileRefType } from "./ports.js";
 export { findI2Violations, findI14Violations } from "./invariants.js";
 export type { PromoteRef } from "./promote.js";
 export { registration } from "./register.js";
+export type { EnsureZipInput, ZipResult } from "./zip-types.js";
 export type { MediaBatchDeps, BatchTargetFacts } from "./batches/types.js";
 
 export { seedPlaceholderFiles, placeholderPdf } from "./demo-seed.js";
@@ -119,7 +120,7 @@ export {
   checkoutMaterialMaster,
 } from "./material-facts.js";
 export { linkAdAssetReferences, readAdReferenceFacts } from "./assets/facts.js";
-export { readMerchantPlayableAsset } from "./playable-read-facts.js";
+export { readMerchantPlayableAsset, readAdPlayableAsset } from "./playable-read-facts.js";
 export type { MerchantPlayableAsset } from "./playable-read-facts.js";
 export type { AdProductionInput } from "./production/ad-prepare.js";
 export { declareAdProduction } from "./production/ad-prepare.js";

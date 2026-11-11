@@ -6,6 +6,7 @@ const prepared = new WeakMap<
   Tx,
   {
     ticketIds: ReadonlySet<string>;
+    takedownTaskIds: ReadonlySet<string>;
     staffIds: ReadonlySet<string>;
     approvalIds: ReadonlySet<string>;
     fileIds: ReadonlySet<string>;
@@ -47,6 +48,7 @@ export async function prepareReevaluation(
   tx: Tx,
   ticketIds: readonly string[],
   extras: {
+    takedownTaskIds?: readonly string[];
     staffIds?: readonly string[];
     approvalRequestId?: string;
     approvalRequestIds?: readonly string[];
@@ -63,6 +65,7 @@ export async function prepareReevaluation(
   if (existing) {
     if (
       ticketIds.some((id) => !existing.ticketIds.has(id)) ||
+      extras.takedownTaskIds?.some((id) => !existing.takedownTaskIds.has(id)) ||
       extras.staffIds?.some((id) => !existing.staffIds.has(id)) ||
       (extras.approvalRequestId && !existing.approvalIds.has(extras.approvalRequestId)) ||
       extras.approvalRequestIds?.some((id) => !existing.approvalIds.has(id)) ||
@@ -80,7 +83,7 @@ export async function prepareReevaluation(
     // a new in-Tx approval; approval's own fresh-row witness handles it, never a late lock.
     return existing.graph;
   }
-  const targets = await readReevaluationTargets(tx, ticketIds);
+  const targets = await readReevaluationTargets(tx, ticketIds, extras.takedownTaskIds);
   const { tickets, graph, samples, posters } = targets;
   for (const [table, ids, mode] of [
     ["staff", [...graph.staffIds, ...(extras.staffIds ?? [])], "share"],
@@ -131,13 +134,14 @@ export async function prepareReevaluation(
     ...posters,
     ...targets.evidenceFileIds,
   ]);
-  const fresh = await readReevaluationTargets(tx, ticketIds);
+  const fresh = await readReevaluationTargets(tx, ticketIds, extras.takedownTaskIds);
   // A writer may have committed new business facts while we waited on its parent lock.
   // Only a changed lock target set requires a retry; evaluate the now serialized fresh facts.
   if (lockTargetSignature(fresh) !== lockTargetSignature(targets))
     throw new AppError("PRECONDITION_CHANGED", { message: "求值锁图变化，请重试整个事务" });
   prepared.set(tx, {
     ticketIds: new Set(ticketIds),
+    takedownTaskIds: new Set(graph.takedownTaskIds),
     staffIds: new Set([...graph.staffIds, ...(extras.staffIds ?? [])]),
     approvalIds: new Set([
       ...graph.approvalRequestIds,
@@ -161,7 +165,11 @@ export async function prepareReevaluation(
 }
 
 /** Read-only complete union for callers that coordinate other owners before invoking delivery. */
-export async function readReevaluationTargets(tx: Tx, ticketIds: readonly string[]) {
+export async function readReevaluationTargets(
+  tx: Tx,
+  ticketIds: readonly string[],
+  takedownTaskIds: readonly string[] = [],
+) {
   const tickets = await tx.deliveryTicket.findMany({
     where: { id: { in: [...ticketIds] } },
     include: {
@@ -171,11 +179,29 @@ export async function readReevaluationTargets(tx: Tx, ticketIds: readonly string
     },
     orderBy: { id: "asc" },
   });
+  const explicit = await tx.takedownTask.findMany({
+    where: { id: { in: [...takedownTaskIds] } },
+    select: { id: true, deliveryTicketId: true, orderItemId: true },
+  });
+  if (
+    explicit.length !== new Set(takedownTaskIds).size ||
+    explicit.some(
+      (task) =>
+        !tickets.some(
+          (ticket) =>
+            ticket.id === task.deliveryTicketId && ticket.orderItemId === task.orderItemId,
+        ),
+    )
+  )
+    throw new AppError("PRECONDITION_CHANGED");
+  const explicitItems = new Set(explicit.map((task) => task.orderItemId));
   const graph = await readCancelReviewExecuteTargets(
     tx,
     tickets
-      .filter((t) =>
-        ["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(t.step),
+      .filter(
+        (t) =>
+          ["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(t.step) ||
+          explicitItems.has(t.orderItemId),
       )
       .map((t) => t.orderItemId),
   );

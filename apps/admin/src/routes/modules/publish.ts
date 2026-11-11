@@ -1,6 +1,18 @@
 // 发布模块的路由清单。页面包把自己的路由文件放在 src/routes/publish/ 下，在这里加一行；
 // 一个模块一个清单，别的模块不用动（计划 第 9.3 节）。写法见 apps/admin/README.md“加一个页面”。
+import { calendarRoute } from "../publish/calendar";
+import { overdueRoute } from "../publish/overdue";
 import { accountsRoute } from "../publish/accounts";
 import { deliveriesRoute } from "../publish/deliveries";
+import { offlineRoute } from "../publish/offline";
+import { patrolRoute } from "../publish/patrol";
 import { verifyRoute } from "../publish/verify";
-export const publishRoutes = [accountsRoute, deliveriesRoute, verifyRoute] as const;
+export const publishRoutes = [
+  accountsRoute,
+  deliveriesRoute,
+  verifyRoute,
+  calendarRoute,
+  overdueRoute,
+  offlineRoute,
+  patrolRoute,
+] as const;

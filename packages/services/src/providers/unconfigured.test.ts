@@ -187,6 +187,7 @@ const ROWS: Row[] = [
           ok: true,
           value: { jobId: "local-pack-sample-job:2", state: "done", processed: false },
         },
+        previewZip: { ok: false, reason: "unsupported", message: "本地媒体未执行压缩包预览" },
         audit: { ok: true, value: { verdict: "pass", processed: false } },
         auditText: { ok: true, value: { verdict: "pass", processed: false } },
         auditVideo: { ok: false, reason: "unsupported", message: "本地媒体未执行视频审核" },

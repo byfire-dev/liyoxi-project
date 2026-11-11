@@ -111,6 +111,8 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 
 `createPublishLists` 提供后台读取、整份替换、CSV/TSV 导入及商家/portal 当前包清单读取。首次进入 delivering 预填每集一行，再次进入不覆盖保存内容。替换中未列出的逐集覆盖清空；导入只改变表内集号和出现列，一行错误回滚整表。父工单锁下依次重验首次回填锁定、暂停、步骤与版本，并保留 `changedInReleaseNo`。同一幂等键重放不重复保存或事件，签名封面按契约返回脱敏空值。
 
+首次预填的生成值遵守现有保存契约：题材按订购快照编码顺序取名，按保存的去前导 `#` 与 trim 规则归一化至稳定值，再按 UTF-16 长度截至 20、去空去重、保留前 10 项；无有效题材时回退同规则处理的剧名。合集名称在 60 单位内保留完整“（全 N 集）”后缀，简介沿原 200 单位限制，三处截取均不拆 Unicode 代理对。这仅约束新清单；已存在的清单（包括未保存的历史预填值）不重写，GET、手动保存与导入仍按原契约。实际可达的 emoji 剧名计数差异及历史长快照的防御边界见[独立修复记录](../../../../docs/plan/changes/W6-02-publish-list-defaults.md)。
+
 模板展开与逐集话题回退使用 `@liyoxi/shared/publish-list` 的同一纯函数。保存同步当前 pushed 包的 `publishListText`，通过 media 原公口的 `preserveReleaseFiles` 选项仅失效 ZIP/文本文件缓存，保留现行成片文件引用和下载授权。GET 不懒创建清单、ZIP 或下载记录；merchant/portal 均显式提取主体与门店，按当前 pushed 包读取。`delivery.I16` 报告逐集行缺总清单或超出整部集数，保持不自愈。
 
 三端清单 GET 先校验范围，再经既有 `lockRows(..., "delivery_ticket", ..., "share")` 与保存/导入的工单排他锁互斥；锁后重读同范围工单及完整清单、逐集行、当前包投影，防止 READ COMMITTED 下混合两个版本。封面签名仍在事务外；不改变隔离级别或 GET 零业务写约束。并发回归分别暂停后台清单头、商家/Portal 当前包的真实查询，观察 PostgreSQL 的实际阻塞关系，再验证旧版完整返回、写入完成后新版完整读回。
@@ -118,3 +120,19 @@ hold→release→阶段到点、相同/并行原因、同Tx未提交事实及回
 核验撤销通过原 `launchChangedPort` 驱动 delivery：最后一个已上线账号撤销后，`in_service → launch_verify` 清除 `liveAt`，再调用真实 order owner 重推阶段与使用期。仍有账号已上线时保持服务中。验收入口是 `publish-list-m6.db.test.ts` 和 `publish/launch-workbench.db.test.ts`，不把历史 ZIP 缓存输入当作 W6-07 打包 producer 已完成。
 
 完整整装另由 API `publish-workbench-full.e2e.test.ts` 验证：保留原20集、上传并发4和含清理90秒，在真实回填前保存清单，核验后确认清单锁定，再撤销并核全域full不变量零违规、零错误。当前测试22.41秒、命令29.52秒；M5局部writer夹具不替代该整装证据。共用制作前置已移入testing叶模块，旧delivery夹具路径兼容转导出，默认1集与原广告/取消专用helper保持；不新增生产port。
+
+## W6-07 后台预打包
+
+首次推包在同事务用完整manifest及当前发布清单预排ZIP任务。`readReleaseZipInput(tx, media, releaseId, now)` 核pushed状态、当前有效授权、全部集序/文件唯一性/总字节数及真实源文件，留存取最晚有效授权截止加一天；不改变授权或使用期。源CRC允许原契约的null，不填造CRC。
+
+`createDeliveryZipPackages({ tx, clock, media }).pack(ctx, staff, releaseId, { idem })` 沿 `publish.package.push` 权限、任务范围及工单/release/ZIP/文件锁序调用media公口，显式retry后返回真实异步状态并记审计。同键精确重放原响应，新键读取最新状态；building不重复排队，failed的下一次pack必须代表用户重试。GET不读取或延长ZIP缓存。W6-06签发端须按公口返回的文件身份再验当前代次及可用性。
+
+## W6-06 Portal 下载与商家下载回报
+
+`createPortalDeliveryDownloads({ tx, clock, assembly, media, assertPortalPrincipal })` 提供 `list(principal, query)`、`release(principal, orderItemId)` 与 `downloadUrls(principal, orderItemId, body, auditMeta)`。身份来自真实 portal 会话，范围限定会话主体和门店；每次用例重读身份事实。GET 不创建或读取 ZIP、不调用会延长引用的 `peek`，也不记下载访问。详情持工单共享锁后重读完整当前包与授权，避免补发或重签授权混合版本。列表按包推送时间及订购项 ID 倒序分页，损坏或换筛选的游标按 C42 回首页。Q9 下不恢复样片电脑预览，`sample_pending` 为空，`pendingSample` 为 null；`downloadable` 表示存在 pushed common 包，过期授权仍显示对应 blocker。
+
+POST 首先按原身份、工单、release、ZIP、文件顺序锁定并验证当前事实；媒体签名在事务外执行，最终事务重新校验会话、owner、门店、使用期、release、grant、ZIP bundle/gen 与两个缓存 fileId，以及实际文件 key/etag/size 和可用性。锁等待后重取时钟检查会话和授权截止。状态或版本发生变化时不返回 URL、不插访问记录。逐集和发布清单地址固定 900 秒，ZIP 固定 10800 秒；每次成功签发都有独立 `delivery_download_log`，只对逐集/ZIP 调用既有 package_download 直记埋点。发布清单只 `peek`，不会触发重打包；ZIP building 返回 pollAfterSec=5，failed 仅显式 retry 重建。所有打包状态均正常 200，逐集下载不依赖 ZIP 成功。
+
+`createDeliveryDownloads` 新增 `createGrant(viewer, orderItemId, { idem })` 与 `report(viewer, downloadId, body, { idem })`。两者保留 required 幂等、当前老板权限和账号 active 复核；重签按同一业务日最多 5 次，持 release 锁替换旧 active 授权，参数有效期仍限定 1–30 天。report 只接受本人当前门店实际签发的 weapp episode 记录，ack 两列从空写一次，同结果返回原时间，不同结果拒绝。签发后的真实保存可能晚于授权过期、重签或补发，因此历史记录允许迟报；进度读取仍按当前 release ID 汇总，旧包的 saved 不进入新包进度。Portal 访问不产生相册 ack。
+
+定点入口：`pnpm --filter @liyoxi/services exec vitest run --maxWorkers=1 --no-file-parallelism src/delivery/download/portal-m6.db.test.ts src/delivery/download/progress-m6.db.test.ts`。测试前置经公开 `createPortalDownloadFixture` 分段运行真实制作/QC/推包、订单重推导、登录/票据批准/交换与 ZIP worker 回查；外部编解码和存储使用现有替身。覆盖最终签名竞争、会话撤销、授权替换、缓存失效、双连接最后重签名额竞争和真实补发后的迟报隔离。该本地协议证据不替代 V10 真实云 5GB 压缩/下载和真机验证。

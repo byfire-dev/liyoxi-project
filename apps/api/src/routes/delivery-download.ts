@@ -2,20 +2,36 @@ import {
   mSampleDownloadUrls,
   mOrderItemReleaseGet,
   mOrderItemDownloadUrls,
+  mOrderItemDownloadGrantCreate,
+  mDownloadReport,
+  DownloadGrantResultSchema,
+  DownloadReportResultSchema,
   adminDeliveryReleaseGet,
+  adminDeliveryReleasePack,
+  DeliveryReleasePackResultSchema,
   DownloadUrlSchema,
   EpisodeDownloadUrlSchema,
   ReleaseViewSchema,
   DeliveryReleaseDetailSchema,
 } from "@liyoxi/contract";
-import { AppError, createDeliveryDownloads } from "@liyoxi/services";
+import { AppError, createDeliveryDownloads, createDeliveryZipPackages } from "@liyoxi/services";
 import type { DeliveryDownloads, DeliveryViewer, Runtime } from "@liyoxi/services";
 import type { Context } from "hono";
 import type { ApiEnv } from "../context.js";
 import { ok } from "../http/errors.js";
+import { idemOf } from "../http/idempotency.js";
 import { defineHandler } from "../routing/define.js";
 import { defineAdminHandler } from "../routing/admin.js";
 const built = new WeakMap<Runtime, DeliveryDownloads>();
+const zipPackages = new WeakMap<Runtime, ReturnType<typeof createDeliveryZipPackages>>();
+function zipPackagesOf(runtime: Runtime) {
+  let service = zipPackages.get(runtime);
+  if (!service) {
+    service = createDeliveryZipPackages(runtime);
+    zipPackages.set(runtime, service);
+  }
+  return service;
+}
 function downloadsOf(runtime: Runtime) {
   let service = built.get(runtime);
   if (!service) {
@@ -48,6 +64,45 @@ const privateOk = <T>(c: Context<ApiEnv>, data: T) => {
   return ok(c, data);
 };
 export const deliveryDownloadHandlers = [
+  defineHandler(mOrderItemDownloadGrantCreate, async (c) =>
+    privateOk(
+      c,
+      DownloadGrantResultSchema.parse(
+        await downloadsOf(c.var.runtime).createGrant(viewer(c), c.req.valid("param").orderItemId, {
+          idem: idemOf(c),
+        }),
+      ),
+    ),
+  ),
+  defineHandler(mDownloadReport, async (c) =>
+    privateOk(
+      c,
+      DownloadReportResultSchema.parse(
+        await downloadsOf(c.var.runtime).report(
+          viewer(c),
+          c.req.valid("param").downloadId,
+          c.req.valid("json"),
+          { idem: idemOf(c) },
+        ),
+      ),
+    ),
+  ),
+  defineAdminHandler(
+    adminDeliveryReleasePack,
+    { module: "publish", need: "edit" },
+    async (c, staff) =>
+      privateOk(
+        c,
+        DeliveryReleasePackResultSchema.parse(
+          await zipPackagesOf(c.var.runtime).pack(
+            c.var.identity!,
+            staff.ctx,
+            c.req.valid("param").deliveryReleaseId,
+            { idem: idemOf(c) },
+          ),
+        ),
+      ),
+  ),
   defineHandler(mSampleDownloadUrls, async (c) => {
     const result = await downloadsOf(c.var.runtime).sampleUrl(
       viewer(c),

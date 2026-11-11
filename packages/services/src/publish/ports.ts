@@ -5,6 +5,10 @@ export interface LaunchChanged {
   deliveryTicketId: string;
   /** Prepares the same transaction before publishing takes any business locks. */
   phase?: "prelock";
+  /** One complete union for atomic multi-ticket operations. */
+  deliveryTicketIds?: readonly string[];
+  /** Explicit tasks include terminated tickets without reviving them. */
+  takedownTaskIds?: readonly string[];
   approvalRequestId?: string;
   staffId?: string;
   fileIds?: readonly string[];

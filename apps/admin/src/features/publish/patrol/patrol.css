@@ -1,0 +1,44 @@
+.lyx-lifecycle-details {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lyx-lifecycle-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.lyx-lifecycle-evidence {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.lyx-lifecycle-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.lyx-lifecycle-filters label {
+  display: grid;
+  gap: 4px;
+}
+.lyx-lifecycle-history {
+  margin: 0;
+  padding-inline-start: 20px;
+}
+.lyx-lifecycle-history li {
+  margin-bottom: 8px;
+}
+.lyx-lifecycle-fields .ant-select {
+  width: 100%;
+}
+.lyx-lifecycle-fields > label {
+  display: grid;
+  gap: 6px;
+}

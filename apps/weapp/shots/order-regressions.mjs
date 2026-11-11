@@ -75,6 +75,44 @@ export async function orderRegression(page, scene) {
   }
 }
 export async function publishRegression(page, scene) {
+  if (scene === "accounts-unbind-rejected") {
+    await page.locator(".accounts-page .lyx-button").filter({ hasText: "解绑账号" }).click();
+    await page.locator(".lyx-sheet .lyx-checkbox").click();
+    await page
+      .locator(".lyx-sheet .lyx-button")
+      .filter({ hasText: "确认解绑" })
+      .evaluate((node) => {
+        node.click();
+        node.click();
+      });
+    await page
+      .getByText("账号刚产生关联下架任务，暂不能解绑", { exact: true })
+      .waitFor({ state: "visible" });
+    await page.getByText("1 项", { exact: true }).waitFor({ state: "visible" });
+    const confirm = page.locator(".lyx-sheet .lyx-button").filter({ hasText: "确认解绑" });
+    await page
+      .getByText("当前账号暂不可解绑，请先处理关联订单或下架任务，再刷新账号状态", { exact: true })
+      .waitFor({ state: "visible" });
+    if (!(await confirm.getAttribute("class"))?.includes("lyx-button--disabled"))
+      throw new Error("解绑拒绝后的当前 actions 未禁用确认");
+    await page.locator(".lyx-sheet .lyx-checkbox").evaluate((node) => node.click());
+    await confirm.evaluate((node) => node.click());
+    const writes = (await page.evaluate(() => globalThis.__LYX_PUBLISH_CALLS__)).filter(
+      (call) => call.method === "POST",
+    );
+    if (
+      writes.length !== 1 ||
+      !writes[0].path.endsWith("/unbind") ||
+      Object.keys(writes[0].data).length ||
+      !writes[0].key
+    )
+      throw new Error("解绑拒绝/同步闸/刷新后禁写/空 body 不成立");
+    await page.screenshot({
+      path: new URL("./dist/png/publish__accounts-unbind-rejected-sheet.png", import.meta.url)
+        .pathname,
+    });
+    return;
+  }
   if (scene !== "accounts-bind" && scene !== "accounts-rejected") return;
   if (scene === "accounts-rejected")
     await page

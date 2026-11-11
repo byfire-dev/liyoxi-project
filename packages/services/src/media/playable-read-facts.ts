@@ -97,3 +97,28 @@ export async function readMerchantPlayableAsset(tx: Tx, playableId: string) {
 export type MerchantPlayableAsset = NonNullable<
   Awaited<ReturnType<typeof readMerchantPlayableAsset>>
 >;
+
+/** Ad owns current-version/channel authorization; media only selects the scoped technical asset. */
+export async function readAdPlayableAsset(
+  tx: Tx,
+  input: {
+    adId: string;
+    fileId: string;
+    entityId: string;
+    storeId: string;
+  },
+) {
+  const asset = await tx.playableAsset.findFirst({
+    where: {
+      kind: "ad",
+      ownerType: "ad",
+      ownerId: input.adId,
+      sourceFileId: input.fileId,
+      entityId: input.entityId,
+      storeId: input.storeId,
+    },
+    orderBy: { specVersion: "desc" },
+    select: { id: true },
+  });
+  return asset ? readMerchantPlayableAsset(tx, asset.id) : null;
+}

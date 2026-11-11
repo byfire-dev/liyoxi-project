@@ -6,7 +6,49 @@ import {
 import {
   parseOutputBatchLiveManifest,
   parseInvoiceLiveEnvelope,
+  startupDiagnostic,
 } from "./upload-batch-live-server.js";
+
+it("startup diagnostics keep fixed phases and both finite elapsed clocks only", () => {
+  for (const stage of [
+    "relay_start",
+    "app_create_start",
+    "app_create_ready",
+    "startup_aborted",
+    "startup_failed",
+    ...["pass", "reject"].flatMap((outcome) =>
+      ["sample_start", "sample_ready", "final_start", "final_ready", "delivering"].map(
+        (phase) => `w120_${outcome}_${phase}`,
+      ),
+    ),
+  ])
+    expect(startupDiagnostic(stage, 12.4, 312.6)).toEqual({
+      evt: "w302.live.startup",
+      stage,
+      elapsedMs: 12,
+      processElapsedMs: 313,
+    });
+  expect(startupDiagnostic("ready", 0, 0)).toEqual({
+    evt: "w302.live.startup",
+    stage: "ready",
+    elapsedMs: 0,
+    processElapsedMs: 0,
+  });
+});
+
+it("startup diagnostics reject arbitrary details and invalid clocks", () => {
+  for (const stage of [
+    undefined,
+    "w120_pass_sample_secret",
+    "https://fixture.invalid/private",
+    { stage: "startup_failed", error: "arbitrary details" },
+  ])
+    expect(startupDiagnostic(stage, 0, 0)).toBeNull();
+  for (const invalid of [-1, NaN, Infinity, -Infinity]) {
+    expect(startupDiagnostic("startup_failed", invalid, 0)).toBeNull();
+    expect(startupDiagnostic("startup_failed", 0, invalid)).toBeNull();
+  }
+});
 
 const runId = "1234567890abcdef",
   id = "01950000-0000-7000-8000-000000000001";
@@ -66,6 +108,56 @@ const original = {
   video,
   resumeVideo: video,
 };
+it("W609证据scope独立严格解析，保留原信封与旧scope校验", () => {
+  const evidence = { ...owned, startedAt: scope.startedAt, staffId: id, entityId: id, storeId: id };
+  const invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] };
+  // The old delivery-media and W513 CLIs consume this same shared parser directly.
+  expect(parseSharedManifest({ ...original, w609: evidence })).toEqual(
+    parseSharedManifest(original),
+  );
+  expect(parseSharedManifest({ ...original, w418Invoice: invoice, w609: evidence })).toEqual(
+    parseSharedManifest(original),
+  );
+  expect(parseInvoiceLiveEnvelope({ ...original, w609: evidence })).toEqual({
+    manifest: parseSharedManifest(original),
+    w318: undefined,
+    w418Invoice: undefined,
+    w609: evidence,
+  });
+  expect(
+    parseInvoiceLiveEnvelope({ ...original, w418Invoice: invoice, w609: evidence }),
+  ).toMatchObject({
+    manifest: parseSharedManifest(original),
+    w418Invoice: invoice,
+    w609: evidence,
+  });
+  for (const w609 of [
+    undefined,
+    null,
+    { ...evidence, storeId: "invalid" },
+    { ...evidence, verified: true },
+    { ...evidence, name: "another_database" },
+    { ...evidence, prefix: "lyx:test:other:" },
+    { ...evidence, runId: "fedcba9876543210" },
+    {
+      ...evidence,
+      runId: "fedcba9876543210",
+      name: "lyx_test_admin_live_fedcba9876543210",
+      prefix: "lyx:test:admin_live_fedcba9876543210:",
+    },
+  ]) {
+    expect(() => parseSharedManifest({ ...original, w609 })).toThrow();
+    expect(() => parseInvoiceLiveEnvelope({ ...original, w609 })).toThrow();
+  }
+  for (const extra of [
+    { unexpected: true },
+    { w418Invoice: { ...invoice, verified: true } },
+    { current: { ...original.current, anotherTarget: id } },
+  ]) {
+    expect(() => parseSharedManifest({ ...original, ...extra, w609: evidence })).toThrow();
+    expect(() => parseInvoiceLiveEnvelope({ ...original, ...extra, w609: evidence })).toThrow();
+  }
+});
 it("可选发票scope保留无新scope的W318旧manifest，双方严格字段与未知键校验不丢失", () => {
   const assets = { ...owned, startedAt: scope.startedAt, staffId: id, storeId: id },
     invoice = { ...owned, startedAt: scope.startedAt, staffId: id, entityIds: [id] },
@@ -324,12 +416,109 @@ it("W513与W514并存保各具名scope及原invoice/assets/content严格运输�
     w418Invoice: invoice,
     w514,
   });
+  const w609 = {
+    ...owned,
+    startedAt: scope.startedAt,
+    staffId: other(13),
+    entityId: other(14),
+    storeId: other(15),
+  };
+  expect(parseSharedManifest({ ...full, w609 })).toEqual(shared);
+  expect(parseInvoiceLiveEnvelope({ ...full, w609 })).toEqual({
+    manifest: shared,
+    w318: assets,
+    w418Invoice: invoice,
+    w514,
+    w609,
+  });
   for (const invalid of [
     { ...full, w513: { ...w513, trusted: true } },
     { ...full, w513: { ...w513, itemId: delivery.itemId } },
     { ...full, w514: { ...w514, ready: true } },
     { ...full, unexpected: true },
     { ...full, video: { ...video, probe: { ...video.probe, durationMs: 19_999 } } },
+  ]) {
+    expect(() => parseSharedManifest(invalid)).toThrow();
+    expect(() => parseInvoiceLiveEnvelope(invalid)).toThrow();
+    expect(() => parseSharedManifest({ ...invalid, w609 })).toThrow();
+    expect(() => parseInvoiceLiveEnvelope({ ...invalid, w609 })).toThrow();
+  }
+});
+
+const publishId = (n: number) => `01950000-0000-7000-8000-${String(n).padStart(12, "0")}`;
+const publishScope = {
+  ...delivery,
+  entityId: publishId(2),
+  storeId: publishId(3),
+  orderId: publishId(4),
+  itemId: publishId(5),
+  ticketId: publishId(6),
+  dramaId: publishId(7),
+  planId: publishId(8),
+  merchantUserId: publishId(9),
+  memberId: publishId(10),
+  posterFileId: publishId(11),
+  managerId: publishId(12),
+  accountIds: [publishId(13), publishId(14)],
+  foreign: { entityId: publishId(15), storeId: publishId(16), accountId: publishId(17) },
+};
+const withPublish = {
+  ...original,
+  current: { ...original.current, managerId: publishScope.managerId },
+  w608: publishScope,
+};
+it("W608只把本轮独立两集目标交给旧真实媒体准备，跨库/跨轮/重叠或未知权限拒绝", () => {
+  expect(parseSharedManifest(withPublish).inputs).toEqual(withPublish);
+  expect(parseInvoiceLiveEnvelope(withPublish).manifest.inputs).toEqual(withPublish);
+  for (const w608 of [
+    undefined,
+    null,
+    { ...publishScope, verified: true },
+    { ...publishScope, runId: "abcdef1234567890" },
+    { ...publishScope, name: "lyx_test_admin_live_abcdef1234567890" },
+    { ...publishScope, prefix: "lyx:test:other:" },
+    { ...publishScope, uploaderId: publishId(99) },
+    { ...publishScope, managerId: publishId(99) },
+    { ...publishScope, itemId: original.current.itemId },
+    { ...publishScope, foreign: { ...publishScope.foreign, storeId: original.legacy.storeId } },
+    { ...publishScope, accountIds: [publishId(13), publishId(13)] },
+  ])
+    expect(() => parseSharedManifest({ ...withPublish, w608 })).toThrow();
+  expect(() =>
+    parseSharedManifest({ ...withPublish, video: { ...video, verified: true } }),
+  ).toThrow();
+  expect(parseSharedManifest(original).inputs).toEqual(original);
+});
+
+it("W608与W609并存时保留制作目标、独立返回证据scope且双方严格边界不被剥离", () => {
+  const w609 = {
+    ...owned,
+    startedAt: scope.startedAt,
+    staffId: publishId(18),
+    entityId: publishId(19),
+    storeId: publishId(20),
+  };
+  const combined = { ...withPublish, w609 };
+  const shared = { inputs: withPublish, w312: undefined };
+  expect(parseSharedManifest(combined)).toEqual(shared);
+  expect(parseInvoiceLiveEnvelope(combined)).toEqual({
+    manifest: shared,
+    w318: undefined,
+    w418Invoice: undefined,
+    w609,
+  });
+  for (const invalid of [
+    { ...combined, w608: { ...publishScope, itemId: original.current.itemId } },
+    {
+      ...combined,
+      w609: {
+        ...w609,
+        runId: "fedcba9876543210",
+        name: "lyx_test_admin_live_fedcba9876543210",
+        prefix: "lyx:test:admin_live_fedcba9876543210:",
+      },
+    },
+    { ...combined, unexpected: true },
   ]) {
     expect(() => parseSharedManifest(invalid)).toThrow();
     expect(() => parseInvoiceLiveEnvelope(invalid)).toThrow();

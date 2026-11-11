@@ -68,6 +68,8 @@ export async function reevaluate(
   ticketId: string,
 ) {
   const first = await ticketOf(tx, ticketId);
+  // Terminal tickets retain takedown evidence, but never reenter the delivery lifecycle.
+  if (["terminated", "archived"].includes(first.step)) return { moved: 0 };
   if (["awaiting_launch", "launch_verify", "in_service", "takedown"].includes(first.step))
     await prepareReevaluation(tx, [ticketId]);
   else
