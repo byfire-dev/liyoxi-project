@@ -59,6 +59,40 @@ export function prepareMixedLayer(layer, archiveDir, source) {
     renameSync(fonts, join(layer, server, "fonts"));
   }
 }
+
+// This exact version emits a pre-redacted JSON diagnostic on stderr. Export only a fixed boolean.
+export function observeLegacyWorkerGuard(stream, source) {
+  let seen = false;
+  if (source === "22e8a2d5b7c5ce8a1e9ac5ee739db6ce6c822f97") {
+    let tail = "";
+    stream.setEncoding("utf8").on("data", (chunk) => {
+      const parts = chunk.split("\n");
+      for (const [i, part] of parts.entries()) {
+        // Discard the whole line when it exceeds the diagnostic budget, including fragmented input.
+        if (tail !== null) tail = tail.length + part.length <= 4096 ? tail + part : null;
+        if (i === parts.length - 1) break;
+        if (tail?.startsWith('{"mixedFailure":')) {
+          try {
+            const row = JSON.parse(tail);
+            if (
+              row.method === "phase.start" &&
+              row.mixedFailure === "start_failed" &&
+              row.errorCategory === "Error" &&
+              Array.isArray(row.frames) &&
+              typeof row.frames[0] === "string" &&
+              /^packages\/services\/src\/testing\/m1-observe\.ts:113:\d{1,4}$/.test(row.frames[0])
+            )
+              seen = true;
+          } catch {
+            // Other stderr never changes the smoke result or enters its report.
+          }
+        }
+        tail = "";
+      }
+    });
+  }
+  return () => seen;
+}
 export function deadline(now = () => performance.now(), signal) {
   const start = now();
   return {
@@ -378,19 +412,19 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
     containers.push(entry);
     const row = await owned(id);
     requireFact(row.image === build.imageId, "container-identity");
-    entry.peer = new RpcPeer(
-      spawnProcess("docker", ["start", "--attach", "--interactive", id], {
-        cwd: root,
-        stdio: ["pipe", "pipe", "pipe"],
-      }),
-      mode,
-    );
+    const child = spawnProcess("docker", ["start", "--attach", "--interactive", id], {
+      cwd: root,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    if (mode === "phase") entry.legacyWorkerGuard = observeLegacyWorkerGuard(child.stderr, source);
+    entry.peer = new RpcPeer(child, mode);
     if (mode === "owner") owner = entry;
     else active = entry;
     return entry;
   }
   return {
     runId,
+    legacyWorkerGuardSeen: () => containers.some((entry) => entry.legacyWorkerGuard?.() === true),
     async prepare() {
       requireFact(
         !process.env.DOCKER_HOST || process.env.DOCKER_HOST.startsWith("unix://"),

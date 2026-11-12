@@ -417,6 +417,12 @@ export async function fourSteps({
     } catch {
       report.cleanup = { ok: false };
     }
+    if (
+      report.stage === "old-read-write" &&
+      report.rpc?.method === "phase.start" &&
+      backend.legacyWorkerGuardSeen?.()
+    )
+      report.rpc.category = "unknown-worker-kind-or-kind-limit";
     if (!report.cleanup.ok || signal?.aborted || budget.elapsed() > 600_000) {
       report.status = "failed";
       report.failure ??= "cleanup";

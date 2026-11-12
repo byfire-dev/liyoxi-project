@@ -15,6 +15,7 @@ const {
   deadline,
   dockerBackend,
   mixedAttachment,
+  observeLegacyWorkerGuard,
   prepareMixedLayer,
   PROTOCOL,
   MAX_FRAME,
@@ -151,6 +152,30 @@ function fakeBackend(failAt = "", failure = new MixedFailure("rpc-remote")) {
   return { backend, calls };
 }
 afterEach(() => vi.useRealTimers());
+
+it("旧版未知类型守卫仅从固定提交、固定方法与固定异常位置得到布尔事实", () => {
+  const old = "22e8a2d5b7c5ce8a1e9ac5ee739db6ce6c822f97";
+  const stderr = new PassThrough();
+  const seen = observeLegacyWorkerGuard(stderr, old);
+  const other = observeLegacyWorkerGuard(stderr, HEAD);
+  const row = {
+    mixedFailure: "start_failed",
+    method: "phase.start",
+    errorCategory: "Error",
+    frames: ["packages/services/src/testing/m1-observe.ts:113:13"],
+  };
+  const frame = JSON.stringify(row);
+  stderr.write(frame.replace("113:13", "115:13") + "\n");
+  stderr.write(frame.replace("phase.start", "phase.close") + "\n");
+  stderr.write(privateValue.repeat(250));
+  stderr.write(frame + "\n");
+  expect(seen()).toBe(false);
+  stderr.write(frame.slice(0, 25));
+  stderr.write(frame.slice(25) + "\n");
+  expect(seen()).toBe(true);
+  expect(other()).toBe(false);
+  stderr.destroy();
+});
 
 it("混跑测试层从每个 SHA 自己的归档带入字体和许可，读取路径与 build target 相同", () => {
   const temp = makeTempDir("mixed-fonts-");
@@ -463,6 +488,36 @@ it("新旧版各自的队列和数据库积压必须完整且已排空", () => {
   }
   const old = worker(OLD);
   expect(() => workerEvidence({ ...old, queues: head.queues }, OLD, 10)).toThrow("worker-evidence");
+});
+
+it("已确认的旧启动守卫仅写固定类别，保留失败与清理结论", async () => {
+  const { backend } = fakeBackend();
+  const createPhase = backend.createPhase;
+  const report = await fourSteps({
+    versions,
+    budget: deadline(),
+    backend: {
+      ...backend,
+      legacyWorkerGuardSeen: () => true,
+      createPhase: async (source: string, kind: string, attach: Record<string, unknown>) => {
+        if (kind === "old-read-write")
+          throw Object.assign(new MixedFailure("rpc-remote"), {
+            rpcMethod: "phase.start",
+            rpcElapsedMs: 12,
+            private: privateValue,
+          });
+        return createPhase(source, kind, attach);
+      },
+    },
+  });
+  expect(report).toMatchObject({
+    status: "failed",
+    stage: "old-read-write",
+    failure: "rpc-remote",
+    rpc: { category: "unknown-worker-kind-or-kind-limit" },
+    cleanup: { ok: true },
+  });
+  expect(JSON.stringify(report)).not.toContain(privateValue);
 });
 
 it("W228 controller：任一读/排空/清理失败非零，600秒含清理且取消不伪绿", async () => {
