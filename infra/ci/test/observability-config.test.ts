@@ -35,6 +35,7 @@ const IDS = [
   "media-production",
   "client-errors",
   "alerts",
+  "backup",
   "server-errors",
   "wechat",
 ];
@@ -52,6 +53,7 @@ const OPTIONAL = [
   "media-production.json",
   "client-error-projects.json",
   "alerts.json",
+  "backup.json",
   "server-errors.json",
   "wechat-secret",
   "wechat-message-token",

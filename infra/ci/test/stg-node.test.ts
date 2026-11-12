@@ -285,6 +285,13 @@ describe("密钥清单与 node.yml", () => {
     expect(scalar(ours, "memswap_limit")).toBe("1g");
   });
 
+  it("API 的扫码签发与上线自检使用 gateway 登记的同一 HTTPS Portal 域名", () => {
+    expect(serviceBlock("gateway")).toContain("PORTAL_HOST: ${LYX_PORTAL_HOST:?}");
+    for (const service of ["api", "check-env"]) {
+      expect(serviceBlock(service)).toContain("PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}");
+    }
+  });
+
   it("stg.env 只有非敏感项；node.yml 必填的变量都有出处；库与 Redis 的镜像同 local.yml", () => {
     const keys = [...stgEnv.matchAll(/^([A-Z_]+)=/gm)].map((row) => row[1] ?? "");
     expect(keys.length).toBeGreaterThan(0);
@@ -564,6 +571,10 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
         secrets: [
           { file: "mail-tencent.json", env: "MAIL_TENCENT_FILE", services: "worker check-env" },
         ],
+      },
+      {
+        id: "backup",
+        secrets: [{ file: "backup.json", env: "BACKUP_FILE", services: "worker check-env" }],
       },
       {
         id: "llm",
@@ -927,6 +938,35 @@ describe("node-step.sh（节点步骤，docker 与 systemctl 桩掉）", () => {
         },
       ]);
       expect(existsSync(join(env.LYX_NODE_HOME, "release.env"))).toBe(false);
+    });
+
+    it("预发备份沿用 COS 存储，选中后只对 worker 和 check-env 要求独立文件", () => {
+      const dir = generatedSecrets();
+      const env = nodeEnv({ LYX_SECRETS_DIR: dir, LYX_SECRETS_SKIP_OWNER: "1" });
+      const check = (service: string, selection: string) =>
+        sh(CHECK, ["--service", service], { env: { ...env, LYX_NODE_PROVIDERS: selection } });
+      for (const secret of [
+        "cos-signer-keys.json",
+        "cos-sts-issuer-keys.json",
+        "cos-worker-keys.json",
+      ])
+        optionalFile(dir, secret);
+      expect(check("worker", "backup").status).toBe(2);
+      expect(check("worker", "cos").status).toBe(0);
+      expect(check("api", "cos backup").status).toBe(0);
+      for (const service of ["worker", "check-env"]) {
+        const missing = check(service, "cos backup");
+        expect(missing.status).toBe(1);
+        expect(missing.output).toContain("backup.json：没有这个文件");
+      }
+      optionalFile(dir, "backup.json");
+      const ready = sh(STEP, ["check-env", "t-backup"], {
+        env: { ...env, LYX_NODE_PROVIDERS: "cos backup" },
+        fakes: ["docker"],
+      });
+      expect(ready.status, ready.output).toBe(0);
+      expect(ready.lines).toHaveLength(1);
+      expect(ready.lines[0]).toContain("/providers/backup.yml run --rm --no-deps -T check-env");
     });
 
     it("check-env 先拒缺选中文件，再用同一 overlay 单次运行离线格式检查", () => {

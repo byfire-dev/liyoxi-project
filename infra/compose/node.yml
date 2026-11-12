@@ -144,6 +144,7 @@ services:
     environment:
       APP_ENV: stg
       LOG_LEVEL: ${LYX_LOG_LEVEL:-info}
+      PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}
       DATABASE_URL_FILE: /run/secrets/database-url
       REDIS_URL_FILE: /run/secrets/redis-url
       DATA_KEYS_FILE: /run/secrets/data-keys.json
@@ -268,6 +269,7 @@ services:
       APP_ENV: stg
       STAGING_PAY_ENTITY_IDS: ${STAGING_PAY_ENTITY_IDS:-}
       LOG_LEVEL: ${LYX_LOG_LEVEL:-info}
+      PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}
       DATABASE_URL_FILE: /run/secrets/database-url
       REDIS_URL_FILE: /run/secrets/redis-url
       DATA_KEYS_FILE: /run/secrets/data-keys.json
