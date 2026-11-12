@@ -1,0 +1,272 @@
+{
+  "scope": "50 MB × 80 on one Android and one iPhone",
+  "android": {
+    "device": {
+      "sourceName": "2026-11-10-v7-formal-80-android-brief.json",
+      "sourceSha256": "46f05ba67b9691f5d7ed604de2595eefd8a6dec21f7b2d69ec36592a70bd760f",
+      "representation": "complete",
+      "data": {
+        "purpose": "v7_android_formal_queue_brief",
+        "protocolVersion": "v7-range-20261109-v1",
+        "buildRevision": "bulk-80-r4",
+        "acceptancePassed": false,
+        "recordedProtocolVersion": "v7-range-20261109-v1",
+        "runId": "mw9kva76-1kq4a8eko",
+        "status": "complete",
+        "busy": false,
+        "pageActionPending": false,
+        "paused": true,
+        "errorCode": null,
+        "sizeMb": 50,
+        "count": 80,
+        "concurrency": 1,
+        "scenario": "baseline",
+        "environment": {
+          "platform": "android",
+          "system": "Android 12",
+          "model": "CLS-AL00",
+          "wechatVersion": "8.0.80",
+          "SDKVersion": "3.17.6",
+          "network": "wifi"
+        },
+        "lifecycle": {
+          "backgroundSeen": true,
+          "pageUnloaded": false,
+          "processRecovered": false
+        },
+        "attemptCounts": {
+          "attemptedItems": 80,
+          "total": 82,
+          "previous": 2
+        },
+        "currentHost": {
+          "allowed": true,
+          "diagnostic": "NONE",
+          "observations": {
+            "legacyRegistryCount": 2,
+            "historicalResidualCount": 2,
+            "baselineIdentified": "archived_android_20261108",
+            "capacityState": "unknown",
+            "oldRecordsPreserved": true,
+            "candidateState": "complete_preserved",
+            "formalJournalOwnedByQueue": true,
+            "legacySourceBinding": "unique_registered_temp_unbound",
+            "checkStage": "complete"
+          }
+        },
+        "newResiduals": {
+          "present": 0,
+          "unknown": 0
+        },
+        "failedIndices": [],
+        "completedCount": 80,
+        "albumSavedCount": 80,
+        "cleanupCompleteCount": 80,
+        "undispatchedCount": 0,
+        "pendingReports": 43
+      }
+    },
+    "albumAndFlush": {
+      "sourceName": "2026-11-10-v7-formal-80-android-owner-observations.json",
+      "sourceSha256": "313cf2747c295e4ffbf4e063b60683089f9bb654e4824da76cdbb9bae038c2bc",
+      "representation": "complete",
+      "data": {
+        "source": "owner_reply_in_chat",
+        "runId": "mw9kva76-1kq4a8eko",
+        "albumAddedCount": 80,
+        "playbackCheckedCount": 40,
+        "pictureNormal": true,
+        "audioNormal": true,
+        "remainingPlaybackCoverage": "40 items not confirmed played; do not infer 80/80 playback",
+        "afterWeChatReopen": {
+          "sameRunId": true,
+          "completedCountPreserved": true,
+          "source": "重开后批次号和已完成数量：保持。"
+        },
+        "startingFreeStorageGb": null,
+        "endingFreeStorageGb": null,
+        "note": "Owner reply confirms reopen state; exact force-stop action not separately restated in this reply.",
+        "reportingObservations": [
+          {
+            "kind": "correction",
+            "ownerText": "我还没点击过补传",
+            "pendingReports": 43,
+            "meaning": "43 was an unflushed state, not evidence of failed flush"
+          },
+          {
+            "kind": "first_explicit_flush_reply",
+            "pendingReports": 29
+          },
+          {
+            "kind": "second_explicit_flush_reply",
+            "pendingReports": 16
+          },
+          {
+            "kind": "third_explicit_flush_reply",
+            "pendingReports": 2
+          },
+          {
+            "kind": "fourth_explicit_flush_reply",
+            "pendingReports": 0,
+            "ownerText": "完成后的待传数字：0"
+          }
+        ]
+      }
+    },
+    "receipt": {
+      "sourceName": "2026-11-10-v7-formal-80-android-receipt-complete-check.json",
+      "sourceSha256": "47497c978809c0ea23168f1a6c11f7f67704fd8b2d21d54e4770294734cf98f3",
+      "representation": "selected fields from complete batch receipt",
+      "data": {
+        "purpose": "read_only_cloud_formal_android_80_complete_receipt_verification",
+        "observedAtUtc": "2026-11-09T18:53:37.462277+00:00",
+        "runId": "mw9kva76-1kq4a8eko",
+        "protocolVersion": "v7-range-20261109-v1",
+        "expectedSizeBytes": 50000000,
+        "recordCount": 82,
+        "batchResultCounts": {
+          "success": 80,
+          "failure": 0,
+          "cancelled": 0,
+          "interrupted": 2
+        },
+        "uniqueAttemptIdCount": 82,
+        "duplicateAttemptIdCount": 0,
+        "interruptedIndices": [11, 41],
+        "successfulIndexCoverage": {
+          "first": 1,
+          "last": 80,
+          "successfulItemCount": 80,
+          "everyIndexExactlyOneSuccess": true,
+          "duplicateSuccessfulIndexCount": 0
+        },
+        "missingExpectedAttemptCount": 0,
+        "verificationComplete": true
+      }
+    }
+  },
+  "ios": {
+    "device": {
+      "sourceName": "2026-11-11-v7-ios-formal-80-brief.json",
+      "sourceSha256": "6e435e295563410911bc00b33baff92acea8554137991b0d1d50d7bba0826e0a",
+      "representation": "complete",
+      "data": {
+        "purpose": "v7_ios_formal_queue_brief",
+        "protocolVersion": "v7-ios-owned-20261110-v1",
+        "buildRevision": "ios-formal-bulk80-r4",
+        "journalRoute": "native_filepath",
+        "acceptancePassed": false,
+        "recordedProtocolVersion": "v7-ios-owned-20261110-v1",
+        "runId": "mwc9pl6c-1beuoz83n",
+        "status": "complete",
+        "busy": false,
+        "pageActionPending": false,
+        "paused": true,
+        "errorCode": null,
+        "resumeBlockedReason": "NO_UNFINISHED_ITEMS",
+        "sizeMb": 50,
+        "count": 80,
+        "concurrency": 1,
+        "scenario": "baseline",
+        "environment": {
+          "platform": "ios",
+          "system": "iOS 27.0",
+          "model": "unknown",
+          "wechatVersion": "8.0.80",
+          "SDKVersion": "3.18.0",
+          "network": "wifi"
+        },
+        "lifecycle": {
+          "backgroundSeen": false,
+          "pageUnloaded": false,
+          "processRecovered": false
+        },
+        "attemptCounts": {
+          "attemptedItems": 80,
+          "total": 80,
+          "previous": 0
+        },
+        "currentHost": {
+          "allowed": true,
+          "diagnostic": "NONE",
+          "observations": {
+            "legacyRegistryCount": 0,
+            "historicalResidualCount": 0,
+            "legacyFormalRunId": "mwag7cqz-hijykk518",
+            "oldUnknownResidualCount": 1,
+            "legacyCandidateRunId": "mwakk468-gdsdn5jvr7",
+            "legacyCandidateUnknown": 1,
+            "recoveryCandidateRunId": "mwbs9lnv-fltov26i3u",
+            "baselineIdentified": "recovery_r2_complete_preserved",
+            "capacityState": "unknown",
+            "oldRecordsPreserved": true,
+            "candidateState": "complete_preserved",
+            "formalJournalOwnedByQueue": true,
+            "legacySourceBinding": "not_applicable",
+            "checkStage": "complete"
+          }
+        },
+        "reportError": null,
+        "newResiduals": {
+          "present": 0,
+          "unknown": 0
+        },
+        "failedIndices": [],
+        "completedCount": 80,
+        "albumSavedCount": 80,
+        "cleanupCompleteCount": 80,
+        "undispatchedCount": 0,
+        "pendingReports": 0
+      }
+    },
+    "receipt": {
+      "sourceName": "2026-11-11-v7-ios-formal-80-server-check.json",
+      "sourceSha256": "3e5a762a4d96af4210fde4860457c03173030bff2cf20f14849f80cdd4c275ea",
+      "representation": "complete",
+      "data": {
+        "purpose": "read_only_cloud_formal_ios_80_complete_receipt_verification",
+        "observedAtUtc": "2026-11-11T15:48:54.753747+00:00",
+        "runId": "mwc9pl6c-1beuoz83n",
+        "scope": {
+          "probeMode": "real",
+          "item": "V7",
+          "protocolVersion": "v7-ios-owned-20261110-v1",
+          "transport": "native_filepath",
+          "sizeBytes": 50000000,
+          "scenario": "baseline"
+        },
+        "totalRecords": 210,
+        "previous130BytePrefixMatches": true,
+        "snapshotSha256": "87f29eecc59405604877d31c40583203bf79bc42bcc5e480757b7ffdfd7cdc97",
+        "snapshotStable": true,
+        "recordCount": 80,
+        "uniqueAttemptIds": 80,
+        "uniqueRecordKeys": 80,
+        "indicesWithDuplicateReceipts": [],
+        "missingIndices": [],
+        "unexpectedIndices": [],
+        "batchResultCounts": {
+          "success": 80
+        },
+        "scopeMatchCount": 80,
+        "completeWithAlbumCleanupAndMissingTarget": 80,
+        "allFirstAttempts": true,
+        "firstReceiptUtc": "2026-11-11T15:31:06.966Z",
+        "lastReceiptUtc": "2026-11-11T15:31:57.355Z",
+        "verificationComplete": true
+      }
+    },
+    "albumObservation": {
+      "source": "owner_reply_in_chat",
+      "albumAddedCount": 80,
+      "playbackCheckedCount": 80,
+      "pictureNormal": true,
+      "audioNormal": true
+    },
+    "ownerDecision": {
+      "source": "owner_reply_in_chat",
+      "scope": "iPhone 80-item batch only",
+      "waived": ["background and resume at item 11", "force stop and reopen at item 41"]
+    }
+  }
+}

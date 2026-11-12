@@ -1,0 +1,17 @@
+# 独立 workspace；根 workspace 不包含 spikes。
+packages:
+  - app
+  - server
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
+  - "@tarojs/binding"
+  - esbuild
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+# 仅复用 W0-27a 已审过的 Taro/Vite 4 构建链例外。
+trustPolicyExclude:
+  - semver@6.3.1
+  - vite@4.5.14
+  - rollup@3.30.0
+  - "@vitejs/plugin-legacy@4.1.1"
