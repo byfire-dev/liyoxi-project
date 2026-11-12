@@ -10,7 +10,7 @@
 LYX_NODE_PROVIDERS=asr ocr
 ```
 
-可选名字为 `cos ci asr asr-callback ocr mail llm media-production client-errors alerts server-errors wechat`，空格分隔；未知或重复名字会拒绝。`asr-callback` 必须同时选 `asr`。脚本不执行 `node.env` 的内容。
+可选名字为 `cos ci asr asr-callback ocr mail llm media-production client-errors alerts server-errors wechat backup`。以空格分隔，未知或重复名字会被拒绝。`asr-callback` 依赖 `asr`，预发 `backup` 依赖提供存储角色的 `cos`。脚本不执行 `node.env` 的内容。
 
 选择顺序是进程环境、节点 `node.env`、仓库 `stg.env`。进程环境显式为空会关闭本次调用的所有可选能力；永久启用必须写在节点 `node.env`，确保 systemd 重启时仍使用同一配置。删除某一名字后，后续重建容器不再挂载该组；修改配置本身不会重建已经运行的容器，需按现有发布步骤生效。
 
@@ -34,10 +34,17 @@ LYX_NODE_PROVIDERS=asr ocr
 | `media-production` | `media-production.json` → `MEDIA_PRODUCTION_FILE` | API、worker |
 | `client-errors` | `client-error-projects.json` → `CLIENT_ERROR_PROJECTS_FILE` | API |
 | `alerts` | `alerts.json` → `ALERTS_FILE` | worker |
+| `backup` | `backup.json` → `BACKUP_FILE` | worker |
 | `server-errors` | `server-errors.json` → `SERVER_ERRORS_FILE` | API、worker |
 | `wechat` | `wechat-secret` → `WECHAT_SECRET_FILE`；`wechat-message-token` → `WECHAT_MESSAGE_TOKEN_FILE`；`wechat-message-aes-key` → `WECHAT_MESSAGE_AES_KEY_FILE` | API、worker |
 
 `mediatool`、gateway、数据库、Redis、迁移与播种容器均不增加这些文件。API 和 worker 的媒体工具配置使用同一 `work:/work` 卷与 `mediatool` 健康依赖，`check-env` 不需要工作卷。
+
+### 预发数据库备份
+
+保留节点已选的能力，将 `backup` 加入含 `cos` 的选择列表。节点密钥目录中的 `backup.json` 使用已登记的只读备份账号连接串作为 `databaseUrl`，`recipient` 填离线保管方的 age 公钥，`target.bucket` 和 `target.prefix` 指向预发 secure 桶及专用非空前缀。执行备份时需要 COS 分块上传、HEAD、条件复制与中止分块权限。解密私钥由离线保管方持有。
+
+若需在旧镜像上先恢复备份，保留在役版本的基础 Compose 和其他能力，仅将本组的 `backup.yml`、`lib.sh` 的选择与文件映射差异、密钥清单中的 `backup.json` 条目应用到在役配置。以原镜像执行 `check-env`，格式通过后，在运维窗口使 worker 重新读取所选组。备份成功、对象核对及离线恢复验证见[运维手册](../../../docs/plan/runbook.md)。
 
 ### 微信小程序与唯一消息接收地址
 

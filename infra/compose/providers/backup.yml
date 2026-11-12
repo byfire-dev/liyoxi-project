@@ -1,0 +1,14 @@
+services:
+  worker:
+    environment:
+      BACKUP_FILE: /run/secrets/backup.json
+    secrets:
+      - backup.json
+  check-env:
+    environment:
+      BACKUP_FILE: /run/secrets/backup.json
+    secrets:
+      - backup.json
+secrets:
+  backup.json:
+    file: ${LYX_SECRETS_DIR:?}/backup.json
