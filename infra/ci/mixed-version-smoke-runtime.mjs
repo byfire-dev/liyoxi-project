@@ -1,6 +1,14 @@
 import { spawn } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -29,6 +37,62 @@ export const requireFact = (condition, code) => {
 };
 export const object = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
+
+// sha256 of the strict five-key worker schema source shipped in staging revision 22e8a2d5.
+const LEGACY_WORKER_SCHEMA = "84c9c2129e17307e637f3ff21d04f3c4ef583abcccac878720a5e9d9eea6b35a";
+
+export function mixedAttachment(attach, workerSchemaHash) {
+  if (workerSchemaHash !== LEGACY_WORKER_SCHEMA) return attach;
+  const scope = { ...attach.scope };
+  delete scope.licenseTestInputs;
+  return { ...attach, scope };
+}
+
+// Each build uses a disposable archive. Move its own font bundle with the licences into the test layer.
+export function prepareMixedLayer(layer, archiveDir, source) {
+  mkdirSync(layer, { mode: 0o700 });
+  writeFileSync(join(layer, ".mixed-source-sha"), `${source}\n`, { mode: 0o600, flag: "wx" });
+  const server = "infra/docker/server";
+  const fonts = join(archiveDir, server, "fonts");
+  if (existsSync(fonts)) {
+    mkdirSync(join(layer, server), { recursive: true });
+    renameSync(fonts, join(layer, server, "fonts"));
+  }
+}
+
+// This exact version emits a pre-redacted JSON diagnostic on stderr. Export only a fixed boolean.
+export function observeLegacyWorkerGuard(stream, source) {
+  let seen = false;
+  if (source === "22e8a2d5b7c5ce8a1e9ac5ee739db6ce6c822f97") {
+    let tail = "";
+    stream.setEncoding("utf8").on("data", (chunk) => {
+      const parts = chunk.split("\n");
+      for (const [i, part] of parts.entries()) {
+        // Discard the whole line when it exceeds the diagnostic budget, including fragmented input.
+        if (tail !== null) tail = tail.length + part.length <= 4096 ? tail + part : null;
+        if (i === parts.length - 1) break;
+        if (tail?.startsWith('{"mixedFailure":')) {
+          try {
+            const row = JSON.parse(tail);
+            if (
+              row.method === "phase.start" &&
+              row.mixedFailure === "start_failed" &&
+              row.errorCategory === "Error" &&
+              Array.isArray(row.frames) &&
+              typeof row.frames[0] === "string" &&
+              /^packages\/services\/src\/testing\/m1-observe\.ts:113:\d{1,4}$/.test(row.frames[0])
+            )
+              seen = true;
+          } catch {
+            // Other stderr never changes the smoke result or enters its report.
+          }
+        }
+        tail = "";
+      }
+    });
+  }
+  return () => seen;
+}
 export function deadline(now = () => performance.now(), signal) {
   const start = now();
   return {
@@ -348,19 +412,19 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
     containers.push(entry);
     const row = await owned(id);
     requireFact(row.image === build.imageId, "container-identity");
-    entry.peer = new RpcPeer(
-      spawnProcess("docker", ["start", "--attach", "--interactive", id], {
-        cwd: root,
-        stdio: ["pipe", "pipe", "pipe"],
-      }),
-      mode,
-    );
+    const child = spawnProcess("docker", ["start", "--attach", "--interactive", id], {
+      cwd: root,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    if (mode === "phase") entry.legacyWorkerGuard = observeLegacyWorkerGuard(child.stderr, source);
+    entry.peer = new RpcPeer(child, mode);
     if (mode === "owner") owner = entry;
     else active = entry;
     return entry;
   }
   return {
     runId,
+    legacyWorkerGuardSeen: () => containers.some((entry) => entry.legacyWorkerGuard?.() === true),
     async prepare() {
       requireFact(
         !process.env.DOCKER_HOST || process.env.DOCKER_HOST.startsWith("unix://"),
@@ -414,15 +478,14 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
         "image-identity",
       );
       const layer = join(privateRoot, `layer-${source}`);
-      mkdirSync(layer, { mode: 0o700 });
-      writeFileSync(join(layer, ".mixed-source-sha"), `${source}\n`, { mode: 0o600, flag: "wx" });
+      prepareMixedLayer(layer, dir, source);
       // Dockerfile FROM parses a config image ID as a repository name; create accepts the exact ID.
       const layerId = await docker(["create", "--network", "none", ...labels, base.id]);
       requireFact(ID.test(layerId), "container-identity");
       const layerEntry = { id: layerId, mode: "layer", removed: false };
       containers.push(layerEntry);
       requireFact((await owned(layerId)).image === base.id, "image-identity");
-      await docker(["cp", join(layer, ".mixed-source-sha"), `${layerId}:/repo/.mixed-source-sha`]);
+      await docker(["cp", `${layer}/.`, `${layerId}:/repo/`]);
       await docker(["commit", layerId, tag]);
       requireFact(
         (await docker(["image", "inspect", "--format", "{{.Parent}}", tag])) === base.id,
@@ -440,7 +503,11 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
         imageId: image.id,
         driverHash: createHash("sha256").update(driver).digest("hex"),
       };
-      builds.set(source, result);
+      const workerSchema = readFileSync(join(dir, "packages/services/src/testing/m1-worker.ts"));
+      builds.set(source, {
+        ...result,
+        workerSchemaHash: createHash("sha256").update(workerSchema).digest("hex"),
+      });
       return result;
     },
     async createOwner(source) {
@@ -492,7 +559,7 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
       const entry = await launch("phase", source);
       const started = await entry.peer.call(
         "phase.start",
-        { source, phase, attach },
+        { source, phase, attach: mixedAttachment(attach, builds.get(source).workerSchemaHash) },
         budget.remaining(false, 30_000),
       );
       return {
