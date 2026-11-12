@@ -44,8 +44,16 @@ const worker = (source: string) => ({
     deadTimers: 0,
     mediaPending: 0,
     mediaFailed: 0,
+    ...(source === HEAD ? { docsPending: 0, docsFailed: 0 } : {}),
   },
-  queues: [{ name: "timer_run", waiting: 0, active: 0, failed10Min: 0, paused: false }],
+  queues: [
+    "outbox_delivery",
+    "timer_run",
+    "media_job",
+    "notify",
+    "promote",
+    ...(source === HEAD ? ["docs"] : []),
+  ].map((name) => ({ name, waiting: 0, active: 0, failed10Min: 0, paused: false })),
   hidden: privateValue,
 });
 const attachBase = {
@@ -432,6 +440,29 @@ it("W228 controller：四步对应SHA/独立worker真实事实/两20集链与两
   invalid.backlog.mediaPending = 0;
   invalid.lease.version = OLD;
   expect(() => workerEvidence(invalid, HEAD, 10)).toThrow("worker-evidence");
+});
+
+it("新旧版各自的队列和数据库积压必须完整且已排空", () => {
+  for (const source of [HEAD, OLD]) {
+    const state = worker(source);
+    expect(workerEvidence(state, source, 10, true).queues).toHaveLength(source === HEAD ? 6 : 5);
+    expect(() => workerEvidence({ ...state, queues: state.queues.slice(1) }, source, 10)).toThrow(
+      "worker-evidence",
+    );
+  }
+  const head = worker(HEAD);
+  for (const field of ["docsPending", "docsFailed"])
+    expect(() =>
+      workerEvidence({ ...head, backlog: { ...head.backlog, [field]: 1 } }, HEAD, 10, true),
+    ).toThrow("not-drained");
+  for (const field of ["active", "waiting", "failed10Min", "paused"]) {
+    const queues = head.queues.map((q) =>
+      q.name === "docs" ? { ...q, [field]: field === "paused" ? true : 1 } : q,
+    );
+    expect(() => workerEvidence({ ...head, queues }, HEAD, 10, true)).toThrow("not-drained");
+  }
+  const old = worker(OLD);
+  expect(() => workerEvidence({ ...old, queues: head.queues }, OLD, 10)).toThrow("worker-evidence");
 });
 
 it("W228 controller：任一读/排空/清理失败非零，600秒含清理且取消不伪绿", async () => {
