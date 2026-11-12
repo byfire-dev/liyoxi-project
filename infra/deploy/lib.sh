@@ -84,7 +84,7 @@ node_providers() {
   esac
   for one in $value; do
     case "$one" in
-      cos | ci | asr | asr-callback | ocr | mail | llm | media-production | client-errors | alerts | server-errors | wechat) ;;
+      cos | ci | asr | asr-callback | ocr | mail | llm | media-production | client-errors | alerts | server-errors | wechat | backup) ;;
       *) usage_die "LYX_NODE_PROVIDERS 含未知能力名" ;;
     esac
     case " $selected " in *" $one "*) usage_die "LYX_NODE_PROVIDERS 不可重复选择能力" ;; esac
@@ -94,6 +94,11 @@ node_providers() {
   case " $selected " in
     *" asr-callback "*)
       case " $selected " in *" asr "*) ;; *) usage_die "asr-callback 必须同时启用 asr" ;; esac
+      ;;
+  esac
+  case " $selected " in
+    *" backup "*)
+      case " $selected " in *" cos "*) ;; *) usage_die "预发 backup 须同时启用 cos" ;; esac
       ;;
   esac
   printf '%s\n' "$selected"
@@ -112,6 +117,7 @@ provider_files() {
     media-production) printf '%s\n' "media-production.json" ;;
     client-errors) printf '%s\n' "client-error-projects.json" ;;
     alerts) printf '%s\n' "alerts.json" ;;
+    backup) printf '%s\n' "backup.json" ;;
     server-errors) printf '%s\n' "server-errors.json" ;;
     wechat) printf '%s\n' "wechat-secret wechat-message-token wechat-message-aes-key" ;;
     *) usage_die "未知 Provider 能力" ;;
