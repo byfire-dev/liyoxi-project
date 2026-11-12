@@ -5,6 +5,27 @@ import type { M1Attachment, M1SupportOptions } from "@liyoxi/services/testing";
 export const MIXED_PROTOCOL = "w228-rpc-v1" as const;
 export const MIXED_MAX_MESSAGE = 1024 * 1024;
 export const MixedSource = z.string().regex(/^[a-f0-9]{40}$/);
+const workerQueueNames = [
+  "outbox_delivery",
+  "timer_run",
+  "media_job",
+  "promote",
+  "notify",
+  "docs",
+] as const;
+const queueCount = z.int().nonnegative();
+export const MixedWorkerQueues = z
+  .array(
+    z.object({
+      name: z.enum(workerQueueNames),
+      waiting: queueCount,
+      active: queueCount,
+      failed10Min: queueCount,
+      paused: z.boolean(),
+    }),
+  )
+  .length(workerQueueNames.length)
+  .refine((queues) => new Set(queues.map((queue) => queue.name)).size === workerQueueNames.length);
 export const MixedAdmin = z.strictObject({
   staffId: z.uuid(),
   phone: z.string().regex(/^1[3-9][0-9]{9}$/),

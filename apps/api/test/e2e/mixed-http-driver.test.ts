@@ -7,8 +7,10 @@ import {
   MIXED_PROTOCOL,
   mixedDiagnostics,
   MixedAccess,
+  MixedWorkerQueues,
   serveMixedRpc,
 } from "./mixed-http-driver.protocol.js";
+
 import {
   mixedReadOperations,
   mixedReadPlan,
@@ -16,6 +18,20 @@ import {
   readMixedGets,
 } from "./mixed-openapi-reader.js";
 import { prepareMixedPortalReads } from "./mixed-portal-reader.js";
+
+it("本版 worker 快照必须包含六个实际消费者，保留 docs 的积压和失败数", () => {
+  const queue = (name: string) => ({ name, waiting: 0, active: 0, failed10Min: 0, paused: false });
+  const original = ["outbox_delivery", "timer_run", "notify", "media_job", "promote"].map(queue);
+  const docs = { ...queue("docs"), waiting: 2, active: 1, failed10Min: 1 };
+  expect(MixedWorkerQueues.parse([...original, docs]).at(-1)).toEqual(docs);
+  for (const invalid of [
+    original,
+    [...original, queue("future")],
+    [...original, original[0]],
+    [...original, { ...docs, failed10Min: -1 }],
+  ])
+    expect(MixedWorkerQueues.safeParse(invalid).success).toBe(false);
+});
 
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value) + "\n");
 const input = async function* (chunks: readonly Uint8Array[]) {
