@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { PassThrough, Writable } from "node:stream";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,9 +9,16 @@ import { makeTempDir, repoRoot } from "./helpers.js";
 const { parseMixedArgs, selectVersions, workerEvidence, fourSteps, reportWriter } = await import(
   pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke.mjs")).href
 );
-const { RpcPeer, MixedFailure, deadline, dockerBackend, PROTOCOL, MAX_FRAME } = await import(
-  pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke-runtime.mjs")).href
-);
+const {
+  RpcPeer,
+  MixedFailure,
+  deadline,
+  dockerBackend,
+  mixedAttachment,
+  prepareMixedLayer,
+  PROTOCOL,
+  MAX_FRAME,
+} = await import(pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke-runtime.mjs")).href);
 const HEAD = "a".repeat(40),
   OLD = "b".repeat(40),
   IMAGE = `sha256:${"c".repeat(64)}`;
@@ -136,6 +143,46 @@ function fakeBackend(failAt = "", failure = new MixedFailure("rpc-remote")) {
   return { backend, calls };
 }
 afterEach(() => vi.useRealTimers());
+
+it("混跑测试层从每个 SHA 自己的归档带入字体和许可，读取路径与 build target 相同", () => {
+  const temp = makeTempDir("mixed-fonts-");
+  try {
+    for (const source of [HEAD, OLD]) {
+      const archive = join(temp.dir, source);
+      const fonts = "infra/docker/server/fonts";
+      mkdirSync(join(archive, fonts), { recursive: true });
+      for (const file of ["NotoSerifSC-Regular.ttf", "OFL-NotoSerifSC.txt"])
+        writeFileSync(join(archive, fonts, file), source);
+      const layer = join(temp.dir, `layer-${source}`);
+      prepareMixedLayer(layer, archive, source);
+      expect(readFileSync(join(layer, ".mixed-source-sha"), "utf8")).toBe(`${source}\n`);
+      for (const file of ["NotoSerifSC-Regular.ttf", "OFL-NotoSerifSC.txt"])
+        expect(readFileSync(join(layer, fonts, file), "utf8")).toBe(source);
+    }
+  } finally {
+    temp.cleanup();
+  }
+});
+
+it("已核实的五键旧 schema 仅移除新版授权书输入，其他字段仍由各版 schema 严格校验", () => {
+  const scope = {
+    runId,
+    databaseName: "db",
+    redisPrefix: "redis",
+    ownerToken: privateValue,
+    startedAt: "now",
+  };
+  const attach = {
+    scope: { ...scope, licenseTestInputs: { portalPublicOrigin: "https://portal.invalid" } },
+    storage: { marker: 1 },
+  };
+  const oldHash = "84c9c2129e17307e637f3ff21d04f3c4ef583abcccac878720a5e9d9eea6b35a";
+  expect(mixedAttachment(attach, oldHash)).toEqual({ scope, storage: attach.storage });
+  const unrecognised = { ...attach, scope: { ...attach.scope, unexpected: true } };
+  expect(mixedAttachment(unrecognised, oldHash).scope).toEqual({ ...scope, unexpected: true });
+  expect(mixedAttachment(attach, "0".repeat(64))).toBe(attach);
+  expect(attach.scope.licenseTestInputs).toBeDefined();
+});
 
 it("W228 controller：固定CLI、真实prev定义与driver能力拒绝，严格限定no-comparable", async () => {
   expect(parseMixedArgs(["--prev", OLD, "--report", "/tmp/mixed.json"])).toMatchObject({
