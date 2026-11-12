@@ -285,6 +285,13 @@ describe("密钥清单与 node.yml", () => {
     expect(scalar(ours, "memswap_limit")).toBe("1g");
   });
 
+  it("API 的扫码签发与上线自检使用 gateway 登记的同一 HTTPS Portal 域名", () => {
+    expect(serviceBlock("gateway")).toContain("PORTAL_HOST: ${LYX_PORTAL_HOST:?}");
+    for (const service of ["api", "check-env"]) {
+      expect(serviceBlock(service)).toContain("PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}");
+    }
+  });
+
   it("stg.env 只有非敏感项；node.yml 必填的变量都有出处；库与 Redis 的镜像同 local.yml", () => {
     const keys = [...stgEnv.matchAll(/^([A-Z_]+)=/gm)].map((row) => row[1] ?? "");
     expect(keys.length).toBeGreaterThan(0);
