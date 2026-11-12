@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.swc/
+server/.logs/
+.env
+.env.*
+!.env.example
+*.local
+results/*.json
