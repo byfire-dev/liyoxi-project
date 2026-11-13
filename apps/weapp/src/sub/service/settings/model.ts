@@ -1,6 +1,23 @@
 import { ApiError } from "@/lib/request";
 import { sha1 } from "@/lib/upload/hash";
-import type { Agreement, Body, Data, Identity, Me, SettingsApi } from "./api";
+import type { Agreement, Body, Computer, Data, Identity, Me, SettingsApi } from "./api";
+
+export function settingsPortalMembership(me: Me | null, storeId: string | null) {
+  return me?.memberships.find((member) => member.stores.some((store) => store.storeId === storeId));
+}
+export function canManageComputers(me: Me | null, storeId: string | null): boolean {
+  // Archived owner stores retain portal.authorize; the backend rechecks each request.
+  return Boolean(storeId && settingsPortalMembership(me, storeId)?.role === "owner");
+}
+export function settingsPortalIdentity(me: Me | null, storeId: string | null): string {
+  const member = settingsPortalMembership(me, storeId);
+  return JSON.stringify([
+    me?.user.merchantUserId,
+    member?.memberId,
+    member?.entity.entityId,
+    member?.role,
+  ]);
+}
 
 const blockerLabels = {
   subscription_active: "生效套餐",
@@ -76,12 +93,18 @@ export interface SettingsState {
   resendAt: number;
   blockers: { label: string; count: number }[];
   phoneRetryAvailable: boolean;
+  computers: Computer[];
+  computersLoaded: boolean;
+  computersLoading: boolean;
+  computerError: string | null;
+  computerResult: Computer | null;
 }
 export function createSettingsController(deps: {
   api: SettingsApi;
   scope: () => string;
   initialScope?: string;
   authenticated: () => boolean;
+  portalAllowed: (me: Me | null) => boolean;
   key: (action: string) => string;
   now: () => number;
   reloadMe: () => Promise<void>;
@@ -94,6 +117,7 @@ export function createSettingsController(deps: {
   let alive = true,
     revision = 0,
     identityRevision = 0,
+    computerRevision = 0,
     owner: symbol | null = null;
   let smsIntent = 0;
   let pendingPhone: Body<"m.me.changePhone"> | null = null;
@@ -117,6 +141,11 @@ export function createSettingsController(deps: {
     resendAt: 0,
     blockers: [],
     phoneRetryAvailable: false,
+    computers: [],
+    computersLoaded: false,
+    computersLoading: false,
+    computerError: null,
+    computerResult: null,
   };
   const current = () => alive && deps.scope() === scope;
   const update = (patch: Partial<SettingsState>) => {
@@ -131,6 +160,44 @@ export function createSettingsController(deps: {
       return true;
     }
     return false;
+  };
+  const portalAllowed = () => current() && deps.authenticated() && deps.portalAllowed(state.me);
+  const clearComputers = () => {
+    computerRevision++;
+    update({
+      computers: [],
+      computersLoaded: false,
+      computersLoading: false,
+      computerResult: null,
+    });
+  };
+  const computers = async (internal = false) => {
+    if (!current() || (!internal && owner)) return;
+    if (!portalAllowed()) {
+      clearComputers();
+      return;
+    }
+    const run = ++computerRevision;
+    update({ computersLoading: true, computerError: null });
+    try {
+      const result = await deps.api.computers();
+      if (!current() || run !== computerRevision) return;
+      if (!portalAllowed()) {
+        clearComputers();
+        return;
+      }
+      // The API includes this author's active sessions throughout the current entity.
+      update({ computers: result.items, computersLoaded: true });
+    } catch (error) {
+      if (!current() || run !== computerRevision || signedOut(error)) return;
+      if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+        clearComputers();
+        update({ computerError: settingsError(error) });
+        await deps.reloadMe().catch(() => undefined);
+      } else update({ computerError: settingsError(error) });
+    } finally {
+      if (run === computerRevision) update({ computersLoading: false });
+    }
   };
   const identities = async (more = false, internal = false) => {
     if (
@@ -180,7 +247,11 @@ export function createSettingsController(deps: {
         deps.authenticated() ? deps.api.me() : null,
         readAgreements(),
       ]);
-      if (run === revision) update({ me, agreements });
+      if (run === revision) {
+        update({ me, agreements });
+        if (!portalAllowed()) clearComputers();
+        else if (state.computersLoaded) await computers(true);
+      }
     } catch (error) {
       if (run === revision && !signedOut(error)) update({ error: settingsError(error) });
     } finally {
@@ -191,14 +262,15 @@ export function createSettingsController(deps: {
     action: string,
     content: unknown,
     call: (key: string) => Promise<T>,
-    effect?: (result: T) => boolean,
-    onFailure?: (error: unknown) => void,
+    effect?: (result: T) => boolean | Promise<boolean>,
+    onFailure?: (error: unknown) => void | Promise<void>,
   ) => {
     if (!current() || owner || !deps.authenticated()) return false;
     const mine = Symbol(action);
     owner = mine;
     revision++;
     identityRevision++;
+    computerRevision++;
     update({
       busy: action,
       error: null,
@@ -206,6 +278,7 @@ export function createSettingsController(deps: {
       blockers: [],
       loading: false,
       identitiesLoading: false,
+      computersLoading: false,
     });
     // keys 只保留加盐摘要；未决换绑 body 仅短期内存，按下述生命周期清理，不日志或持久化。
     const signature = `${action}:${sha1(salt + JSON.stringify(content))}`;
@@ -215,7 +288,8 @@ export function createSettingsController(deps: {
       const result = await call(key);
       keys.delete(signature);
       if (!current()) return false;
-      if (effect?.(result)) return true;
+      if (await effect?.(result)) return true;
+      if (!current()) return false;
       update({ success: "操作已完成" });
       await deps.reloadMe().catch(() => undefined);
       if (!current()) return false;
@@ -224,7 +298,8 @@ export function createSettingsController(deps: {
       return current();
     } catch (error) {
       if (!current()) return false;
-      onFailure?.(error);
+      await onFailure?.(error);
+      if (!current()) return false;
       if (!signedOut(error))
         update({ error: settingsError(error), blockers: deletionBlockers(error) });
       return false;
@@ -276,6 +351,54 @@ export function createSettingsController(deps: {
     refresh: () => refresh(),
     identities: () => identities(),
     moreIdentities: () => identities(true),
+    canManageComputers: portalAllowed,
+    computers: () => computers(),
+    discardComputerIntent: () => {
+      if (owner) return;
+      for (const key of keys.keys()) if (key.startsWith("portal_session_revoke:")) keys.delete(key);
+      update({ error: null });
+    },
+    closeComputers: () => {
+      if (owner) return;
+      computerRevision++;
+      for (const key of keys.keys()) if (key.startsWith("portal_session_revoke:")) keys.delete(key);
+      update({ computersLoading: false, computerResult: null });
+    },
+    revokeComputer: (id: string) => {
+      if (
+        !portalAllowed() ||
+        state.computersLoading ||
+        state.computerError ||
+        !state.computers.some((row) => row.portalSessionId === id) ||
+        state.computerResult?.portalSessionId === id
+      )
+        return Promise.resolve(false);
+      return write(
+        "portal_session_revoke",
+        id,
+        (key) => deps.api.revokeComputer(id, key),
+        async (result) => {
+          if (!portalAllowed()) {
+            clearComputers();
+            return true;
+          }
+          update({
+            computerResult: result,
+            success: result.revokedAt ? "已撤销这台电脑的授权" : "电脑授权状态已更新",
+          });
+          await computers(true);
+          return true;
+        },
+        async (error) => {
+          if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+            keys.delete(`portal_session_revoke:${sha1(salt + JSON.stringify(id))}`);
+            clearComputers();
+            update({ computerError: settingsError(error) });
+            await deps.reloadMe().catch(() => undefined);
+          }
+        },
+      );
+    },
     updateName: (displayName: string) => {
       const value = displayName.trim();
       if ([...value].length < 1 || [...value].length > 20) {
@@ -341,6 +464,7 @@ export function createSettingsController(deps: {
       alive = false;
       revision++;
       identityRevision++;
+      computerRevision++;
       owner = null;
       pendingPhone = null;
       keys.clear();

@@ -152,8 +152,9 @@ export const WEAPP_PAGES: readonly WeappPage[] = [
     implemented: true,
     note: "含 M27 弹层",
   }),
-  page("sub/publish/portal-approve/index", "sub/publish", "扫码确认", null, null, "M6", "G6-B", {
-    note: "新增页：下载页扫码后的确认页",
+  page("sub/publish/portal-approve/index", "sub/publish", "扫码确认", null, null, "M6", "W6-10", {
+    implemented: true,
+    note: "隔离迁移候选：扫码或手输代码并核对门店；真实V8与整包验收仍待完成",
   }),
   // sub/billing（6 页）
   page(

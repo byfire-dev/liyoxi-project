@@ -87,6 +87,11 @@ test("report rejects open text, duplicates, unbounded time and false success", (
     { ...report, rejectedOutput: true },
     { ...report, status: "passed" },
     { ...passed(), cases: passed().cases.slice(0, 3) },
+    { ...passed(), cases: passed().cases.slice(0, 5) },
+    {
+      ...passed(),
+      cases: passed().cases.filter((item) => !item.id.startsWith("portal-login-page-")),
+    },
     { ...passed(), cases: passed().cases.filter((item) => item.id !== "preview-expired-media") },
     { ...report, cases: [...report.cases, ...report.cases] },
     { ...report, cases: [{ ...report.cases[0], id: SENTINEL }] },

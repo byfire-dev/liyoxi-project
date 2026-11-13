@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { setTimeout as delay } from "node:timers/promises";
+import { ERRORS } from "@liyoxi/contract/errors";
 import {
   CaseClosed,
   CaseReady,
@@ -118,6 +120,64 @@ function anonymousRequests(page: Page) {
     expect(log.items.some((item) => item.kind === "session" || item.kind === "ticket")).toBe(false);
     expect(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.publicPrivacy().safe)).toBe(true);
   };
+}
+
+let expiryDeadline: number | undefined;
+// This hook has no page fixture, so the existing page setup and all later waiting count
+// against the same original test budget. No timeout is changed.
+test.beforeEach(() => {
+  const info = test.info();
+  if (info.title === "preview-expired-media") expiryDeadline = performance.now() + info.timeout;
+});
+async function ticketAfterCooldown(page: Page) {
+  const issue = async () => {
+    // Register the observation before the explicit browser action; never parse a successful
+    // create response here, because its private pollSecret must remain in the browser.
+    const response = page.waitForResponse(
+      (value) =>
+        new URL(value.url()).pathname === "/api/v1/portal/portal-tickets" &&
+        value.request().method() === "POST",
+      { timeout: 10_000 },
+    );
+    const [received, reply] = await Promise.all([
+      response,
+      page.evaluate(() => window.__LYX_PORTAL_LIVE__.beginTicket()),
+    ]);
+    return { received, reply };
+  };
+  const first = await issue();
+  if (first.received.status() !== 429) {
+    expect(first.received.status()).toBe(200);
+    return data(first.reply);
+  }
+  expect(first.reply).toEqual({ ok: false, error: "RATE_LIMITED", httpStatus: 429 });
+  let limited: boolean;
+  try {
+    const value: unknown = await first.received.json();
+    limited =
+      typeof value === "object" &&
+      value !== null &&
+      "code" in value &&
+      "error" in value &&
+      value.code === ERRORS.RATE_LIMITED.code &&
+      value.error === "RATE_LIMITED";
+  } catch {
+    throw new Error("COOLDOWN_RESPONSE_INVALID");
+  }
+  expect(limited).toBe(true);
+  const header = await first.received.headerValue("retry-after");
+  const seconds = header !== null && /^[1-9]\d?$/.test(header) ? Number(header) : 0;
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 60)
+    throw new Error("COOLDOWN_DELAY_INVALID");
+  const waitMs = seconds * 1000;
+  // Reserve the original 10-second observation allowance for the remaining real flow.
+  if (expiryDeadline === undefined || waitMs + 10_000 >= expiryDeadline - performance.now())
+    throw new Error("COOLDOWN_EXCEEDS_REMAINING_CASE_BUDGET");
+  await delay(waitMs);
+  // One deliberate new operation after the actual server cooldown, never a case retry.
+  const second = await issue();
+  expect(second.received.status()).toBe(200);
+  return data(second.reply);
 }
 
 test.beforeEach(async ({ page }, info) => {
@@ -345,7 +405,7 @@ test("verify-lifecycle-reporting", async ({ page }) => {
 test("preview-expired-media", async ({ page }) => {
   const id = "preview-expired-media",
     prepared = await facts(id);
-  await approve(page, id, await ticket(page));
+  await approve(page, id, await ticketAfterCooldown(page));
   await page.clock.install();
   await ad(page, prepared.ad.adId, 2);
   await play(page, 2);
