@@ -211,7 +211,7 @@ function TopupContent() {
                   key={doc.agreementKey}
                   onClick={() =>
                     void Taro.navigateTo({
-                      url: `/pages/agreement/index?agreementVersionId=${encodeURIComponent(doc.currentVersion.agreementVersionId)}`,
+                      url: `/pages/agreement/index?id=${encodeURIComponent(doc.currentVersion.agreementVersionId)}`,
                     })
                   }
                 >
