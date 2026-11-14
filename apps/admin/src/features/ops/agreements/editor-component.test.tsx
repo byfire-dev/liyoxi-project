@@ -113,7 +113,23 @@ describe("W216 同一新建弹窗的保存生命周期", () => {
       contentHtml: "<p>虚构正文</p>",
       conversion: { state: "converted" as const, warnings: [] },
     });
-    const create = vi.fn<AgreementApi["create"]>(async () => mutation(saved));
+    const create = vi.fn<AgreementApi["create"]>(async () =>
+      mutation({
+        ...saved,
+        sourceFile: {
+          fileId: sourceFileId,
+          originalName: "agreement.docx",
+          sizeBytes: "1024",
+          mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        },
+        pdfFile: {
+          fileId: pdfFileId,
+          originalName: "agreement.pdf",
+          sizeBytes: "2048",
+          mime: "application/pdf",
+        },
+      }),
+    );
     const update = vi
       .fn<AgreementApi["update"]>()
       .mockRejectedValueOnce(new Error("保存暂不可用"))

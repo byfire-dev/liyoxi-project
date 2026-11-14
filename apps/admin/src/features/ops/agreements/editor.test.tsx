@@ -54,6 +54,109 @@ function ports() {
   } satisfies Pick<AgreementApi, "create" | "update" | "schedule">;
 }
 describe("W216 草稿提交", () => {
+  const sourceId = "01910000-0000-7000-8000-000000000002";
+  const pdfId = "01910000-0000-7000-8000-000000000003";
+  const replacementId = "01910000-0000-7000-8000-000000000004";
+  const withFiles: Version = {
+    ...version,
+    sourceFile: {
+      fileId: sourceId,
+      originalName: "agreement.docx",
+      sizeBytes: "1024",
+      mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+    pdfFile: {
+      fileId: pdfId,
+      originalName: "agreement.pdf",
+      sizeBytes: "2048",
+      mime: "application/pdf",
+    },
+    hasContentHtml: true,
+  };
+  it("修改生效时间只PATCH元数据，保持既有文件引用以免重复转换", async () => {
+    const api = ports();
+    api.update.mockResolvedValueOnce(converted({ ...withFiles, lockVersion: 5 }));
+    const session = createDraftSession(api, "privacy", withFiles);
+    const fields = { ...initialFields(withFiles), date: "2026-10-16", isLegalApproved: true };
+    await session.save(editorBody(fields, true));
+    expect(api.update.mock.calls[0]?.slice(0, 2)).toEqual([
+      id,
+      {
+        lockVersion: 4,
+        effectiveAt: "2026-10-16T01:00:00.000Z",
+        summary: withFiles.summary,
+        isReconsentRequired: true,
+        isLegalApproved: true,
+      },
+    ]);
+  });
+  it("仅替换Word时不重发PDF，并以成功返回的文件引用比较下一次元数据修改", async () => {
+    const api = ports();
+    const replaced = {
+      ...withFiles,
+      sourceFile: { ...withFiles.sourceFile!, fileId: replacementId },
+      lockVersion: 5,
+    };
+    api.update
+      .mockResolvedValueOnce(converted(replaced))
+      .mockResolvedValueOnce(converted({ ...replaced, lockVersion: 6 }));
+    const session = createDraftSession(api, "privacy", withFiles);
+    const body = editorBody({ ...initialFields(withFiles), sourceFileId: replacementId }, true);
+    await session.save(body);
+    expect(api.update.mock.calls[0]?.[1]).toMatchObject({
+      sourceFileId: replacementId,
+      lockVersion: 4,
+    });
+    expect(api.update.mock.calls[0]?.[1]).not.toHaveProperty("pdfFileId");
+    await session.save({ ...body, summary: "仅调整摘要" });
+    expect(api.update.mock.calls[1]?.[1]).toMatchObject({ summary: "仅调整摘要", lockVersion: 5 });
+    expect(api.update.mock.calls[1]?.[1]).not.toHaveProperty("sourceFileId");
+    expect(api.update.mock.calls[1]?.[1]).not.toHaveProperty("pdfFileId");
+  });
+  it.each(["sourceFileId", "pdfFileId"] as const)(
+    "只清除%s时保留null并省略另一文件",
+    async (field) => {
+      const api = ports();
+      const session = createDraftSession(api, "privacy", withFiles);
+      await session.save(editorBody({ ...initialFields(withFiles), [field]: null }, true));
+      const request = api.update.mock.calls[0]?.[1];
+      expect(request).toHaveProperty(field, null);
+      expect(request).not.toHaveProperty(field === "sourceFileId" ? "pdfFileId" : "sourceFileId");
+    },
+  );
+  it("清除既有Word和PDF仍发送null，失败重试保持相同请求与幂等键", async () => {
+    const api = ports();
+    api.update
+      .mockRejectedValueOnce(new Error("临时失败"))
+      .mockResolvedValueOnce(converted({ ...version, lockVersion: 5 }));
+    const session = createDraftSession(api, "privacy", withFiles);
+    const body = editorBody(
+      { ...initialFields(withFiles), sourceFileId: null, pdfFileId: null },
+      true,
+    );
+    await expect(session.save(body)).rejects.toThrow("临时失败");
+    await session.save(body);
+    expect(api.update.mock.calls[0]?.[1]).toMatchObject({
+      sourceFileId: null,
+      pdfFileId: null,
+      lockVersion: 4,
+    });
+    expect(api.update.mock.calls[1]).toEqual(api.update.mock.calls[0]);
+  });
+  it("新建成功后只改摘要不重发create返回的文件引用", async () => {
+    const api = ports();
+    api.create.mockResolvedValueOnce(converted(withFiles));
+    const session = createDraftSession(api, "privacy");
+    const body = editorBody(initialFields(withFiles), false);
+    await session.save(body);
+    await session.save({ ...body, summary: "新建后调整摘要" });
+    expect(api.create.mock.calls[0]?.[1]).toMatchObject({
+      sourceFileId: sourceId,
+      pdfFileId: pdfId,
+    });
+    expect(api.update.mock.calls[0]?.[1]).not.toHaveProperty("sourceFileId");
+    expect(api.update.mock.calls[0]?.[1]).not.toHaveProperty("pdfFileId");
+  });
   it("法务确认默认off，服务器既有审核事实不会替用户勾选；BJT日期严格转换", () => {
     const fields = initialFields(version);
     expect(fields.isLegalApproved).toBe(false);
