@@ -1342,7 +1342,8 @@ async function shoot(target) {
         await runLedgerRegression(page, target.scene);
       if (
         target.kind === "billing" &&
-        (target.scene === "plan-renew" ||
+        (target.scene === "plan-pick-no-channels" ||
+          target.scene === "plan-renew" ||
           target.scene.startsWith("plan-upgrade") ||
           target.scene === "wallet-upgrade-highest")
       )

@@ -280,6 +280,7 @@ export function billingPayment(scene: string): Data<"m.paymentOrder.get"> {
 /** 固定 DTO 的单一注入口，只在 H5 明确标记时启用。 */
 export function offlineBillingRequest(scene: string): RequestLayer["request"] {
   if (
+    scene === "plan-pick-no-channels" ||
     scene === "plan-renew" ||
     scene.startsWith("plan-upgrade") ||
     scene === "wallet-upgrade-highest"
@@ -401,6 +402,20 @@ function offlinePlanPickRequest(scene: string): RequestLayer["request"] {
   let quoteAttempts = 0;
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     calls.push({ path, method: options?.method ?? "GET", data: options?.data });
+    if (scene === "plan-pick-no-channels") {
+      if (path !== "/m/plans/quote") return fallback(path, options);
+      return {
+        ...billingQuote,
+        policy: {
+          ...billingPolicy,
+          channels: billingPolicy.channels.map((channel) => ({
+            ...channel,
+            isEnabled: false,
+            isRecommended: false,
+          })),
+        },
+      } satisfies Data<"m.plan.quote"> as T;
+    }
     if (path === "/m/plans") return plans as T;
     if (path === "/m/wallet") {
       const wallet = billingWallet("wallet-active");

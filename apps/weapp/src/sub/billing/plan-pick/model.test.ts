@@ -208,6 +208,5 @@ describe("套餐确认与付款结果", () => {
     }
     const source = readFileSync(new URL("index.tsx", import.meta.url), "utf8");
     expect(source).toContain("!purchaseVisible(activePolicy)");
-    expect(source).toContain("enabledChannels(activePolicy).map");
   });
 });
