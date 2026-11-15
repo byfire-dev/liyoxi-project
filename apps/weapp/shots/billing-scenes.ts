@@ -5,6 +5,7 @@ export const BILLING_SCENES = [
   { name: "wallet-none", route: "sub/billing/wallet/index" },
   { name: "wallet-upgrade-highest", route: "sub/billing/wallet/index" },
   { name: "plan-pick", route: "sub/billing/plan-pick/index" },
+  { name: "plan-pick-no-channels", route: "sub/billing/plan-pick/index" },
   ...["middle", "highest", "retry"].map((state) => ({
     name: `plan-upgrade-${state}`,
     route: "sub/billing/plan-pick/index?intent=upgrade_now",

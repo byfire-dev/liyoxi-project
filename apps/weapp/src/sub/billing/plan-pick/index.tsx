@@ -81,7 +81,7 @@ function PlanContent() {
   const [quoteError, setQuoteError] = useState<string | null>(null),
     [quoteLoading, setQuoteLoading] = useState(false),
     [quoteRetry, setQuoteRetry] = useState(0);
-  const [confirming, setConfirming] = useState(false),
+  const [sheet, setSheet] = useState<"review" | "payment" | null>(null),
     [busy, setBusy] = useState(false),
     [payment, setPayment] = useState<Payment | null>(null);
   const [existing, setExisting] = useState<string | null>(null);
@@ -118,7 +118,7 @@ function PlanContent() {
     writeLock.current = null;
     pay.invalidate();
     setBusy(false);
-    setConfirming(false);
+    setSheet(null);
   });
   useDidShow(() => {
     if (stopped.current) {
@@ -171,7 +171,7 @@ function PlanContent() {
         if (current() && own === quoteGeneration.current) {
           setQuote(v);
           setQuoteLoading(false);
-          setConfirming(false);
+          setSheet(null);
           setAcknowledged(false);
           setError(null);
         }
@@ -190,6 +190,7 @@ function PlanContent() {
   const activePolicy = quote?.policy ?? policy;
   const noun = activePolicy ? billingCopy(activePolicy.copy.planNounKey, copy) : "";
   const docs = activePolicy ? purchaseAgreements(activePolicy, agreements) : [];
+  const channels = activePolicy ? enabledChannels(activePolicy) : [];
   const eligible =
     activePolicy &&
     purchaseVisible(activePolicy) &&
@@ -215,11 +216,12 @@ function PlanContent() {
     const body = planPurchaseBody(quote, selection, agreements, channel, acknowledged);
     if (!body) return;
     intent.current = createPurchaseIntent(api, body, newIdempotencyKey("plan-purchase"), current);
-    setConfirming(true);
+    setSheet("payment");
     setError(null);
   }
   async function confirm() {
     if (
+      sheet !== "payment" ||
       !intent.current ||
       intent.current.pending ||
       writeLock.current ||
@@ -251,13 +253,13 @@ function PlanContent() {
         setAgreements(fresh.agreements);
         setAcknowledged(false);
         intent.current = null;
-        setConfirming(false);
+        setSheet(null);
         setError("报价、策略或协议已更新，请核对后重新确认");
         return;
       }
       const order = await ownIntent.submit();
       if (order && valid() && ownIntent === intent.current) {
-        setConfirming(false);
+        setSheet(null);
         if (order.channel === "bank_transfer") setPayment(order);
         else {
           setExisting(order.paymentOrderId);
@@ -277,11 +279,11 @@ function PlanContent() {
         setAcknowledged(false);
         setQuote(next);
         intent.current = null;
-        setConfirming(false);
+        setSheet(null);
         setError("报价已更新，请核对后重新确认");
       } else if (id) {
         setExisting(id);
-        setConfirming(false);
+        setSheet(null);
         intent.current = null;
         setError("已有待处理的付款单，请先查看");
       } else if (
@@ -289,7 +291,7 @@ function PlanContent() {
         selection
       ) {
         intent.current = null;
-        setConfirming(false);
+        setSheet(null);
         setAcknowledged(false);
         setAgreements([]);
         setQuote(null);
@@ -338,7 +340,7 @@ function PlanContent() {
     setQuoteError(null);
     setQuoteLoading(true);
     setError(null);
-    setConfirming(false);
+    setSheet(null);
     intent.current = null;
     setSelection(value);
   };
@@ -382,7 +384,7 @@ function PlanContent() {
                         setQuoteError(null);
                         setQuoteLoading(false);
                         setSelection(null);
-                        setConfirming(false);
+                        setSheet(null);
                         setAcknowledged(false);
                         setMode(nextMode);
                         if (mode === nextMode) setRefresh((v) => v + 1);
@@ -545,22 +547,29 @@ function PlanContent() {
                     })}
                     {eligible ? (
                       <FooterBar>
-                        {enabledChannels(activePolicy).map((channel) => (
-                          <Button
-                            key={channel.code}
-                            disabled={
-                              busy ||
-                              (quote?.downgradeImpact !== null && !acknowledged) ||
-                              docs.length === 0 ||
-                              docs.length !== activePolicy.copy.agreementKeys.length
-                            }
-                            onClick={() => open(channel.code)}
-                          >
-                            {channel.code === "bank_transfer" ? "对公转账" : "微信支付"}{" "}
-                            {billingCopy(activePolicy.copy.payButtonKey, copy)}{" "}
-                            {quote ? formatMoney(quote.payFen) : ""}
-                          </Button>
-                        ))}
+                        {channels.length === 0 ? (
+                          <>
+                            <View className="billing-plan__channel-status">暂无可用付款方式</View>
+                            <Button onClick={() => setSheet("review")}>核对套餐</Button>
+                          </>
+                        ) : (
+                          channels.map((channel) => (
+                            <Button
+                              key={channel.code}
+                              disabled={
+                                busy ||
+                                (quote?.downgradeImpact !== null && !acknowledged) ||
+                                docs.length === 0 ||
+                                docs.length !== activePolicy.copy.agreementKeys.length
+                              }
+                              onClick={() => open(channel.code)}
+                            >
+                              {channel.code === "bank_transfer" ? "对公转账" : "微信支付"}{" "}
+                              {billingCopy(activePolicy.copy.payButtonKey, copy)}{" "}
+                              {quote ? formatMoney(quote.payFen) : ""}
+                            </Button>
+                          ))
+                        )}
                       </FooterBar>
                     ) : null}
                   </>
@@ -571,32 +580,51 @@ function PlanContent() {
         )}
       </PageBody>
       <Sheet
-        visible={confirming}
-        title={`确认${quote ? planActionLabel(quote.action) : "购买"}${noun}`}
-        description="请核对版本、周期与付款金额"
+        visible={sheet !== null}
+        title={
+          sheet === "review"
+            ? "核对套餐"
+            : `确认${quote ? planActionLabel(quote.action) : "购买"}${noun}`
+        }
+        description={
+          sheet === "review"
+            ? "当前报价暂无可用付款方式。如需开通，请联系服务经理。"
+            : "请核对版本、周期与付款金额"
+        }
         closeOnOverlayClick={!busy}
         onClose={() => {
           if (!busy) {
-            setConfirming(false);
+            setSheet(null);
             intent.current = null;
           }
         }}
         footer={
-          <Button block loading={busy} onClick={() => void confirm()}>
-            确认付款
-          </Button>
+          sheet === "review" ? (
+            <Button block onClick={() => setSheet(null)}>
+              返回选择套餐
+            </Button>
+          ) : (
+            <Button block loading={busy} onClick={() => void confirm()}>
+              确认付款
+            </Button>
+          )
         }
       >
         {quote ? (
           <DescList
             items={[
               { label: "版本", value: quote.planName },
-              { label: "周期", value: `${quote.months ?? "—"} 个月` },
+              {
+                label: "周期",
+                value: quote.months === null ? quoteTermLabel(quote) : `${quote.months} 个月`,
+              },
               { label: "金额", value: formatMoney(quote.payFen) },
             ]}
           />
         ) : null}
-        <Note>确认即同意 {docs.map((v) => `《${v.name}》`).join("、")}</Note>
+        {sheet === "payment" ? (
+          <Note>确认即同意 {docs.map((v) => `《${v.name}》`).join("、")}</Note>
+        ) : null}
         {error ? <Note>{error}</Note> : null}
       </Sheet>
       <Sheet
