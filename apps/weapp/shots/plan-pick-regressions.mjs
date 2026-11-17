@@ -18,18 +18,22 @@ export async function runPlanPickRegression(page, scene) {
   if (scene === "plan-pick-no-channels") {
     await expect(body).toContainText("套餐服务协议");
     await expect(body).toContainText("积分使用规则");
-    await expect(footer).toContainText("暂无可用付款方式");
-    const actions = footer.locator(".lyx-button");
-    await expect(actions).toHaveCount(1);
+    await expect(footer).toHaveCount(0);
+    const reviewEntry = body.locator(".billing-plan__agreements ~ .billing-plan__review");
+    await expect(reviewEntry).toContainText("暂无可用付款方式");
+    const reviewButton = body.locator(".lyx-button").filter({ hasText: "核对套餐" });
+    await expect(reviewButton).toHaveCount(1);
     const callsBeforeReview = await calls();
     expect(callsBeforeReview.some((call) => call.path === "/m/plans/quote")).toBe(true);
-    await actions.filter({ hasText: "核对套餐" }).click();
+    await reviewEntry.locator(".lyx-button").filter({ hasText: "核对套餐" }).click();
     const review = active(".lyx-sheet").filter({ hasText: "核对套餐" });
     await expect(review).toBeVisible();
     for (const label of ["专业版", "1 个月", "¥6,000", "暂无可用付款方式"])
       await expect(review).toContainText(label);
     await expect(review).not.toContainText("确认付款");
     await expect(review).not.toContainText("确认即同意");
+    await review.locator(".lyx-button").filter({ hasText: "联系客服" }).click();
+    await expect(page.getByText("请在微信小程序内联系客服", { exact: true })).toBeVisible();
     await review.locator(".lyx-button").filter({ hasText: "返回选择套餐" }).click();
     await expect(review).not.toBeVisible();
     expect(await calls()).toEqual(callsBeforeReview);
