@@ -7,6 +7,7 @@ import {
   billingQuote,
 } from "../../../../shots/billing-fixtures";
 import { ApiError } from "@/lib/request";
+import { agreementTitle } from "./agreement-title";
 import {
   changedQuote,
   agreementStale,
@@ -26,6 +27,10 @@ const body = {
 };
 const created = () => ({ ...billingPayment("bank-waiting"), replayed: false });
 describe("套餐确认与付款结果", () => {
+  it("协议名已有书名号或仅有正文均显示一层书名号", () => {
+    expect(agreementTitle(" 《会员服务协议》 ")).toBe("《会员服务协议》");
+    expect(agreementTitle("积分规则")).toBe("《积分规则》");
+  });
   it("协议换版只刷新真实协议与报价，再确认才以新版本新键建单", async () => {
     const stale = new ApiError({
       error: "AGREEMENT_VERSION_STALE",

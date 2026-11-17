@@ -27,6 +27,7 @@ import { useSessionStore } from "@/stores/session";
 import { billingRequest } from "../wallet/runtime";
 import { billingCopy, purchaseVisible } from "../wallet/model";
 import { createPurchaseApi } from "./api";
+import { agreementTitle } from "./agreement-title";
 import {
   changedQuote,
   planActionLabel,
@@ -529,7 +530,7 @@ function PlanContent() {
                                 url: `/pages/agreement/index?id=${encodeURIComponent(doc.currentVersion.agreementVersionId)}`,
                               })
                             }
-                          >{`${i ? "、" : ""}《${doc.name}》`}</TextButton>
+                          >{`${i ? "、" : ""}${agreementTitle(doc.name)}`}</TextButton>
                         </View>
                       ))}
                     </View>
@@ -541,19 +542,21 @@ function PlanContent() {
                         </TextButton>
                       </View>
                     ) : null}
-                    {enabledChannels(activePolicy).map((channel) => {
+                    {channels.map((channel) => {
                       const hint = channel.hintKey ? billingCopy(channel.hintKey, copy) : "";
                       return hint ? <Note key={channel.code}>{hint}</Note> : null;
                     })}
                     {eligible ? (
-                      <FooterBar>
-                        {channels.length === 0 ? (
-                          <>
-                            <View className="billing-plan__channel-status">暂无可用付款方式</View>
-                            <Button onClick={() => setSheet("review")}>核对套餐</Button>
-                          </>
-                        ) : (
-                          channels.map((channel) => (
+                      channels.length === 0 ? (
+                        <View className="billing-plan__review">
+                          <Note>暂无可用付款方式</Note>
+                          <Button block onClick={() => setSheet("review")}>
+                            核对套餐
+                          </Button>
+                        </View>
+                      ) : (
+                        <FooterBar>
+                          {channels.map((channel) => (
                             <Button
                               key={channel.code}
                               disabled={
@@ -568,9 +571,9 @@ function PlanContent() {
                               {billingCopy(activePolicy.copy.payButtonKey, copy)}{" "}
                               {quote ? formatMoney(quote.payFen) : ""}
                             </Button>
-                          ))
-                        )}
-                      </FooterBar>
+                          ))}
+                        </FooterBar>
+                      )
                     ) : null}
                   </>
                 )}
@@ -588,7 +591,7 @@ function PlanContent() {
         }
         description={
           sheet === "review"
-            ? "当前报价暂无可用付款方式。如需开通，请联系服务经理。"
+            ? "当前报价暂无可用付款方式。如需开通，请联系客服。"
             : "请核对版本、周期与付款金额"
         }
         closeOnOverlayClick={!busy}
@@ -600,9 +603,21 @@ function PlanContent() {
         }}
         footer={
           sheet === "review" ? (
-            <Button block onClick={() => setSheet(null)}>
-              返回选择套餐
-            </Button>
+            <>
+              <Button variant="secondary" onClick={() => setSheet(null)}>
+                返回选择套餐
+              </Button>
+              <Button
+                openType={process.env.TARO_ENV === "weapp" ? "contact" : undefined}
+                onClick={
+                  process.env.TARO_ENV === "weapp"
+                    ? undefined
+                    : () => void Taro.showToast({ title: "请在微信小程序内联系客服", icon: "none" })
+                }
+              >
+                联系客服
+              </Button>
+            </>
           ) : (
             <Button block loading={busy} onClick={() => void confirm()}>
               确认付款
@@ -623,7 +638,7 @@ function PlanContent() {
           />
         ) : null}
         {sheet === "payment" ? (
-          <Note>确认即同意 {docs.map((v) => `《${v.name}》`).join("、")}</Note>
+          <Note>确认即同意 {docs.map((v) => agreementTitle(v.name)).join("、")}</Note>
         ) : null}
         {error ? <Note>{error}</Note> : null}
       </Sheet>
