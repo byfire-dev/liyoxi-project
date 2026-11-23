@@ -30,7 +30,7 @@ afterEach(async () => {
   runtime = undefined;
 });
 
-it("受控财务配置：异人审批、24小时边界、密文与幂等、驳回撤回保留历史", async () => {
+it("受控财务配置：异人审批、测试环境即时生效、密文与幂等、驳回撤回保留历史", async () => {
   const db = await handle.prisma(),
     clock = createClock(new Date("2040-01-09T02:00:00Z"));
   const make = createFactories({ db, clock });
@@ -83,6 +83,7 @@ it("受控财务配置：异人审批、24小时边界、密文与幂等、驳�
       });
   const created = await service.create(proposer.ctx, proposer.staff, input, { idem: idem() });
   expect(created.state).toBe("pending");
+  expect(created.activationDelaySeconds).toBe(0);
   expect(JSON.stringify(created)).not.toContain(input.payload.accountNo);
   const stored = await db.financeConfigRevision.findUniqueOrThrow({
     where: { id: created.financeConfigRevisionId },
@@ -157,8 +158,8 @@ it("受控财务配置：异人审批、24小时边界、密文与幂等、驳�
     idem: approvalIdem(),
   });
   expect(scheduled).toMatchObject({
-    state: "scheduled",
-    effectiveAt: new Date(approvedAt.getTime() + 86_400_000).toISOString(),
+    state: "effective",
+    effectiveAt: approvedAt.toISOString(),
   });
   const approvedBefore = await snapshotTables(db, [
     "finance_config_revision",
@@ -175,18 +176,10 @@ it("受控财务配置：异人审批、24小时边界、密文与幂等、驳�
       "outbox_event",
     ]),
   ).toEqual(approvedBefore);
-  clock.advance(86_399_999);
-  expect(
-    (
-      await service.list(approver.staff, {
-        tab: "current",
-        configKey: "bank_account",
-        page: 1,
-        pageSize: 20,
-      })
-    ).items,
-  ).toEqual([expect.objectContaining({ state: "scheduled" })]);
   clock.advance(1);
+  expect(
+    await service.list(approver.staff, { tab: "current", page: 1, pageSize: 20 }),
+  ).toMatchObject({ bankAccountApprovalDelaySeconds: 0 });
   expect(
     (
       await service.list(approver.staff, {

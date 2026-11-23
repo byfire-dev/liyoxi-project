@@ -91,7 +91,7 @@ export async function seedPlaceholderFinanceConfig(
         createIdentityContext({ actor: { type: "staff", id, client: "cli" } });
       const created = await proposeFinanceConfig(
         tx,
-        { approval, clock, keyring: deps.keyring },
+        { approval, clock, keyring: deps.keyring, appEnv: deps.assembly.appEnv },
         ctx(proposer.staff.id),
         {
           configKey,

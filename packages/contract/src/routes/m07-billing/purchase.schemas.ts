@@ -1,4 +1,6 @@
 import { z } from "../../zod.js";
+import { BILLING_ORDER_TYPE } from "../../enums/index.js";
+import { zodEnum } from "../../enums/zod.js";
 import {
   IdSchema,
   InstantSchema,
@@ -10,6 +12,10 @@ import {
 
 const n = z.int().nonnegative();
 const nullableTime = InstantSchema.nullable();
+export const PurchasePolicyQuerySchema = z.object({
+  type: zodEnum(BILLING_ORDER_TYPE).optional(),
+});
+export type PurchasePolicyQuery = z.infer<typeof PurchasePolicyQuerySchema>;
 export const PurchaseChannelSchema = z.object({
   code: openEnum(["wechat_jsapi", "bank_transfer"]),
   isEnabled: z.boolean(),

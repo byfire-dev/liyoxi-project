@@ -268,16 +268,21 @@ describe("菜单、守卫与面包屑", () => {
     expect(visibleMenu(null)).toEqual([]);
   });
 
-  it("默认菜单保留38个V1.0画板和三项已落地的无画板入口", () => {
+  it("默认菜单保留38个V1.0画板和四项已落地的无画板入口", () => {
     const shown = visibleMenu(superAdmin()).flatMap((group) => group.items.map((item) => item.key));
     const expected = boards
       .filter((page) => page.milestone !== "V1.1" && page.inMenu)
       .map((page) => page.key);
-    const noBoardMenuKeys = ["approval.mine", "system.flow_ops", "system.file_purges"];
+    const noBoardMenuKeys = [
+      "approval.mine",
+      "finance.settings",
+      "system.flow_ops",
+      "system.file_purges",
+    ];
     expect(expected).toHaveLength(38);
     expect(shown.filter((key) => !noBoardMenuKeys.includes(key)).sort()).toEqual(expected.sort());
     expect(shown.sort()).toEqual([...expected, ...noBoardMenuKeys].sort());
-    expect(shown).toHaveLength(41);
+    expect(shown).toHaveLength(42);
     expect(noBoards.filter((page) => page.inMenu).map((page) => page.key)).toEqual(noBoardMenuKeys);
   });
 

@@ -459,11 +459,11 @@
 | 对应画板 | M:Wallet、M:WalletExpired（续费、升级、加购入口）；M:PlanPick、M:TopUp（价格货架、渠道与协议文案，选定金额前）；M:Cart（积分不足的引导）；M:Mine |
 | 出处 | 路线图 `m07.purchase-policy.get`；d2:1291-1346、1457；d7:525、733；05-risks-and-open-issues.md:41 |
 
-**请求**：无。平台与版本取请求头 `X-Client-Platform`、`X-Client-Version`。
+**请求**：可选查询参数 `type`，取值 `plan_new`、`plan_renew`、`plan_upgrade`、`topup`。平台与版本取请求头 `X-Client-Platform`、`X-Client-Version`。
 
-**响应**：`data` 为 `PurchasePolicy`（2.1），没有金额上下文时渠道只按配置判断。
+**响应**：`data` 为 `PurchasePolicy`（2.1），按给定交易类型匹配规则；没有金额上下文时渠道只按配置判断。加购页传 `type=topup`，协议键为 `points`；套餐交易协议键为 `member`、`points`。省略 `type` 保留原入口策略，不匹配带类型条件的规则，协议键仍为 `member`、`points`。
 
-**错误**：无。
+**错误**：非法 `type` 返回 `400 VALIDATION_FAILED`。
 
 **副作用**：无。
 

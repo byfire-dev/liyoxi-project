@@ -65,7 +65,7 @@ export const billingHandlers = [
     ok(c, await c.var.runtime.billing.wallet(actor(c), client(c))),
   ),
   defineHandler(mPurchasePolicyGet, async (c) =>
-    ok(c, await c.var.runtime.billing.getPurchasePolicy(actor(c), client(c))),
+    ok(c, await c.var.runtime.billing.getPurchasePolicy(actor(c), client(c), c.req.valid("query"))),
   ),
   defineHandler(mPlanList, async (c) =>
     ok(c, await c.var.runtime.billing.listPlans(actor(c), client(c))),

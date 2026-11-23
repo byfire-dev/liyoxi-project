@@ -2,13 +2,18 @@ import { z } from "zod";
 import { defineApprovalKind } from "../../approval/index.js";
 import type { Approval } from "../../approval/index.js";
 import { AppError, uuidv7 } from "../../kernel/index.js";
-import type { Clock, IdentityContext, Tx } from "../../kernel/index.js";
+import type { AppEnv, Clock, IdentityContext, Tx } from "../../kernel/index.js";
 import { assertPermission } from "../../authz/index.js";
 import type { StaffContext } from "../../authz/index.js";
 import { sealBankAccount } from "../../security/index.js";
 import type { Keyring } from "../../security/index.js";
 import { DEFAULT_CONTROLS } from "@liyoxi/shared/purchase-policy";
 import type { Controls, PurchaseRule } from "@liyoxi/shared/purchase-policy";
+import {
+  bankAccountActivationPolicy,
+  financeConfigActivationDelaySeconds,
+  financeConfigCurrentOrder,
+} from "./activation-policy.js";
 
 export const FINANCE_CONFIG_KEYS = ["bank_account", "purchase_policy", "controls"] as const;
 export type FinanceConfigKey = (typeof FINANCE_CONFIG_KEYS)[number];
@@ -81,53 +86,58 @@ function validate(input: FinanceProposal) {
   )
     throw new AppError("VALIDATION_FAILED");
 }
-export const financeConfigApproval = defineApprovalKind<FinanceProposal>({
-  category: "approval",
-  domain: { table: "finance_config_revision", column: "approval_request_id" },
-  viewModules: ["finance"],
-  decidePermission: "finance.config.approve",
-  groupBound: false,
-  hasExecution: false,
-  numberPrefix: null,
-  dedupeKey: (s) => `finance_config_change:${s.input.configKey}`,
-  operations: {
-    get: "admin.financeConfigRevision.list",
-    approve: "admin.financeConfigRevision.approve",
-    reject: "admin.financeConfigRevision.reject",
-    withdraw: "admin.financeConfigRevision.withdraw",
-  },
-  validate: async (_tx, s) => validate(s.input),
-  summarize: async (_tx, s) => ({
-    title: "受控财务配置变更",
-    lines: [
-      { label: "配置键", value: s.input.configKey },
-      { label: "说明", value: s.input.changeNote.slice(0, 200) },
-    ],
-    domain: { type: "finance_config_revision", id: s.subjectId },
-  }),
-  revalidate: async (tx, row) => {
-    const r = await tx.financeConfigRevision.findUnique({ where: { id: row.subjectId } });
-    if (!r || r.effectiveAt !== null) throw new AppError("PRECONDITION_CHANGED");
-  },
-  onApproved: async (tx, row, decision) => {
-    const r = await tx.financeConfigRevision.findUniqueOrThrow({ where: { id: row.subjectId } });
-    if (decision.decidedByStaffId === null || decision.decidedByStaffId === row.requesterStaffId)
-      throw new AppError("APPROVAL_SELF_FORBIDDEN");
-    await tx.financeConfigRevision.update({
-      where: { id: r.id },
-      data: {
-        effectiveAt: new Date(
-          decision.decidedAt.getTime() + (r.configKey === "bank_account" ? 86_400_000 : 0),
-        ),
-      },
-    });
-  },
-  onRejected: async () => {},
-  onWithdrawn: async () => {},
-});
+export const createFinanceConfigApproval = (appEnv: AppEnv) =>
+  defineApprovalKind<FinanceProposal>({
+    category: "approval",
+    domain: { table: "finance_config_revision", column: "approval_request_id" },
+    viewModules: ["finance"],
+    decidePermission: "finance.config.approve",
+    groupBound: false,
+    hasExecution: false,
+    numberPrefix: null,
+    dedupeKey: (s) => `finance_config_change:${s.input.configKey}`,
+    operations: {
+      get: "admin.financeConfigRevision.list",
+      approve: "admin.financeConfigRevision.approve",
+      reject: "admin.financeConfigRevision.reject",
+      withdraw: "admin.financeConfigRevision.withdraw",
+    },
+    validate: async (_tx, s) => validate(s.input),
+    summarize: async (_tx, s) => ({
+      title: "受控财务配置变更",
+      lines: [
+        { label: "配置键", value: s.input.configKey },
+        { label: "说明", value: s.input.changeNote.slice(0, 200) },
+      ],
+      domain: { type: "finance_config_revision", id: s.subjectId },
+    }),
+    revalidate: async (tx, row) => {
+      const r = await tx.financeConfigRevision.findUnique({ where: { id: row.subjectId } });
+      if (!r || r.effectiveAt !== null) throw new AppError("PRECONDITION_CHANGED");
+      financeConfigActivationDelaySeconds(r.configKey, r.payload, appEnv);
+    },
+    onApproved: async (tx, row, decision) => {
+      const r = await tx.financeConfigRevision.findUniqueOrThrow({ where: { id: row.subjectId } });
+      if (decision.decidedByStaffId === null || decision.decidedByStaffId === row.requesterStaffId)
+        throw new AppError("APPROVAL_SELF_FORBIDDEN");
+      await tx.financeConfigRevision.update({
+        where: { id: r.id },
+        data: {
+          effectiveAt: new Date(
+            decision.decidedAt.getTime() +
+              financeConfigActivationDelaySeconds(r.configKey, r.payload, appEnv) * 1_000,
+          ),
+        },
+      });
+    },
+    onRejected: async () => {},
+    onWithdrawn: async () => {},
+  });
+/** Backward-compatible standalone registration; runtime registrations bind their actual environment. */
+export const financeConfigApproval = createFinanceConfigApproval("prod");
 export async function proposeFinanceConfig(
   tx: Tx,
-  deps: { approval: Approval; clock: Clock; keyring: Keyring },
+  deps: { approval: Approval; clock: Clock; keyring: Keyring; appEnv?: AppEnv },
   ctx: IdentityContext,
   input: FinanceProposal,
   staff: StaffContext,
@@ -170,7 +180,14 @@ export async function proposeFinanceConfig(
       );
     accountNoEnc = sealed.enc;
     accountNoMask = sealed.mask;
-    payload = { accountName: bank.accountName, bankName: bank.bankName, accountNoMask };
+    payload = {
+      accountName: bank.accountName,
+      bankName: bank.bankName,
+      accountNoMask,
+      ...(deps.appEnv === undefined
+        ? {}
+        : { activationPolicy: bankAccountActivationPolicy(deps.appEnv) }),
+    };
   }
   await tx.financeConfigRevision.create({
     data: {
@@ -189,11 +206,12 @@ export async function proposeFinanceConfig(
 export async function financeConfigAt(tx: Tx, at: Date) {
   const rows = await tx.financeConfigRevision.findMany({
     where: { effectiveAt: { lte: at }, approvalRequest: { status: "approved" } },
-    orderBy: [{ effectiveAt: "desc" }, { id: "desc" }],
+    orderBy: financeConfigCurrentOrder,
   });
   const bank = rows.find((r) => r.configKey === "bank_account") ?? null,
     policy = rows.find((r) => r.configKey === "purchase_policy"),
     control = rows.find((r) => r.configKey === "controls");
+  if (bank) financeConfigActivationDelaySeconds(bank.configKey, bank.payload);
   return {
     bank,
     rules: policy ? (policy.payload as unknown as { rules: PurchaseRule[] }).rules : [],

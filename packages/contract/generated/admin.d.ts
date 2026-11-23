@@ -1773,7 +1773,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 批准受控财务配置变更（收款账户批准 24 小时后生效） */
+        /** 批准受控财务配置变更（收款账户按该版本的环境等待策略生效） */
         post: operations["admin.financeConfigRevision.approve"];
         delete?: never;
         options?: never;
@@ -6863,6 +6863,8 @@ export interface components {
         };
         FinanceConfigRevisionView: {
             actions: string[];
+            /** @description 该版本批准后的等待秒数；旧响应缺省时收款账户按86400秒、其他配置按0秒。 */
+            readonly activationDelaySeconds?: number;
             approval: components["schemas"]["ApprovalDecisionView"];
             changeNote: string;
             /** @enum {string} */
@@ -19047,8 +19049,12 @@ export interface operations {
                         /** @enum {number} */
                         code: 0;
                         data: {
+                            /** @description 当前服务端环境中新收款账户提议的批准等待秒数：本地/测试0、预发30、正式86400。 */
+                            readonly bankAccountApprovalDelaySeconds?: number;
                             items: components["schemas"]["FinanceConfigRevisionView"][];
                         } | {
+                            /** @description 当前服务端环境中新收款账户提议的批准等待秒数：本地/测试0、预发30、正式86400。 */
+                            readonly bankAccountApprovalDelaySeconds?: number;
                             items: components["schemas"]["FinanceConfigRevisionView"][];
                             page: number;
                             pageSize: number;

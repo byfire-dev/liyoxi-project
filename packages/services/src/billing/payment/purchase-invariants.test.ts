@@ -1,10 +1,11 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createPaymentHarness, pendingPlanOrder, useSeededDatabase } from "../../testing/index.js";
 import { uuidv7 } from "../../kernel/index.js";
 import { purchaseInvariants } from "./purchase-registration.js";
 const db = useSeededDatabase("services");
 let h: ReturnType<typeof createPaymentHarness>;
-beforeAll(async () => {
+beforeEach(async () => {
+  await db.reset();
   h = createPaymentHarness(await db.prisma());
 }, 180_000);
 const run = (code: string, entityId: string) =>

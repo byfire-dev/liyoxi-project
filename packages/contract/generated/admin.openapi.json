@@ -15695,6 +15695,12 @@
             },
             "type": "array"
           },
+          "activationDelaySeconds": {
+            "description": "该版本批准后的等待秒数；旧响应缺省时收款账户按86400秒、其他配置按0秒。",
+            "minimum": 0,
+            "readOnly": true,
+            "type": "integer"
+          },
           "approval": {
             "$ref": "#/components/schemas/ApprovalDecisionView"
           },
@@ -46255,6 +46261,12 @@
                       "anyOf": [
                         {
                           "properties": {
+                            "bankAccountApprovalDelaySeconds": {
+                              "description": "当前服务端环境中新收款账户提议的批准等待秒数：本地/测试0、预发30、正式86400。",
+                              "minimum": 0,
+                              "readOnly": true,
+                              "type": "integer"
+                            },
                             "items": {
                               "items": {
                                 "$ref": "#/components/schemas/FinanceConfigRevisionView"
@@ -46269,6 +46281,12 @@
                         },
                         {
                           "properties": {
+                            "bankAccountApprovalDelaySeconds": {
+                              "description": "当前服务端环境中新收款账户提议的批准等待秒数：本地/测试0、预发30、正式86400。",
+                              "minimum": 0,
+                              "readOnly": true,
+                              "type": "integer"
+                            },
                             "items": {
                               "items": {
                                 "$ref": "#/components/schemas/FinanceConfigRevisionView"
@@ -47003,7 +47021,7 @@
             "description": "外部能力不可用、系统繁忙或停机维护"
           }
         },
-        "summary": "批准受控财务配置变更（收款账户批准 24 小时后生效）",
+        "summary": "批准受控财务配置变更（收款账户按该版本的环境等待策略生效）",
         "x-auth": "staff",
         "x-idempotent": "required",
         "x-permission": "finance.config.approve"
