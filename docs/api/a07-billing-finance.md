@@ -784,8 +784,9 @@
 | `configKey` | enum | 是 | 同数据模型 `finance_config_revision.config_key`（`bank_account` / `purchase_policy` / `controls`） | `finance_config_revision.config_key` |
 | `payload` | object | 是 | 按键：`bank_account` 为 `{ accountName, bankName, accountNoMask }`（账号明文经 a01 `admin.piiReveal.create`，`pii.bank.reveal`）；`purchase_policy` 为 `{ rules: [...] }`；`controls` 为 `{ adminCreateOrder, wechatSingleLimitFen, wechatDailyLimitFen, receiptSecondReviewFen, shippingReport }` | `finance_config_revision.payload`、`finance_config_revision.account_no_mask`（08-billing-payment.md:1491-1497） |
 | `changeNote` | string | 是 | 变更说明 | `finance_config_revision.change_note` |
+| `activationDelaySeconds` | integer ≥ 0 | 否 | 该版本批准后的等待秒数，只读；旧响应缺字段时银行账户按 86400 秒、其他配置按 0 秒 | 不可变策略快照 |
 | `effectiveAt` | string(date-time) \| null | 是 | 生效时间；未批准为 null | `finance_config_revision.effective_at` |
-| `state` | enum(`FinanceConfigState`) | 是 | `pending` 待批准 / `scheduled` 已批准待生效（收款账户批准后 24 小时）/ `effective` 当前生效 / `superseded` 已被取代 / `rejected` / `withdrawn` | 审批单状态与 `effective_at` 现算 |
+| `state` | enum(`FinanceConfigState`) | 是 | `pending` 待批准 / `scheduled` 已批准待生效（按该版本等待策略）/ `effective` 当前生效 / `superseded` 已被取代 / `rejected` / `withdrawn` | 审批单状态与 `effective_at` 现算 |
 | `createdAt` | string(date-time) | 是 | 提议时刻 | `finance_config_revision.created_at` |
 | `approval` | `ApprovalInfo` | 是 | 提议人、批准人与结论 | `finance_config_revision.approval_request_id` |
 | `actions` | array<string> | 是 | `approve`、`reject`、`withdraw` | 计算 |
@@ -2983,7 +2984,7 @@
 
 **请求**：查询参数：`tab`（`current`：三个键各自的生效版本、已批准待生效版本、待批准提议，不分页；`history`：全部版本，分页）、`configKey`（可选）、`financeConfigRevisionId`（可选，只返回这一版；与 `tab = history` 合用，从“我的待审批”跳来时用）、`page`、`pageSize`（`history` 用）。
 
-**响应**：`FinanceConfigRevisionList`，按 `tab` 二选一（oneOf）：`tab = current` 为 `{ items: FinanceConfigRevisionView[] }`（A78 的有界小集合，C43 已登记，不带分页字段）；`tab = history` 为 `AdminPage<FinanceConfigRevisionView>`（a01 2.1，C43）。
+**响应**：`FinanceConfigRevisionList`，两分支均可带只读 `bankAccountApprovalDelaySeconds`（当前服务端环境中新银行账户提议的等待秒数：本地/测试 0、预发 30、正式 86400；旧响应缺字段按 86400）。按 `tab` 二选一（oneOf）：`tab = current` 为 `{ items: FinanceConfigRevisionView[] }`（A78 的有界小集合，C43 已登记，不带分页字段）；`tab = history` 为 `AdminPage<FinanceConfigRevisionView>`（a01 2.1，C43）。
 
 **错误**：无。**副作用**：无。
 
@@ -3037,11 +3038,11 @@
 
 **请求**：路径 `financeConfigRevisionId`。请求体 `ApproveBody`，`confirmChecks` 必含 `change_reviewed`（“已核对变更前后的值”；收款账户另核对新账号后 4 位，见回显）。
 
-**响应**：`FinanceConfigRevisionView`（`state` 为 `scheduled`（收款账户）或 `effective`）。
+**响应**：`FinanceConfigRevisionView`（`state` 为 `scheduled`（等待时长大于 0）或 `effective`）。
 
 **错误**：`APPROVAL_NOT_PENDING`（409）；`APPROVAL_SELF_FORBIDDEN`（403）；`VERSION_CONFLICT`（409）；`CONFIRM_MISMATCH`（409）；`STEP_UP_REQUIRED`（403）。
 
-**副作用**（一个事务）：`approval_request.status`：`pending → approved`；写一次 `finance_config_revision.effective_at`：`bank_account` = 批准时刻 + 24 小时（代码常量），其余 = 批准时刻（08-billing-payment.md:1280）；出站事件 `approval.approved`、`finance_config.approved`（通知全体财务与超级管理员）；审计（`category = finance_config`）。
+**副作用**（一个事务）：`approval_request.status`：`pending → approved`；写一次 `finance_config_revision.effective_at`：`bank_account` = 批准时刻 + 不可变策略快照的等待时长（本地/测试 0、预发 30 秒、正式 24 小时；旧版缺快照为 24 小时），其余 = 批准时刻（08-billing-payment.md:1280）；出站事件 `approval.approved`、`finance_config.approved`（通知全体财务与超级管理员）；审计（`category = finance_config`）。
 
 **说明**：生效后：购买入口策略与内控开关立即被下一次报价、建单读到；新收款账户只用于之后创建的对公付款单，已创建的付款单仍指向创建时的版本（`payment.I12`）。
 

@@ -1,12 +1,27 @@
 import { expect, it } from "vitest";
 import {
   canPropose,
+  activationDelayLabel,
+  activationDelaySeconds,
   configDecisions,
   createConfigIntent,
   currentConfig,
   settingsSearch,
 } from "./model";
 import { access, bank, requester } from "./fixtures.test-support";
+
+it("生效提示保留立即生效的零值，旧账户版本仍回退24小时", () => {
+  expect(activationDelayLabel(activationDelaySeconds(bank()))).toBe("批准后 24 小时生效");
+  expect(
+    activationDelayLabel(activationDelaySeconds({ ...bank(), activationDelaySeconds: 0 })),
+  ).toBe("批准后立即生效");
+  expect(
+    activationDelayLabel(activationDelaySeconds({ ...bank(), activationDelaySeconds: 30 })),
+  ).toBe("批准后 30 秒生效");
+  expect(activationDelayLabel(activationDelaySeconds({ ...bank(), configKey: "controls" }))).toBe(
+    "批准后立即生效",
+  );
+});
 
 it("财务scope、真实actions与creator共同守卫；当前生效不混待生效且非法URL选择清空", () => {
   const row = bank();
