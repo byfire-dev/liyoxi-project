@@ -1235,7 +1235,7 @@ stateDiagram-v2
 
 ### 2.12 `finance_config_revision` 受控财务配置版本
 
-受控财务配置的版本表：对公收款账户、购买入口策略规则表、内控开关组。每次变更一行，与审批单一对一（`kind = finance_config_change`，提议人不得是批准人，由审批单保证）。按生效时间取当前值，不需要任何任务去切换。
+受控财务配置的版本表：对公收款账户、购买入口策略规则表、内控开关组。每次变更一行，与审批单一对一（`kind = finance_config_change`，提议人不得是批准人，由审批单保证）。在已批准且到达生效时间的候选中，按审批时间倒序、版本 ID 倒序取当前值，不需要任何任务去切换。
 
 归属：全局（不带归属列）。主键：`id`（uuid）。只增：否（内容不可改；只允许在批准时写一次 `effective_at`，由触发器限制）。锁顺序（lock_rank）：不参与排序（只在持有其审批单行锁的事务里修改）。
 
@@ -1243,12 +1243,12 @@ stateDiagram-v2
 | --- | --- | --- | --- | --- | --- |
 | `id` | uuid | 否 | — | 主键，UUID v7，应用生成 | R1 |
 | `config_key` | text | 否 | — | 配置键。取值：`bank_account` 对公收款户名、开户行、账号（展示给所有商家）；`purchase_policy` 购买入口策略规则表；`controls` 内控开关组（代建付款单、微信限额、二人复核阈值、发货信息上报） | d2:392 |
-| `payload` | jsonb | 否 | — | 配置内容，按键用 Zod 校验；`bank_account` 的账号在这里只放脱敏值 | d2:393 |
+| `payload` | jsonb | 否 | — | 配置内容，按键用 Zod 校验；`bank_account` 的账号在这里只放脱敏值，另由服务端写入不可变 `activationPolicy` 策略快照 | d2:393 |
 | `account_no_enc` | text | 可 | — | 仅 `bank_account`：对公收款账号密文（AES-256-GCM） | d2:393；约定“敏感字段三件套” |
 | `account_no_mask` | text | 可 | — | 仅 `bank_account`：对公收款账号脱敏串 | 补：约定“敏感字段三件套” |
 | `change_note` | text | 否 | — | 变更说明，必填 | d2:395 |
 | `approval_request_id` | uuid | 否 | — | 审批单 → `approval_request.id`，一对一；提议人、批准人、结论都在审批单上 | d2:396；R3 |
-| `effective_at` | timestamptz | 可 | — | 生效时间，批准时写入一次：`bank_account` = 批准时刻 + 24 小时（代码常量），其余 = 批准时刻。为空表示未批准（待审、驳回、撤回） | d2:398 |
+| `effective_at` | timestamptz | 可 | — | 生效时间，批准时写入一次：`bank_account` = 批准时刻 + 本版策略等待时长（本地/测试 0 秒、预发 30 秒、正式 24 小时；旧版缺快照仍为 24 小时），其余 = 批准时刻。为空表示未批准（待审、驳回、撤回） | d2:398 |
 | `created_at` | timestamptz | 否 | — | 创建时间，即提议时刻 | d2:190 |
 
 **键与索引**
@@ -1266,7 +1266,7 @@ stateDiagram-v2
 | `ck_finance_config_revision_config_key` | CHECK | `config_key` 的取值限于：`bank_account`、`purchase_policy`、`controls` |
 | `ck_finance_config_revision_account_no` | CHECK | 只有收款账户配置带账号密文；密文与脱敏串同空同非空 |
 | `ck_finance_config_revision_change_note` | CHECK | 变更说明不得为空白 |
-| `ix_finance_config_revision_effective` | 部分索引 | `(config_key, effective_at DESC) WHERE effective_at IS NOT NULL`：取某个键当前生效的版本（`effective_at <= now()` 的最新一行） |
+| `ix_finance_config_revision_effective` | 部分索引 | `(config_key, effective_at DESC) WHERE effective_at IS NOT NULL`：筛选某个键的已到生效时间候选（`effective_at <= now()`），最终按审批时间倒序、版本 ID 倒序取当前值 |
 | `trg_finance_config_revision_write_once` | 触发器 | 行级 BEFORE UPDATE OR DELETE：只允许把 `effective_at` 从空写一次，其余列不可改，不可删（`lyx_write_once`）。授权（在授权迁移里，不在本分组 SQL）：应用角色 `lyx_app` 对本表只有 `INSERT`、`SELECT`，另对 `effective_at` 一列授列级 `UPDATE`，供批准时写入（W0-06a） |
 | `trg_finance_config_revision_no_truncate` | 触发器 | 语句级 BEFORE TRUNCATE：禁止清空（`lyx_forbid_mutation`） |
 
@@ -1277,16 +1277,17 @@ stateDiagram-v2
 | 时刻 | 本表的变化 |
 | --- | --- |
 | 提议 | 插入一行，`effective_at` 为空；同事务建审批单（`dedupe_key = finance_config_change:{config_key}`，同一个键同时只允许一张待审） |
-| 批准 | 审批事务内写一次 `effective_at`：`bank_account` = 批准时刻 + 24 小时，其余 = 批准时刻 |
+| 批准 | 审批事务内写一次 `effective_at`：`bank_account` = 批准时刻 + 本版策略等待时长，其余 = 批准时刻 |
 | 驳回 / 撤回 | 不改本表，`effective_at` 保持为空 |
 
-当前值 = 该键 `effective_at <= now()` 的最新一行。提议与批准两个时点都通知全体财务与超级管理员。
+当前值 = 该键已批准且 `effective_at <= now()` 的候选中，按 `approval_request.decided_at DESC, id DESC` 排序的首行。较早批准的慢生效版本不能在后来覆盖已经生效的新批准版本。提议与批准两个时点都通知全体财务与超级管理员。
 
 **不变量**（每日校验）
 
 - `payment.I12`（配置侧）：每个键当前生效版本的审批单为 `approved`，且审批人不是发起人（审批单的 CHECK 保证）。
 - `effective_at` 非空 ⇔ 审批单为 `approved`。
-- `bank_account` 的 `effective_at` = 审批时间 + 24 小时。
+- `bank_account` 的 `effective_at` = 审批时间 + 不可变策略快照映射的时长；缺快照的历史版本按 24 小时，未知策略报违规。策略由服务端实际环境生成，创建请求不可指定；批准时核验策略环境与运行环境一致。
+- 已批准的历史记录及其时间不回写。需要采用新等待策略的账户须重新提议并由另一人批准。
 
 **相对草案的改动**
 

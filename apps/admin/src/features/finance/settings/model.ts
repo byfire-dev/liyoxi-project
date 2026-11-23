@@ -19,6 +19,19 @@ export const stateLabels = {
 } as const;
 export const actionLabels = { approve: "批准", reject: "驳回", withdraw: "撤回" } as const;
 export const configKeys = Object.keys(configLabels) as ConfigKey[];
+export function activationDelaySeconds(value: ConfigRevision): number {
+  return value.activationDelaySeconds ?? (value.configKey === "bank_account" ? 86_400 : 0);
+}
+export function activationDelayLabel(seconds: number): string {
+  if (seconds === 0) return "批准后立即生效";
+  const duration =
+    seconds % 3_600 === 0
+      ? `${seconds / 3_600} 小时`
+      : seconds % 60 === 0
+        ? `${seconds / 60} 分钟`
+        : `${seconds} 秒`;
+  return `批准后 ${duration}生效`;
+}
 export function settingsSearch(raw: Record<string, unknown>) {
   const table = readTableSearch(raw);
   return {

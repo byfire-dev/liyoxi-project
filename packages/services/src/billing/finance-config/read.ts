@@ -8,6 +8,7 @@ import type { Tx } from "../../kernel/index.js";
 import type { Approval } from "../../approval/index.js";
 import { dictRef, staffBrief } from "../payment/purchase-read.js";
 import { FINANCE_CONFIG_KEYS } from "./index.js";
+import { currentFinanceConfig, financeConfigActivationDelaySeconds } from "./activation-policy.js";
 export function assertFinanceView(staff: StaffContext) {
   if (!satisfiesLevel(staff.moduleLevels.finance, "view")) throw new AppError("PERMISSION_DENIED");
 }
@@ -20,16 +21,15 @@ export async function financeConfigView(
 ) {
   const info = await approval.decisionView(tx, staff, row.approvalRequestId);
   const current =
-    row.effectiveAt && row.effectiveAt <= now
-      ? await tx.financeConfigRevision.findFirst({
-          where: {
-            configKey: row.configKey,
-            effectiveAt: { lte: now },
-            approvalRequest: { status: "approved" },
-          },
-          orderBy: [{ effectiveAt: "desc" }, { id: "desc" }],
-        })
-      : null;
+    info.status === "approved" ? await currentFinanceConfig(tx, row.configKey, now) : null;
+  const currentDecision = current?.approvalRequest.decidedAt?.getTime(),
+    rowDecision = info.decidedAt ? new Date(info.decidedAt).getTime() : undefined,
+    superseded =
+      current !== null &&
+      current.id !== row.id &&
+      currentDecision !== undefined &&
+      rowDecision !== undefined &&
+      (currentDecision > rowDecision || (currentDecision === rowDecision && current.id > row.id));
   const state =
     info.status === "pending"
       ? "pending"
@@ -37,17 +37,20 @@ export async function financeConfigView(
         ? "rejected"
         : info.status === "withdrawn"
           ? "withdrawn"
-          : row.effectiveAt && row.effectiveAt > now
-            ? "scheduled"
-            : current?.id === row.id
-              ? "effective"
-              : "superseded";
+          : superseded
+            ? "superseded"
+            : row.effectiveAt && row.effectiveAt > now
+              ? "scheduled"
+              : current?.id === row.id
+                ? "effective"
+                : "superseded";
   return FinanceConfigViewSchema.parse({
     financeConfigRevisionId: row.id,
     configKey: row.configKey,
     payload: row.payload,
     changeNote: row.changeNote,
     effectiveAt: row.effectiveAt?.toISOString() ?? null,
+    activationDelaySeconds: financeConfigActivationDelaySeconds(row.configKey, row.payload),
     state,
     createdAt: row.createdAt.toISOString(),
     approval: info,
@@ -75,6 +78,7 @@ export async function financeConfigWithdrawnView(
     payload: row.payload,
     changeNote: row.changeNote,
     effectiveAt: row.effectiveAt?.toISOString() ?? null,
+    activationDelaySeconds: financeConfigActivationDelaySeconds(row.configKey, row.payload),
     state: "withdrawn",
     createdAt: row.createdAt.toISOString(),
     approval: {
@@ -125,10 +129,7 @@ export async function listFinanceConfigs(
   }
   const selected: FinanceConfigRevision[] = [];
   for (const configKey of query.configKey ? [query.configKey] : FINANCE_CONFIG_KEYS) {
-    const current = await tx.financeConfigRevision.findFirst({
-      where: { configKey, effectiveAt: { lte: now }, approvalRequest: { status: "approved" } },
-      orderBy: [{ effectiveAt: "desc" }, { id: "desc" }],
-    });
+    const current = await currentFinanceConfig(tx, configKey, now);
     if (current) selected.push(current);
     selected.push(
       ...(await tx.financeConfigRevision.findMany({
@@ -144,6 +145,8 @@ export async function listFinanceConfigs(
     );
   }
   return {
-    items: await Promise.all(selected.map((r) => financeConfigView(tx, approval, staff, r, now))),
+    items: (
+      await Promise.all(selected.map((r) => financeConfigView(tx, approval, staff, r, now)))
+    ).filter((row) => row.state !== "superseded"),
   };
 }

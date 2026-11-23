@@ -2,7 +2,13 @@ import { FinanceConfigCreateBodySchema, type FinanceConfigCreateBody } from "@li
 import { Alert, Button, Checkbox, Input, InputNumber, Modal, Select, Space } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { configConflict, configError, type ConfigApi } from "./api";
-import { configKeys, configLabels, createConfigIntent, currentConfig } from "./model";
+import {
+  activationDelayLabel,
+  configKeys,
+  configLabels,
+  createConfigIntent,
+  currentConfig,
+} from "./model";
 import { ConfigPayload } from "./payload";
 import { PolicyForm } from "./policy-form";
 import type { ConfigKey, ConfigRevision } from "./types";
@@ -47,12 +53,14 @@ function initial(key: ConfigKey, items: readonly ConfigRevision[]): FinanceConfi
 }
 export function ProposeConfig({
   items,
+  bankAccountApprovalDelaySeconds,
   api,
   refreshCurrent,
   onCreated,
   onClose,
 }: {
   items: readonly ConfigRevision[];
+  bankAccountApprovalDelaySeconds: number;
   api: ConfigApi;
   refreshCurrent: (signal: AbortSignal) => Promise<unknown>;
   onCreated: (id: string) => void;
@@ -202,7 +210,7 @@ export function ProposeConfig({
           <>
             <Alert
               type="info"
-              title="收款账户须由另一人审批，批准24小时后生效；账号仅在本次输入中使用。"
+              title={`收款账户须由另一人审批，${activationDelayLabel(bankAccountApprovalDelaySeconds)}；账号仅在本次输入中使用。`}
             />
             <label>
               户名

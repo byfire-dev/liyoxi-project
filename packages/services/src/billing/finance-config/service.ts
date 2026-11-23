@@ -15,6 +15,7 @@ import { openField } from "../../security/index.js";
 import type { BillingPurchaseDeps } from "../payment/purchase-context.js";
 import { proposeFinanceConfig } from "./index.js";
 import { financeConfigView, financeConfigWithdrawnView, listFinanceConfigs } from "./read.js";
+import { bankAccountApprovalDelaySeconds, currentFinanceConfig } from "./activation-policy.js";
 export async function assertFinanceStaff(
   tx: Tx,
   deps: Pick<BillingPurchaseDeps, "clock">,
@@ -80,7 +81,10 @@ export function createFinanceConfigService(deps: BillingPurchaseDeps) {
     );
   return {
     list: (staff: StaffContext, query: FinanceConfigListQuery) =>
-      deps.tx.run((tx) => listFinanceConfigs(tx, required(), staff, query, deps.clock.now())),
+      deps.tx.run(async (tx) => ({
+        ...(await listFinanceConfigs(tx, required(), staff, query, deps.clock.now())),
+        bankAccountApprovalDelaySeconds: bankAccountApprovalDelaySeconds(deps.assembly.appEnv),
+      })),
     create: async (
       ctx: IdentityContext,
       staff: StaffContext,
@@ -90,14 +94,7 @@ export function createFinanceConfigService(deps: BillingPurchaseDeps) {
       await deps.tx.run((tx) => assertFinanceStaff(tx, deps, ctx, staff, "finance.config.propose"));
       return deps.tx.run(async (tx) => {
         await assertFinanceStaff(tx, deps, ctx, staff, "finance.config.propose");
-        const current = await tx.financeConfigRevision.findFirst({
-          where: {
-            configKey: input.configKey,
-            effectiveAt: { lte: deps.clock.now() },
-            approvalRequest: { status: "approved" },
-          },
-          orderBy: [{ effectiveAt: "desc" }, { id: "desc" }],
-        });
+        const current = await currentFinanceConfig(tx, input.configKey, deps.clock.now());
         if (
           input.confirm.configKey !== input.configKey ||
           input.confirm.baseRevisionId !== (current?.id ?? null)
@@ -106,7 +103,8 @@ export function createFinanceConfigService(deps: BillingPurchaseDeps) {
         const before =
           current?.configKey === "bank_account"
             ? {
-                ...(current.payload as { accountName: string; bankName: string }),
+                accountName: (current.payload as { accountName: string }).accountName,
+                bankName: (current.payload as { bankName: string }).bankName,
                 accountNo: openField(
                   deps.keyring(),
                   "finance_config_revision.account_no_enc",
@@ -122,12 +120,15 @@ export function createFinanceConfigService(deps: BillingPurchaseDeps) {
                 accountNo: input.payload.accountNo.replace(/\s/gu, ""),
               }
             : input.payload;
-        if (before && input.configKey === "bank_account")
-          delete (before as Record<string, unknown>).accountNoMask;
         if (isDeepStrictEqual(before, candidate)) throw new AppError("CHANGESET_EMPTY");
         const created = await proposeFinanceConfig(
           tx,
-          { approval: required(), clock: deps.clock, keyring: deps.keyring() },
+          {
+            approval: required(),
+            clock: deps.clock,
+            keyring: deps.keyring(),
+            appEnv: deps.assembly.appEnv,
+          },
           ctx,
           input,
           staff,

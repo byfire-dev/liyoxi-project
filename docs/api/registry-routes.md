@@ -588,7 +588,7 @@
 | `admin.billingParam.withdraw` | POST | `/admin/billing-params/{billingParamId}/withdraw` | 撤销一条待生效参数（整组撤销时撤回公告） | `billing.param.edit` | required | V1.0 | 3.19 |
 | `admin.financeConfigRevision.list` | GET | `/admin/finance-config-revisions` | 受控财务配置：当前生效值（tab=current；对公收款账户账号脱敏、购买入口策略、内控开关组）与版本列表（含待审提议） | — | none | V1.0 | 3.80 |
 | `admin.financeConfigRevision.create` | POST | `/admin/finance-config-revisions` | 提议变更受控配置（同事务建审批单；同一个键同时只允许一张待审） | `finance.config.propose` | required | V1.0 | 3.81 |
-| `admin.financeConfigRevision.approve` | POST | `/admin/finance-config-revisions/{financeConfigRevisionId}/approve` | 批准受控财务配置变更（收款账户批准 24 小时后生效） | `finance.config.approve` | required | V1.0 | 3.82 |
+| `admin.financeConfigRevision.approve` | POST | `/admin/finance-config-revisions/{financeConfigRevisionId}/approve` | 批准受控财务配置变更（收款账户按该版本的环境等待策略生效） | `finance.config.approve` | required | V1.0 | 3.82 |
 | `admin.financeConfigRevision.reject` | POST | `/admin/finance-config-revisions/{financeConfigRevisionId}/reject` | 驳回受控财务配置变更（说明必填） | `finance.config.approve` | required | V1.0 | 3.83 |
 | `admin.financeConfigRevision.withdraw` | POST | `/admin/finance-config-revisions/{financeConfigRevisionId}/withdraw` | 撤回待审的受控财务配置提议（提议人本人；发起人已停用时代撤） | `assert-in-handler` | required | V1.0 | 3.84 |
 | `admin.invoiceRequest.list` | GET | `/admin/invoice-requests` | 开票申请队列：待开票、待红冲、已处理（已开具、已寄出、已驳回、已红冲） | — | none | V1.0 | 3.67 |
