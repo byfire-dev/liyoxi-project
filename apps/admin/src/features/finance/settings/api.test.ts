@@ -66,6 +66,40 @@ it("current/history分支保留真实分页；详情精确ID查询且拒绝错�
     symbol: "RESPONSE_MISMATCH",
   });
 });
+it.each([0, 30, 86_400])(
+  "两种列表保留服务端等待元数据%s，版本快照不被当前规则覆盖",
+  async (seconds) => {
+    const signal = new AbortController().signal,
+      api = transport(async () =>
+        reply({
+          items: [{ ...bank(), activationDelaySeconds: 86_400 }],
+          bankAccountApprovalDelaySeconds: seconds,
+          page: 1,
+          pageSize: 20,
+          total: 1,
+        }),
+      );
+    for (const tab of ["current", "history"] as const) {
+      const page = await api.list({ tab }, signal);
+      expect(page.bankAccountApprovalDelaySeconds).toBe(seconds);
+      expect(page.items[0]?.activationDelaySeconds).toBe(86_400);
+    }
+  },
+);
+it.each([-1, 0.5, "30"])("拒绝不合法的服务端等待元数据%s", async (seconds) => {
+  const api = transport(async () =>
+    reply({
+      items: [bank()],
+      bankAccountApprovalDelaySeconds: seconds,
+      page: 1,
+      pageSize: 20,
+      total: 1,
+    }),
+  );
+  for (const tab of ["current", "history"] as const) {
+    await expect(api.list({ tab }, new AbortController().signal)).rejects.toThrow();
+  }
+});
 it("提议及三决定严格typed body/原key；银行尾四位与版本回传，409只显示安全错误", async () => {
   const seen: { path: string; key: string | null; body: unknown }[] = [],
     signal = new AbortController().signal;

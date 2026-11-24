@@ -68,7 +68,7 @@ import {
 import { unboundTransferConfirm } from "./payment/transfer-review.js";
 import { approvalKindPort } from "../approval/index.js";
 import { fileRefTypePort } from "../media/index.js";
-import { financeConfigApproval, financeConfigAt } from "./finance-config/index.js";
+import { createFinanceConfigApproval, financeConfigAt } from "./finance-config/index.js";
 import { paymentInvariants } from "./payment/invariants.js";
 import { billingAccountPort } from "../tenant/index.js";
 import { billingInvariants } from "./invariants.js";
@@ -183,7 +183,14 @@ export const registration = defineRegistration("billing", {
         ).map((d) => ({ fileId: d.fileId!, refId: d.id, role: "main" })),
     }),
     ...billingPiiFields,
-    implementKeyed(approvalKindPort, "finance_config_change", financeConfigApproval),
+    ...(["local", "test", "stg", "prod"] as const).map((appEnv) =>
+      implementKeyed(
+        approvalKindPort,
+        "finance_config_change",
+        createFinanceConfigApproval(appEnv),
+        { envs: [appEnv] },
+      ),
+    ),
     implementKeyed(approvalKindPort, "transfer_confirm", unboundTransferConfirm),
     implementKeyed(fileRefTypePort, "transfer_proof", {
       // 法定付款证明沿既有永久保留规则，不以交易终结为释放依据。

@@ -4,7 +4,7 @@ import { recordErrors } from "./live-context";
 import { ensureLiveStepUp } from "./live-step-up";
 import { readConfig, settingsFixture, settingsShot } from "./live-finance-settings-support";
 
-test("收款账户：审批中心进入业务详情，异人批准仍等待24小时生效", async ({ page }) => {
+test("收款账户：审批中心进入业务详情，测试环境异人批准后立即生效", async ({ page }) => {
   const f = settingsFixture(),
     errors = recordErrors(page);
   expect(f.selfApprovalRejected).toBe(true);
@@ -19,9 +19,15 @@ test("收款账户：审批中心进入业务详情，异人批准仍等待24小
   await expect(page).toHaveURL(new RegExp(`/finance/settings\\?tab=history&id=${f.bankId}$`));
   const detail = page.getByRole("complementary", { name: "配置详情与审批", exact: true });
   await expect(detail.getByText(f.changeNote, { exact: true })).toBeVisible();
-  expect((await readConfig(page, f.bankId)).state).toBe("pending");
+  expect(await readConfig(page, f.bankId)).toMatchObject({
+    state: "pending",
+    activationDelaySeconds: 0,
+    effectiveAt: null,
+  });
+  expect((await readConfig(page, f.baselineBankId)).state).toBe("effective");
   await detail.getByRole("button", { name: "批准", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "批准对公收款账户", exact: true });
+  await expect(dialog.getByText("批准后立即生效。", { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "确认批准", exact: true })).toBeDisabled();
   await dialog.getByLabel("核对新账户尾四位", { exact: true }).fill(f.last4);
   await dialog
@@ -35,15 +41,14 @@ test("收款账户：审批中心进入业务详情，异人批准仍等待24小
   await dialog.getByRole("button", { name: "确认批准", exact: true }).click();
   expect((await saved).status()).toBe(200);
   await expect(dialog).toBeHidden();
-  await expect(detail.getByText("已批准，待生效", { exact: true })).toBeVisible();
-  const scheduled = await readConfig(page, f.bankId);
-  expect(scheduled).toMatchObject({
-    state: "scheduled",
+  await expect(detail.getByText("当前生效", { exact: true })).toBeVisible();
+  const effective = await readConfig(page, f.bankId);
+  expect(effective).toMatchObject({
+    state: "effective",
+    activationDelaySeconds: 0,
     approval: { status: "approved", decidedBy: { staffId: meId } },
   });
-  expect(Date.parse(scheduled.effectiveAt!) - Date.parse(scheduled.approval.decidedAt!)).toBe(
-    24 * 3600_000,
-  );
+  expect(Date.parse(effective.effectiveAt!) - Date.parse(effective.approval.decidedAt!)).toBe(0);
   const current = await page.request.get(
     "/api/v1/admin/finance-config-revisions?tab=current&configKey=bank_account&page=1&pageSize=20",
   );
@@ -51,11 +56,10 @@ test("收款账户：审批中心进入业务详情，异人批准仍等待24小
   const items = ((await current.json()).data as { items: unknown[] }).items.map((item) =>
     FinanceConfigViewSchema.parse(item),
   );
-  expect(items.find((item) => item.state === "effective")?.financeConfigRevisionId).toBe(
-    f.baselineBankId,
-  );
-  expect(items.find((item) => item.financeConfigRevisionId === f.bankId)?.state).toBe("scheduled");
+  expect(items.find((item) => item.state === "effective")?.financeConfigRevisionId).toBe(f.bankId);
+  expect(items.find((item) => item.financeConfigRevisionId === f.bankId)?.state).toBe("effective");
+  expect((await readConfig(page, f.baselineBankId)).state).toBe("superseded");
   expect(JSON.stringify(items)).not.toContain("6222000012344321");
-  await settingsShot(page, "w418-settings-bank-scheduled");
+  await settingsShot(page, "w418-settings-bank-effective");
   expect(errors).toEqual([]);
 });

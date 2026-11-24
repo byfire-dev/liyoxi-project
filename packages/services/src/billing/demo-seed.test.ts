@@ -45,9 +45,7 @@ describe("占位受控财务配置正常双人审批", () => {
       for (const r of rows) {
         expect(r.approvalRequest.status).toBe("approved");
         expect(r.approvalRequest.decidedByStaffId).not.toBe(r.approvalRequest.requesterStaffId);
-        expect(r.effectiveAt!.getTime() - r.approvalRequest.decidedAt!.getTime()).toBe(
-          r.configKey === "bank_account" ? 86_400_000 : 0,
-        );
+        expect(r.effectiveAt!.getTime() - r.approvalRequest.decidedAt!.getTime()).toBe(0);
         expect(r.effectiveAt! <= t.clock.now()).toBe(true);
       }
       const bank = rows.find((r) => r.configKey === "bank_account")!;

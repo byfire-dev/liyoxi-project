@@ -1,5 +1,5 @@
 import {
-  adminPage,
+  FinanceConfigListSchema,
   FinanceConfigViewSchema,
   FinanceConfigCreateBodySchema,
   FinanceConfigApproveBodySchema,
@@ -73,7 +73,8 @@ function verify(
     throw new ConfigFailure("RESPONSE_MISMATCH");
   return row;
 }
-const pageSchema = adminPage(FinanceConfigViewSchema);
+const currentSchema = FinanceConfigListSchema.options[0],
+  pageSchema = FinanceConfigListSchema.options[1];
 type ListQuery = NonNullable<operations["admin.financeConfigRevision.list"]["parameters"]["query"]>;
 export function createConfigApi(services: Pick<AppServices, "api">) {
   const client = services.api.client;
@@ -86,7 +87,7 @@ export function createConfigApi(services: Pick<AppServices, "api">) {
       query.tab === "history"
         ? pageSchema.parse(data)
         : {
-            items: data.items.map((item) => FinanceConfigViewSchema.parse(item)),
+            ...currentSchema.parse(data),
             page: 1,
             pageSize: data.items.length || 20,
             total: data.items.length,

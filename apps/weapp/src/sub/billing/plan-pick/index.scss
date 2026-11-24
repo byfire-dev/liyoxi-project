@@ -12,6 +12,12 @@
     flex-wrap: wrap;
     gap: 8px;
   }
+  &__review {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
   &__muted,
   &__agreements {
     font-size: 12px;

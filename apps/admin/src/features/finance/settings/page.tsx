@@ -14,7 +14,15 @@ import { refreshAdjustmentDetail } from "../credit-adjust/model";
 import { financeScope } from "../payments/model";
 import { configError, createConfigApi } from "./api";
 import { ConfigDecisionPanel } from "./decision";
-import { canPropose, configLabels, currentConfig, settingsSearch, stateLabels } from "./model";
+import {
+  activationDelayLabel,
+  activationDelaySeconds,
+  canPropose,
+  configLabels,
+  currentConfig,
+  settingsSearch,
+  stateLabels,
+} from "./model";
 import { ConfigPayload } from "./payload";
 import { ProposeConfig } from "./propose";
 import type { ConfigRevision } from "./types";
@@ -40,6 +48,9 @@ function SettingsWorkspace() {
       queryKey: currentKey,
       queryFn: ({ signal }) => api.list({ tab: "current" }, signal),
       ...DETAIL_QUERY,
+      refetchInterval: (query) =>
+        query.state.data?.items.some((row) => row.state === "scheduled") ? 5_000 : false,
+      refetchIntervalInBackground: false,
     }),
     list = useQuery({
       queryKey: [...prefix, "list", search.tab, search.configKey, search.page, search.pageSize],
@@ -61,6 +72,8 @@ function SettingsWorkspace() {
       queryFn: ({ signal }) => api.get(search.id!, signal),
       enabled: !!search.id,
       ...DETAIL_QUERY,
+      refetchInterval: (query) => (query.state.data?.state === "scheduled" ? 5_000 : false),
+      refetchIntervalInBackground: false,
     });
   const select = (id: string | undefined) => void navigate({ search: { ...search, id } }),
     refreshCurrent = (signal: AbortSignal) =>
@@ -156,6 +169,10 @@ function SettingsWorkspace() {
                             { label: "审批人", value: value.approval.decidedBy?.name ?? "—" },
                             { label: "提议时间", value: time(value.createdAt) },
                             { label: "生效时间", value: time(value.effectiveAt) },
+                            {
+                              label: "生效规则",
+                              value: activationDelayLabel(activationDelaySeconds(value)),
+                            },
                             { label: "变更说明", value: value.changeNote },
                             { label: "处理说明", value: value.approval.decisionNote ?? "—" },
                           ]}
@@ -228,6 +245,7 @@ function SettingsWorkspace() {
       {proposing && canPropose(access) && readableCurrent ? (
         <ProposeConfig
           items={current.data.items}
+          bankAccountApprovalDelaySeconds={current.data.bankAccountApprovalDelaySeconds ?? 86_400}
           api={api}
           refreshCurrent={refreshCurrent}
           onClose={() => setProposing(false)}

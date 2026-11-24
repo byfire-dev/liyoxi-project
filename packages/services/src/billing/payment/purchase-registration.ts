@@ -208,10 +208,18 @@ export const purchaseInvariants = [
        'finance_config_revision'::text subject_type
      FROM finance_config_revision f JOIN approval_request a ON a.id=f.approval_request_id
      WHERE (f.effective_at IS NOT NULL) IS DISTINCT FROM (a.status='approved')
+       OR (f.payload ? 'activationPolicy' AND (f.config_key<>'bank_account'
+         OR f.payload->>'activationPolicy' IS NULL
+         OR f.payload->>'activationPolicy' NOT IN ('bank-delay-v1:local:0s','bank-delay-v1:test:0s','bank-delay-v1:stg:30s','bank-delay-v1:prod:24h')))
        OR (a.status='approved' AND (a.decided_by_staff_id IS NULL
          OR a.requester_staff_id IS NOT DISTINCT FROM a.decided_by_staff_id
          OR f.effective_at IS DISTINCT FROM a.decided_at+CASE WHEN f.config_key='bank_account'
-           THEN interval '24 hours' ELSE interval '0 hours' END))
+           THEN CASE WHEN NOT (f.payload ? 'activationPolicy') THEN interval '24 hours'
+             WHEN f.payload->>'activationPolicy'='bank-delay-v1:prod:24h' THEN interval '24 hours'
+             WHEN f.payload->>'activationPolicy'='bank-delay-v1:stg:30s' THEN interval '30 seconds'
+             WHEN f.payload->>'activationPolicy' IN ('bank-delay-v1:local:0s','bank-delay-v1:test:0s') THEN interval '0 hours'
+             ELSE NULL END
+           ELSE interval '0 hours' END))
      UNION ALL
      SELECT o.id::text,o.entity_id,'captured_bank_account_version' problem,
        'billing_order'::text subject_type
@@ -222,7 +230,7 @@ export const purchaseInvariants = [
        SELECT r.id FROM finance_config_revision r JOIN approval_request p ON p.id=r.approval_request_id
        WHERE r.config_key='bank_account' AND p.status='approved'
          AND p.decided_at<=o.created_at AND r.effective_at<=o.created_at
-       ORDER BY r.effective_at DESC,r.id DESC LIMIT 1
+       ORDER BY p.decided_at DESC,r.id DESC LIMIT 1
      ) latest ON true
      WHERE o.channel='bank_transfer' AND (
        f.id IS NULL OR f.config_key<>'bank_account' OR a.status IS DISTINCT FROM 'approved'

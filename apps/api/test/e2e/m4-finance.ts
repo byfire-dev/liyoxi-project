@@ -358,7 +358,10 @@ export async function runM4Finance(context: M4FinanceContext) {
     modes.push(policy.mode);
   }
 
-  say("银行配置异人批准后严格24h边界：此前旧值，到时新值，账号只脱敏读回");
+  say("测试环境银行配置异人批准后立即生效：批准前旧值，批准后新值，账号只脱敏读回");
+  assert.equal(support.runtime.env.APP_ENV, "test");
+  // 固定测试时钟须明确先后，既有订单的账户快照早于本次立即生效审批。
+  support.clock.advance(1);
   const bank = (await currentConfig()).items.find((row) => row.configKey === "bank_account");
   assert.ok(bank);
   const proposedBank = await call("admin.financeConfigRevision.create", finance.headers, {
@@ -370,7 +373,7 @@ export async function runM4Finance(context: M4FinanceContext) {
         bankName: "M4虚构银行",
         accountNo: "6222020000000004190",
       },
-      changeNote: "M4严格24小时隔离验收",
+      changeNote: "M4测试环境立即生效隔离验收",
       confirm: { configKey: "bank_account", baseRevisionId: bank.financeConfigRevisionId },
     },
   });
@@ -391,41 +394,52 @@ export async function runM4Finance(context: M4FinanceContext) {
     }),
     /HTTP 403, APPROVAL_SELF_FORBIDDEN/,
   );
-  const approvedBank = await call("admin.financeConfigRevision.approve", lead.headers, {
-    key: key("bank-config-approve"),
-    params: { financeConfigRevisionId: proposedBank.financeConfigRevisionId },
-    body: bankDecision,
-  });
-  assert.equal(approvedBank.state, "scheduled");
-  assert.ok(approvedBank.effectiveAt && approvedBank.approval.decidedAt);
-  assert.equal(
-    new Date(approvedBank.effectiveAt).getTime() -
-      new Date(approvedBank.approval.decidedAt).getTime(),
-    24 * 3_600_000,
-  );
+  assert.equal(proposedBank.state, "pending");
+  assert.equal(proposedBank.activationDelaySeconds, 0);
+  assert.equal(proposedBank.effectiveAt, null);
   assert.equal(
     (await currentConfig()).items.find((row) => row.configKey === "bank_account")
       ?.financeConfigRevisionId,
     bank.financeConfigRevisionId,
   );
+  const approvedBank = await call("admin.financeConfigRevision.approve", lead.headers, {
+    key: key("bank-config-approve"),
+    params: { financeConfigRevisionId: proposedBank.financeConfigRevisionId },
+    body: bankDecision,
+  });
+  assert.equal(approvedBank.state, "effective");
+  assert.equal(approvedBank.activationDelaySeconds, 0);
+  assert.equal(approvedBank.approval.decidedBy?.staffId, lead.staffId);
+  assert.ok(approvedBank.effectiveAt && approvedBank.approval.decidedAt);
+  assert.equal(
+    new Date(approvedBank.effectiveAt).getTime() -
+      new Date(approvedBank.approval.decidedAt).getTime(),
+    0,
+  );
+  assert.equal(
+    (await currentConfig()).items.find((row) => row.configKey === "bank_account")
+      ?.financeConfigRevisionId,
+    approvedBank.financeConfigRevisionId,
+  );
+  // 预发30秒/正式24小时的真实边界由activation-policy.db.test.ts逐环境验收。
+  // 后续下载已结日账单仍需跨日；这次拨钟与测试环境的立即生效无关。
   // 跨日之前让本轮已到期队列经原执行器完成，不让拨钟制造后台停摆。
   await support.drainBackground();
-  const effectiveAt = new Date(approvedBank.effectiveAt).getTime();
-  support.clock.advance(effectiveAt - support.clock.now().getTime() - 60_000);
+  const nextDay = support.clock.now().getTime() + 24 * 3_600_000;
+  support.clock.advance(24 * 3_600_000 - 60_000);
   const actorApi: M1Api = {
     ...api,
     request: (path, init) => api.request(path, { ...init, peer: "198.19.4.7" }),
   };
   const freshFinance = await loginM1Staff(actorApi, finance);
-  support.clock.advance(effectiveAt - support.clock.now().getTime() - 1);
-  const beforeBoundary = await call("admin.financeConfigRevision.list", freshFinance.headers, {
+  const afterRelogin = await call("admin.financeConfigRevision.list", freshFinance.headers, {
     query: { tab: "current" },
   });
   assert.equal(
-    beforeBoundary.items.find((row) => row.configKey === "bank_account")?.financeConfigRevisionId,
-    bank.financeConfigRevisionId,
+    afterRelogin.items.find((row) => row.configKey === "bank_account")?.financeConfigRevisionId,
+    approvedBank.financeConfigRevisionId,
   );
-  support.clock.advance(1);
+  support.clock.advance(nextDay - support.clock.now().getTime());
   const effective = await call("admin.financeConfigRevision.list", freshFinance.headers, {
     query: { tab: "current" },
   });

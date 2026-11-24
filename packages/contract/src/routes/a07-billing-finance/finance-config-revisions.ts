@@ -62,7 +62,7 @@ export const adminFinanceConfigRevisionApprove = adminRoute({
   method: "post",
   path: "/admin/finance-config-revisions/{financeConfigRevisionId}/approve",
   operationId: "admin.financeConfigRevision.approve",
-  summary: "批准受控财务配置变更（收款账户批准 24 小时后生效）",
+  summary: "批准受控财务配置变更（收款账户按该版本的环境等待策略生效）",
   "x-permission": "finance.config.approve",
   "x-idempotent": "required",
 });

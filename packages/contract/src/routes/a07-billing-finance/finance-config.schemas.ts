@@ -61,6 +61,10 @@ export const FinanceConfigViewSchema = z
       Controls,
     ]),
     changeNote: z.string(),
+    activationDelaySeconds: z.int().nonnegative().optional().openapi({
+      readOnly: true,
+      description: "该版本批准后的等待秒数；旧响应缺省时收款账户按86400秒、其他配置按0秒。",
+    }),
     effectiveAt: InstantSchema.nullable(),
     state: z.enum(["pending", "scheduled", "effective", "superseded", "rejected", "withdrawn"]),
     createdAt: InstantSchema,
@@ -68,9 +72,15 @@ export const FinanceConfigViewSchema = z
     actions: z.array(z.string()),
   })
   .openapi("FinanceConfigRevisionView");
+const listMetadata = {
+  bankAccountApprovalDelaySeconds: z.int().nonnegative().optional().openapi({
+    readOnly: true,
+    description: "当前服务端环境中新收款账户提议的批准等待秒数：本地/测试0、预发30、正式86400。",
+  }),
+};
 export const FinanceConfigListSchema = z.union([
-  z.object({ items: z.array(FinanceConfigViewSchema) }),
-  adminPage(FinanceConfigViewSchema),
+  z.object({ items: z.array(FinanceConfigViewSchema), ...listMetadata }),
+  adminPage(FinanceConfigViewSchema).extend(listMetadata),
 ]);
 const confirm = z.strictObject({
   configKey: FinanceConfigKeySchema,

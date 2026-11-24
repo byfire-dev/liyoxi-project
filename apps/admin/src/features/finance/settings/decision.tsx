@@ -2,7 +2,14 @@ import { Alert, Button, Checkbox, Input, Modal, Space } from "antd";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AccessContext } from "../../../lib/permissions";
 import { configConflict, configError, type ConfigApi } from "./api";
-import { actionLabels, configDecisions, configLabels, createConfigIntent } from "./model";
+import {
+  actionLabels,
+  activationDelayLabel,
+  activationDelaySeconds,
+  configDecisions,
+  configLabels,
+  createConfigIntent,
+} from "./model";
 import { ConfigPayload } from "./payload";
 import type { ConfigDecision, ConfigRevision } from "./types";
 
@@ -173,7 +180,10 @@ export function ConfigDecisionPanel({
           <p>审批版本：{value.approval.lockVersion}</p>
           {action === "approve" && value.configKey === "bank_account" ? (
             <>
-              <Alert type="info" title="批准24小时后生效，等待期内沿用原收款账户。" />
+              <Alert
+                type="info"
+                title={`${activationDelayLabel(activationDelaySeconds(value))}${activationDelaySeconds(value) > 0 ? "，等待期内沿用原收款账户。" : "。"}`}
+              />
               <label>
                 核对新账户尾四位
                 <Input
