@@ -34,10 +34,27 @@ export function createOrderIntent(newKey: () => string) {
     },
   };
 }
+export const ORDER_AGREEMENT_UNAVAILABLE_MESSAGE =
+  "《定制内容授权使用协议》尚未就绪，暂时无法订购。请稍后重新加载。";
+export function isOrderAgreementUnavailable(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.error !== "AGREEMENT_VERSION_STALE") return false;
+  const details = error.details;
+  return Boolean(
+    details &&
+    typeof details === "object" &&
+    "agreementKey" in details &&
+    details.agreementKey === "custom_license" &&
+    "currentAgreementVersionId" in details &&
+    details.currentAgreementVersionId === null,
+  );
+}
 export function quoteRefreshMessage(error: unknown): string | null {
   if (!(error instanceof ApiError)) return null;
   if (error.error === "QUOTE_CHANGED") return "报价已更新，请重新核对并同意协议";
-  if (error.error === "AGREEMENT_VERSION_STALE") return "协议已更新，请重新阅读并同意";
+  if (error.error === "AGREEMENT_VERSION_STALE")
+    return isOrderAgreementUnavailable(error)
+      ? ORDER_AGREEMENT_UNAVAILABLE_MESSAGE
+      : "协议已更新，请重新阅读并同意";
   if (error.error === "ORDER_AD_INVALID") return "广告可用版本已变化，请重新选择并核对报价";
   return null;
 }

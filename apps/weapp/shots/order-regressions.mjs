@@ -1,8 +1,48 @@
+import { expect } from "@playwright/test";
+
 async function disabled(button) {
   return (await button.getAttribute("class"))?.includes("lyx-button--disabled");
 }
+async function expectAgreementUnavailable(page) {
+  const checkout = page.locator(".checkout-page");
+  await expect(checkout).toContainText(
+    "《定制内容授权使用协议》尚未就绪，暂时无法订购。请稍后重新加载。",
+  );
+  await expect(checkout.locator(".lyx-checkbox")).toHaveCount(0);
+  await expect(checkout.locator(".lyx-footer-bar")).toHaveCount(0);
+  await expect(checkout).not.toContainText("协议已更新");
+  await expect(checkout).not.toContainText("完善门店资料");
+  await expect(checkout.getByText("返回选剧单", { exact: true })).toBeVisible();
+  await expect(checkout.getByText("重新加载协议", { exact: true })).toBeVisible();
+}
+async function orderCreates(page) {
+  return page.evaluate(() =>
+    globalThis.__LYX_ORDER_CALLS__.filter((c) => c.method === "POST" && c.path === "/m/orders"),
+  );
+}
 export async function orderRegression(page, scene) {
   if (scene.startsWith("checkout-")) {
+    if (scene === "checkout-agreement-missing") {
+      await expectAgreementUnavailable(page);
+      const quoteCount = () =>
+        page.evaluate(
+          () => globalThis.__LYX_ORDER_CALLS__.filter((c) => c.path === "/m/orders/quote").length,
+        );
+      const before = await quoteCount();
+      await page
+        .locator(".checkout-page .lyx-text-button")
+        .filter({ hasText: "重新加载协议" })
+        .click();
+      await expect.poll(quoteCount).toBe(before + 1);
+      await expectAgreementUnavailable(page);
+      expect(await orderCreates(page)).toHaveLength(0);
+      await page
+        .locator(".checkout-page .lyx-text-button")
+        .filter({ hasText: "返回选剧单" })
+        .click();
+      await expect(page).toHaveURL(/pages\/cart\/index/);
+      return;
+    }
     const submit = page.locator(".checkout-page .lyx-footer-bar .lyx-button");
     if (!(await disabled(submit))) throw new Error("未完成账号、重点与协议不能提交");
     await page
@@ -28,6 +68,29 @@ export async function orderRegression(page, scene) {
     }
     if (await disabled(submit)) throw new Error("完整有效意图未开放提交");
     await submit.click();
+    if (scene === "checkout-submit-agreement-missing") {
+      await expectAgreementUnavailable(page);
+      expect(await orderCreates(page)).toHaveLength(1);
+      await page
+        .locator(".checkout-page .lyx-text-button")
+        .filter({ hasText: "重新加载协议" })
+        .click();
+      const agreement = page
+        .locator(".checkout-page .lyx-checkbox")
+        .filter({ hasText: "我已阅读并同意本次协议" });
+      await expect(agreement).toBeVisible();
+      await expect(agreement).not.toHaveClass(/lyx-checkbox--checked/);
+      await expect(submit).toHaveClass(/lyx-button--disabled/);
+      expect(await orderCreates(page)).toHaveLength(1);
+      await agreement.click();
+      await submit.click();
+      await page.getByText("订购成功", { exact: true }).waitFor({ state: "visible" });
+      const creates = await orderCreates(page);
+      expect(creates).toHaveLength(2);
+      expect(creates[1].key).not.toBe(creates[0].key);
+      expect(creates[1].data.agreementVersionId).toBe(creates[0].data.agreementVersionId);
+      return;
+    }
     if (scene === "checkout-quote-changed") {
       await page
         .getByText("报价已更新，请重新核对并同意协议", { exact: true })

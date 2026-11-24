@@ -15,6 +15,10 @@ export const ORDER_SCENES = [
     name: "checkout-default",
     route: "sub/order/checkout/index?dramaIds=00000000-0000-4000-8000-000000000001",
   },
+  ...["checkout-agreement-missing", "checkout-submit-agreement-missing"].map((name) => ({
+    name,
+    route: "sub/order/checkout/index?dramaIds=00000000-0000-4000-8000-000000000001",
+  })),
   {
     name: "checkout-points",
     route: "sub/order/checkout/index?dramaIds=00000000-0000-4000-8000-000000000001",

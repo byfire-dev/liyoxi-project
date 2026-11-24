@@ -24,6 +24,8 @@ import { useContextStore } from "@/stores/context";
 import {
   canSubmitOrder,
   createOrderIntent,
+  isOrderAgreementUnavailable,
+  ORDER_AGREEMENT_UNAVAILABLE_MESSAGE,
   quoteRefreshMessage,
   useOrderStore,
   type OrderQuote,
@@ -83,7 +85,12 @@ function Checkout({ ids }: { ids: string[] }) {
           channelAccountIds: selection.current,
         });
       } catch (e: unknown) {
-        if (
+        if (isOrderAgreementUnavailable(e))
+          quoteError = {
+            code: "AGREEMENT_VERSION_STALE",
+            message: ORDER_AGREEMENT_UNAVAILABLE_MESSAGE,
+          };
+        else if (
           e instanceof ApiError &&
           ["SUBSCRIPTION_INACTIVE", "STORE_PROFILE_INCOMPLETE", "STORE_NOT_QUALIFIED"].includes(
             e.error,
@@ -243,7 +250,20 @@ function Checkout({ ids }: { ids: string[] }) {
         ) : !quote ? (
           <Card title="暂时无法订购">
             <Note>{data.quoteError?.message ?? "请刷新取得报价"}</Note>
-            {data.quoteError?.code === "SUBSCRIPTION_INACTIVE" ? (
+            {data.quoteError?.code === "AGREEMENT_VERSION_STALE" ? (
+              <>
+                <TextButton
+                  onClick={() => {
+                    void Taro.switchTab({ url: "/pages/cart/index" });
+                  }}
+                >
+                  返回选剧单
+                </TextButton>
+                <TextButton disabled={resource.loading} onClick={resource.refresh}>
+                  {resource.loading ? "正在加载协议…" : "重新加载协议"}
+                </TextButton>
+              </>
+            ) : data.quoteError?.code === "SUBSCRIPTION_INACTIVE" ? (
               data.policy.mode === "in_app" &&
               data.policy.isPriceShown &&
               data.policy.isPurchasePromptAllowed ? (
