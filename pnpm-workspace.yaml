@@ -51,6 +51,8 @@ overrides:
   "prisma@7.9.1>mysql2": 3.24.4
   # GHSA-ggr8-5vv4-36mx（修复于 8.0.0）。@prisma/config 7.x 钉在 deepmerge-ts@7.1.5
   "@prisma/config@7.9.1>deepmerge-ts": 8.0.2
+  # GHSA-7589-6fvf-x4pw：@prisma/config 7.9.1 钉在 effect@3.20.0；3.22.1 修复，2026-07-30 发布，已满 7 天。
+  "@prisma/config@7.9.1>effect": 3.22.1
   # 这一条不是覆盖到修复版，是去掉一条依赖（"-" 是 pnpm 去掉依赖的写法；W0-27a）：@nutui/nutui-react-taro@3.0.20 把命令行工具
   # codesandbox 列成了运行依赖，组件代码并不引它。它带进来近两百个陈旧的包（pacote 2、axios 0.18 等），生产依赖审计多出
   # 十几条高危，其中几条没有修复版；还得再豁免一条可信级别（semver@5.7.2）。NutUI 升级后这一行自动失效，届时重看

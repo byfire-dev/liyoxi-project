@@ -340,6 +340,31 @@ describe("逐项反向试验：改一处，查得出，且指到改的那一处"
       "ALTER TABLE biz_sequence ALTER COLUMN prefix SET (n_distinct = 5)",
       { columns: ['biz_sequence.prefix 的 options 不同：参照库 null；迁移库 ["n_distinct=5"]'] },
     ],
+    // pg_attver 是内部元数据；PG 17.12 reloptions.c 的 attoptions_get_version 用 strtou64(..., 10) 解析，
+    // attoptions_set_version 用 %llu 写入十进制值（不是 pg_lsn 的 0/100 文本）。仅在测试事务内写目录，兼容旧小版本。
+    [
+      "只有 pg_attver 内部版本不同，语义相同的列不报差异",
+      "UPDATE pg_attribute SET attoptions = ARRAY['pg_attver=200'] WHERE attrelid = 'biz_sequence'::regclass AND attname = 'prefix'",
+      {},
+      "UPDATE pg_attribute SET attoptions = ARRAY['pg_attver=100'] WHERE attrelid = 'biz_sequence'::regclass AND attname = 'prefix'",
+    ],
+    [
+      "pg_attver 和 n_distinct 同时变化仍须查出真实选项差异",
+      "UPDATE pg_attribute SET attoptions = ARRAY['pg_attver=200', 'n_distinct=5'] WHERE attrelid = 'biz_sequence'::regclass AND attname = 'prefix'",
+      {
+        columns: [
+          'biz_sequence.prefix 的 options 不同：参照库 ["n_distinct=2"]；迁移库 ["n_distinct=5"]',
+        ],
+      },
+      "UPDATE pg_attribute SET attoptions = ARRAY['n_distinct=2', 'pg_attver=100'] WHERE attrelid = 'biz_sequence'::regclass AND attname = 'prefix'",
+    ],
+    [
+      "只忽略精确的 pg_attver 键，不吞掉相似前缀的其他选项",
+      "UPDATE pg_attribute SET attoptions = ARRAY['pg_attver=200', 'pg_attver_extra=5'] WHERE attrelid = 'biz_sequence'::regclass AND attname = 'prefix'",
+      {
+        columns: ['biz_sequence.prefix 的 options 不同：参照库 null；迁移库 ["pg_attver_extra=5"]'],
+      },
+    ],
     [
       "域上多一条 CHECK（域两边都有）",
       "ALTER DOMAIN lyx_extra ADD CONSTRAINT lyx_extra_positive CHECK (VALUE > 0)",
