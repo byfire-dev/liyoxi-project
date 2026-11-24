@@ -186,6 +186,10 @@ ADR-035 允许安全修复逐项登记例外，要求两方确认。本次由调
 新增用固定时钟核对截止前1毫秒、截止瞬间/之后、改日期、非目标版本和配置边界。
 测试registry仅监听本机回环，不访问互联网。此门禁PR不装包、不改锁文件或业务实现；依赖前置另行交付。
 
+### effect 3.22.1 的传递依赖安全修复（2026-11-24）
+
+`@prisma/config@7.9.1` 钉住的 `effect@3.20.0` 受 [GHSA-7589-6fvf-x4pw](https://github.com/Effect-TS/effect/security/advisories/GHSA-7589-6fvf-x4pw) 影响（`Schema.TemplateLiteral` 正则拒绝服务，受影响范围 `<=3.22.0`）。只对该父包加精确覆盖 `@prisma/config@7.9.1>effect: 3.22.1`，保留其他依赖版本。修复版的 [npm 官方元数据](https://registry.npmjs.org/effect) 记录发布时间为 `2026-07-30T04:29:21.637Z`，已满足 7 天规则；不新增发布时长或可信级别豁免，不改变高危审计阈值。父包升级时重新核验并移除此覆盖。
+
 ## 5. 门禁改动分类
 
 脚本与清单以 main 上的版本为准：CI 从 main 检出它们来判 PR 的差异，PR 改它们不影响对自己的判定。本地试跑：
@@ -370,7 +374,8 @@ main 上 `apps/admin` 的类型检查偶尔红 4 条（`src/app/feedback.ts` 两
 | `pnpm db:draft-freeze:check` | 草稿 `schema.prisma` 与 `constraints/` 没被动过 | 不连库 |
 | `python3 tools/schema-check/check.py` | 分组文档的字段表 = 迁移后的库（列名、类型、可空） | 默认自建；`--existing <库>` 只读 |
 
-- 快照的规范化只做一件事：分区子表连同它名下的列、约束、索引、触发器不进快照（名字随建库的月份变）。认子表靠系统目录，不靠名字。
+- 快照排除分区子表连同它名下的列、约束、索引、触发器（名字随建库的月份变）。认子表靠系统目录，不靠名字。
+- 系统目录查询只从列选项里剔除 PostgreSQL 17.12 新增的 `pg_attver` 内部版本键；它取自 WAL 位置，同样结构重建后也不同，不是用户定义。`n_distinct` 等其他选项仍逐项比对；不按 `pg_` 前缀扩大忽略范围。依据：[PostgreSQL 属性版本设计](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/catalog/README.attver.md#version-storage-in-the-catalog)。
 - 比的口径沿用 `db-lib.mjs` 那条查询：触发器连启停一起比，外键连它名下内部触发器的启停一起比，函数比函数体，表连行级安全的两个开关一起比。授权不进快照（`pnpm db:verify-grants`）；序列、扩展等六类之外的对象不进快照。
 - 快照只认 PostgreSQL 17 的输出：本地与 CI 都是 17，别的版本开头就停（退出码 2）。
 

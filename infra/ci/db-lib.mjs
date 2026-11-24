@@ -89,7 +89,8 @@ export const CATEGORIES = [
 //   - part 表示“这一行挂在分区子表上”，两组口径就差在这里。
 //   - “表”只收普通表与分区表，连 TOAST 选项一起比。列、约束、索引、触发器除了它们名下的，还收视图、物化视图、
 //     外部表、独立的复合类型名下的：视图上的触发器、物化视图上的索引、外部表的列与约束、复合类型的属性都在这四类里比。
-//   - 列连压缩方式（compression）与列选项（options，如 n_distinct）一起比。
+//   - 列连压缩方式（compression）与列选项（options，如 n_distinct）一起比。仅剔除 PostgreSQL 17.12 新增的
+//     pg_attver 内部版本标识（重建同样结构也会不同），不忽略任何其他列选项。
 //   - 约束连它名下内部触发器的启停一起比（internal_triggers）：外键靠这几个触发器校验，停用之后外键的定义不变。
 //   - 触发器一类不收内部触发器本身（名字里有对象编号，两个库不同）；它们的启停见上一条。
 //   - 函数不看扩展带进来的（btree_gist、pg_trgm 的函数落在 public 里；扩展按名字与版本在最后一类里比）。
@@ -132,7 +133,10 @@ select json_build_object(
       'def', json_build_object(
       'position', a.attnum, 'type', format_type(a.atttypid, a.atttypmod), 'not_null', a.attnotnull,
       'default', pg_get_expr(d.adbin, d.adrelid), 'identity', a.attidentity, 'generated', a.attgenerated,
-      'compression', a.attcompression, 'options', a.attoptions,
+      'compression', a.attcompression,
+      'options', (select array_agg(o.option order by o.ordinality)
+                    from unnest(a.attoptions) with ordinality as o(option, ordinality)
+                   where split_part(o.option, '=', 1) <> 'pg_attver'),
       'collation', (select l.collname from pg_collation l join pg_type t on t.oid = a.atttypid
                      where l.oid = a.attcollation and a.attcollation <> t.typcollation))))
     from rel r join pg_attribute a on a.attrelid = r.oid and a.attnum > 0 and not a.attisdropped
