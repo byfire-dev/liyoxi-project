@@ -202,7 +202,8 @@ export const orderCard: components["schemas"]["OrderCard"] = {
 export function offlineOrderRequest(scene: string): RequestLayer["request"] {
   const calls: { path: string; method: string; key?: string; data?: unknown }[] = [];
   (globalThis as { __LYX_ORDER_CALLS__?: typeof calls }).__LYX_ORDER_CALLS__ = calls;
-  let creates = 0;
+  let creates = 0,
+    missingQuoteReads = 0;
   return async <T>(path: string, options?: Parameters<RequestLayer["request"]>[1]): Promise<T> => {
     const url = new URL(path, "http://local"),
       method = options?.method ?? "GET";
@@ -214,6 +215,16 @@ export function offlineOrderRequest(scene: string): RequestLayer["request"] {
     });
     let data: unknown;
     if (url.pathname === "/m/orders/quote") {
+      if (scene === "checkout-agreement-missing" || missingQuoteReads > 0) {
+        if (missingQuoteReads > 0) missingQuoteReads--;
+        throw new ApiError({
+          error: "AGREEMENT_VERSION_STALE",
+          message: "协议已更新，请阅读新版本后重新同意",
+          status: 409,
+          requestId: "order-offline",
+          details: { agreementKey: "custom_license", currentAgreementVersionId: null },
+        });
+      }
       const changed = scene === "checkout-quote-changed" && creates > 0;
       data = {
         ...orderQuote,
@@ -313,6 +324,16 @@ export function offlineOrderRequest(scene: string): RequestLayer["request"] {
     else if (url.pathname === "/m/orders" && method === "POST") {
       if (!options?.idempotencyKey) throw new Error("订购必须携带意图key");
       creates++;
+      if (creates === 1 && scene === "checkout-submit-agreement-missing") {
+        missingQuoteReads = 1;
+        throw new ApiError({
+          error: "AGREEMENT_VERSION_STALE",
+          message: "协议已更新，请阅读新版本后重新同意",
+          status: 409,
+          requestId: "order-offline",
+          details: { agreementKey: "custom_license", currentAgreementVersionId: null },
+        });
+      }
       if (creates === 1 && ["checkout-default", "checkout-quote-changed"].includes(scene))
         throw new ApiError({
           error: scene === "checkout-quote-changed" ? "QUOTE_CHANGED" : "NETWORK_ERROR",

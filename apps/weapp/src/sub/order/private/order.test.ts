@@ -4,7 +4,9 @@ import {
   canSubmitOrder,
   createOrderIntent,
   createOrderLifetime,
+  isOrderAgreementUnavailable,
   mergeOrders,
+  ORDER_AGREEMENT_UNAVAILABLE_MESSAGE,
   quoteRefreshMessage,
 } from "@/stores/order";
 import { orderQuote, orderCard, CHANNEL_ID, AGREEMENT_ID } from "../../../../shots/order-fixtures";
@@ -85,6 +87,53 @@ describe("确认订购与订单读取", () => {
         }),
       ),
     ).toBe("协议已更新，请重新阅读并同意");
+  });
+  it("仅明确缺少当前定制授权版本时提示协议未就绪，且没有报价不能提交", () => {
+    const missing = new ApiError({
+      error: "AGREEMENT_VERSION_STALE",
+      message: "协议已更新，请阅读新版本后重新同意",
+      status: 409,
+      requestId: "test",
+      details: { agreementKey: "custom_license", currentAgreementVersionId: null },
+    });
+    expect(isOrderAgreementUnavailable(missing)).toBe(true);
+    expect(quoteRefreshMessage(missing)).toBe(ORDER_AGREEMENT_UNAVAILABLE_MESSAGE);
+    expect(canSubmitOrder(null, [CHANNEL_ID], ["product"], AGREEMENT_ID)).toBe(false);
+  });
+  it.each([
+    undefined,
+    null,
+    "null",
+    {},
+    { agreementKey: "custom_license" },
+    { agreementKey: "custom_license", currentAgreementVersionId: AGREEMENT_ID },
+    { agreementKey: "custom_license", currentAgreementVersionId: "null" },
+    { agreementKey: "member", currentAgreementVersionId: null },
+  ])("真正变版或缺少确定证据不误报协议未就绪：%j", (details) => {
+    const stale = new ApiError({
+      error: "AGREEMENT_VERSION_STALE",
+      message: ORDER_AGREEMENT_UNAVAILABLE_MESSAGE,
+      status: 409,
+      requestId: "test",
+      details,
+    });
+    expect(isOrderAgreementUnavailable(stale)).toBe(false);
+    expect(quoteRefreshMessage(stale)).toBe("协议已更新，请重新阅读并同意");
+  });
+  it("缺版本详情不能覆盖其他错误符号或普通错误", () => {
+    for (const error of [
+      new Error(ORDER_AGREEMENT_UNAVAILABLE_MESSAGE),
+      new ApiError({
+        error: "NETWORK_ERROR",
+        message: ORDER_AGREEMENT_UNAVAILABLE_MESSAGE,
+        status: 0,
+        requestId: "test",
+        details: { agreementKey: "custom_license", currentAgreementVersionId: null },
+      }),
+    ]) {
+      expect(isOrderAgreementUnavailable(error)).toBe(false);
+      expect(quoteRefreshMessage(error)).toBeNull();
+    }
   });
   it("cursor拼接去重、保留前页快照并使用新页终止游标", () => {
     const first = { items: [orderCard], hasMore: true, nextCursor: "next" };
