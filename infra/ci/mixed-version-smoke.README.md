@@ -1,6 +1,6 @@
 # W2-28 四步真实HTTP/worker混跑
 
-这是测试执行器，不是部署入口。每个SHA都从自己的git archive构建server的build target，保对应版API、服务、契约与worker源码；再仅从实际image ID创建不启动、无网络的自有临时容器，复制唯一40位SHA文本到`/repo/.mixed-source-sha`后commit薄层，并核实际Parent等于原image ID。driver读取固定文件核身份，不能仅反射请求version；不挂HEAD源码到旧版。测试层不进入正式server镜像。
+每个 SHA 从自己的 git archive 构建 server 的 build target，再从实际 image ID 创建无网络的临时容器。控制器将完整 SHA 写到 `/repo/.mixed-source-sha`，把该版归档里的固定字体和许可放到 `/repo/infra/docker/server/fonts`，提交测试层并核对镜像 Parent。driver 读取身份文件核对版本。预发 `22e8a2d5` 的旧 worker 使用五键 scope。控制器按已核实的旧 schema 源文件摘要识别该版本，仅对它移除新增的授权书测试输入。各版仍通过自己的严格 schema 校验全部归属字段。
 
 ```sh
 node infra/ci/mixed-version-smoke.mjs --report /tmp/mixed-smoke-本轮.json

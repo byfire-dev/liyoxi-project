@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { PassThrough, Writable } from "node:stream";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,9 +9,17 @@ import { makeTempDir, repoRoot } from "./helpers.js";
 const { parseMixedArgs, selectVersions, workerEvidence, fourSteps, reportWriter } = await import(
   pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke.mjs")).href
 );
-const { RpcPeer, MixedFailure, deadline, dockerBackend, PROTOCOL, MAX_FRAME } = await import(
-  pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke-runtime.mjs")).href
-);
+const {
+  RpcPeer,
+  MixedFailure,
+  deadline,
+  dockerBackend,
+  mixedAttachment,
+  observeLegacyWorkerGuard,
+  prepareMixedLayer,
+  PROTOCOL,
+  MAX_FRAME,
+} = await import(pathToFileURL(join(repoRoot, "infra/ci/mixed-version-smoke-runtime.mjs")).href);
 const HEAD = "a".repeat(40),
   OLD = "b".repeat(40),
   IMAGE = `sha256:${"c".repeat(64)}`;
@@ -37,8 +45,16 @@ const worker = (source: string) => ({
     deadTimers: 0,
     mediaPending: 0,
     mediaFailed: 0,
+    ...(source === HEAD ? { docsPending: 0, docsFailed: 0 } : {}),
   },
-  queues: [{ name: "timer_run", waiting: 0, active: 0, failed10Min: 0, paused: false }],
+  queues: [
+    "outbox_delivery",
+    "timer_run",
+    "media_job",
+    "notify",
+    "promote",
+    ...(source === HEAD ? ["docs"] : []),
+  ].map((name) => ({ name, waiting: 0, active: 0, failed10Min: 0, paused: false })),
   hidden: privateValue,
 });
 const attachBase = {
@@ -136,6 +152,70 @@ function fakeBackend(failAt = "", failure = new MixedFailure("rpc-remote")) {
   return { backend, calls };
 }
 afterEach(() => vi.useRealTimers());
+
+it("旧版未知类型守卫仅从固定提交、固定方法与固定异常位置得到布尔事实", () => {
+  const old = "22e8a2d5b7c5ce8a1e9ac5ee739db6ce6c822f97";
+  const stderr = new PassThrough();
+  const seen = observeLegacyWorkerGuard(stderr, old);
+  const other = observeLegacyWorkerGuard(stderr, HEAD);
+  const row = {
+    mixedFailure: "start_failed",
+    method: "phase.start",
+    errorCategory: "Error",
+    frames: ["packages/services/src/testing/m1-observe.ts:113:13"],
+  };
+  const frame = JSON.stringify(row);
+  stderr.write(frame.replace("113:13", "115:13") + "\n");
+  stderr.write(frame.replace("phase.start", "phase.close") + "\n");
+  stderr.write(privateValue.repeat(250));
+  stderr.write(frame + "\n");
+  expect(seen()).toBe(false);
+  stderr.write(frame.slice(0, 25));
+  stderr.write(frame.slice(25) + "\n");
+  expect(seen()).toBe(true);
+  expect(other()).toBe(false);
+  stderr.destroy();
+});
+
+it("混跑测试层从每个 SHA 自己的归档带入字体和许可，读取路径与 build target 相同", () => {
+  const temp = makeTempDir("mixed-fonts-");
+  try {
+    for (const source of [HEAD, OLD]) {
+      const archive = join(temp.dir, source);
+      const fonts = "infra/docker/server/fonts";
+      mkdirSync(join(archive, fonts), { recursive: true });
+      for (const file of ["NotoSerifSC-Regular.ttf", "OFL-NotoSerifSC.txt"])
+        writeFileSync(join(archive, fonts, file), source);
+      const layer = join(temp.dir, `layer-${source}`);
+      prepareMixedLayer(layer, archive, source);
+      expect(readFileSync(join(layer, ".mixed-source-sha"), "utf8")).toBe(`${source}\n`);
+      for (const file of ["NotoSerifSC-Regular.ttf", "OFL-NotoSerifSC.txt"])
+        expect(readFileSync(join(layer, fonts, file), "utf8")).toBe(source);
+    }
+  } finally {
+    temp.cleanup();
+  }
+});
+
+it("已核实的五键旧 schema 仅移除新版授权书输入，其他字段仍由各版 schema 严格校验", () => {
+  const scope = {
+    runId,
+    databaseName: "db",
+    redisPrefix: "redis",
+    ownerToken: privateValue,
+    startedAt: "now",
+  };
+  const attach = {
+    scope: { ...scope, licenseTestInputs: { portalPublicOrigin: "https://portal.invalid" } },
+    storage: { marker: 1 },
+  };
+  const oldHash = "84c9c2129e17307e637f3ff21d04f3c4ef583abcccac878720a5e9d9eea6b35a";
+  expect(mixedAttachment(attach, oldHash)).toEqual({ scope, storage: attach.storage });
+  const unrecognised = { ...attach, scope: { ...attach.scope, unexpected: true } };
+  expect(mixedAttachment(unrecognised, oldHash).scope).toEqual({ ...scope, unexpected: true });
+  expect(mixedAttachment(attach, "0".repeat(64))).toBe(attach);
+  expect(attach.scope.licenseTestInputs).toBeDefined();
+});
 
 it("W228 controller：固定CLI、真实prev定义与driver能力拒绝，严格限定no-comparable", async () => {
   expect(parseMixedArgs(["--prev", OLD, "--report", "/tmp/mixed.json"])).toMatchObject({
@@ -385,6 +465,59 @@ it("W228 controller：四步对应SHA/独立worker真实事实/两20集链与两
   invalid.backlog.mediaPending = 0;
   invalid.lease.version = OLD;
   expect(() => workerEvidence(invalid, HEAD, 10)).toThrow("worker-evidence");
+});
+
+it("新旧版各自的队列和数据库积压必须完整且已排空", () => {
+  for (const source of [HEAD, OLD]) {
+    const state = worker(source);
+    expect(workerEvidence(state, source, 10, true).queues).toHaveLength(source === HEAD ? 6 : 5);
+    expect(() => workerEvidence({ ...state, queues: state.queues.slice(1) }, source, 10)).toThrow(
+      "worker-evidence",
+    );
+  }
+  const head = worker(HEAD);
+  for (const field of ["docsPending", "docsFailed"])
+    expect(() =>
+      workerEvidence({ ...head, backlog: { ...head.backlog, [field]: 1 } }, HEAD, 10, true),
+    ).toThrow("not-drained");
+  for (const field of ["active", "waiting", "failed10Min", "paused"]) {
+    const queues = head.queues.map((q) =>
+      q.name === "docs" ? { ...q, [field]: field === "paused" ? true : 1 } : q,
+    );
+    expect(() => workerEvidence({ ...head, queues }, HEAD, 10, true)).toThrow("not-drained");
+  }
+  const old = worker(OLD);
+  expect(() => workerEvidence({ ...old, queues: head.queues }, OLD, 10)).toThrow("worker-evidence");
+});
+
+it("已确认的旧启动守卫仅写固定类别，保留失败与清理结论", async () => {
+  const { backend } = fakeBackend();
+  const createPhase = backend.createPhase;
+  const report = await fourSteps({
+    versions,
+    budget: deadline(),
+    backend: {
+      ...backend,
+      legacyWorkerGuardSeen: () => true,
+      createPhase: async (source: string, kind: string, attach: Record<string, unknown>) => {
+        if (kind === "old-read-write")
+          throw Object.assign(new MixedFailure("rpc-remote"), {
+            rpcMethod: "phase.start",
+            rpcElapsedMs: 12,
+            private: privateValue,
+          });
+        return createPhase(source, kind, attach);
+      },
+    },
+  });
+  expect(report).toMatchObject({
+    status: "failed",
+    stage: "old-read-write",
+    failure: "rpc-remote",
+    rpc: { category: "unknown-worker-kind-or-kind-limit" },
+    cleanup: { ok: true },
+  });
+  expect(JSON.stringify(report)).not.toContain(privateValue);
 });
 
 it("W228 controller：任一读/排空/清理失败非零，600秒含清理且取消不伪绿", async () => {

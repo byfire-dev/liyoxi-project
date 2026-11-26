@@ -12,11 +12,23 @@ const job = (text: string, id: string) =>
   text.split(`  ${id}:\n`)[1]?.split(/^ {2}[\w-]+:\n/m)[0] ?? "";
 
 describe("W2-25b 构建与外部写边界", () => {
-  it("暂停期间保留四镜像/SDK/原体积门禁定义与原安全边界", () => {
+  it("四镜像只随 #288 的选择文件发布，小程序、COS、映射上传及自动部署保持关闭", () => {
     const body = job(images, "build-images");
     expect(images).toMatch(/^ {2}workflow_dispatch:$/m);
-    expect(images).not.toMatch(/^ {2}(pull_request|push|schedule):/m);
-    expect(body).toMatch(/^ {4}if: \$\{\{ false \}\}$/m);
+    expect(images).toContain(
+      "  push:\n    branches: [main]\n    paths: [infra/ci/releases/pr288-staging.sh]",
+    );
+    expect(images).not.toMatch(/^ {2}(pull_request|schedule):/m);
+    expect(body).toContain("if: github.event_name == 'push' && github.ref == 'refs/heads/main'");
+    expect(body).toContain('bash infra/ci/releases/pr288-staging.sh "$BASE_SHA"');
+    expect(body).toContain("vars.STG_IMAGES_PUBLISH_ENABLED == 'true'");
+    for (const flag of [
+      "STG_DEPLOY_ENABLED",
+      "STG_WEAPP_UPLOAD_ENABLED",
+      "STG_ARTIFACT_UPLOAD_ENABLED",
+      "STG_SOURCE_MAP_UPLOAD_ENABLED",
+    ])
+      expect(body).toContain(`vars.${flag} != 'true'`);
     expect(body).toContain("server gateway");
     expect(body).toContain("mediatool weapp-uploader");
     expect(body).toContain("pnpm weapp:build");
@@ -155,7 +167,9 @@ describe("W2-25b 构建与外部写边界", () => {
     expect(body).toContain('["linux/amd64", "linux/arm64"]');
     expect(body).toContain("if: always()");
     expect(body).not.toMatch(/docker run|STG_SSH|STG_COS|orchestrate|:latest/);
-    expect(job(images, "build-images")).toMatch(/^ {4}if: \$\{\{ false \}\}$/m);
+    expect(job(images, "build-images")).toContain(
+      "if: github.event_name == 'push' && github.ref == 'refs/heads/main'",
+    );
   });
 
   it("部署整个 job 默认关闭，同源 main 成功 push/runID/HEAD 绑定，先核摘要再编排", () => {

@@ -133,20 +133,25 @@ export function workerEvidence(row, source, apiPid, settled = false) {
     "mediaPending",
     "mediaFailed",
   ];
+  requireFact(object(row.backlog), "worker-evidence");
+  const queueNames = ["outbox_delivery", "timer_run", "notify", "media_job", "promote"];
+  if (Object.hasOwn(row.backlog, "docsPending") || Object.hasOwn(row.backlog, "docsFailed")) {
+    pending.push("docsPending", "docsFailed");
+    queueNames.push("docs");
+  }
   requireFact(
-    object(row.backlog) &&
-      pending.every((key) => Number.isSafeInteger(row.backlog[key]) && row.backlog[key] >= 0),
+    pending.every((key) => Number.isSafeInteger(row.backlog[key]) && row.backlog[key] >= 0),
     "worker-evidence",
   );
   requireFact(
     Array.isArray(row.queues) &&
-      row.queues.length > 0 &&
+      row.queues.length === queueNames.length &&
       new Set(row.queues.map((queue) => queue.name)).size === row.queues.length,
     "worker-evidence",
   );
   for (const queue of row.queues)
     requireFact(
-      ["outbox_delivery", "timer_run", "notify", "media_job", "promote"].includes(queue.name) &&
+      queueNames.includes(queue.name) &&
         ["waiting", "active", "failed10Min"].every(
           (key) => Number.isSafeInteger(queue[key]) && queue[key] >= 0,
         ),
@@ -412,6 +417,12 @@ export async function fourSteps({
     } catch {
       report.cleanup = { ok: false };
     }
+    if (
+      report.stage === "old-read-write" &&
+      report.rpc?.method === "phase.start" &&
+      backend.legacyWorkerGuardSeen?.()
+    )
+      report.rpc.category = "unknown-worker-kind-or-kind-limit";
     if (!report.cleanup.ok || signal?.aborted || budget.elapsed() > 600_000) {
       report.status = "failed";
       report.failure ??= "cleanup";

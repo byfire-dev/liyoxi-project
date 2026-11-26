@@ -1,9 +1,14 @@
-# W2-28：2026-11-02 业主要求暂缓 main 自动混跑，仅保留手动，不新增 PR required。
-# 手动结果不替代发布所需的同 SHA main push 证据；待业主要求再恢复。
+# #288 发布选择文件的 PR 先预检，合入 main 后重跑同一基线生成发布证据。
 name: mixed-smoke
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: [infra/ci/releases/pr288-staging.sh]
+  push:
+    branches: [main]
+    paths: [infra/ci/releases/pr288-staging.sh]
 
 permissions:
   contents: read
@@ -23,6 +28,14 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: 选择预发在役基线
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -eu
+          previous=$(bash infra/ci/releases/pr288-staging.sh "$BASE_SHA")
+          echo "MIXED_PREVIOUS=$previous" >> "$GITHUB_ENV"
       - name: 装 Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -30,7 +43,16 @@ jobs:
       - name: 启动本 runner 独占的三个依赖
         run: docker compose -p liyoxi -f infra/compose/local.yml up -d --wait postgres redis minio
       - name: 两版镜像同库四步验证
-        run: timeout --signal=TERM --kill-after=30s 8m node infra/ci/mixed-version-smoke.mjs --report "$RUNNER_TEMP/mixed-smoke.json"
+        run: |
+          set -eu
+          args=()
+          if [[ -n "${MIXED_PREVIOUS:-}" ]]; then args=(--prev "$MIXED_PREVIOUS"); fi
+          timeout --signal=TERM --kill-after=30s 8m node infra/ci/mixed-version-smoke.mjs --report "$RUNNER_TEMP/mixed-smoke.json" "${args[@]}"
+          if [[ -n "${MIXED_PREVIOUS:-}" ]]; then
+            jq -e --arg head "$GITHUB_SHA" --arg previous "$MIXED_PREVIOUS" \
+              '.status == "passed" and .head == $head and .previous == $previous and .baseline == "explicit" and .cleanup.ok == true' \
+              "$RUNNER_TEMP/mixed-smoke.json"
+          fi
       - name: 只保存白名单混跑报告
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
