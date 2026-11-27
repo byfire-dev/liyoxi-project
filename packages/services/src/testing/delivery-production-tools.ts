@@ -228,7 +228,7 @@ export function createDeliveryProductionTools(
             const etag = saved?.ok
               ? saved.value.etag
               : providers.storage.put(dst, output.bytes, mime);
-            objects.set(`${input.dst.bucket}/${input.dst.key}`, {
+            objects.set(`${dst.bucket}/${dst.key}`, {
               label: output.label,
               width: output.width,
               height: output.height,
