@@ -48,3 +48,4 @@ agreement_consent INSERT,SELECT
 param_value INSERT,SELECT cancelled_at
 analytics_event INSERT,SELECT
 invitation_request INSERT,SELECT
+subscription_event_daily_supplement INSERT,SELECT

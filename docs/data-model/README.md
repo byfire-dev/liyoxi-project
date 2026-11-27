@@ -10,7 +10,7 @@
 | 04 门店档案与资质审核 | [04-profile.md](04-profile.md) | 5 | d9 |
 | 05 短剧库 | [05-content.md](05-content.md) | 6 | d8 |
 | 06 文件、媒体与素材 | [06-media.md](06-media.md) | 21 | d5 |
-| 07 价目、订阅与积分账本 | [07-billing-ledger.md](07-billing-ledger.md) | 21 | d1 |
+| 07 价目、订阅与积分账本 | [07-billing-ledger.md](07-billing-ledger.md) | 22 | d1 |
 | 08 付款、退款、对账与发票 | [08-billing-payment.md](08-billing-payment.md) | 12 | d2 |
 | 09 选剧单、订购、取消与广告 | [09-order-ad.md](09-order-ad.md) | 10 | d3 |
 | 10 交付 | [10-delivery.md](10-delivery.md) | 15 | d3、d5 |
