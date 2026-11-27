@@ -127,12 +127,185 @@ function memory(): KeyValueStorage {
 }
 
 describe("账户启动与登录", () => {
+  it("401恢复不等待引导，迟到刷新不能清除后续手机号登录的新账号", async () => {
+    const env = setup("expired-a");
+    const stale = deferred<WireResponse>();
+    const nextMe = {
+      ...makeMe(),
+      user: { ...makeMe().user, merchantUserId: "account-b" },
+    };
+    const clearSession = vi.fn(() => env.controller.clear());
+    const gotoLogin = vi.fn();
+    const ok = (data: unknown): WireResponse => ({
+      statusCode: 200,
+      header: {},
+      data: { code: 0, data },
+    });
+    let staleStarted = false;
+    const send = vi.fn(async (wire: WireRequest): Promise<WireResponse> => {
+      const path = new URL(wire.url).pathname;
+      if (path.endsWith("/m/test/bootstrap-race"))
+        return wire.header.Authorization === "Bearer expired-a"
+          ? {
+              statusCode: 401,
+              header: {},
+              data: { error: "SESSION_INVALID", message: "expired", requestId: "test" },
+            }
+          : ok("protected-ok");
+      if (path.endsWith("/m/sessions"))
+        return ok({ needPhone: false, token: "fresh-a", me: makeMe() });
+      if (path.endsWith("/m/sessions/phone-login"))
+        return ok({ token: "fresh-b", me: nextMe, isNewUser: false, switchedFrom: null });
+      if (path.endsWith("/m/agreements")) return ok(agreements);
+      if (path.endsWith("/m/bootstrap")) {
+        if (wire.header.Authorization === "Bearer fresh-a") {
+          staleStarted = true;
+          return stale.promise;
+        }
+        return ok({ ...bootstrap, flags: { "weapp.video.sample.enabled": true } });
+      }
+      throw new Error(`Unexpected request: ${path}`);
+    });
+    const layer = createRequestLayer({
+      baseUrl: "https://api.example.test",
+      send,
+      clock: { now: () => env.local.now, sleep: async () => undefined },
+      uuid: () => "00000000-0000-4000-8000-000000000001",
+      client: () => ({ platform: "devtools", version: "1.0.0", envVersion: "develop" }),
+      getToken: () => env.local.token,
+      getStoreId: () => env.local.storeId,
+      recover: {
+        silentLogin: () => env.controller.silentLogin("recovery-code"),
+        clearSession,
+        gotoLogin,
+      },
+    });
+    // controller 持有相同 api 对象；替换其方法，使恢复与引导都经过真实请求层。
+    Object.assign(env.api, createAccountApi(layer.request));
+    const protectedRequest = layer.request("/m/test/bootstrap-race").then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    await vi.waitFor(() => expect(staleStarted).toBe(true));
+    const staleFlight = env.controller.bootstrap();
+    await env.controller.loadAgreements();
+    await env.controller.phoneLogin("phone-code", true);
+    expect(env.local.token).toBe("fresh-b");
+    expect(env.returnPage).toHaveBeenCalledOnce();
+
+    stale.resolve(ok({ ...bootstrap, flags: { "weapp.video.sample.enabled": false } }));
+    await staleFlight;
+    const result = await protectedRequest;
+    expect(env.local.token).toBe("fresh-b");
+    expect(env.local.me?.user.merchantUserId).toBe("account-b");
+    expect(clearSession).not.toHaveBeenCalled();
+    expect(gotoLogin).not.toHaveBeenCalled();
+    expect(result).toEqual({ value: "protected-ok" });
+    expect(env.applyBootstrap).toHaveBeenLastCalledWith(
+      expect.objectContaining({ flags: { "weapp.video.sample.enabled": true } }),
+    );
+    expect(
+      send.mock.calls
+        .map(([wire]) => wire)
+        .filter((wire) => wire.url.endsWith("/m/test/bootstrap-race"))
+        .map((wire) => wire.header.Authorization),
+    ).toEqual(["Bearer expired-a", "Bearer fresh-a"]);
+  });
+  it("游客引导后静默登录，立即取得当前门店的样片开关", async () => {
+    const env = setup(null);
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockImplementation(async () => ({
+      ...bootstrap,
+      flags: { "weapp.video.sample.enabled": Boolean(env.local.token && env.local.storeId) },
+    }));
+    await env.controller.start();
+    expect(env.applyBootstrap).toHaveBeenLastCalledWith(
+      expect.objectContaining({ flags: { "weapp.video.sample.enabled": true } }),
+    );
+  });
+  it("已有会话首次选定门店后重新取得主体配置", async () => {
+    const env = setup();
+    vi.mocked(env.api.bootstrap).mockImplementation(async () => ({
+      ...bootstrap,
+      flags: { "weapp.video.sample.enabled": Boolean(env.local.storeId) },
+    }));
+    await env.controller.start();
+    expect(env.applyBootstrap).toHaveBeenLastCalledWith(
+      expect.objectContaining({ flags: { "weapp.video.sample.enabled": true } }),
+    );
+  });
+  it("手机号登录返回页面前取得已登录门店配置", async () => {
+    const env = setup(null);
+    await env.controller.loadAgreements();
+    await env.controller.phoneLogin("phone-code", true);
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+    expect(env.applyBootstrap.mock.invocationCallOrder[0]).toBeLessThan(
+      env.returnPage.mock.invocationCallOrder[0]!,
+    );
+  });
+  it("登录后刷新失败不把成功登录判为失败", async () => {
+    const env = setup(null);
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockRejectedValue(new Error("offline"));
+    await expect(env.controller.silentLogin("code")).resolves.toBe("ok");
+    expect(env.local.token).toBe("fresh");
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("慢配置刷新不阻塞静默登录，退出后回包不恢复状态", async () => {
+    const env = setup(null);
+    const pending = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockReturnValue(pending.promise);
+    const login = env.controller.silentLogin("code");
+    await expect(login).resolves.toBe("ok");
+    env.controller.clear();
+    pending.resolve(bootstrap);
+    await pending.promise;
+    expect(env.local.token).toBeNull();
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+  });
+  it("旧游客引导晚到不能覆盖登录后配置，也不能清除新请求的合并状态", async () => {
+    const env = setup(null);
+    const old = deferred<Data<"m.bootstrap.get">>();
+    const fresh = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.bootstrap)
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(fresh.promise);
+    const pendingOld = env.controller.bootstrap();
+    env.local.token = "fresh";
+    env.local.storeId = makeMe().memberships[0]!.lastStoreId;
+    env.local.contextRev++;
+    const pendingFresh = env.controller.bootstrap();
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
+    old.resolve({ ...bootstrap, flags: { "weapp.video.sample.enabled": false } });
+    await pendingOld;
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+    expect(env.controller.bootstrap()).toBe(pendingFresh);
+    fresh.resolve({ ...bootstrap, flags: { "weapp.video.sample.enabled": true } });
+    await pendingFresh;
+    expect(env.applyBootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("门店变化独立加载，已登出的在途响应不再写入", async () => {
+    const env = setup();
+    const old = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.bootstrap).mockReturnValueOnce(old.promise);
+    const pending = env.controller.bootstrap();
+    env.local.storeId = makeMe().memberships[0]!.stores[1]!.storeId;
+    env.local.contextRev++;
+    await env.controller.bootstrap();
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
+    env.controller.clear();
+    env.applyBootstrap.mockClear();
+    old.resolve(bootstrap);
+    await pending;
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+  });
   it("有令牌先引导再 me，不静默；优先服务端有效门店，未知门店回退", async () => {
     const env = setup();
     const second = makeMe().memberships[0]!.stores[1]!.storeId;
     vi.mocked(env.api.bootstrap).mockResolvedValue({ ...bootstrap, context: { storeId: second } });
     await Promise.all([env.controller.start(), env.controller.start()]);
-    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
     expect(env.api.me).toHaveBeenCalledTimes(1);
     expect(env.api.silent).not.toHaveBeenCalled();
     expect(env.local.storeId).toBe(second);

@@ -117,7 +117,13 @@ export function createAccountController(deps: AccountDeps) {
     state = { ...state, ...patch };
     listeners.forEach((run) => run());
   };
-  let bootstrapFlight: Promise<Data<"m.bootstrap.get">> | null = null;
+  let bootstrapFlight: {
+    epoch: number;
+    token: string | null;
+    storeId: string | null;
+    revision: number;
+    promise: Promise<Data<"m.bootstrap.get">>;
+  } | null = null;
   let startFlight: Promise<void> | null = null;
   let consentFlight: Promise<boolean> | null = null;
   let resolveConsent: ((accepted: boolean) => void) | null = null;
@@ -177,16 +183,33 @@ export function createAccountController(deps: AccountDeps) {
       };
     },
     bootstrap: () => {
-      bootstrapFlight ??= api
+      const epoch = generation;
+      const token = deps.token();
+      const { currentStoreId: storeId, contextRev: revision } = deps.store();
+      const current = () =>
+        epoch === generation &&
+        token === deps.token() &&
+        storeId === deps.store().currentStoreId &&
+        revision === deps.store().contextRev;
+      if (
+        bootstrapFlight?.epoch === epoch &&
+        bootstrapFlight.token === token &&
+        bootstrapFlight.storeId === storeId &&
+        bootstrapFlight.revision === revision
+      )
+        return bootstrapFlight.promise;
+      // 游客、旧会话或其他门店的请求不能复用，也不能覆盖当前主体的开关。
+      const promise = api
         .bootstrap()
         .then((value) => {
-          deps.applyBootstrap(value);
+          if (current()) deps.applyBootstrap(value);
           return value;
         })
         .finally(() => {
-          bootstrapFlight = null;
+          if (bootstrapFlight?.promise === promise) bootstrapFlight = null;
         });
-      return bootstrapFlight;
+      bootstrapFlight = { epoch, token, storeId, revision, promise };
+      return promise;
     },
     async start() {
       startFlight ??= (async () => {
@@ -220,6 +243,8 @@ export function createAccountController(deps: AccountDeps) {
       if (epoch !== generation) return "failed";
       if (result.needPhone || !result.token || !result.me) return "needPhone";
       adoptSession(result.token, result.me);
+      // 请求层的 401 恢复应在拿到会话后结束；配置刷新不延长该恢复事务。
+      void controller.bootstrap().catch(() => undefined);
       return "ok";
     },
     async reloadMe(preferred?: string | null) {
@@ -232,8 +257,11 @@ export function createAccountController(deps: AccountDeps) {
         token === deps.token() &&
         token &&
         revision === deps.store().contextRev
-      )
+      ) {
         applyMe(me, preferred);
+        if (revision !== deps.store().contextRev)
+          await controller.bootstrap().catch(() => undefined);
+      }
     },
     async loadMine() {
       if (!deps.token()) {
@@ -287,7 +315,10 @@ export function createAccountController(deps: AccountDeps) {
         });
         if (epoch !== generation) return;
         adoptSession(result.token, result.me);
+        const adopted = generation;
         if (result.switchedFrom) update({ switchedFrom: result.switchedFrom.phoneMask });
+        await controller.bootstrap().catch(() => undefined);
+        if (adopted !== generation || result.token !== deps.token()) return;
         await deps.returnPage();
       } catch (error) {
         if (error instanceof ApiError && error.error === "AGREEMENT_VERSION_STALE") {
@@ -393,6 +424,7 @@ export function createAccountController(deps: AccountDeps) {
       const selected = deps.store();
       try {
         await controller.loadMine();
+        await controller.bootstrap().catch(() => undefined);
         await api.remember(storeId, key);
         switchKeys.delete(storeId);
       } catch {

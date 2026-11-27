@@ -27,8 +27,17 @@ let launchScene: number | undefined;
 async function loadBootstrap(): Promise<void> {
   const fetchBootstrap = serverCall("fetchBootstrap");
   if (!fetchBootstrap) return;
+  const token = getToken();
+  const { currentStoreId, contextRev } = useContextStore.getState();
   try {
-    useBootstrapStore.getState().apply(await fetchBootstrap(), systemClock.now());
+    const data = await fetchBootstrap();
+    const current = useContextStore.getState();
+    if (
+      token === getToken() &&
+      currentStoreId === current.currentStoreId &&
+      contextRev === current.contextRev
+    )
+      useBootstrapStore.getState().apply(data, systemClock.now());
   } catch {
     // 用缓存或默认值
   }
