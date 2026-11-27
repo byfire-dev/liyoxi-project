@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { contentAddressedKey } from "@liyoxi/shared";
 import type { PrismaClient } from "@liyoxi/db";
 import type { AdActor, AdStaffActor } from "../../ad/index.js";
 import { createIdentityContext, uuidv7 } from "../../kernel/index.js";
@@ -136,12 +138,31 @@ export async function preparePortalPreviewAd(input: {
     const info = await db.mediaInfo.findUniqueOrThrow({ where: { fileId: id } });
     if (info.coverFileId) {
       const cover = await db.fileObject.findUniqueOrThrow({ where: { id: info.coverFileId } });
+      const coverJob = await db.mediaJob.findFirst({
+        where: {
+          kind: "probe",
+          subjectId: id,
+          state: "succeeded",
+          output: { path: ["cover", "id"], equals: cover.id },
+        },
+      });
+      const ownedCoverKey =
+        !!coverJob &&
+        !!cover.sha256 &&
+        cover.objectKey ===
+          contentAddressedKey(
+            `covers/${cover.id}.jpg`,
+            createHash("sha256")
+              .update(JSON.stringify([coverJob.id, id, "cover"]))
+              .digest("hex"),
+            cover.sha256,
+          );
       if (
         cover.entityId !== actor.membership.entityId ||
         cover.storeId !== actor.membership.storeId ||
         cover.status !== "stored" ||
         cover.bucket !== "asset" ||
-        cover.objectKey !== `covers/${info.coverFileId}.jpg`
+        (cover.objectKey !== `covers/${info.coverFileId}.jpg` && !ownedCoverKey)
       )
         throw new Error("PREVIEW_AD_MEDIA_SCOPE");
       input.transport.own({ bucket: cover.bucket, key: cover.objectKey });

@@ -1,3 +1,4 @@
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, realpath, rm } from "node:fs/promises";
@@ -136,8 +137,14 @@ export function createMediaWorkspace(options: {
                 (input.expectedSize !== undefined && input.expectedSize !== stat.size)
               )
                 return failed("rejected", "已校验媒体产物在发布前改变");
+              const dst = input.contentAddressed
+                ? {
+                    ...input.dst,
+                    key: contentAddressedKey(input.dst.key, input.contentIdentity, sha256),
+                  }
+                : input.dst;
               const result = await options.storage.putStream({
-                ...input.dst,
+                ...dst,
                 body: source,
                 size: stat.size,
                 sha256,
@@ -148,11 +155,13 @@ export function createMediaWorkspace(options: {
                     : input.name === "watermark.png"
                       ? "image/png"
                       : "video/mp4",
-                ifAbsent: true,
+                ...(input.contentAddressed
+                  ? { contentAddressed: true as const }
+                  : { ifAbsent: true as const }),
                 signal: controller.signal,
               });
               if (!result.ok) return result;
-              const head = await options.storage.head({ ...input.dst, signal: controller.signal });
+              const head = await options.storage.head({ ...dst, signal: controller.signal });
               if (
                 !head.ok ||
                 !head.value.exists ||
@@ -160,7 +169,11 @@ export function createMediaWorkspace(options: {
                 head.value.etag !== result.value.etag
               )
                 return failed("rejected", "媒体产物写后头信息不一致");
-              return ok({ ...result.value, sha256 });
+              return ok({
+                ...result.value,
+                sha256,
+                ...(input.contentAddressed ? { objectKey: dst.key } : {}),
+              });
             },
           });
         } finally {

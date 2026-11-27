@@ -168,6 +168,7 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
           if (!result.ok) return result;
           return work.publish({
             name: "watermark.png",
+            contentAddressed: true,
             dst: { bucket: "media", key },
             contentIdentity: digest,
             expectedSha256: result.value.sha256,
@@ -176,7 +177,11 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
         });
         if (!rendered.ok) return rendered;
         watermarks = [
-          { image: { bucket: "media", key }, position: "Center", transparency: mark.transparency },
+          {
+            image: { bucket: "media", key: rendered.value.objectKey ?? key },
+            position: "Center",
+            transparency: mark.transparency,
+          },
         ];
       }
       return cloud.transcode({
@@ -404,6 +409,9 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
           bucket = kind === "transcode_mp4" ? ("pub" as const) : ("media" as const);
         const stored = await work.publish({
           name,
+          ...(!(kind === "normalize" && DerivationInputSchema.parse(value).manual)
+            ? { contentAddressed: true as const }
+            : {}),
           dst: { bucket, key: value.objectKey },
           contentIdentity: createHash("sha256")
             .update(JSON.stringify([value.destinationFileId, job.id, kind]))
@@ -428,11 +436,12 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
             deps.clock.now(),
           ),
         );
+        const { objectKey: _key, ...artifact } = stored.value;
         return {
           state: "succeeded",
           output: {
             fileId: value.destinationFileId,
-            ...stored.value,
+            ...artifact,
             technical,
             quality,
             aigcOrigin: label ? (upstream?.success ? "upstream" : "stamped") : null,

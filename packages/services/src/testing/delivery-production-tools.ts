@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@liyoxi/db";
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { assertNotInTransaction, uuidv7 } from "../kernel/index.js";
 import type { Env } from "../kernel/index.js";
@@ -199,9 +200,15 @@ export function createDeliveryProductionTools(
                 : input.name === "watermark.png"
                   ? "image/png"
                   : "video/mp4";
+            const dst = input.contentAddressed
+              ? {
+                  ...input.dst,
+                  key: contentAddressedKey(input.dst.key, input.contentIdentity, sha(output.bytes)),
+                }
+              : input.dst;
             const saved = storage
               ? await storage.putStream({
-                  ...input.dst,
+                  ...dst,
                   body: async function* (active) {
                     active.throwIfAborted();
                     for (let at = 0; at < output.bytes.length; at += 64 * 1024)
@@ -211,21 +218,28 @@ export function createDeliveryProductionTools(
                   sha256: sha(output.bytes),
                   contentType: mime,
                   contentIdentity: input.contentIdentity,
-                  ifAbsent: true,
+                  ...(input.contentAddressed
+                    ? { contentAddressed: true as const }
+                    : { ifAbsent: true as const }),
                   signal,
                 })
               : undefined;
             if (storage && !saved?.ok) return failed("unavailable", "owned output storage failed");
             const etag = saved?.ok
               ? saved.value.etag
-              : providers.storage.put(input.dst, output.bytes, mime);
+              : providers.storage.put(dst, output.bytes, mime);
             objects.set(`${input.dst.bucket}/${input.dst.key}`, {
               label: output.label,
               width: output.width,
               height: output.height,
               ...(output.sourceReport ? { sourceReport: output.sourceReport } : {}),
             });
-            return ok({ size: output.bytes.length, sha256: sha(output.bytes), etag });
+            return ok({
+              size: output.bytes.length,
+              sha256: sha(output.bytes),
+              etag,
+              ...(input.contentAddressed ? { objectKey: dst.key } : {}),
+            });
           },
         });
       } finally {

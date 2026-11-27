@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { checkProduction } from "@liyoxi/shared";
+import { checkProduction, contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import type { MediaJob } from "@liyoxi/db";
 import type { BoundMediaDeps } from "../context.js";
@@ -184,6 +184,7 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
           const key = `covers/${input.coverFileId}.jpg`,
             stored = await work.publish({
               name: "poster.jpg",
+              contentAddressed: true,
               dst: { bucket: "asset", key },
               expectedSha256: createHash("sha256").update(poster.value.bytes).digest("hex"),
               expectedSize: poster.value.sizeBytes,
@@ -193,14 +194,15 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
             });
           if (!stored.ok || stored.value.size !== poster.value.sizeBytes)
             return failure("MEDIA_POSTER_VERIFY_FAILED");
-          cover = { id: input.coverFileId, key, ...stored.value };
+          const { objectKey, ...artifact } = stored.value;
+          cover = { id: input.coverFileId, key: objectKey ?? key, ...artifact };
           await deps.tx.run((tx) =>
             createDerivedFile(
               tx,
               { ...facts.file, bucket: "asset", category: "video_cover" },
               {
                 id: input.coverFileId,
-                objectKey: key,
+                objectKey: objectKey ?? key,
                 ...stored.value,
                 mime: "image/jpeg",
                 ext: "jpg",
@@ -231,7 +233,15 @@ export function createProbeHandler(deps: BoundMediaDeps): MediaJobHandler {
       if (
         output.cover &&
         (output.cover.id !== input.coverFileId ||
-          output.cover.key !== `covers/${input.coverFileId}.jpg`)
+          (output.cover.key !== `covers/${input.coverFileId}.jpg` &&
+            output.cover.key !==
+              contentAddressedKey(
+                `covers/${input.coverFileId}.jpg`,
+                createHash("sha256")
+                  .update(JSON.stringify([job.id, job.subjectId, "cover"]))
+                  .digest("hex"),
+                output.cover.sha256,
+              )))
       )
         throw new Error("媒体封面归属不一致");
       if (output.cover)

@@ -1,3 +1,5 @@
+import { contentAddressedKey } from "@liyoxi/shared";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { MediaJob } from "@liyoxi/db";
 import { AppError } from "../../kernel/index.js";
@@ -34,6 +36,32 @@ export async function finishPlayable(
     throw new AppError("PROVIDER_UNAVAILABLE");
   if (output.fileId !== input.destinationFileId || output.quality !== input.quality)
     throw new AppError("STATE_NOT_ALLOWED");
+  const identity = createHash("sha256")
+    .update(
+      JSON.stringify(
+        "execution" in input
+          ? [
+              input.destinationFileId,
+              job.id,
+              input.sourceSha256,
+              input.contextHash,
+              input.recipe,
+              input.watermarks,
+            ]
+          : [input.destinationFileId, job.id, job.kind],
+      ),
+    )
+    .digest("hex");
+  const recorded = await tx.fileObject.findUnique({
+    where: { id: output.fileId },
+    select: { objectKey: true },
+  });
+  const objectKey = recorded?.objectKey ?? input.objectKey;
+  if (
+    objectKey !== input.objectKey &&
+    objectKey !== contentAddressedKey(input.objectKey, identity, output.sha256)
+  )
+    throw new AppError("STATE_NOT_ALLOWED");
   const source = await tx.fileObject.findUniqueOrThrow({ where: { id: job.subjectId } }),
     now = deps.clock.now();
   const file = await createDerivedFile(
@@ -43,7 +71,7 @@ export async function finishPlayable(
       bucket: job.kind === "transcode_mp4" ? "pub" : "media",
       category: job.kind === "transcode_mp4" ? "trailer_out" : "sample_wm",
     },
-    { id: output.fileId, objectKey: input.objectKey, ...output },
+    { id: output.fileId, objectKey, ...output },
     now,
   );
   await saveTechnical(tx, file.id, output.technical, null, now);

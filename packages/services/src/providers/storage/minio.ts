@@ -15,6 +15,7 @@ import {
   checkedStream,
   validStreamRead,
   validStreamWrite,
+  validStreamWriteMode,
   verifyReplay,
   STREAM_TIMEOUT_MS,
 } from "./streams.js";
@@ -373,7 +374,7 @@ export function createMinioStorage(config: MinioConfig = LOCAL_MINIO): MinioStor
         if (
           !validStreamWrite(input) ||
           input.key.startsWith(INCOMING_PREFIX) ||
-          input.ifAbsent !== true
+          !validStreamWriteMode(input)
         )
           return failed("rejected", "对象流写入参数不合格");
         let digest = "";

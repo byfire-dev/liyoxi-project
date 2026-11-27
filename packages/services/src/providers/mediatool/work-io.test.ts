@@ -1,3 +1,5 @@
+import { contentAddressedKey } from "@liyoxi/shared";
+import { createCosStorage } from "../storage/cos.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, realpath, readdir, rm, symlink, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -28,6 +30,90 @@ async function fixture() {
   return { workDir, storage, beforeCall, workspace, ref, etag };
 }
 describe("制作工作区真实文件边界", () => {
+  it("真实工作区在COS版本桶以摘要键发布，重试/并发与不同字节隔离并回读", async () => {
+    const workDir = await realpath(await mkdtemp("/tmp/lyx-versioned-io-"));
+    directories.push(workDir);
+    const objects = new Map<string, { body: Uint8Array; headers: Record<string, string> }>();
+    let puts = 0,
+      gets = 0;
+    const storage = createCosStorage(
+      {
+        region: "ap-shanghai",
+        buckets: {
+          secure: "test-secure-1250000000",
+          media: "test-media-1250000000",
+          asset: "test-asset-1250000000",
+          pub: "test-pub-1250000000",
+        },
+        worker: { secretId: "publicfakeid", secretKey: "publicfakekey" },
+      },
+      {
+        now: () => new Date(),
+        fetchImpl: async (input, init = {}) => {
+          const url = new URL(String(input));
+          if (url.searchParams.has("versioning"))
+            return new Response(
+              "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>",
+            );
+          if (init.method === "PUT") {
+            puts++;
+            const bytes = new Uint8Array(await new Response(init.body).arrayBuffer());
+            const h = new Headers(init.headers);
+            expect(h.has("x-cos-forbid-overwrite")).toBe(false);
+            const headers = {
+              "content-length": String(bytes.length),
+              etag: `"${createHash("md5").update(bytes).digest("hex")}"`,
+              "x-cos-meta-lyx-sha256": h.get("x-cos-meta-lyx-sha256")!,
+              "x-cos-meta-lyx-content-identity": h.get("x-cos-meta-lyx-content-identity")!,
+              "x-cos-version-id": `version-${puts}`,
+            };
+            objects.set(url.pathname, { body: bytes, headers });
+            return new Response(null, { headers });
+          }
+          const stored = objects.get(url.pathname);
+          if (!stored) return new Response(null, { status: 404 });
+          if (init.method === "HEAD") return new Response(null, { headers: stored.headers });
+          expect(init.method).toBe("GET");
+          gets++;
+          expect(new Headers(init.headers).get("If-Match")).toBe(stored.headers.etag);
+          return new Response(stored.body, { headers: stored.headers });
+        },
+      },
+    );
+    const workspace = createMediaWorkspace({ workDir, storage, beforeCall: () => {} });
+    workspaces.push(workspace);
+    const publish = (body: Uint8Array) =>
+      workspace.run(job, new AbortController().signal, async (work) => {
+        await writeFile(join(workDir, work.path("poster.jpg")), body);
+        return work.publish({
+          name: "poster.jpg",
+          dst: { bucket: "asset", key: "covers/owned.jpg" },
+          contentIdentity: identity,
+          contentAddressed: true,
+        });
+      });
+    try {
+      const first = await publish(bytes);
+      expect(first).toMatchObject({
+        ok: true,
+        value: { objectKey: contentAddressedKey("covers/owned.jpg", identity, sha), sha256: sha },
+      });
+      expect(await publish(bytes)).toEqual(first);
+      expect(puts).toBe(1);
+      const changed = new TextEncoder().encode("different actual bytes");
+      const [a, b] = await Promise.all([publish(changed), publish(changed)]);
+      expect(a).toEqual(b);
+      expect(a).not.toEqual(first);
+      expect(objects.size).toBe(2);
+      expect(gets).toBeGreaterThanOrEqual(4);
+      expect(
+        objects.get(`/${contentAddressedKey("covers/owned.jpg", identity, sha)}`)?.body,
+      ).toEqual(new Uint8Array(bytes));
+    } finally {
+      await storage.close();
+    }
+  });
+
   it("条件流下载与固定键流上传写后HEAD，结束删除独占目录", async () => {
     const f = await fixture();
     const result = await f.workspace.run(job, new AbortController().signal, async (work) => {

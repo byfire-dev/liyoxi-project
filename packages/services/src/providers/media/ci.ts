@@ -9,6 +9,13 @@ import type { CiConfig } from "./http.js";
 import { parseCiXml, ciChild, ciText } from "./xml.js";
 import type { CiXml } from "./xml.js";
 import { createCiZipPreview, parseCiFileCompressResult, validZipEntryName } from "./zip.js";
+function validWatermarkImageKey(key: string): boolean {
+  const match =
+    /^ci-out\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(?:ca-v1\/([a-f0-9]{64})\/[a-f0-9]{64}\/)?watermark-([a-f0-9]{64})\.png$/.exec(
+      key,
+    );
+  return !!match && (match[1] === undefined || match[1] === match[2]);
+}
 export type { CiConfig } from "./http.js";
 const bad = () => failed("rejected", "CI入参或应答形状不合法");
 const key = (value: unknown): value is string =>
@@ -215,9 +222,7 @@ export function createCiMedia(
           object(mark.image) &&
           Object.keys(mark.image).length === 2 &&
           mark.image.bucket === input.src.bucket &&
-          /^ci-out\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/watermark-[a-f0-9]{64}\.png$/.test(
-            mark.image.key,
-          ) &&
+          validWatermarkImageKey(mark.image.key) &&
           mark.position === "Center" &&
           Number.isInteger(mark.transparency) &&
           mark.transparency >= 1 &&

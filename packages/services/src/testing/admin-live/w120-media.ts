@@ -1,3 +1,4 @@
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
@@ -353,10 +354,29 @@ async function cleanupObjects(runtime: Runtime, runId: string, ids: string[]) {
       const info = await tx.mediaInfo.findUnique({ where: { fileId: id } });
       if (info?.coverFileId) {
         const cover = await tx.fileObject.findUniqueOrThrow({ where: { id: info.coverFileId } });
+        const coverJob = await tx.mediaJob.findFirst({
+          where: {
+            kind: "probe",
+            subjectId: id,
+            state: "succeeded",
+            output: { path: ["cover", "id"], equals: cover.id },
+          },
+        });
+        const ownedCoverKey =
+          !!coverJob &&
+          !!cover.sha256 &&
+          cover.objectKey ===
+            contentAddressedKey(
+              `covers/${cover.id}.jpg`,
+              createHash("sha256")
+                .update(JSON.stringify([coverJob.id, id, "cover"]))
+                .digest("hex"),
+              cover.sha256,
+            );
         guard(
           cover.bucket === "asset" &&
             cover.category === "video_cover" &&
-            cover.objectKey === `covers/${cover.id}.jpg` &&
+            (cover.objectKey === `covers/${cover.id}.jpg` || ownedCoverKey) &&
             cover.storeId === f.storeId &&
             cover.entityId === f.entityId,
         );
@@ -373,12 +393,43 @@ async function cleanupObjects(runtime: Runtime, runId: string, ids: string[]) {
         if (job.state !== "succeeded") continue;
         const output = z.strictObject({ fileId: z.uuid() }).loose().parse(job.output);
         const target = await tx.fileObject.findUniqueOrThrow({ where: { id: output.fileId } });
+        const input = z
+          .object({
+            execution: z.literal("local").optional(),
+            destinationFileId: z.uuid(),
+            sourceSha256: z.string().optional(),
+            contextHash: z.string().optional(),
+            recipe: z.string().optional(),
+            watermarks: z.array(z.unknown()),
+          })
+          .parse(job.input);
+        const identity = createHash("sha256")
+          .update(
+            JSON.stringify(
+              input.execution === "local"
+                ? [
+                    input.destinationFileId,
+                    job.id,
+                    input.sourceSha256,
+                    input.contextHash,
+                    input.recipe,
+                    input.watermarks,
+                  ]
+                : [input.destinationFileId, job.id, job.kind],
+            ),
+          )
+          .digest("hex");
+        const ownedKey =
+          input.destinationFileId === target.id &&
+          !!target.sha256 &&
+          target.objectKey ===
+            contentAddressedKey(`sample/${asset.id}/${target.id}.mp4`, identity, target.sha256);
         guard(
           target.category === "sample_wm" &&
             target.bucket === "media" &&
             target.entityId === f.entityId &&
             target.storeId === f.storeId &&
-            target.objectKey === `sample/${asset.id}/${target.id}.mp4`,
+            (target.objectKey === `sample/${asset.id}/${target.id}.mp4` || ownedKey),
         );
         result.push({ bucket: "media", key: target.objectKey });
       }

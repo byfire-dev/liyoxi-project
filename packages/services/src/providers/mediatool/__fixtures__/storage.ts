@@ -1,3 +1,4 @@
+import { validStreamWriteMode } from "../../storage/streams.js";
 import { createHash } from "node:crypto";
 import { failed, INCOMING_PREFIX, ok } from "../../types.js";
 import type { ObjectRef, StorageProvider } from "../../types.js";
@@ -77,7 +78,7 @@ export function createFakeStorage(): FixtureStorage {
         !boundedSize(input.size) ||
         !/^[a-f0-9]{64}$/.test(input.sha256) ||
         !/^[a-f0-9]{64}$/.test(input.contentIdentity) ||
-        input.ifAbsent !== true ||
+        !validStreamWriteMode(input) ||
         input.key.startsWith(INCOMING_PREFIX)
       )
         return failed("rejected", "媒体测试对象流参数不合格");
