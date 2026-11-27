@@ -37,8 +37,12 @@ const worker = (source: string) => ({
     deadTimers: 0,
     mediaPending: 0,
     mediaFailed: 0,
+    docsPending: 0,
+    docsFailed: 0,
   },
-  queues: [{ name: "timer_run", waiting: 0, active: 0, failed10Min: 0, paused: false }],
+  queues: ["outbox_delivery", "timer_run", "notify", "media_job", "promote", "docs"].map(
+    (name) => ({ name, waiting: 0, active: 0, failed10Min: 0, paused: false }),
+  ),
   hidden: privateValue,
 });
 const attachBase = {
@@ -383,6 +387,17 @@ it("W228 controller：四步对应SHA/独立worker真实事实/两20集链与两
   invalid.backlog.mediaPending = 1;
   expect(() => workerEvidence(invalid, HEAD, 10, true)).toThrow("not-drained");
   invalid.backlog.mediaPending = 0;
+  for (const key of ["docsPending", "docsFailed"] as const) {
+    invalid.backlog[key] = 1;
+    expect(() => workerEvidence(invalid, HEAD, 10, true)).toThrow("not-drained");
+    invalid.backlog[key] = 0;
+  }
+  const missingDocs = worker(HEAD);
+  missingDocs.queues = missingDocs.queues.filter((queue) => queue.name !== "docs");
+  expect(() => workerEvidence(missingDocs, HEAD, 10)).toThrow("worker-evidence");
+  const unknownQueue = worker(HEAD);
+  unknownQueue.queues[5]!.name = "unknown";
+  expect(() => workerEvidence(unknownQueue, HEAD, 10)).toThrow("worker-evidence");
   invalid.lease.version = OLD;
   expect(() => workerEvidence(invalid, HEAD, 10)).toThrow("worker-evidence");
 });

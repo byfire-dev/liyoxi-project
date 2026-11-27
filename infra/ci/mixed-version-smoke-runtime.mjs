@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -416,6 +416,13 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
       const layer = join(privateRoot, `layer-${source}`);
       mkdirSync(layer, { mode: 0o700 });
       writeFileSync(join(layer, ".mixed-source-sha"), `${source}\n`, { mode: 0o600, flag: "wx" });
+      // The build stage omits runtime fonts. Keep each version's fonts and licenses
+      // from its own immutable archive; M1 validates their hashes before admission.
+      cpSync(join(dir, "infra/docker/server/fonts"), join(layer, "infra/docker/server/fonts"), {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+      });
       // Dockerfile FROM parses a config image ID as a repository name; create accepts the exact ID.
       const layerId = await docker(["create", "--network", "none", ...labels, base.id]);
       requireFact(ID.test(layerId), "container-identity");
@@ -423,6 +430,7 @@ export function dockerBackend({ root, budget, signal, run = execute, spawnProces
       containers.push(layerEntry);
       requireFact((await owned(layerId)).image === base.id, "image-identity");
       await docker(["cp", join(layer, ".mixed-source-sha"), `${layerId}:/repo/.mixed-source-sha`]);
+      await docker(["cp", `${join(layer, "infra")}/.`, `${layerId}:/repo/infra`]);
       await docker(["commit", layerId, tag]);
       requireFact(
         (await docker(["image", "inspect", "--format", "{{.Parent}}", tag])) === base.id,
