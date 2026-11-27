@@ -21,6 +21,7 @@ jobs:
       - name: 检出对应源码及可比历史
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: 365934f6c1f04a57a0cc55487a8706b2eaca14af
           fetch-depth: 0
           persist-credentials: false
       - name: 装 Node
@@ -30,7 +31,7 @@ jobs:
       - name: 启动本 runner 独占的三个依赖
         run: docker compose -p liyoxi -f infra/compose/local.yml up -d --wait postgres redis minio
       - name: 两版镜像同库四步验证
-        run: timeout --signal=TERM --kill-after=30s 8m node infra/ci/mixed-version-smoke.mjs --report "$RUNNER_TEMP/mixed-smoke.json"
+        run: timeout --signal=TERM --kill-after=30s 8m node infra/ci/mixed-version-smoke.mjs --prev 13f485def43857afda19dc58303ff687099bb2ca --report "$RUNNER_TEMP/mixed-smoke.json"
       - name: 只保存白名单混跑报告
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
