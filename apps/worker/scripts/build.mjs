@@ -82,7 +82,8 @@ const options = {
   logLevel: "warning",
   metafile: true,
 };
-const result = await build(options);
+// Preserve entry files and function/class names while keeping private maps within the release budget.
+const result = await build({ ...options, minify: true, keepNames: true, charset: "utf8" });
 
 // Preserve the normal app bundle. Only the separate CPU entry follows its verified public binding.
 function assertExports(path, target, names) {
