@@ -6,6 +6,7 @@ import {
   checkedStream,
   validStreamRead,
   validStreamWrite,
+  validStreamWriteMode,
   verifyReplay,
   STREAM_TIMEOUT_MS,
 } from "./streams.js";
@@ -661,7 +662,7 @@ export function createCosStorage(
             !validStreamWrite(input) ||
             input.key.startsWith(INCOMING_PREFIX) ||
             !textValue(input.contentType) ||
-            input.ifAbsent !== true
+            !validStreamWriteMode(input)
           )
             return BAD();
           if (!config.worker) return OFF();
@@ -688,21 +689,52 @@ export function createCosStorage(
             undefined,
             signal,
           );
-          if (
-            versioning.status !== 200 ||
-            !/^\s*(?:<\?xml[^?]*\?>\s*)?<VersioningConfiguration(?:\s+xmlns="[^"]*")?\s*(?:\/>|>\s*<\/VersioningConfiguration>)\s*$/.test(
+          const unversioned =
+            /^\s*(?:<\?xml[^?]*\?>\s*)?<VersioningConfiguration(?:\s+xmlns="[^"]*")?\s*(?:\/>|>\s*<\/VersioningConfiguration>)\s*$/.test(
               versioning.text,
-            )
-          )
-            return failed("unsupported", "COS未确认该桶允许原子防覆盖");
+            );
+          const versioned =
+            /^\s*(?:<\?xml[^?]*\?>\s*)?<VersioningConfiguration(?:\s+xmlns="[^"]*")?>\s*<Status>Enabled<\/Status>\s*<\/VersioningConfiguration>\s*$/.test(
+              versioning.text,
+            );
+          if (versioning.status !== 200 || (!unversioned && !(input.contentAddressed && versioned)))
+            return failed("unsupported", "COS未确认该桶支持所选写入语义");
+          if (input.contentAddressed) {
+            const existing = await signed(
+              input,
+              "HEAD",
+              config.worker,
+              {},
+              {},
+              undefined,
+              undefined,
+              undefined,
+              signal,
+            );
+            if (existing.status === 200)
+              return existing.headers.get("content-length") === String(input.size) &&
+                existing.headers.get("x-cos-meta-lyx-sha256") === input.sha256 &&
+                existing.headers.get("x-cos-meta-lyx-content-identity") === input.contentIdentity &&
+                existing.headers.get("etag")
+                ? verifyReplay(input, existing.headers.get("etag")!, signal, readTo)
+                : failed("rejected", "COS目标hash/归属不一致");
+            if (existing.status !== 404 || existing.headers.get("x-cos-delete-marker") === "true")
+              return failed("rejected", "COS内容目标不可安全写入");
+          }
           let sentDigest = "";
           const sourceController = new AbortController(),
             bodySignal = AbortSignal.any([signal, sourceController.signal]);
           const body = Readable.from(
-            checkedStream(input.body(bodySignal), input.size, bodySignal, (value) => {
-              if (value !== input.sha256) throw new Error("COS流内容已变更");
-              sentDigest = value;
-            }),
+            checkedStream(
+              input.body(bodySignal),
+              input.size,
+              bodySignal,
+              (value) => {
+                if (value !== input.sha256) throw new Error("COS流内容已变更");
+                sentDigest = value;
+              },
+              input.contentAddressed === true,
+            ),
           );
           const abort = () => {
             sourceController.abort();
@@ -720,7 +752,7 @@ export function createCosStorage(
                 "Content-Length": String(input.size),
                 "x-cos-meta-lyx-sha256": input.sha256,
                 "x-cos-meta-lyx-content-identity": input.contentIdentity,
-                "x-cos-forbid-overwrite": "true",
+                ...(unversioned ? { "x-cos-forbid-overwrite": "true" } : {}),
               },
               signal,
               body,
@@ -762,9 +794,11 @@ export function createCosStorage(
             }
             if (response.status === 200) await finished(body);
             if (response.status !== 200) return failure(response);
-            return sentDigest === input.sha256 && response.headers.get("etag")
-              ? ok({ etag: response.headers.get("etag")!, size: input.size })
-              : UNAVAILABLE();
+            if (sentDigest !== input.sha256 || !response.headers.get("etag")) return UNAVAILABLE();
+            if (versioned && !response.headers.get("x-cos-version-id")) return UNAVAILABLE();
+            return input.contentAddressed
+              ? verifyReplay(input, response.headers.get("etag")!, signal, readTo)
+              : ok({ etag: response.headers.get("etag")!, size: input.size });
           } finally {
             signal.removeEventListener("abort", abort);
             sourceController.abort();

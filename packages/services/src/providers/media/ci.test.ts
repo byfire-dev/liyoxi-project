@@ -123,6 +123,36 @@ describe("腾讯数据万象原生HTTP协议", () => {
       ).toMatchObject({ ok: false, reason: "rejected" });
     expect(send).not.toHaveBeenCalled();
   });
+  it("内容寻址PNG保留同桶和文字归属，拒绝目录与文件来源不符", async () => {
+    const send = vi.fn(async () => new Response(response()));
+    const provider = driver(send);
+    const identity = "f".repeat(64),
+      digest = "e".repeat(64);
+    const key = `ci-out/019acdef-0000-7000-8000-000000000000/ca-v1/${identity}/${digest}/watermark-${identity}.png`;
+    expect(
+      await provider.transcode({
+        ...transcode,
+        watermarks: [{ image: { bucket: "media", key }, position: "Center", transparency: 100 }],
+      }),
+    ).toHaveProperty("ok", true);
+    send.mockClear();
+    expect(
+      await provider.transcode({
+        ...transcode,
+        watermarks: [
+          {
+            image: {
+              bucket: "media",
+              key: key.replace(`/ca-v1/${identity}/`, `/ca-v1/${digest}/`),
+            },
+            position: "Center",
+            transparency: 100,
+          },
+        ],
+      }),
+    ).toMatchObject({ ok: false });
+    expect(send).not.toHaveBeenCalled();
+  });
   it("原生Image仅签固定同桶PNG，15分钟独立GET向量与完整XML节点", async () => {
     let sent = "";
     const provider = driver(async (_url, init) => {

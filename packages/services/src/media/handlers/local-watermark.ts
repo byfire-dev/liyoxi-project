@@ -156,6 +156,7 @@ export function createLocalWatermarkHandler(deps: BoundMediaDeps): MediaJobHandl
         if (signal.aborted) return failure("MEDIA_JOB_TIMEOUT", true);
         const stored = await work.publish({
           name: "stamped.mp4",
+          contentAddressed: true,
           dst: { bucket: "media", key: input.objectKey },
           contentIdentity: createHash("sha256")
             .update(
@@ -190,11 +191,12 @@ export function createLocalWatermarkHandler(deps: BoundMediaDeps): MediaJobHandl
             deps.clock.now(),
           ),
         );
+        const { objectKey: _key, ...artifact } = stored.value;
         return {
           state: "succeeded",
           output: {
             fileId: input.destinationFileId,
-            ...stored.value,
+            ...artifact,
             quality: "source",
             technical,
             aigcOrigin: null,

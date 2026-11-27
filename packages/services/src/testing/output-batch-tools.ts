@@ -71,10 +71,14 @@ export function createOutputBatchToolsForTest(options: {
                   throw new Error(
                     "W302 output lacks an actual downloaded source or exact rendered PNG proof",
                   );
-              } else options.rememberDerived(source, input.dst);
+              }
               const result = await work.publish(input);
+              const dst = result.ok
+                ? { ...input.dst, key: result.value.objectKey ?? input.dst.key }
+                : input.dst;
+              if (result.ok && source) options.rememberDerived(source, dst);
               if (result.ok && input.name === "watermark.png")
-                options.rememberRenderedPng(input.dst, {
+                options.rememberRenderedPng(dst, {
                   sha256: result.value.sha256,
                   size: result.value.size,
                 });

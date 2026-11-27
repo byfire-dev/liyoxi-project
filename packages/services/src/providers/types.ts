@@ -574,7 +574,9 @@ export interface MediaWorkSession {
     contentIdentity: string;
     expectedSha256?: string;
     expectedSize?: number;
-  }): Promise<ProviderResult<{ size: number; sha256: string; etag: string }>>;
+    /** Publish under an owner/content-bound key; return its exact address. */
+    contentAddressed?: true;
+  }): Promise<ProviderResult<{ size: number; sha256: string; etag: string; objectKey?: string }>>;
 }
 export interface MediaWorkspace {
   run<T>(
@@ -644,7 +646,7 @@ export interface StorageProvider extends ProviderBase {
       sink: (chunk: Uint8Array) => Promise<void>;
     },
   ): Promise<ProviderResult<{ size: number; sha256: string }>>;
-  /** 正式区固定键的原子条件流写；真实逐块长度/hash核对，不缓存完整对象。 */
+  /** 固定键原子条件写，或显式内容寻址写；后者可产生同字节历史版本，不声称原子防覆盖。 */
   putStream(
     input: ObjectRef & {
       body: (signal: AbortSignal) => AsyncIterable<Uint8Array>;
@@ -652,9 +654,10 @@ export interface StorageProvider extends ProviderBase {
       sha256: string;
       contentIdentity: string;
       contentType: string;
-      ifAbsent: true;
       signal: AbortSignal;
-    },
+    } & (
+        { ifAbsent: true; contentAddressed?: never } | { contentAddressed: true; ifAbsent?: never }
+      ),
   ): Promise<ProviderResult<{ etag: string; size: number }>>;
   /** 系统文件写入正式区；只供服务端种子与系统生成文件，禁止端侧使用。 */
   putObject(

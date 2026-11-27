@@ -15,7 +15,12 @@ import type {
   StorageProvider,
   BackupTarget,
 } from "../../providers/types.js";
-import { backupObjectKey, createBackupStorage, validBackupTarget } from "../../providers/index.js";
+import {
+  backupObjectKey,
+  createBackupStorage,
+  validBackupTarget,
+  validStreamWriteMode,
+} from "../../providers/index.js";
 import type { BackupTransport } from "../../providers/index.js";
 import { createFakeCore, systemClock } from "./base.js";
 import type { FakeClock, FakeControl } from "./base.js";
@@ -445,7 +450,7 @@ export function createFakeStorage(
           !boundedSize(input.size) ||
           !/^[a-f0-9]{64}$/.test(input.sha256) ||
           !/^[a-f0-9]{64}$/.test(input.contentIdentity) ||
-          input.ifAbsent !== true ||
+          !validStreamWriteMode(input) ||
           input.key.startsWith(INCOMING_PREFIX)
         )
           return failed("rejected", "替身对象流参数不合格");

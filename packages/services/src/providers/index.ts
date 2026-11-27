@@ -64,6 +64,7 @@ export {
   backupObjectKey,
 } from "./storage/backup-stream.js";
 export type { BackupTransport } from "./storage/backup-stream.js";
+export { validStreamWriteMode } from "./storage/streams.js";
 export { createTencentAsr } from "./asr/tencent.js";
 export { createTencentOcr } from "./ocr/tencent.js";
 export type { TencentOcrConfig, TencentOcrOptions } from "./ocr/tencent.js";

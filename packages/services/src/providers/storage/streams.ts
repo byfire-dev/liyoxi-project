@@ -1,3 +1,4 @@
+import { isContentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { failed, ok } from "../types.js";
 import type { ProviderResult, StorageProvider } from "../types.js";
@@ -36,8 +37,10 @@ export async function* checkedStream(
   size: number,
   signal: AbortSignal,
   complete: (sha256: string) => void,
+  verifyBeforeEnd = false,
 ): AsyncGenerator<Uint8Array> {
-  let total = 0;
+  let total = 0,
+    held: Uint8Array | undefined;
   const hash = createHash("sha256");
   for await (const chunk of source) {
     if (signal.aborted) throw new Error("storage transfer canceled");
@@ -46,10 +49,18 @@ export async function* checkedStream(
     total += chunk.byteLength;
     if (total > size) throw new Error("storage transfer length exceeded");
     hash.update(chunk);
-    yield chunk;
+    if (!verifyBeforeEnd) yield chunk;
+    else if (chunk.length) {
+      if (held) yield held;
+      held = Uint8Array.of(chunk[chunk.length - 1]!);
+      if (chunk.length > 1) yield chunk.subarray(0, -1);
+    }
   }
   if (signal.aborted || total !== size) throw new Error("storage transfer incomplete");
   complete(hash.digest("hex"));
+  // COS may commit as soon as Content-Length bytes arrive. Release the last byte only
+  // after the complete length/hash is verified, including a second-pass source change.
+  if (held) yield held;
 }
 
 /** Metadata narrows candidates; only a conditional, fully hashed read can adopt one. */
@@ -80,4 +91,17 @@ export async function verifyReplay(
   return result.value.size === input.size && result.value.sha256 === input.sha256
     ? ok({ etag, size: input.size })
     : failed("rejected", "已有对象真实字节hash不一致");
+}
+
+export function validStreamWriteMode(input: {
+  key: string;
+  sha256: string;
+  contentIdentity: string;
+  ifAbsent?: true;
+  contentAddressed?: true;
+}): boolean {
+  return input.contentAddressed === true
+    ? input.ifAbsent === undefined &&
+        isContentAddressedKey(input.key, input.contentIdentity, input.sha256)
+    : input.contentAddressed === undefined && input.ifAbsent === true;
 }

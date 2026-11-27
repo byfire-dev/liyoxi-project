@@ -1,3 +1,4 @@
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@liyoxi/db";
@@ -223,15 +224,23 @@ async function fixture(
   const publish = vi.fn(async (request: Parameters<MediaWorkSession["publish"]>[0]) => {
     assertNotInTransaction("production-publish");
     const bytes = input.localWatermark && request.name === "stamped.mp4" ? localBody : body;
+    const actualSha = createHash("sha256").update(bytes).digest("hex");
+    const dst = request.contentAddressed
+      ? {
+          ...request.dst,
+          key: contentAddressedKey(request.dst.key, request.contentIdentity, actualSha),
+        }
+      : request.dst;
     const etag = fake.storage.put(
-      request.dst,
+      dst,
       bytes,
       request.name === "poster.jpg" ? "image/jpeg" : "video/mp4",
     );
     return ok({
       size: bytes.length,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
+      sha256: actualSha,
       etag,
+      ...(request.contentAddressed ? { objectKey: dst.key } : {}),
     });
   });
   const workspace: MediaWorkspace = {

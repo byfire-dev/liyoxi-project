@@ -1,3 +1,5 @@
+import { contentAddressedKey } from "@liyoxi/shared";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { ProductionRecord } from "@liyoxi/db";
 import { checkProduction } from "@liyoxi/shared";
@@ -434,7 +436,25 @@ async function verifiedProductionFacts(
           result.data.size === result.data.technical.sizeBytes &&
           result.data.sha256 !== file.sha256 &&
           result.data.etag === target?.etag &&
-          target?.objectKey === localInput.data.objectKey &&
+          (target?.objectKey === localInput.data.objectKey ||
+            (!!target?.sha256 &&
+              target.objectKey ===
+                contentAddressedKey(
+                  localInput.data.objectKey,
+                  createHash("sha256")
+                    .update(
+                      JSON.stringify([
+                        localInput.data.destinationFileId,
+                        task.id,
+                        localInput.data.sourceSha256,
+                        localInput.data.contextHash,
+                        localInput.data.recipe,
+                        localInput.data.watermarks,
+                      ]),
+                    )
+                    .digest("hex"),
+                  target.sha256,
+                ))) &&
           target.bucket === "media" &&
           !!info &&
           localSampleOutputValid(result.data.technical, info, context, parameters)

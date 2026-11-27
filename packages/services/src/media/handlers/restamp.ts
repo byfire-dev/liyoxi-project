@@ -1,3 +1,4 @@
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import type { MediaJob } from "@liyoxi/db";
 import type { BoundMediaDeps } from "../context.js";
@@ -69,13 +70,33 @@ export async function finishDerivation(
     facts = await readProductionWork(deps, tx, job.subjectId);
   if (!facts.production || output.fileId !== input.destinationFileId)
     throw new Error("媒体派生结果归属不一致");
+  const recorded = await tx.fileObject.findUnique({
+    where: { id: output.fileId },
+    select: { objectKey: true },
+  });
+  const objectKey = recorded?.objectKey ?? input.objectKey;
+  const expected = contentAddressedKey(
+    input.objectKey,
+    createHash("sha256")
+      .update(
+        JSON.stringify(
+          job.kind === "restamp"
+            ? [input.destinationFileId, input.contextHash, "restamp"]
+            : [input.destinationFileId, job.id, job.kind],
+        ),
+      )
+      .digest("hex"),
+    output.sha256,
+  );
+  if (objectKey !== input.objectKey && (input.manual || objectKey !== expected))
+    throw new AppError("STATE_NOT_ALLOWED");
   const now = deps.clock.now();
   await createDerivedFile(
     tx,
     facts.file,
     {
       id: output.fileId,
-      objectKey: input.objectKey,
+      objectKey,
       ...output,
       ...(input.manual ? { manual: { job, sourceRecord: facts.production } } : {}),
     },
@@ -238,6 +259,7 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
           return failure("MEDIA_AIGC_READBACK_MISMATCH");
         const result = await work.publish({
           name,
+          ...(!input.manual ? { contentAddressed: true as const } : {}),
           dst: { bucket: facts.file.bucket as StorageBucket, key: input.objectKey },
           contentIdentity: createHash("sha256")
             .update(JSON.stringify([input.destinationFileId, input.contextHash, "restamp"]))
@@ -260,11 +282,12 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
             deps.clock.now(),
           ),
         );
+        const { objectKey: _key, ...artifact } = result.value;
         return {
           state: "succeeded",
           output: {
             fileId: input.destinationFileId,
-            ...result.value,
+            ...artifact,
             technical,
             aigcOrigin: upstream ? "upstream" : "stamped",
           } as unknown as JobJson,

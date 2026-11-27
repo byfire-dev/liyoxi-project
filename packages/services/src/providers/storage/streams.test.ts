@@ -1,3 +1,4 @@
+import { contentAddressedKey } from "@liyoxi/shared";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { Socket } from "node:net";
@@ -38,6 +39,8 @@ function fixture(
     existing?: boolean;
     targetHash?: string;
     actualBytes?: Uint8Array;
+    initiallyAbsent?: boolean;
+    missingVersion?: boolean;
   } = {},
 ) {
   const requests: Array<{ url: URL; init: RequestInit }> = [];
@@ -54,6 +57,8 @@ function fixture(
       "x-cos-meta-lyx-sha256": overrides.targetHash ?? sha,
       "x-cos-meta-lyx-content-identity": identity,
     };
+    if (init.method === "HEAD" && overrides.initiallyAbsent && written.length === 0)
+      return new Response(null, { status: 404 });
     if (init.method === "HEAD")
       return new Response(null, { status: overrides.status ?? 200, headers });
     if (url.searchParams.has("versioning"))
@@ -87,7 +92,13 @@ function fixture(
         reader.releaseLock();
       }
       written = new Uint8Array(Buffer.concat(parts));
-      return new Response(null, { status: 200, headers: { etag } });
+      return new Response(null, {
+        status: 200,
+        headers: {
+          etag,
+          ...(overrides.missingVersion ? {} : { "x-cos-version-id": "verified-version" }),
+        },
+      });
     }
     throw new Error("unexpected request");
   };
@@ -126,6 +137,109 @@ function writeInput(
   };
 }
 describe("COS bounded streams", () => {
+  const versioned = "<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>";
+  function addressed() {
+    const { ifAbsent: _, ...input } = writeInput();
+    return {
+      ...input,
+      contentAddressed: true as const,
+      key: contentAddressedKey(input.key, identity, sha),
+    };
+  }
+  it("版本桶显式内容寻址写后读取真实字节，重放不再PUT", async () => {
+    const f = fixture({ versioning: versioned, initiallyAbsent: true });
+    const result = await f.driver.putStream(addressed());
+    expect(result).toEqual({ ok: true, value: { etag, size } });
+    expect(f.written()).toEqual(bytes);
+    expect(await f.driver.putStream(addressed())).toEqual(result);
+    const puts = f.requests.filter((r) => r.init.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(new Headers(puts[0]!.init.headers).has("x-cos-forbid-overwrite")).toBe(false);
+    expect(
+      f.requests.filter((r) => r.init.method === "GET" && !r.url.searchParams.has("versioning")),
+    ).toHaveLength(2);
+  });
+  it("版本桶拒绝伪造地址/来源/字节、双模式、异常HEAD与未知版本状态", async () => {
+    for (const input of [
+      { ...addressed(), key: ref.key },
+      { ...addressed(), sha256: "3".repeat(64) },
+      { ...addressed(), contentIdentity: "3".repeat(64) },
+      { ...addressed(), ifAbsent: true },
+    ]) {
+      const f = fixture({ versioning: versioned });
+      expect(
+        await f.driver.putStream(input as Parameters<typeof f.driver.putStream>[0]),
+      ).toMatchObject({ ok: false, reason: "rejected" });
+      expect(f.requests).toHaveLength(0);
+    }
+    for (const overrides of [
+      { actualBytes: new Uint8Array(size) },
+      { targetHash: "0".repeat(64) },
+      { status: 403 },
+      { status: 500 },
+      {
+        versioning: "<VersioningConfiguration><Status>Suspended</Status></VersioningConfiguration>",
+      },
+      {
+        versioning:
+          "<VersioningConfiguration><Status>Enabled</Status><Unknown/></VersioningConfiguration>",
+      },
+    ]) {
+      const f = fixture({ versioning: versioned, ...overrides });
+      expect(await f.driver.putStream(addressed())).toMatchObject({ ok: false });
+      expect(f.requests.some((r) => r.init.method === "PUT")).toBe(false);
+    }
+  });
+  it("第二遍源变更时不能送满Content-Length覆盖并发已登记对象", async () => {
+    let scans = 0,
+      received = 0;
+    let current = bytes;
+    const driver = createCosStorage(config, {
+      now: () => new Date(),
+      fetchImpl: async (url, init = {}) => {
+        if (new URL(String(url)).searchParams.has("versioning")) return new Response(versioned);
+        if (init.method === "HEAD") return new Response(null, { status: 404 });
+        expect(init.method).toBe("PUT");
+        const parts: Uint8Array[] = [];
+        const reader = (init.body as ReadableStream<Uint8Array>).getReader();
+        try {
+          while (true) {
+            const chunk = await reader.read();
+            if (chunk.done) break;
+            received += chunk.value.length;
+            parts.push(chunk.value);
+            // Model COS committing immediately when the declared byte count arrives.
+            if (received === size) current = new Uint8Array(Buffer.concat(parts));
+          }
+        } catch {
+          /* a truncated request cannot commit */
+        } finally {
+          reader.releaseLock();
+        }
+        return new Response(null, { status: 500 });
+      },
+    });
+    owned.push(driver);
+    expect(
+      await driver.putStream({
+        ...addressed(),
+        body: async function* () {
+          scans++;
+          yield scans === 1 ? bytes : new Uint8Array(size);
+        },
+      }),
+    ).toMatchObject({ ok: false });
+    expect(scans).toBe(2);
+    expect(received).toBeLessThan(size);
+    expect(current).toEqual(bytes);
+  });
+  it("版本化写入缺版本回执或回读字节改变不能作为成功", async () => {
+    for (const overrides of [{ missingVersion: true }, { actualBytes: new Uint8Array(size) }]) {
+      const f = fixture({ versioning: versioned, initiallyAbsent: true, ...overrides });
+      expect(await f.driver.putStream(addressed())).toMatchObject({ ok: false });
+    }
+  });
+
   it("COS metadata声明正确但真实GET字节不符时拒绝409重放", async () => {
     const f = fixture({ existing: true, actualBytes: new Uint8Array(size) });
     const result = await f.driver.putStream(writeInput());
