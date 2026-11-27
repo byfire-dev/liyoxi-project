@@ -127,12 +127,100 @@ function memory(): KeyValueStorage {
 }
 
 describe("账户启动与登录", () => {
+  it("游客引导后静默登录，立即取得当前门店的样片开关", async () => {
+    const env = setup(null);
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockImplementation(async () => ({
+      ...bootstrap,
+      flags: { "weapp.video.sample.enabled": Boolean(env.local.token && env.local.storeId) },
+    }));
+    await env.controller.start();
+    expect(env.applyBootstrap).toHaveBeenLastCalledWith(
+      expect.objectContaining({ flags: { "weapp.video.sample.enabled": true } }),
+    );
+  });
+  it("已有会话首次选定门店后重新取得主体配置", async () => {
+    const env = setup();
+    vi.mocked(env.api.bootstrap).mockImplementation(async () => ({
+      ...bootstrap,
+      flags: { "weapp.video.sample.enabled": Boolean(env.local.storeId) },
+    }));
+    await env.controller.start();
+    expect(env.applyBootstrap).toHaveBeenLastCalledWith(
+      expect.objectContaining({ flags: { "weapp.video.sample.enabled": true } }),
+    );
+  });
+  it("手机号登录返回页面前取得已登录门店配置", async () => {
+    const env = setup(null);
+    await env.controller.loadAgreements();
+    await env.controller.phoneLogin("phone-code", true);
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+    expect(env.applyBootstrap.mock.invocationCallOrder[0]).toBeLessThan(
+      env.returnPage.mock.invocationCallOrder[0]!,
+    );
+  });
+  it("登录后刷新失败不把成功登录判为失败", async () => {
+    const env = setup(null);
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockRejectedValue(new Error("offline"));
+    await expect(env.controller.silentLogin("code")).resolves.toBe("ok");
+    expect(env.local.token).toBe("fresh");
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("刷新配置期间退出，不再报告静默登录成功", async () => {
+    const env = setup(null);
+    const pending = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.silent).mockResolvedValue({ needPhone: false, token: "fresh", me: makeMe() });
+    vi.mocked(env.api.bootstrap).mockReturnValue(pending.promise);
+    const login = env.controller.silentLogin("code");
+    await vi.waitFor(() => expect(env.api.bootstrap).toHaveBeenCalled());
+    env.controller.clear();
+    pending.resolve(bootstrap);
+    await expect(login).resolves.toBe("failed");
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+  });
+  it("旧游客引导晚到不能覆盖登录后配置，也不能清除新请求的合并状态", async () => {
+    const env = setup(null);
+    const old = deferred<Data<"m.bootstrap.get">>();
+    const fresh = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.bootstrap)
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(fresh.promise);
+    const pendingOld = env.controller.bootstrap();
+    env.local.token = "fresh";
+    env.local.storeId = makeMe().memberships[0]!.lastStoreId;
+    env.local.contextRev++;
+    const pendingFresh = env.controller.bootstrap();
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
+    old.resolve({ ...bootstrap, flags: { "weapp.video.sample.enabled": false } });
+    await pendingOld;
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+    expect(env.controller.bootstrap()).toBe(pendingFresh);
+    fresh.resolve({ ...bootstrap, flags: { "weapp.video.sample.enabled": true } });
+    await pendingFresh;
+    expect(env.applyBootstrap).toHaveBeenCalledTimes(1);
+  });
+  it("门店变化独立加载，已登出的在途响应不再写入", async () => {
+    const env = setup();
+    const old = deferred<Data<"m.bootstrap.get">>();
+    vi.mocked(env.api.bootstrap).mockReturnValueOnce(old.promise);
+    const pending = env.controller.bootstrap();
+    env.local.storeId = makeMe().memberships[0]!.stores[1]!.storeId;
+    env.local.contextRev++;
+    await env.controller.bootstrap();
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
+    env.controller.clear();
+    env.applyBootstrap.mockClear();
+    old.resolve(bootstrap);
+    await pending;
+    expect(env.applyBootstrap).not.toHaveBeenCalled();
+  });
   it("有令牌先引导再 me，不静默；优先服务端有效门店，未知门店回退", async () => {
     const env = setup();
     const second = makeMe().memberships[0]!.stores[1]!.storeId;
     vi.mocked(env.api.bootstrap).mockResolvedValue({ ...bootstrap, context: { storeId: second } });
     await Promise.all([env.controller.start(), env.controller.start()]);
-    expect(env.api.bootstrap).toHaveBeenCalledTimes(1);
+    expect(env.api.bootstrap).toHaveBeenCalledTimes(2);
     expect(env.api.me).toHaveBeenCalledTimes(1);
     expect(env.api.silent).not.toHaveBeenCalled();
     expect(env.local.storeId).toBe(second);
