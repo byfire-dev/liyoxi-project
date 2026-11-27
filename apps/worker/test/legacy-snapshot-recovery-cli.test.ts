@@ -1,7 +1,12 @@
 import type * as ServiceExports from "@liyoxi/services";
 import { beforeEach, expect, it, vi } from "vitest";
 import { runLegacySnapshotRecovery } from "../src/cli/legacy-snapshot-recovery-command.js";
-const state = vi.hoisted(() => ({ create: vi.fn(), recover: vi.fn(), close: vi.fn() }));
+const state = vi.hoisted(() => ({
+  create: vi.fn(),
+  recover: vi.fn(),
+  resolve: vi.fn(),
+  close: vi.fn(),
+}));
 vi.mock("@liyoxi/services", async (original) => {
   const real = await original<typeof ServiceExports>();
   return {
@@ -9,6 +14,7 @@ vi.mock("@liyoxi/services", async (original) => {
     loadEnv: (source: Record<string, string>) => ({ APP_ENV: source.APP_ENV }),
     createRuntime: state.create,
     recoverLegacyDailySnapshot: state.recover,
+    resolveLegacyRecoveryFindings: state.resolve,
   };
 });
 const sourceSha = "a".repeat(40),
@@ -91,5 +97,23 @@ it("异常仅输出受限错误码，私有证据与配置不泄漏", async () =
   expect(result.code).toBe(2);
   expect(result.err).toEqual(["LEGACY_RECOVERY_FAILED"]);
   expect(result.out).toEqual([]);
+  expect(state.close).toHaveBeenCalledOnce();
+});
+
+it("违规收尾必须显式 apply 和两个指纹，调用独立复核入口", async () => {
+  expect((await run([...args, "--resolve-history-findings"])).code).toBe(1);
+  expect(state.create).not.toHaveBeenCalled();
+  const result = await run([
+    ...args,
+    "--resolve-history-findings",
+    "--apply",
+    "--evidence-hash",
+    "b".repeat(64),
+    "--payload-hash",
+    "c".repeat(64),
+  ]);
+  expect(result.code).toBe(0);
+  expect(state.resolve).toHaveBeenCalledOnce();
+  expect(state.recover).not.toHaveBeenCalled();
   expect(state.close).toHaveBeenCalledOnce();
 });

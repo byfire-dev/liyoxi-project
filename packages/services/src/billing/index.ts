@@ -214,3 +214,4 @@ export {
   recoverLegacyDailySnapshot,
   LegacyRecoveryInputSchema,
 } from "./reporting/legacy-recovery.js";
+export type { LegacyRecoveryInput } from "./reporting/legacy-recovery.js";

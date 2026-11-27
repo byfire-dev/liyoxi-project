@@ -4,6 +4,7 @@ import {
   loadEnv,
   LegacyRecoveryInputSchema,
   recoverLegacyDailySnapshot,
+  resolveLegacyRecoveryFindings,
 } from "@liyoxi/services";
 
 export async function runLegacySnapshotRecovery(options: {
@@ -23,7 +24,9 @@ export async function runLegacySnapshotRecovery(options: {
     ((line: string) => {
       process.stderr.write(`${line}\n`);
     });
-  let env, input;
+  let env,
+    input,
+    resolveFindings = false;
   try {
     const { values, tokens } = parseArgs({
       args: [...(options.argv ?? process.argv.slice(2))],
@@ -37,6 +40,7 @@ export async function runLegacySnapshotRecovery(options: {
         "evidence-hash": { type: "string" },
         "payload-hash": { type: "string" },
         apply: { type: "boolean", default: false },
+        "resolve-history-findings": { type: "boolean", default: false },
       },
     });
     const names = tokens.filter((t) => t.kind === "option").map((t) => t.name);
@@ -61,6 +65,8 @@ export async function runLegacySnapshotRecovery(options: {
     )
       throw new Error("version");
     if (input.apply && (!input.evidenceHash || !input.payloadHash)) throw new Error("hashes");
+    resolveFindings = values["resolve-history-findings"] ?? false;
+    if (resolveFindings && !input.apply) throw new Error("resolution_requires_apply");
   } catch {
     err(
       "恢复参数/环境无效：仅指定旧事件，默认预览；实际追加必须带预览证据和候选指纹、真实授权员工/执行者/原因及匹配构建的完整源码 SHA。生产环境禁用。",
@@ -73,8 +79,10 @@ export async function runLegacySnapshotRecovery(options: {
     version: options.version,
   });
   try {
-    const result = await runtime.tx.run((tx) =>
-      recoverLegacyDailySnapshot(tx, input, runtime.clock.now()),
+    const result = await runtime.tx.run(async (tx) =>
+      resolveFindings
+        ? resolveLegacyRecoveryFindings(tx, input, runtime.clock.now())
+        : recoverLegacyDailySnapshot(tx, input, runtime.clock.now()),
     );
     out(JSON.stringify(result));
     return 0;
