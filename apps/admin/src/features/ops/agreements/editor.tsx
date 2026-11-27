@@ -78,6 +78,10 @@ export function createDraftSession(
     if (version) {
       const { bumpMajor: _major, ...fields } = body;
       const request: UpdateBody = { ...fields, lockVersion: version.lockVersion };
+      // Omitting unchanged references keeps metadata edits out of document conversion.
+      if (request.sourceFileId === (version.sourceFile?.fileId ?? null))
+        delete request.sourceFileId;
+      if (request.pdfFileId === (version.pdfFile?.fileId ?? null)) delete request.pdfFileId;
       result = await api.update(
         version.agreementVersionId,
         request,
