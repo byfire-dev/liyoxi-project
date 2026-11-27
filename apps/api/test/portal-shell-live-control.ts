@@ -39,6 +39,7 @@ export const PortalControlCommandSchema = z.discriminatedUnion("op", [
     op: z.literal("session.revoke"),
     input: z.strictObject({ actor, portalSessionId: IdSchema }),
   }),
+  z.strictObject({ ...base, op: z.literal("session.list"), input: z.strictObject({ actor }) }),
   z.strictObject({ ...base, op: z.literal("facts.tickets"), input: empty }),
   z.strictObject({ ...base, op: z.literal("preview.prepare"), input: empty }),
   z.strictObject({ ...base, op: z.literal("preview.facts"), input: empty }),
@@ -106,7 +107,7 @@ export function createPortalLiveControl(
   >,
   merchant: Pick<
     PortalLiveMerchant,
-    "lookup" | "decide" | "revoke" | "actorForUser" | "previewScopes"
+    "lookup" | "decide" | "revoke" | "list" | "actorForUser" | "previewScopes"
   >,
 ) {
   let caseId: string | undefined,
@@ -211,6 +212,32 @@ export function createPortalLiveControl(
                   revokedAt: reply.data.revokedAt,
                 },
               };
+      } else if (op === "session.list") {
+        const reply = await merchant.list(command.input.actor);
+        if (reply.error !== null) result = reply;
+        else {
+          const facts = await fixture.ticketFacts([...tickets]);
+          const owned = new Set(
+            facts.flatMap((ticket) => ticket.sessions.map((session) => session.portalSessionId)),
+          );
+          // Never return an unrelated session through the private observation channel.
+          if (
+            reply.data.items.length > 8 ||
+            reply.data.items.some((item) => !owned.has(item.portalSessionId))
+          )
+            return failure(id, "NOT_OWNED");
+          result = {
+            httpStatus: reply.httpStatus,
+            error: null,
+            data: {
+              items: reply.data.items.map(({ portalSessionId, storeId, revokedAt }) => ({
+                portalSessionId,
+                storeId,
+                revokedAt,
+              })),
+            },
+          };
+        }
       } else if (op === "preview.prepare") {
         result = previewFacts.parse(await fixture.preparePreview(merchant.previewScopes()));
       } else if (op === "preview.action") {

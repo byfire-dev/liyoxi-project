@@ -36,6 +36,8 @@ function setup() {
     me = makeMe();
   const api: SettingsApi = {
     me: vi.fn(async () => me),
+    computers: vi.fn(async () => ({ items: [] })),
+    revokeComputer: vi.fn<SettingsApi["revokeComputer"]>(),
     agreements: vi.fn(async () => agreements),
     update: vi.fn(async (body) => {
       me = { ...me, user: { ...me.user, ...body } };
@@ -66,6 +68,7 @@ function setup() {
       api,
       scope: () => JSON.stringify([token, rev]),
       authenticated: () => Boolean(token),
+      portalAllowed: () => false,
       key: (action) => `${action}:${++n}`,
       now: () => now,
       clear,

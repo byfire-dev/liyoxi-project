@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { portalSessionRegression } from "./portal-session-regressions.mjs";
 
 export async function settingsRegression(page, scene) {
   const active = (selector) =>
@@ -7,8 +8,19 @@ export async function settingsRegression(page, scene) {
   const button = (title) => active(".lyx-button").filter({ hasText: new RegExp(`^${title}$`) });
   const calls = () => page.evaluate(() => globalThis.__LYX_SETTINGS_CALLS__ ?? []);
   await expect(active(".settings-page#settings-ready")).toBeVisible();
-  await expect(row("已授权的电脑")).toContainText("暂未开放");
+  // W6-10 replaces the old placeholder; initial settings reads must still not fetch computers.
+  await expect(row("已授权的电脑")).toContainText(
+    scene === "settings-guest"
+      ? "登录后管理电脑授权"
+      : scene === "settings-clerk"
+        ? "仅当前门店老板可管理电脑授权"
+        : "查看本人电脑授权，或授权另一台电脑",
+  );
   expect((await calls()).some((call) => /portal/.test(call.path))).toBe(false);
+  if (scene.startsWith("settings-portals-")) {
+    await portalSessionRegression(page, scene);
+    return;
+  }
   if (scene === "settings-guest") {
     await expect(active(".settings-page")).toContainText("登录后管理账号");
     expect((await calls()).some((call) => call.path === "/m/me")).toBe(false);

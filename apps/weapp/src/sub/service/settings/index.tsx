@@ -20,6 +20,7 @@ import { createPhoneAuthorization } from "@/pages/login/phone-authorization";
 import type { Identity } from "./api";
 import type { SettingsController } from "./model";
 import { settingsScope, useSettingsResource } from "./runtime";
+import { PortalSessionsPanel } from "./portal-sessions-panel";
 import "./index.scss";
 import "./phone-button.scss";
 
@@ -147,9 +148,9 @@ function ChangePhone({ controller }: { controller: SettingsController }) {
 
 function SettingsContent({ resource }: { resource: ReturnType<typeof useSettingsResource> }) {
   const { state, controller, token } = resource;
-  const [sheet, setSheet] = useState<"name" | "phone" | "identities" | "delete" | "logout" | null>(
-    null,
-  );
+  const [sheet, setSheet] = useState<
+    "name" | "phone" | "identities" | "computers" | "delete" | "logout" | null
+  >(null);
   const [name, setName] = useState(""),
     [remove, setRemove] = useState<Identity | null>(null);
   const [confirmed, setConfirmed] = useState(false);
@@ -157,6 +158,7 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
   const close = () => {
     if (!busy) {
       controller.discardPhoneIntent();
+      controller.closeComputers();
       setSheet(null);
       setRemove(null);
       setConfirmed(false);
@@ -283,9 +285,21 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
           />
           <ListRow
             title="已授权的电脑"
-            value="暂未开放"
-            description="电脑授权管理开放后会显示在这里"
-            arrow={false}
+            description={
+              !token
+                ? "登录后管理电脑授权"
+                : controller.canManageComputers()
+                  ? "查看本人电脑授权，或授权另一台电脑"
+                  : "仅当前门店老板可管理电脑授权"
+            }
+            arrow={!token || controller.canManageComputers()}
+            onClick={() => {
+              if (!token) gotoAccountLogin();
+              else if (!busy && controller.canManageComputers()) {
+                setSheet("computers");
+                void controller.computers();
+              }
+            }}
           />
         </List>
         {token ? (
@@ -332,9 +346,11 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
               ? "换绑手机号"
               : sheet === "identities"
                 ? "已登录的微信"
-                : sheet === "delete"
-                  ? "注销账号"
-                  : "退出登录？"
+                : sheet === "computers"
+                  ? "已授权的电脑"
+                  : sheet === "delete"
+                    ? "注销账号"
+                    : "退出登录？"
         }
         onClose={close}
         closeOnOverlayClick={!busy}
@@ -384,6 +400,17 @@ function SettingsContent({ resource }: { resource: ReturnType<typeof useSettings
           </Field>
         ) : null}
         {sheet === "phone" ? <ChangePhone controller={controller} /> : null}
+        {sheet === "computers" ? (
+          <PortalSessionsPanel
+            state={state}
+            controller={controller}
+            onAuthorize={() => {
+              if (state.busy || !controller.canManageComputers()) return;
+              close();
+              void Taro.navigateTo({ url: "/sub/publish/portal-approve/index" });
+            }}
+          />
+        ) : null}
         {sheet === "identities" ? (
           <>
             <View className="settings-page__hint">

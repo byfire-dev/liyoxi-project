@@ -7,4 +7,9 @@ export const SETTINGS_SCENES = [
   "settings-notice-retry",
   "settings-phone-unavailable",
   "settings-identities",
+  "settings-portals-list",
+  "settings-portals-empty",
+  "settings-portals-revoke-confirm",
+  "settings-portals-revoked",
+  "settings-portals-error",
 ].map((name) => ({ name, route: "sub/service/settings/index" }));

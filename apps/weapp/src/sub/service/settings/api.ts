@@ -14,11 +14,18 @@ export type Body<K extends keyof operations> = operations[K] extends {
 export type Me = Data<"m.me.get">;
 export type Identity = Data<"m.me.wechatIdentity.list">["items"][number];
 export type Agreement = Data<"m.agreement.list">["items"][number];
+export type Computer = Data<"m.portalSession.list">["items"][number];
 
 /** 生产直连中央 request；替身只在此页私有 runtime 边界。 */
 export function createSettingsApi(send: RequestLayer["request"]) {
   return {
     me: () => send<Me>("/m/me"),
+    computers: () => send<Data<"m.portalSession.list">>("/m/portal-sessions"),
+    revokeComputer: (id: string, idempotencyKey: string) =>
+      send<Data<"m.portalSession.revoke">>(`/m/portal-sessions/${encodeURIComponent(id)}/revoke`, {
+        method: "POST",
+        idempotencyKey,
+      }),
     update: (data: Body<"m.me.update">, idempotencyKey: string) =>
       send<Data<"m.me.update">>("/m/me", { method: "PATCH", data, idempotencyKey }),
     sms: (idempotencyKey: string) =>

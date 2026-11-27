@@ -45,6 +45,8 @@ export const Cases = [
   "portal-authorize-revoke",
   "portal-logout",
   "portal-rejected-csrf",
+  "portal-login-page-revoke",
+  "portal-login-page-reject-refresh",
   "preview-ad-playback",
   "preview-ad-stale-channel",
   "preview-cross-store-q9",
@@ -67,9 +69,12 @@ type Input =
       input: Record<string, never>;
     }
   | { op: "ticket.lookup"; input: { actor: Actor; code: string } }
+  | { op: "session.list"; input: { actor: Actor } }
   | {
       op: "ticket.decide";
-      input: { actor: Actor; portalTicketId: string; decision: "approve"; pairDigits: string };
+      input:
+        | { actor: Actor; portalTicketId: string; decision: "approve"; pairDigits: string }
+        | { actor: Actor; portalTicketId: string; decision: "reject" };
     }
   | { op: "session.revoke"; input: { actor: Actor; portalSessionId: string } }
   | { op: "facts.endRead"; input: { windowId: string } }
@@ -125,6 +130,17 @@ export const HttpResult = z.strictObject({
       rejectReason: z.enum(["by_owner", "pair_mismatch"]).nullable(),
     }),
     z.strictObject({ portalSessionId: z.uuid(), revokedAt: z.iso.datetime().nullable() }),
+    z.strictObject({
+      items: z
+        .array(
+          z.strictObject({
+            portalSessionId: z.uuid(),
+            storeId: z.uuid(),
+            revokedAt: z.iso.datetime().nullable(),
+          }),
+        )
+        .max(8),
+    }),
     z.null(),
   ]),
 });

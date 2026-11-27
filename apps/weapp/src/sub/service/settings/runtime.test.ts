@@ -50,6 +50,25 @@ describe("W2-13 actual传输与手机号采集边界", () => {
       ["/m/agreements?scene=login&limit=50", { auth: false }],
     ]);
   });
+  it("电脑列表无分页或写参数，吊销沿真实POST和required幂等，不传门店覆盖或原token", async () => {
+    const sent = vi.fn<(...args: Parameters<RequestLayer["request"]>) => void>();
+    const send: RequestLayer["request"] = async <T>(
+      ...args: Parameters<RequestLayer["request"]>
+    ) => {
+      sent(...args);
+      return null as T;
+    };
+    const api = createSettingsApi(send);
+    await api.computers();
+    await api.revokeComputer("session/a", "portal_revoke:test");
+    expect(sent.mock.calls).toEqual([
+      ["/m/portal-sessions"],
+      [
+        "/m/portal-sessions/session%2Fa/revoke",
+        { method: "POST", idempotencyKey: "portal_revoke:test" },
+      ],
+    ]);
+  });
   it("手机号组件先隐私与同意，拒绝/额度/未配H5不请求；opaque一次提交/双回调/卸载失效", async () => {
     let scope = "guest";
     const privacy = vi.fn(async () => true),

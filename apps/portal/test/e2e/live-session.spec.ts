@@ -59,8 +59,13 @@ async function stableRead(page: Page, id: CaseId) {
 
 test.beforeEach(async ({ page }, info) => {
   await control(caseId(info.title), { op: "case.begin", input: {} }, CaseReady);
-  await page.goto("/__portal-live/session");
-  await expect(page.getByTestId("portal-live-ready")).toBeVisible();
+  if (info.title.startsWith("portal-login-page-")) {
+    await page.goto("/");
+    await expect(page.getByText(/^8 位登录码：/)).toBeVisible();
+  } else {
+    await page.goto("/__portal-live/session");
+    await expect(page.getByTestId("portal-live-ready")).toBeVisible();
+  }
   expect(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.version)).toBe(1);
   expect((await page.context().cookies()).length).toBe(0);
 });
@@ -304,4 +309,178 @@ test("portal-rejected-csrf", async ({ page }) => {
     },
   ]);
   await shot(page, "ticket-rejected");
+});
+
+/** Only displayed public codes enter the driver; no response bodies or poll secrets leave the browser. */
+async function displayedTicket(page: Page, id: CaseId) {
+  const codeText = await page.getByText(/^8 位登录码：/).innerText();
+  const pairText = await page.getByText(/^确认数字：/).innerText();
+  const code = /^8 位登录码：([0-9A-HJKMNP-TV-Z]{8})$/.exec(codeText)?.[1];
+  const pairDigits = /^确认数字：(\d{2})$/.exec(pairText)?.[1];
+  if (!code || !pairDigits) throw new Error("DISPLAYED_TICKET_INVALID");
+  const lookup = await control(
+    id,
+    { op: "ticket.lookup", input: { actor: "owner", code } },
+    HttpResult,
+  );
+  expect(lookup).toMatchObject({
+    httpStatus: 200,
+    error: null,
+    data: { storeId: liveContext().actors.owner.storeId },
+  });
+  if (!lookup.data || !("portalTicketId" in lookup.data))
+    throw new Error("DISPLAYED_TICKET_LOOKUP_FAILED");
+  return { portalTicketId: lookup.data.portalTicketId, code, pairDigits };
+}
+async function approveDisplayed(
+  page: Page,
+  id: CaseId,
+  created: Awaited<ReturnType<typeof displayedTicket>>,
+) {
+  const decision = await control(
+    id,
+    {
+      op: "ticket.decide",
+      input: {
+        actor: "owner",
+        portalTicketId: created.portalTicketId,
+        decision: "approve",
+        pairDigits: created.pairDigits,
+      },
+    },
+    HttpResult,
+  );
+  expect(decision).toMatchObject({ httpStatus: 200, error: null, data: { status: "approved" } });
+  await expect(page.getByRole("region", { name: "电脑授权会话" })).toBeVisible();
+  await expect(page.getByText(/^8 位登录码：/)).toHaveCount(0);
+  expect(new URL(page.url()).pathname).toBe("/");
+  await assertCookie(page);
+  const state = await page.evaluate(() => window.__LYX_PORTAL_LIVE__.snapshot());
+  expect(state).toMatchObject({ authenticated: true, storeId: liveContext().actors.owner.storeId });
+  if (!state.portalSessionId) throw new Error("PAGE_SESSION_MISSING");
+  return state.portalSessionId;
+}
+
+test("portal-login-page-revoke", async ({ page }) => {
+  const id = "portal-login-page-revoke";
+  const created = await displayedTicket(page, id);
+  await shot(page, "login-pending");
+  const sessionId = await approveDisplayed(page, id, created);
+  const readWindow = await control(id, { op: "facts.beginRead", input: {} }, ReadWindow);
+  expect(
+    await control(id, { op: "session.list", input: { actor: "owner" } }, HttpResult),
+  ).toMatchObject({
+    httpStatus: 200,
+    error: null,
+    data: {
+      items: [
+        {
+          portalSessionId: sessionId,
+          storeId: liveContext().actors.owner.storeId,
+          revokedAt: null,
+        },
+      ],
+    },
+  });
+  expect(
+    await control(id, { op: "session.list", input: { actor: "clerk" } }, HttpResult),
+  ).toMatchObject({ httpStatus: 403, error: "ROLE_FORBIDDEN", data: null });
+  expect(
+    await control(id, { op: "session.list", input: { actor: "otherOwner" } }, HttpResult),
+  ).toMatchObject({ httpStatus: 200, data: { items: [] } });
+  expect(
+    await control(
+      id,
+      { op: "facts.endRead", input: { windowId: readWindow.windowId } },
+      ReadResult,
+    ),
+  ).toEqual({ unchanged: true, changedTables: [] });
+  await shot(page, "login-authorized");
+  expect(
+    await control(
+      id,
+      { op: "session.revoke", input: { actor: "owner", portalSessionId: sessionId } },
+      HttpResult,
+    ),
+  ).toMatchObject({ httpStatus: 200, error: null, data: { portalSessionId: sessionId } });
+  expect(
+    await control(id, { op: "session.list", input: { actor: "owner" } }, HttpResult),
+  ).toMatchObject({ httpStatus: 200, data: { items: [] } });
+  const revokedReadWindow = await control(id, { op: "facts.beginRead", input: {} }, ReadWindow);
+  await page.getByRole("button", { name: "刷新授权状态", exact: true }).click();
+  await expect(page.getByText("门店老板已撤销这台电脑的授权", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__LYX_PORTAL_LIVE__.snapshot())).toMatchObject({
+    authenticated: false,
+    httpStatus: 401,
+    reason: "revoked",
+    revokeReason: "owner_revoked",
+  });
+  await expect(page.getByText("门店老板已撤销这台电脑的授权", { exact: true })).toBeVisible();
+  expect(
+    await control(
+      id,
+      { op: "facts.endRead", input: { windowId: revokedReadWindow.windowId } },
+      ReadResult,
+    ),
+  ).toEqual({ unchanged: true, changedTables: [] });
+  await expect(page.getByRole("button", { name: "退出电脑授权", exact: true })).toHaveCount(0);
+  await shot(page, "login-revoked");
+});
+
+test("portal-login-page-reject-refresh", async ({ page }) => {
+  const id = "portal-login-page-reject-refresh";
+  const created = await displayedTicket(page, id);
+  expect(
+    await control(
+      id,
+      {
+        op: "ticket.decide",
+        input: { actor: "owner", portalTicketId: created.portalTicketId, decision: "reject" },
+      },
+      HttpResult,
+    ),
+  ).toMatchObject({ httpStatus: 200, data: { status: "rejected", rejectReason: "by_owner" } });
+  await expect(page.getByText("此次登录已被拒绝，请重新生成登录码", { exact: true })).toBeVisible();
+  expect((await page.context().cookies()).length).toBe(0);
+  await shot(page, "login-rejected");
+  await page.getByRole("button", { name: "刷新登录码", exact: true }).click();
+  await expect(page.getByText(/^8 位登录码：/)).not.toHaveText(`8 位登录码：${created.code}`);
+  const fresh = await displayedTicket(page, id);
+  expect(fresh.portalTicketId).not.toBe(created.portalTicketId);
+  await shot(page, "login-refreshed");
+  await approveDisplayed(page, id, fresh);
+  await page.getByRole("button", { name: "退出电脑授权", exact: true }).click();
+  await expect(page.getByText("当前电脑尚未授权或授权已失效", { exact: true })).toBeVisible();
+  expect((await page.context().cookies()).length).toBe(0);
+  expect(
+    await control(id, { op: "session.list", input: { actor: "owner" } }, HttpResult),
+  ).toMatchObject({ httpStatus: 200, data: { items: [] } });
+  await shot(page, "login-logout");
+  // Same document navigation mounts the actual public leaf without another authorization request.
+  const publicRequests: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/v1/portal/")) publicRequests.push(path);
+  });
+  await page.evaluate(() => {
+    window.history.pushState(null, "", "/a");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await expect(page.getByRole("heading", { name: "请在狸有戏小程序中授权" })).toBeVisible();
+  await shot(page, "login-landing");
+  expect(publicRequests).toEqual([]);
+  expect((await control(id, { op: "facts.tickets", input: {} }, Facts)).items).toEqual([
+    {
+      portalTicketId: created.portalTicketId,
+      storedStatus: "rejected",
+      sessionIds: [],
+      activeSessionCount: 0,
+    },
+    {
+      portalTicketId: fresh.portalTicketId,
+      storedStatus: "consumed",
+      sessionIds: [expect.any(String)],
+      activeSessionCount: 0,
+    },
+  ]);
 });

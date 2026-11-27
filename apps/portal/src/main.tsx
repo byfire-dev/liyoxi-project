@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { createAuthRoutes } from "./features/auth/routes";
 import { createPreviewRoutes } from "./features/preview/routes";
 import { createVerificationRoutes } from "./features/verify/routes";
 import { createPortalRuntime } from "./lib/runtime";
@@ -14,7 +15,11 @@ const runtime = createPortalRuntime({
   reporting: { dsn: import.meta.env.VITE_CLIENT_ERROR_DSN ?? "", build: __LYX_BUILD__ },
 });
 runtime.clientReporting.install(window);
-const routes = [...createPreviewRoutes(runtime), ...createVerificationRoutes(runtime)];
+const routes = [
+  ...createAuthRoutes(runtime),
+  ...createPreviewRoutes(runtime),
+  ...createVerificationRoutes(runtime),
+];
 const root = createRoot(container);
 const close = (event: PageTransitionEvent) => {
   // A bfcache restoration revalidates protected leaves; a real departure owns final cleanup.

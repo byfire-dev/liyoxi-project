@@ -9,6 +9,7 @@ import {
   PortalTicketDecisionSchema,
   PortalTicketPreviewSchema,
   PortalSessionItemSchema,
+  PortalSessionListSchema,
   envelope,
 } from "@liyoxi/contract";
 import { isErrorSymbol } from "@liyoxi/contract/errors";
@@ -239,6 +240,12 @@ export function createPortalLiveMerchant(
         PortalSessionItemSchema,
         { actor, store: true, key },
       );
+    },
+    list(actor: PortalLiveActor) {
+      return call("GET", "/api/v1/m/portal-sessions", PortalSessionListSchema, {
+        actor,
+        store: true,
+      });
     },
     close() {
       closed = true;

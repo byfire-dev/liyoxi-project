@@ -7,11 +7,19 @@ import { useSessionStore } from "@/stores/session";
 import { useContextStore } from "@/stores/context";
 import type { RequestLayer } from "@/lib/request";
 import { systemClock } from "@/lib/platform";
-import { createSettingsApi } from "./api";
-import { createSettingsController } from "./model";
+import { createSettingsApi, type Me } from "./api";
+import { canManageComputers, createSettingsController, settingsPortalIdentity } from "./model";
 
-export const settingsScope = () =>
-  JSON.stringify([useSessionStore.getState().accessToken, useContextStore.getState().contextRev]);
+export const settingsScope = () => {
+  const session = useSessionStore.getState(),
+    context = useContextStore.getState();
+  return JSON.stringify([
+    session.accessToken,
+    context.contextRev,
+    context.currentStoreId,
+    settingsPortalIdentity(session.me as Me | null, context.currentStoreId),
+  ]);
+};
 let call: RequestLayer["request"] = request;
 let installation: Promise<void> | null = null;
 async function installShots() {
@@ -32,8 +40,10 @@ export const settingsApi = createSettingsApi(async (path, options) => {
 });
 export function useSettingsResource() {
   const token = useSessionStore((s) => s.accessToken),
-    rev = useContextStore((s) => s.contextRev);
-  const scope = JSON.stringify([token, rev]);
+    me = useSessionStore((s) => s.me) as Me | null,
+    rev = useContextStore((s) => s.contextRev),
+    storeId = useContextStore((s) => s.currentStoreId);
+  const scope = JSON.stringify([token, rev, storeId, settingsPortalIdentity(me, storeId)]);
   const controller = useMemo(
     () =>
       createSettingsController({
@@ -41,6 +51,13 @@ export function useSettingsResource() {
         scope: settingsScope,
         initialScope: scope,
         authenticated: () => Boolean(useSessionStore.getState().accessToken),
+        portalAllowed: (latest) => {
+          const selected = useContextStore.getState().currentStoreId;
+          return (
+            canManageComputers(latest, selected) &&
+            canManageComputers(useSessionStore.getState().me as Me | null, selected)
+          );
+        },
         key: newIdempotencyKey,
         now: systemClock.now,
         clear: () => account.clear(),
