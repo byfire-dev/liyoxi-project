@@ -292,6 +292,11 @@ describe("密钥清单与 node.yml", () => {
     }
   });
 
+  it("worker 授权快照使用 gateway 登记的 HTTPS Portal 域名", () => {
+    expect(serviceBlock("gateway")).toContain("PORTAL_HOST: ${LYX_PORTAL_HOST:?}");
+    expect(serviceBlock("worker")).toContain("PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}");
+  });
+
   it("stg.env 只有非敏感项；node.yml 必填的变量都有出处；库与 Redis 的镜像同 local.yml", () => {
     const keys = [...stgEnv.matchAll(/^([A-Z_]+)=/gm)].map((row) => row[1] ?? "");
     expect(keys.length).toBeGreaterThan(0);
