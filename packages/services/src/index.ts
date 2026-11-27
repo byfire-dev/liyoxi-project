@@ -473,3 +473,5 @@ export type { PortalPrincipal, PortalSessions, PortalOwnerRequest } from "./iden
 
 export { createPortalAds } from "./ad/index.js";
 export { createLicenseVerification } from "./docs/index.js";
+
+export { recoverLegacyDailySnapshot, LegacyRecoveryInputSchema } from "./billing/index.js";
