@@ -252,6 +252,8 @@ export interface Env {
           readonly ContentPropagator: string;
           readonly ReservedCode2: string;
         };
+        /** When present, fallback AIGC attribution is limited to these exact source files. */
+        readonly aigcSourceFileIds?: readonly string[];
         readonly templates: {
           readonly normalize: string;
           readonly sd: string;
@@ -632,6 +634,7 @@ function parseMediaProduction(json: unknown): NonNullable<Env["MEDIA_PRODUCTION"
       ContentPropagator: text,
       ReservedCode2: text,
     }),
+    aigcSourceFileIds: z.array(z.uuidv7()).max(1000).optional(),
     templates: z.strictObject({
       normalize: template,
       sd: template,

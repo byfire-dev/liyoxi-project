@@ -52,6 +52,20 @@ function rawTools() {
   return { raw, sent, close };
 }
 describe("W3-04 测试工具装配保留真实边界", { timeout: 60_000 }, () => {
+  it("完整配置保留未限制、禁止默认补标和指定来源三种语义", async () => {
+    for (const aigcSourceFileIds of [undefined, [], [uuidv7()]]) {
+      const scope = createRuntimeMediaProduction(
+        { ...config, ...(aigcSourceFileIds !== undefined ? { aigcSourceFileIds } : {}) },
+        createFakeProviders(),
+        { appEnv: "test", tools: rawTools().raw },
+      );
+      try {
+        expect(scope.production?.config?.aigcSourceFileIds).toEqual(aigcSourceFileIds);
+      } finally {
+        await scope.close();
+      }
+    }
+  });
   it.each(["probe_only", "local_sample_watermark"] as const)(
     "%s只装配真实工具与事实读取，不产生主体或云模板占位",
     async (mode) => {

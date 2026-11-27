@@ -9,6 +9,8 @@ import type {
 } from "../providers/types.js";
 export interface MediaProductionConfig {
   readonly aigc: Omit<AigcLabel, "ProduceID" | "PropagateID">;
+  /** Absent preserves legacy own-service attribution; an empty list allows only upstream labels. */
+  readonly aigcSourceFileIds?: readonly string[];
   readonly templates: {
     readonly normalize: string;
     readonly sd: string;
