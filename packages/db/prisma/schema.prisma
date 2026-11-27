@@ -892,15 +892,15 @@ model EntityMember {
 
   // 以下反向字段是初稿手写的（带关系名的关系：同一对模型之间有多条关系、自引用），按 M46 ③ 保留
   /// 反向：由本成员邀请加入的成员
-  invitedMembers      EntityMember[] @relation("EntityMemberInvitedBy")
+  invitedMembers      EntityMember[]      @relation("EntityMemberInvitedBy")
   /// 反向：本成员所属的门店行
-  storeMemberships    StoreMember[]  @relation("StoreMemberMembership")
+  storeMemberships    StoreMember[]       @relation("StoreMemberMembership")
   /// 反向：由本成员加入门店的行
-  storeMembersAdded   StoreMember[]  @relation("StoreMemberAddedBy")
+  storeMembersAdded   StoreMember[]       @relation("StoreMemberAddedBy")
   /// 反向：本成员发出的邀请
-  invitationsSent     Invitation[]   @relation("InvitationInviter")
+  invitationsSent     Invitation[]        @relation("InvitationInviter")
   /// 反向：接受后落到本成员关系上的邀请
-  invitationsAccepted Invitation[]   @relation("InvitationAcceptedMember")
+  invitationsAccepted Invitation[]        @relation("InvitationAcceptedMember")
   /// 反向：本成员的成功邀请请求绑定
   invitationRequests  InvitationRequest[]
 
@@ -1000,7 +1000,7 @@ model Invitation {
 
   // 反向字段（初稿手写，按 M46 ③ 保留）：与 EntityMember 之间有三条带名关系
   /// 反向：经本邀请加入的成员关系
-  joinedMembers EntityMember[] @relation("EntityMemberJoinedVia")
+  joinedMembers EntityMember[]      @relation("EntityMemberJoinedVia")
   /// 反向：创建与复用请求的不可变绑定
   requests      InvitationRequest[]
 
@@ -1195,126 +1195,127 @@ model StaffGroup {
 
 /// 后台员工账号：手机号 + 密码 + TOTP；一人一角色；含登录失败分桶锁定与企业微信绑定
 model Staff {
+  subscriptionDailySupplements       SubscriptionEventDailySupplement[]
   /// 自动补的反向关系字段
-  dramaCreatedByStaffList            Drama[]            @relation("DramaCreatedByStaff")
+  dramaCreatedByStaffList            Drama[]                            @relation("DramaCreatedByStaff")
   /// 自动补的反向关系字段
-  dramaUpdatedByStaffList            Drama[]            @relation("DramaUpdatedByStaff")
+  dramaUpdatedByStaffList            Drama[]                            @relation("DramaUpdatedByStaff")
   /// 自动补的反向关系字段
-  paymentTxnConfirmedByStaffList     PaymentTxn[]       @relation("PaymentTxnConfirmedByStaff")
+  paymentTxnConfirmedByStaffList     PaymentTxn[]                       @relation("PaymentTxnConfirmedByStaff")
   /// 自动补的反向关系字段
-  paymentTxnReviewedByStaffList      PaymentTxn[]       @relation("PaymentTxnReviewedByStaff")
+  paymentTxnReviewedByStaffList      PaymentTxn[]                       @relation("PaymentTxnReviewedByStaff")
   /// 自动补的反向关系字段
-  transferProofUploadedByStaffList   TransferProof[]    @relation("TransferProofUploadedByStaff")
+  transferProofUploadedByStaffList   TransferProof[]                    @relation("TransferProofUploadedByStaff")
   /// 自动补的反向关系字段
-  transferProofReviewedByStaffList   TransferProof[]    @relation("TransferProofReviewedByStaff")
+  transferProofReviewedByStaffList   TransferProof[]                    @relation("TransferProofReviewedByStaff")
   /// 自动补的反向关系字段
-  refundRequestExecutedByStaffList   RefundRequest[]    @relation("RefundRequestExecutedByStaff")
+  refundRequestExecutedByStaffList   RefundRequest[]                    @relation("RefundRequestExecutedByStaff")
   /// 自动补的反向关系字段
-  refundRequestVoidedByStaffList     RefundRequest[]    @relation("RefundRequestVoidedByStaff")
+  refundRequestVoidedByStaffList     RefundRequest[]                    @relation("RefundRequestVoidedByStaff")
   /// 自动补的反向关系字段
-  adVersionUploadedByStaffList       AdVersion[]        @relation("AdVersionUploadedByStaff")
+  adVersionUploadedByStaffList       AdVersion[]                        @relation("AdVersionUploadedByStaff")
   /// 自动补的反向关系字段
-  adVersionOfflineSentByStaffList    AdVersion[]        @relation("AdVersionOfflineSentByStaff")
+  adVersionOfflineSentByStaffList    AdVersion[]                        @relation("AdVersionOfflineSentByStaff")
   /// 自动补的反向关系字段
-  deliveryTicketDeliveryManagerList  DeliveryTicket[]   @relation("DeliveryTicketDeliveryManager")
+  deliveryTicketDeliveryManagerList  DeliveryTicket[]                   @relation("DeliveryTicketDeliveryManager")
   /// 自动补的反向关系字段
-  deliveryTicketEditorList           DeliveryTicket[]   @relation("DeliveryTicketEditor")
+  deliveryTicketEditorList           DeliveryTicket[]                   @relation("DeliveryTicketEditor")
   /// 自动补的反向关系字段
-  deliveryTicketPublisherList        DeliveryTicket[]   @relation("DeliveryTicketPublisher")
+  deliveryTicketPublisherList        DeliveryTicket[]                   @relation("DeliveryTicketPublisher")
   /// 自动补的反向关系字段
-  sampleUploadedByStaffList          Sample[]           @relation("SampleUploadedByStaff")
+  sampleUploadedByStaffList          Sample[]                           @relation("SampleUploadedByStaff")
   /// 自动补的反向关系字段
-  samplePushedByStaffList            Sample[]           @relation("SamplePushedByStaff")
+  samplePushedByStaffList            Sample[]                           @relation("SamplePushedByStaff")
   /// 自动补的反向关系字段
-  sampleOfflineSentByStaffList       Sample[]           @relation("SampleOfflineSentByStaff")
+  sampleOfflineSentByStaffList       Sample[]                           @relation("SampleOfflineSentByStaff")
   /// 自动补的反向关系字段
-  sampleOnBehalfStaffList            Sample[]           @relation("SampleOnBehalfStaff")
+  sampleOnBehalfStaffList            Sample[]                           @relation("SampleOnBehalfStaff")
   /// 自动补的反向关系字段
-  serviceTicketOwnerStaffList        ServiceTicket[]    @relation("ServiceTicketOwnerStaff")
+  serviceTicketOwnerStaffList        ServiceTicket[]                    @relation("ServiceTicketOwnerStaff")
   /// 自动补的反向关系字段
-  serviceTicketRegisteredByStaffList ServiceTicket[]    @relation("ServiceTicketRegisteredByStaff")
+  serviceTicketRegisteredByStaffList ServiceTicket[]                    @relation("ServiceTicketRegisteredByStaff")
   /// 自动补的反向关系字段
-  agreementVersionCreatedByList      AgreementVersion[] @relation("AgreementVersionCreatedBy")
+  agreementVersionCreatedByList      AgreementVersion[]                 @relation("AgreementVersionCreatedBy")
   /// 自动补的反向关系字段
-  agreementVersionPublishedByList    AgreementVersion[] @relation("AgreementVersionPublishedBy")
+  agreementVersionPublishedByList    AgreementVersion[]                 @relation("AgreementVersionPublishedBy")
   /// 主键，UUID v7，应用生成
-  id                                 String             @id(map: "pk_staff") @db.Uuid
+  id                                 String                             @id(map: "pk_staff") @db.Uuid
   /// 工号，序列从 1001 起
-  staffNo                            Int                @unique(map: "uq_staff_staff_no") @default(autoincrement()) @map("staff_no")
+  staffNo                            Int                                @unique(map: "uq_staff_staff_no") @default(autoincrement()) @map("staff_no")
   /// 姓名
   name                               String
   /// 手机号密文（AES-256-GCM），登录名即手机号
-  phoneEnc                           String             @map("phone_enc")
+  phoneEnc                           String                             @map("phone_enc")
   /// 手机号盲索引（HMAC-SHA256，32 字节），唯一
-  phoneBidx                          Bytes              @unique(map: "uq_staff_phone_bidx") @map("phone_bidx")
+  phoneBidx                          Bytes                              @unique(map: "uq_staff_phone_bidx") @map("phone_bidx")
   /// 手机号脱敏串（前 3 后 4）
-  phoneMask                          String             @map("phone_mask")
+  phoneMask                          String                             @map("phone_mask")
   /// 手机号后四位，供列表检索
-  phoneLast4                         String             @map("phone_last4")
+  phoneLast4                         String                             @map("phone_last4")
   /// 角色键（staff_role.key）；一人一角色
-  staffRoleKey                       String             @map("staff_role_key")
+  staffRoleKey                       String                             @map("staff_role_key")
   /// 是否本岗位主管
-  isLead                             Boolean            @default(false) @map("is_lead")
+  isLead                             Boolean                            @default(false) @map("is_lead")
   /// 所属员工分组
-  staffGroupId                       String?            @map("staff_group_id") @db.Uuid
+  staffGroupId                       String?                            @map("staff_group_id") @db.Uuid
   /// 账号状态：pending / active / disabled
   status                             String
   /// 口令哈希（scrypt$N$r$p$salt$hash）；空 = 尚未激活或已被重置
-  passwordHash                       String?            @map("password_hash")
+  passwordHash                       String?                            @map("password_hash")
   /// 最近一次设置口令的时间
-  passwordChangedAt                  DateTime?          @map("password_changed_at") @db.Timestamptz(3)
+  passwordChangedAt                  DateTime?                          @map("password_changed_at") @db.Timestamptz(3)
   /// TOTP 密钥密文（独立的 MFA 密钥加密）
-  totpSecretEnc                      String?            @map("totp_secret_enc")
+  totpSecretEnc                      String?                            @map("totp_secret_enc")
   /// TOTP 绑定完成时间；非空表示已绑定
-  totpEnrolledAt                     DateTime?          @map("totp_enrolled_at") @db.Timestamptz(3)
+  totpEnrolledAt                     DateTime?                          @map("totp_enrolled_at") @db.Timestamptz(3)
   /// 绑定中的 TOTP 密钥密文（暂存，确认后转正并清空）
-  totpPendingSecretEnc               String?            @map("totp_pending_secret_enc")
+  totpPendingSecretEnc               String?                            @map("totp_pending_secret_enc")
   /// 绑定中密钥的生成时间
-  totpPendingAt                      DateTime?          @map("totp_pending_at") @db.Timestamptz(3)
+  totpPendingAt                      DateTime?                          @map("totp_pending_at") @db.Timestamptz(3)
   /// 最近一次通过校验的 TOTP 时间步，新校验必须严格大于它
-  totpLastStep                       Int?               @map("totp_last_step")
+  totpLastStep                       Int?                               @map("totp_last_step")
   /// 一次性恢复码的 sha256 列表，用掉即移除，结构见文档第 4 节
-  recoveryCodes                      Json               @default("[]") @map("recovery_codes")
+  recoveryCodes                      Json                               @default("[]") @map("recovery_codes")
   /// 企业微信成员 userid，唯一；解绑后保留，供企业微信回调对到员工
-  wecomUserid                        String?            @unique(map: "uq_staff_wecom_userid") @map("wecom_userid")
+  wecomUserid                        String?                            @unique(map: "uq_staff_wecom_userid") @map("wecom_userid")
   /// 企业微信绑定状态：none / invited / bound / unbound
-  wecomBindStatus                    String             @default("none") @map("wecom_bind_status")
+  wecomBindStatus                    String                             @default("none") @map("wecom_bind_status")
   /// 企业微信绑定时间
-  wecomBoundAt                       DateTime?          @map("wecom_bound_at") @db.Timestamptz(3)
+  wecomBoundAt                       DateTime?                          @map("wecom_bound_at") @db.Timestamptz(3)
   /// 企业微信“联系我”二维码图片（接口生成后落库或人工上传）
-  wecomQrFileId                      String?            @map("wecom_qr_file_id") @db.Uuid
+  wecomQrFileId                      String?                            @map("wecom_qr_file_id") @db.Uuid
   /// 对商家展示的称呼（如“小林”）；空时用 name
-  displayName                        String?            @map("display_name")
+  displayName                        String?                            @map("display_name")
   /// 对商家展示的服务电话（工作电话，不是登录手机号）
-  servicePhone                       String?            @map("service_phone")
+  servicePhone                       String?                            @map("service_phone")
   /// 陌生来源桶的连续失败次数
-  failUntrusted                      Int                @default(0) @map("fail_untrusted")
+  failUntrusted                      Int                                @default(0) @map("fail_untrusted")
   /// 陌生来源桶的锁定截止时间
-  lockedUntilUntrusted               DateTime?          @map("locked_until_untrusted") @db.Timestamptz(3)
+  lockedUntilUntrusted               DateTime?                          @map("locked_until_untrusted") @db.Timestamptz(3)
   /// 可信设备桶的连续失败次数
-  failTrusted                        Int                @default(0) @map("fail_trusted")
+  failTrusted                        Int                                @default(0) @map("fail_trusted")
   /// 可信设备桶的锁定截止时间
-  lockedUntilTrusted                 DateTime?          @map("locked_until_trusted") @db.Timestamptz(3)
+  lockedUntilTrusted                 DateTime?                          @map("locked_until_trusted") @db.Timestamptz(3)
   /// 最近登录时间
-  lastLoginAt                        DateTime?          @map("last_login_at") @db.Timestamptz(3)
+  lastLoginAt                        DateTime?                          @map("last_login_at") @db.Timestamptz(3)
   /// 最近登录来源 IP（原值，展示时脱敏）
-  lastLoginIp                        String?            @map("last_login_ip")
+  lastLoginIp                        String?                            @map("last_login_ip")
   /// 禁用时间；重新启用时清空
-  disabledAt                         DateTime?          @map("disabled_at") @db.Timestamptz(3)
+  disabledAt                         DateTime?                          @map("disabled_at") @db.Timestamptz(3)
   /// 禁用原因：resigned / reassigned / long_leave / other
-  disabledReason                     String?            @map("disabled_reason")
+  disabledReason                     String?                            @map("disabled_reason")
   /// 执行禁用的员工
-  disabledByStaffId                  String?            @map("disabled_by_staff_id") @db.Uuid
+  disabledByStaffId                  String?                            @map("disabled_by_staff_id") @db.Uuid
   /// 禁用时在办事项的接收人
-  handoverToStaffId                  String?            @map("handover_to_staff_id") @db.Uuid
+  handoverToStaffId                  String?                            @map("handover_to_staff_id") @db.Uuid
   /// 创建人（员工）；命令行引导创建时为空
-  createdByStaffId                   String?            @map("created_by_staff_id") @db.Uuid
+  createdByStaffId                   String?                            @map("created_by_staff_id") @db.Uuid
   /// 创建时间
-  createdAt                          DateTime           @map("created_at") @db.Timestamptz(3)
+  createdAt                          DateTime                           @map("created_at") @db.Timestamptz(3)
   /// 更新时间
-  updatedAt                          DateTime           @map("updated_at") @db.Timestamptz(3)
+  updatedAt                          DateTime                           @map("updated_at") @db.Timestamptz(3)
   /// 乐观锁版本号
-  lockVersion                        Int                @default(0) @map("lock_version")
+  lockVersion                        Int                                @default(0) @map("lock_version")
 
   /// 角色
   staffRole       StaffRole   @relation("StaffRoleMembers", fields: [staffRoleKey], references: [key], onDelete: Restrict, map: "fk_staff_staff_role_key")
@@ -3998,10 +3999,38 @@ model SubscriptionEvent {
   /// 关系：billing_order_id → billing_order.id
   billingOrder     BillingOrder?    @relation(fields: [billingOrderId], references: [id], onDelete: Restrict, map: "fk_subscription_event_billing_order_id")
 
+  dailySupplements SubscriptionEventDailySupplement[]
+
+  @@unique([id, entityId, subscriptionTermId], map: "uq_subscription_event_id_entity_term")
   @@index([entityId, occurredAt], map: "ix_subscription_event_entity_id_occurred_at")
   @@index([subscriptionTermId], map: "ix_subscription_event_subscription_term_id")
   @@index([type, bizDate], map: "ix_subscription_event_type_biz_date")
   @@map("subscription_event")
+}
+
+/// 旧订阅日快照恢复凭据：保留原事件，核验证据后只追加一次；不承载收款或积分变更。
+model SubscriptionEventDailySupplement {
+  id                  String   @id(map: "pk_subscription_event_daily_supplement") @db.Uuid
+  eventId             String   @unique(map: "uq_subscription_daily_supplement_event_id") @map("event_id") @db.Uuid
+  entityId            String   @map("entity_id") @db.Uuid
+  subscriptionTermId  String   @map("subscription_term_id") @db.Uuid
+  eventFingerprint    String   @map("event_fingerprint")
+  payload             Json
+  payloadHash         String   @map("payload_hash")
+  evidence            Json
+  evidenceHash        String   @map("evidence_hash")
+  strategy            String
+  sourceSha           String   @map("source_sha")
+  baselineSha         String   @map("baseline_sha")
+  authorizedByStaffId String   @map("authorized_by_staff_id") @db.Uuid
+  operator            String
+  reason              String
+  createdAt           DateTime @map("created_at") @db.Timestamptz(3)
+
+  event        SubscriptionEvent @relation(fields: [eventId, entityId, subscriptionTermId], references: [id, entityId, subscriptionTermId], onDelete: Restrict, onUpdate: Restrict, map: "fk_subscription_event_daily_supplement_event_scope")
+  authorizedBy Staff             @relation(fields: [authorizedByStaffId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_subscription_event_daily_supplement_authorizer")
+
+  @@map("subscription_event_daily_supplement")
 }
 
 /// 月度发放计划：周期创建时一次生成 N 行，记每月应发积分与分摊的套餐款
@@ -7647,12 +7676,12 @@ model NotifyScene {
   updatedAt                DateTime @map("updated_at") @db.Timestamptz(3)
 
   /// 订阅消息槽位
-  wxTemplateSlot WxTemplateSlot? @relation(fields: [wxTemplateSlotKey], references: [slotKey], onDelete: Restrict, map: "fk_notify_scene_wx_template_slot_key")
+  wxTemplateSlot      WxTemplateSlot?      @relation(fields: [wxTemplateSlotKey], references: [slotKey], onDelete: Restrict, map: "fk_notify_scene_wx_template_slot_key")
   /// 短信模板
-  smsTemplate    SmsTemplate?    @relation(fields: [smsTemplateKey], references: [templateKey], onDelete: Restrict, map: "fk_notify_scene_sms_template_key")
+  smsTemplate         SmsTemplate?         @relation(fields: [smsTemplateKey], references: [templateKey], onDelete: Restrict, map: "fk_notify_scene_sms_template_key")
   /// 最近修改人
-  updatedByStaff Staff?          @relation(fields: [updatedByStaffId], references: [id], onDelete: Restrict, map: "fk_notify_scene_updated_by_staff_id")
-  notifications  Notification[]
+  updatedByStaff      Staff?               @relation(fields: [updatedByStaffId], references: [id], onDelete: Restrict, map: "fk_notify_scene_updated_by_staff_id")
+  notifications       Notification[]
   notificationFanouts NotificationFanout[]
 
   @@index([wxTemplateSlotKey], map: "ix_notify_scene_wx_template_slot_key")
@@ -7774,7 +7803,7 @@ model Notification {
 model NotificationFanout {
   id                   String    @id(map: "pk_notification_fanout") @db.Uuid
   /// 只存事件 id；与 notification.sourceOutboxEventId 相同，不引用保留期未定的 outbox。
-  sourceOutboxEventId   String    @map("source_outbox_event_id") @db.Uuid
+  sourceOutboxEventId  String    @map("source_outbox_event_id") @db.Uuid
   notifySceneKey       String    @map("notify_scene_key")
   siteNoticeId         String    @map("site_notice_id") @db.Uuid
   /// (merchant_user_id, entity_id) 有序二元 keyset；只是进度，不是接收人外键。
@@ -8501,44 +8530,44 @@ model HomeBanner {
 /// 规则变更公告记录：价目修订、计费参数、协议版本变更保存时同事务建立；驱动站内消息与首页公告条
 model SiteNotice {
   /// 主键，UUID v7，应用生成；plan_revision、billing_param、agreement_version 的公告外键指向它
-  id                 String             @id(map: "pk_site_notice") @db.Uuid
+  id                  String               @id(map: "pk_site_notice") @db.Uuid
   /// 公告类型，也是 ref_id 的多态类型：plan_revision / billing_param / agreement_version
-  kind               String
+  kind                String
   /// 不建外键：多态引用，且 L0 不引用上层表。plan_revision.id / billing_param.change_id（变更集）/ agreement_version.id
-  refId              String             @map("ref_id") @db.Uuid
+  refId               String               @map("ref_id") @db.Uuid
   /// 公告标题，不超过 40 个字
-  title              String
+  title               String
   /// 变更摘要，由操作人在保存变更时填写，不超过 200 个字
-  summary            String
+  summary             String
   /// 不含价格数字的摘要：购买入口为 offline_contract（showPrice = false）时站内消息与公告条用它；plan_revision、billing_param 必填
-  summaryNoPrice     String?            @map("summary_no_price")
+  summaryNoPrice      String?              @map("summary_no_price")
   /// 规则生效时刻
-  effectiveAt        DateTime           @map("effective_at") @db.Timestamptz(3)
+  effectiveAt         DateTime             @map("effective_at") @db.Timestamptz(3)
   /// 公告时刻，应用时钟写入
-  announcedAt        DateTime           @map("announced_at") @db.Timestamptz(3)
+  announcedAt         DateTime             @map("announced_at") @db.Timestamptz(3)
   /// 公告期天数 = floor((effective_at − announced_at) / 1 天)
-  leadDays           Int                @map("lead_days")
+  leadDays            Int                  @map("lead_days")
   /// 公告期不足时的原因；只可能来自协议版本
-  shortNoticeReason  String?            @map("short_notice_reason")
+  shortNoticeReason   String?              @map("short_notice_reason")
   /// 深链 { route, params }
-  link               Json
+  link                Json
   /// 是否进首页公告条
-  barEnabled         Boolean            @default(true) @map("bar_enabled")
+  barEnabled          Boolean              @default(true) @map("bar_enabled")
   /// 状态：announced 已公告 / withdrawn 已撤回；不写状态历史
-  status             String             @default("announced")
+  status              String               @default("announced")
   /// 不建外键：config 在 L0，不引用 staff。保存变更的员工
-  createdByStaffId   String             @map("created_by_staff_id") @db.Uuid
+  createdByStaffId    String               @map("created_by_staff_id") @db.Uuid
   /// 不建外键：config 在 L0，不引用 staff。撤回人（员工）
-  withdrawnByStaffId String?            @map("withdrawn_by_staff_id") @db.Uuid
+  withdrawnByStaffId  String?              @map("withdrawn_by_staff_id") @db.Uuid
   /// 撤回时间；withdrawn 时必有
-  withdrawnAt        DateTime?          @map("withdrawn_at") @db.Timestamptz(3)
+  withdrawnAt         DateTime?            @map("withdrawn_at") @db.Timestamptz(3)
   /// 创建时间，应用时钟写入
-  createdAt          DateTime           @map("created_at") @db.Timestamptz(3)
+  createdAt           DateTime             @map("created_at") @db.Timestamptz(3)
   /// 最近更新时间，应用时钟写入
-  updatedAt          DateTime           @map("updated_at") @db.Timestamptz(3)
-  planRevisions      PlanRevision[]
-  billingParams      BillingParam[]
-  agreementVersions  AgreementVersion[]
+  updatedAt           DateTime             @map("updated_at") @db.Timestamptz(3)
+  planRevisions       PlanRevision[]
+  billingParams       BillingParam[]
+  agreementVersions   AgreementVersion[]
   notificationFanouts NotificationFanout[]
 
   // (kind, ref_id) 只在 announced 的行里唯一（撤回后可再次公告），部分唯一索引在 SQL 里：uq_site_notice_kind_ref_id_announced

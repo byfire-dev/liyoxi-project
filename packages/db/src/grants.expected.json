@@ -178,7 +178,8 @@
     "worker_lease": "DELETE,INSERT,SELECT,UPDATE",
     "alert_event": "DELETE,INSERT,SELECT,UPDATE",
     "invariant_run": "DELETE,INSERT,SELECT,UPDATE",
-    "invariant_violation": "DELETE,INSERT,SELECT,UPDATE"
+    "invariant_violation": "DELETE,INSERT,SELECT,UPDATE",
+    "subscription_event_daily_supplement": "INSERT,SELECT"
   },
   "appendOnly": [
     "outbox_event",
@@ -197,7 +198,8 @@
     "manual_reminder_log",
     "agreement_consent",
     "param_value",
-    "analytics_event"
+    "analytics_event",
+    "subscription_event_daily_supplement"
   ],
   "columnUpdate": {
     "outbox_event": ["published_at"],

@@ -3,7 +3,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 模块 | `billing`（L2）的前半：价目、订阅、积分账本。付款单、退款、对账、发票在 08 分组 |
-| 表 | 21 张：`plan`、`plan_revision`、`plan_promo_claim`、`point_pack`、`price_tier_revision`、`drama_price_revision`、`billing_param`、`billing_account`、`subscription_term`、`subscription_event`、`grant_schedule`、`point_lot`、`point_hold`、`point_hold_alloc`、`ledger_operation`、`point_ledger_entry`、`billing_entity_daily`、`valuation_policy`、`point_entry_valuation`、`point_adjustment_request`、`term_extension_request` |
+| 表 | 22 张：`plan`、`plan_revision`、`plan_promo_claim`、`point_pack`、`price_tier_revision`、`drama_price_revision`、`billing_param`、`billing_account`、`subscription_term`、`subscription_event`、`subscription_event_daily_supplement`、`grant_schedule`、`point_lot`、`point_hold`、`point_hold_alloc`、`ledger_operation`、`point_ledger_entry`、`billing_entity_daily`、`valuation_policy`、`point_entry_valuation`、`point_adjustment_request`、`term_extension_request` |
 | 依据 | 草案 `docs/appendix/design/d1-ledger.md` 第 4–9 节（数据模型、计价、订阅生命周期、账本操作、并发与幂等、每日不变量）；`d8-content.md` 对积分价的要求（d8:641）；`d3-flow.md`、`d4-identity.md` 对调整单与延长单的引用（d3:2361-2362、2420；d4:1435-1436）。裁决：rulings M12、M15、M16、M19、M24、M33、M34、M35、M44、M45；第二轮 M46、M47、M48、M52、M54、M55、M57、M66、M67、M75、M92；第三轮 M93、M98、M99、M100、M102、M110（改动见第 7 节）。清单：`catalogue.json` 的 conventions 与本分组各表的 notes；`decisions.md` 第 1 节 #2、#3、#5、#7、#29、#30 与第 6、7、8 节。主文档：`03-key-designs.md` 第 2 节，`04-adr.md` 的 ADR-007、ADR-013、ADR-014、ADR-015、ADR-019 |
 
 出处的写法：`d1:205` 指草案 d1-ledger.md 第 205 行；`PRD:765` 指 PRD 第 765 行；`admin/Plans` 指原型画板；`M33` 是 rulings 的编号；`R3` 是 03 第 9 节的裁决；`decisions #2` 是 decisions.md 第 1 节的第 2 条。“补：…”表示草案没有、按规则或画板补的内容。
@@ -13,7 +13,7 @@
 这组表回答三个问题：现在卖什么价、每个主体买了什么、每个主体还有多少积分。
 
 1. **价目与参数**（7 张）：`plan`、`plan_revision`、`plan_promo_claim`、`point_pack`、`price_tier_revision`、`drama_price_revision`、`billing_param`。价目按时间取值：`effective_at ≤ t` 且未撤销的最新一行就是当前值，到点不需要任何任务去切换。单据在下单时保存快照，调价只影响之后的单据。
-2. **订阅**（4 张）：`billing_account`、`subscription_term`、`subscription_event`、`grant_schedule`。一次套餐购买对应一个周期；周期与发放计划自带到期时间，由幂等的 `advance()` 在写操作开头与每分钟扫描时推进。
+2. **订阅**（4 张）：`billing_account`、`subscription_term`、`subscription_event`、`subscription_event_daily_supplement`、`grant_schedule`。一次套餐购买对应一个周期；周期与发放计划自带到期时间，由幂等的 `advance()` 在写操作开头与每分钟扫描时推进。
 3. **账本**（5 张）：`point_lot`、`point_hold`、`point_hold_alloc`、`ledger_operation`、`point_ledger_entry`。积分按批次存放，余额是批次的汇总缓存；每次变动写只增流水（批次内桶到桶的数量移动）。
 4. **派生与领域申请单**（5 张）：`billing_entity_daily`、`valuation_policy`、`point_entry_valuation` 由流水回放得出，可重算；`point_adjustment_request`、`term_extension_request` 是与审批单一对一的领域表。
 
@@ -1680,3 +1680,30 @@ d1 第 9 节的检查项在 `billing/invariants.ts` 登记为 `InvariantCheck`�
 | 旧列名扫描的 7 处都不改：`grant_schedule`、`point_entry_valuation`、`point_pack`、`valuation_policy` 的 4 处是第二轮修订记录里的改名原文；`drama.tier_changed` 是 05 分组的事件名；`plan.extend` 是草案的审批类型名；`ad.cancel_deduction_bp` 是 d3 的参数键名（说明它为何落成 `cancelDeductionBp` 的子键） | 2.21、4.3、5.5、第 7 节 | `review/stale-07-billing-ledger.md` |
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A156）改了本文少量说明：`revokeTermForExternalRefund` 遇周期正挂在退款申请闸门上时不回收、不迁移、不清标记，返回 `heldByRefundRequestId`，由 08 另开 `entitlement_unrecovered`；删去“一并收口并返回申请 id、由 08 同事务处理该申请”的说法（2.9 列说明、周期状态机与闸门标记表、入口说明，4.4 周期事件载荷去掉 `closedRefundRequestId`，5.3 外部引用），与 08-billing-payment.md:780 一致。表结构与约束未变，Prisma 只改 `refundRequestId` 的注释。
+
+### 2.22 `subscription_event_daily_supplement` 旧订阅日快照恢复凭据
+
+只增表；不修改原事件，不构造收款、积分或派生投影。本迁移只建结构；证据核验、受保护追加、读取兼容由后续服务改动交付。
+
+| 字段 | 类型 | 可空 | 默认 | 含义 | 依据 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | uuid | 否 | — | 恢复记录 ID | 2026-11-27 旧历史恢复授权 |
+| `event_id` | uuid | 否 | — | 被补充的唯一原事件 | 2026-11-27 旧历史恢复授权 |
+| `entity_id` | uuid | 否 | — | 原事件主体 | 2026-11-27 旧历史恢复授权 |
+| `subscription_term_id` | uuid | 否 | — | 原事件周期 | 2026-11-27 旧历史恢复授权 |
+| `event_fingerprint` | text | 否 | — | 完整原事件的规范 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `payload` | jsonb | 否 | — | 通过正式 Schema 的候选 payload | 2026-11-27 旧历史恢复授权 |
+| `payload_hash` | text | 否 | — | 规范候选 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `evidence` | jsonb | 否 | — | 恢复时冻结的可交叉核验证据 | 2026-11-27 旧历史恢复授权 |
+| `evidence_hash` | text | 否 | — | 规范证据 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `strategy` | text | 否 | — | 固定 legacy_activation_v1 | 2026-11-27 旧历史恢复授权 |
+| `source_sha` | text | 否 | — | 执行恢复的完整源码 SHA | 2026-11-27 旧历史恢复授权 |
+| `baseline_sha` | text | 否 | — | 原在役源码 SHA | 2026-11-27 旧历史恢复授权 |
+| `authorized_by_staff_id` | uuid | 否 | — | 本次授权的真实员工，区别于原操作人 | 2026-11-27 旧历史恢复授权 |
+| `operator` | text | 否 | — | 本次运维执行者标识 | 2026-11-27 旧历史恢复授权 |
+| `reason` | text | 否 | — | 本次授权依据与恢复原因 | 2026-11-27 旧历史恢复授权 |
+| `created_at` | timestamptz | 否 | — | 实际恢复时间 | 2026-11-27 旧历史恢复授权 |
+
+主键 `id`；`event_id` 唯一。`(event_id, entity_id, subscription_term_id)` 通过复合外键绑定原事件同一三元组；原事件新增候选唯一索引，授权员工引用 `staff.id`。两 FK 的 UPDATE/DELETE 都 RESTRICT。
+
+六个 CHECK 约束 SHA256、完整源码 SHA、策略、JSON 对象、非空执行者与理由；两个触发器拦截 UPDATE/DELETE/TRUNCATE。应用角色只授 INSERT/SELECT，readonly 继承迁移属主默认 SELECT。证据属于账务内部数据，不增加 HTTP 暴露。
