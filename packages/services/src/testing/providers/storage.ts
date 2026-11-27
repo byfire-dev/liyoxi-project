@@ -2,7 +2,6 @@
 // 复制要对上 etag、读地址有时限。到期与否按替身的时钟判，拨动时钟就能测过期。
 // 直传与读取没有真的 HTTP：用 upload() 与 fetch() 代替，返回的是状态码。
 
-import { validStreamWriteMode } from "../../providers/storage/streams.js";
 import { createHash } from "node:crypto";
 
 import { failed, INCOMING_PREFIX, ok } from "../../providers/types.js";
@@ -16,7 +15,12 @@ import type {
   StorageProvider,
   BackupTarget,
 } from "../../providers/types.js";
-import { backupObjectKey, createBackupStorage, validBackupTarget } from "../../providers/index.js";
+import {
+  backupObjectKey,
+  createBackupStorage,
+  validBackupTarget,
+  validStreamWriteMode,
+} from "../../providers/index.js";
 import type { BackupTransport } from "../../providers/index.js";
 import { createFakeCore, systemClock } from "./base.js";
 import type { FakeClock, FakeControl } from "./base.js";

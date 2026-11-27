@@ -1,5 +1,6 @@
 // Task-private native-cloud double: sample bytes are rendered by the pinned codec, then re-probed.
 import { createHash } from "node:crypto";
+import { contentAddressedKey } from "@liyoxi/shared";
 import type { Runtime, RuntimeOptions } from "@liyoxi/services";
 import type { createOutputBatchMediaToolRelay } from "./upload-batch-live-mediatool.js";
 type Storage = Runtime["providers"]["storage"];
@@ -28,6 +29,10 @@ export function attachOutputBatchLiveCloud(options: {
       return options.trailer(input, original);
     const [id, attempt, extra] = input.userData.split(":"),
       mark = input.watermarks[0];
+    const imageIdentity =
+      mark && "image" in mark
+        ? /(?:^|\/)watermark-([a-f0-9]{64})\.png$/.exec(mark.image.key)?.[1]
+        : undefined;
     if (
       !id ||
       !/^[0-9a-f-]{36}$/.test(id) ||
@@ -45,13 +50,24 @@ export function attachOutputBatchLiveCloud(options: {
         new RegExp(`^sample_video/${store}/[0-9a-f-]{36}\\.mp4$`).test(input.src.key),
       ) ||
       mark.image.bucket !== "media" ||
-      !new RegExp(`^ci-out/${id}/watermark-[a-f0-9]{64}\\.png$`).test(mark.image.key) ||
+      !imageIdentity ||
       input.dst.bucket !== "media" ||
       !/^ci-out\/[0-9a-f-]{36}\/output\.mp4$/.test(input.dst.key)
     )
       return rejected("W307 sample cloud input is outside its exact owned scope");
     const signal = input.signal,
       proof = options.pngProof(mark.image);
+    if (
+      !proof ||
+      (mark.image.key !== `ci-out/${id}/watermark-${imageIdentity}.png` &&
+        mark.image.key !==
+          contentAddressedKey(
+            `ci-out/${id}/watermark-${imageIdentity}.png`,
+            imageIdentity,
+            proof.sha256,
+          ))
+    )
+      return rejected("W307 sample cloud PNG is outside its exact owned scope");
     const source = await options.storage.head({ ...input.src, signal }),
       pngHead = await options.storage.head({ ...mark.image, signal });
     if (
@@ -63,7 +79,6 @@ export function attachOutputBatchLiveCloud(options: {
       source.value.size > 200 * 1024 * 1024 ||
       !pngHead.value.exists ||
       !pngHead.value.etag ||
-      !proof ||
       proof.size !== pngHead.value.size ||
       proof.size < 8 ||
       proof.size > 1024 * 1024
