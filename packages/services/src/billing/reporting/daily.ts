@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { Tx } from "../../kernel/index.js";
 import type { Ledger } from "../ledger/index.js";
 import { fromDateColumn, toDateColumn } from "../ledger/context.js";
+import { resolveLegacyDailyPayload } from "./legacy-supplement.js";
 import { computeEntityValuation } from "./valuation.js";
 import type { BillingValuationReader } from "./valuation.js";
 
@@ -57,10 +58,12 @@ export async function computeEntityDaily(
   const events = await db.subscriptionEvent.findMany({
     where: { entityId, bizDate: { lte: toDateColumn(through) } },
     orderBy: [{ bizDate: "asc" }, { seq: "asc" }],
+    include: { dailySupplements: true },
   });
-  const history = events.flatMap((event) => {
-    if (event.payload === null) throw new BillingDailyHistoryMissingError();
-    const parsed = payload.safeParse(event.payload);
+  const history = events.flatMap(({ dailySupplements, ...event }) => {
+    const effectivePayload = resolveLegacyDailyPayload(event, dailySupplements ?? []);
+    if (effectivePayload === null) throw new BillingDailyHistoryMissingError();
+    const parsed = payload.safeParse(effectivePayload);
     if (!parsed.success) throw new Error("BILLING_DAILY_HISTORY_PAYLOAD_INVALID");
     if (parsed.data.dailySnapshot === undefined) throw new BillingDailyHistoryMissingError();
     const snapshot = SubscriptionDailySnapshotSchema.parse(parsed.data.dailySnapshot);

@@ -209,3 +209,9 @@ export { createShippingAssembly } from "./payment/shipping-assembly.js";
 export { createStagingPayEntry } from "./staging-pay/entry.js";
 
 export { createStagingPayAssembly, unboundStagingAutorefundJob } from "./staging-pay/assembly.js";
+
+export {
+  recoverLegacyDailySnapshot,
+  LegacyRecoveryInputSchema,
+} from "./reporting/legacy-recovery.js";
+export type { LegacyRecoveryInput } from "./reporting/legacy-recovery.js";

@@ -56,6 +56,7 @@ const options = {
     index: "src/index.ts",
     "redis-compat": "src/cli/redis-compat.ts",
     seed: "src/cli/seed.ts",
+    "legacy-snapshot-recovery": "src/cli/legacy-snapshot-recovery.ts",
     "staff-bootstrap": "src/cli/staff-bootstrap.ts",
     "staff-reissue-activation": "src/cli/staff-reissue-activation.ts",
     "sms-init": "src/cli/sms-init.ts",

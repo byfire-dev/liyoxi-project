@@ -34,6 +34,7 @@ export {
 } from "./retention.js";
 export type { RetentionDeps, RetentionInput, RetentionResult } from "./retention.js";
 export { registration } from "./register.js";
+export { resolveLegacyRecoveryFindings } from "./legacy-recovery-findings.js";
 export { createBackupAssembly, unboundBackupJob } from "./backup-runtime.js";
 export { readBackupSummary } from "./backup.js";
 export type { BackupChild, BackupProcessRunner, BackupSummary } from "./backup.js";
