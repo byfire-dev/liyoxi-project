@@ -285,9 +285,9 @@ describe("密钥清单与 node.yml", () => {
     expect(scalar(ours, "memswap_limit")).toBe("1g");
   });
 
-  it("API 的扫码签发与上线自检使用 gateway 登记的同一 HTTPS Portal 域名", () => {
+  it("API 扫码、worker 授权快照与上线自检使用 gateway 登记的同一 HTTPS Portal 域名", () => {
     expect(serviceBlock("gateway")).toContain("PORTAL_HOST: ${LYX_PORTAL_HOST:?}");
-    for (const service of ["api", "check-env"]) {
+    for (const service of ["api", "worker", "check-env"]) {
       expect(serviceBlock(service)).toContain("PORTAL_PUBLIC_ORIGIN: https://${LYX_PORTAL_HOST:?}");
     }
   });
