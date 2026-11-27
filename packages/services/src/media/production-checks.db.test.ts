@@ -119,6 +119,7 @@ async function fixture(
     sample?: boolean;
     probeOnly?: boolean;
     localWatermark?: boolean;
+    sourceScope?: "self" | "other" | "none";
   } = {},
 ) {
   const make = createFactories({ db, clock }),
@@ -255,6 +256,16 @@ async function fixture(
         ? { mode: "probe_only" as const, config: null }
         : {
             config: {
+              ...(input.sourceScope
+                ? {
+                    aigcSourceFileIds:
+                      input.sourceScope === "self"
+                        ? [file.id]
+                        : input.sourceScope === "other"
+                          ? [uuidv7()]
+                          : [],
+                  }
+                : {}),
               aigc: {
                 Label: "1",
                 ContentProducer: "PUBLIC-SYSTEM",
@@ -1089,7 +1100,7 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
     ).toEqual(upstream);
   });
   it("规范化尚无mediaInfo时先读真实源七字段，云丢标后补回原值而非系统新值", async () => {
-    const h = await fixture({ ai: true, upstream: true });
+    const h = await fixture({ ai: true, upstream: true, sourceScope: "none" });
     remoteFixtures(h);
     let probes = 0;
     h.probe.mockImplementation(async () => {
@@ -1113,6 +1124,79 @@ describe("真实制作事实与派生", { timeout: 30000 }, () => {
     expect((await db.productionRecord.findUniqueOrThrow({ where: { fileId } })).aigcOrigin).toBe(
       "upstream",
     );
+  });
+  it.each(["other", "none"] as const)(
+    "%s 来源限制拒绝给未确认文件补写默认平台",
+    async (sourceScope) => {
+      const h = await fixture({ ai: true, sourceScope });
+      const id = await h.tx.run((t) => h.media.restamp(t, h.file.id));
+      await h.media.jobs.run({ jobId: id });
+      expect(await db.mediaJob.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        state: "failed",
+        errorCode: "MEDIA_AIGC_SOURCE_UNCONFIRMED",
+      });
+      expect(h.stamp).not.toHaveBeenCalled();
+      expect(h.publish).not.toHaveBeenCalled();
+      expect(await db.productionRecord.count({ where: { derivedFromFileId: h.file.id } })).toBe(0);
+    },
+  );
+  it("已确认文件可补标；限制为空仍逐字保留真实上游来源", async () => {
+    for (const options of [
+      { ai: true, sourceScope: "self" as const },
+      { ai: true, sourceScope: "none" as const, upstream: true },
+    ]) {
+      const h = await fixture(options);
+      const id = await h.tx.run((t) => h.media.restamp(t, h.file.id));
+      await h.media.jobs.run({ jobId: id });
+      const job = await db.mediaJob.findUniqueOrThrow({ where: { id } });
+      expect(job.state).toBe("succeeded");
+      const info = await db.mediaInfo.findUniqueOrThrow({
+        where: { fileId: (job.output as { fileId: string }).fileId },
+      });
+      expect(info.aigcMeta).toMatchObject({
+        ContentProducer: options.upstream ? upstream.ContentProducer : "PUBLIC-SYSTEM",
+      });
+      if (options.upstream) expect(info.aigcMeta).toEqual(upstream);
+      expect(h.stamp).toHaveBeenCalledTimes(options.upstream ? 0 : 1);
+    }
+  });
+  it("云规格化允许为已确认来源补标并保留派生标识", async () => {
+    const h = await fixture({ ai: true, sourceScope: "self" });
+    remoteFixtures(h);
+    h.probe.mockImplementation(async (request) =>
+      ok(
+        report(
+          request.path.endsWith("/stamped.mp4") ? h.stamp.mock.calls[0]![0].aigcJson : null,
+          1080,
+          1920,
+        ),
+      ),
+    );
+    const id = await h.tx.run((t) => h.media.normalize(t, h.file.id));
+    await h.media.jobs.run({ jobId: id });
+    clock.advance(5000);
+    await h.media.jobs.run({ jobId: id });
+    const job = await db.mediaJob.findUniqueOrThrow({ where: { id } });
+    expect(job.state).toBe("succeeded");
+    expect(h.stamp).toHaveBeenCalledOnce();
+    const fileId = (job.output as { fileId: string }).fileId;
+    expect((await db.mediaInfo.findUniqueOrThrow({ where: { fileId } })).aigcMeta).toEqual(
+      JSON.parse(h.stamp.mock.calls[0]![0].aigcJson),
+    );
+  });
+  it("云规格化回查不得给未确认来源补写默认平台", async () => {
+    const h = await fixture({ ai: true, sourceScope: "none" });
+    remoteFixtures(h);
+    const id = await h.tx.run((t) => h.media.normalize(t, h.file.id));
+    await h.media.jobs.run({ jobId: id });
+    clock.advance(5000);
+    await h.media.jobs.run({ jobId: id });
+    expect(await db.mediaJob.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      state: "failed",
+      errorCode: "MEDIA_AIGC_SOURCE_UNCONFIRMED",
+    });
+    expect(h.stamp).not.toHaveBeenCalled();
+    expect(await db.productionRecord.count({ where: { derivedFromFileId: h.file.id } })).toBe(0);
   });
   it("补标独立回读不一致为failed，零派生context/零ready事件", async () => {
     const h = await fixture({ ai: true });

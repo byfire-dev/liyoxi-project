@@ -148,7 +148,16 @@ export function createRuntimeMediaProduction(
   };
   const production: MediaProductionDeps =
     "aigc" in configured
-      ? { ...common, config: { aigc: configured.aigc, templates: configured.templates } }
+      ? {
+          ...common,
+          config: {
+            aigc: configured.aigc,
+            templates: configured.templates,
+            ...(configured.aigcSourceFileIds !== undefined
+              ? { aigcSourceFileIds: configured.aigcSourceFileIds }
+              : {}),
+          },
+        }
       : { ...common, mode: configured.mode, config: null };
   return {
     production,

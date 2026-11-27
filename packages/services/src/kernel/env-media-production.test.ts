@@ -89,6 +89,27 @@ describe("制作成组FILE配置", () => {
       loadEnv({ ...base, MEDIA_PRODUCTION_FILE: file("valid", valid) }).MEDIA_PRODUCTION,
     ).toEqual(valid);
   });
+  it("明确来源范围支持空列表和UUIDv7，拒绝通配、错型和超长列表", () => {
+    const source = "019ac7d1-7d00-7000-8000-000000000001";
+    for (const ids of [[], [source]]) {
+      const configured = { ...valid, aigcSourceFileIds: ids };
+      expect(
+        loadEnv({ ...base, MEDIA_PRODUCTION_FILE: file(`source-scope-${ids.length}`, configured) })
+          .MEDIA_PRODUCTION,
+      ).toEqual(configured);
+    }
+    for (const [index, ids] of ["*", ["*"], ["not-a-file"], Array(1001).fill(source)].entries()) {
+      expect(() =>
+        loadEnv({
+          ...base,
+          MEDIA_PRODUCTION_FILE: file(`source-invalid-${index}`, {
+            ...valid,
+            aigcSourceFileIds: ids,
+          }),
+        }),
+      ).toThrow(EnvError);
+    }
+  });
   it.each(["local", "test"])("%s 显式纯体检只需目录和socket，不补主体或云模板", (appEnv) => {
     const loaded = loadEnv({
       ...base,

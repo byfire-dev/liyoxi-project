@@ -280,6 +280,13 @@ export function createCloudProductionHandler(deps: BoundMediaDeps, kind: Kind): 
       const ai =
         playableInput?.aiUsed ??
         (facts.production?.aiUsage as { used?: boolean } | undefined)?.used === true;
+      if (
+        ai &&
+        !upstream?.success &&
+        production.config.aigcSourceFileIds !== undefined &&
+        !production.config.aigcSourceFileIds.includes(facts.file.id)
+      )
+        return failure("MEDIA_AIGC_SOURCE_UNCONFIRMED");
       const label = upstream?.success
         ? upstream.data
         : ai

@@ -192,6 +192,12 @@ export function createRestampHandler(deps: BoundMediaDeps): MediaJobHandler {
         if (!before.ok) return failure("MEDIA_PROBE_FAILED", before.reason === "unavailable");
         const upstream = parseLabel(before.value.aigc);
         if (before.value.aigc !== null && !upstream) return failure("MEDIA_AIGC_INVALID");
+        if (
+          !upstream &&
+          production.config.aigcSourceFileIds !== undefined &&
+          !production.config.aigcSourceFileIds.includes(facts.file.id)
+        )
+          return failure("MEDIA_AIGC_SOURCE_UNCONFIRMED");
         const label =
           upstream ??
           LabelSchema.parse({
