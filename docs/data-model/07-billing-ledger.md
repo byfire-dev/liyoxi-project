@@ -13,7 +13,7 @@
 这组表回答三个问题：现在卖什么价、每个主体买了什么、每个主体还有多少积分。
 
 1. **价目与参数**（7 张）：`plan`、`plan_revision`、`plan_promo_claim`、`point_pack`、`price_tier_revision`、`drama_price_revision`、`billing_param`。价目按时间取值：`effective_at ≤ t` 且未撤销的最新一行就是当前值，到点不需要任何任务去切换。单据在下单时保存快照，调价只影响之后的单据。
-2. **订阅**（4 张）：`billing_account`、`subscription_term`、`subscription_event`、`subscription_event_daily_supplement`、`grant_schedule`。一次套餐购买对应一个周期；周期与发放计划自带到期时间，由幂等的 `advance()` 在写操作开头与每分钟扫描时推进。
+2. **订阅**（5 张）：`billing_account`、`subscription_term`、`subscription_event`、`subscription_event_daily_supplement`、`grant_schedule`。一次套餐购买对应一个周期；周期与发放计划自带到期时间，由幂等的 `advance()` 在写操作开头与每分钟扫描时推进。
 3. **账本**（5 张）：`point_lot`、`point_hold`、`point_hold_alloc`、`ledger_operation`、`point_ledger_entry`。积分按批次存放，余额是批次的汇总缓存；每次变动写只增流水（批次内桶到桶的数量移动）。
 4. **派生与领域申请单**（5 张）：`billing_entity_daily`、`valuation_policy`、`point_entry_valuation` 由流水回放得出，可重算；`point_adjustment_request`、`term_extension_request` 是与审批单一对一的领域表。
 
@@ -1309,6 +1309,34 @@ billing.I11：估值守恒——每个批次“净确认收入 + 转出 + 剩余
 - 补执行结果六列：实际作用的周期、执行方式、前后止日、账本操作、执行时刻（catalogue purpose：“与执行结果”；内容对应 `extended` 事件的 payload，d1:1032）。
 - 审批类型名由 `plan.extend` 改为 `subscription_extend`（catalogue enums_shared 的 approval_kind）。
 
+### 2.22 `subscription_event_daily_supplement` 旧订阅日快照恢复凭据
+
+只增表；不修改原事件，不构造收款、积分或派生投影。本迁移只建结构；证据核验、受保护追加、读取兼容由后续服务改动交付。
+
+| 列 | 类型 | 可空 | 默认 | 含义 | 依据 |
+| --- | --- | --- | --- | --- | --- |
+| `id` | uuid | 否 | — | 恢复记录 ID | 2026-11-27 旧历史恢复授权 |
+| `event_id` | uuid | 否 | — | 被补充的唯一原事件 | 2026-11-27 旧历史恢复授权 |
+| `entity_id` | uuid | 否 | — | 原事件主体 | 2026-11-27 旧历史恢复授权 |
+| `subscription_term_id` | uuid | 否 | — | 原事件周期 | 2026-11-27 旧历史恢复授权 |
+| `event_fingerprint` | text | 否 | — | 完整原事件的规范 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `payload` | jsonb | 否 | — | 通过正式 Schema 的候选 payload | 2026-11-27 旧历史恢复授权 |
+| `payload_hash` | text | 否 | — | 规范候选 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `evidence` | jsonb | 否 | — | 恢复时冻结的可交叉核验证据 | 2026-11-27 旧历史恢复授权 |
+| `evidence_hash` | text | 否 | — | 规范证据 SHA256 | 2026-11-27 旧历史恢复授权 |
+| `strategy` | text | 否 | — | 固定 legacy_activation_v1 | 2026-11-27 旧历史恢复授权 |
+| `source_sha` | text | 否 | — | 执行恢复的完整源码 SHA | 2026-11-27 旧历史恢复授权 |
+| `baseline_sha` | text | 否 | — | 原在役源码 SHA | 2026-11-27 旧历史恢复授权 |
+| `authorized_by_staff_id` | uuid | 否 | — | 本次授权的真实员工，区别于原操作人 | 2026-11-27 旧历史恢复授权 |
+| `operator` | text | 否 | — | 本次运维执行者标识 | 2026-11-27 旧历史恢复授权 |
+| `reason` | text | 否 | — | 本次授权依据与恢复原因 | 2026-11-27 旧历史恢复授权 |
+| `created_at` | timestamptz | 否 | — | 实际恢复时间 | 2026-11-27 旧历史恢复授权 |
+
+主键 `id`；`event_id` 唯一。`(event_id, entity_id, subscription_term_id)` 通过复合外键绑定原事件同一三元组；原事件新增候选唯一索引，授权员工引用 `staff.id`。两 FK 的 UPDATE/DELETE 都 RESTRICT。
+
+六个 CHECK 约束 SHA256、完整源码 SHA、策略、JSON 对象、非空执行者与理由；两个触发器拦截 UPDATE/DELETE/TRUNCATE。应用角色只授 INSERT/SELECT，readonly 继承迁移属主默认 SELECT。证据属于账务内部数据，不增加 HTTP 暴露。
+
+
 ## 3. 枚举汇总
 
 枚举列一律 `text` + CHECK，取值的唯一来源是 `packages/contract` 的 Zod enum。新增取值先声明、下一版再写入。
@@ -1680,30 +1708,3 @@ d1 第 9 节的检查项在 `billing/invariants.ts` 登记为 `InvariantCheck`�
 | 旧列名扫描的 7 处都不改：`grant_schedule`、`point_entry_valuation`、`point_pack`、`valuation_policy` 的 4 处是第二轮修订记录里的改名原文；`drama.tier_changed` 是 05 分组的事件名；`plan.extend` 是草案的审批类型名；`ad.cancel_deduction_bp` 是 d3 的参数键名（说明它为何落成 `cancelDeductionBp` 的子键） | 2.21、4.3、5.5、第 7 节 | `review/stale-07-billing-ledger.md` |
 
 **接口阶段回写（2026-10-03）**：按接口契约阶段的裁决（[../api/working/api-rulings.md](../api/working/api-rulings.md) 的 A156）改了本文少量说明：`revokeTermForExternalRefund` 遇周期正挂在退款申请闸门上时不回收、不迁移、不清标记，返回 `heldByRefundRequestId`，由 08 另开 `entitlement_unrecovered`；删去“一并收口并返回申请 id、由 08 同事务处理该申请”的说法（2.9 列说明、周期状态机与闸门标记表、入口说明，4.4 周期事件载荷去掉 `closedRefundRequestId`，5.3 外部引用），与 08-billing-payment.md:780 一致。表结构与约束未变，Prisma 只改 `refundRequestId` 的注释。
-
-### 2.22 `subscription_event_daily_supplement` 旧订阅日快照恢复凭据
-
-只增表；不修改原事件，不构造收款、积分或派生投影。本迁移只建结构；证据核验、受保护追加、读取兼容由后续服务改动交付。
-
-| 字段 | 类型 | 可空 | 默认 | 含义 | 依据 |
-| --- | --- | --- | --- | --- | --- |
-| `id` | uuid | 否 | — | 恢复记录 ID | 2026-11-27 旧历史恢复授权 |
-| `event_id` | uuid | 否 | — | 被补充的唯一原事件 | 2026-11-27 旧历史恢复授权 |
-| `entity_id` | uuid | 否 | — | 原事件主体 | 2026-11-27 旧历史恢复授权 |
-| `subscription_term_id` | uuid | 否 | — | 原事件周期 | 2026-11-27 旧历史恢复授权 |
-| `event_fingerprint` | text | 否 | — | 完整原事件的规范 SHA256 | 2026-11-27 旧历史恢复授权 |
-| `payload` | jsonb | 否 | — | 通过正式 Schema 的候选 payload | 2026-11-27 旧历史恢复授权 |
-| `payload_hash` | text | 否 | — | 规范候选 SHA256 | 2026-11-27 旧历史恢复授权 |
-| `evidence` | jsonb | 否 | — | 恢复时冻结的可交叉核验证据 | 2026-11-27 旧历史恢复授权 |
-| `evidence_hash` | text | 否 | — | 规范证据 SHA256 | 2026-11-27 旧历史恢复授权 |
-| `strategy` | text | 否 | — | 固定 legacy_activation_v1 | 2026-11-27 旧历史恢复授权 |
-| `source_sha` | text | 否 | — | 执行恢复的完整源码 SHA | 2026-11-27 旧历史恢复授权 |
-| `baseline_sha` | text | 否 | — | 原在役源码 SHA | 2026-11-27 旧历史恢复授权 |
-| `authorized_by_staff_id` | uuid | 否 | — | 本次授权的真实员工，区别于原操作人 | 2026-11-27 旧历史恢复授权 |
-| `operator` | text | 否 | — | 本次运维执行者标识 | 2026-11-27 旧历史恢复授权 |
-| `reason` | text | 否 | — | 本次授权依据与恢复原因 | 2026-11-27 旧历史恢复授权 |
-| `created_at` | timestamptz | 否 | — | 实际恢复时间 | 2026-11-27 旧历史恢复授权 |
-
-主键 `id`；`event_id` 唯一。`(event_id, entity_id, subscription_term_id)` 通过复合外键绑定原事件同一三元组；原事件新增候选唯一索引，授权员工引用 `staff.id`。两 FK 的 UPDATE/DELETE 都 RESTRICT。
-
-六个 CHECK 约束 SHA256、完整源码 SHA、策略、JSON 对象、非空执行者与理由；两个触发器拦截 UPDATE/DELETE/TRUNCATE。应用角色只授 INSERT/SELECT，readonly 继承迁移属主默认 SELECT。证据属于账务内部数据，不增加 HTTP 暴露。
