@@ -243,9 +243,9 @@ export function createAccountController(deps: AccountDeps) {
       if (epoch !== generation) return "failed";
       if (result.needPhone || !result.token || !result.me) return "needPhone";
       adoptSession(result.token, result.me);
-      const adopted = generation;
-      await controller.bootstrap().catch(() => undefined);
-      return adopted === generation && result.token === deps.token() ? "ok" : "failed";
+      // 请求层的 401 恢复应在拿到会话后结束；配置刷新不延长该恢复事务。
+      void controller.bootstrap().catch(() => undefined);
+      return "ok";
     },
     async reloadMe(preferred?: string | null) {
       const epoch = generation;
