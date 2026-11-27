@@ -85,6 +85,12 @@ export const GRANT_SCHEDULE_STATUS = defineEnum(
   ["pending", "granted", "cancelled"],
 );
 
+export const SUBSCRIPTION_EVENT_DAILY_SUPPLEMENT_STRATEGY = defineEnum(
+  "subscription_event_daily_supplement_strategy",
+  ["subscription_event_daily_supplement.strategy"],
+  ["legacy_activation_v1"],
+);
+
 export const POINT_LOT_SOURCE_TYPE = defineEnum(
   "point_lot_source_type",
   ["point_lot.source_type"],
