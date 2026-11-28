@@ -211,19 +211,22 @@ export const deliveryHandlers = [
       ),
     ),
   ),
-  defineAdminHandler(adminDeliveryTicketPushPackage, edit, async (c, s) =>
-    ok(
-      c,
-      PushPackageResultSchema.parse(
-        await deliveryOf(c.var.runtime).packagePush(
-          c.var.identity!,
-          s.ctx,
-          c.req.valid("param").deliveryTicketId,
-          c.req.valid("json"),
-          { idem: idemOf(c) },
+  defineAdminHandler(
+    adminDeliveryTicketPushPackage,
+    { module: "publish", need: "edit" },
+    async (c, s) =>
+      ok(
+        c,
+        PushPackageResultSchema.parse(
+          await deliveryOf(c.var.runtime).packagePush(
+            c.var.identity!,
+            { ...s.ctx, scope: s.taskScope },
+            c.req.valid("param").deliveryTicketId,
+            c.req.valid("json"),
+            { idem: idemOf(c) },
+          ),
         ),
       ),
-    ),
   ),
 
   defineAdminHandler(adminDeliveryTicketList, read, async (c, s) => {
