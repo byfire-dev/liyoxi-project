@@ -38,6 +38,8 @@ let api: TestApi,
   stranger: SignedInMerchant,
   admin: SignedInStaff,
   limited: SignedInStaff,
+  publisher: SignedInStaff,
+  editor: SignedInStaff,
   qc: SignedInStaff;
 let prisma: Awaited<ReturnType<typeof handle.db.prisma>>,
   make: ReturnType<typeof createFactories>,
@@ -133,6 +135,8 @@ beforeAll(async () => {
   admin = await signInAsStaff(prisma, { roleKey: "super_admin", now: api.clock.now() });
   qc = await signInAsStaff(prisma, { roleKey: "super_admin", now: api.clock.now() });
   limited = await signInAsStaff(prisma, { roleKey: "publisher", now: api.clock.now() });
+  publisher = await signInAsStaff(prisma, { roleKey: "publisher", now: api.clock.now() });
+  editor = await signInAsStaff(prisma, { roleKey: "editor", now: api.clock.now() });
   const entity = await make.entity({
       createdByUserId: owner.merchantUserId,
       verificationStatus: "verified",
@@ -454,15 +458,40 @@ it("四条实际登录HTTP链：Q9相册零签拒绝、勾选确认、成片900�
     keyring: () => security.loadKeyring(runtime.env),
   });
   await license.prepareInputs([itemId]);
+  await prisma.deliveryTicket.update({
+    where: { id: ticketId },
+    data: { publisherId: publisher.staff.id },
+  });
+  const pushBody = { precheck: await checks("delivery.precheck") };
+  // 普通发布专员只有 delivery:view；必须按 publish 本人任务权限推送。
+  expect(
+    (await request("admin.deliveryTicket.pushPackage", pushBody, limited.headers)).status,
+  ).toBe(404);
+  expect((await request("admin.deliveryTicket.pushPackage", pushBody, editor.headers)).status).toBe(
+    403,
+  );
+  const unready = await request("admin.deliveryTicket.pushPackage", pushBody, publisher.headers);
+  expect(unready.status, await unready.clone().text()).toBe(409);
+  expect(await unready.json()).toMatchObject({
+    error: "PACKAGE_PUSH_BLOCKED",
+    details: { blockers: expect.arrayContaining([{ code: "license_letter_missing" }]) },
+  });
+  expect(await prisma.deliveryRelease.count({ where: { deliveryTicketId: ticketId } })).toBe(0);
   await license.prepareReady([itemId]);
+  const pushKey = uuidv7();
   const pushed = await data(
-    await request(
-      "admin.deliveryTicket.pushPackage",
-      { precheck: await checks("delivery.precheck") },
-      qc.headers,
-    ),
+    await request("admin.deliveryTicket.pushPackage", pushBody, publisher.headers, pushKey),
   );
   releaseId = (pushed.release as { deliveryReleaseId: string }).deliveryReleaseId;
+  expect(
+    await data(
+      await request("admin.deliveryTicket.pushPackage", pushBody, publisher.headers, pushKey),
+    ),
+  ).toMatchObject({ replayed: true, release: { deliveryReleaseId: releaseId } });
+  expect(await prisma.deliveryRelease.count({ where: { deliveryTicketId: ticketId } })).toBe(1);
+  expect(
+    await prisma.deliveryRelease.findUniqueOrThrow({ where: { id: releaseId } }),
+  ).toMatchObject({ pushedByStaffId: publisher.staff.id });
   const zero = await writes();
   const releaseResponse = await request("m.orderItem.release.get"),
     release = ReleaseViewSchema.parse(await data(releaseResponse));

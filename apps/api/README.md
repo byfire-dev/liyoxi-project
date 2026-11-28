@@ -189,7 +189,7 @@ const response = await request("/api/v1/admin/…", { method: "POST", json: {…
 
 - `signInAsStaff(db, { roleKey?, isLead?, now?, staffGroupId?, staff?, origin? })`：直接建员工与会话行（库里没有那个角色就照种子补上），返回 `{ staff, sessionId, sessionToken, headers }`；`headers` 是会话 Cookie、`X-LYX-Admin`、`Origin`，原样带上即可。会话从可拨时钟的缺省起点算起，时钟拨过 60 分钟不活动或 12 小时照常过期，要别的时刻传 `now`。
 - 测试支架的运行时带现造的假密钥（`fakeKeyEnv`）：`runtime.staffAuth` 装得起来；字段加密那两份与测试数据工厂的密钥环同一组字节。要真走一遍登录（引导、激活、绑定）的照 `test/admin-auth.test.ts`，库要先播种（`runSeed`）。
-- 权限矩阵回放 `test/admin-matrix.test.ts`：生产清单里全部要会话的后台路由 × 8 个角色 × 主管与否，期望由上面两处声明与角色的代码默认配置算出，先对黄金文件 `golden/admin-permission-matrix.txt`（一条路由一行），再逐格请求比“是不是 403 `PERMISSION_DENIED`”（回放时处理器换成空壳，不执行业务）。加了后台接口后重写黄金文件，只应多出自己路由的行，不手改：
+- 权限矩阵回放 `test/admin-matrix.test.ts`：生产清单里全部要会话的后台路由 × 8 个角色 × 主管与否，期望由上面两处声明与角色的代码默认配置算出，先对黄金文件 `infra/ci/fixtures/admin-permission-matrix-publisher.txt`（一条路由一行），再逐格请求比“是不是 403 `PERMISSION_DENIED`”（回放时处理器换成空壳，不执行业务）。加了后台接口后重写黄金文件，只应多出自己路由的行，不手改：
 
 ```sh
 LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts

@@ -3,7 +3,7 @@
 // 权限点取路由的 x-permission，角色取代码默认配置），先与黄金文件逐字比对，再对应用逐格发请求，
 // 比“是不是 403 PERMISSION_DENIED”。回放时处理器换成空壳：只看鉴权链的结论，不执行业务。
 //
-// 黄金文件 golden/admin-permission-matrix.txt 一条路由一行。之后每个后台接口包合并时只增自己路由的行，不手改：
+// 黄金文件 infra/ci/fixtures/admin-permission-matrix-publisher.txt 一条路由一行。之后每个后台接口包合并时只增自己路由的行，不手改：
 //   LYX_UPDATE_GOLDEN=1 pnpm exec vitest run --project api test/admin-matrix.test.ts
 // 已有的行变了（改了某条路由的模块要求或权限点、改了角色的默认配置）要在 PR 描述里说明。
 import { readFileSync, writeFileSync } from "node:fs";
@@ -33,7 +33,9 @@ import { useTestApi } from "../src/testing/index.js";
 
 import { ADMIN_SAMPLE_HANDLERS } from "./admin-fixtures.js";
 
-const GOLDEN = fileURLToPath(new URL("../golden/admin-permission-matrix.txt", import.meta.url));
+const GOLDEN = fileURLToPath(
+  new URL("../../../infra/ci/fixtures/admin-permission-matrix-publisher.txt", import.meta.url),
+);
 const HEADER = [
   "# 后台权限矩阵的黄金文件（W1-01a；D4 第 11.3 节）。已挂载、要会话的后台路由一条一行，按 operationId 排。",
   "# 各栏：operationId | 模块要求（模块:view 或 edit；没有写 -）| 权限点（没有写 -）| 8 个角色各两格（非主管、主管）：1 放行，0 拒绝",
